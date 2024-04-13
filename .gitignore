@@ -89,5 +89,44 @@ fastlane/test_output
 
 iOSInjectionProject/
 
-# Other
+# Dependency directories
+/node_modules
+/.pnp
+.pnp.js
+
+# Debugging / Development
+.vscode/
+/.expo/
 .DS_Store
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+/exponent-indexeddb-data
+/node/
+
+# Build / Bundling / Compilation
+/dist/
+/build/
+/ios/build/
+/android/build/
+
+# Environment variables
+.env*
+
+# Miscellaneous
+*.swp
+*.tmp
+
+# IDE / Editor specific
+.idea/
+*.sublime-project
+*.sublime-workspace
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Expo
+.expo
