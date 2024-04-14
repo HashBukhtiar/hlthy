@@ -1,21 +1,25 @@
 import { StyleSheet } from 'react-native';
 
+
 export default StyleSheet.create({
   title: {
-    fontSize: 30,
+    fontSize: 40,
     fontWeight: 'bold',
+    fontFamily: 'System',
+    color: 'white',
     paddingTop: 40,
     paddingLeft: 10,
   },
   subtitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    alignItems: 'center',
-    justifyContent: 'center',
+    fontSize: 22,
+    fontFamily: 'System',
+    paddingLeft: 10,
+    color: 'white',
   },
   caption: {
-    fontSize: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
+    paddingLeft: 10,
+    fontSize: 18,
+    fontFamily: 'System',
+    color: 'white',
   },
 });
