@@ -7,8 +7,8 @@ export default StyleSheet.create({
     fontWeight: 'bold',
     fontFamily: 'System',
     color: 'white',
-    paddingTop: 40,
     paddingLeft: 10,
+    textAlign: 'center',
   },
   subtitle: {
     fontSize: 22,
