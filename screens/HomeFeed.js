@@ -10,15 +10,17 @@ export default function HomeFeed() {
       <ScrollView contentContainerStyle={styles.postsContainer}>
         <Text style={{color:'white'}}>Posts will go here</Text>
       </ScrollView>
+      <View>
+        {renderBottomButtons()}
+      </View>
+    </View>
+    );
+
+  function renderBottomButtons() {
+    return (
       <View style={styles.buttonContainer}>
         <TouchableOpacity style={styles.button} onPress={() => {console.log("HomeFeed pressed")}}>
           <Text style={styles.buttonText}>HomeFeed</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.button} onPress={() => {console.log("Milestones pressed")}}>
-          <Text style={styles.buttonText}>Milestones</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.button} onPress={() => {console.log("Search pressed")}}>
-          <Text style={styles.buttonText}>Search</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.button} onPress={() => {console.log("Workouts pressed")}}>
           <Text style={styles.buttonText}>Workouts</Text>
@@ -27,10 +29,11 @@ export default function HomeFeed() {
           <Text style={styles.buttonText}>Profile</Text>
         </TouchableOpacity>
       </View>
-    </View>
     );
   }
-  
+
+}
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,

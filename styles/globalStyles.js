@@ -3,12 +3,11 @@ import { StyleSheet } from 'react-native';
 
 export default StyleSheet.create({
   title: {
-    fontSize: 40,
+    fontSize: 35,
     fontWeight: 'bold',
     fontFamily: 'System',
     color: 'white',
     paddingLeft: 10,
-    textAlign: 'center',
   },
   subtitle: {
     fontSize: 22,
