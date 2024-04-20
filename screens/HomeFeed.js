@@ -7,9 +7,8 @@ import { StyleSheet,
   TouchableOpacity, 
   TextInput } from 'react-native';
 import globalStyles from '../styles/globalStyles';
-import icon from '../assets/icon.png';
-import milestonesIcon from '../assets/milestonesIcon.png';
 import React, { useState } from 'react';
+import { icon, milestonesIcon } from '../assets/images';
 
 export default function HomeFeed() {
   const [searchText, setSearchText] = useState('');
