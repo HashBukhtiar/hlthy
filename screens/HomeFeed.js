@@ -8,9 +8,17 @@ import { StyleSheet,
   TextInput } from 'react-native';
 import globalStyles from '../styles/globalStyles';
 import React, { useState } from 'react';
-import { icon, milestonesIcon } from '../assets/images';
+import { 
+  icon, 
+  milestonesIcon, 
+  activityIcon, 
+  homeIcon, 
+  exploreIcon,
+  workoutsIcon, 
+  profileIcon,
+} from '../assets/images';
 
-export default function HomeFeed() {
+export default function HomeFeed( {navigation} ) {
   const [searchText, setSearchText] = useState('');
   return (
     <View style={styles.container}>
@@ -35,6 +43,7 @@ export default function HomeFeed() {
     return (
       <View style={styles.topBar}>
         <Image source={icon} style={{ width: 40, height: 40, borderRadius:5 }} />
+        {/*
         <TextInput
           style={styles.searchBar}
           placeholder="Search"
@@ -46,12 +55,10 @@ export default function HomeFeed() {
         {/*<TouchableOpacity onPress={clearSearch}>
           <Text style={{color: 'white'}}>X</Text>
         </TouchableOpacity>*/}
-        <TouchableOpacity onPress={() => {console.log("Milestones pressed")}}>
-          <Image source={milestonesIcon} style={{ width: 40, height: 40, borderRadius:5 }} />
-        </TouchableOpacity>
+        <Text style={globalStyles.title}>hlthy</Text>
         <View style={styles.postButtonView}>
-          <TouchableOpacity onPress={() => {console.log("POST pressed")}}>
-            <Text style={{color: 'black', padding:4}}>+ POST</Text>
+          <TouchableOpacity onPress={() => {navigation.navigate('Activity')}}>
+            <Image source={activityIcon} style={{ width: 40, height: 40, borderRadius:5 }} />
           </TouchableOpacity>
         </View>
       </View>
@@ -62,13 +69,21 @@ export default function HomeFeed() {
     return (
       <View style={styles.bottomButtonContainer}>
         <TouchableOpacity style={styles.button} onPress={() => {console.log("HomeFeed pressed")}}>
-          <Text style={styles.buttonText}>HomeFeed</Text>
+          <Image source={homeIcon} style={{ width: 40, height: 40, borderRadius:5 }} />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.button} onPress={() => {console.log("Explore pressed")}}>
+          <Image source={exploreIcon} style={{ width: 40, height: 40, borderRadius:5 }} />
+        </TouchableOpacity>
+        <TouchableOpacity 
+          onPress={() => {console.log("POST pressed")}}
+          style={styles.postButton}>
+            <Text style={{color: 'white', fontSize:40}}>+</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.button} onPress={() => {console.log("Workouts pressed")}}>
-          <Text style={styles.buttonText}>Workouts</Text>
+          <Image source={workoutsIcon} style={{ width: 40, height: 40, borderRadius:5 }} />
         </TouchableOpacity>
         <TouchableOpacity style={styles.button} onPress={() => {console.log("Profile pressed")}}>
-          <Text style={styles.buttonText}>Profile</Text>
+          <Image source={profileIcon} style={{ width: 40, height: 40, borderRadius:5 }} />
         </TouchableOpacity>
       </View>
     );
@@ -92,11 +107,10 @@ const styles = StyleSheet.create({
   bottomButtonContainer: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    marginBottom: 10,
+    marginBottom: 5,
+    marginTop: 5
   },
   button: {
-    borderWidth: 1,
-    borderColor: 'white',
     padding: 10,
     borderRadius: 5,
   },
@@ -105,7 +119,8 @@ const styles = StyleSheet.create({
   },
   topBar: {
     flexDirection: 'row',
-    marginBottom: 5
+    marginBottom: 5,
+    justifyContent: 'space-between',
   },
   searchBar: {
     height: 40,
@@ -114,16 +129,16 @@ const styles = StyleSheet.create({
     paddingLeft: 10,
     borderRadius: 10,
     flex: 1,
-    marginRight: 5,
     marginLeft: 5
   },
-  postButtonView: {
-    alignItems: 'center', 
-    borderWidth: 2, 
-    borderRadius: 5, 
-    borderColor: 'pink',
+  postButton: {
+    width: 50, 
+    height: 50, 
+    borderRadius: 25, 
     backgroundColor: 'pink', 
-    padding: 5, 
-    marginLeft:5
+    justifyContent: 'center', 
+    alignItems: 'center',
+    paddingBottom: 5,
+    marginTop: 5
   }
 });
