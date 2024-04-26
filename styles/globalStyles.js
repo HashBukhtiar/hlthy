@@ -21,4 +21,8 @@ export default StyleSheet.create({
     fontFamily: 'System',
     color: 'white',
   },
+  background: {
+    backgroundColor: 'black',
+    flex: 1
+  }
 });
