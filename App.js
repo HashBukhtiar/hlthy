@@ -3,6 +3,7 @@ import { SafeAreaView, StyleSheet, View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import HomeFeed from './screens/HomeFeed';
+import Activity from './screens/Activity';
 
 const Stack = createStackNavigator();
 
@@ -14,6 +15,11 @@ export default function App() {
           <Stack.Screen 
             name="HomeFeed"
             component={HomeFeed} 
+            options={{headerShown: false}}
+          />
+          <Stack.Screen
+            name="Activity"
+            component={Activity}
             options={{headerShown: false}}
           />
         </Stack.Navigator>
