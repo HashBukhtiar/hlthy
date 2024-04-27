@@ -1,3 +1,4 @@
+import React, { useState } from 'react';
 import { 
     StyleSheet,
     View,
@@ -5,10 +6,32 @@ import {
     TouchableOpacity
  } from 'react-native';
 import globalStyles from '../styles/globalStyles';
+import { renderBottomButtons } from './HomeFeed';
 
- export default function Activity() {
+export default function Activity() {
+    const [activities, setActivities] = useState([]);
+
+    // Add new activity
+    const addActivity = (activity) => {
+        setActivities(prevActivities => [...prevActivities, activity]);
+    }
+
     return (
-        <View style={globalStyles.background}>
+        <View style={globalStyles.container}>
+            {renderHeaderButtons()}
+            <View style={activityStyles.activityListContainer}>
+                {activities.map((activity, index) => (
+                    <Text key={index}>{activity}</Text>
+                ))}
+            </View>
+            <View styles={globalStyles.bottomButtonContainer}>
+                {renderBottomButtons()}
+            </View>
+        </View>
+    );
+
+    function renderHeaderButtons() {
+        return (
             <View style={activityStyles.tabHeaderButtonsContainer}>
                 <TouchableOpacity style={activityStyles.tabHeaderButton} onPress={() => {console.log("Activity pressed")}}>
                     <Text style={activityStyles.tabHeader}>Activity</Text>
@@ -17,8 +40,8 @@ import globalStyles from '../styles/globalStyles';
                     <Text style={activityStyles.tabHeader}>Milestones</Text>
                 </TouchableOpacity>
             </View>
-        </View>
-    );
+        );
+    }
 }
 
 const activityStyles = StyleSheet.create({
@@ -42,4 +65,8 @@ const activityStyles = StyleSheet.create({
         fontFamily: 'System',
         paddingHorizontal: 10,
     },
+    activityListContainer: {
+        borderWidth: 1,
+        borderColor: 'white',
+    }
 });

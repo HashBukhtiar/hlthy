@@ -21,7 +21,7 @@ import {
 export default function HomeFeed( {navigation} ) {
   const [searchText, setSearchText] = useState('');
   return (
-    <View style={styles.container}>
+    <View style={globalStyles.container}>
       <View>
         {renderTopBar()}
       </View>
@@ -56,7 +56,7 @@ export default function HomeFeed( {navigation} ) {
           <Text style={{color: 'white'}}>X</Text>
         </TouchableOpacity>*/}
         <Text style={globalStyles.title}>hlthy</Text>
-        <View style={styles.postButtonView}>
+        <View>
           <TouchableOpacity onPress={() => {navigation.navigate('Activity')}}>
             <Image source={activityIcon} style={{ width: 40, height: 40, borderRadius:5 }} />
           </TouchableOpacity>
@@ -64,39 +64,33 @@ export default function HomeFeed( {navigation} ) {
       </View>
     );
   }
-    
-  function renderBottomButtons() {
-    return (
-      <View style={styles.bottomButtonContainer}>
-        <TouchableOpacity style={styles.button} onPress={() => {console.log("HomeFeed pressed")}}>
-          <Image source={homeIcon} style={{ width: 40, height: 40, borderRadius:5 }} />
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.button} onPress={() => {console.log("Explore pressed")}}>
-          <Image source={exploreIcon} style={{ width: 40, height: 40, borderRadius:5 }} />
-        </TouchableOpacity>
-        <TouchableOpacity 
-          onPress={() => {console.log("POST pressed")}}
-          style={styles.postButton}>
-            <Text style={{color: 'white', fontSize:40}}>+</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.button} onPress={() => {console.log("Workouts pressed")}}>
-          <Image source={workoutsIcon} style={{ width: 40, height: 40, borderRadius:5 }} />
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.button} onPress={() => {console.log("Profile pressed")}}>
-          <Image source={profileIcon} style={{ width: 40, height: 40, borderRadius:5 }} />
-        </TouchableOpacity>
-      </View>
-    );
-  }
+}
 
+export function renderBottomButtons() {
+  return (
+    <View style={globalStyles.bottomButtonContainer}>
+      <TouchableOpacity style={globalStyles.button} onPress={() => {console.log("HomeFeed pressed")}}>
+        <Image source={homeIcon} style={{ width: 40, height: 40, borderRadius:5 }} />
+      </TouchableOpacity>
+      <TouchableOpacity style={globalStyles.button} onPress={() => {console.log("Explore pressed")}}>
+        <Image source={exploreIcon} style={{ width: 40, height: 40, borderRadius:5 }} />
+      </TouchableOpacity>
+      <TouchableOpacity 
+        onPress={() => {console.log("POST pressed")}}
+        style={globalStyles.postButton}>
+          <Text style={{color: 'white', fontSize:40}}>+</Text>
+      </TouchableOpacity>
+      <TouchableOpacity style={globalStyles.button} onPress={() => {console.log("Workouts pressed")}}>
+        <Image source={workoutsIcon} style={{ width: 40, height: 40, borderRadius:5 }} />
+      </TouchableOpacity>
+      <TouchableOpacity style={globalStyles.button} onPress={() => {console.log("Profile pressed")}}>
+        <Image source={profileIcon} style={{ width: 40, height: 40, borderRadius:5 }} />
+      </TouchableOpacity>
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: 'black',
-    justifyContent: 'space-between',
-  },
   postsContainer: {
     flex: 1,
     borderWidth: 1, 
@@ -104,23 +98,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  bottomButtonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginBottom: 5,
-    marginTop: 5
-  },
-  button: {
-    padding: 10,
-    borderRadius: 5,
-  },
-  buttonText: {
-    color: 'white',
-  },
   topBar: {
     flexDirection: 'row',
-    marginBottom: 5,
     justifyContent: 'space-between',
+    borderBottomColor: 'red',
+    borderWidth: 1,
   },
   searchBar: {
     height: 40,
@@ -131,14 +113,4 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: 5
   },
-  postButton: {
-    width: 50, 
-    height: 50, 
-    borderRadius: 25, 
-    backgroundColor: 'pink', 
-    justifyContent: 'center', 
-    alignItems: 'center',
-    paddingBottom: 5,
-    marginTop: 5
-  }
 });
