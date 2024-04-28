@@ -45,7 +45,7 @@ export default function HomeFeed( {navigation} ) {
         <Image source={icon} style={{ width: 40, height: 40, borderRadius:5 }} />
         <Text style={globalStyles.title}>hlthy</Text>
         <View>
-          <TouchableOpacity onPress={() => {navigation.navigate('Activity')}}>
+          <TouchableOpacity activeOpacity={1} onPress={() => {navigation.navigate('Activity')}}>
             <Image source={activityIcon} style={{ width: 40, height: 40, borderRadius:5 }} />
           </TouchableOpacity>
         </View>

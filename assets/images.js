@@ -5,6 +5,7 @@ import homeIcon from './homeIcon.png';
 import workoutsIcon from './workoutsIcon.png';
 import profileIcon from './profileIcon.png';
 import exploreIcon from './exploreIcon.png';
+import postImage from './postImage.png';
 
 export { 
     icon, 
@@ -14,4 +15,5 @@ export {
     workoutsIcon,
     profileIcon,
     exploreIcon,
+    postImage,
 }
