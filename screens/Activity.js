@@ -11,10 +11,21 @@ import { renderBottomButtons } from './HomeFeed';
 
 export default function Activity() {
     const [activities, setActivities] = useState([]);
+    const [selectedTab, setSelectedTab] = useState('Activity'); // Track which tab is selected (Activity or Milestones)
 
     // Add new activity
     const addActivity = (activity) => {
         setActivities(prevActivities => [...prevActivities, activity]);
+    }
+
+    function selectActivity() {
+        console.log("Activity pressed");
+        setSelectedTab('Activity');
+    }
+
+    function selectMilestones() {
+        console.log("Milestones pressed");
+        setSelectedTab('Milestones');
     }
 
     return (
@@ -36,11 +47,11 @@ export default function Activity() {
     function renderHeaderButtons() {
         return (
             <View style={activityStyles.tabHeaderButtonsContainer}>
-                <TouchableOpacity style={activityStyles.tabHeaderButton} onPress={() => {console.log("Activity pressed")}}>
-                    <Text style={activityStyles.tabHeader}>Activity</Text>
+                <TouchableOpacity activeOpacity={1} style={activityStyles.tabHeaderButton} onPress={() => selectActivity()}>
+                    <Text style={selectedTab === 'Activity' ? activityStyles.selectedTabHeader : activityStyles.unselectedTabHeader}>Activity</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={activityStyles.tabHeaderButton} onPress={() => {console.log("Milestones pressed")}}>
-                    <Text style={activityStyles.tabHeader}>Milestones</Text>
+                <TouchableOpacity activeOpacity={1} style={activityStyles.tabHeaderButton} onPress={() => selectMilestones()}>
+                    <Text style={selectedTab === 'Milestones' ? activityStyles.selectedTabHeader : activityStyles.unselectedTabHeader}>Milestones</Text>
                 </TouchableOpacity>
             </View>
         );
@@ -60,9 +71,15 @@ const activityStyles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
     },
-    tabHeader: {
+    selectedTabHeader: {
         fontSize: 30,
         color: 'white',
+        fontFamily: 'System',
+        paddingHorizontal: 10,
+    },
+    unselectedTabHeader: {
+        fontSize: 30,
+        color: 'grey',
         fontFamily: 'System',
         paddingHorizontal: 10,
     },
