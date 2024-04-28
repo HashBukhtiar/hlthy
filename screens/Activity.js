@@ -3,7 +3,8 @@ import {
     StyleSheet,
     View,
     Text,
-    TouchableOpacity
+    TouchableOpacity,
+    ScrollView
  } from 'react-native';
 import globalStyles from '../styles/globalStyles';
 import { renderBottomButtons } from './HomeFeed';
@@ -18,12 +19,14 @@ export default function Activity() {
 
     return (
         <View style={globalStyles.container}>
-            {renderHeaderButtons()}
-            <View style={activityStyles.activityListContainer}>
+            <View>
+                {renderHeaderButtons()}
+            </View>
+            <ScrollView contentContainerStyle={activityStyles.activityListContainer}>
                 {activities.map((activity, index) => (
                     <Text key={index}>{activity}</Text>
                 ))}
-            </View>
+            </ScrollView>
             <View styles={globalStyles.bottomButtonContainer}>
                 {renderBottomButtons()}
             </View>
@@ -49,8 +52,6 @@ const activityStyles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-around',
         padding: 10,
-        borderWidth: 1,
-        borderColor: 'white'
     },
     tabHeaderButton: {
         padding: 5,
@@ -66,7 +67,10 @@ const activityStyles = StyleSheet.create({
         paddingHorizontal: 10,
     },
     activityListContainer: {
-        borderWidth: 1,
+        flex: 1,
+        borderWidth: 1, 
         borderColor: 'white',
+        justifyContent: 'center',
+        alignItems: 'center',
     }
 });

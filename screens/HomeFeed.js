@@ -43,18 +43,6 @@ export default function HomeFeed( {navigation} ) {
     return (
       <View style={styles.topBar}>
         <Image source={icon} style={{ width: 40, height: 40, borderRadius:5 }} />
-        {/*
-        <TextInput
-          style={styles.searchBar}
-          placeholder="Search"
-          placeholderTextColor={"white"}
-          color={"white"}
-          value={searchText}
-          onChangeText={setSearchText}
-        />
-        {/*<TouchableOpacity onPress={clearSearch}>
-          <Text style={{color: 'white'}}>X</Text>
-        </TouchableOpacity>*/}
         <Text style={globalStyles.title}>hlthy</Text>
         <View>
           <TouchableOpacity onPress={() => {navigation.navigate('Activity')}}>
