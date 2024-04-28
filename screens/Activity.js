@@ -35,26 +35,135 @@ export default function Activity() {
             <View>
                 {renderHeaderButtons()}
             </View>
-            <ScrollView contentContainerStyle={activityStyles.activityListContainer}>
-                {/*
-                {activities.map((activity, index) => (
-                    <Text key={index}>{activity}</Text>
-                ))}
-                */}
-                <View style={activityStyles.activityElement}>
-                    <View style={activityStyles.activityPostImage}>
-                        <Image source={profileIcon} style={activityStyles.postImageStyle} />
+            <View style={{flex:1}}>
+                <ScrollView contentContainerStyle={activityStyles.activityListContainer}>
+                    {/* Dynamically add activities (will need this eventually but not for now)
+                    {activities.map((activity, index) => (
+                        <Text key={index}>{activity}</Text>
+                    ))}
+                    */}
+                    <View style={activityStyles.activityElement}>
+                        <View style={activityStyles.activityPostImage}>
+                            <Image source={profileIcon} style={activityStyles.postImageStyle} />
+                        </View>
+                        <View style={{flex:1}}>
+                            <Text style={activityStyles.activityDescription}>
+                                <Text style={{fontWeight: 'bold'}}>@skibidisigmafanumtaxohiogyatt</Text> has requested to follow you.<Text style={{color:'grey'}}> 20s</Text>
+                            </Text>
+                        </View>
                     </View>
-                    <View>
-                        <Text style={activityStyles.activityDescription}>
-                            <Text style={{fontWeight: 'bold'}}>@username1</Text> has requested to follow you.
-                        </Text>
+                    <View style={activityStyles.activityElement}>
+                        <View style={activityStyles.activityPostImage}>
+                            <Image source={postImage} style={activityStyles.postImageStyle} />
+                        </View>
+                        <View style={{flex:1}}>
+                            <Text style={activityStyles.activityDescription}>
+                                <Text style={{fontWeight: 'bold'}}>@tangoholic</Text> has reacted to your post with 💪.<Text style={{color:'grey'}}> 2m</Text>
+                            </Text>
+                        </View>
                     </View>
-                    <View style={activityStyles.timestamp}>
-                        <Text style={{color: 'grey'}}>20s</Text>
+                    <View style={activityStyles.activityElement}>
+                        <View style={activityStyles.activityPostImage}>
+                            <Image source={postImage} style={activityStyles.postImageStyle} />
+                        </View>
+                        <View style={{flex:1}}>
+                            <Text style={activityStyles.activityDescription}>
+                                <Text style={{fontWeight: 'bold'}}>@neCHAD</Text> has reacted to your post with 🔥.<Text style={{color:'grey'}}> 54m</Text>
+                            </Text>
+                        </View>
                     </View>
-                </View>
-            </ScrollView>
+                    <View style={activityStyles.activityElement}>
+                        <View style={activityStyles.activityPostImage}>
+                            <Image source={profileIcon} style={activityStyles.postImageStyle} />
+                        </View>
+                        <View style={{flex:1}}>
+                            <Text style={activityStyles.activityDescription}>
+                                <Text style={{fontWeight: 'bold'}}>@neCHAD</Text> has requested to follow you.<Text style={{color:'grey'}}> 2h</Text>
+                            </Text>
+                        </View>
+                    </View>
+                    <View style={activityStyles.activityElement}>
+                        <View style={activityStyles.activityPostImage}>
+                            <Image source={profileIcon} style={activityStyles.postImageStyle} />
+                        </View>
+                        <View style={{flex:1}}>
+                            <Text style={activityStyles.activityDescription}>
+                                <Text style={{fontWeight: 'bold'}}>@skibidisigmafanumtaxohiogyatt</Text> has requested to follow you.<Text style={{color:'grey'}}> 20s</Text>
+                            </Text>
+                        </View>
+                    </View>
+                    <View style={activityStyles.activityElement}>
+                        <View style={activityStyles.activityPostImage}>
+                            <Image source={postImage} style={activityStyles.postImageStyle} />
+                        </View>
+                        <View style={{flex:1}}>
+                            <Text style={activityStyles.activityDescription}>
+                                <Text style={{fontWeight: 'bold'}}>@tangoholic</Text> has reacted to your post with 💪.<Text style={{color:'grey'}}> 2m</Text>
+                            </Text>
+                        </View>
+                    </View>
+                    <View style={activityStyles.activityElement}>
+                        <View style={activityStyles.activityPostImage}>
+                            <Image source={postImage} style={activityStyles.postImageStyle} />
+                        </View>
+                        <View style={{flex:1}}>
+                            <Text style={activityStyles.activityDescription}>
+                                <Text style={{fontWeight: 'bold'}}>@neCHAD</Text> has reacted to your post with 🔥.<Text style={{color:'grey'}}> 54m</Text>
+                            </Text>
+                        </View>
+                    </View>
+                    <View style={activityStyles.activityElement}>
+                        <View style={activityStyles.activityPostImage}>
+                            <Image source={profileIcon} style={activityStyles.postImageStyle} />
+                        </View>
+                        <View style={{flex:1}}>
+                            <Text style={activityStyles.activityDescription}>
+                                <Text style={{fontWeight: 'bold'}}>@neCHAD</Text> has requested to follow you.<Text style={{color:'grey'}}> 2h</Text>
+                            </Text>
+                        </View>
+                    </View>
+                    <View style={activityStyles.activityElement}>
+                        <View style={activityStyles.activityPostImage}>
+                            <Image source={profileIcon} style={activityStyles.postImageStyle} />
+                        </View>
+                        <View style={{flex:1}}>
+                            <Text style={activityStyles.activityDescription}>
+                                <Text style={{fontWeight: 'bold'}}>@skibidisigmafanumtaxohiogyatt</Text> has requested to follow you.<Text style={{color:'grey'}}> 20s</Text>
+                            </Text>
+                        </View>
+                    </View>
+                    <View style={activityStyles.activityElement}>
+                        <View style={activityStyles.activityPostImage}>
+                            <Image source={postImage} style={activityStyles.postImageStyle} />
+                        </View>
+                        <View style={{flex:1}}>
+                            <Text style={activityStyles.activityDescription}>
+                                <Text style={{fontWeight: 'bold'}}>@tangoholic</Text> has reacted to your post with 💪.<Text style={{color:'grey'}}> 2m</Text>
+                            </Text>
+                        </View>
+                    </View>
+                    <View style={activityStyles.activityElement}>
+                        <View style={activityStyles.activityPostImage}>
+                            <Image source={postImage} style={activityStyles.postImageStyle} />
+                        </View>
+                        <View style={{flex:1}}>
+                            <Text style={activityStyles.activityDescription}>
+                                <Text style={{fontWeight: 'bold'}}>@neCHAD</Text> has reacted to your post with 🔥.<Text style={{color:'grey'}}> 54m</Text>
+                            </Text>
+                        </View>
+                    </View>
+                    <View style={activityStyles.activityElement}>
+                        <View style={activityStyles.activityPostImage}>
+                            <Image source={profileIcon} style={activityStyles.postImageStyle} />
+                        </View>
+                        <View style={{flex:1}}>
+                            <Text style={activityStyles.activityDescription}>
+                                <Text style={{fontWeight: 'bold'}}>@neCHAD</Text> has requested to follow you.<Text style={{color:'grey'}}> 2h</Text>
+                            </Text>
+                        </View>
+                    </View>
+                </ScrollView>
+            </View>
             <View styles={globalStyles.bottomButtonContainer}>
                 {renderBottomButtons()}
             </View>
@@ -100,10 +209,7 @@ const activityStyles = StyleSheet.create({
         paddingHorizontal: 10,
     },
     activityListContainer: {
-        flex: 1,
-        borderWidth: 1, 
         padding: 5,
-        borderColor: 'white',
         justifyContent: 'flex-start',
         alignItems: 'center',
     },
@@ -112,6 +218,7 @@ const activityStyles = StyleSheet.create({
         borderColor: 'grey',
         padding: 5,
         flexDirection: 'row',
+        justifyContent: 'space-between',
         width: '100%',
     },
     activityPostImage: {
@@ -126,12 +233,12 @@ const activityStyles = StyleSheet.create({
         color: 'white',
         alignItems: 'center',
         width: '100%',
+        fontSize: 16,
+        flexShrink: 1,
     },
     timestamp:{
         color: 'grey',
         alignItems: 'center',
         alignSelf: 'flex-end',
-        borderWidth: 1,
-        borderColor: 'white',
     }
 });
