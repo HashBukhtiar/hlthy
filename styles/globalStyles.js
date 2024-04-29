@@ -8,9 +8,9 @@ export default StyleSheet.create({
     justifyContent: 'space-between',
   },
   title: {
-    fontSize: 35,
+    fontSize: 32,
     fontWeight: 'bold',
-    fontFamily: 'System',
+    fontFamily: 'comfortaa',
     color: 'white',
     paddingLeft: 10,
   },

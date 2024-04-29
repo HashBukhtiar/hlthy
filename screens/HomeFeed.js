@@ -7,7 +7,8 @@ import { StyleSheet,
   TouchableOpacity, 
   TextInput } from 'react-native';
 import globalStyles from '../styles/globalStyles';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+
 import { 
   icon, 
   milestonesIcon, 
@@ -17,9 +18,25 @@ import {
   workoutsIcon, 
   profileIcon,
 } from '../assets/images';
+import * as Font from 'expo-font';
+
 
 export default function HomeFeed( {navigation} ) {
   const [searchText, setSearchText] = useState('');
+  const [fontsLoaded, setFontsLoaded] = useState(false);
+  useEffect(() => {
+    async function loadFonts() {
+      await Font.loadAsync({
+        'comfortaa': require('../assets/Comfortaa-Bold.ttf'),
+      });
+      setFontsLoaded(true);
+    }
+    loadFonts();
+  }, []);
+
+  if (!fontsLoaded){
+    return null;
+  }
   return (
     <View style={globalStyles.container}>
       <View>
@@ -43,7 +60,7 @@ export default function HomeFeed( {navigation} ) {
     return (
       <View style={styles.topBar}>
         <Image source={icon} style={{ width: 40, height: 40, borderRadius:5 }} />
-        <Text style={globalStyles.title}>hlthy</Text>
+        <Text style={[globalStyles.title, { fontFamily: 'comfortaa' }]}>hlthy</Text>
         <View>
           <TouchableOpacity activeOpacity={1} onPress={() => {navigation.navigate('Activity')}}>
             <Image source={activityIcon} style={{ width: 40, height: 40, borderRadius:5 }} />
