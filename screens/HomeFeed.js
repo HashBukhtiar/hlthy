@@ -8,14 +8,10 @@ import {
   TouchableOpacity
   } from 'react-native';
 import globalStyles from '../styles/globalStyles';
-import React, { useState } from 'react';
+import React from 'react';
 import { 
   icon, 
   activityIcon, 
-  homeIcon, 
-  exploreIcon,
-  workoutsIcon, 
-  profileIcon,
 } from '../assets/images';
 
 export default function HomeFeed( {navigation} ) {
@@ -28,9 +24,6 @@ export default function HomeFeed( {navigation} ) {
       <ScrollView contentContainerStyle={styles.postsContainer}>
         <Text style={{color:'white'}}>Posts will go here</Text>
       </ScrollView>
-      <View>
-        {renderBottomButtons()}
-      </View>
     </View>
   );
     
@@ -47,30 +40,6 @@ export default function HomeFeed( {navigation} ) {
       </View>
     );
   }
-}
-
-export function renderBottomButtons() {
-  return (
-    <View style={globalStyles.bottomButtonContainer}>
-      <TouchableOpacity style={globalStyles.button} onPress={() => {console.log("HomeFeed pressed")}}>
-        <Image source={homeIcon} style={{ width: 40, height: 40, borderRadius:5 }} />
-      </TouchableOpacity>
-      <TouchableOpacity style={globalStyles.button} onPress={() => {console.log("Explore pressed")}}>
-        <Image source={exploreIcon} style={{ width: 40, height: 40, borderRadius:5 }} />
-      </TouchableOpacity>
-      <TouchableOpacity 
-        onPress={() => {console.log("POST pressed")}}
-        style={globalStyles.postButton}>
-          <Text style={{color: 'white', fontSize:40}}>+</Text>
-      </TouchableOpacity>
-      <TouchableOpacity style={globalStyles.button} onPress={() => {console.log("Workouts pressed")}}>
-        <Image source={workoutsIcon} style={{ width: 40, height: 40, borderRadius:5 }} />
-      </TouchableOpacity>
-      <TouchableOpacity style={globalStyles.button} onPress={() => {console.log("Profile pressed")}}>
-        <Image source={profileIcon} style={{ width: 40, height: 40, borderRadius:5 }} />
-      </TouchableOpacity>
-    </View>
-  );
 }
 
 const styles = StyleSheet.create({
