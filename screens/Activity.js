@@ -5,7 +5,9 @@ import {
     Text,
     Image,
     TouchableOpacity,
-    ScrollView
+    ScrollView,
+    Platform,
+    Haptics
 } from 'react-native';
 import { profileIcon, postImage } from '../assets/images';
 import globalStyles from '../styles/globalStyles';
@@ -14,6 +16,19 @@ import { renderBottomButtons } from './HomeFeed';
 export default function Activity() {
     const [activities, setActivities] = useState([]);
     const [selectedTab, setSelectedTab] = useState('Activity'); // Track which tab is selected (Activity or Milestones)
+    const [heartCount, setHeartCount] = useState({ count: 999999, selected: false });
+    const [strongCount, setStrongCount] = useState({ count: 999, selected: false });
+    const [fireCount, setFireCount] = useState({ count: 0, selected: false });
+
+    function formatCount(num) {
+        if (num >= 1000000) {
+            return Math.floor(num / 1000000) + 'M';
+        } else if (num >= 1000) {
+            return Math.floor(num / 1000) + 'K';
+        } else {
+            return num;
+        }
+    }
 
     // Add new activity
     const addActivity = (activity) => {
@@ -187,6 +202,13 @@ export default function Activity() {
         );
     }
 
+    function handlePress(countObj, setReaction) {
+        setReaction(prevState => ({
+            count: prevState.selected ? prevState.count - 1 : prevState.count + 1,
+            selected: !prevState.selected
+        }));
+    }
+
     function renderMilestonesList() {
         return (
             <ScrollView contentContainerStyle={activityStyles.activityListContainer}>
@@ -197,6 +219,8 @@ export default function Activity() {
             */}
             
                 <TouchableOpacity onPress={() => {console.log("milestone element pressed")}}>
+                    {/** WILL EVENTUALLY NEED TO ADD THESE DYNAMICALLY, LIKE ACTIVITIES */}
+
                     <View style={activityStyles.milestonesElement}>
                         {/** PFP Image View */}
                         <View style={activityStyles.milestonesPFPImage}>
@@ -210,6 +234,19 @@ export default function Activity() {
                                 <Text style={{color: 'white'}}>Bench Press: </Text> 
                                 <Text style={{color: 'orange'}}>225 lbs</Text>
                             </Text>
+
+                            {/* Reaction buttons */}
+                            <View style={activityStyles.reactionButtons}>
+                                <TouchableOpacity activeOpacity={1} onPress={() => handlePress(heartCount, setHeartCount)} style={heartCount.selected ? activityStyles.reactionButtonClicked : activityStyles.reactionButtonUnclicked}>
+                                    <Text style={heartCount.selected ? activityStyles.reactionTextClicked : activityStyles.reactionTextUnclicked}>❤️ {formatCount(heartCount.count)}</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity activeOpacity={1} onPress={() => handlePress(strongCount, setStrongCount)} style={strongCount.selected ? activityStyles.reactionButtonClicked : activityStyles.reactionButtonUnclicked}>
+                                    <Text style={strongCount.selected ? activityStyles.reactionTextClicked : activityStyles.reactionTextUnclicked}>💪 {formatCount(strongCount.count)}</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity activeOpacity={1} onPress={() => handlePress(fireCount, setFireCount)} style={fireCount.selected ? activityStyles.reactionButtonClicked : activityStyles.reactionButtonUnclicked}>
+                                    <Text style={fireCount.selected ? activityStyles.reactionTextClicked : activityStyles.reactionTextUnclicked}>🔥 {formatCount(fireCount.count)}</Text>
+                                </TouchableOpacity>
+                            </View>
                         </View>
 
                         {/** Optional Post Image View */}
@@ -323,10 +360,12 @@ const activityStyles = StyleSheet.create({
         flexShrink: 1,
     },
     milestonesPFPImage: {
+        justifyContent: 'center',
         marginRight: 5,
         borderRadius: 5,
     },
     milestonesPostImage: {
+        justifyContent: 'center',
         marginLeft: 5,
     },
     milestonesImageStyle: {
@@ -338,5 +377,36 @@ const activityStyles = StyleSheet.create({
         color: 'grey',
         alignItems: 'center',
         alignSelf: 'flex-end',
-    }
+    },
+    reactionButtons: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginTop: 10,
+    },
+    reactionButtonUnclicked: {
+        padding: 7,
+        minWidth: 55,
+        fontSize: 16,
+        backgroundColor: 'black',
+        color: 'white',
+        marginHorizontal: 5,
+        borderRadius: 5,
+        borderWidth: 1,
+        borderColor: 'white',
+    },
+    reactionButtonClicked: {
+        padding: 7,
+        minWidth: 55,
+        fontSize: 16,
+        backgroundColor: 'white',
+        color: 'black',
+        marginHorizontal: 5,
+        borderRadius: 5,
+    },
+    reactionTextUnclicked: {
+        color: 'white',
+    },
+    reactionTextClicked: {
+        color: 'black',
+    },
 });
