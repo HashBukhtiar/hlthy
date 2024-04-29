@@ -202,7 +202,7 @@ export default function Activity() {
         );
     }
 
-    function handlePress(countObj, setReaction) {
+    function handlePress(setReaction) {
         setReaction(prevState => ({
             count: prevState.selected ? prevState.count - 1 : prevState.count + 1,
             selected: !prevState.selected
@@ -237,13 +237,124 @@ export default function Activity() {
 
                             {/* Reaction buttons */}
                             <View style={activityStyles.reactionButtons}>
-                                <TouchableOpacity activeOpacity={1} onPress={() => handlePress(heartCount, setHeartCount)} style={heartCount.selected ? activityStyles.reactionButtonClicked : activityStyles.reactionButtonUnclicked}>
+                                <TouchableOpacity activeOpacity={1} onPress={() => handlePress(setHeartCount)} style={heartCount.selected ? activityStyles.reactionButtonClicked : activityStyles.reactionButtonUnclicked}>
                                     <Text style={heartCount.selected ? activityStyles.reactionTextClicked : activityStyles.reactionTextUnclicked}>❤️ {formatCount(heartCount.count)}</Text>
                                 </TouchableOpacity>
-                                <TouchableOpacity activeOpacity={1} onPress={() => handlePress(strongCount, setStrongCount)} style={strongCount.selected ? activityStyles.reactionButtonClicked : activityStyles.reactionButtonUnclicked}>
+                                <TouchableOpacity activeOpacity={1} onPress={() => handlePress(setStrongCount)} style={strongCount.selected ? activityStyles.reactionButtonClicked : activityStyles.reactionButtonUnclicked}>
                                     <Text style={strongCount.selected ? activityStyles.reactionTextClicked : activityStyles.reactionTextUnclicked}>💪 {formatCount(strongCount.count)}</Text>
                                 </TouchableOpacity>
-                                <TouchableOpacity activeOpacity={1} onPress={() => handlePress(fireCount, setFireCount)} style={fireCount.selected ? activityStyles.reactionButtonClicked : activityStyles.reactionButtonUnclicked}>
+                                <TouchableOpacity activeOpacity={1} onPress={() => handlePress(setFireCount)} style={fireCount.selected ? activityStyles.reactionButtonClicked : activityStyles.reactionButtonUnclicked}>
+                                    <Text style={fireCount.selected ? activityStyles.reactionTextClicked : activityStyles.reactionTextUnclicked}>🔥 {formatCount(fireCount.count)}</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+
+                        {/** Optional Post Image View */}
+                        <View style={activityStyles.milestonesPostImage}>
+                            <Image source={postImage} style={activityStyles.milestonesImageStyle} />
+                        </View>
+                    </View>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => {console.log("milestone element pressed")}}>
+                    {/** WILL EVENTUALLY NEED TO ADD THESE DYNAMICALLY, LIKE ACTIVITIES */}
+
+                    <View style={activityStyles.milestonesElement}>
+                        {/** PFP Image View */}
+                        <View style={activityStyles.milestonesPFPImage}>
+                            <Image source={profileIcon} style={activityStyles.milestonesImageStyle} />
+                        </View>
+
+                        {/** Description View */}
+                        <View style={activityStyles.milestonesDescription}>
+                            <Text style={{fontWeight: 'bold', color: 'white', fontSize: 20}}>@mai123</Text>
+                            <Text style={{fontSize: 18}}>
+                                <Text style={{color: 'white'}}>Squat: </Text> 
+                                <Text style={{color: 'orange'}}>355 lbs</Text>
+                            </Text>
+
+                            {/* Reaction buttons */}
+                            <View style={activityStyles.reactionButtons}>
+                                <TouchableOpacity activeOpacity={1} onPress={() => handlePress(setHeartCount)} style={heartCount.selected ? activityStyles.reactionButtonClicked : activityStyles.reactionButtonUnclicked}>
+                                    <Text style={heartCount.selected ? activityStyles.reactionTextClicked : activityStyles.reactionTextUnclicked}>❤️ {formatCount(heartCount.count)}</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity activeOpacity={1} onPress={() => handlePress(setStrongCount)} style={strongCount.selected ? activityStyles.reactionButtonClicked : activityStyles.reactionButtonUnclicked}>
+                                    <Text style={strongCount.selected ? activityStyles.reactionTextClicked : activityStyles.reactionTextUnclicked}>💪 {formatCount(strongCount.count)}</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity activeOpacity={1} onPress={() => handlePress(setFireCount)} style={fireCount.selected ? activityStyles.reactionButtonClicked : activityStyles.reactionButtonUnclicked}>
+                                    <Text style={fireCount.selected ? activityStyles.reactionTextClicked : activityStyles.reactionTextUnclicked}>🔥 {formatCount(fireCount.count)}</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+
+                        {/** Optional Post Image View */}
+                        <View style={activityStyles.milestonesPostImage}>
+                            <Image source={postImage} style={activityStyles.milestonesImageStyle} />
+                        </View>
+                    </View>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => {console.log("milestone element pressed")}}>
+                    {/** WILL EVENTUALLY NEED TO ADD THESE DYNAMICALLY, LIKE ACTIVITIES */}
+
+                    <View style={activityStyles.milestonesElement}>
+                        {/** PFP Image View */}
+                        <View style={activityStyles.milestonesPFPImage}>
+                            <Image source={profileIcon} style={activityStyles.milestonesImageStyle} />
+                        </View>
+
+                        {/** Description View */}
+                        <View style={activityStyles.milestonesDescription}>
+                            <Text style={{fontWeight: 'bold', color: 'white', fontSize: 20}}>@woodthefarmer</Text>
+                            <Text style={{fontSize: 18}}>
+                                <Text style={{color: 'white'}}>Farmer Carry: </Text> 
+                                <Text style={{color: 'orange'}}>5M lbs</Text>
+                            </Text>
+
+                            {/* Reaction buttons */}
+                            <View style={activityStyles.reactionButtons}>
+                                <TouchableOpacity activeOpacity={1} onPress={() => handlePress(setHeartCount)} style={heartCount.selected ? activityStyles.reactionButtonClicked : activityStyles.reactionButtonUnclicked}>
+                                    <Text style={heartCount.selected ? activityStyles.reactionTextClicked : activityStyles.reactionTextUnclicked}>❤️ {formatCount(heartCount.count)}</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity activeOpacity={1} onPress={() => handlePress(setStrongCount)} style={strongCount.selected ? activityStyles.reactionButtonClicked : activityStyles.reactionButtonUnclicked}>
+                                    <Text style={strongCount.selected ? activityStyles.reactionTextClicked : activityStyles.reactionTextUnclicked}>💪 {formatCount(strongCount.count)}</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity activeOpacity={1} onPress={() => handlePress(setFireCount)} style={fireCount.selected ? activityStyles.reactionButtonClicked : activityStyles.reactionButtonUnclicked}>
+                                    <Text style={fireCount.selected ? activityStyles.reactionTextClicked : activityStyles.reactionTextUnclicked}>🔥 {formatCount(fireCount.count)}</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+
+                        {/** Optional Post Image View */}
+                        <View style={activityStyles.milestonesPostImage}>
+                            <Image source={postImage} style={activityStyles.milestonesImageStyle} />
+                        </View>
+                    </View>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => {console.log("milestone element pressed")}}>
+                    {/** WILL EVENTUALLY NEED TO ADD THESE DYNAMICALLY, LIKE ACTIVITIES */}
+
+                    <View style={activityStyles.milestonesElement}>
+                        {/** PFP Image View */}
+                        <View style={activityStyles.milestonesPFPImage}>
+                            <Image source={profileIcon} style={activityStyles.milestonesImageStyle} />
+                        </View>
+
+                        {/** Description View */}
+                        <View style={activityStyles.milestonesDescription}>
+                            <Text style={{fontWeight: 'bold', color: 'white', fontSize: 20}}>@tangoderango</Text>
+                            <Text style={{fontSize: 18}}>
+                                <Text style={{color: 'white'}}>Bicep Curl: </Text> 
+                                <Text style={{color: 'orange'}}>1 lbs</Text>
+                            </Text>
+
+                            {/* Reaction buttons */}
+                            <View style={activityStyles.reactionButtons}>
+                                <TouchableOpacity activeOpacity={1} onPress={() => handlePress(setHeartCount)} style={heartCount.selected ? activityStyles.reactionButtonClicked : activityStyles.reactionButtonUnclicked}>
+                                    <Text style={heartCount.selected ? activityStyles.reactionTextClicked : activityStyles.reactionTextUnclicked}>❤️ {formatCount(heartCount.count)}</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity activeOpacity={1} onPress={() => handlePress(setStrongCount)} style={strongCount.selected ? activityStyles.reactionButtonClicked : activityStyles.reactionButtonUnclicked}>
+                                    <Text style={strongCount.selected ? activityStyles.reactionTextClicked : activityStyles.reactionTextUnclicked}>💪 {formatCount(strongCount.count)}</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity activeOpacity={1} onPress={() => handlePress(setFireCount)} style={fireCount.selected ? activityStyles.reactionButtonClicked : activityStyles.reactionButtonUnclicked}>
                                     <Text style={fireCount.selected ? activityStyles.reactionTextClicked : activityStyles.reactionTextUnclicked}>🔥 {formatCount(fireCount.count)}</Text>
                                 </TouchableOpacity>
                             </View>
@@ -392,7 +503,7 @@ const activityStyles = StyleSheet.create({
         marginHorizontal: 5,
         borderRadius: 5,
         borderWidth: 1,
-        borderColor: 'white',
+        borderColor: 'grey',
     },
     reactionButtonClicked: {
         padding: 7,
