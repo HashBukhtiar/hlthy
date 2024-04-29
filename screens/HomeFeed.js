@@ -1,16 +1,16 @@
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, 
+import { 
+  StyleSheet, 
   Text, 
   View, 
   ScrollView, 
   Image, 
-  TouchableOpacity, 
-  TextInput } from 'react-native';
+  TouchableOpacity
+  } from 'react-native';
 import globalStyles from '../styles/globalStyles';
 import React, { useState } from 'react';
 import { 
   icon, 
-  milestonesIcon, 
   activityIcon, 
   homeIcon, 
   exploreIcon,
@@ -19,7 +19,6 @@ import {
 } from '../assets/images';
 
 export default function HomeFeed( {navigation} ) {
-  const [searchText, setSearchText] = useState('');
   return (
     <View style={globalStyles.container}>
       <View>
@@ -34,10 +33,6 @@ export default function HomeFeed( {navigation} ) {
       </View>
     </View>
   );
-
-  function clearSearch() { // Clear search function, no button added for this yet
-    setSearchText('');
-  }
     
   function renderTopBar() {
     return (
