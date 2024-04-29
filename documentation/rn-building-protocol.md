@@ -21,15 +21,11 @@ Push the building branch back to the latest nonbuilt version.
 ```
 git reset --hard origin/nonbuilt-versions
 ```
-Push the changes to the remote repository.
-```
-git push origin building --force
-```
 Install npm.
 ```
 npm install
 ```
-Use the build command to build from the existing files.
+Use the build command to build from the existing files. If asked to overwrite a malformed project, select yes (```y```). When prompted for the Bundle ID, enter ```com.hlthy``` for both iOS and Android.
 ```
 npx expo prebuild
 ```
@@ -41,21 +37,9 @@ Kill ongoing processes on port 8081, if there are any.
 ```
 kill $(lsof -t -i:8081)
 ```
-Run the build and wait for the app to build until proceeding.
+Clean iOS build folder, remove node_modules directory from npm, and remove package-lock.json file.
 ```
-react-native run-ios --simulator="iPhone 15 Pro Max
-```
-Clean iOS build folder.
-```
-rm -rf ios/build/
-```
-Kill ongoing processes on port 8081, if there are any.
-```
-kill $(lsof -t -i:8081)
-```
-Remove the node modules folder from npm.
-```
-rm -rf node_modules package-lock.json
+rm -rf ios/build/ node_modules package-lock.json
 ```
 Re-install dependencies.
 ```
@@ -64,7 +48,7 @@ npm install expo-auth-session
 npm install react-native-linear-gradient
 npm install react-native-gesture-handler
 ```
-Re-install CocoaPods in iOS directory.
+Install CocoaPods in iOS directory.
 ```
 cd ios && pod install && cd ..
 ```
