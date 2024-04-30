@@ -13,7 +13,7 @@ import {
   icon, 
   milestonesIcon, 
   activityIcon, 
-  homeIcon, 
+  homeFeedIcon, 
   exploreIcon,
   workoutsIcon, 
   profileIcon,
@@ -75,7 +75,7 @@ export function renderBottomButtons() {
   return (
     <View style={globalStyles.bottomButtonContainer}>
       <TouchableOpacity style={globalStyles.button} onPress={() => {console.log("HomeFeed pressed")}}>
-        <Image source={homeIcon} style={{ width: 40, height: 40, borderRadius:5 }} />
+        <Image source={homeFeedIcon} style={{ width: 40, height: 40, borderRadius:5 }} />
       </TouchableOpacity>
       <TouchableOpacity style={globalStyles.button} onPress={() => {console.log("Explore pressed")}}>
         <Image source={exploreIcon} style={{ width: 40, height: 40, borderRadius:5 }} />
