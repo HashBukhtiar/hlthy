@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Button, TextInput } from 'react-native-paper';
 import { collection, addDoc } from "firebase/firestore"; 
-import { db } from './firebaseConfig';
+import { db } from '../firebaseConfig';
 
 const AddUserScreen = () => {
   const [firstName, setFirstName] = useState('');

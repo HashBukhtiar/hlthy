@@ -17,6 +17,7 @@ import {
   workoutsIcon, 
   profileIcon,
 } from '../assets/images';
+import { useNavigation } from '@react-navigation/native';
 
 export default function HomeFeed( {navigation} ) {
   const [searchText, setSearchText] = useState('');
@@ -30,7 +31,7 @@ export default function HomeFeed( {navigation} ) {
         <Text style={{color:'white'}}>Posts will go here</Text>
       </ScrollView>
       <View>
-        {renderBottomButtons()}
+        {renderBottomButtons(navigation)}
       </View>
     </View>
   );
@@ -54,7 +55,7 @@ export default function HomeFeed( {navigation} ) {
   }
 }
 
-export function renderBottomButtons() {
+export function renderBottomButtons(navigation) {
   return (
     <View style={globalStyles.bottomButtonContainer}>
       <TouchableOpacity style={globalStyles.button} onPress={() => {console.log("HomeFeed pressed")}}>
@@ -64,7 +65,10 @@ export function renderBottomButtons() {
         <Image source={exploreIcon} style={{ width: 40, height: 40, borderRadius:5 }} />
       </TouchableOpacity>
       <TouchableOpacity 
-        onPress={() => {console.log("POST pressed")}}
+        onPress={() => {
+          console.log("POST pressed");
+          navigation.navigate('Firestore');
+        }}
         style={globalStyles.postButton}>
           <Text style={{color: 'white', fontSize:40}}>+</Text>
       </TouchableOpacity>
