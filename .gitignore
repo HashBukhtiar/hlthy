@@ -111,8 +111,8 @@
 # /ios/build/
 # /android/build/
 
-# # Environment variables
-# .env*
+# Environment variables
+.env*
 
 # # Miscellaneous
 # *.swp
