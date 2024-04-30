@@ -17,6 +17,7 @@ import {
   exploreIcon,
   workoutsIcon, 
   profileIcon,
+  postButtonIcon,
 } from '../assets/images';
 import * as Font from 'expo-font';
 
@@ -80,10 +81,8 @@ export function renderBottomButtons() {
       <TouchableOpacity style={globalStyles.button} onPress={() => {console.log("Explore pressed")}}>
         <Image source={exploreIcon} style={{ width: 40, height: 40, borderRadius:5 }} />
       </TouchableOpacity>
-      <TouchableOpacity 
-        onPress={() => {console.log("POST pressed")}}
-        style={globalStyles.postButton}>
-          <Text style={{color: 'white', fontSize:40}}>+</Text>
+        <TouchableOpacity style={globalStyles.button} onPress={() => {console.log("Post Button pressed")}}>
+        <Image source={postButtonIcon} style={{ width: 40, height: 40, borderRadius:5 }} />
       </TouchableOpacity>
       <TouchableOpacity style={globalStyles.button} onPress={() => {console.log("Workouts pressed")}}>
         <Image source={workoutsIcon} style={{ width: 40, height: 40, borderRadius:5 }} />

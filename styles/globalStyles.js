@@ -44,14 +44,4 @@ export default StyleSheet.create({
   buttonText: {
     color: 'white',
   },
-  postButton: {
-    width: 50, 
-    height: 50, 
-    borderRadius: 25, 
-    backgroundColor: 'pink', 
-    justifyContent: 'center', 
-    alignItems: 'center',
-    paddingBottom: 5,
-    marginTop: 5
-  }
 });
