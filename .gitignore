@@ -96,7 +96,7 @@
 
 # # Debugging / Development
 # .vscode/
-# /.expo/
+/.expo/
 .DS_Store
 # *.log
 # npm-debug.log*
@@ -128,5 +128,5 @@
 # *.sln
 # *.sw?
 
-# # Expo
-# .expo
+# Expo
+.expo
