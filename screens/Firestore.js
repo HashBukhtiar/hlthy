@@ -5,14 +5,14 @@ import { collection, addDoc } from "firebase/firestore";
 import { db } from '../firebaseConfig';
 
 const AddUserScreen = () => {
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
+  const [userName, setUserName] = useState('');
+  const [fullName, setFullName] = useState('');
 
   const addUser = async () => {
     try {
       const docRef = await addDoc(collection(db, "users"), {
-        first: firstName,
-        last: lastName,
+        username: userName,
+        full_name: fullName,
       });
       console.log("Document written with ID: ", docRef.id);
     } catch (e) {
@@ -22,28 +22,32 @@ const AddUserScreen = () => {
 
   return (
     <View style={styles.container}>
-    <Text style={[styles.header, {fontWeight: 'bold'}]}>Add Item to Database</Text>
+      <Text style={[styles.header, {fontWeight: 'bold'}]}>Add User to Database</Text>
       <TextInput
-        label="First Name"
-        value={firstName}
-        onChangeText={setFirstName}
-        style={styles.input}
+        label="Username"
+        value={userName}
+        onChangeText={setUserName}
+        style={[styles.input]}
         mode="outlined"
-        theme={{ colors: { primary: 'white', underlineColor:'transparent', background: '#222222'}}}
+        theme={{ colors: { primary: 'white', text: 'white', underlineColor:'transparent', background: '#222222'}}}
       />
       <TextInput
-        label="Last Name"
-        value={lastName}
-        onChangeText={setLastName}
-        style={styles.input}
+        label="Full Name"
+        value={fullName}
+        onChangeText={setFullName}
+        style={[styles.input]}
         mode="outlined"
-        theme={{ colors: { primary: 'white', underlineColor:'transparent', background: '#222222'}}}
+        theme={{ colors: { primary: 'white', text: 'white', underlineColor:'transparent', background: '#222222'}}}
       />
-      <Button mode="contained" onPress={addUser} style={[styles.button, { backgroundColor: '#FFFFFF' }]} labelStyle={{ color: '#000' }}>
+      <Button 
+        mode="contained" 
+        onPress={addUser} 
+        style={[styles.button, { backgroundColor: '#FFFFFF' }]} 
+        labelStyle={{ color: '#000' }}>
         Add User
       </Button>
     </View>
-  );
+  );  
 };
 
 const styles = StyleSheet.create({
