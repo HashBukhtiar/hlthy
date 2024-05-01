@@ -1,0 +1,50 @@
+[
+    {
+        "workoutID": 1,
+        "workoutName": "AB KILLER",
+        "userID": 392,
+        "workoutType": "abs",
+        "workoutDuration": "30 minutes",
+        "workoutDescription": "This workout will like totally kill your abs man.",
+        "exercises": [
+            {
+                "exerciseName": "Plank",
+                "exerciseDescription": "Assume a push up position but rest your forearms on the ground. Keep your body straight and hold this position as long as you can.",
+                "exerciseDuration": "1 minute",
+                "sets": "",
+                "reps": ""
+            },
+            {
+                "exerciseName": "Incline Bench Situp",
+                "exerciseDescription": "Lay on an incline bench with your feet secured. Cross your arms over your chest and sit up.",
+                "exerciseDuration": "",
+                "sets": "3",
+                "reps": "15"
+            }
+        ]
+    },
+    {
+        "workoutID": 2,
+        "workoutName": "Leg Day Madness",
+        "userID": 125,
+        "workoutType": "legs",
+        "workoutDuration": "60 minutes",
+        "workoutDescription": "You will not be able to walk after this...",
+        "exercises": [
+            {
+                "exerciseName": "Hack Squat",
+                "exerciseDescription": "Place your feet on the platform and squat down. Push the platform up and extend your legs.",
+                "exerciseDuration": "",
+                "sets": "3",
+                "reps": "10"
+            },
+            {
+                "exerciseName": "Leg Extension",
+                "exerciseDescription": "Sit on the machine and extend your legs.",
+                "exerciseDuration": "",
+                "sets": "3",
+                "reps": "12"
+            }
+        ]
+    }
+]
