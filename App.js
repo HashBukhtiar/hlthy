@@ -3,6 +3,8 @@ import { SafeAreaView, StyleSheet, View, TouchableOpacity, Image, Text } from 'r
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import HomeFeed from './screens/HomeFeed';
+import Activity from './screens/Activity';
+import Workouts from './screens/Workouts';
 import { useNavigation } from '@react-navigation/native';
 import { 
   homeIcon, 
@@ -10,7 +12,6 @@ import {
   workoutsIcon, 
   profileIcon,
 } from './assets/images';
-import Activity from './screens/Activity';
 import globalStyles from './styles/globalStyles';
 
 const Stack = createStackNavigator();
@@ -28,6 +29,11 @@ export default function App() {
           <Stack.Screen
             name="Activity"
             component={Activity}
+            options={{headerShown: false}}
+          />
+          <Stack.Screen
+            name="Workouts"
+            component={Workouts}
             options={{headerShown: false}}
           />
         </Stack.Navigator>
@@ -55,7 +61,10 @@ export default function App() {
           style={globalStyles.postButton}>
             <Text style={{color: 'white', fontSize:40}}>+</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={globalStyles.button} onPress={() => {console.log("Workouts pressed")}}>
+        <TouchableOpacity style={globalStyles.button} onPress={() => {
+          console.log("Workouts pressed");
+          navigation.navigate('Workouts')
+          }}>
           <Image source={workoutsIcon} style={{ width: 40, height: 40, borderRadius:5 }} />
         </TouchableOpacity>
         <TouchableOpacity style={globalStyles.button} onPress={() => {console.log("Profile pressed")}}>
