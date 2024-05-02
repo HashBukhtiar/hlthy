@@ -4,21 +4,20 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import HomeFeed from './screens/HomeFeed';
 import Activity from './screens/Activity';
-import Firestore from './screens/Firestore';
+import AddUser from './screens/AddUser';
 
 const Stack = createStackNavigator();
 
 export default function App() {
-  // return (
-  //   <SafeAreaView style={appStyles.safeArea}>
-  //     <Firestore />
-  //   </SafeAreaView>
-  // );
-
   return (
     <SafeAreaView style={appStyles.safeArea}>
       <NavigationContainer>
-        <Stack.Navigator initialRouteName="HomeFeed">
+        <Stack.Navigator initialRouteName="AddUser">
+        <Stack.Screen
+            name="AddUser"
+            component={AddUser}
+            options={{headerShown: false}}
+          />
           <Stack.Screen 
             name="HomeFeed"
             component={HomeFeed} 
@@ -27,11 +26,6 @@ export default function App() {
           <Stack.Screen
             name="Activity"
             component={Activity}
-            options={{headerShown: false}}
-          />
-          <Stack.Screen
-            name="Firestore"
-            component={Firestore}
             options={{headerShown: false}}
           />
         </Stack.Navigator>

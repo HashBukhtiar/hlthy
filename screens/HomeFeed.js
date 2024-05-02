@@ -67,7 +67,7 @@ export function renderBottomButtons(navigation) {
       <TouchableOpacity 
         onPress={() => {
           console.log("POST pressed");
-          navigation.navigate('Firestore');
+          // navigation.navigate('Firestore');
         }}
         style={globalStyles.postButton}>
           <Text style={{color: 'white', fontSize:40}}>+</Text>

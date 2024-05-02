@@ -4,7 +4,7 @@ import { Button, TextInput } from 'react-native-paper';
 import { collection, addDoc } from "firebase/firestore"; 
 import { db } from '../firebaseConfig';
 
-const AddUserScreen = () => {
+const AddUserScreen = ({ navigation }) => {
   const [userName, setUserName] = useState('');
   const [fullName, setFullName] = useState('');
 
@@ -15,6 +15,7 @@ const AddUserScreen = () => {
         full_name: fullName,
       });
       console.log("Document written with ID: ", docRef.id);
+      navigation.navigate('HomeFeed');
     } catch (e) {
       console.error("Error adding document: ", e);
     }
