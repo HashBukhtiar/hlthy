@@ -47,25 +47,25 @@ export default function Workouts() {
                 </View>
                 <ScrollView horizontal={true} style={styles.myWorkoutsList} contentContainerStyle={{alignItems: 'center'}} showsHorizontalScrollIndicator={false}>
                     <TouchableOpacity style={styles.myWorkoutsButton}>
-                        <View style={styles.workoutPreview}>
+                        <View style={styles.myWorkoutPreview}>
                             <Text style={styles.workoutNameText}>My Workout 1</Text>
                             <Text style={styles.workoutAuthorText}>John Doe</Text>
                         </View>
                     </TouchableOpacity>
                     <TouchableOpacity style={styles.myWorkoutsButton}>
-                        <View style={styles.workoutPreview}>
+                        <View style={styles.myWorkoutPreview}>
                             <Text style={styles.workoutNameText}>My Workout 2</Text>
                             <Text style={styles.workoutAuthorText}>John Doe</Text>
                         </View>
                     </TouchableOpacity>
                     <TouchableOpacity style={styles.myWorkoutsButton}>
-                        <View style={styles.workoutPreview}>
+                        <View style={styles.myWorkoutPreview}>
                             <Text style={styles.workoutNameText}>My Workout 3</Text>
                             <Text style={styles.workoutAuthorText}>John Doe</Text>
                         </View>
                     </TouchableOpacity>
                     <TouchableOpacity style={styles.myWorkoutsButton}>
-                        <View style={styles.workoutPreview}>
+                        <View style={styles.myWorkoutPreview}>
                             <Text style={styles.workoutNameText}>My Workout 4</Text>
                             <Text style={styles.workoutAuthorText}>John Doe</Text>
                         </View>
@@ -370,6 +370,12 @@ const styles = StyleSheet.create({
     trendingWorkoutsMoreButton: {
         justifyContent: 'center',
         width: '10%',
+    },
+    myWorkoutPreview: {
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: 'rgba(50, 50, 50, 0.5)',
+        padding: 10
     },
     workoutPreview: {
         justifyContent: 'center',
