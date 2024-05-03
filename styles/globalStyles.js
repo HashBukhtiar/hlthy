@@ -2,6 +2,11 @@ import { StyleSheet } from 'react-native';
 
 
 export default StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: 'black',
+    justifyContent: 'space-between',
+  },
   title: {
     fontSize: 35,
     fontWeight: 'bold',
@@ -21,4 +26,32 @@ export default StyleSheet.create({
     fontFamily: 'System',
     color: 'white',
   },
+  background: {
+    backgroundColor: 'black',
+    flex: 1
+  },
+  bottomButtonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 5,
+    borderTopColor: 'red',
+    borderWidth: 1
+  },
+  button: {
+    padding: 10,
+    borderRadius: 5,
+  },
+  buttonText: {
+    color: 'white',
+  },
+  postButton: {
+    width: 50, 
+    height: 50, 
+    borderRadius: 25, 
+    backgroundColor: 'pink', 
+    justifyContent: 'center', 
+    alignItems: 'center',
+    paddingBottom: 5,
+    marginTop: 5
+  }
 });
