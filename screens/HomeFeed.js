@@ -21,6 +21,9 @@ import {
   profileIcon,
   postButtonIcon,
   exploreIconGradient,
+  homeFeedIconGradient,
+  workoutsIconGradient,
+  profileIconGradient,
   barGradient,
   postImage,
 } from '../assets/images';
@@ -84,7 +87,7 @@ export default function HomeFeed( {navigation} ) {
         <Image source={bottomBarGradient} style={{ width: '90%', height: '130%', position: 'absolute', top: -15, right: 20 }}/>
         <View style={{ flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center', width: '80%', top: -15, right: -45 }}>
           <TouchableOpacity style={globalStyles.button} onPress={() => {console.log("HomeFeed pressed")}}>
-            <Image source={homeFeedIcon} style={{ width: 40, height: 37, borderRadius:5 }} />
+            <Image source={selectedTab === 'HomeFeed' ? homeFeedIconGradient : homeFeedIcon} style={{ width: 40, height: 37, borderRadius:5 }} />
           </TouchableOpacity>
           <TouchableOpacity style={globalStyles.button} onPress={() => {console.log("Explore pressed")}}>
             <Image source={selectedTab === 'Explore' ? exploreIconGradient : exploreIcon} style={{ width: 35, height: 42, borderRadius:5 }} />
@@ -93,10 +96,10 @@ export default function HomeFeed( {navigation} ) {
             <Image source={postButtonIcon} style={{ width: 40, height: 40, borderRadius:5 }} />
           </TouchableOpacity>
           <TouchableOpacity style={globalStyles.button} onPress={() => {console.log("Workouts pressed")}}>
-            <Image source={workoutsIcon} style={{ width: 40, height: 37, borderRadius:5 }} />
+            <Image source={selectedTab === 'Workouts' ? worjoutsIconGradient : workoutsIcon} style={{ width: 40, height: 40, borderRadius:5 }} />
           </TouchableOpacity>
           <TouchableOpacity style={globalStyles.button} onPress={() => {console.log("Profile pressed")}}>
-            <Image source={profileIcon} style={{ width: 40, height: 40, borderRadius:5 }} />
+            <Image source={selectedTab === 'Profile' ? profileIconGradient : profileIcon} style={{ width: 40, height: 45, borderRadius:5 }} />
           </TouchableOpacity>
         </View>
       </View>

@@ -10,12 +10,16 @@ import postButtonIcon from './postButtonIcon.png';
 import barGradient from './barGradient.png';
 import bottomBarGradient from './bottomBarGradient.png';
 import exploreIconGradient from './exploreIconGradient.png';
+import homeFeedIconGradient from './homeFeedIconGradient.png';
+import workoutsIconGradient from './workoutsIconGradient.png';
+import profileIconGradient from './profileIconGradient.png';
 
 export { 
     icon, 
     milestonesIcon,
     activityIcon,
     homeFeedIcon,
+    homeFeedIconGradient,
     workoutsIcon,
     profileIcon,
     exploreIcon,
@@ -24,4 +28,6 @@ export {
     barGradient,
     bottomBarGradient,
     exploreIconGradient,
+    workoutsIconGradient,
+    profileIconGradient,
 }
