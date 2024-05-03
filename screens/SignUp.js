@@ -17,40 +17,32 @@ const data = [
   { label: 'Item 8', value: '8' },
 ];
 
-const AddUserScreen = ({ navigation }) => {
+const SignUpScreen = ({ navigation }) => {
   const [userName, setUserName] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
+  const [emailAddress, setEmailAddress] = useState('');
   const [date, setDate] = useState(new Date());
-  const [show, setShow] = useState(true);
-  const [value, setValue] = useState(null);
-  const [isFocus, setIsFocus] = useState(false);
 
   const onChange = (event, selectedDate) => {
     const currentDate = selectedDate || date;
     setDate(currentDate);
   };
 
-  const renderLabel = () => {
-    if (value || isFocus) {
-      return (
-        <Text style={[styles.label, isFocus && { color: 'blue' }]}>
-          Dropdown label
-        </Text>
-      );
-    }
-    return null;
-  };
-
-  const addUser = async () => {
+  const signUp = async () => {
     try {
       const docRef = await addDoc(collection(db, "users"), {
         username: userName,
         first_name: firstName,
         last_name: lastName,
+        email_address: emailAddress,
+
       });
       console.log("Document written with ID: ", docRef.id);
-      navigation.navigate('HomeFeed');
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'SelectArchetype' }],
+      });
     } catch (e) {
       console.error("Error adding document: ", e);
     }
@@ -66,22 +58,6 @@ const AddUserScreen = ({ navigation }) => {
       </View>
       <View style={styles.contentContainer}>
         <Text style={[styles.header, {fontWeight: 'bold'}]}>Create an Account</Text>
-        <TextInput
-          label="Email Address"
-          value={userName}
-          onChangeText={setUserName}
-          style={[styles.input]}
-          mode="outlined"
-          theme={{ colors: { primary: 'white', text: 'white', underlineColor:'transparent', background: '#222222'}}}
-        />
-        <TextInput
-          label="Username"
-          value={userName}
-          onChangeText={setUserName}
-          style={[styles.input]}
-          mode="outlined"
-          theme={{ colors: { primary: 'white', text: 'white', underlineColor:'transparent', background: '#222222'}}}
-        />
         <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
           <TextInput
             label="First Name"
@@ -101,6 +77,22 @@ const AddUserScreen = ({ navigation }) => {
           />
         </View>
         <TextInput
+          label="Username"
+          value={userName}
+          onChangeText={setUserName}
+          style={[styles.input]}
+          mode="outlined"
+          theme={{ colors: { primary: 'white', text: 'white', underlineColor:'transparent', background: '#222222'}}}
+        />
+        <TextInput
+          label="Email Address"
+          value={emailAddress}
+          onChangeText={setEmailAddress}
+          style={[styles.input]}
+          mode="outlined"
+          theme={{ colors: { primary: 'white', text: 'white', underlineColor:'transparent', background: '#222222'}}}
+        />
+        <TextInput
           label="Date of Birth (MM/DD/YYYY)"
           value={userName}
           onChangeText={setUserName}
@@ -108,39 +100,9 @@ const AddUserScreen = ({ navigation }) => {
           mode="outlined"
           theme={{ colors: { primary: 'white', text: 'white', underlineColor:'transparent', background: '#222222'}}}
         />
-        {renderLabel()}
-        <Dropdown
-          style={[styles.dropdown, isFocus && { borderColor: 'white' }]}
-          placeholderStyle={styles.placeholderStyle}
-          selectedTextStyle={styles.selectedTextStyle}
-          inputSearchStyle={styles.inputSearchStyle}
-          iconStyle={styles.iconStyle}
-          data={data}
-          search
-          maxHeight={300}
-          labelField="label"
-          valueField="value"
-          placeholder={!isFocus ? 'Select archetype' : '...'}
-          searchPlaceholder="Search..."
-          value={value}
-          onFocus={() => setIsFocus(true)}
-          onBlur={() => setIsFocus(false)}
-          onChange={item => {
-            setValue(item.value);
-            setIsFocus(false);
-          }}
-          renderLeftIcon={() => (
-            <AntDesign
-              style={styles.icon}
-              color={isFocus ? 'white' : 'grey'}
-              name="Safety"
-              size={20}
-            />
-          )}
-        />
         <Button 
           mode="contained" 
-          onPress={addUser} 
+          onPress={signUp} 
           style={[styles.button, { backgroundColor: '#FFFFFF' }]} 
           labelStyle={{ color: '#000' }}>
           Sign Up
@@ -171,7 +133,7 @@ const styles = StyleSheet.create({
     color: 'white',
     marginBottom: 20,
     textAlign: 'center',
-    marginTop: 60
+    marginTop: 40
   },
   input: {
     marginBottom: 16,
@@ -184,15 +146,7 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     alignSelf: 'center',
-  },
-  dropdown: {
-    height: 50,
-    borderColor: 'gray',
-    borderWidth: 0.5,
-    borderRadius: 8,
-    paddingHorizontal: 14,
-    backgroundColor: '#222222',
-  },
+  }
 });
 
-export default AddUserScreen;
+export default SignUpScreen;

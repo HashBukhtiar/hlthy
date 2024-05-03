@@ -4,7 +4,8 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import HomeFeed from './screens/HomeFeed';
 import Activity from './screens/Activity';
-import AddUser from './screens/AddUser';
+import SignUp from './screens/SignUp';
+import SelectArchetype from './screens/SelectArchetype';
 
 const Stack = createStackNavigator();
 
@@ -12,10 +13,15 @@ export default function App() {
   return (
     <SafeAreaView style={appStyles.safeArea}>
       <NavigationContainer>
-        <Stack.Navigator initialRouteName="AddUser">
-        <Stack.Screen
-            name="AddUser"
-            component={AddUser}
+        <Stack.Navigator initialRouteName="SignUp">
+          <Stack.Screen
+            name="SignUp"
+            component={SignUp}
+            options={{headerShown: false}}
+          />
+          <Stack.Screen
+            name="SelectArchetype"
+            component={SelectArchetype}
             options={{headerShown: false}}
           />
           <Stack.Screen 
