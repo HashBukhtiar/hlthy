@@ -87,7 +87,7 @@ export default function HomeFeed( {navigation} ) {
             <Image source={homeFeedIcon} style={{ width: 40, height: 37, borderRadius:5 }} />
           </TouchableOpacity>
           <TouchableOpacity style={globalStyles.button} onPress={() => {console.log("Explore pressed")}}>
-            <Image source={selectedTab === 'HomeFeed' ? exploreIconGradient : exploreIcon} style={{ width: 35, height: 42, borderRadius:5 }} />
+            <Image source={selectedTab === 'Explore' ? exploreIconGradient : exploreIcon} style={{ width: 35, height: 42, borderRadius:5 }} />
           </TouchableOpacity>
           <TouchableOpacity style={globalStyles.button} onPress={() => {console.log("Post Button pressed")}}>
             <Image source={postButtonIcon} style={{ width: 40, height: 40, borderRadius:5 }} />
