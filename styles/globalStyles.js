@@ -30,13 +30,6 @@ export default StyleSheet.create({
     backgroundColor: 'black',
     flex: 1
   },
-  bottomButtonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginBottom: 5,
-    borderTopColor: 'red',
-    borderWidth: 1
-  },
   button: {
     padding: 10,
     borderRadius: 5,

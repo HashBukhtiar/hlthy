@@ -11,6 +11,7 @@ import { profileIcon, postImage } from '../assets/images';
 import globalStyles from '../styles/globalStyles';
 import { renderBottomButtons } from './HomeFeed';
 
+
 export default function Activity() {
     const [activities, setActivities] = useState([]);
     const [selectedTab, setSelectedTab] = useState('Activity'); // Track which tab is selected (Activity or Milestones)
