@@ -74,6 +74,42 @@ export default function Workouts() {
         );
     }
 
+    function renderFavoriteWorkouts() {
+        return (
+            <View>
+                <View style={styles.myWorkoutsHeaderView}>
+                    <Text style={styles.workoutsHeaders}>Favourite Workouts</Text>
+                </View>
+                <ScrollView horizontal={true} style={styles.friendsWorkoutsList} contentContainerStyle={{alignItems: 'center'}} showsHorizontalScrollIndicator={false}>
+                    <TouchableOpacity style={styles.friendsWorkoutsButton}>
+                        <View style={styles.workoutPreview}>
+                            <Text style={styles.workoutNameText}>Fav Workout 1</Text>
+                            <Text style={styles.workoutAuthorText}>Jane Doe</Text>
+                        </View>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.friendsWorkoutsButton}>
+                        <View style={styles.workoutPreview}>
+                            <Text style={styles.workoutNameText}>Fav Workout 2</Text>
+                            <Text style={styles.workoutAuthorText}>John Doe</Text>
+                        </View>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.friendsWorkoutsButton}>
+                        <View style={styles.workoutPreview}>
+                            <Text style={styles.workoutNameText}>Fav Workout 3</Text>
+                            <Text style={styles.workoutAuthorText}>Baki Hanma</Text>
+                        </View>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.friendsWorkoutsButton}>
+                        <View style={styles.workoutPreview}>
+                            <Text style={styles.workoutNameText}>Fav Workout 4</Text>
+                            <Text style={styles.workoutAuthorText}>Chris Bum</Text>
+                        </View>
+                    </TouchableOpacity>
+                </ScrollView>
+            </View>
+        );
+    }
+
     function renderFriendsWorkouts() {
         return (
             <View>
@@ -213,6 +249,7 @@ export default function Workouts() {
             </View>
             <ScrollView style={styles.workoutsContainer} showsVerticalScrollIndicator={false}>
                 {renderMyWorkouts()}
+                {renderFavoriteWorkouts()}
                 {renderFriendsWorkouts()}
                 {renderTrendingWorkouts()}
             </ScrollView>

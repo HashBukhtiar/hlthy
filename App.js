@@ -34,7 +34,7 @@ export default function App() {
           <Stack.Screen
             name="Workouts"
             component={Workouts}
-            options={{headerShown: false}}
+            options={{headerShown: false, animationEnabled: false}}
           />
         </Stack.Navigator>
         <BottomButtons />
