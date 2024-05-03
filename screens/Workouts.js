@@ -74,6 +74,42 @@ export default function Workouts() {
         );
     }
 
+    function renderFriendsWorkouts() {
+        return (
+            <View>
+                <View style={styles.myWorkoutsHeaderView}>
+                    <Text style={styles.workoutsHeaders}>Friends' Workouts</Text>
+                </View>
+                <ScrollView horizontal={true} style={styles.friendsWorkoutsList} contentContainerStyle={{alignItems: 'center'}}>
+                    <TouchableOpacity style={styles.friendsWorkoutsButton}>
+                        <View style={styles.workoutPreview}>
+                            <Text style={styles.workoutNameText}>Friend Workout 1</Text>
+                            <Text style={styles.workoutAuthorText}>Jane Doe</Text>
+                        </View>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.friendsWorkoutsButton}>
+                        <View style={styles.workoutPreview}>
+                            <Text style={styles.workoutNameText}>Friend Workout 2</Text>
+                            <Text style={styles.workoutAuthorText}>Bob Smith</Text>
+                        </View>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.friendsWorkoutsButton}>
+                        <View style={styles.workoutPreview}>
+                            <Text style={styles.workoutNameText}>Friend Workout 3</Text>
+                            <Text style={styles.workoutAuthorText}>Sigma Gyatt</Text>
+                        </View>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.friendsWorkoutsButton}>
+                        <View style={styles.workoutPreview}>
+                            <Text style={styles.workoutNameText}>Friend Workout 4</Text>
+                            <Text style={styles.workoutAuthorText}>Fanum Tax Payer</Text>
+                        </View>
+                    </TouchableOpacity>
+                </ScrollView>
+            </View>
+        );
+    }
+
     return (
         <View style={globalStyles.container}>
             <View style={styles.searchBarView}>
@@ -81,6 +117,7 @@ export default function Workouts() {
             </View>
             <ScrollView style={styles.workoutsContainer}>
                 {renderMyWorkouts()}
+                {renderFriendsWorkouts()}
             </ScrollView>
         </View>
     )
@@ -137,9 +174,24 @@ const styles = StyleSheet.create({
     myWorkoutsList: {
         flexDirection: 'row',
         padding: 10,
-        height: 160,
+        height: 210,
     },
     myWorkoutsButton: {
+        overflow: 'hidden',
+        width: 200,
+        height: 200,
+        borderRadius: 35,
+        backgroundColor: 'grey',
+        marginRight: 10,
+        justifyContent: 'flex-end',
+    },
+    friendsWorkoutsList: {
+        flexDirection: 'row',
+        padding: 10,
+        height: 160,
+    },
+    friendsWorkoutsButton: {
+        overflow: 'hidden',
         width: 140,
         height: 140,
         borderRadius: 25,
