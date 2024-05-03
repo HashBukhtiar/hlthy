@@ -9,6 +9,7 @@ import postImage from './postImage.png';
 import postButtonIcon from './postButtonIcon.png';
 import barGradient from './barGradient.png';
 import bottomBarGradient from './bottomBarGradient.png';
+import exploreIconGradient from './exploreIconGradient.png';
 
 export { 
     icon, 
@@ -22,4 +23,5 @@ export {
     postButtonIcon,
     barGradient,
     bottomBarGradient,
+    exploreIconGradient,
 }

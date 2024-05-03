@@ -20,6 +20,7 @@ import {
   workoutsIcon, 
   profileIcon,
   postButtonIcon,
+  exploreIconGradient,
   barGradient,
   postImage,
 } from '../assets/images';
@@ -29,6 +30,7 @@ import * as Font from 'expo-font';
 export default function HomeFeed( {navigation} ) {
   const [searchText, setSearchText] = useState('');
   const [fontsLoaded, setFontsLoaded] = useState(false);
+  const [selectedTab, setSelectedTab] = useState('HomeFeed');
   useEffect(() => {
     async function loadFonts() {
       await Font.loadAsync({
@@ -75,33 +77,32 @@ export default function HomeFeed( {navigation} ) {
         </View>
     );
   }
-}
 
-export function renderBottomButtons() {
-  return (
-    <View style={[globalStyles.bottomButtonContainer, { height: 50 }]}>
-      <Image source={bottomBarGradient} style={{ width: '90%', height: '130%', position: 'absolute', top: -15, right: 20 }}/>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center', width: '80%', top: -15, right: -45 }}>
-        <TouchableOpacity style={globalStyles.button} onPress={() => {console.log("HomeFeed pressed")}}>
-          <Image source={homeFeedIcon} style={{ width: 40, height: 37, borderRadius:5 }} />
-        </TouchableOpacity>
-        <TouchableOpacity style={globalStyles.button} onPress={() => {console.log("Explore pressed")}}>
-          <Image source={exploreIcon} style={{ width: 30, height: 42, borderRadius:5 }} />
-        </TouchableOpacity>
-        <TouchableOpacity style={globalStyles.button} onPress={() => {console.log("Post Button pressed")}}>
-          <Image source={postButtonIcon} style={{ width: 40, height: 40, borderRadius:5 }} />
-        </TouchableOpacity>
-        <TouchableOpacity style={globalStyles.button} onPress={() => {console.log("Workouts pressed")}}>
-          <Image source={workoutsIcon} style={{ width: 40, height: 37, borderRadius:5 }} />
-        </TouchableOpacity>
-        <TouchableOpacity style={globalStyles.button} onPress={() => {console.log("Profile pressed")}}>
-          <Image source={profileIcon} style={{ width: 40, height: 37, borderRadius:5 }} />
-        </TouchableOpacity>
+  function renderBottomButtons() {
+    return (
+      <View style={[globalStyles.bottomButtonContainer, { height: 50 }]}>
+        <Image source={bottomBarGradient} style={{ width: '90%', height: '130%', position: 'absolute', top: -15, right: 20 }}/>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center', width: '80%', top: -15, right: -45 }}>
+          <TouchableOpacity style={globalStyles.button} onPress={() => {console.log("HomeFeed pressed")}}>
+            <Image source={homeFeedIcon} style={{ width: 40, height: 37, borderRadius:5 }} />
+          </TouchableOpacity>
+          <TouchableOpacity style={globalStyles.button} onPress={() => {console.log("Explore pressed")}}>
+            <Image source={selectedTab === 'HomeFeed' ? exploreIconGradient : exploreIcon} style={{ width: 35, height: 42, borderRadius:5 }} />
+          </TouchableOpacity>
+          <TouchableOpacity style={globalStyles.button} onPress={() => {console.log("Post Button pressed")}}>
+            <Image source={postButtonIcon} style={{ width: 40, height: 40, borderRadius:5 }} />
+          </TouchableOpacity>
+          <TouchableOpacity style={globalStyles.button} onPress={() => {console.log("Workouts pressed")}}>
+            <Image source={workoutsIcon} style={{ width: 40, height: 37, borderRadius:5 }} />
+          </TouchableOpacity>
+          <TouchableOpacity style={globalStyles.button} onPress={() => {console.log("Profile pressed")}}>
+            <Image source={profileIcon} style={{ width: 40, height: 40, borderRadius:5 }} />
+          </TouchableOpacity>
+        </View>
       </View>
-    </View>
-  );
+    );
+  }
 }
-
 const styles = StyleSheet.create({
   postsContainer: {
     flex: 1,
