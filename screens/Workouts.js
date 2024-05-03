@@ -7,7 +7,7 @@ import {
     TouchableOpacity,
     TextInput,
     ScrollView,
-
+    Dimensions,
 } from 'react-native';
 import globalStyles from '../styles/globalStyles';
 import Icon from 'react-native-vector-icons/FontAwesome';
@@ -110,6 +110,108 @@ export default function Workouts() {
         );
     }
 
+    function renderTrendingWorkouts() {
+        return (
+            <View>
+                <View style={styles.myWorkoutsHeaderView}>
+                    <Text style={styles.workoutsHeaders}>Trending Workouts</Text>
+                </View>
+                <ScrollView horizontal={true} style={styles.trendingWorkoutsList} contentContainerStyle={{alignItems: 'center'}}>
+                    <View style={styles.trendingWorkouts4Group}>
+                        <TouchableOpacity style={styles.trendingWorkoutsButton}>
+                            <View style={styles.trendingWorkoutsIcon}></View>
+                            <View style={styles.trendingWorkoutsTextView}>
+                                <Text style={[styles.trendingWorkoutsText, {fontWeight: 'bold'}]}>Golf Workout</Text>
+                                <Text style={styles.trendingWorkoutsText}>Matt Martel</Text>
+                            </View>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.trendingWorkoutsButton}>
+                            <View style={styles.trendingWorkoutsIcon}></View>
+                            <View style={styles.trendingWorkoutsTextView}>
+                                <Text style={[styles.trendingWorkoutsText, {fontWeight: 'bold'}]}>Sock Workout</Text>
+                                <Text style={styles.trendingWorkoutsText}>De Rango</Text>
+                            </View>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.trendingWorkoutsButton}>
+                            <View style={styles.trendingWorkoutsIcon}></View>
+                            <View style={styles.trendingWorkoutsTextView}>
+                                <Text style={[styles.trendingWorkoutsText, {fontWeight: 'bold'}]}>Push Day Torture</Text>
+                                <Text style={styles.trendingWorkoutsText}>SungJinWoo</Text>
+                            </View>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.trendingWorkoutsButton}>
+                            <View style={styles.trendingWorkoutsIcon}></View>
+                            <View style={styles.trendingWorkoutsTextView}>
+                                <Text style={[styles.trendingWorkoutsText, {fontWeight: 'bold'}]}>Basketball Workout</Text>
+                                <Text style={styles.trendingWorkoutsText}>LeBron "Sunshine" James</Text>
+                            </View>
+                        </TouchableOpacity>
+                    </View>
+                    <View style={styles.trendingWorkouts4Group}>
+                        <TouchableOpacity style={styles.trendingWorkoutsButton}>
+                            <View style={styles.trendingWorkoutsIcon}></View>
+                            <View style={styles.trendingWorkoutsTextView}>
+                                <Text style={[styles.trendingWorkoutsText, {fontWeight: 'bold'}]}>Golf Workout</Text>
+                                <Text style={styles.trendingWorkoutsText}>Matt Martel</Text>
+                            </View>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.trendingWorkoutsButton}>
+                            <View style={styles.trendingWorkoutsIcon}></View>
+                            <View style={styles.trendingWorkoutsTextView}>
+                                <Text style={[styles.trendingWorkoutsText, {fontWeight: 'bold'}]}>Sock Workout</Text>
+                                <Text style={styles.trendingWorkoutsText}>De Rango</Text>
+                            </View>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.trendingWorkoutsButton}>
+                            <View style={styles.trendingWorkoutsIcon}></View>
+                            <View style={styles.trendingWorkoutsTextView}>
+                                <Text style={[styles.trendingWorkoutsText, {fontWeight: 'bold'}]}>Push Day Torture</Text>
+                                <Text style={styles.trendingWorkoutsText}>SungJinWoo</Text>
+                            </View>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.trendingWorkoutsButton}>
+                            <View style={styles.trendingWorkoutsIcon}></View>
+                            <View style={styles.trendingWorkoutsTextView}>
+                                <Text style={[styles.trendingWorkoutsText, {fontWeight: 'bold'}]}>Basketball Workout</Text>
+                                <Text style={styles.trendingWorkoutsText}>LeBron "Sunshine" James</Text>
+                            </View>
+                        </TouchableOpacity>
+                    </View>
+                    <View style={styles.trendingWorkouts4Group}>
+                        <TouchableOpacity style={styles.trendingWorkoutsButton}>
+                            <View style={styles.trendingWorkoutsIcon}></View>
+                            <View style={styles.trendingWorkoutsTextView}>
+                                <Text style={[styles.trendingWorkoutsText, {fontWeight: 'bold'}]}>Golf Workout</Text>
+                                <Text style={styles.trendingWorkoutsText}>Matt Martel</Text>
+                            </View>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.trendingWorkoutsButton}>
+                            <View style={styles.trendingWorkoutsIcon}></View>
+                            <View style={styles.trendingWorkoutsTextView}>
+                                <Text style={[styles.trendingWorkoutsText, {fontWeight: 'bold'}]}>Sock Workout</Text>
+                                <Text style={styles.trendingWorkoutsText}>De Rango</Text>
+                            </View>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.trendingWorkoutsButton}>
+                            <View style={styles.trendingWorkoutsIcon}></View>
+                            <View style={styles.trendingWorkoutsTextView}>
+                                <Text style={[styles.trendingWorkoutsText, {fontWeight: 'bold'}]}>Push Day Torture</Text>
+                                <Text style={styles.trendingWorkoutsText}>SungJinWoo</Text>
+                            </View>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.trendingWorkoutsButton}>
+                            <View style={styles.trendingWorkoutsIcon}></View>
+                            <View style={styles.trendingWorkoutsTextView}>
+                                <Text style={[styles.trendingWorkoutsText, {fontWeight: 'bold'}]}>Basketball Workout</Text>
+                                <Text style={styles.trendingWorkoutsText}>LeBron "Sunshine" James</Text>
+                            </View>
+                        </TouchableOpacity>
+                    </View>
+                </ScrollView>
+            </View>
+        );
+    }
+
     return (
         <View style={globalStyles.container}>
             <View style={styles.searchBarView}>
@@ -118,6 +220,7 @@ export default function Workouts() {
             <ScrollView style={styles.workoutsContainer}>
                 {renderMyWorkouts()}
                 {renderFriendsWorkouts()}
+                {renderTrendingWorkouts()}
             </ScrollView>
         </View>
     )
@@ -146,8 +249,6 @@ const styles = StyleSheet.create({
     },
     workoutsContainer: {
         flex: 1,
-        borderWidth: 1,
-        borderColor: 'white',
     },
     workoutsHeaders: {
         color: 'white',
@@ -198,6 +299,40 @@ const styles = StyleSheet.create({
         backgroundColor: 'grey',
         marginRight: 10,
         justifyContent: 'flex-end',
+    },
+    trendingWorkoutsList: {
+        flexDirection: 'row',
+        padding: 5,
+        height: 220,
+    },
+    trendingWorkouts4Group: {
+        flexDirection: 'column',
+        width: Dimensions.get('window').width * 0.95,
+        marginTop: 10,
+        marginBottom: 10,
+        alignItems: 'center'
+    },  
+    trendingWorkoutsButton: {
+        flexDirection: 'row',
+        width: '95%',
+        paddingVertical: 5,
+        borderTopWidth: 1,
+        borderBottomWidth: 1,
+        borderColor: 'grey'
+    },
+    trendingWorkoutsIcon: {
+        width: 40,
+        height: 40,
+        borderRadius: 5,
+        backgroundColor: 'grey',
+    },
+    trendingWorkoutsTextView: {
+        justifyContent: 'center',
+        alignItems: 'flex-start',
+    },
+    trendingWorkoutsText: {
+        color: 'white',
+        marginLeft: 5,
     },
     workoutPreview: {
         justifyContent: 'center',
