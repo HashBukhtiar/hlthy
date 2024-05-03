@@ -41,7 +41,8 @@ export default function Workouts() {
                 <View style={styles.myWorkoutsHeaderView}>
                     <Text style={styles.workoutsHeaders}>My Workouts</Text>
                     <TouchableOpacity style={styles.createWorkoutButton}>
-                        <Text style={{color: 'white', fontSize: 20}}>+</Text>
+                        <Text style={{
+                            color: 'black', fontWeight: 'bold', fontSize: 23}}>+</Text>
                     </TouchableOpacity>
                 </View>
                 <ScrollView horizontal={true} style={styles.myWorkoutsList} contentContainerStyle={{alignItems: 'center'}} showsHorizontalScrollIndicator={false}>
