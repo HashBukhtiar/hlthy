@@ -289,6 +289,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         fontSize: 30,
         fontWeight: 'bold',
+        marginTop: 20,
     },
     myWorkoutsHeaderView: {
         flexDirection: 'row',
