@@ -4,7 +4,6 @@ import { SelectCountry } from 'react-native-element-dropdown';
 import { Button } from 'react-native-paper';
 import { collection, addDoc } from "firebase/firestore"; 
 import { db } from '../firebaseConfig';
-import AntDesign from '@expo/vector-icons/AntDesign';
 
 // documentation: https://github.com/hoaphantn7604/react-native-element-dropdown
 
@@ -58,7 +57,7 @@ const SelectArchetypeScreen = ({ navigation }) => {
           labelField="label"
           valueField="value"
           imageField="image"
-        //   placeholder={!isFocus ? 'Select archetype' : '...'}
+          placeholder={!isFocus ? 'Select archetype' : '...'}
           searchPlaceholder="Search..."
           value={value}
           onFocus={() => setIsFocus(true)}

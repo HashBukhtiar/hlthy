@@ -1,28 +1,15 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, Text, Image } from 'react-native';
-import { Dropdown } from 'react-native-element-dropdown';
 import { Button, TextInput } from 'react-native-paper';
 import { collection, addDoc } from "firebase/firestore"; 
 import { db } from '../firebaseConfig';
-import AntDesign from '@expo/vector-icons/AntDesign';
-
-const data = [
-  { label: 'Item 1', value: '1' },
-  { label: 'Item 2', value: '2' },
-  { label: 'Item 3', value: '3' },
-  { label: 'Item 4', value: '4' },
-  { label: 'Item 5', value: '5' },
-  { label: 'Item 6', value: '6' },
-  { label: 'Item 7', value: '7' },
-  { label: 'Item 8', value: '8' },
-];
 
 const SignUpScreen = ({ navigation }) => {
   const [userName, setUserName] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [emailAddress, setEmailAddress] = useState('');
-  const [date, setDate] = useState(new Date());
+  const [dateOfBirth, setDateOfBirth] = useState('');
 
   const onChange = (event, selectedDate) => {
     const currentDate = selectedDate || date;
@@ -66,7 +53,8 @@ const SignUpScreen = ({ navigation }) => {
             style={[styles.input, { flex: 1, marginRight: 10 }]}
             mode="outlined"
             theme={{ colors: { primary: 'white', text: 'white', underlineColor:'transparent', background: '#222222'}}}
-          />
+            textColor='white'
+            />
           <TextInput
             label="Last Name"
             value={lastName}
@@ -74,6 +62,7 @@ const SignUpScreen = ({ navigation }) => {
             style={[styles.input, { flex: 1, marginLeft: 10 }]}
             mode="outlined"
             theme={{ colors: { primary: 'white', text: 'white', underlineColor:'transparent', background: '#222222'}}}
+            textColor='white'
           />
         </View>
         <TextInput
@@ -83,6 +72,7 @@ const SignUpScreen = ({ navigation }) => {
           style={[styles.input]}
           mode="outlined"
           theme={{ colors: { primary: 'white', text: 'white', underlineColor:'transparent', background: '#222222'}}}
+          textColor='white'
         />
         <TextInput
           label="Email Address"
@@ -91,14 +81,16 @@ const SignUpScreen = ({ navigation }) => {
           style={[styles.input]}
           mode="outlined"
           theme={{ colors: { primary: 'white', text: 'white', underlineColor:'transparent', background: '#222222'}}}
+          textColor='white'
         />
         <TextInput
           label="Date of Birth (MM/DD/YYYY)"
-          value={userName}
-          onChangeText={setUserName}
+          value={dateOfBirth}
+          onChangeText={setDateOfBirth}
           style={[styles.input]}
           mode="outlined"
           theme={{ colors: { primary: 'white', text: 'white', underlineColor:'transparent', background: '#222222'}}}
+          textColor='white'
         />
         <Button 
           mode="contained" 
@@ -133,11 +125,12 @@ const styles = StyleSheet.create({
     color: 'white',
     marginBottom: 20,
     textAlign: 'center',
-    marginTop: 40
+    marginTop: 30
   },
   input: {
     marginBottom: 16,
-    color: 'white'
+    color: 'white',
+    textColor: 'white',
   },
   button: {
     marginTop: 16,
