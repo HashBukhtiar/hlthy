@@ -159,7 +159,7 @@ export default function Workouts() {
                             <View style={styles.trendingWorkoutsIcon}></View>
                             <View style={styles.trendingWorkoutsTextView}>
                                 <Text style={[styles.trendingWorkoutsText, {fontWeight: 'bold'}]}>Golf Workout</Text>
-                                <Text style={styles.trendingWorkoutsText}>Matt Martel</Text>
+                                <Text style={[styles.trendingWorkoutsText, {color: '#D0D0D0'}]}>Matt Martel</Text>
                             </View>
                             <TouchableOpacity style={styles.trendingWorkoutsMoreButton}>
                                 <Icon name="ellipsis-h" size={20} color="white" />
@@ -169,7 +169,7 @@ export default function Workouts() {
                             <View style={styles.trendingWorkoutsIcon}></View>
                             <View style={styles.trendingWorkoutsTextView}>
                                 <Text style={[styles.trendingWorkoutsText, {fontWeight: 'bold'}]}>Sock Workout</Text>
-                                <Text style={styles.trendingWorkoutsText}>De Rango</Text>
+                                <Text style={[styles.trendingWorkoutsText, {color: '#D0D0D0'}]}>Matt Martel</Text>
                             </View>
                             <TouchableOpacity style={styles.trendingWorkoutsMoreButton}>
                                 <Icon name="ellipsis-h" size={20} color="white" />
@@ -179,7 +179,7 @@ export default function Workouts() {
                             <View style={styles.trendingWorkoutsIcon}></View>
                             <View style={styles.trendingWorkoutsTextView}>
                                 <Text style={[styles.trendingWorkoutsText, {fontWeight: 'bold'}]}>Push Day Torture</Text>
-                                <Text style={styles.trendingWorkoutsText}>SungJinWoo</Text>
+                                <Text style={[styles.trendingWorkoutsText, {color: '#D0D0D0'}]}>Matt Martel</Text>
                             </View>
                             <TouchableOpacity style={styles.trendingWorkoutsMoreButton}>
                                 <Icon name="ellipsis-h" size={20} color="white" />
@@ -189,7 +189,7 @@ export default function Workouts() {
                             <View style={styles.trendingWorkoutsIcon}></View>
                             <View style={styles.trendingWorkoutsTextView}>
                                 <Text style={[styles.trendingWorkoutsText, {fontWeight: 'bold'}]}>Basketball Workout</Text>
-                                <Text style={styles.trendingWorkoutsText}>LeBron "Sunshine" James</Text>
+                                <Text style={[styles.trendingWorkoutsText, {color: '#D0D0D0'}]}>Matt Martel</Text>
                             </View>
                             <TouchableOpacity style={styles.trendingWorkoutsMoreButton}>
                                 <Icon name="ellipsis-h" size={20} color="white" />
@@ -201,7 +201,7 @@ export default function Workouts() {
                             <View style={styles.trendingWorkoutsIcon}></View>
                             <View style={styles.trendingWorkoutsTextView}>
                                 <Text style={[styles.trendingWorkoutsText, {fontWeight: 'bold'}]}>Golf Workout</Text>
-                                <Text style={styles.trendingWorkoutsText}>Matt Martel</Text>
+                                <Text style={[styles.trendingWorkoutsText, {color: '#D0D0D0'}]}>Matt Martel</Text>
                             </View>
                             <TouchableOpacity style={styles.trendingWorkoutsMoreButton}>
                                 <Icon name="ellipsis-h" size={20} color="white" />
@@ -211,7 +211,7 @@ export default function Workouts() {
                             <View style={styles.trendingWorkoutsIcon}></View>
                             <View style={styles.trendingWorkoutsTextView}>
                                 <Text style={[styles.trendingWorkoutsText, {fontWeight: 'bold'}]}>Sock Workout</Text>
-                                <Text style={styles.trendingWorkoutsText}>De Rango</Text>
+                                <Text style={[styles.trendingWorkoutsText, {color: '#D0D0D0'}]}>Matt Martel</Text>
                             </View>
                             <TouchableOpacity style={styles.trendingWorkoutsMoreButton}>
                                 <Icon name="ellipsis-h" size={20} color="white" />
@@ -221,7 +221,7 @@ export default function Workouts() {
                             <View style={styles.trendingWorkoutsIcon}></View>
                             <View style={styles.trendingWorkoutsTextView}>
                                 <Text style={[styles.trendingWorkoutsText, {fontWeight: 'bold'}]}>Push Day Torture</Text>
-                                <Text style={styles.trendingWorkoutsText}>SungJinWoo</Text>
+                                <Text style={[styles.trendingWorkoutsText, {color: '#D0D0D0'}]}>Matt Martel</Text>
                             </View>
                             <TouchableOpacity style={styles.trendingWorkoutsMoreButton}>
                                 <Icon name="ellipsis-h" size={20} color="white" />
@@ -231,7 +231,7 @@ export default function Workouts() {
                             <View style={styles.trendingWorkoutsIcon}></View>
                             <View style={styles.trendingWorkoutsTextView}>
                                 <Text style={[styles.trendingWorkoutsText, {fontWeight: 'bold'}]}>Basketball Workout</Text>
-                                <Text style={styles.trendingWorkoutsText}>LeBron "Sunshine" James</Text>
+                                <Text style={[styles.trendingWorkoutsText, {color: '#D0D0D0'}]}>Matt Martel</Text>
                             </View>
                             <TouchableOpacity style={styles.trendingWorkoutsMoreButton}>
                                 <Icon name="ellipsis-h" size={20} color="white" />
@@ -382,6 +382,6 @@ const styles = StyleSheet.create({
         color: 'white',
     },
     workoutAuthorText: {
-        color: 'white',
+        color: '#D0D0D0',
     }
 });
