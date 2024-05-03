@@ -44,7 +44,7 @@ export default function Workouts() {
                         <Text style={{color: 'white', fontSize: 20}}>+</Text>
                     </TouchableOpacity>
                 </View>
-                <ScrollView horizontal={true} style={styles.myWorkoutsList} contentContainerStyle={{alignItems: 'center'}}>
+                <ScrollView horizontal={true} style={styles.myWorkoutsList} contentContainerStyle={{alignItems: 'center'}} showsHorizontalScrollIndicator={false}>
                     <TouchableOpacity style={styles.myWorkoutsButton}>
                         <View style={styles.workoutPreview}>
                             <Text style={styles.workoutNameText}>My Workout 1</Text>
@@ -80,7 +80,7 @@ export default function Workouts() {
                 <View style={styles.myWorkoutsHeaderView}>
                     <Text style={styles.workoutsHeaders}>Friends' Workouts</Text>
                 </View>
-                <ScrollView horizontal={true} style={styles.friendsWorkoutsList} contentContainerStyle={{alignItems: 'center'}}>
+                <ScrollView horizontal={true} style={styles.friendsWorkoutsList} contentContainerStyle={{alignItems: 'center'}} showsHorizontalScrollIndicator={false}>
                     <TouchableOpacity style={styles.friendsWorkoutsButton}>
                         <View style={styles.workoutPreview}>
                             <Text style={styles.workoutNameText}>Friend Workout 1</Text>
@@ -116,7 +116,7 @@ export default function Workouts() {
                 <View style={styles.myWorkoutsHeaderView}>
                     <Text style={styles.workoutsHeaders}>Trending Workouts</Text>
                 </View>
-                <ScrollView horizontal={true} style={styles.trendingWorkoutsList} contentContainerStyle={{alignItems: 'center'}}>
+                <ScrollView horizontal={true} style={styles.trendingWorkoutsList} contentContainerStyle={{alignItems: 'center'}} showsHorizontalScrollIndicator={false}>
                     <View style={styles.trendingWorkouts4Group}>
                         <TouchableOpacity style={styles.trendingWorkoutsButton}>
                             <View style={styles.trendingWorkoutsIcon}></View>
@@ -124,6 +124,9 @@ export default function Workouts() {
                                 <Text style={[styles.trendingWorkoutsText, {fontWeight: 'bold'}]}>Golf Workout</Text>
                                 <Text style={styles.trendingWorkoutsText}>Matt Martel</Text>
                             </View>
+                            <TouchableOpacity style={styles.trendingWorkoutsMoreButton}>
+                                <Icon name="ellipsis-h" size={20} color="white" />
+                            </TouchableOpacity>
                         </TouchableOpacity>
                         <TouchableOpacity style={styles.trendingWorkoutsButton}>
                             <View style={styles.trendingWorkoutsIcon}></View>
@@ -131,6 +134,9 @@ export default function Workouts() {
                                 <Text style={[styles.trendingWorkoutsText, {fontWeight: 'bold'}]}>Sock Workout</Text>
                                 <Text style={styles.trendingWorkoutsText}>De Rango</Text>
                             </View>
+                            <TouchableOpacity style={styles.trendingWorkoutsMoreButton}>
+                                <Icon name="ellipsis-h" size={20} color="white" />
+                            </TouchableOpacity>
                         </TouchableOpacity>
                         <TouchableOpacity style={styles.trendingWorkoutsButton}>
                             <View style={styles.trendingWorkoutsIcon}></View>
@@ -138,6 +144,9 @@ export default function Workouts() {
                                 <Text style={[styles.trendingWorkoutsText, {fontWeight: 'bold'}]}>Push Day Torture</Text>
                                 <Text style={styles.trendingWorkoutsText}>SungJinWoo</Text>
                             </View>
+                            <TouchableOpacity style={styles.trendingWorkoutsMoreButton}>
+                                <Icon name="ellipsis-h" size={20} color="white" />
+                            </TouchableOpacity>
                         </TouchableOpacity>
                         <TouchableOpacity style={styles.trendingWorkoutsButton}>
                             <View style={styles.trendingWorkoutsIcon}></View>
@@ -145,6 +154,9 @@ export default function Workouts() {
                                 <Text style={[styles.trendingWorkoutsText, {fontWeight: 'bold'}]}>Basketball Workout</Text>
                                 <Text style={styles.trendingWorkoutsText}>LeBron "Sunshine" James</Text>
                             </View>
+                            <TouchableOpacity style={styles.trendingWorkoutsMoreButton}>
+                                <Icon name="ellipsis-h" size={20} color="white" />
+                            </TouchableOpacity>
                         </TouchableOpacity>
                     </View>
                     <View style={styles.trendingWorkouts4Group}>
@@ -154,6 +166,9 @@ export default function Workouts() {
                                 <Text style={[styles.trendingWorkoutsText, {fontWeight: 'bold'}]}>Golf Workout</Text>
                                 <Text style={styles.trendingWorkoutsText}>Matt Martel</Text>
                             </View>
+                            <TouchableOpacity style={styles.trendingWorkoutsMoreButton}>
+                                <Icon name="ellipsis-h" size={20} color="white" />
+                            </TouchableOpacity>
                         </TouchableOpacity>
                         <TouchableOpacity style={styles.trendingWorkoutsButton}>
                             <View style={styles.trendingWorkoutsIcon}></View>
@@ -161,6 +176,9 @@ export default function Workouts() {
                                 <Text style={[styles.trendingWorkoutsText, {fontWeight: 'bold'}]}>Sock Workout</Text>
                                 <Text style={styles.trendingWorkoutsText}>De Rango</Text>
                             </View>
+                            <TouchableOpacity style={styles.trendingWorkoutsMoreButton}>
+                                <Icon name="ellipsis-h" size={20} color="white" />
+                            </TouchableOpacity>
                         </TouchableOpacity>
                         <TouchableOpacity style={styles.trendingWorkoutsButton}>
                             <View style={styles.trendingWorkoutsIcon}></View>
@@ -168,6 +186,9 @@ export default function Workouts() {
                                 <Text style={[styles.trendingWorkoutsText, {fontWeight: 'bold'}]}>Push Day Torture</Text>
                                 <Text style={styles.trendingWorkoutsText}>SungJinWoo</Text>
                             </View>
+                            <TouchableOpacity style={styles.trendingWorkoutsMoreButton}>
+                                <Icon name="ellipsis-h" size={20} color="white" />
+                            </TouchableOpacity>
                         </TouchableOpacity>
                         <TouchableOpacity style={styles.trendingWorkoutsButton}>
                             <View style={styles.trendingWorkoutsIcon}></View>
@@ -175,36 +196,9 @@ export default function Workouts() {
                                 <Text style={[styles.trendingWorkoutsText, {fontWeight: 'bold'}]}>Basketball Workout</Text>
                                 <Text style={styles.trendingWorkoutsText}>LeBron "Sunshine" James</Text>
                             </View>
-                        </TouchableOpacity>
-                    </View>
-                    <View style={styles.trendingWorkouts4Group}>
-                        <TouchableOpacity style={styles.trendingWorkoutsButton}>
-                            <View style={styles.trendingWorkoutsIcon}></View>
-                            <View style={styles.trendingWorkoutsTextView}>
-                                <Text style={[styles.trendingWorkoutsText, {fontWeight: 'bold'}]}>Golf Workout</Text>
-                                <Text style={styles.trendingWorkoutsText}>Matt Martel</Text>
-                            </View>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.trendingWorkoutsButton}>
-                            <View style={styles.trendingWorkoutsIcon}></View>
-                            <View style={styles.trendingWorkoutsTextView}>
-                                <Text style={[styles.trendingWorkoutsText, {fontWeight: 'bold'}]}>Sock Workout</Text>
-                                <Text style={styles.trendingWorkoutsText}>De Rango</Text>
-                            </View>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.trendingWorkoutsButton}>
-                            <View style={styles.trendingWorkoutsIcon}></View>
-                            <View style={styles.trendingWorkoutsTextView}>
-                                <Text style={[styles.trendingWorkoutsText, {fontWeight: 'bold'}]}>Push Day Torture</Text>
-                                <Text style={styles.trendingWorkoutsText}>SungJinWoo</Text>
-                            </View>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.trendingWorkoutsButton}>
-                            <View style={styles.trendingWorkoutsIcon}></View>
-                            <View style={styles.trendingWorkoutsTextView}>
-                                <Text style={[styles.trendingWorkoutsText, {fontWeight: 'bold'}]}>Basketball Workout</Text>
-                                <Text style={styles.trendingWorkoutsText}>LeBron "Sunshine" James</Text>
-                            </View>
+                            <TouchableOpacity style={styles.trendingWorkoutsMoreButton}>
+                                <Icon name="ellipsis-h" size={20} color="white" />
+                            </TouchableOpacity>
                         </TouchableOpacity>
                     </View>
                 </ScrollView>
@@ -217,7 +211,7 @@ export default function Workouts() {
             <View style={styles.searchBarView}>
                 {renderSearchBar()}
             </View>
-            <ScrollView style={styles.workoutsContainer}>
+            <ScrollView style={styles.workoutsContainer} showsVerticalScrollIndicator={false}>
                 {renderMyWorkouts()}
                 {renderFriendsWorkouts()}
                 {renderTrendingWorkouts()}
@@ -318,7 +312,7 @@ const styles = StyleSheet.create({
         paddingVertical: 5,
         borderTopWidth: 1,
         borderBottomWidth: 1,
-        borderColor: 'grey'
+        borderColor: 'grey',
     },
     trendingWorkoutsIcon: {
         width: 40,
@@ -329,10 +323,15 @@ const styles = StyleSheet.create({
     trendingWorkoutsTextView: {
         justifyContent: 'center',
         alignItems: 'flex-start',
+        width: '80%',
     },
     trendingWorkoutsText: {
         color: 'white',
         marginLeft: 5,
+    },
+    trendingWorkoutsMoreButton: {
+        justifyContent: 'center',
+        width: '10%',
     },
     workoutPreview: {
         justifyContent: 'center',
