@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { profileIcon, postImage } from '../assets/images';
 import globalStyles from '../styles/globalStyles';
-import { renderBottomButtons } from './HomeFeed';
+import { BottomButtons } from '../App';
 
 
 export default function Activity() {
@@ -237,7 +237,7 @@ export default function Activity() {
                 )}
             </View>
             <View styles={globalStyles.bottomButtonContainer}>
-                {renderBottomButtons()}
+                {BottomButtons()}
             </View>
         </View>
     );

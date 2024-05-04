@@ -9,6 +9,7 @@ import { StyleSheet,
 import globalStyles from '../styles/globalStyles';
 import React, { useState, useEffect } from 'react';
 import { ImageBackground } from 'react-native';
+import { BottomButtons } from '../App';
 
 import { 
   icon,
@@ -57,7 +58,7 @@ export default function HomeFeed( {navigation} ) {
       <ScrollView contentContainerStyle={styles.postsContainer}>
       </ScrollView>
       <View>
-        {renderBottomButtons()}
+        <BottomButtons />
       </View>
     </View>
   );
@@ -81,28 +82,7 @@ export default function HomeFeed( {navigation} ) {
     );
   }
 
-  function renderBottomButtons() {
-    return (
-      <View style={{...globalStyles.bottomButtonContainer, height: 75, flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center'}}>
-        <Image source={bottomBarGradient} style={{position: 'absolute', height: '100%', width: '95%'}}/>
-          <TouchableOpacity style={globalStyles.button} onPress={() => {console.log("HomeFeed pressed")}}>
-            <Image source={selectedTab === 'HomeFeed' ? homeFeedIconGradient : homeFeedIcon} style={{ width: 40, height: 37, borderRadius:5 }} />
-          </TouchableOpacity>
-          <TouchableOpacity style={globalStyles.button} onPress={() => {console.log("Explore pressed")}}>
-            <Image source={selectedTab === 'Explore' ? exploreIconGradient : exploreIcon} style={{ width: 35, height: 42, borderRadius:5 }} />
-          </TouchableOpacity>
-          <TouchableOpacity style={globalStyles.button} onPress={() => {console.log("Post Button pressed")}}>
-            <Image source={postButtonIcon} style={{ width: 40, height: 40, borderRadius:5 }} />
-          </TouchableOpacity>
-          <TouchableOpacity style={globalStyles.button} onPress={() => {console.log("Workouts pressed")}}>
-            <Image source={selectedTab === 'Workouts' ? worjoutsIconGradient : workoutsIcon} style={{ width: 40, height: 40, borderRadius:5 }} />
-          </TouchableOpacity>
-          <TouchableOpacity style={globalStyles.button} onPress={() => {console.log("Profile pressed")}}>
-            <Image source={selectedTab === 'Profile' ? profileIconGradient : profileIcon} style={{ width: 40, height: 45, borderRadius:5 }} />
-          </TouchableOpacity>
-        </View>
-    );
-  }
+  
 }
 const styles = StyleSheet.create({
   postsContainer: {
