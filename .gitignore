@@ -94,8 +94,8 @@
 # /.pnp
 # .pnp.js
 
-# # Debugging / Development
-# .vscode/
+# Debugging / Development
+.vscode/
 /.expo/
 .DS_Store
 # *.log
