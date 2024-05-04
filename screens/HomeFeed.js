@@ -83,9 +83,8 @@ export default function HomeFeed( {navigation} ) {
 
   function renderBottomButtons() {
     return (
-      <View style={[globalStyles.bottomButtonContainer, { height: 50 }]}>
-        <Image source={bottomBarGradient} style={{ width: '90%', height: '130%', position: 'absolute', top: -15, right: 20 }}/>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center', width: '80%', top: -15, right: -45 }}>
+      <View style={{...globalStyles.bottomButtonContainer, height: 75, flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center'}}>
+        <Image source={bottomBarGradient} style={{position: 'absolute', height: '100%', width: '95%'}}/>
           <TouchableOpacity style={globalStyles.button} onPress={() => {console.log("HomeFeed pressed")}}>
             <Image source={selectedTab === 'HomeFeed' ? homeFeedIconGradient : homeFeedIcon} style={{ width: 40, height: 37, borderRadius:5 }} />
           </TouchableOpacity>
@@ -102,7 +101,6 @@ export default function HomeFeed( {navigation} ) {
             <Image source={selectedTab === 'Profile' ? profileIconGradient : profileIcon} style={{ width: 40, height: 45, borderRadius:5 }} />
           </TouchableOpacity>
         </View>
-      </View>
     );
   }
 }
