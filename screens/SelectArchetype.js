@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, StyleSheet, Text, Image } from 'react-native';
 import { SelectCountry } from 'react-native-element-dropdown';
 import { Button } from 'react-native-paper';
-import { collection, addDoc } from "firebase/firestore"; 
+import { collection, updateDoc, doc } from "firebase/firestore"; 
 import { db } from '../firebaseConfig';
 
 // documentation: https://github.com/hoaphantn7604/react-native-element-dropdown
@@ -15,22 +15,31 @@ const archetypes = [
     { label: '  Powerlifter', value: 'powerlifter', image: require('../assets/powerlifterIcon.png') },
 ];
 
-const SelectArchetypeScreen = ({ navigation }) => {
+const SelectArchetypeScreen = ({ navigation, route }) => {
+  const userId = route.params.userId;
   const [value, setValue] = useState(null);
   const [isFocus, setIsFocus] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   const selectArchetype = async () => {
+    if (value === null) {
+      console.log("User continued without selecting archetype.");
+      setErrorMessage("Please select an archetype.");
+      return;
+    }
+  
     try {
-      const docRef = await addDoc(collection(db, "users"), {
+      const userDoc = doc(db, "users", userId);
+      await updateDoc(userDoc, {
         archetype: value,
       });
-      console.log("Document written with ID: ", docRef.id);
+      console.log("User document updated, ID: ", userId, " Archetype: ", value);
       navigation.reset({
         index: 0,
         routes: [{ name: 'HomeFeed' }],
       });
     } catch (e) {
-      console.error("Error adding document: ", e);
+      console.error("Error updating document: ", e);
     }
   };
 
@@ -80,6 +89,7 @@ const SelectArchetypeScreen = ({ navigation }) => {
         <Text style={styles.note}>
             Note: You can change your archetype at any time.
         </Text>
+        <Text style={{ color: '#FF5555', textAlign: 'center', marginTop: 0 }}>{errorMessage}</Text>
       </View>
     </View>
   );

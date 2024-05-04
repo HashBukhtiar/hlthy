@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, Text, Image } from 'react-native';
 import { Button, TextInput } from 'react-native-paper';
-import { collection, addDoc } from "firebase/firestore"; 
+import { collection, addDoc, getDocs } from "firebase/firestore"; 
 import { db } from '../firebaseConfig';
 
 const SignUpScreen = ({ navigation }) => {
@@ -11,6 +11,7 @@ const SignUpScreen = ({ navigation }) => {
   const [emailAddress, setEmailAddress] = useState('');
   const [dateOfBirth, setDateOfBirth] = useState('');
   const [isUsernameValid, setIsUsernameValid] = useState(true);
+  const [isUsernameAvailable, setIsUsernameAvailable] = useState(true);
   const [isEmailValid, setIsEmailValid] = useState(true);
   const [isDOBValid, setIsDOBValid] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
@@ -27,17 +28,35 @@ const SignUpScreen = ({ navigation }) => {
     return re.test(dob);
   };
 
-  // Check if username is taken
+  // Check if username is valid
   const isValidUsername = (username) => {
-    // WIP
+    if (!username || typeof username === 'undefined') {
+      return false;
+    }
+    const re = /^[a-zA-Z0-9_.]+$/;
+    return re.test(username);
+  };
+
+  // Check if username is available (WIP)
+  const isAvailableUsername = async (username) => {
+    const querySnapshot = await getDocs(collection(db, "users"));
+    for (const doc of querySnapshot.docs) {
+      if (doc.data().username === username) {
+        return false;
+      }
+    }
     return true;
   };
   
   const signUp = async () => {
-    // Check if info is valid. If not, set error message and return null.
-    if (!isValidEmail(emailAddress) || !isValidDOB(dateOfBirth) || !isValidUsername(username)) {
+    const isUsernameValid = isValidUsername(userName);
+    const isUsernameAvailable = await isAvailableUsername(userName);
+  
+    if (!isValidEmail(emailAddress) || !isValidDOB(dateOfBirth) || !isUsernameValid || !isUsernameAvailable) {
       console.log("User signed up, but has invalid info.");
-      if (!isValidUsername) {
+      if (!isUsernameValid) {
+        setErrorMessage("Please provide a valid username.");
+      } else if (!isUsernameAvailable) {
         setErrorMessage("That username is taken. Please try another one.");
       } else if (!isValidEmail(emailAddress)) {
         setErrorMessage("Please provide a valid email.");
@@ -58,7 +77,10 @@ const SignUpScreen = ({ navigation }) => {
       console.log("Document written with ID: ", docRef.id);
       navigation.reset({
         index: 0,
-        routes: [{ name: 'SelectArchetype' }],
+        routes: [{ 
+          name: 'SelectArchetype', 
+          params: { userId: docRef.id }
+        }],
       });
     } catch (e) {
       console.error("Error adding document: ", e);
@@ -98,8 +120,11 @@ const SignUpScreen = ({ navigation }) => {
     <TextInput
       label="Username"
       value={userName}
-      onChangeText={setUserName}
-      onBlur={() => setIsUsernameValid(isValidUsername(userName))}
+      onChangeText={(text) => setUserName(text.toLowerCase())}
+      onBlur={async () => {
+        setIsUsernameValid(isValidUsername(userName));
+        setIsUsernameAvailable(await isAvailableUsername(userName));
+      }}
       style={[styles.input]}
       mode="outlined"
       theme={{ colors: { primary: 'white', text: 'white', underlineColor:'transparent', background: '#222222'}}}
