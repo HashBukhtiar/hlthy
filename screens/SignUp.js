@@ -66,13 +66,17 @@ const SignUpScreen = ({ navigation }) => {
       return;
     }
 
+    // Convert the dateOfBirth string to a Date object
+    const dobArray = dateOfBirth.split("/");
+    const dobAsDate = new Date(dobArray[2], dobArray[0] - 1, dobArray[1]);
+
     try {
       const docRef = await addDoc(collection(db, "users"), {
         username: userName,
         first_name: firstName,
         last_name: lastName,
         email_address: emailAddress,
-        date_of_birth: dateOfBirth,
+        date_of_birth: dobAsDate,
       });
       console.log("Document written with ID: ", docRef.id);
       navigation.reset({
