@@ -431,6 +431,7 @@ const activityStyles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         marginVertical: 15,
+        marginHorizontal: 15,
         borderRadius: '50%',
         height: Dimensions.get('window').height * 0.05,
     },
@@ -473,11 +474,14 @@ const activityStyles = StyleSheet.create({
     },
     activityListContainer: {
         padding: 5,
+        marginHorizontal: 15,
         justifyContent: 'flex-start',
         alignItems: 'center',
+        backgroundColor: '#2e2e2e',
+        borderRadius: 35,
     },
     activityElement: {
-        borderTopWidth: 1,
+        borderBottomWidth: 1,
         borderColor: 'grey',
         padding: 5,
         flexDirection: 'row',
@@ -490,7 +494,9 @@ const activityStyles = StyleSheet.create({
     activityImageStyle: {
         width: 50, 
         height: 50, 
-        borderRadius: 5
+        borderRadius: 25,
+        borderWidth: 2,
+        borderColor: 'white',
     },
     activityDescription: {
         color: 'white',
