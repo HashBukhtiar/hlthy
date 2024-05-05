@@ -6,13 +6,14 @@ import {
     Image,
     TouchableOpacity,
     ScrollView,
-
+    Dimensions,
 } from 'react-native';
 //import DoubleTap from 'react-native-double-tap';
 import { profileIcon, postImage } from '../assets/images';
 import globalStyles from '../styles/globalStyles';
 import Icon from 'react-native-vector-icons/FontAwesome'
 import { useNavigation } from '@react-navigation/native';
+
 
 export default function Activity() {
     //const [activities, setActivities] = useState([]);
@@ -35,6 +36,21 @@ export default function Activity() {
     // Add new activity
     const addActivity = (activity) => {
         setActivities(prevActivities => [...prevActivities, activity]);
+    }
+
+    function renderHeaderButtons() {
+        return (
+            <View style={activityStyles.tabHeaderButtonsContainer}>
+                <TouchableOpacity activeOpacity={1} style={selectedTab === 'Activity' ? activityStyles.selectedTabHeaderButton : activityStyles.unselectedTabHeaderButton} onPress={() => selectActivity()}>
+                    <View>
+                        <Text style={selectedTab === 'Activity' ? activityStyles.selectedTabHeader : activityStyles.unselectedTabHeader}>Activity</Text>
+                    </View>
+                </TouchableOpacity>
+                <TouchableOpacity activeOpacity={1} style={selectedTab === 'Milestones' ? activityStyles.selectedTabHeaderButton : activityStyles.unselectedTabHeaderButton} onPress={() => selectMilestones()}>
+                    <Text style={selectedTab === 'Milestones' ? activityStyles.selectedTabHeader : activityStyles.unselectedTabHeader}>Milestones</Text>
+                </TouchableOpacity>
+            </View>
+        );
     }
 
     function selectActivity() {
@@ -407,43 +423,52 @@ export default function Activity() {
             </View>
         </View>
     );
-
-    function renderHeaderButtons() {
-        return (
-            <View style={activityStyles.tabHeaderButtonsContainer}>
-                <TouchableOpacity activeOpacity={1} style={activityStyles.tabHeaderButton} onPress={() => selectActivity()}>
-                    <Text style={selectedTab === 'Activity' ? activityStyles.selectedTabHeader : activityStyles.unselectedTabHeader}>Activity</Text>
-                </TouchableOpacity>
-                <TouchableOpacity activeOpacity={1} style={activityStyles.tabHeaderButton} onPress={() => selectMilestones()}>
-                    <Text style={selectedTab === 'Milestones' ? activityStyles.selectedTabHeader : activityStyles.unselectedTabHeader}>Milestones</Text>
-                </TouchableOpacity>
-            </View>
-        );
-    }
 }
 
 const activityStyles = StyleSheet.create({
     tabHeaderButtonsContainer: {
+        backgroundColor: '#2e2e2e',
         flexDirection: 'row',
-        justifyContent: 'space-around',
-        padding: 5,
+        justifyContent: 'space-between',
+        marginVertical: 15,
+        borderRadius: '50%',
+        height: Dimensions.get('window').height * 0.05,
     },
-    tabHeaderButton: {
+    selectedTabHeaderButton: {
+        flex: 1,
         padding: 5,
-        borderRadius: 5,
+        borderRadius: '50%',
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: 'white',
+    },
+    unselectedTabHeaderButton: {
+        flex: 1,
+        padding: 5,
+        borderRadius: '50%',
         justifyContent: 'center',
         alignItems: 'center',
     },
+    tabHeaderButton: {
+        flex: 1,
+        padding: 5,
+        borderRadius: '50%',
+        justifyContent: 'center',
+        alignItems: 'center',
+
+    },
     selectedTabHeader: {
         fontSize: 20,
-        color: 'white',
+        color: 'black',
         fontFamily: 'System',
+        fontWeight: 'bold',
         paddingHorizontal: 10,
     },
     unselectedTabHeader: {
         fontSize: 20,
-        color: 'grey',
+        color: 'white',
         fontFamily: 'System',
+        fontWeight: 'bold',
         paddingHorizontal: 10,
     },
     activityListContainer: {
