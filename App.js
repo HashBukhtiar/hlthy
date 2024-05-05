@@ -4,9 +4,10 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import HomeFeed from './screens/HomeFeed';
 import Activity from './screens/Activity';
+import Workouts from './screens/Workouts';
 import SignUp from './screens/SignUp';
 import SelectArchetype from './screens/SelectArchetype';
-import Workouts from './screens/Workouts';
+import { useNavigation } from '@react-navigation/native';
 import { 
   homeIcon, 
   exploreIcon,
@@ -21,18 +22,27 @@ export default function App() {
   return (
     <SafeAreaView style={appStyles.safeArea}>
       <NavigationContainer>
-        <MainComponent />
+        <Stack.Navigator initialRouteName="SignUp">
+          <Stack.Screen name="SignUp" component={SignUp} options={{headerShown: false}} />
+          <Stack.Screen name="SelectArchetype" component={SelectArchetype} options={{headerShown: false}} />
+          <Stack.Screen name="HomeFeed" options={{headerShown: false}}>
+            {props => <HomeFeed {...props} BottomButtons={BottomButtons} />}
+          </Stack.Screen>
+          <Stack.Screen name="Activity" options={{headerShown: false}}>
+            {props => <Activity {...props} BottomButtons={BottomButtons} />}
+          </Stack.Screen>
+          <Stack.Screen name="Workouts" options={{headerShown: false, animationEnabled: false}}>
+            {props => <Workouts {...props} BottomButtons={BottomButtons} />}
+          </Stack.Screen>
+        </Stack.Navigator>
+        <BottomButtons />
       </NavigationContainer>
     </SafeAreaView>
-  );  
-}
+  );
 
-function MainComponent() {
-  function BottomButtons({ route }) {  
-    if (route.name === 'SignUp' || route.name === 'SelectArchetype') {
-      return null;
-    }
-
+  function BottomButtons() {  
+    // If a screen has to have this hidden, then use the route of the screen to conditinoally return null, or render the bottom buttons
+    const navigation = useNavigation();
     return (
       <View style={globalStyles.bottomButtonContainer}>
         <TouchableOpacity style={globalStyles.button} onPress={() => {
@@ -61,22 +71,7 @@ function MainComponent() {
       </View>
     );
   }
-
-  return (
-  <Stack.Navigator initialRouteName="SignUp">
-    <Stack.Screen name="SignUp" component={SignUp} options={{headerShown: false}} />
-    <Stack.Screen name="SelectArchetype" component={SelectArchetype} options={{headerShown: false}} />
-    <Stack.Screen name="HomeFeed" options={{headerShown: false}}>
-      {props => <HomeFeed {...props} BottomButtons={BottomButtons} />}
-    </Stack.Screen>
-    <Stack.Screen name="Activity" options={{headerShown: false}}>
-      {props => <Activity {...props} BottomButtons={BottomButtons} />}
-    </Stack.Screen>
-    <Stack.Screen name="Workouts" options={{headerShown: false, animationEnabled: false}}>
-      {props => <Workouts {...props} BottomButtons={BottomButtons} />}
-    </Stack.Screen>
-  </Stack.Navigator>
-);
+  
 }
 
 const appStyles = StyleSheet.create({
