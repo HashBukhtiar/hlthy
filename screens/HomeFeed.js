@@ -9,7 +9,7 @@ import { StyleSheet,
 import globalStyles from '../styles/globalStyles';
 import React, { useState, useEffect } from 'react';
 import { ImageBackground } from 'react-native';
-import { BottomButtons } from '../App';
+import { BottomButtons } from '../components/BottomButtons';
 
 import { 
   icon,
@@ -58,8 +58,8 @@ export default function HomeFeed( {navigation} ) {
       <ScrollView contentContainerStyle={styles.postsContainer}>
       </ScrollView>
       <View>
-        <BottomButtons />
       </View>
+      <BottomButtons />
     </View>
   );
 

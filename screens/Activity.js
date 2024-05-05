@@ -12,7 +12,7 @@ import {
 //import DoubleTap from 'react-native-double-tap';
 import { profileIcon, postImage } from '../assets/images';
 import globalStyles from '../styles/globalStyles';
-import { BottomButtons } from '../App';
+import { BottomButtons } from '../components/BottomButtons';
 
 
 export default function Activity() {
