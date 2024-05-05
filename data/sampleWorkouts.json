@@ -1,47 +1,47 @@
 [
     {
-        "workoutID": 1,
-        "workoutName": "AB KILLER",
-        "userID": 392,
-        "workoutType": "abs",
-        "workoutDuration": "30 minutes",
-        "workoutDescription": "This workout will like totally kill your abs man.",
+        "workout_id": 1,
+        "workout_name": "AB KILLER",
+        "user_id": 392,
+        "workout_type": "abs",
+        "workout_duration": "30 minutes",
+        "workout_description": "This workout will like totally kill your abs man.",
         "exercises": [
             {
-                "exerciseName": "Plank",
-                "exerciseDescription": "Assume a push up position but rest your forearms on the ground. Keep your body straight and hold this position as long as you can.",
-                "exerciseDuration": "1 minute",
+                "exercise_name": "Plank",
+                "exercise_description": "Assume a push up position but rest your forearms on the ground. Keep your body straight and hold this position as long as you can.",
+                "exercise_duration": "1 minute",
                 "sets": "",
                 "reps": ""
             },
             {
-                "exerciseName": "Incline Bench Situp",
-                "exerciseDescription": "Lay on an incline bench with your feet secured. Cross your arms over your chest and sit up.",
-                "exerciseDuration": "",
+                "exercise_name": "Incline Bench Situp",
+                "exercise_description": "Lay on an incline bench with your feet secured. Cross your arms over your chest and sit up.",
+                "exercise_duration": "",
                 "sets": "3",
                 "reps": "15"
             }
         ]
     },
     {
-        "workoutID": 2,
-        "workoutName": "Leg Day Madness",
-        "userID": 125,
-        "workoutType": "legs",
-        "workoutDuration": "60 minutes",
-        "workoutDescription": "You will not be able to walk after this...",
+        "workout_id": 2,
+        "workout_name": "Leg Day Madness",
+        "user_id": 125,
+        "workout_type": "legs",
+        "workout_duration": "60 minutes",
+        "workout_description": "You will not be able to walk after this...",
         "exercises": [
             {
-                "exerciseName": "Hack Squat",
-                "exerciseDescription": "Place your feet on the platform and squat down. Push the platform up and extend your legs.",
-                "exerciseDuration": "",
+                "exercise_name": "Hack Squat",
+                "exercise_description": "Place your feet on the platform and squat down. Push the platform up and extend your legs.",
+                "exercise_duration": "",
                 "sets": "3",
                 "reps": "10"
             },
             {
-                "exerciseName": "Leg Extension",
-                "exerciseDescription": "Sit on the machine and extend your legs.",
-                "exerciseDuration": "",
+                "exercise_name": "Leg Extension",
+                "exercise_description": "Sit on the machine and extend your legs.",
+                "exercise_duration": "",
                 "sets": "3",
                 "reps": "12"
             }
