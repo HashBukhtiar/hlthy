@@ -7,7 +7,6 @@ import Activity from './screens/Activity';
 import SignUp from './screens/SignUp';
 import SelectArchetype from './screens/SelectArchetype';
 import Workouts from './screens/Workouts';
-import { useNavigation } from '@react-navigation/native';
 import { 
   homeIcon, 
   exploreIcon,
@@ -15,7 +14,6 @@ import {
   profileIcon,
 } from './assets/images';
 import globalStyles from './styles/globalStyles';
-import { useRoute } from '@react-navigation/native';
 
 const Stack = createStackNavigator();
 
@@ -31,10 +29,6 @@ export default function App() {
 
 function MainComponent() {
   function BottomButtons({ route }) {  
-    // If a screen has to have this hidden, then use the route of the screen to conditionally return null, or render the bottom buttons
-    // const navigation = useNavigation();
-    // const route = useRoute();
-
     if (route.name === 'SignUp' || route.name === 'SelectArchetype') {
       return null;
     }

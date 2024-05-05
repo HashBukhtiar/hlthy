@@ -17,7 +17,6 @@ import {
   workoutsIcon,
   profileIcon,
 } from '../assets/images';
-import { useNavigation } from '@react-navigation/native';
 
 export default function HomeFeed( {navigation} ) {
   return (
