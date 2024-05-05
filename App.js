@@ -7,7 +7,6 @@ import Activity from './screens/Activity';
 import SignUp from './screens/SignUp';
 import SelectArchetype from './screens/SelectArchetype';
 import Workouts from './screens/Workouts';
-import { useNavigation } from '@react-navigation/native';
 import { 
   homeIcon, 
   exploreIcon,
@@ -22,41 +21,18 @@ export default function App() {
   return (
     <SafeAreaView style={appStyles.safeArea}>
       <NavigationContainer>
-        <Stack.Navigator initialRouteName="SignUp">
-          <Stack.Screen
-            name="SignUp"
-            component={SignUp}
-            options={{headerShown: false}}
-          />
-          <Stack.Screen
-            name="SelectArchetype"
-            component={SelectArchetype}
-            options={{headerShown: false}}
-          />
-          <Stack.Screen 
-            name="HomeFeed"
-            component={HomeFeed} 
-            options={{headerShown: false}}
-          />
-          <Stack.Screen
-            name="Activity"
-            component={Activity}
-            options={{headerShown: false}}
-          />
-          <Stack.Screen
-            name="Workouts"
-            component={Workouts}
-            options={{headerShown: false, animationEnabled: false}}
-          />
-        </Stack.Navigator>
-        <BottomButtons />
+        <MainComponent />
       </NavigationContainer>
     </SafeAreaView>
-  );
+  );  
+}
 
-  function BottomButtons() {  
-    // If a screen has to have this hidden, then use the route of the screen to conditinoally return null, or render the bottom buttons
-    const navigation = useNavigation();
+function MainComponent() {
+  function BottomButtons({ route }) {  
+    if (route.name === 'SignUp' || route.name === 'SelectArchetype') {
+      return null;
+    }
+
     return (
       <View style={globalStyles.bottomButtonContainer}>
         <TouchableOpacity style={globalStyles.button} onPress={() => {
@@ -85,7 +61,22 @@ export default function App() {
       </View>
     );
   }
-  
+
+  return (
+  <Stack.Navigator initialRouteName="SignUp">
+    <Stack.Screen name="SignUp" component={SignUp} options={{headerShown: false}} />
+    <Stack.Screen name="SelectArchetype" component={SelectArchetype} options={{headerShown: false}} />
+    <Stack.Screen name="HomeFeed" options={{headerShown: false}}>
+      {props => <HomeFeed {...props} BottomButtons={BottomButtons} />}
+    </Stack.Screen>
+    <Stack.Screen name="Activity" options={{headerShown: false}}>
+      {props => <Activity {...props} BottomButtons={BottomButtons} />}
+    </Stack.Screen>
+    <Stack.Screen name="Workouts" options={{headerShown: false, animationEnabled: false}}>
+      {props => <Workouts {...props} BottomButtons={BottomButtons} />}
+    </Stack.Screen>
+  </Stack.Navigator>
+);
 }
 
 const appStyles = StyleSheet.create({
