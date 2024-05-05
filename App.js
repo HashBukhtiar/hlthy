@@ -15,6 +15,7 @@ import {
   profileIcon,
 } from './assets/images';
 import globalStyles from './styles/globalStyles';
+import { useRoute } from '@react-navigation/native';
 
 const Stack = createStackNavigator();
 
@@ -23,26 +24,29 @@ export default function App() {
     <SafeAreaView style={appStyles.safeArea}>
       <NavigationContainer>
         <Stack.Navigator initialRouteName="SignUp">
-          <Stack.Screen name="SignUp" component={SignUp} options={{headerShown: false}} />
-          <Stack.Screen name="SelectArchetype" component={SelectArchetype} options={{headerShown: false}} />
+          <Stack.Screen name="SignUp" options={{headerShown: false}}>
+            {props => <SignUp {...props} />}
+          </Stack.Screen>
+          <Stack.Screen name="SelectArchetype" options={{headerShown: false}}>
+            {props => <SelectArchetype {...props} />}
+          </Stack.Screen>
           <Stack.Screen name="HomeFeed" options={{headerShown: false}}>
-            {props => <HomeFeed {...props} BottomButtons={BottomButtons} />}
+            {props => <><HomeFeed {...props} /><BottomButtons /></>}
           </Stack.Screen>
           <Stack.Screen name="Activity" options={{headerShown: false}}>
-            {props => <Activity {...props} BottomButtons={BottomButtons} />}
+            {props => <><Activity {...props} /><BottomButtons /></>}
           </Stack.Screen>
           <Stack.Screen name="Workouts" options={{headerShown: false, animationEnabled: false}}>
-            {props => <Workouts {...props} BottomButtons={BottomButtons} />}
+            {props => <><Workouts {...props} /><BottomButtons /></>}
           </Stack.Screen>
         </Stack.Navigator>
-        <BottomButtons />
       </NavigationContainer>
     </SafeAreaView>
   );
 
   function BottomButtons() {  
-    // If a screen has to have this hidden, then use the route of the screen to conditinoally return null, or render the bottom buttons
     const navigation = useNavigation();
+  
     return (
       <View style={globalStyles.bottomButtonContainer}>
         <TouchableOpacity style={globalStyles.button} onPress={() => {
@@ -71,7 +75,6 @@ export default function App() {
       </View>
     );
   }
-  
 }
 
 const appStyles = StyleSheet.create({
