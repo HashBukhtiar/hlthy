@@ -11,6 +11,8 @@ import {
 //import DoubleTap from 'react-native-double-tap';
 import { profileIcon, postImage } from '../assets/images';
 import globalStyles from '../styles/globalStyles';
+import Icon from 'react-native-vector-icons/FontAwesome'
+import { useNavigation } from '@react-navigation/native';
 
 export default function Activity() {
     //const [activities, setActivities] = useState([]);
@@ -18,6 +20,7 @@ export default function Activity() {
     const [heartCount, setHeartCount] = useState({ count: 999999, selected: false });
     const [strongCount, setStrongCount] = useState({ count: 999, selected: false });
     const [fireCount, setFireCount] = useState({ count: 0, selected: false });
+    const navigation = useNavigation();
 
     function formatCount(num) {
         if (num >= 1000000) {
@@ -383,6 +386,15 @@ export default function Activity() {
     return (
         <View style={globalStyles.container}>
             <View>
+                <View style={{flexDirection:'row', alignItems:'center', marginLeft: 15}}>
+                    <TouchableOpacity onPress={() => {
+                        console.log("back arrow pressed");
+                        navigation.goBack();
+                        }}>
+                        <Icon name="arrow-left" size={25} color="white" />
+                    </TouchableOpacity>
+                    <Text style={[globalStyles.title, {marginLeft: 15}]}>Pulse</Text>
+                </View>
                 {renderHeaderButtons()}
             </View>
             {/* Alternate between Activity and Milestones8*/}
