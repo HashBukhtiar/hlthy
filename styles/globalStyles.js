@@ -8,9 +8,9 @@ export default StyleSheet.create({
     justifyContent: 'space-between',
   },
   title: {
-    fontSize: 35,
+    fontSize: 32,
     fontWeight: 'bold',
-    fontFamily: 'System',
+    fontFamily: 'comfortaa',
     color: 'white',
     paddingLeft: 10,
   },
@@ -34,8 +34,7 @@ export default StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-around',
     marginBottom: 5,
-    borderTopColor: 'red',
-    borderWidth: 1
+    borderWidth: 0
   },
   button: {
     padding: 10,
@@ -44,14 +43,4 @@ export default StyleSheet.create({
   buttonText: {
     color: 'white',
   },
-  postButton: {
-    width: 50, 
-    height: 50, 
-    borderRadius: 25, 
-    backgroundColor: 'pink', 
-    justifyContent: 'center', 
-    alignItems: 'center',
-    paddingBottom: 5,
-    marginTop: 5
-  }
 });

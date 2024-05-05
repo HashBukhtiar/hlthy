@@ -11,6 +11,7 @@ import {
 //import DoubleTap from 'react-native-double-tap';
 import { profileIcon, postImage } from '../assets/images';
 import globalStyles from '../styles/globalStyles';
+import { BottomButtons } from '../components/BottomButtons';
 
 export default function Activity() {
     //const [activities, setActivities] = useState([]);
@@ -392,6 +393,9 @@ export default function Activity() {
                 ) : (
                     renderMilestonesList()
                 )}
+            </View>
+            <View styles={globalStyles.bottomButtonContainer}>
+                {BottomButtons()}
             </View>
         </View>
     );
