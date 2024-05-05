@@ -1,11 +1,12 @@
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, 
+import { 
+  StyleSheet, 
   Text, 
   View, 
   ScrollView, 
   Image, 
-  TouchableOpacity, 
-  TextInput } from 'react-native';
+  TouchableOpacity
+  } from 'react-native';
 import globalStyles from '../styles/globalStyles';
 import React, { useState, useEffect } from 'react';
 import { ImageBackground } from 'react-native';
@@ -27,6 +28,10 @@ import {
   profileIconGradient,
   barGradient,
   postImage,
+import React from 'react';
+import { 
+  icon, 
+  activityIcon, 
 } from '../assets/images';
 import * as Font from 'expo-font';
 
@@ -62,10 +67,6 @@ export default function HomeFeed( {navigation} ) {
       <BottomButtons />
     </View>
   );
-
-  function clearSearch() { // Clear search function, no button added for this yet
-    setSearchText('');
-  }
     
   function renderTopBar() {
     return (
@@ -80,10 +81,9 @@ export default function HomeFeed( {navigation} ) {
           </View>
         </View>
     );
-  }
-
-  
+  }  
 }
+
 const styles = StyleSheet.create({
   postsContainer: {
     flex: 1,
