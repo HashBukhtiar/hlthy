@@ -15,7 +15,6 @@ import {
   profileIcon,
 } from './assets/images';
 import globalStyles from './styles/globalStyles';
-import { useRoute } from '@react-navigation/native';
 
 const Stack = createStackNavigator();
 
@@ -48,7 +47,7 @@ export default function App() {
     const navigation = useNavigation();
   
     return (
-      <View style={globalStyles.bottomButtonContainer}>
+      <View style={[globalStyles.bottomButtonContainer, {backgroundColor: 'black'}]}>
         <TouchableOpacity style={globalStyles.button} onPress={() => {
             console.log("HomeFeed pressed"); 
             navigation.navigate('HomeFeed')
