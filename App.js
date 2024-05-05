@@ -1,19 +1,9 @@
-import React, { useState } from 'react';
-import { SafeAreaView, StyleSheet, View } from 'react-native';
 import React from 'react';
 import { SafeAreaView, StyleSheet, View, TouchableOpacity, Image, Text } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import HomeFeed from './screens/HomeFeed';
 import Activity from './screens/Activity';
-import { BottomButtons } from './components/BottomButtons';
-import { Text, 
-  ScrollView, 
-  Image, 
-  TouchableOpacity, 
-  TextInput } from 'react-native';
-import globalStyles from './styles/globalStyles';
-import { bottomBarGradient, homeFeedIconGradient, homeFeedIcon, exploreIconGradient, exploreIcon, postButtonIcon, workoutsIconGradient, workoutsIcon, profileIconGradient, profileIcon } from './assets/images';
 import Workouts from './screens/Workouts';
 import { useNavigation } from '@react-navigation/native';
 import { 
@@ -85,8 +75,6 @@ export default function App() {
   }
   
 }
-
-
 
 const appStyles = StyleSheet.create({
   safeArea: {
