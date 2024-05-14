@@ -3,7 +3,7 @@ import { SafeAreaView, StyleSheet, View, TouchableOpacity, Image, Text } from 'r
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import HomeFeed from './screens/HomeFeed';
-import Activity from './screens/Activity';
+import Pulse from './screens/Pulse';
 import Workouts from './screens/Workouts';
 import { useNavigation } from '@react-navigation/native';
 import { 
@@ -27,8 +27,8 @@ export default function App() {
             options={{headerShown: false}}
           />
           <Stack.Screen
-            name="Activity"
-            component={Activity}
+            name="Pulse"
+            component={Pulse}
             options={{headerShown: false}}
           />
           <Stack.Screen

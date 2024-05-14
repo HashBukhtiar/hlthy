@@ -15,7 +15,7 @@ import Icon from 'react-native-vector-icons/FontAwesome'
 import { useNavigation } from '@react-navigation/native';
 
 
-export default function Activity() {
+export default function Pulse() {
     //const [activities, setActivities] = useState([]);
     const [selectedTab, setSelectedTab] = useState('Activity'); // Track which tab is selected (Activity or Milestones)
     const [heartCount, setHeartCount] = useState({ count: 999999, selected: false });
