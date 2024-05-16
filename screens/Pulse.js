@@ -13,6 +13,7 @@ import { profileIcon, postImage } from '../assets/images';
 import globalStyles from '../styles/globalStyles';
 import Icon from 'react-native-vector-icons/FontAwesome'
 import { useNavigation } from '@react-navigation/native';
+import { displayShortenedString } from '../logic/formattingFunctions'
 
 
 export default function Pulse() {
@@ -64,30 +65,48 @@ export default function Pulse() {
     }
 
     function renderFollowRequests() {
+        let username1 = "@skibidisigmafanumtaxohiogyatt";
+        let username2 = "@rizzlord80";
+        let maxUsernameLength = 12;
+
         return (
             <View>
                 <Text style={[globalStyles.subtitle, {marginLeft: 15, marginVertical: 20, fontWeight: 'bold', fontSize: 30}]}>Follow Requests</Text>
                 <View style={activityStyles.pulseView}>
-                    <View style={activityStyles.activityElement}>
+                    <TouchableOpacity style={activityStyles.activityElement}>
                         <View style={activityStyles.activityPostImage}>
                             <Image source={profileIcon} style={activityStyles.activityImageStyle} />
                         </View>
                         <View style={{flex:1}}>
                             <Text style={activityStyles.activityDescription}>
-                                <Text style={{fontWeight: 'bold'}}>@skibidisigmafanumtaxohiogyatt</Text> has requested to follow you.<Text style={{color:'grey'}}> 20s</Text>
+                                <Text style={{fontWeight: 'bold'}}>{displayShortenedString(username1, maxUsernameLength)}</Text>
+                                <Text style={{color:'grey'}}> · 46s</Text>
                             </Text>
                         </View>
-                    </View>
-                    <View style={activityStyles.activityElement}>
+                        <TouchableOpacity style={activityStyles.acceptButton}>
+                            <Text style={{color: 'black'}}>Accept</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={activityStyles.ignoreButton}>
+                            <Text style={{color: 'white'}}>Ignore</Text>
+                        </TouchableOpacity>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={activityStyles.activityElement}>
                         <View style={activityStyles.activityPostImage}>
                             <Image source={profileIcon} style={activityStyles.activityImageStyle} />
                         </View>
                         <View style={{flex:1}}>
                             <Text style={activityStyles.activityDescription}>
-                                <Text style={{fontWeight: 'bold'}}>@skibidisigmafanumtaxohiogyatt</Text> has requested to follow you.<Text style={{color:'grey'}}> 20s</Text>
+                                <Text style={{fontWeight: 'bold'}}>{displayShortenedString(username2, maxUsernameLength)}</Text>
+                                <Text style={{color:'grey'}}> · 2h</Text>
                             </Text>
                         </View>
-                    </View>
+                        <TouchableOpacity style={activityStyles.acceptButton}>
+                            <Text style={{color: 'black'}}>Accept</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={activityStyles.ignoreButton}>
+                            <Text style={{color: 'white'}}>Ignore</Text>
+                        </TouchableOpacity>
+                    </TouchableOpacity>
                 </View>
             </View>
         );
@@ -449,7 +468,7 @@ export default function Pulse() {
                 </View>
                 {renderHeaderButtons()}
             </View>
-            {/* Alternate between Activity and Milestones8*/}
+            {/* Alternate between Activity and Milestones*/}
             <View style={{flex:1}}>
                 {selectedTab === 'Activity' ? (
                     renderActivity()
@@ -509,7 +528,7 @@ const activityStyles = StyleSheet.create({
         paddingHorizontal: 10,
     },
     pulseView: {
-        padding: 5,
+        paddingHorizontal: 5,
         marginHorizontal: 15,
         marginBottom: 10,
         justifyContent: 'flex-start',
@@ -520,9 +539,11 @@ const activityStyles = StyleSheet.create({
     activityElement: {
         borderBottomWidth: 1,
         borderColor: 'grey',
-        padding: 5,
+        paddingVertical: 10,
+        paddingHorizontal: 5,
         flexDirection: 'row',
-        justifyContent: 'space-between',
+        justifyContent: 'center',
+        alignItems: 'center',
         width: '100%',
     },
     activityPostImage: {
@@ -541,6 +562,28 @@ const activityStyles = StyleSheet.create({
         width: '100%',
         fontSize: 16,
         flexShrink: 1,
+    },
+    acceptButton: {
+        paddingHorizontal: 8,
+        backgroundColor: '#ebebeb',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 5,
+        borderRadius: 10,
+        height: 30,
+        marginRight: 5,
+    },
+    ignoreButton: {
+        paddingHorizontal: 8,
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 5,
+        borderRadius: 10,
+        borderWidth: 1,
+        borderRadius: 10,
+        borderColor: 'grey',
+        height: 30,
+        marginLeft: 5
     },
     milestonesElement: {
         borderTopWidth: 1,
