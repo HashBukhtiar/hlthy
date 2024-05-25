@@ -63,48 +63,46 @@ export default function Pulse() {
     }
 
     function renderFollowRequests() {
-        let username1 = "@skibidisigmafanumtaxohiogyatt";
-        let username2 = "@rizzlord80";
+        const followRequests = [
+            {
+                username: 'skibidisigmafanumtaxohiogyatt',
+                time: '46s'
+            },
+            {
+                username: 'rizzlord80',
+                time: '2h'
+            },
+            {
+                username: 'test3',
+                time: '5h'
+            },
+        ];
+
         let maxUsernameLength = 12;
 
         return (
             <View>
                 <Text style={[globalStyles.subtitle, {marginLeft: 15, marginVertical: 20, fontWeight: 'bold', fontSize: 30}]}>Follow Requests</Text>
                 <View style={activityStyles.activityView}>
-                    <TouchableOpacity style={activityStyles.activityElement}>
-                        <View style={activityStyles.activityPostImage}>
-                            <Image source={profileIcon} style={activityStyles.activityImageStyle} />
-                        </View>
-                        <View style={{flex:1}}>
-                            <Text style={activityStyles.activityDescription}>
-                                <Text style={{fontWeight: 'bold'}}>{displayShortenedString(username1, maxUsernameLength)}</Text>
-                                <Text style={{color:'grey'}}> · 46s</Text>
-                            </Text>
-                        </View>
-                        <TouchableOpacity style={activityStyles.acceptButton}>
-                            <Text style={{color: 'black'}}>Accept</Text>
+                    {followRequests.map((request, index) => (
+                        <TouchableOpacity key={index} style={activityStyles.activityElement}>
+                            <View style={activityStyles.activityPostImage}>
+                                <Image source={profileIcon} style={activityStyles.activityImageStyle} />
+                            </View>
+                            <View style={{flex:1}}>
+                                <Text style={activityStyles.activityDescription}>
+                                    <Text style={{fontWeight: 'bold'}}>@{displayShortenedString(request.username, maxUsernameLength)}</Text>
+                                    <Text style={{color:'grey'}}> · {request.time}</Text>
+                                </Text>
+                            </View>
+                            <TouchableOpacity style={activityStyles.acceptButton}>
+                                <Text style={{color: 'black'}}>Accept</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={activityStyles.ignoreButton}>
+                                <Text style={{color: 'white'}}>Ignore</Text>
+                            </TouchableOpacity>
                         </TouchableOpacity>
-                        <TouchableOpacity style={activityStyles.ignoreButton}>
-                            <Text style={{color: 'white'}}>Ignore</Text>
-                        </TouchableOpacity>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={activityStyles.activityElement}>
-                        <View style={activityStyles.activityPostImage}>
-                            <Image source={profileIcon} style={activityStyles.activityImageStyle} />
-                        </View>
-                        <View style={{flex:1}}>
-                            <Text style={activityStyles.activityDescription}>
-                                <Text style={{fontWeight: 'bold'}}>{displayShortenedString(username2, maxUsernameLength)}</Text>
-                                <Text style={{color:'grey'}}> · 2h</Text>
-                            </Text>
-                        </View>
-                        <TouchableOpacity style={activityStyles.acceptButton}>
-                            <Text style={{color: 'black'}}>Accept</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={activityStyles.ignoreButton}>
-                            <Text style={{color: 'white'}}>Ignore</Text>
-                        </TouchableOpacity>
-                    </TouchableOpacity>
+                    ))}
                 </View>
             </View>
         );
