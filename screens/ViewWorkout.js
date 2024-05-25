@@ -13,6 +13,7 @@ const ViewWorkout = () => {
     workoutLength: "2 segments • 1h 30min",
     segments: [
       {
+        name: "Warm Up",
         length: "30 mins",
         workouts: [
           { name: "Bulgarian Split Squats", reps: "3x12" },
@@ -21,6 +22,7 @@ const ViewWorkout = () => {
         ],
       },
       {
+        name: "Main Workout",
         length: "1h",
         workouts: [
           { name: "Squats", reps: "2x10" },
@@ -57,9 +59,10 @@ const ViewWorkout = () => {
 
 
       {workoutData.segments.map((segment, segmentIndex) => (
-  <View key={segmentIndex} style={{ marginTop: segmentIndex === 0 ? 30 : 10 }}>
+        <View key={segmentIndex} style={{ marginTop: segmentIndex === 0 ? 30 : 10 }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 30 }}>
-            <Text style={{ color: '#ffffff', fontSize: 22, fontWeight: 'bold' }}>Segment {segmentIndex + 1}</Text>
+            <Text style={{ color: '#ffffff', fontSize: 22, fontWeight: 'bold' }}>{segment.name}</Text>
+            {/* <Text style={{ color: '#ffffff', fontSize: 22, fontWeight: 'bold' }}>Segment { segmentIndex + 1 }</Text> This is for naming the segments according to their order, i.e. Segment 1, Segment 2, etc. */}
             <View style={{ alignSelf: 'flex-start', marginTop: 10 }}>
               <Text style={{ color: '#666666', fontSize: 14 }}>{segment.workouts.length} exercises • {segment.length}</Text>
             </View>
