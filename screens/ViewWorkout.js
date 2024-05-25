@@ -36,11 +36,16 @@ const ViewWorkout = () => {
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: 'black' }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', paddingTop: 70, paddingLeft: 25, marginTop: -40 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', paddingTop: 70, paddingLeft: 25, marginTop: -40, justifyContent: 'space-between', paddingRight: 25 }}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color="white" />
         </TouchableOpacity>
-        <Text style={{ color: 'white', fontSize: 30, marginLeft: 20, fontWeight: 'bold' }}>View Workout</Text>
+        <Text style={{ color: 'white', fontSize: 30, marginLeft: -100, fontWeight: 'bold' }}>View Workout</Text>
+        <TouchableOpacity>
+        <View style={{ backgroundColor: '#303030', borderRadius: 15, width: 30, height: 30, justifyContent: 'center', alignItems: 'center' }}>
+            <Ionicons name="ellipsis-horizontal" size={20} color="white" />
+        </View>
+        </TouchableOpacity>
       </View>
       <Image
         source={{ uri: 'https://thecamerastore.com/cdn/shop/articles/GINAYEOLANDSCAPE-1_800x.jpg?v=1687296669' }}
