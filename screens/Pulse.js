@@ -8,10 +8,8 @@ import {
     ScrollView,
     Dimensions,
 } from 'react-native';
-//import DoubleTap from 'react-native-double-tap';
-import { profileIcon, postImage } from '../assets/images';
+import { profileIcon, postImage, backArrow } from '../assets/images';
 import globalStyles from '../styles/globalStyles';
-import Icon from 'react-native-vector-icons/FontAwesome'
 import { useNavigation } from '@react-navigation/native';
 import { displayShortenedString } from '../logic/formattingFunctions'
 
@@ -613,15 +611,15 @@ export default function Pulse() {
     return (
         <View style={globalStyles.container}>
             <View>
-                <View style={{flexDirection:'row', alignItems:'center', marginLeft: 15}}>
-                    <TouchableOpacity onPress={() => {
+            <View style={{flexDirection:'row', alignItems:'center', marginLeft: 15}}>
+                <TouchableOpacity onPress={() => {
                         console.log("back arrow pressed");
                         navigation.goBack();
                         }}>
-                        <Icon name="arrow-left" size={25} color="white" />
-                    </TouchableOpacity>
-                    <Text style={[globalStyles.title, {marginLeft: 15}]}>Pulse</Text>
-                </View>
+                    <Image source={backArrow} style={globalStyles.backArrowIcon} />
+                </TouchableOpacity>
+                <Text style={[globalStyles.title, {marginLeft: 10}]}>Pulse</Text>
+            </View>
                 {renderHeaderButtons()}
             </View>
             {/* Alternate between Activity and Milestones*/}
