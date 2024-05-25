@@ -1,6 +1,5 @@
 import { StyleSheet } from 'react-native';
 
-
 export default StyleSheet.create({
   container: {
     flex: 1,
@@ -33,7 +32,7 @@ export default StyleSheet.create({
   bottomButtonContainer: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    marginBottom: 5,
+    marginBottom: 0,
     borderTopColor: 'red',
     borderWidth: 1
   },

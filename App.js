@@ -5,6 +5,8 @@ import { createStackNavigator } from '@react-navigation/stack';
 import HomeFeed from './screens/HomeFeed';
 import Pulse from './screens/Pulse';
 import Workouts from './screens/Workouts';
+import SignUp from './screens/SignUp';
+import SelectArchetype from './screens/SelectArchetype';
 import { useNavigation } from '@react-navigation/native';
 import { 
   homeIcon, 
@@ -20,33 +22,32 @@ export default function App() {
   return (
     <SafeAreaView style={appStyles.safeArea}>
       <NavigationContainer>
-        <Stack.Navigator initialRouteName="HomeFeed">
-          <Stack.Screen 
-            name="HomeFeed"
-            component={HomeFeed} 
-            options={{headerShown: false}}
-          />
-          <Stack.Screen
-            name="Pulse"
-            component={Pulse}
-            options={{headerShown: false}}
-          />
-          <Stack.Screen
-            name="Workouts"
-            component={Workouts}
-            options={{headerShown: false, animationEnabled: false}}
-          />
+        <Stack.Navigator initialRouteName="SignUp">
+          <Stack.Screen name="SignUp" options={{headerShown: false}}>
+            {props => <SignUp {...props} />}
+          </Stack.Screen>
+          <Stack.Screen name="SelectArchetype" options={{headerShown: false}}>
+            {props => <SelectArchetype {...props} />}
+          </Stack.Screen>
+          <Stack.Screen name="HomeFeed" options={{headerShown: false}}>
+            {props => <><HomeFeed {...props} /><BottomButtons /></>}
+          </Stack.Screen>
+          <Stack.Screen name="Pulse" options={{headerShown: false}}>
+            {props => <><Activity {...props} /><BottomButtons /></>}
+          </Stack.Screen>
+          <Stack.Screen name="Workouts" options={{headerShown: false, animationEnabled: false}}>
+            {props => <><Workouts {...props} /><BottomButtons /></>}
+          </Stack.Screen>
         </Stack.Navigator>
-        <BottomButtons />
       </NavigationContainer>
     </SafeAreaView>
   );
 
   function BottomButtons() {  
-    // If a screen has to have this hidden, then use the route of the screen to conditinoally return null, or render the bottom buttons
     const navigation = useNavigation();
+  
     return (
-      <View style={globalStyles.bottomButtonContainer}>
+      <View style={[globalStyles.bottomButtonContainer, {backgroundColor: 'black'}]}>
         <TouchableOpacity style={globalStyles.button} onPress={() => {
             console.log("HomeFeed pressed"); 
             navigation.navigate('HomeFeed')
@@ -73,7 +74,6 @@ export default function App() {
       </View>
     );
   }
-  
 }
 
 const appStyles = StyleSheet.create({
