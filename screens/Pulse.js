@@ -109,154 +109,57 @@ export default function Pulse() {
     }
 
     function renderOtherActivity() {
+        const activities = [
+            {
+                username: '@username2',
+                action: 'has requested to follow you.',
+                time: '20s',
+                image: profileIcon
+            },
+            {
+                username: '@username3',
+                action: 'has reacted to your post with 🔥.',
+                time: '2m',
+                image: postImage
+            },
+            {
+                username: '@username4',
+                action: 'has reacted to your post with 🔥.',
+                time: '2m',
+                image: postImage
+            },
+            {
+                username: '@username5',
+                action: 'has requested to follow you.',
+                time: '5m',
+                image: profileIcon
+            },
+            {
+                username: '@username6',
+                action: 'has requested to follow you.',
+                time: '6h',
+                image: profileIcon
+            },
+        ];
+
         return (
             <View>
                 <Text style={[globalStyles.subtitle, {marginLeft: 15, marginVertical: 20, fontWeight: 'bold', fontSize: 30}]}>Other Activity</Text>
                 <View style={activityStyles.activityView}>
-                    <TouchableOpacity onPress={() => {console.log("activity element pressed")}}>
-                        <View style={activityStyles.activityElement}>
-                            <View style={activityStyles.activityPostImage}>
-                                <Image source={profileIcon} style={activityStyles.activityImageStyle} />
+                    {activities.map((activity, index) => (
+                        <TouchableOpacity key={index} onPress={() => {console.log("activity element pressed")}}>
+                            <View style={activityStyles.activityElement}>
+                                <View style={activityStyles.activityPostImage}>
+                                    <Image source={activity.image} style={activityStyles.activityImageStyle} />
+                                </View>
+                                <View style={{flex:1}}>
+                                    <Text style={activityStyles.activityDescription}>
+                                        <Text style={{fontWeight: 'bold'}}>{activity.username}</Text> {activity.action}<Text style={{color:'grey'}}> {activity.time}</Text>
+                                    </Text>
+                                </View>
                             </View>
-                            <View style={{flex:1}}>
-                                <Text style={activityStyles.activityDescription}>
-                                    <Text style={{fontWeight: 'bold'}}>@skibidisigmafanumtaxohiogyatt</Text> has requested to follow you.<Text style={{color:'grey'}}> 20s</Text>
-                                </Text>
-                            </View>
-                        </View>
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => {console.log("activity element pressed")}}>
-                        <View style={activityStyles.activityElement}>
-                            <View style={activityStyles.activityPostImage}>
-                                <Image source={postImage} style={activityStyles.activityImageStyle} />
-                            </View>
-                            <View style={{flex:1}}>
-                                <Text style={activityStyles.activityDescription}>
-                                    <Text style={{fontWeight: 'bold'}}>@tangoholic</Text> has reacted to your post with 💪.<Text style={{color:'grey'}}> 2m</Text>
-                                </Text>
-                            </View>
-                        </View>
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => {console.log("activity element pressed")}}>
-                        <View style={activityStyles.activityElement}>
-                            <View style={activityStyles.activityPostImage}>
-                                <Image source={postImage} style={activityStyles.activityImageStyle} />
-                            </View>
-                            <View style={{flex:1}}>
-                                <Text style={activityStyles.activityDescription}>
-                                    <Text style={{fontWeight: 'bold'}}>@neCHAD</Text> has reacted to your post with 🔥.<Text style={{color:'grey'}}> 54m</Text>
-                                </Text>
-                            </View>
-                        </View>
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => {console.log("activity element pressed")}}>
-                        <View style={activityStyles.activityElement}>
-                            <View style={activityStyles.activityPostImage}>
-                                <Image source={profileIcon} style={activityStyles.activityImageStyle} />
-                            </View>
-                            <View style={{flex:1}}>
-                                <Text style={activityStyles.activityDescription}>
-                                    <Text style={{fontWeight: 'bold'}}>@neCHAD</Text> has requested to follow you.<Text style={{color:'grey'}}> 2h</Text>
-                                </Text>
-                            </View>
-                        </View>
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => {console.log("activity element pressed")}}>
-                        <View style={activityStyles.activityElement}>
-                            <View style={activityStyles.activityPostImage}>
-                                <Image source={profileIcon} style={activityStyles.activityImageStyle} />
-                            </View>
-                            <View style={{flex:1}}>
-                                <Text style={activityStyles.activityDescription}>
-                                    <Text style={{fontWeight: 'bold'}}>@skibidisigmafanumtaxohiogyatt</Text> has requested to follow you.<Text style={{color:'grey'}}> 20s</Text>
-                                </Text>
-                            </View>
-                        </View>
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => {console.log("activity element pressed")}}>
-                        <View style={activityStyles.activityElement}>
-                            <View style={activityStyles.activityPostImage}>
-                                <Image source={postImage} style={activityStyles.activityImageStyle} />
-                            </View>
-                            <View style={{flex:1}}>
-                                <Text style={activityStyles.activityDescription}>
-                                    <Text style={{fontWeight: 'bold'}}>@tangoholic</Text> has reacted to your post with 💪.<Text style={{color:'grey'}}> 2m</Text>
-                                </Text>
-                            </View>
-                        </View>
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => {console.log("activity element pressed")}}>
-                        <View style={activityStyles.activityElement}>
-                            <View style={activityStyles.activityPostImage}>
-                                <Image source={postImage} style={activityStyles.activityImageStyle} />
-                            </View>
-                            <View style={{flex:1}}>
-                                <Text style={activityStyles.activityDescription}>
-                                    <Text style={{fontWeight: 'bold'}}>@neCHAD</Text> has reacted to your post with 🔥.<Text style={{color:'grey'}}> 54m</Text>
-                                </Text>
-                            </View>
-                        </View>
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => {console.log("activity element pressed")}}>
-                        <View style={activityStyles.activityElement}>
-                            <View style={activityStyles.activityPostImage}>
-                                <Image source={profileIcon} style={activityStyles.activityImageStyle} />
-                            </View>
-                            <View style={{flex:1}}>
-                                <Text style={activityStyles.activityDescription}>
-                                    <Text style={{fontWeight: 'bold'}}>@neCHAD</Text> has requested to follow you.<Text style={{color:'grey'}}> 2h</Text>
-                                </Text>
-                            </View>
-                        </View>
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => {console.log("activity element pressed")}}>
-                        <View style={activityStyles.activityElement}>
-                            <View style={activityStyles.activityPostImage}>
-                                <Image source={profileIcon} style={activityStyles.activityImageStyle} />
-                            </View>
-                            <View style={{flex:1}}>
-                                <Text style={activityStyles.activityDescription}>
-                                    <Text style={{fontWeight: 'bold'}}>@skibidisigmafanumtaxohiogyatt</Text> has requested to follow you.<Text style={{color:'grey'}}> 20s</Text>
-                                </Text>
-                            </View>
-                        </View>
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => {console.log("activity element pressed")}}>
-                        <View style={activityStyles.activityElement}>
-                            <View style={activityStyles.activityPostImage}>
-                                <Image source={postImage} style={activityStyles.activityImageStyle} />
-                            </View>
-                            <View style={{flex:1}}>
-                                <Text style={activityStyles.activityDescription}>
-                                    <Text style={{fontWeight: 'bold'}}>@tangoholic</Text> has reacted to your post with 💪.<Text style={{color:'grey'}}> 2m</Text>
-                                </Text>
-                            </View>
-                        </View>
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => {console.log("activity element pressed")}}>
-                        <View style={activityStyles.activityElement}>
-                            <View style={activityStyles.activityPostImage}>
-                                <Image source={postImage} style={activityStyles.activityImageStyle} />
-                            </View>
-                            <View style={{flex:1}}>
-                                <Text style={activityStyles.activityDescription}>
-                                    <Text style={{fontWeight: 'bold'}}>@neCHAD</Text> has reacted to your post with 🔥.<Text style={{color:'grey'}}> 54m</Text>
-                                </Text>
-                            </View>
-                        </View>
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => {console.log("activity element pressed")}}>
-                        <View style={activityStyles.activityElement}>
-                            <View style={activityStyles.activityPostImage}>
-                                <Image source={profileIcon} style={activityStyles.activityImageStyle} />
-                            </View>
-                            <View style={{flex:1}}>
-                                <Text style={activityStyles.activityDescription}>
-                                    <Text style={{fontWeight: 'bold'}}>@neCHAD</Text> has requested to follow you.<Text style={{color:'grey'}}> 2h</Text>
-                                </Text>
-                            </View>
-                        </View>
-                    </TouchableOpacity>
+                        </TouchableOpacity>
+                    ))}
                 </View>
             </View>
         );
