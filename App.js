@@ -22,7 +22,8 @@ export default function App() {
   return (
     <SafeAreaView style={appStyles.safeArea}>
       <NavigationContainer>
-        <Stack.Navigator initialRouteName="HomeFeed">
+        <Stack.Navigator initialRouteName="HomeFeed"> 
+        {/* <Stack.Navigator initialRouteName="SignUp"> TEMPORARY BACKDOOR PASS */}
           <Stack.Screen name="SignUp" options={{headerShown: false}}>
             {props => <SignUp {...props} />}
           </Stack.Screen>
