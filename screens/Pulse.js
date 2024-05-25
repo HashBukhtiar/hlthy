@@ -17,9 +17,6 @@ import { displayShortenedString } from '../logic/formattingFunctions'
 export default function Pulse() {
     //const [activities, setActivities] = useState([]);
     const [selectedTab, setSelectedTab] = useState('Activity'); // Track which tab is selected (Activity or Milestones)
-    const [heartCount, setHeartCount] = useState({ count: 999999, selected: false });
-    const [strongCount, setStrongCount] = useState({ count: 999, selected: false });
-    const [fireCount, setFireCount] = useState({ count: 0, selected: false });
     const navigation = useNavigation();
 
     function formatCount(num) {
@@ -36,6 +33,31 @@ export default function Pulse() {
     const addActivity = (activity) => {
         setActivities(prevActivities => [...prevActivities, activity]);
     }
+
+    const [milestones, setMilestones] = useState([
+        {
+            username: '@sungjinwoo',
+            time: '2m',
+            activity: 'Bench Press',
+            weight: '225 lbs',
+            profileIcon: profileIcon,
+            postImage: postImage,
+            heartCount: { count: 999, selected: false },
+            strongCount: { count: 999999, selected: false },
+            fireCount: { count: 0, selected: false }
+        },
+        {
+            username: '@username2',
+            time: '5m',
+            activity: 'Deadlift',
+            weight: '30,000 lbs',
+            profileIcon: profileIcon,
+            // postImage: postImage,
+            heartCount: { count: 0, selected: false },
+            strongCount: { count: -1, selected: false },
+            fireCount: { count: 0, selected: false }
+        },
+    ]);
 
     function renderHeaderButtons() {
         return (
@@ -174,40 +196,19 @@ export default function Pulse() {
         );
     }
 
-    function handleReactionPress(setReaction) {
-        setReaction(prevState => ({
-            count: prevState.selected ? prevState.count - 1 : prevState.count + 1,
-            selected: !prevState.selected
-        }));
+    function handleReactionPress(index, reaction) {
+        setMilestones(prevMilestones => {
+            const newMilestones = [...prevMilestones];
+            const milestone = newMilestones[index];
+            milestone[reaction] = {
+                count: milestone[reaction].selected ? milestone[reaction].count - 1 : milestone[reaction].count + 1,
+                selected: !milestone[reaction].selected
+            };
+            return newMilestones;
+        });
     }
 
     function renderMilestonesList() {
-
-        const milestones = [
-            {
-                username: '@sungjinwoo',
-                time: '2m',
-                activity: 'Bench Press',
-                weight: '225 lbs',
-                profileIcon: profileIcon,
-                postImage: postImage,
-                heartCount: heartCount,
-                strongCount: strongCount,
-                fireCount: fireCount
-            },
-            {
-                username: '@username2',
-                time: '5m',
-                activity: 'Deadlift',
-                weight: '30,000 lbs',
-                profileIcon: profileIcon,
-                // postImage: postImage,
-                heartCount: heartCount,
-                strongCount: strongCount,
-                fireCount: fireCount
-            },
-        ];
-
         return (
             <ScrollView contentContainerStyle={activityStyles.milestonesView}>
                 {milestones.map((milestone, index) => (
@@ -228,16 +229,17 @@ export default function Pulse() {
                                 </Text>
 
                                 <View style={activityStyles.reactionButtons}>
-                                    <TouchableOpacity activeOpacity={1} onPress={() => handleReactionPress(setHeartCount)} style={milestone.heartCount.selected ? activityStyles.reactionButtonClicked : activityStyles.reactionButtonUnclicked}>
-                                        <Text style={milestone.heartCount.selected ? activityStyles.reactionTextClicked : activityStyles.reactionTextUnclicked}>❤️ {formatCount(milestone.heartCount.count)}</Text>
-                                    </TouchableOpacity>
-                                    <TouchableOpacity activeOpacity={1} onPress={() => handleReactionPress(setStrongCount)} style={milestone.strongCount.selected ? activityStyles.reactionButtonClicked : activityStyles.reactionButtonUnclicked}>
-                                        <Text style={milestone.strongCount.selected ? activityStyles.reactionTextClicked : activityStyles.reactionTextUnclicked}>💪 {formatCount(milestone.strongCount.count)}</Text>
-                                    </TouchableOpacity>
-                                    <TouchableOpacity activeOpacity={1} onPress={() => handleReactionPress(setFireCount)} style={milestone.fireCount.selected ? activityStyles.reactionButtonClicked : activityStyles.reactionButtonUnclicked}>
-                                        <Text style={milestone.fireCount.selected ? activityStyles.reactionTextClicked : activityStyles.reactionTextUnclicked}>🔥 {formatCount(milestone.fireCount.count)}</Text>
-                                    </TouchableOpacity>
+                                <TouchableOpacity activeOpacity={1} onPress={() => handleReactionPress(index, 'heartCount')} style={milestone.heartCount.selected ? activityStyles.reactionButtonClicked : activityStyles.reactionButtonUnclicked}>
+                                    <Text style={milestone.heartCount.selected ? activityStyles.reactionTextClicked : activityStyles.reactionTextUnclicked}>❤️ {formatCount(milestone.heartCount.count)}</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity activeOpacity={1} onPress={() => handleReactionPress(index, 'strongCount')} style={milestone.strongCount.selected ? activityStyles.reactionButtonClicked : activityStyles.reactionButtonUnclicked}>
+                                    <Text style={milestone.strongCount.selected ? activityStyles.reactionTextClicked : activityStyles.reactionTextUnclicked}>💪 {formatCount(milestone.strongCount.count)}</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity activeOpacity={1} onPress={() => handleReactionPress(index, 'fireCount')} style={milestone.fireCount.selected ? activityStyles.reactionButtonClicked : activityStyles.reactionButtonUnclicked}>
+                                    <Text style={milestone.fireCount.selected ? activityStyles.reactionTextClicked : activityStyles.reactionTextUnclicked}>🔥 {formatCount(milestone.fireCount.count)}</Text>
+                                </TouchableOpacity>
                                 </View>
+
                             </View>
 
                             {milestone.postImage && (
