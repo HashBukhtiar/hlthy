@@ -22,7 +22,7 @@ export default function App() {
   return (
     <SafeAreaView style={appStyles.safeArea}>
       <NavigationContainer>
-        <Stack.Navigator initialRouteName="SignUp">
+        <Stack.Navigator initialRouteName="HomeFeed">
           <Stack.Screen name="SignUp" options={{headerShown: false}}>
             {props => <SignUp {...props} />}
           </Stack.Screen>
@@ -33,7 +33,7 @@ export default function App() {
             {props => <><HomeFeed {...props} /><BottomButtons /></>}
           </Stack.Screen>
           <Stack.Screen name="Pulse" options={{headerShown: false}}>
-            {props => <><Activity {...props} /><BottomButtons /></>}
+            {props => <><Pulse {...props} /><BottomButtons /></>}
           </Stack.Screen>
           <Stack.Screen name="Workouts" options={{headerShown: false, animationEnabled: false}}>
             {props => <><Workouts {...props} /><BottomButtons /></>}
