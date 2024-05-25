@@ -15,7 +15,6 @@ import { displayShortenedString } from '../logic/formattingFunctions'
 
 
 export default function Pulse() {
-    //const [activities, setActivities] = useState([]);
     const [selectedTab, setSelectedTab] = useState('Activity'); // Track which tab is selected (Activity or Milestones)
     const navigation = useNavigation();
 
@@ -27,11 +26,6 @@ export default function Pulse() {
         } else {
             return num;
         }
-    }
-
-    // Add new activity
-    const addActivity = (activity) => {
-        setActivities(prevActivities => [...prevActivities, activity]);
     }
 
     const [milestones, setMilestones] = useState([
@@ -102,32 +96,32 @@ export default function Pulse() {
 
         let maxUsernameLength = 12;
 
-        return (
-            <View>
-                <Text style={[globalStyles.subtitle, {marginLeft: 15, marginVertical: 20, fontWeight: 'bold', fontSize: 30}]}>Follow Requests</Text>
-                <View style={activityStyles.activityView}>
-                    {followRequests.map((request, index) => (
-                        <TouchableOpacity key={index} style={activityStyles.activityElement}>
-                            <View style={activityStyles.activityPostImage}>
-                                <Image source={profileIcon} style={activityStyles.activityImageStyle} />
-                            </View>
-                            <View style={{flex:1}}>
-                                <Text style={activityStyles.activityDescription}>
-                                    <Text style={{fontWeight: 'bold'}}>@{displayShortenedString(request.username, maxUsernameLength)}</Text>
-                                    <Text style={{color:'grey'}}> · {request.time}</Text>
-                                </Text>
-                            </View>
-                            <TouchableOpacity style={activityStyles.acceptButton}>
-                                <Text style={{color: 'black'}}>Accept</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity style={activityStyles.ignoreButton}>
-                                <Text style={{color: 'white'}}>Ignore</Text>
-                            </TouchableOpacity>
+    return (
+        <View>
+            <Text style={[globalStyles.subtitle, {marginLeft: 15, marginVertical: 20, fontWeight: 'bold', fontSize: 30}]}>Follow Requests</Text>
+            <View style={activityStyles.activityView}>
+                {followRequests.map((request, index) => (
+                    <TouchableOpacity key={index} style={[activityStyles.activityElement, index !== followRequests.length - 1 && {borderBottomWidth: 1, borderBottomColor: 'grey'}]}>
+                        <View style={activityStyles.activityPostImage}>
+                            <Image source={profileIcon} style={activityStyles.activityImageStyle} />
+                        </View>
+                        <View style={{flex:1}}>
+                            <Text style={activityStyles.activityDescription}>
+                                <Text style={{fontWeight: 'bold'}}>@{displayShortenedString(request.username, maxUsernameLength)}</Text>
+                                <Text style={{color:'grey'}}> · {request.time}</Text>
+                            </Text>
+                        </View>
+                        <TouchableOpacity style={activityStyles.acceptButton}>
+                            <Text style={{color: 'black'}}>Accept</Text>
                         </TouchableOpacity>
-                    ))}
-                </View>
+                        <TouchableOpacity style={activityStyles.ignoreButton}>
+                            <Text style={{color: 'white'}}>Ignore</Text>
+                        </TouchableOpacity>
+                    </TouchableOpacity>
+                ))}
             </View>
-        );
+        </View>
+    );
     }
 
     function renderOtherActivity() {
@@ -170,7 +164,7 @@ export default function Pulse() {
                 <View style={activityStyles.activityView}>
                     {activities.map((activity, index) => (
                         <TouchableOpacity key={index} onPress={() => {console.log("activity element pressed")}}>
-                            <View style={activityStyles.activityElement}>
+                            <View style={[activityStyles.activityElement, index !== activities.length - 1 && {borderBottomWidth: 1, borderBottomColor: 'grey'}]}>
                                 <View style={activityStyles.activityPostImage}>
                                     <Image source={activity.image} style={activityStyles.activityImageStyle} />
                                 </View>
@@ -337,8 +331,6 @@ const activityStyles = StyleSheet.create({
         borderRadius: 35,
     },
     activityElement: {
-        borderBottomWidth: 1,
-        borderColor: 'grey',
         paddingVertical: 10,
         paddingHorizontal: 5,
         flexDirection: 'row',
