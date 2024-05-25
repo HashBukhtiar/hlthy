@@ -12,7 +12,7 @@ import {
 import globalStyles from '../styles/globalStyles';
 import Icon from 'react-native-vector-icons/FontAwesome';
 
-export default function Workouts() {
+export default function Workouts({ navigation }) {
     const [searchQuery, setSearchQuery] = useState('');
 
     function renderSearchBar() {
@@ -40,7 +40,13 @@ export default function Workouts() {
             <View>
                 <View style={styles.myWorkoutsHeaderView}>
                     <Text style={styles.workoutsHeaders}>My Workouts</Text>
-                    <TouchableOpacity style={styles.createWorkoutButton}>
+                    <TouchableOpacity 
+                        style={styles.createWorkoutButton}
+                        onPress={() => {
+                            console.log("Create Workout pressed");
+                            navigation.navigate('CreateWorkout');
+                        }}
+                    >
                         <Text style={{
                             color: 'black', fontWeight: 'bold', fontSize: 23}}>+</Text>
                     </TouchableOpacity>
