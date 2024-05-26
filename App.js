@@ -3,7 +3,7 @@ import { SafeAreaView, StyleSheet, View, TouchableOpacity, Image, Text } from 'r
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import HomeFeed from './screens/HomeFeed';
-import Activity from './screens/Activity';
+import Pulse from './screens/Pulse';
 import Workouts from './screens/Workouts';
 import SignUp from './screens/SignUp';
 import SelectArchetype from './screens/SelectArchetype';
@@ -33,8 +33,8 @@ export default function App() {
           <Stack.Screen name="HomeFeed" options={{headerShown: false}}>
             {props => <><HomeFeed {...props} /><BottomButtons /></>}
           </Stack.Screen>
-          <Stack.Screen name="Activity" options={{headerShown: false}}>
-            {props => <><Activity {...props} /><BottomButtons /></>}
+          <Stack.Screen name="Pulse" options={{headerShown: false}}>
+            {props => <><Pulse {...props} /><BottomButtons /></>}
           </Stack.Screen>
           <Stack.Screen name="Workouts" options={{headerShown: false, animationEnabled: false}}>
             {props => <><Workouts {...props} /><BottomButtons /></>}
