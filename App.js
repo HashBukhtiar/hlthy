@@ -4,6 +4,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import HomeFeed from './screens/HomeFeed';
 import Pulse from './screens/Pulse';
+import Explore from './screens/Explore';
 import Workouts from './screens/Workouts';
 import SignUp from './screens/SignUp';
 import SelectArchetype from './screens/SelectArchetype';
@@ -24,17 +25,20 @@ export default function App() {
       <NavigationContainer>
         <Stack.Navigator initialRouteName="HomeFeed"> 
         {/* <Stack.Navigator initialRouteName="SignUp"> TEMPORARY BACKDOOR PASS */}
-          <Stack.Screen name="SignUp" options={{headerShown: false}}>
+          <Stack.Screen name="SignUp" options={{headerShown: false, animationEnabled: false}}>
             {props => <SignUp {...props} />}
           </Stack.Screen>
-          <Stack.Screen name="SelectArchetype" options={{headerShown: false}}>
+          <Stack.Screen name="SelectArchetype" options={{headerShown: false, animationEnabled: false}}>
             {props => <SelectArchetype {...props} />}
           </Stack.Screen>
-          <Stack.Screen name="HomeFeed" options={{headerShown: false}}>
+          <Stack.Screen name="HomeFeed" options={{headerShown: false, animationEnabled: false}}>
             {props => <><HomeFeed {...props} /><BottomButtons /></>}
           </Stack.Screen>
           <Stack.Screen name="Pulse" options={{headerShown: false}}>
-            {props => <><Pulse {...props} /><BottomButtons /></>}
+            {props => <Pulse {...props} />}
+          </Stack.Screen>
+          <Stack.Screen name="Explore" options={{headerShown: false, animationEnabled: false}}>
+            {props => <><Explore {...props} /><BottomButtons /></>}
           </Stack.Screen>
           <Stack.Screen name="Workouts" options={{headerShown: false, animationEnabled: false}}>
             {props => <><Workouts {...props} /><BottomButtons /></>}
@@ -55,7 +59,10 @@ export default function App() {
           }}>
           <Image source={homeIcon} style={{ width: 40, height: 40, borderRadius:5 }} />
         </TouchableOpacity>
-        <TouchableOpacity style={globalStyles.button} onPress={() => {console.log("Explore pressed")}}>
+        <TouchableOpacity style={globalStyles.button} onPress={() => {
+          console.log("Explore pressed")
+          navigation.navigate('Explore')
+          }}>
           <Image source={exploreIcon} style={{ width: 40, height: 40, borderRadius:5 }} />
         </TouchableOpacity>
         <TouchableOpacity 
