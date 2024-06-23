@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, 
     TouchableOpacity, 
-    Image, 
+    ScrollView, 
     Text,
     TextInput,
 } from 'react-native';
@@ -10,10 +10,10 @@ export default function Explore() {
     const [searchQuery, setSearchQuery] = useState('');
     const renderSearchBar = () => {
         return (
-            <View style={exploreStyles.searchBar}>
+            <View style={exploreStyles.searchBarView}>
                 <TextInput 
                     placeholder="Search hlthy..." 
-                    style={{flex: 1, color: 'white'}}
+                    style={exploreStyles.searchBar}
                     onChangeText={(text) => {setSearchQuery(text)}}
                     value={searchQuery}
                     placeholderTextColor="grey"
@@ -25,7 +25,9 @@ export default function Explore() {
     return(
         <View style={exploreStyles.explorePage}>
             {renderSearchBar()}
-            <Text>Explore</Text>
+            <ScrollView contentContainerStyle={exploreStyles.pageContent}>
+                <Text style={{color:'white'}}>Explore</Text>
+            </ScrollView>
         </View>
     );
 }
@@ -34,7 +36,15 @@ const exploreStyles = {
     explorePage: {
         flex: 1,
         backgroundColor: 'black',
+        borderWidth: 1,
+        borderColor: 'blue',
+    },
+    searchBarView: {
+        flexDirection: 'row',
+        justifyContent: 'center',
         alignItems: 'center',
+        borderWidth: 1,
+        borderColor: 'white',
     },
     searchBar: {
         flexDirection: 'row',
@@ -47,5 +57,14 @@ const exploreStyles = {
         marginTop: 10,
         marginBottom: 10,
         paddingHorizontal: 10,
+        borderWidth: 1,
+        borderColor: 'white',
+    },
+    pageContent: {
+        flex: 1,
+        width: '100%',
+        backgroundColor: 'black',
+        alignItems: 'center',
+        justifyContent: 'center',
     },
 }
