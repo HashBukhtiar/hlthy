@@ -53,7 +53,7 @@ export default function Explore() {
             <View style={exploreStyles.searchBarView}>
                 <TextInput 
                     placeholder="Search hlthy..." 
-                    style={exploreStyles.searchBar}
+                    style={[exploreStyles.searchBar, { color: 'white' }]}
                     onChangeText={(text) => {setSearchQuery(text)}}
                     value={searchQuery}
                     placeholderTextColor="grey"
