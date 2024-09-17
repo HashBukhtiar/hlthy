@@ -1,18 +1,28 @@
 import React, { useState } from 'react';
-import { View, 
+import { 
+    View, 
     TouchableOpacity, 
     ScrollView, 
     Text,
     TextInput,
     Image,
-    Keyboard
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { cameraRollIcon } from '../assets/images';
+import { cameraRollIcon, samplePhotoIcon } from '../assets/images';
+import globalStyles from '../styles/globalStyles';
+import DropDownPicker from 'react-native-dropdown-picker';
+
 
 export default function Post() {
     const navigation = useNavigation();
     const [caption, setCaption] = useState('');
+    const [open, setOpen] = useState(false);
+    const [value, setValue] = useState(null);
+    const [items, setItems] = useState([
+        {label: 'Private', value: 'private'},
+        {label: 'Public', value: 'public'}
+    ])
+
     return (
         <View style={postStyles.postPage}>
             <View style={postStyles.header}>
@@ -40,7 +50,7 @@ export default function Post() {
                 </View>
                 <View style={postStyles.imagePreview}>
                     <Text style={postStyles.postText}>image preview below</Text>
-                    <Image source={cameraRollIcon} style={{ width: '100%', height: 200, backgroundColor: 'white', resizeMode: 'contain' }}/>
+                    <Image source={samplePhotoIcon} style={{ width: '100%', height: 200, backgroundColor: 'white', resizeMode: 'contain' }}/>
                 </View>
                 <TextInput
                     style={postStyles.captionInput}
@@ -53,6 +63,24 @@ export default function Post() {
                     textAlignVertical="top"
                     keyboardType="default"
                 />
+                <View style={globalStyles.horizontalLine}></View>
+                <View style={postStyles.privacyContainer}>
+                    <Text style={postStyles.privacyText}>Privacy</Text>
+                    <DropDownPicker
+                        open={open}
+                        value={value}
+                        items={items}
+                        setOpen={setOpen}
+                        setValue={setValue}
+                        setItems={setItems}
+                        style={postStyles.dropdownStyle}
+                        dropDownContainerStyle={postStyles.dropdownContainerStyle}
+                        textStyle={postStyles.dropdownTextStyle}
+                        placeholder='Select' // Eventually change this to user's default settings preference (public/ private)
+                        placeholderStyle={postStyles.dropdownPlaceholderStyle}
+                        labelStyle={postStyles.dropdownLabelStyle}
+                    />
+                </View>
             </ScrollView>
         </View>
     );
@@ -127,9 +155,48 @@ const postStyles = ({
         height: 100,
         backgroundColor: '#ccc',
         borderWidth: 1,
-        borderRadius: 8,
-        paddingHorizontal: 8,
+        borderRadius: 20,
+        padding: 10,
         marginTop: 16,
         textAlignVertical: 'top',
     },
+    privacyContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginTop: 10,
+    },
+    privacyText: {
+        fontSize: 16,
+        color: 'white',
+        marginRight: 190 // NEED TO FIX THIS PROBLEM EVENTUALLY
+    },
+    dropdownStyle: {
+        backgroundColor: '#fafafa',
+        borderColor: '#ccc',
+        borderWidth: 1,
+        borderRadius: 30,
+        width: 150,
+    },
+    dropdownContainerStyle: {
+        backgroundColor: '#fafafa',
+        borderColor: '#ccc',
+        borderWidth: 1,
+        borderRadius: 30,
+        paddingBottom: 3,
+        width: 150
+    },
+    dropdownTextStyle: {
+        fontSize: 16,
+        color: '#333',
+    },
+    dropdownPlaceholderStyle: {
+        fontSize: 16,
+        color: '#999',
+    },
+    dropdownLabelStyle: {
+        fontSize: 16,
+        color: '#333',
+    },
+
 });

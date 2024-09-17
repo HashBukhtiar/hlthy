@@ -58,4 +58,9 @@ export default StyleSheet.create({
     height: 30,
     transform: [{ rotate: '180deg' }]
   },
+  horizontalLine: {
+    borderBottomColor: 'white',
+    borderBottomWidth: 2,
+    marginTop: 10
+  }
 });

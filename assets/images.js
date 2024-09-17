@@ -8,6 +8,7 @@ import exploreIcon from './exploreIcon.png';
 import postImage from './postImage.png';
 import backArrow from './backArrowIcon.png';
 import cameraRollIcon from './cameraRollIcon.png'
+import samplePhotoIcon from './samplePhotoIcon.jpg'
 
 export { 
     icon, 
@@ -19,5 +20,6 @@ export {
     exploreIcon,
     postImage,
     backArrow,
-    cameraRollIcon
+    cameraRollIcon,
+    samplePhotoIcon
 }
