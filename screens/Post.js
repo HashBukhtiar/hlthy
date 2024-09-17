@@ -5,12 +5,14 @@ import { View,
     Text,
     TextInput,
     Image,
+    Keyboard
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { cameraRollIcon } from '../assets/images';
 
 export default function Post() {
     const navigation = useNavigation();
+    const [caption, setCaption] = useState('');
     return (
         <View style={postStyles.postPage}>
             <View style={postStyles.header}>
@@ -33,10 +35,24 @@ export default function Post() {
                         <Text style={postStyles.postButtonText}>Open Camera</Text>
                     </TouchableOpacity>
                     <TouchableOpacity style={postStyles.cameraRollButton}>
-                        <Image source={cameraRollIcon} style={{ width: 55, height: 55 }}/>
+                        <Image source={cameraRollIcon} style={{ width: 55, height: 55, resizeMode: 'contain' }}/>
                     </TouchableOpacity>
                 </View>
-                <Text style={postStyles.postText}>image preview below</Text>
+                <View style={postStyles.imagePreview}>
+                    <Text style={postStyles.postText}>image preview below</Text>
+                    <Image source={cameraRollIcon} style={{ width: '100%', height: 200, backgroundColor: 'white', resizeMode: 'contain' }}/>
+                </View>
+                <TextInput
+                    style={postStyles.captionInput}
+                    placeholder="Share your progress..."
+                    placeholderTextColor="#4f4f4f"
+                    value={caption}
+                    onChangeText={setCaption}
+                    multiline={true}
+                    numberOfLines={4}
+                    textAlignVertical="top"
+                    keyboardType="default"
+                />
             </ScrollView>
         </View>
     );
@@ -103,5 +119,17 @@ const postStyles = ({
     postButtonText: {
         fontSize: 30,
         color: 'black'
-    }
+    },
+    imagePreview: {
+        marginTop: 20
+    },
+    captionInput: {
+        height: 100,
+        backgroundColor: '#ccc',
+        borderWidth: 1,
+        borderRadius: 8,
+        paddingHorizontal: 8,
+        marginTop: 16,
+        textAlignVertical: 'top',
+    },
 });
