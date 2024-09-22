@@ -13,7 +13,6 @@ import { cameraRollIcon, samplePhotoIcon } from '../assets/images';
 import globalStyles from '../styles/globalStyles';
 import DropDownPicker from 'react-native-dropdown-picker';
 
-
 export default function Post() {
     const navigation = useNavigation();
     const [caption, setCaption] = useState('');
@@ -25,22 +24,8 @@ export default function Post() {
     ])
     const [milestoneSwitchValue, setMilestoneSwitchValue] = useState(false);
 
-    return (
-        <View style={postStyles.postPage}>
-            <View style={postStyles.header}>
-                <TouchableOpacity style={postStyles.button} onPress={() => {
-                        console.log("back arrow pressed");
-                        navigation.goBack();
-                    }}>
-                    <Text style={postStyles.buttonText} >Back</Text>
-                </TouchableOpacity>
-                <Text style={postStyles.postTitle}>Create Post</Text>
-                <TouchableOpacity style={postStyles.button} onPress={() => {
-                        console.log("POST button pressed");;
-                    }}>
-                    <Text style={postStyles.buttonText}>Post</Text>
-                </TouchableOpacity>
-            </View>
+    const renderPostScroll = () => {
+        return (
             <ScrollView contentContainerStyle={postStyles.postPageScroll}>
                 <View style={postStyles.photoOptionsView}>
                     <TouchableOpacity style={postStyles.cameraButton}>
@@ -98,7 +83,55 @@ export default function Post() {
                         thumbColor={milestoneSwitchValue ? '#f4f3f4' : '#f4f3f4'}
                     />
                 </View>
+                {milestoneSwitchValue && renderPostMilestone()}
             </ScrollView>
+        );
+    };
+
+    const renderPostMilestone = () => {
+        return (
+            <View>
+                <View style={globalStyles.horizontalLine}></View>
+                <View style={postStyles.milestoneTypeContainer}>
+                    <Text style={postStyles.privacyText}>Type</Text>
+                    <DropDownPicker
+                        open={open}
+                        value={value}
+                        items={items}
+                        setOpen={setOpen}
+                        setValue={setValue}
+                        setItems={setItems}
+                        style={postStyles.dropdownStyle}
+                        dropDownContainerStyle={postStyles.dropdownContainerStyle}
+                        textStyle={postStyles.dropdownTextStyle}
+                        placeholder='Select'
+                        placeholderStyle={postStyles.dropdownPlaceholderStyle}
+                        labelStyle={postStyles.dropdownLabelStyle}
+                        zIndex={5000}
+                        elevation={5}
+                    />
+                </View>
+            </View>
+        );
+    }
+
+    return (
+        <View style={postStyles.postPage}>
+            <View style={postStyles.header}>
+                <TouchableOpacity style={postStyles.button} onPress={() => {
+                        console.log("back arrow pressed");
+                        navigation.goBack();
+                    }}>
+                    <Text style={postStyles.buttonText} >Back</Text>
+                </TouchableOpacity>
+                <Text style={postStyles.postTitle}>Create Post</Text>
+                <TouchableOpacity style={postStyles.button} onPress={() => {
+                        console.log("POST button pressed");;
+                    }}>
+                    <Text style={postStyles.buttonText}>Post</Text>
+                </TouchableOpacity>
+            </View>
+            {renderPostScroll()}
         </View>
     );
 };
@@ -231,5 +264,12 @@ const postStyles = ({
     milestoneSwitch: {
         transform: [{ scaleX: 1.2 }, { scaleY: 1.2 }],
         marginRight: 5
+    },
+    milestoneTypeContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginTop: 10,
+        zIndex: 5000
     },
 });
