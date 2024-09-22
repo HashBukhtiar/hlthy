@@ -6,6 +6,7 @@ import {
     Text,
     TextInput,
     Image,
+    Switch
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { cameraRollIcon, samplePhotoIcon } from '../assets/images';
@@ -22,6 +23,7 @@ export default function Post() {
         {label: 'Private', value: 'private'},
         {label: 'Public', value: 'public'}
     ])
+    const [milestoneSwitchValue, setMilestoneSwitchValue] = useState(false);
 
     return (
         <View style={postStyles.postPage}>
@@ -79,6 +81,21 @@ export default function Post() {
                         placeholder='Select' // Eventually change this to user's default settings preference (public/ private)
                         placeholderStyle={postStyles.dropdownPlaceholderStyle}
                         labelStyle={postStyles.dropdownLabelStyle}
+                        zIndex={5000}
+                        elevation={5}
+                    />
+                </View>
+                <View style={postStyles.milestoneContainer}>
+                    <Text style={postStyles.milestoneText}>Milestone</Text>
+                    <Switch
+                        value={milestoneSwitchValue}
+                        onValueChange={(newValue) => {
+                            setMilestoneSwitchValue(newValue);
+                            console.log("Milestone Switch Value:", {newValue});
+                        }}
+                        style={postStyles.milestoneSwitch}
+                        trackColor={{ false: '#ff7d7d', true: '#a600bf' }}
+                        thumbColor={milestoneSwitchValue ? '#f4f3f4' : '#f4f3f4'}
                     />
                 </View>
             </ScrollView>
@@ -165,6 +182,7 @@ const postStyles = ({
         justifyContent: 'space-between',
         alignItems: 'center',
         marginTop: 10,
+        zIndex: 5000
     },
     privacyText: {
         fontSize: 16,
@@ -184,7 +202,8 @@ const postStyles = ({
         borderWidth: 1,
         borderRadius: 30,
         paddingBottom: 3,
-        width: 150
+        width: 150,
+        zIndex: 5000
     },
     dropdownTextStyle: {
         fontSize: 16,
@@ -198,5 +217,19 @@ const postStyles = ({
         fontSize: 16,
         color: '#333',
     },
-
+    milestoneContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginVertical: 10,
+        zIndex: 1
+    },
+    milestoneText: {
+        fontSize: 16,
+        color: 'white'
+    },
+    milestoneSwitch: {
+        transform: [{ scaleX: 1.2 }, { scaleY: 1.2 }],
+        marginRight: 5
+    },
 });
