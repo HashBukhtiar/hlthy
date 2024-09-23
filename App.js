@@ -24,7 +24,8 @@ export default function App() {
   return (
     <SafeAreaView style={appStyles.safeArea}>
       <NavigationContainer>
-        <Stack.Navigator initialRouteName="SignUp">
+        <Stack.Navigator initialRouteName="HomeFeed"> 
+        {/* <Stack.Navigator initialRouteName="SignUp">  */}
           <Stack.Screen name="SignUp" options={{headerShown: false}}>
             {props => <SignUp {...props} />}
           </Stack.Screen>
