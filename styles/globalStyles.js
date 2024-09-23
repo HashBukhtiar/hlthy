@@ -52,5 +52,10 @@ export default StyleSheet.create({
     alignItems: 'center',
     paddingBottom: 5,
     marginTop: 5
-  }
+  },
+  backArrowIcon: {
+    width: 30,
+    height: 30,
+    transform: [{ rotate: '180deg' }]
+  },
 });
