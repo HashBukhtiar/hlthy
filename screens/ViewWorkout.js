@@ -66,7 +66,7 @@ const ViewWorkout = () => {
               <Text style={{ color: '#666666', fontSize: 14 }}>{segment.workouts.length} exercises • {segment.length}</Text>
             </View>
           </View>
-          <View style={{ backgroundColor: '#303030', borderRadius: 30, marginTop: 14, margin: 20, padding: 20 }}>
+          <View style={{ backgroundColor: '#303030', borderRadius: 20, marginTop: 14, margin: 20, padding: 20 }}>
             {segment.workouts.map((workout, index) => (
               <View key={index}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: index === segment.workouts.length - 1 ? -2 : 8, marginTop: index === 0 ? -2 : 8 }}>
@@ -104,7 +104,7 @@ const ViewWorkout = () => {
       ))}
 
       <Text style={{ color: '#c0c0c0', fontSize: 18, fontWeight: 'bold', marginTop: 10, marginLeft: 30}}>Description</Text>
-      <View style={{ backgroundColor: '#202020', borderRadius: 30, marginTop: 14, margin: 20, padding: 20 }}>
+      <View style={{ backgroundColor: '#202020', borderRadius: 20, marginTop: 14, margin: 20, padding: 20 }}>
         <Text style={{ color: '#b7b7b7', fontSize: 16 }}>{workoutData.description}</Text>
       </View>
     </ScrollView>
