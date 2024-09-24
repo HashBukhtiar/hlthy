@@ -20,9 +20,21 @@ const Profile = () => {
     'https://via.placeholder.com/150',
   ];
 
+  // Dummy data for milestones
+  const milestones = [
+    { id: 1, date: '2023-09-20', exercise: 'Bench Press', reps: 10, weight: '100 kg', postId: 1 },
+    { id: 2, date: '2023-09-18', exercise: 'Squat', reps: 8, weight: '120 kg', postId: 2 },
+    { id: 3, date: '2023-09-15', exercise: 'Deadlift', reps: 5, weight: '140 kg', postId: 3 },
+  ];
+
   // Function to handle image click
   const handleImagePress = (imageUri) => {
     console.log(`Image clicked: ${imageUri}`);
+  };
+
+  // Function to handle milestone click
+  const handleMilestonePress = (postId) => {
+    console.log(`Milestone clicked, navigating to post ${postId}`);
   };
 
   // Dummy content for each tab
@@ -41,9 +53,18 @@ const Profile = () => {
   );
 
   const Milestones = () => (
-    <View style={styles.scene}>
-      <Text style={styles.dummyText}>Here are the user's milestones.</Text>
-    </View>
+    <FlatList
+      data={milestones}
+      renderItem={({ item }) => (
+        <TouchableOpacity onPress={() => handleMilestonePress(item.postId)} style={styles.milestoneItem}>
+          <Text style={styles.milestoneText}>Date: {item.date}</Text>
+          <Text style={styles.milestoneText}>Exercise: {item.exercise}</Text>
+          <Text style={styles.milestoneText}>Reps: {item.reps}</Text>
+          <Text style={styles.milestoneText}>Weight: {item.weight}</Text>
+        </TouchableOpacity>
+      )}
+      keyExtractor={(item) => item.id.toString()}
+    />
   );
 
   const Workouts = () => (
@@ -123,7 +144,6 @@ const styles = StyleSheet.create({
   },
   tabBar: {
     backgroundColor: 'black',
-    // marginBottom: 5
   },
   indicator: {
     backgroundColor: 'white',
@@ -142,6 +162,17 @@ const styles = StyleSheet.create({
   },
   dummyText: {
     color: 'white',
+  },
+  milestoneItem: {
+    backgroundColor: '#1c1c1e',
+    padding: 20,
+    marginVertical: 10,
+    borderRadius: 10,
+    marginHorizontal: 10,
+  },
+  milestoneText: {
+    color: 'white',
+    fontSize: 16,
   },
 });
 
