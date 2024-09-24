@@ -22,10 +22,23 @@ const Profile = () => {
 
   // Dummy data for milestones
   const milestones = [
-    { id: 1, exercise: 'Bench Press', reps: 10, weight: '100', postId: 1 },
-    { id: 2, exercise: 'Squat', reps: 8, weight: '120', postId: 2 },
-    { id: 3, exercise: 'Deadlift', reps: 5, weight: '140', postId: 3 },
+    { id: 1, exercise: 'Bench Press', reps: 10, weight: '100', date: new Date('2024-08-01'), postId: 1 },
+    { id: 2, exercise: 'Squat', reps: 8, weight: '120', date: new Date('2024-08-05'), postId: 2 },
+    { id: 3, exercise: 'Deadlift', reps: 5, weight: '140', date: new Date('2024-08-10'), postId: 3 },
+    { id: 4, exercise: 'Leg Press', reps: 1, weight: '400', date: new Date('2024-09-01'), postId: 4 },
   ];
+
+  // Function to group milestones by month
+  const groupMilestonesByMonth = (milestones) => {
+    return milestones.reduce((groups, milestone) => {
+      const monthYear = milestone.date.toLocaleString('default', { month: 'long', year: 'numeric' });
+      if (!groups[monthYear]) {
+        groups[monthYear] = [];
+      }
+      groups[monthYear].push(milestone);
+      return groups;
+    }, {});
+  };  
 
   // Function to handle image click
   const handleImagePress = (imageUri) => {
@@ -34,7 +47,7 @@ const Profile = () => {
 
   // Function to handle milestone click
   const handleMilestonePress = (postId) => {
-    console.log(`Milestone clicked, navigating to post ${postId}`);
+    console.log(`Milestone clicked, navigating to Milestone ID=${postId}`);
   };
 
   // Dummy content for each tab
@@ -46,34 +59,43 @@ const Profile = () => {
           <Image source={{ uri: item }} style={styles.postImage} />
         </TouchableOpacity>
       )}
-      keyExtractor={(item, index) => index.toString()}
+      keyExtractor={(item, index) => index .toString()}
       numColumns={3}
       contentContainerStyle={styles.postsContainer}
     />
   );
 
-  const Milestones = () => (
-    <FlatList
-      data={milestones}
-      renderItem={({ item }) => (
-        <TouchableOpacity onPress={() => handleMilestonePress(item.postId)} style={styles.milestoneItem}>
-          <View style={styles.milestoneDetail}>
-            <Text style={styles.milestoneExercise}>{item.exercise}</Text>
-          </View>
-          <View style={styles.milestoneDetail}>
-            <Text style={styles.milestoneNumber}>{item.reps}</Text>
-            <Text style={styles.milestoneDescriptor}>Reps</Text>
-          </View>
-          <View style={styles.milestoneDetail}>
-            <Text style={styles.milestoneNumber}>{item.weight}</Text>
-            <Text style={styles.milestoneDescriptor}>Weight</Text>
-          </View>
-        </TouchableOpacity>
-      )}
-      keyExtractor={(item) => item.id.toString()}
-    />
-  );
+  const Milestones = () => {
+    const groupedMilestones = groupMilestonesByMonth(milestones);
+    const monthKeys = Object.keys(groupedMilestones).sort((a, b) => new Date(b) - new Date(a)); // Sort in descending order
   
+    return (
+      <FlatList
+        data={monthKeys}
+        renderItem={({ item: month }) => (
+          <View>
+            <Text style={styles.monthHeader}>{month}</Text>
+            {groupedMilestones[month].map((item) => (
+              <TouchableOpacity key={item.id} onPress={() => handleMilestonePress(item.postId)} style={styles.milestoneItem}>
+                <View style={styles.milestoneDetail}>
+                  <Text style={styles.milestoneExercise}>{item.exercise}</Text>
+                </View>
+                <View style={styles.milestoneDetail}>
+                  <Text style={styles.milestoneNumber}>{item.reps}</Text>
+                  <Text style={styles.milestoneDescriptor}>Reps</Text>
+                </View>
+                <View style={styles.milestoneDetail}>
+                  <Text style={styles.milestoneNumber}>{item.weight}</Text>
+                  <Text style={styles.milestoneDescriptor}>Weight</Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+        keyExtractor={(item) => item}
+      />
+    );
+  };  
 
   const Workouts = () => (
     <View style={styles.scene}>
@@ -194,11 +216,22 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 24,
     fontWeight: 'bold',
+    marginTop: -5,
   },
   milestoneDescriptor: {
     color: 'gray',
     fontSize: 14,
-    marginTop: -5,
+    marginTop: 0,
+    marginBottom: -5,
+  },
+  monthHeader: {
+    color: 'white',
+    fontSize: 25,
+    fontWeight: 'bold',
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    backgroundColor: 'black',
+    marginTop: 10
   },
 });
 
