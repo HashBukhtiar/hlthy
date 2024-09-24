@@ -28,17 +28,19 @@ const Profile = () => {
     { id: 4, exercise: 'Leg Press', reps: 1, weight: '400', date: new Date('2024-09-01'), postId: 4 },
   ];
 
-  // Function to group milestones by month
   const groupMilestonesByMonth = (milestones) => {
     return milestones.reduce((groups, milestone) => {
-      const monthYear = milestone.date.toLocaleString('default', { month: 'long', year: 'numeric' });
+      const adjustedDate = new Date(milestone.date);
+      adjustedDate.setDate(adjustedDate.getDate() + 1);
+      const monthYear = adjustedDate.toLocaleString('default', { month: 'long', year: 'numeric' });
       if (!groups[monthYear]) {
         groups[monthYear] = [];
       }
       groups[monthYear].push(milestone);
+  
       return groups;
     }, {});
-  };  
+  };
 
   // Function to handle image click
   const handleImagePress = (imageUri) => {
@@ -66,8 +68,9 @@ const Profile = () => {
   );
 
   const Milestones = () => {
-    const groupedMilestones = groupMilestonesByMonth(milestones);
-    const monthKeys = Object.keys(groupedMilestones).sort((a, b) => new Date(b) - new Date(a)); // Sort in descending order
+    const sortedMilestones = [...milestones].sort((a, b) => b.date - a.date)
+    const groupedMilestones = groupMilestonesByMonth(sortedMilestones);
+    const monthKeys = Object.keys(groupedMilestones).sort((a, b) => new Date(b) - new Date(a));
   
     return (
       <FlatList
