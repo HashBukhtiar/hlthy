@@ -22,9 +22,9 @@ const Profile = () => {
 
   // Dummy data for milestones
   const milestones = [
-    { id: 1, date: '2023-09-20', exercise: 'Bench Press', reps: 10, weight: '100 kg', postId: 1 },
-    { id: 2, date: '2023-09-18', exercise: 'Squat', reps: 8, weight: '120 kg', postId: 2 },
-    { id: 3, date: '2023-09-15', exercise: 'Deadlift', reps: 5, weight: '140 kg', postId: 3 },
+    { id: 1, exercise: 'Bench Press', reps: 10, weight: '100', postId: 1 },
+    { id: 2, exercise: 'Squat', reps: 8, weight: '120', postId: 2 },
+    { id: 3, exercise: 'Deadlift', reps: 5, weight: '140', postId: 3 },
   ];
 
   // Function to handle image click
@@ -47,7 +47,7 @@ const Profile = () => {
         </TouchableOpacity>
       )}
       keyExtractor={(item, index) => index.toString()}
-      numColumns={3} // Show 3 posts per row
+      numColumns={3}
       contentContainerStyle={styles.postsContainer}
     />
   );
@@ -57,15 +57,23 @@ const Profile = () => {
       data={milestones}
       renderItem={({ item }) => (
         <TouchableOpacity onPress={() => handleMilestonePress(item.postId)} style={styles.milestoneItem}>
-          <Text style={styles.milestoneText}>Date: {item.date}</Text>
-          <Text style={styles.milestoneText}>Exercise: {item.exercise}</Text>
-          <Text style={styles.milestoneText}>Reps: {item.reps}</Text>
-          <Text style={styles.milestoneText}>Weight: {item.weight}</Text>
+          <View style={styles.milestoneDetail}>
+            <Text style={styles.milestoneExercise}>{item.exercise}</Text>
+          </View>
+          <View style={styles.milestoneDetail}>
+            <Text style={styles.milestoneNumber}>{item.reps}</Text>
+            <Text style={styles.milestoneDescriptor}>Reps</Text>
+          </View>
+          <View style={styles.milestoneDetail}>
+            <Text style={styles.milestoneNumber}>{item.weight}</Text>
+            <Text style={styles.milestoneDescriptor}>Weight</Text>
+          </View>
         </TouchableOpacity>
       )}
       keyExtractor={(item) => item.id.toString()}
     />
   );
+  
 
   const Workouts = () => (
     <View style={styles.scene}>
@@ -165,14 +173,32 @@ const styles = StyleSheet.create({
   },
   milestoneItem: {
     backgroundColor: '#1c1c1e',
-    padding: 20,
-    marginVertical: 10,
+    padding: 15,
+    marginVertical: 5,
     borderRadius: 10,
     marginHorizontal: 10,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
-  milestoneText: {
+  milestoneDetail: {
+    alignItems: 'center',
+  },
+  milestoneExercise: {
     color: 'white',
-    fontSize: 16,
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 5,
+  },
+  milestoneNumber: {
+    color: 'white',
+    fontSize: 24,
+    fontWeight: 'bold',
+  },
+  milestoneDescriptor: {
+    color: 'gray',
+    fontSize: 14,
+    marginTop: -5,
   },
 });
 
