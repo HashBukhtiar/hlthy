@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, Image, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, Image, StyleSheet, Dimensions, FlatList, TouchableOpacity, Alert } from 'react-native';
 import { TabView, SceneMap, TabBar } from 'react-native-tab-view';
 
 const Profile = () => {
@@ -10,22 +10,45 @@ const Profile = () => {
     { key: 'workouts', title: 'Workouts' },
   ]);
 
+  // Dummy data for posts 
+  const postImages = [
+    'https://via.placeholder.com/150',
+    'https://via.placeholder.com/150',
+    'https://via.placeholder.com/150',
+    'https://via.placeholder.com/150',
+    'https://via.placeholder.com/150',
+    'https://via.placeholder.com/150',
+  ];
+
+  // Function to handle image click
+  const handleImagePress = (imageUri) => {
+    console.log(`Image clicked: ${imageUri}`);
+  };
+
   // Dummy content for each tab
   const Posts = () => (
-    <View style={styles.scene}>
-      <Text style={styles.dummyText}>Here are the user's posts.</Text>
-    </View>
+    <FlatList
+      data={postImages}
+      renderItem={({ item }) => (
+        <TouchableOpacity onPress={() => handleImagePress(item)}>
+          <Image source={{ uri: item }} style={styles.postImage} />
+        </TouchableOpacity>
+      )}
+      keyExtractor={(item, index) => index.toString()}
+      numColumns={3} // Show 3 posts per row
+      contentContainerStyle={styles.postsContainer}
+    />
   );
-  
+
   const Milestones = () => (
     <View style={styles.scene}>
       <Text style={styles.dummyText}>Here are the user's milestones.</Text>
     </View>
   );
-  
+
   const Workouts = () => (
     <View style={styles.scene}>
-      <Text style={styles.dummyText}>Here are the user's Workouts.</Text>
+      <Text style={styles.dummyText}>Here are the user's workouts.</Text>
     </View>
   );
 
@@ -100,6 +123,7 @@ const styles = StyleSheet.create({
   },
   tabBar: {
     backgroundColor: 'black',
+    // marginBottom: 5
   },
   indicator: {
     backgroundColor: 'white',
@@ -107,6 +131,14 @@ const styles = StyleSheet.create({
   tabLabel: {
     color: 'white',
     fontSize: 16,
+  },
+  postsContainer: {
+    padding: 0,
+  },
+  postImage: {
+    width: Dimensions.get('window').width / 3,
+    height: Dimensions.get('window').width / 3,
+    margin: 0,
   },
   dummyText: {
     color: 'white',
