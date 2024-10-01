@@ -16,13 +16,22 @@ import DropDownPicker from 'react-native-dropdown-picker';
 export default function Post() {
     const navigation = useNavigation();
     const [caption, setCaption] = useState('');
-    const [open, setOpen] = useState(false);
-    const [value, setValue] = useState(null);
-    const [items, setItems] = useState([
-        {label: 'Private', value: 'private'},
-        {label: 'Public', value: 'public'}
-    ])
+
+    const [openPrivacy, setOpenPrivacy] = useState(false);
+    const [valuePrivacy, setValuePrivacy] = useState(null);
+    const [itemsPrivacy, setItemsPrivacy] = useState([
+        { label: 'Public', value: 'public' },
+        { label: 'Private', value: 'private' }
+    ]);
+
     const [milestoneSwitchValue, setMilestoneSwitchValue] = useState(false);
+
+    const [openMilestone, setOpenMilestone] = useState(false);
+    const [valueMilestone, setValueMilestone] = useState(null);
+    const [itemsMilestone, setItemsMilestone] = useState([
+        { label: 'PR', value: 'PR' },
+        { label: 'Weight Loss/Gain', value: 'weight' }
+    ]);
 
     const renderPostScroll = () => {
         return (
@@ -54,12 +63,12 @@ export default function Post() {
                 <View style={postStyles.privacyContainer}>
                     <Text style={postStyles.privacyText}>Privacy</Text>
                     <DropDownPicker
-                        open={open}
-                        value={value}
-                        items={items}
-                        setOpen={setOpen}
-                        setValue={setValue}
-                        setItems={setItems}
+                        open={openPrivacy}
+                        value={valuePrivacy}
+                        items={itemsPrivacy}
+                        setOpen={setOpenPrivacy}
+                        setValue={setValuePrivacy}
+                        setItems={setItemsPrivacy}
                         style={postStyles.dropdownStyle}
                         dropDownContainerStyle={postStyles.dropdownContainerStyle}
                         textStyle={postStyles.dropdownTextStyle}
@@ -95,12 +104,12 @@ export default function Post() {
                 <View style={postStyles.milestoneTypeContainer}>
                     <Text style={postStyles.privacyText}>Type</Text>
                     <DropDownPicker
-                        open={open}
-                        value={value}
-                        items={items}
-                        setOpen={setOpen}
-                        setValue={setValue}
-                        setItems={setItems}
+                        open={openMilestone}
+                        value={valueMilestone}
+                        items={itemsMilestone}
+                        setOpen={setOpenMilestone}
+                        setValue={setValueMilestone}
+                        setItems={setItemsMilestone}
                         style={postStyles.dropdownStyle}
                         dropDownContainerStyle={postStyles.dropdownContainerStyle}
                         textStyle={postStyles.dropdownTextStyle}
