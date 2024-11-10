@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { 
     View, 
     TouchableOpacity, 
@@ -63,7 +63,30 @@ export default function Post() {
         }
     };
 
-    // Calculate aspect ratio safely
+    const openImageLibrary = async () => {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') {
+            Alert.alert('Permission Denied', 'Media library access is required to select photos.');
+            return;
+        }
+
+        const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: true,
+            aspect: [4, 3],
+            quality: 1,
+        });
+
+        console.log('Image Library result:', result);
+
+        if (!result.canceled && result.assets && result.assets.length > 0) {
+            const uri = result.assets[0].uri;
+            const { width, height } = result.assets[0];
+            console.log('Selected Image URI:', uri);
+            setImageUri(uri);
+            setImageDimensions({ width, height });
+        }
+    };
     const aspectRatio = imageDimensions.width && imageDimensions.height 
         ? imageDimensions.width / imageDimensions.height 
         : 1;
@@ -75,7 +98,7 @@ export default function Post() {
                     <TouchableOpacity style={postStyles.cameraButton} onPress={openCamera}>
                         <Text style={postStyles.postButtonText}>Open Camera</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={postStyles.cameraRollButton}>
+                    <TouchableOpacity style={postStyles.cameraRollButton} onPress={openImageLibrary}>
                         <Image source={cameraRollIcon} style={{ width: 55, height: 55, resizeMode: 'contain' }}/>
                     </TouchableOpacity>
                 </View>
@@ -118,7 +141,7 @@ export default function Post() {
                         style={postStyles.dropdownStyle}
                         dropDownContainerStyle={postStyles.dropdownContainerStyle}
                         textStyle={postStyles.dropdownTextStyle}
-                        placeholder='Select'
+                        placeholder='Select' // Eventually change this to user's default settings preference (public/ private)
                         placeholderStyle={postStyles.dropdownPlaceholderStyle}
                         labelStyle={postStyles.dropdownLabelStyle}
                         zIndex={5000}
