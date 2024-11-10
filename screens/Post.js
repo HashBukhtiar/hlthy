@@ -11,7 +11,7 @@ import {
     Dimensions
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { cameraRollIcon, samplePhotoIcon } from '../assets/images';
+import { cameraRollIcon } from '../assets/images';
 import globalStyles from '../styles/globalStyles';
 import DropDownPicker from 'react-native-dropdown-picker';
 import * as ImagePicker from 'expo-image-picker';
@@ -102,8 +102,8 @@ export default function Post() {
                         <Image source={cameraRollIcon} style={{ width: 55, height: 55, resizeMode: 'contain' }}/>
                     </TouchableOpacity>
                 </View>
-                <View style={postStyles.imagePreview}>
-                    {imageUri ? (
+                {imageUri && (
+                    <View style={postStyles.imagePreview}>
                         <Image 
                             source={{ uri: imageUri }} 
                             style={{ 
@@ -113,10 +113,8 @@ export default function Post() {
                                 resizeMode: 'contain' 
                             }}
                         />
-                    ) : (
-                        <Image source={samplePhotoIcon} style={{ width: '100%', height: 200, backgroundColor: 'white', resizeMode: 'contain' }}/>
-                    )}
-                </View>
+                    </View>
+                )}
                 <TextInput
                     style={postStyles.captionInput}
                     placeholder="Share your progress..."
