@@ -13,7 +13,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { cameraRollIcon } from '../assets/images';
 import globalStyles from '../styles/globalStyles';
-import DropDownPicker from 'react-native-dropdown-picker';
+import { Dropdown } from 'react-native-element-dropdown'; // Add Dropdown import
 import * as ImagePicker from 'expo-image-picker';
 
 export default function Post() {
@@ -35,8 +35,18 @@ export default function Post() {
     const [valueMilestone, setValueMilestone] = useState(null);
     const [itemsMilestone, setItemsMilestone] = useState([
         { label: 'PR', value: 'PR' },
-        { label: 'Weight Loss/Gain', value: 'weight' }
+        { label: 'Weight Loss', value: 'weightLoss' },
+        { label: 'Weight Gain', value: 'weightGain' }
     ]);
+
+    const [exerciseSearch, setExerciseSearch] = useState('');
+    const [amount, setAmount] = useState('');
+    const [weightUnit, setWeightUnit] = useState(null);
+    const [itemsWeightUnit, setItemsWeightUnit] = useState([
+        { label: 'lbs', value: 'lbs' },
+        { label: 'kg', value: 'kg' }
+    ]);
+    const [reps, setReps] = useState('');
 
     const openCamera = async () => {
         const { status } = await ImagePicker.requestCameraPermissionsAsync();
@@ -129,21 +139,15 @@ export default function Post() {
                 <View style={globalStyles.horizontalLine}></View>
                 <View style={postStyles.privacyContainer}>
                     <Text style={postStyles.privacyText}>Privacy</Text>
-                    <DropDownPicker
-                        open={openPrivacy}
+                    <Dropdown
+                        data={itemsPrivacy}
+                        labelField="label"
+                        valueField="value"
+                        placeholder="Select"
                         value={valuePrivacy}
-                        items={itemsPrivacy}
-                        setOpen={setOpenPrivacy}
-                        setValue={setValuePrivacy}
-                        setItems={setItemsPrivacy}
+                        onChange={item => setValuePrivacy(item.value)}
                         style={postStyles.dropdownStyle}
-                        dropDownContainerStyle={postStyles.dropdownContainerStyle}
-                        textStyle={postStyles.dropdownTextStyle}
-                        placeholder='Select' // Eventually change this to user's default settings preference (public/ private)
-                        placeholderStyle={postStyles.dropdownPlaceholderStyle}
-                        labelStyle={postStyles.dropdownLabelStyle}
-                        zIndex={5000}
-                        elevation={5}
+                        containerStyle={postStyles.dropdownContainerStyle}
                     />
                 </View>
                 <View style={postStyles.milestoneContainer}>
@@ -170,23 +174,57 @@ export default function Post() {
                 <View style={globalStyles.horizontalLine}></View>
                 <View style={postStyles.milestoneTypeContainer}>
                     <Text style={postStyles.privacyText}>Type</Text>
-                    <DropDownPicker
-                        open={openMilestone}
+                    <Dropdown
+                        data={itemsMilestone}
+                        labelField="label"
+                        valueField="value"
+                        placeholder="Select"
                         value={valueMilestone}
-                        items={itemsMilestone}
-                        setOpen={setOpenMilestone}
-                        setValue={setValueMilestone}
-                        setItems={setItemsMilestone}
+                        onChange={item => setValueMilestone(item.value)}
                         style={postStyles.dropdownStyle}
-                        dropDownContainerStyle={postStyles.dropdownContainerStyle}
-                        textStyle={postStyles.dropdownTextStyle}
-                        placeholder='Select'
-                        placeholderStyle={postStyles.dropdownPlaceholderStyle}
-                        labelStyle={postStyles.dropdownLabelStyle}
-                        zIndex={5000}
-                        elevation={5}
+                        containerStyle={postStyles.dropdownContainerStyle}
                     />
                 </View>
+                {valueMilestone === 'PR' && (
+                    <View style={postStyles.prFieldsContainer}>
+                        <TextInput
+                            style={postStyles.exerciseSearch}
+                            placeholder="Search for your exercise..."
+                            value={exerciseSearch}
+                            onChangeText={setExerciseSearch}
+                        />
+                        <View style={postStyles.inputRow}>
+                            <Text style={postStyles.inputLabel}>Amount</Text>
+                            <TextInput
+                                style={postStyles.numberInput}
+                                placeholder="0"
+                                keyboardType="numeric"
+                                value={amount}
+                                onChangeText={setAmount}
+                            />
+                            <Dropdown
+                                data={itemsWeightUnit}
+                                labelField="label"
+                                valueField="value"
+                                placeholder="Unit"
+                                value={weightUnit}
+                                onChange={item => setWeightUnit(item.value)}
+                                style={postStyles.unitDropdown}
+                                containerStyle={postStyles.unitDropdownContainer}
+                            />
+                        </View>
+                        <View style={postStyles.inputRow}>
+                            <Text style={postStyles.inputLabel}>Reps</Text>
+                            <TextInput
+                                style={postStyles.numberInput}
+                                placeholder="0"
+                                keyboardType="numeric"
+                                value={reps}
+                                onChangeText={setReps}
+                            />
+                        </View>
+                    </View>
+                )}
             </View>
         );
     }
@@ -276,7 +314,7 @@ const postStyles = ({
     },
     imagePreview: {
         marginTop: 20,
-        alignItems: 'center' // Center the image
+        alignItems: 'center'
     },
     captionInput: {
         height: 100,
@@ -295,9 +333,8 @@ const postStyles = ({
         zIndex: 5000
     },
     privacyText: {
-        fontSize: 16,
+        fontSize: 20,
         color: 'white',
-        marginRight: 190 // NEED TO FIX THIS PROBLEM EVENTUALLY
     },
     dropdownStyle: {
         backgroundColor: '#fafafa',
@@ -305,15 +342,16 @@ const postStyles = ({
         borderWidth: 1,
         borderRadius: 30,
         width: 150,
+        paddingHorizontal: 10,
+        paddingVertical: 5,
     },
     dropdownContainerStyle: {
-        backgroundColor: '#fafafa',
+        backgroundColor: '#fff',
         borderColor: '#ccc',
         borderWidth: 1,
         borderRadius: 30,
-        paddingBottom: 3,
+        padding: 10,
         width: 150,
-        zIndex: 5000
     },
     dropdownTextStyle: {
         fontSize: 16,
@@ -335,7 +373,7 @@ const postStyles = ({
         zIndex: 1
     },
     milestoneText: {
-        fontSize: 16,
+        fontSize: 20,
         color: 'white'
     },
     milestoneSwitch: {
@@ -348,5 +386,59 @@ const postStyles = ({
         alignItems: 'center',
         marginTop: 10,
         zIndex: 5000
+    },
+    pickerStyle: {
+        backgroundColor: '#fafafa',
+        borderColor: '#ccc',
+        borderWidth: 1,
+        borderRadius: 30,
+        width: 150,
+        height: 50,
+    },
+    prFieldsContainer: {
+        marginTop: 10,
+    },
+    exerciseSearch: {
+        height: 40,
+        borderColor: '#ccc',
+        borderWidth: 1,
+        borderRadius: 20,
+        paddingHorizontal: 10,
+        marginBottom: 15,
+        backgroundColor: '#fff',
+        fontSize: 18
+    },
+    inputRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 15,
+    },
+    inputLabel: {
+        flex: 1,
+        fontSize: 20,
+        color: 'white',
+    },
+    numberInput: {
+        flex: 0.5,
+        height: 40,
+        borderColor: '#ccc',
+        borderWidth: 1,
+        borderRadius: 10,
+        paddingHorizontal: 10,
+        backgroundColor: '#fff',
+        textAlign: 'right',
+        fontSize: 16
+    },
+    unitDropdown: {
+        flex: 0.35,
+        marginLeft: 10,
+        backgroundColor: '#fff',
+        borderRadius: 10,
+        padding: 3,
+    },
+    unitDropdownContainer: {
+        backgroundColor: '#fff',
+        borderWidth: 1,
+        borderRadius: 10,
     },
 });
