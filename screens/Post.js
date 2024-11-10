@@ -8,7 +8,9 @@ import {
     Image,
     Switch,
     Alert,
-    Dimensions
+    Dimensions,
+    KeyboardAvoidingView,
+    Platform
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { cameraRollIcon } from '../assets/images';
@@ -53,6 +55,15 @@ export default function Post() {
         { label: 'lbs', value: 'lbs' },
         { label: 'kg', value: 'kg' }
     ]);
+
+    const [allExercises, setAllExercises] = useState([ // TEMPORARY, MAKE DATABASE FOR THIS LATER 
+        'Bench Press',
+        'Squat',
+        'Deadlift',
+        'Overhead Press',
+        'Pull Up',
+    ]);
+    const [filteredExercises, setFilteredExercises] = useState([]);
 
     const openCamera = async () => {
         const { status } = await ImagePicker.requestCameraPermissionsAsync();
@@ -106,6 +117,18 @@ export default function Post() {
     const aspectRatio = imageDimensions.width && imageDimensions.height 
         ? imageDimensions.width / imageDimensions.height 
         : 1;
+
+    const handleExerciseSearch = (text) => {
+        setExerciseSearch(text);
+        if (text) {
+            const filtered = allExercises.filter(exercise =>
+                exercise.toLowerCase().includes(text.toLowerCase())
+            );
+            setFilteredExercises(filtered);
+        } else {
+            setFilteredExercises([]);
+        }
+    };
 
     const renderPostScroll = () => {
         return (
@@ -197,8 +220,24 @@ export default function Post() {
                             style={postStyles.exerciseSearch}
                             placeholder="Search for your exercise..."
                             value={exerciseSearch}
-                            onChangeText={setExerciseSearch}
+                            onChangeText={handleExerciseSearch}
                         />
+                        {filteredExercises.length > 0 && (
+                            <View style={postStyles.suggestionsContainer}>
+                                {filteredExercises.map((exercise, index) => (
+                                    <TouchableOpacity
+                                        key={index}
+                                        onPress={() => {
+                                            setExerciseSearch(exercise);
+                                            setFilteredExercises([]);
+                                        }}
+                                        style={postStyles.suggestionItem}
+                                    >
+                                        <Text>{exercise}</Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
+                        )}
                         <View style={postStyles.inputRow}>
                             <Text style={postStyles.inputLabel}>Amount</Text>
                             <TextInput
@@ -260,23 +299,28 @@ export default function Post() {
     }
 
     return (
-        <View style={postStyles.postPage}>
-            <View style={postStyles.header}>
-                <TouchableOpacity style={postStyles.button} onPress={() => {
-                        console.log("back arrow pressed");
-                        navigation.goBack();
-                    }}>
-                    <Text style={postStyles.buttonText} >Back</Text>
-                </TouchableOpacity>
-                <Text style={postStyles.postTitle}>Create Post</Text>
-                <TouchableOpacity style={postStyles.button} onPress={() => {
-                        console.log("POST button pressed");;
-                    }}>
-                    <Text style={postStyles.buttonText}>Post</Text>
-                </TouchableOpacity>
+        <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={{ flex: 1 }}
+        >
+            <View style={postStyles.postPage}>
+                <View style={postStyles.header}>
+                    <TouchableOpacity style={postStyles.button} onPress={() => {
+                            console.log("back arrow pressed");
+                            navigation.goBack();
+                        }}>
+                        <Text style={postStyles.buttonText} >Back</Text>
+                    </TouchableOpacity>
+                    <Text style={postStyles.postTitle}>Create Post</Text>
+                    <TouchableOpacity style={postStyles.button} onPress={() => {
+                            console.log("POST button pressed");;
+                        }}>
+                        <Text style={postStyles.buttonText}>Post</Text>
+                    </TouchableOpacity>
+                </View>
+                {renderPostScroll()}
             </View>
-            {renderPostScroll()}
-        </View>
+        </KeyboardAvoidingView>
     );
 };
 
@@ -311,7 +355,8 @@ const postStyles = ({
     postPageScroll: {
         padding: 10,
         borderBottomWidth: 1,
-        borderColor: 'white'
+        borderColor: 'white',
+        flexGrow: 1, // Ensure ScrollView takes available space
     },
     photoOptionsView: {
         flexDirection: 'row'
@@ -434,9 +479,22 @@ const postStyles = ({
         borderWidth: 1,
         borderRadius: 20,
         paddingHorizontal: 10,
-        marginBottom: 15,
+        marginBottom: 5, // Adjusted for suggestions
         backgroundColor: '#fff',
         fontSize: 18
+    },
+    suggestionsContainer: {
+        backgroundColor: '#fff',
+        borderColor: '#ccc',
+        borderWidth: 1,
+        borderRadius: 10,
+        maxHeight: 100,
+        marginBottom: 10,
+    },
+    suggestionItem: {
+        padding: 10,
+        borderBottomWidth: 1,
+        borderBottomColor: '#eee',
     },
     inputRow: {
         flexDirection: 'row',
