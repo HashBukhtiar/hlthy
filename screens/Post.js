@@ -6,12 +6,14 @@ import {
     Text,
     TextInput,
     Image,
-    Switch
+    Switch,
+    Alert
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { cameraRollIcon, samplePhotoIcon } from '../assets/images';
 import globalStyles from '../styles/globalStyles';
 import DropDownPicker from 'react-native-dropdown-picker';
+import * as ImagePicker from 'expo-image-picker';
 
 export default function Post() {
     const navigation = useNavigation();
@@ -33,11 +35,31 @@ export default function Post() {
         { label: 'Weight Loss/Gain', value: 'weight' }
     ]);
 
+    const openCamera = async () => {
+        const { status } = await ImagePicker.requestCameraPermissionsAsync();
+        if (status !== 'granted') {
+            Alert.alert('Permission Denied', 'Camera access is required to take photos.');
+            return;
+        }
+
+        const result = await ImagePicker.launchCameraAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: true,
+            aspect: [4, 3],
+            quality: 1,
+        });
+
+        if (!result.cancelled) {
+            console.log(result.uri);
+            // Handle the captured image URI as needed
+        }
+    };
+
     const renderPostScroll = () => {
         return (
             <ScrollView contentContainerStyle={postStyles.postPageScroll}>
                 <View style={postStyles.photoOptionsView}>
-                    <TouchableOpacity style={postStyles.cameraButton}>
+                    <TouchableOpacity style={postStyles.cameraButton} onPress={openCamera}>
                         <Text style={postStyles.postButtonText}>Open Camera</Text>
                     </TouchableOpacity>
                     <TouchableOpacity style={postStyles.cameraRollButton}>
