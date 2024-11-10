@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
     View, 
     TouchableOpacity, 
@@ -7,7 +7,8 @@ import {
     TextInput,
     Image,
     Switch,
-    Alert
+    Alert,
+    Dimensions
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { cameraRollIcon, samplePhotoIcon } from '../assets/images';
@@ -18,6 +19,8 @@ import * as ImagePicker from 'expo-image-picker';
 export default function Post() {
     const navigation = useNavigation();
     const [caption, setCaption] = useState('');
+    const [imageUri, setImageUri] = useState(null);
+    const [imageDimensions, setImageDimensions] = useState({ width: 0, height: 0 });
 
     const [openPrivacy, setOpenPrivacy] = useState(false);
     const [valuePrivacy, setValuePrivacy] = useState(null);
@@ -49,11 +52,21 @@ export default function Post() {
             quality: 1,
         });
 
-        if (!result.cancelled) {
-            console.log(result.uri);
-            // Handle the captured image URI as needed
+        console.log('Camera result:', result);
+
+        if (!result.canceled && result.assets && result.assets.length > 0) {
+            const uri = result.assets[0].uri;
+            const { width, height } = result.assets[0];
+            console.log('Image URI:', uri);
+            setImageUri(uri);
+            setImageDimensions({ width, height });
         }
     };
+
+    // Calculate aspect ratio safely
+    const aspectRatio = imageDimensions.width && imageDimensions.height 
+        ? imageDimensions.width / imageDimensions.height 
+        : 1;
 
     const renderPostScroll = () => {
         return (
@@ -67,8 +80,19 @@ export default function Post() {
                     </TouchableOpacity>
                 </View>
                 <View style={postStyles.imagePreview}>
-                    <Text style={postStyles.postText}>image preview below</Text>
-                    <Image source={samplePhotoIcon} style={{ width: '100%', height: 200, backgroundColor: 'white', resizeMode: 'contain' }}/>
+                    {imageUri ? (
+                        <Image 
+                            source={{ uri: imageUri }} 
+                            style={{ 
+                                width: Dimensions.get('window').width - 20, // Adjust based on padding
+                                height: (Dimensions.get('window').width - 20) / aspectRatio, 
+                                backgroundColor: 'white', 
+                                resizeMode: 'contain' 
+                            }}
+                        />
+                    ) : (
+                        <Image source={samplePhotoIcon} style={{ width: '100%', height: 200, backgroundColor: 'white', resizeMode: 'contain' }}/>
+                    )}
                 </View>
                 <TextInput
                     style={postStyles.captionInput}
@@ -94,7 +118,7 @@ export default function Post() {
                         style={postStyles.dropdownStyle}
                         dropDownContainerStyle={postStyles.dropdownContainerStyle}
                         textStyle={postStyles.dropdownTextStyle}
-                        placeholder='Select' // Eventually change this to user's default settings preference (public/ private)
+                        placeholder='Select'
                         placeholderStyle={postStyles.dropdownPlaceholderStyle}
                         labelStyle={postStyles.dropdownLabelStyle}
                         zIndex={5000}
@@ -230,7 +254,8 @@ const postStyles = ({
         color: 'black'
     },
     imagePreview: {
-        marginTop: 20
+        marginTop: 20,
+        alignItems: 'center' // Center the image
     },
     captionInput: {
         height: 100,
