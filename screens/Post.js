@@ -47,6 +47,12 @@ export default function Post() {
         { label: 'kg', value: 'kg' }
     ]);
     const [reps, setReps] = useState('');
+    const [newWeight, setNewWeight] = useState('');
+    const [newWeightUnit, setNewWeightUnit] = useState(null);
+    const [itemsNewWeightUnit, setItemsNewWeightUnit] = useState([
+        { label: 'lbs', value: 'lbs' },
+        { label: 'kg', value: 'kg' }
+    ]);
 
     const openCamera = async () => {
         const { status } = await ImagePicker.requestCameraPermissionsAsync();
@@ -206,7 +212,7 @@ export default function Post() {
                                 data={itemsWeightUnit}
                                 labelField="label"
                                 valueField="value"
-                                placeholder="Unit"
+                                placeholder="Units"
                                 value={weightUnit}
                                 onChange={item => setWeightUnit(item.value)}
                                 style={postStyles.unitDropdown}
@@ -221,6 +227,30 @@ export default function Post() {
                                 keyboardType="numeric"
                                 value={reps}
                                 onChangeText={setReps}
+                            />
+                        </View>
+                    </View>
+                )}
+                {(valueMilestone === 'weightLoss' || valueMilestone === 'weightGain') && (
+                    <View style={postStyles.weightFieldsContainer}>
+                        <Text style={postStyles.inputLabel}>New Weight</Text>
+                        <View style={postStyles.weightInputRow}>
+                            <TextInput
+                                style={postStyles.numberInput}
+                                placeholder="0"
+                                keyboardType="numeric"
+                                value={newWeight}
+                                onChangeText={setNewWeight}
+                            />
+                            <Dropdown
+                                data={itemsNewWeightUnit}
+                                labelField="label"
+                                valueField="value"
+                                placeholder="Unit"
+                                value={newWeightUnit}
+                                onChange={item => setNewWeightUnit(item.value)}
+                                style={postStyles.unitDropdown}
+                                containerStyle={postStyles.unitDropdownContainer}
                             />
                         </View>
                     </View>
@@ -435,10 +465,23 @@ const postStyles = ({
         backgroundColor: '#fff',
         borderRadius: 10,
         padding: 3,
+        paddingLeft: 10
     },
     unitDropdownContainer: {
         backgroundColor: '#fff',
         borderWidth: 1,
         borderRadius: 10,
+    },
+    weightFieldsContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: 10,
+    },
+    weightInputRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        flex: 1,
+        marginLeft: 0,
+        justifyContent: 'flex-end'
     },
 });
