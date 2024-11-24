@@ -9,6 +9,8 @@ import Post from './screens/Post';
 import Workouts from './screens/Workouts';
 import SignUp from './screens/SignUp';
 import SelectArchetype from './screens/SelectArchetype';
+import CreateWorkout from './screens/CreateWorkout';
+import ViewWorkout from './screens/ViewWorkout';
 import { useNavigation } from '@react-navigation/native';
 import { 
   homeIcon, 
@@ -46,6 +48,12 @@ export default function App() {
           </Stack.Screen>
           <Stack.Screen name="Workouts" options={{headerShown: false, animationEnabled: false}}>
             {props => <><Workouts {...props} /><BottomButtons /></>}
+          </Stack.Screen>
+          <Stack.Screen name="CreateWorkout" options={{headerShown: false}}>
+            {props => <><CreateWorkout {...props} /><BottomButtons /></>}
+          </Stack.Screen>
+          <Stack.Screen name="ViewWorkout" options={{headerShown: false}}>
+            {props => <><ViewWorkout {...props} /><BottomButtons /></>}
           </Stack.Screen>
         </Stack.Navigator>
       </NavigationContainer>

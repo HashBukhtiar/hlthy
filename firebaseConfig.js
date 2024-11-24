@@ -32,6 +32,8 @@ const firebaseConfig = {
     measurementId: REACT_APP_MEASUREMENT_ID,
 };
 
+console.log("App Launched");
+
 const app = initializeApp(firebaseConfig);
 const auth = initializeAuth(app, {
   persistence: getReactNativePersistence(ReactNativeAsyncStorage)
