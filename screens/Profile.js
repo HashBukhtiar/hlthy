@@ -1,14 +1,17 @@
 import React, { useState } from 'react';
 import { View, Text, Image, StyleSheet, Dimensions, FlatList, TouchableOpacity, Alert } from 'react-native';
 import { TabView, SceneMap, TabBar } from 'react-native-tab-view';
+import { useNavigation } from '@react-navigation/native';
 
 const Profile = () => {
+  const navigation = useNavigation();
   const [index, setIndex] = useState(0);
   const [routes] = useState([
     { key: 'posts', title: 'Posts' },
     { key: 'milestones', title: 'Milestones' },
     { key: 'workouts', title: 'Workouts' },
   ]);
+  const [sortOption, setSortOption] = useState('recency');
 
   // Dummy data for posts 
   const postImages = [
@@ -51,6 +54,28 @@ const Profile = () => {
   const handleMilestonePress = (postId) => {
     console.log(`Milestone clicked, navigating to Milestone ID=${postId}`);
   };
+
+  // Dummy data for workouts
+  const workouts = [
+    { id: 1, name: 'Full Body Workout', date: new Date('2024-08-01'), favorites: 10 },
+    { id: 2, name: 'Upper Body Blast', date: new Date('2024-08-05'), favorites: 20 },
+    { id: 3, name: 'Leg Day', date: new Date('2024-08-10'), favorites: 15 },
+    { id: 4, name: 'Cardio Session', date: new Date('2024-09-01'), favorites: 5 },
+  ];
+
+  // Function to handle workout click
+  const handleWorkoutPress = (workoutId) => {
+    console.log(`Workout clicked, navigating to Workout ID=${workoutId}`);
+    navigation.navigate('ViewWorkout', { workoutId });
+  };
+
+  const sortedWorkouts = [...workouts].sort((a, b) => {
+    if (sortOption === 'recency') {
+      return b.date - a.date;
+    } else {
+      return b.favorites - a.favorites;
+    }
+  });
 
   // Dummy content for each tab
   const Posts = () => (
@@ -101,8 +126,31 @@ const Profile = () => {
   };  
 
   const Workouts = () => (
-    <View style={styles.scene}>
-      <Text style={styles.dummyText}>Here are the user's workouts.</Text>
+    <View>
+      <View style={styles.sortOptions}>
+        <TouchableOpacity onPress={() => setSortOption('recency')} style={[styles.sortButton, sortOption === 'recency' && styles.activeSortButton]}>
+          <Text style={styles.sortButtonText}>Recency</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => setSortOption('popularity')} style={[styles.sortButton, sortOption === 'popularity' && styles.activeSortButton]}>
+          <Text style={styles.sortButtonText}>Popularity</Text>
+        </TouchableOpacity>
+      </View>
+      <FlatList
+        data={sortedWorkouts}
+        renderItem={({ item }) => (
+          <TouchableOpacity key={item.id} onPress={() => handleWorkoutPress(item.id)} style={styles.workoutItem}>
+            <View style={styles.workoutDetail}>
+              <Text style={styles.workoutName}>{item.name}</Text>
+              <Text style={styles.workoutDate}>{item.date.toDateString()}</Text>
+              <Text style={styles.workoutFavorites}>{item.favorites} Favorites</Text>
+            </View>
+          </TouchableOpacity>
+        )}
+        keyExtractor={(item) => item.id.toString()}
+        numColumns={3}
+        contentContainerStyle={styles.workoutsList}
+        showsVerticalScrollIndicator={false}
+      />
     </View>
   );
 
@@ -117,7 +165,7 @@ const Profile = () => {
       {/* Profile Header */}
       <View style={styles.profileHeader}>
         <Image
-          source={{ uri: 'https://media.licdn.com/dms/image/v2/D4E03AQHZayvjUfWtxA/profile-displayphoto-shrink_400_400/profile-displayphoto-shrink_400_400/0/1726984729318?e=1732752000&v=beta&t=IRtdqq7PeTqlTJPRVpU1IcjmAkcCd0wpUu-ZT9CjfSw' }}
+          source={{ uri: 'https://thumbs.dreamstime.com/b/creative-illustration-default-avatar-profile-placeholder-isolated-background-art-design-grey-photo-blank-template-mockup-144855718.jpg' }}
           style={styles.profileImage}
         />
         <Text style={styles.profileName}>John Doe</Text>
@@ -235,6 +283,57 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     backgroundColor: 'black',
     marginTop: 10
+  },
+  workoutItem: {
+    overflow: 'hidden',
+    width: Dimensions.get('window').width / 3 - 15,
+    height: Dimensions.get('window').width / 3 - 15,
+    borderRadius: 15,
+    backgroundColor: 'grey',
+    margin: 5,
+    justifyContent: 'flex-end',
+  },
+  workoutDetail: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(50, 50, 50, 0.5)',
+    paddingVertical: 10,
+    paddingHorizontal: 5,
+  },
+  workoutName: {
+    fontWeight: 'bold',
+    color: 'white',
+    fontSize: 12,
+    marginBottom: 3,
+  },
+  workoutDate: {
+    color: '#D0D0D0',
+    fontSize: 10,
+  },
+  workoutFavorites: {
+    color: '#D0D0D0',
+    fontSize: 10,
+  },
+  sortOptions: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginVertical: 10,
+  },
+  sortButton: {
+    padding: 10,
+    marginHorizontal: 5,
+    borderRadius: 5,
+    backgroundColor: '#2c2c2e',
+  },
+  activeSortButton: {
+    backgroundColor: '#3c3c3e',
+  },
+  sortButtonText: {
+    color: 'white',
+    fontSize: 16,
+  },
+  workoutsList: {
+    padding: 10,
   },
 });
 
