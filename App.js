@@ -14,7 +14,6 @@ import AI from './screens/AI';
 import { useNavigation } from '@react-navigation/native';
 import { 
   homeIcon, 
-  exploreIcon,
   workoutsIcon, 
   profileIcon,
   AIIcon,
