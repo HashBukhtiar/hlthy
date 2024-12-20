@@ -24,7 +24,24 @@ prepare_react_native_project!
 #   }
 # }
 # ```
-flipper_config = FlipperConfiguration.disabled
+
+def flipper_configuration(flipper_version = '0.125.0')
+  flipperkit_version = flipper_version
+  {
+    'Flipper' => flipper_version,
+    'Flipper-Boost-iOSX' => '1.76.0',
+    'Flipper-DoubleConversion' => '3.1.7',
+    'Flipper-Fmt' => '7.1.7',
+    'Flipper-Folly' => '2.6.10',
+    'Flipper-Glog' => '0.3.9',
+    'Flipper-PeerTalk' => '0.0.4',
+    'Flipper-RSocket' => '1.4.3',
+    'FlipperKit' => flipperkit_version
+  }
+end
+
+flipper_config = flipper_configuration
+
 if ENV['NO_FLIPPER'] == '1' then
   # Explicitly disabled through environment variables
   flipper_config = FlipperConfiguration.disabled
@@ -48,9 +65,7 @@ target 'hlthy' do
     :path => config[:reactNativePath],
     :hermes_enabled => podfile_properties['expo.jsEngine'] == nil || podfile_properties['expo.jsEngine'] == 'hermes',
     # An absolute path to your application root.
-    :app_path => "#{Pod::Config.instance.installation_root}/..",
-    # Note that if you have use_frameworks! enabled, Flipper will not work if enabled
-    :flipper_configuration => flipper_config
+    :app_path => "#{Pod::Config.instance.installation_root}/.."
   )
 
   post_install do |installer|
@@ -59,6 +74,15 @@ target 'hlthy' do
       config[:reactNativePath],
       :mac_catalyst_enabled => false
     )
+
+    # Configure Flipper
+    installer.pods_project.targets.each do |target|
+      if target.name == 'Flipper'
+        target.build_configurations.each do |config|
+          config.build_settings['OTHER_CFLAGS'] = ['-DFB_SONARKIT_ENABLED=1']
+        end
+      end
+    end
 
     # This is necessary for Xcode 14, because it signs resource bundles by default
     # when building for devices.

@@ -6,16 +6,14 @@ import {
     Image,
     TouchableOpacity,
     ScrollView,
-    Platform,
-    Haptics
+
 } from 'react-native';
 //import DoubleTap from 'react-native-double-tap';
 import { profileIcon, postImage } from '../assets/images';
 import globalStyles from '../styles/globalStyles';
-import { renderBottomButtons } from './HomeFeed';
 
 export default function Activity() {
-    const [activities, setActivities] = useState([]);
+    //const [activities, setActivities] = useState([]);
     const [selectedTab, setSelectedTab] = useState('Activity'); // Track which tab is selected (Activity or Milestones)
     const [heartCount, setHeartCount] = useState({ count: 999999, selected: false });
     const [strongCount, setStrongCount] = useState({ count: 999, selected: false });
@@ -394,9 +392,6 @@ export default function Activity() {
                 ) : (
                     renderMilestonesList()
                 )}
-            </View>
-            <View styles={globalStyles.bottomButtonContainer}>
-                {renderBottomButtons()}
             </View>
         </View>
     );

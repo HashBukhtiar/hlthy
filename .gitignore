@@ -94,9 +94,9 @@
 # /.pnp
 # .pnp.js
 
-# # Debugging / Development
-# .vscode/
-# /.expo/
+# Debugging / Development
+.vscode/
+/.expo/
 .DS_Store
 # *.log
 # npm-debug.log*
@@ -111,8 +111,8 @@
 # /ios/build/
 # /android/build/
 
-# # Environment variables
-# .env*
+# Environment variables
+.env*
 
 # # Miscellaneous
 # *.swp
@@ -128,5 +128,9 @@
 # *.sln
 # *.sw?
 
-# # Expo
-# .expo
+# Expo
+.expo
+
+# Google Services
+google-services.json
+GoogleService-Info.plist
