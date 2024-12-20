@@ -157,6 +157,20 @@ const Profile = () => {
         />
         <Text style={styles.profileName}>John Doe</Text>
         <Text style={styles.profileBio}>Bio goes here. User can enter whatever they want.</Text>
+        <View style={styles.statsContainer}>
+          <View style={styles.statItem}>
+            <Text style={styles.statNumber}>0</Text>
+            <Text style={styles.statLabel}>Posts</Text>
+          </View>
+          <View style={styles.statItem}>
+            <Text style={styles.statNumber}>0</Text>
+            <Text style={styles.statLabel}>Followers</Text>
+          </View>
+          <View style={styles.statItem}>
+            <Text style={styles.statNumber}>0</Text>
+            <Text style={styles.statLabel}>Following</Text>
+          </View>
+        </View>
       </View>
 
       {/* TabView */}
@@ -203,6 +217,24 @@ const styles = StyleSheet.create({
     color: 'gray',
     fontSize: 16,
     textAlign: 'center',
+  },
+  statsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    width: '100%',
+    marginTop: 20,
+  },
+  statItem: {
+    alignItems: 'center',
+  },
+  statNumber: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  statLabel: {
+    color: 'gray',
+    fontSize: 14,
   },
   scene: {
     flex: 1,
