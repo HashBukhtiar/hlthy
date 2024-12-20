@@ -89,6 +89,10 @@
 
 # iOSInjectionProject/
 
+# Ignore Expo files
+.expo
+.expo-shared
+
 # # Dependency directories
 /node_modules
 # /.pnp

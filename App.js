@@ -10,12 +10,14 @@ import SignUp from './screens/SignUp';
 import SelectArchetype from './screens/SelectArchetype';
 import CreateWorkout from './screens/CreateWorkout';
 import ViewWorkout from './screens/ViewWorkout';
+import AI from './screens/AI';
 import { useNavigation } from '@react-navigation/native';
 import { 
   homeIcon, 
   exploreIcon,
   workoutsIcon, 
   profileIcon,
+  AIIcon,
 } from './assets/images';
 import globalStyles from './styles/globalStyles';
 
@@ -42,6 +44,9 @@ export default function App() {
           <Stack.Screen name="Explore" options={{headerShown: false, animationEnabled: false}}>
             {props => <><Explore {...props} /><BottomButtons /></>}
           </Stack.Screen>
+          <Stack.Screen name="AI" options={{headerShown: false, animationEnabled: false}}>
+            {props => <><AI {...props} /><BottomButtons /></>}
+          </Stack.Screen>
           <Stack.Screen name="Workouts" options={{headerShown: false, animationEnabled: false}}>
             {props => <><Workouts {...props} /><BottomButtons /></>}
           </Stack.Screen>
@@ -67,11 +72,19 @@ export default function App() {
           }}>
           <Image source={homeIcon} style={{ width: 40, height: 40, borderRadius:5 }} />
         </TouchableOpacity>
+        {/* EXPLORE BUTTON TEMPORARILY REMOVED
         <TouchableOpacity style={globalStyles.button} onPress={() => {
           console.log("Explore pressed")
           navigation.navigate('Explore')
           }}>
           <Image source={exploreIcon} style={{ width: 40, height: 40, borderRadius:5 }} />
+        </TouchableOpacity>
+        */}
+        <TouchableOpacity style={globalStyles.button} onPress={() => {
+          console.log("AI pressed")
+          navigation.navigate('AI')
+          }}>
+          <Image source={AIIcon} style={{ width: 40, height: 40, borderRadius:5 }} />
         </TouchableOpacity>
         <TouchableOpacity 
           onPress={() => {console.log("POST pressed")}}
