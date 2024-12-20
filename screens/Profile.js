@@ -11,7 +11,6 @@ const Profile = () => {
     { key: 'milestones', title: 'Milestones' },
     { key: 'workouts', title: 'Workouts' },
   ]);
-  const [sortOption, setSortOption] = useState('recency');
 
   // Dummy data for posts 
   const postImages = [
@@ -69,13 +68,11 @@ const Profile = () => {
     navigation.navigate('ViewWorkout', { workoutId });
   };
 
-  const sortedWorkouts = [...workouts].sort((a, b) => {
-    if (sortOption === 'recency') {
-      return b.date - a.date;
-    } else {
-      return b.favorites - a.favorites;
-    }
-  });
+  const sortedWorkouts = [...workouts].sort((a, b) => b.date - a.date);
+
+  const formatDate = (date) => {
+    return date.toLocaleString('default', { month: 'long', day: 'numeric', year: 'numeric' });
+  };
 
   // Dummy content for each tab
   const Posts = () => (
@@ -126,32 +123,22 @@ const Profile = () => {
   };  
 
   const Workouts = () => (
-    <View>
-      <View style={styles.sortOptions}>
-        <TouchableOpacity onPress={() => setSortOption('recency')} style={[styles.sortButton, sortOption === 'recency' && styles.activeSortButton]}>
-          <Text style={styles.sortButtonText}>Recency</Text>
+    <FlatList
+      data={sortedWorkouts}
+      renderItem={({ item }) => (
+        <TouchableOpacity key={item.id} onPress={() => handleWorkoutPress(item.id)} style={styles.workoutItem}>
+          <View style={styles.workoutDetail}>
+            <Text style={styles.workoutName}>{item.name}</Text>
+            <Text style={styles.workoutDate}>{formatDate(item.date)}</Text>
+            <Text style={styles.workoutFavorites}>{item.favorites} Favorites</Text>
+          </View>
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => setSortOption('popularity')} style={[styles.sortButton, sortOption === 'popularity' && styles.activeSortButton]}>
-          <Text style={styles.sortButtonText}>Popularity</Text>
-        </TouchableOpacity>
-      </View>
-      <FlatList
-        data={sortedWorkouts}
-        renderItem={({ item }) => (
-          <TouchableOpacity key={item.id} onPress={() => handleWorkoutPress(item.id)} style={styles.workoutItem}>
-            <View style={styles.workoutDetail}>
-              <Text style={styles.workoutName}>{item.name}</Text>
-              <Text style={styles.workoutDate}>{item.date.toDateString()}</Text>
-              <Text style={styles.workoutFavorites}>{item.favorites} Favorites</Text>
-            </View>
-          </TouchableOpacity>
-        )}
-        keyExtractor={(item) => item.id.toString()}
-        numColumns={3}
-        contentContainerStyle={styles.workoutsList}
-        showsVerticalScrollIndicator={false}
-      />
-    </View>
+      )}
+      keyExtractor={(item) => item.id.toString()}
+      numColumns={3}
+      contentContainerStyle={styles.workoutsList}
+      showsVerticalScrollIndicator={false}
+    />
   );
 
   const renderScene = SceneMap({
@@ -313,24 +300,6 @@ const styles = StyleSheet.create({
   workoutFavorites: {
     color: '#D0D0D0',
     fontSize: 10,
-  },
-  sortOptions: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginVertical: 10,
-  },
-  sortButton: {
-    padding: 10,
-    marginHorizontal: 5,
-    borderRadius: 5,
-    backgroundColor: '#2c2c2e',
-  },
-  activeSortButton: {
-    backgroundColor: '#3c3c3e',
-  },
-  sortButtonText: {
-    color: 'white',
-    fontSize: 16,
   },
   workoutsList: {
     padding: 10,
