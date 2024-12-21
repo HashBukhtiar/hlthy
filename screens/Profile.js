@@ -7,9 +7,9 @@ const Profile = () => {
   const navigation = useNavigation();
   const [index, setIndex] = useState(0);
   const [routes] = useState([
-    { key: 'posts', title: 'Posts' },
-    { key: 'milestones', title: 'Milestones' },
-    { key: 'workouts', title: 'Workouts' },
+    { key: 'posts', title: 'POSTS' },
+    { key: 'milestones', title: 'MILESTONES' },
+    { key: 'workouts', title: 'WORKOUTS' },
   ]);
 
   // Dummy data for posts 
@@ -250,7 +250,6 @@ const styles = StyleSheet.create({
   },
   tabLabel: {
     color: 'white',
-    fontSize: 16,
   },
   postsContainer: {
     padding: 0,

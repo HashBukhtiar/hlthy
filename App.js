@@ -11,6 +11,7 @@ import SelectArchetype from './screens/SelectArchetype';
 import CreateWorkout from './screens/CreateWorkout';
 import ViewWorkout from './screens/ViewWorkout';
 import AI from './screens/AI';
+import Profile from './screens/Profile';
 import { useNavigation } from '@react-navigation/native';
 import { 
   homeIcon, 
@@ -55,6 +56,9 @@ export default function App() {
           <Stack.Screen name="ViewWorkout" options={{headerShown: false}}>
             {props => <><ViewWorkout {...props} /><BottomButtons /></>}
           </Stack.Screen>
+          <Stack.Screen name="Profile" options={{headerShown: false, animationEnabled: false}}>
+            {props => <><Profile {...props} /><BottomButtons /></>}
+          </Stack.Screen>
         </Stack.Navigator>
       </NavigationContainer>
     </SafeAreaView>
@@ -96,7 +100,10 @@ export default function App() {
           }}>
           <Image source={workoutsIcon} style={{ width: 40, height: 40, borderRadius:5 }} />
         </TouchableOpacity>
-        <TouchableOpacity style={globalStyles.button} onPress={() => {console.log("Profile pressed")}}>
+        <TouchableOpacity style={globalStyles.button} onPress={() => {
+          console.log("Profile pressed");
+          navigation.navigate('Profile')
+        }}>
           <Image source={profileIcon} style={{ width: 40, height: 40, borderRadius:5 }} />
         </TouchableOpacity>
       </View>
