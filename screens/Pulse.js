@@ -53,31 +53,6 @@ export default function Pulse() {
         },
     ]);
 
-    function renderHeaderButtons() {
-        return (
-            <View style={activityStyles.tabHeaderButtonsContainer}>
-                <TouchableOpacity activeOpacity={1} style={selectedTab === 'Activity' ? activityStyles.selectedTabHeaderButton : activityStyles.unselectedTabHeaderButton} onPress={() => selectActivity()}>
-                    <View>
-                        <Text style={selectedTab === 'Activity' ? activityStyles.selectedTabHeader : activityStyles.unselectedTabHeader}>Activity</Text>
-                    </View>
-                </TouchableOpacity>
-                <TouchableOpacity activeOpacity={1} style={selectedTab === 'Milestones' ? activityStyles.selectedTabHeaderButton : activityStyles.unselectedTabHeaderButton} onPress={() => selectMilestones()}>
-                    <Text style={selectedTab === 'Milestones' ? activityStyles.selectedTabHeader : activityStyles.unselectedTabHeader}>Milestones</Text>
-                </TouchableOpacity>
-            </View>
-        );
-    }
-
-    function selectActivity() {
-        console.log("Activity pressed");
-        setSelectedTab('Activity');
-    }
-
-    function selectMilestones() {
-        console.log("Milestones pressed");
-        setSelectedTab('Milestones');
-    }
-
     function renderFollowRequests() {
         const followRequests = [
             {
@@ -251,76 +226,24 @@ export default function Pulse() {
     return (
         <View style={globalStyles.container}>
             <View>
-            <View style={{flexDirection:'row', alignItems:'center', marginLeft: 15}}>
-                <TouchableOpacity onPress={() => {
-                        console.log("back arrow pressed");
-                        navigation.goBack();
-                        }}>
-                    <Image source={backArrow} style={globalStyles.backArrowIcon} />
-                </TouchableOpacity>
-                <Text style={[globalStyles.title, {marginLeft: 10}]}>Pulse</Text>
+                <View style={{flexDirection:'row', alignItems:'center', marginLeft: 15}}>
+                    <TouchableOpacity onPress={() => {
+                            console.log("back arrow pressed");
+                            navigation.goBack();
+                            }}>
+                        <Image source={backArrow} style={globalStyles.backArrowIcon} />
+                    </TouchableOpacity>
+                    <Text style={[globalStyles.title, {marginLeft: 10}]}>Pulse</Text>
+                </View>
             </View>
-                {renderHeaderButtons()}
-            </View>
-            {/* Alternate between Activity and Milestones*/}
             <View style={{flex:1}}>
-                {selectedTab === 'Activity' ? (
-                    renderActivity()
-                ) : (
-                    renderMilestonesList()
-                )}
+                {renderActivity()}
             </View>
         </View>
     );
 }
 
 const activityStyles = StyleSheet.create({
-    tabHeaderButtonsContainer: {
-        backgroundColor: '#2e2e2e',
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginVertical: 15,
-        marginHorizontal: 15,
-        borderRadius: '50%',
-        height: Dimensions.get('window').height * 0.05,
-    },
-    selectedTabHeaderButton: {
-        flex: 1,
-        padding: 5,
-        borderRadius: '50%',
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: 'white',
-    },
-    unselectedTabHeaderButton: {
-        flex: 1,
-        padding: 5,
-        borderRadius: '50%',
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    tabHeaderButton: {
-        flex: 1,
-        padding: 5,
-        borderRadius: '50%',
-        justifyContent: 'center',
-        alignItems: 'center',
-
-    },
-    selectedTabHeader: {
-        fontSize: 20,
-        color: 'black',
-        fontFamily: 'System',
-        fontWeight: 'bold',
-        paddingHorizontal: 10,
-    },
-    unselectedTabHeader: {
-        fontSize: 20,
-        color: 'white',
-        fontFamily: 'System',
-        fontWeight: 'bold',
-        paddingHorizontal: 10,
-    },
     activityView: {
         paddingHorizontal: 5,
         marginHorizontal: 15,
