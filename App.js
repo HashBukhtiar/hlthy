@@ -5,6 +5,7 @@ import { createStackNavigator } from '@react-navigation/stack';
 import HomeFeed from './screens/HomeFeed';
 import Pulse from './screens/Pulse';
 import Explore from './screens/Explore';
+import Post from './screens/Post';
 import Workouts from './screens/Workouts';
 import SignUp from './screens/SignUp';
 import SelectArchetype from './screens/SelectArchetype';
@@ -43,6 +44,9 @@ export default function App() {
           </Stack.Screen>
           <Stack.Screen name="Explore" options={{headerShown: false, animationEnabled: false}}>
             {props => <><Explore {...props} /><BottomButtons /></>}
+          </Stack.Screen>
+          <Stack.Screen name="Post" options={{headerShown: false, animationEnabled: false}}>
+            {props => <><Post {...props} /><BottomButtons /></>}
           </Stack.Screen>
           <Stack.Screen name="AI" options={{headerShown: false, animationEnabled: false}}>
             {props => <><AI {...props} /><BottomButtons /></>}
@@ -90,7 +94,10 @@ export default function App() {
           <Image source={AIIcon} style={{ width: 40, height: 40, borderRadius:5 }} />
         </TouchableOpacity>
         <TouchableOpacity 
-          onPress={() => {console.log("POST pressed")}}
+          onPress={() => {
+            console.log("POST pressed")
+            navigation.navigate('Post')
+          }}
           style={globalStyles.postButton}>
             <Text style={{color: 'white', fontSize:40}}>+</Text>
         </TouchableOpacity>
