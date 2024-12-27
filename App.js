@@ -13,6 +13,7 @@ import CreateWorkout from './screens/CreateWorkout';
 import ViewWorkout from './screens/ViewWorkout';
 import AI from './screens/AI';
 import Profile from './screens/Profile';
+import ViewPost from './screens/ViewPost';
 import { useNavigation } from '@react-navigation/native';
 import { 
   homeIcon, 
@@ -62,6 +63,9 @@ export default function App() {
           </Stack.Screen>
           <Stack.Screen name="Profile" options={{headerShown: false, animationEnabled: false}}>
             {props => <><Profile {...props} /><BottomButtons /></>}
+          </Stack.Screen>
+          <Stack.Screen name="ViewPost" options={{ headerShown: false }}>
+            {props => <ViewPost {...props} />}
           </Stack.Screen>
         </Stack.Navigator>
       </NavigationContainer>

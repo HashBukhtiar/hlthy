@@ -47,6 +47,7 @@ const Profile = () => {
   // Function to handle image click
   const handleImagePress = (imageUri) => {
     console.log(`Image clicked: ${imageUri}`);
+    navigation.navigate('ViewPost', { post: { image: imageUri, date: new Date(), likes: 0, username: 'John Doe', profileImage: 'https://thumbs.dreamstime.com/b/creative-illustration-default-avatar-profile-placeholder-isolated-background-art-design-grey-photo-blank-template-mockup-144855718.jpg' } });
   };
 
   // Function to handle milestone click
