@@ -4,14 +4,25 @@ import { FontAwesome } from '@expo/vector-icons';
 
 const ViewPost = ({ route }) => {
   const { post } = route.params;
-  const [comments, setComments] = useState([]);
+  const [comments, setComments] = useState([
+    { id: 1, author: 'Jane Doe', profileImage: 'https://via.placeholder.com/50', text: 'Great post!' },
+    { id: 2, author: 'John Smith', profileImage: 'https://via.placeholder.com/50', text: 'Thanks for sharing!' },
+    { id: 3, author: 'Alice Johnson', profileImage: 'https://via.placeholder.com/50', text: 'Very informative!' },
+    { id: 4, author: 'Bob Brown', profileImage: 'https://via.placeholder.com/50', text: 'I love this!' },
+    { id: 5, author: 'Charlie Davis', profileImage: 'https://via.placeholder.com/50', text: 'Amazing content!' },
+    { id: 6, author: 'Jane Doe', profileImage: 'https://via.placeholder.com/50', text: 'Great post!' },
+    { id: 7, author: 'John Smith', profileImage: 'https://via.placeholder.com/50', text: 'Thanks for sharing!' },
+    { id: 8, author: 'Alice Johnson', profileImage: 'https://via.placeholder.com/50', text: 'Very informative!' },
+    { id: 9, author: 'Bob Brown', profileImage: 'https://via.placeholder.com/50', text: 'I love this!' },
+    { id: 10, author: 'Charlie Davis', profileImage: 'https://via.placeholder.com/50', text: 'Amazing content!' },
+  ]);
   const [newComment, setNewComment] = useState('');
   const [likes, setLikes] = useState(post.likes);
   const [liked, setLiked] = useState(false);
 
   const handleAddComment = () => {
     if (newComment.trim()) {
-      setComments([...comments, { id: comments.length + 1, text: newComment }]);
+      setComments([...comments, { id: comments.length + 1, author: 'Current User', profileImage: 'https://via.placeholder.com/50', text: newComment }]);
       setNewComment('');
     }
   };
@@ -39,12 +50,17 @@ const ViewPost = ({ route }) => {
         </View>
         <Text style={styles.postDate}>{post.date.toLocaleString()}</Text>
       </View>
-      <TouchableOpacity style={styles.commentButton} onPress={() => setCommentsVisible(!commentsVisible)}>
-        <Text style={styles.commentButtonText}>Show Comments</Text>
-      </TouchableOpacity>
       <FlatList
         data={comments}
-        renderItem={({ item }) => <Text style={styles.comment}>{item.text}</Text>}
+        renderItem={({ item }) => (
+          <View style={styles.commentContainer}>
+            <Image source={{ uri: item.profileImage }} style={styles.commentProfileImage} />
+            <View style={styles.commentContent}>
+              <Text style={styles.commentAuthor}>{item.author}</Text>
+              <Text style={styles.commentText}>{item.text}</Text>
+            </View>
+          </View>
+        )}
         keyExtractor={(item) => item.id.toString()}
       />
       <View style={styles.commentInputContainer}>
@@ -116,19 +132,26 @@ const styles = StyleSheet.create({
   commentIcon: {
     marginLeft: 15,
   },
-  commentButton: {
-    backgroundColor: '#1c1c1e',
-    padding: 10,
-    borderRadius: 5,
+  commentContainer: {
+    flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 10,
   },
-  commentButtonText: {
-    color: 'white',
+  commentProfileImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 10,
   },
-  comment: {
+  commentContent: {
+    flex: 1,
+  },
+  commentAuthor: {
     color: 'white',
-    marginBottom: 5,
+    fontWeight: 'bold',
+  },
+  commentText: {
+    color: 'white',
   },
   commentInputContainer: {
     flexDirection: 'row',
