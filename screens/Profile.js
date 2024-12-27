@@ -44,6 +44,12 @@ const Profile = () => {
     }, {});
   };
 
+  // Function to handle settings press
+  const handleSettingsPress = () => {
+    console.log(`Settings clicked`);
+    navigation.navigate('Settings');
+  };
+
   // Function to handle image click
   const handleImagePress = (imageUri) => {
     console.log(`Image clicked: ${imageUri}`);
@@ -152,6 +158,12 @@ const Profile = () => {
     <View style={styles.container}>
       {/* Profile Header */}
       <View style={styles.profileHeader}>
+        <TouchableOpacity
+          style={{ position: 'absolute', top: 20, right: 20 }}
+          onPress={() => handleSettingsPress()}
+        >
+          <Text style={{ color: 'white', backgroundColor: '#212121', padding: 5, borderRadius: 5 }}>Settings</Text>
+        </TouchableOpacity>
         <Image
           source={{ uri: 'https://thumbs.dreamstime.com/b/creative-illustration-default-avatar-profile-placeholder-isolated-background-art-design-grey-photo-blank-template-mockup-144855718.jpg' }}
           style={styles.profileImage}

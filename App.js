@@ -13,6 +13,7 @@ import CreateWorkout from './screens/CreateWorkout';
 import ViewWorkout from './screens/ViewWorkout';
 import AI from './screens/AI';
 import Profile from './screens/Profile';
+import Settings from './screens/Settings';
 import ViewPost from './screens/ViewPost';
 import { useNavigation } from '@react-navigation/native';
 import { 
@@ -63,6 +64,9 @@ export default function App() {
           </Stack.Screen>
           <Stack.Screen name="Profile" options={{headerShown: false, animationEnabled: false}}>
             {props => <><Profile {...props} /><BottomButtons /></>}
+          </Stack.Screen>
+          <Stack.Screen name="Settings" options={{ headerShown: false }}>
+            {props => <Settings {...props} />}
           </Stack.Screen>
           <Stack.Screen name="ViewPost" options={{ headerShown: false }}>
             {props => <ViewPost {...props} />}
