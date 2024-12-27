@@ -67,6 +67,7 @@ const ViewPost = ({ route }) => {
         <TextInput
           style={styles.commentInput}
           placeholder="Add a comment..."
+          placeholderTextColor="grey"
           value={newComment}
           onChangeText={setNewComment}
         />
@@ -104,12 +105,13 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 300,
     borderRadius: 10,
+    marginBottom: 20,
   },
   postInfo: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginVertical: 10,
+    marginBottom: 20,
   },
   likesComments: {
     flexDirection: 'row',
@@ -136,6 +138,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 10,
+    padding: 10,
+    backgroundColor: '#1c1c1e',
+    borderRadius: 10,
   },
   commentProfileImage: {
     width: 40,
