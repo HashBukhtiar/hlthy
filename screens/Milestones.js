@@ -7,6 +7,7 @@ import {
   Image, 
   TouchableOpacity 
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import globalStyles from '../styles/globalStyles';
 import {
   profileIcon,
@@ -14,6 +15,7 @@ import {
 } from '../assets/images';
 
 function MilestonesScene() {
+  const navigation = useNavigation();
   const [milestones, setMilestones] = useState([
     {
       username: '@sungjinwoo',
@@ -64,42 +66,42 @@ function MilestonesScene() {
     return (
       <ScrollView contentContainerStyle={styles.milestonesView}>
         {milestones.map((milestone, index) => (
-          <TouchableOpacity key={index} onPress={() => {console.log("milestone element pressed")}}>
-            <View style={styles.milestonesElement}>
-              <View style={styles.milestonesPFPImage}>
-                <Image source={milestone.profileIcon} style={styles.milestonesPFPStyle} />
+          <View key={index} style={styles.milestonesElement}>
+            <View style={styles.milestonesPFPImage}>
+              <Image source={milestone.profileIcon} style={styles.milestonesPFPStyle} />
+            </View>
+
+            <View style={styles.milestonesDescription}>
+              <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'}}>
+                <Text style={styles.milestoneUsername}>{milestone.username}</Text>
+                <Text style={styles.milestonesTimestamp}> · {milestone.time}</Text>
               </View>
+              <Text style={{fontSize: 18, marginLeft: 5}}>
+                <Text style={{color: 'white'}}>{milestone.activity}: </Text> 
+                <Text style={{color: 'orange'}}>{milestone.weight}</Text>
+              </Text>
 
-              <View style={styles.milestonesDescription}>
-                <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'}}>
-                  <Text style={styles.milestoneUsername}>{milestone.username}</Text>
-                  <Text style={styles.milestonesTimestamp}> · {milestone.time}</Text>
-                </View>
-                <Text style={{fontSize: 18, marginLeft: 5}}>
-                  <Text style={{color: 'white'}}>{milestone.activity}: </Text> 
-                  <Text style={{color: 'orange'}}>{milestone.weight}</Text>
-                </Text>
-
-                <View style={styles.reactionButtons}>
-                  <TouchableOpacity activeOpacity={1} onPress={() => handleReactionPress(index, 'heartCount')} style={milestone.heartCount.selected ? styles.reactionButtonClicked : styles.reactionButtonUnclicked}>
-                    <Text style={milestone.heartCount.selected ? styles.reactionTextClicked : styles.reactionTextUnclicked}>❤️ {formatCount(milestone.heartCount.count)}</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity activeOpacity={1} onPress={() => handleReactionPress(index, 'strongCount')} style={milestone.strongCount.selected ? styles.reactionButtonClicked : styles.reactionButtonUnclicked}>
-                    <Text style={milestone.strongCount.selected ? styles.reactionTextClicked : styles.reactionTextUnclicked}>💪 {formatCount(milestone.strongCount.count)}</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity activeOpacity={1} onPress={() => handleReactionPress(index, 'fireCount')} style={milestone.fireCount.selected ? styles.reactionButtonClicked : styles.reactionButtonUnclicked}>
-                    <Text style={milestone.fireCount.selected ? styles.reactionTextClicked : styles.reactionTextUnclicked}>🔥 {formatCount(milestone.fireCount.count)}</Text>
-                  </TouchableOpacity>
-                </View>
+              <View style={styles.reactionButtons}>
+                <TouchableOpacity activeOpacity={1} onPress={() => handleReactionPress(index, 'heartCount')} style={milestone.heartCount.selected ? styles.reactionButtonClicked : styles.reactionButtonUnclicked}>
+                  <Text style={milestone.heartCount.selected ? styles.reactionTextClicked : styles.reactionTextUnclicked}>❤️ {formatCount(milestone.heartCount.count)}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity activeOpacity={1} onPress={() => handleReactionPress(index, 'strongCount')} style={milestone.strongCount.selected ? styles.reactionButtonClicked : styles.reactionButtonUnclicked}>
+                  <Text style={milestone.strongCount.selected ? styles.reactionTextClicked : styles.reactionTextUnclicked}>💪 {formatCount(milestone.strongCount.count)}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity activeOpacity={1} onPress={() => handleReactionPress(index, 'fireCount')} style={milestone.fireCount.selected ? styles.reactionButtonClicked : styles.reactionButtonUnclicked}>
+                  <Text style={milestone.fireCount.selected ? styles.reactionTextClicked : styles.reactionTextUnclicked}>🔥 {formatCount(milestone.fireCount.count)}</Text>
+                </TouchableOpacity>
               </View>
+            </View>
 
-              {milestone.postImage && (
+            {milestone.postImage && (
+              <TouchableOpacity onPress={() => navigation.navigate('ViewPost', { post: { image: milestone.postImage, date: new Date(), likes: milestone.heartCount.count, username: milestone.username, profileImage: milestone.profileIcon } })}>
                 <View style={styles.milestonesPostImage}>
                   <Image source={milestone.postImage} style={styles.milestonesPostStyle} />
                 </View>
-              )}
-            </View>
-          </TouchableOpacity>
+              </TouchableOpacity>
+            )}
+          </View>
         ))}
       </ScrollView>
     );
