@@ -1,18 +1,14 @@
 import React, { useState } from 'react';
-import { View, 
-    TouchableOpacity, 
-    ScrollView, 
-    Text,
-    TextInput,
-} from 'react-native';
-import { color } from 'react-native-elements/dist/helpers';
+import { View, TouchableOpacity, ScrollView, Text, TextInput } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 
 export default function Explore() {
+    const navigation = useNavigation();
     const [searchQuery, setSearchQuery] = useState('');
     const buttonsData = [
-        { id: 1, label: 'Post 1' },
-        { id: 2, label: 'Post 2' },
-        { id: 3, label: 'Post 3' },
+        { id: 1, label: 'Post 1', image: 'https://via.placeholder.com/150' },
+        { id: 2, label: 'Post 2', image: 'https://via.placeholder.com/150' },
+        { id: 3, label: 'Post 3', image: 'https://via.placeholder.com/150' },
         { id: 4, label: 'Post 4' },
         { id: 5, label: 'Post 5' },
         { id: 6, label: 'Post 6' },
@@ -69,7 +65,11 @@ export default function Explore() {
             rows.push(
                 <View key={i} style={exploreStyles.row}>
                 {chunk.map((button) => (
-                    <TouchableOpacity key={button.id} style={exploreStyles.postPreview}>
+                    <TouchableOpacity 
+                        key={button.id} 
+                        style={exploreStyles.postPreview}
+                        onPress={() => navigation.navigate('ViewPost', { post: { image: button.image, date: new Date(), likes: 0, username: 'John Doe', profileImage: 'https://thumbs.dreamstime.com/b/creative-illustration-default-avatar-profile-placeholder-isolated-background-art-design-grey-photo-blank-template-mockup-144855718.jpg' } })}
+                    >
                     <Text style={exploreStyles.postPreviewText}>{button.label}</Text>
                     </TouchableOpacity>
                 ))}
