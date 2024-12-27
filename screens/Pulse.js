@@ -15,43 +15,7 @@ import { displayShortenedString } from '../logic/formattingFunctions'
 
 
 export default function Pulse() {
-    const [selectedTab, setSelectedTab] = useState('Activity'); // Track which tab is selected (Activity or Milestones)
     const navigation = useNavigation();
-
-    function formatCount(num) {
-        if (num >= 1000000) {
-            return Math.floor(num / 1000000) + 'M';
-        } else if (num >= 1000) {
-            return Math.floor(num / 1000) + 'K';
-        } else {
-            return num;
-        }
-    }
-
-    const [milestones, setMilestones] = useState([
-        {
-            username: '@sungjinwoo',
-            time: '2m',
-            activity: 'Bench Press',
-            weight: '225 lbs',
-            profileIcon: profileIcon,
-            postImage: postImage,
-            heartCount: { count: 999, selected: false },
-            strongCount: { count: 999999, selected: false },
-            fireCount: { count: 0, selected: false }
-        },
-        {
-            username: '@username2',
-            time: '5m',
-            activity: 'Deadlift',
-            weight: '30,000 lbs',
-            profileIcon: profileIcon,
-            // postImage: postImage,
-            heartCount: { count: 0, selected: false },
-            strongCount: { count: -1, selected: false },
-            fireCount: { count: 0, selected: false }
-        },
-    ]);
 
     function renderFollowRequests() {
         const followRequests = [
@@ -165,64 +129,6 @@ export default function Pulse() {
         );
     }
 
-    function handleReactionPress(index, reaction) {
-        setMilestones(prevMilestones => {
-            const newMilestones = [...prevMilestones];
-            const milestone = newMilestones[index];
-            milestone[reaction] = {
-                count: milestone[reaction].selected ? milestone[reaction].count - 1 : milestone[reaction].count + 1,
-                selected: !milestone[reaction].selected
-            };
-            return newMilestones;
-        });
-    }
-
-    function renderMilestonesList() {
-        return (
-            <ScrollView contentContainerStyle={activityStyles.milestonesView}>
-                {milestones.map((milestone, index) => (
-                    <TouchableOpacity key={index} onPress={() => {console.log("milestone element pressed")}}>
-                        <View style={activityStyles.milestonesElement}>
-                            <View style={activityStyles.milestonesPFPImage}>
-                                <Image source={milestone.profileIcon} style={activityStyles.milestonesPFPStyle} />
-                            </View>
-
-                            <View style={activityStyles.milestonesDescription}>
-                                <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'}}>
-                                    <Text style={{fontWeight: 'bold', color: 'white', fontSize: 20, marginLeft: 3}}>{milestone.username}</Text>
-                                    <Text style={{fontSize: 12, color: 'gray', marginLeft: 5, marginTop: 4}}> · {milestone.time}</Text>
-                                </View>
-                                <Text style={{fontSize: 18, marginLeft: 5}}>
-                                    <Text style={{color: 'white'}}>{milestone.activity}: </Text> 
-                                    <Text style={{color: 'orange'}}>{milestone.weight}</Text>
-                                </Text>
-
-                                <View style={activityStyles.reactionButtons}>
-                                <TouchableOpacity activeOpacity={1} onPress={() => handleReactionPress(index, 'heartCount')} style={milestone.heartCount.selected ? activityStyles.reactionButtonClicked : activityStyles.reactionButtonUnclicked}>
-                                    <Text style={milestone.heartCount.selected ? activityStyles.reactionTextClicked : activityStyles.reactionTextUnclicked}>❤️ {formatCount(milestone.heartCount.count)}</Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity activeOpacity={1} onPress={() => handleReactionPress(index, 'strongCount')} style={milestone.strongCount.selected ? activityStyles.reactionButtonClicked : activityStyles.reactionButtonUnclicked}>
-                                    <Text style={milestone.strongCount.selected ? activityStyles.reactionTextClicked : activityStyles.reactionTextUnclicked}>💪 {formatCount(milestone.strongCount.count)}</Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity activeOpacity={1} onPress={() => handleReactionPress(index, 'fireCount')} style={milestone.fireCount.selected ? activityStyles.reactionButtonClicked : activityStyles.reactionButtonUnclicked}>
-                                    <Text style={milestone.fireCount.selected ? activityStyles.reactionTextClicked : activityStyles.reactionTextUnclicked}>🔥 {formatCount(milestone.fireCount.count)}</Text>
-                                </TouchableOpacity>
-                                </View>
-
-                            </View>
-
-                            {milestone.postImage && (
-                                <View style={activityStyles.milestonesPostImage}>
-                                    <Image source={milestone.postImage} style={activityStyles.milestonesPostStyle} />
-                                </View>
-                            )}
-                        </View>
-                    </TouchableOpacity>
-                ))}
-            </ScrollView>
-        );
-    }
-
     return (
         <View style={globalStyles.container}>
             <View>
@@ -299,86 +205,5 @@ const activityStyles = StyleSheet.create({
         borderColor: 'grey',
         height: 30,
         marginLeft: 5
-    },
-    milestonesView: {
-        paddingHorizontal: 5,
-        marginHorizontal: 15,
-        marginBottom: 10,
-    },
-    milestonesElement: {
-        paddingHorizontal: 15,
-        paddingVertical: 10,
-        flexDirection: 'row',
-        width: '100%',
-        justifyContent: 'flex-start',
-        alignItems: 'center',
-        backgroundColor: '#2e2e2e',
-        borderRadius: 30,
-        marginVertical: 5,
-    },
-    milestonesDescription: {
-        color: 'white',
-        alignItems: 'left',
-        width: '100%',
-        fontSize: 20,
-        flexShrink: 1,
-    },
-    milestonesPFPImage: {
-        justifyContent: 'center',
-        marginRight: 5,
-        borderRadius: 5,
-    },
-    milestonesPostImage: {
-        justifyContent: 'center',
-        marginLeft: 5,
-    },
-    milestonesPFPStyle: {
-        width: 50, 
-        height: 50, 
-        borderRadius: 25,
-        borderWidth: 2,
-        borderColor: 'white',
-    },
-    milestonesPostStyle: {
-        width: 50, 
-        height: 50, 
-        borderRadius: 5,
-    },
-    timestamp:{
-        color: 'grey',
-        alignItems: 'center',
-        alignSelf: 'flex-end',
-    },
-    reactionButtons: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginTop: 10,
-    },
-    reactionButtonUnclicked: {
-        padding: 7,
-        minWidth: 55,
-        minHeight: 34,
-        fontSize: 16,
-        color: 'white',
-        marginHorizontal: 5,
-        borderRadius: 5,
-        borderWidth: 1,
-        borderColor: 'grey',
-    },
-    reactionButtonClicked: {
-        padding: 7,
-        minWidth: 55,
-        minHeight: 34,
-        fontSize: 16,
-        backgroundColor: 'white',
-        color: 'black',
-        marginHorizontal: 5,
-        borderRadius: 5,
-    },
-    reactionTextUnclicked: {
-        color: 'white',
-    },
-    reactionTextClicked: {
-        color: 'black',
     },
 });
