@@ -169,6 +169,7 @@ const Profile = () => {
           style={styles.profileImage}
         />
         <Text style={styles.profileName}>John Doe</Text>
+        <Text style={styles.profileUsername}>johndoe123</Text>
         <Text style={styles.profileBio}>Bio goes here. User can enter whatever they want.</Text>
         <View style={styles.statsContainer}>
           <View style={styles.statItem}>
@@ -225,6 +226,12 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     marginVertical: 10,
+  },
+  profileUsername: {
+    color: '#a6a6a6',
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom:5
   },
   profileBio: {
     color: 'gray',
