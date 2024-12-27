@@ -1,16 +1,24 @@
 import React, { useState } from 'react';
 import { View, Text, Image, StyleSheet, TouchableOpacity, FlatList, TextInput } from 'react-native';
+import { FontAwesome } from '@expo/vector-icons';
 
 const ViewPost = ({ route }) => {
   const { post } = route.params;
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState('');
+  const [likes, setLikes] = useState(post.likes);
+  const [liked, setLiked] = useState(false);
 
   const handleAddComment = () => {
     if (newComment.trim()) {
       setComments([...comments, { id: comments.length + 1, text: newComment }]);
       setNewComment('');
     }
+  };
+
+  const handleLikePress = () => {
+    setLiked(!liked);
+    setLikes(liked ? likes - 1 : likes + 1);
   };
 
   return (
@@ -22,8 +30,12 @@ const ViewPost = ({ route }) => {
       <Image source={{ uri: post.image }} style={styles.postImage} />
       <View style={styles.postInfo}>
         <View style={styles.likesComments}>
-          <Text style={styles.postLikes}>❤️ {post.likes}</Text>
-          <Text style={styles.postComments}>💬 {comments.length}</Text>
+          <TouchableOpacity onPress={handleLikePress}>
+            <FontAwesome name={liked ? "heart" : "heart-o"} size={24} color="white" />
+          </TouchableOpacity>
+          <Text style={styles.postLikes}>{likes}</Text>
+          <FontAwesome name="comment-o" size={24} color="white" style={styles.commentIcon} />
+          <Text style={styles.postComments}>{comments.length}</Text>
         </View>
         <Text style={styles.postDate}>{post.date.toLocaleString()}</Text>
       </View>
@@ -85,18 +97,24 @@ const styles = StyleSheet.create({
   },
   likesComments: {
     flexDirection: 'row',
+    alignItems: 'center',
   },
   postLikes: {
     color: 'white',
     fontSize: 18,
+    marginLeft: 5,
     marginRight: 15,
   },
   postComments: {
     color: 'white',
     fontSize: 18,
+    marginLeft: 5,
   },
   postDate: {
     color: 'gray',
+  },
+  commentIcon: {
+    marginLeft: 15,
   },
   commentButton: {
     backgroundColor: '#1c1c1e',
