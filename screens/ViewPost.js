@@ -20,9 +20,13 @@ const ViewPost = ({ route }) => {
         <Text style={styles.username}>{post.username}</Text>
       </View>
       <Image source={{ uri: post.image }} style={styles.postImage} />
-      <Text style={styles.postDate}>{post.date.toLocaleString()}</Text>
-      <Text style={styles.postLikes}>Likes: {post.likes}</Text>
-      <Text style={styles.postComments}>Comments: {comments.length}</Text>
+      <View style={styles.postInfo}>
+        <View style={styles.likesComments}>
+          <Text style={styles.postLikes}>❤️ {post.likes}</Text>
+          <Text style={styles.postComments}>💬 {comments.length}</Text>
+        </View>
+        <Text style={styles.postDate}>{post.date.toLocaleString()}</Text>
+      </View>
       <TouchableOpacity style={styles.commentButton} onPress={() => setCommentsVisible(!commentsVisible)}>
         <Text style={styles.commentButtonText}>Show Comments</Text>
       </TouchableOpacity>
@@ -73,18 +77,26 @@ const styles = StyleSheet.create({
     height: 300,
     borderRadius: 10,
   },
-  postDate: {
-    color: 'gray',
+  postInfo: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginVertical: 10,
+  },
+  likesComments: {
+    flexDirection: 'row',
   },
   postLikes: {
     color: 'white',
     fontSize: 18,
+    marginRight: 15,
   },
   postComments: {
     color: 'white',
     fontSize: 18,
-    marginBottom: 10,
+  },
+  postDate: {
+    color: 'gray',
   },
   commentButton: {
     backgroundColor: '#1c1c1e',
