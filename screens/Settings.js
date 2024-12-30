@@ -22,6 +22,39 @@ const accountPrivacyData = [
   { label: 'Private', value: 'private' },
 ];
 
+const languageData = [
+  { label: 'English', value: 'en' },
+  { label: 'Spanish', value: 'es' },
+  { label: 'French', value: 'fr' },
+  { label: 'German', value: 'de' },
+  { label: 'Italian', value: 'it' },
+  { label: 'Dutch', value: 'nl' },
+]
+
+const regionData = [
+  { label: 'Canada', value: 'ca' },
+  { label: 'United States', value: 'us' },
+  { label: 'United Kingdom', value: 'uk' },
+  { label: 'Australia', value: 'au' },
+  { label: 'Germany', value: 'de' },
+  { label: 'France', value: 'fr' },
+  { label: 'Italy', value: 'it' },
+  { label: 'Spain', value: 'es' },
+  { label: 'Netherlands', value: 'nl' },
+  { label: 'Mexico', value: 'mx' },
+  { label: 'Brazil', value: 'br' },
+  { label: 'Japan', value: 'jp' },
+  { label: 'China', value: 'cn' },
+  { label: 'India', value: 'in' },
+  { label: 'South Korea', value: 'kr' },
+  { label: 'Russia', value: 'ru' },
+  { label: 'South Africa', value: 'za' },
+  { label: 'Saudi Arabia', value: 'sa' },
+  { label: 'United Arab Emirates', value: 'ae' },
+  { label: 'Qatar', value: 'qa' },
+  { label: 'Turkey', value: 'tr' },
+];
+
 export default function Settings() {
   // Profile
   const [name, setName] = useState('');
@@ -31,12 +64,15 @@ export default function Settings() {
   // General
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [locationEnabled, setLocationEnabled] = useState(false);
+  const [darkModeEnabled, setDarkModeEnabled] = useState(true);
   const [units, setUnits] = useState('metric');
 
   // Privacy and Security
   const [accountPrivacy, setAccountPrivacy] = useState('public');
   
-
+  // Misc Settings
+  const [language, setLanguage] = useState('en');
+  const [region, setRegion] = useState('ca');
 
   const saveSettings = () => {
     console.log('Settings saved:', {
@@ -45,8 +81,11 @@ export default function Settings() {
       bio,
       notificationsEnabled,
       locationEnabled,
+      darkModeEnabled,
       units,
       accountPrivacy,
+      language,
+      region,
     });
   };
 
@@ -104,7 +143,6 @@ export default function Settings() {
               thumbColor={notificationsEnabled ? '#f5dd4b' : '#f4f3f4'}
             />
           </View>
-
           <View style={styles.itemRow}>
             <Text style={styles.label}>Location</Text>
             <Switch
@@ -112,6 +150,34 @@ export default function Settings() {
               value={locationEnabled}
               trackColor={{ false: '#767577', true: '#81b0ff' }}
               thumbColor={locationEnabled ? '#f5dd4b' : '#f4f3f4'}
+            />
+          </View>
+          <View style={styles.itemRow}>
+            <Text style={styles.label}>Language</Text>
+            <Dropdown
+              data={languageData}
+              labelField="label"
+              valueField="value"
+              value={language}
+              onChange={item => setLanguage(item.value)}
+              style={styles.dropdown}
+              placeholder="English"
+              placeholderStyle={styles.placeholderStyle}
+              selectedTextStyle={styles.selectedTextStyle}
+            />
+          </View>
+          <View style={styles.itemRow}>
+            <Text style={styles.label}>Region</Text>
+            <Dropdown
+              data={regionData}
+              labelField="label"
+              valueField="value"
+              value={region}
+              onChange={item => setRegion(item.value)}
+              style={styles.dropdown}
+              placeholder="Canada"
+              placeholderStyle={styles.placeholderStyle}
+              selectedTextStyle={styles.selectedTextStyle}
             />
           </View>
           <View style={styles.itemRow}>
@@ -126,6 +192,13 @@ export default function Settings() {
               placeholder="Select Units"
               placeholderStyle={styles.placeholderStyle}
               selectedTextStyle={styles.selectedTextStyle}
+            />
+          </View>
+          <View style={styles.itemRow}>
+            <Text style={styles.label}>Dark Mode</Text>
+            <Switch
+              onValueChange={setDarkModeEnabled}
+              value={darkModeEnabled}
             />
           </View>
 
@@ -144,21 +217,18 @@ export default function Settings() {
               selectedTextStyle={styles.selectedTextStyle}
             />
           </View>
-
           <View style={styles.itemRow}>
             <Text style={styles.label}>Blocked Users</Text>
             <TouchableOpacity style={styles.button} onPress={() => console.log('View Blocked Users pressed')}>
               <Text style={styles.label}>Manage Blocked Users</Text>
             </TouchableOpacity>
           </View>
-
           <View style={styles.itemRow}>
             <Text style={styles.label}>Two-Factor Authentication</Text>
             <TouchableOpacity style={styles.button} onPress={() => console.log('2FA Setup pressed')}>
               <Text style={styles.label}>2FA Setup</Text>
             </TouchableOpacity>
           </View>
-
           <View style={styles.itemRow}>
             <Text style={styles.label}>Active Devices</Text>
             <TouchableOpacity style={styles.button} onPress={() => console.log('View Active Devices pressed')}>
@@ -166,6 +236,40 @@ export default function Settings() {
             </TouchableOpacity>
           </View>
 
+          <Text style={styles.subheader}>Subscription Settings</Text>
+          <View style={styles.itemRow}>
+            <Text style={styles.label}>hlthy Plan</Text>
+            <TouchableOpacity style={styles.button} onPress={() => console.log('Manage hlthy Subscription pressed')}>
+              <Text style={styles.label}>Manage Subscription</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.itemRow}>
+            <Text style={styles.label}>Payment</Text>
+            <TouchableOpacity style={styles.button} onPress={() => console.log('Manage Payment Methods pressed')}>
+              <Text style={styles.label}>Manage Payment Methods</Text>
+            </TouchableOpacity>
+          </View>
+
+          <Text style={styles.subheader}>Miscellaneous</Text>
+          <View style={styles.itemRow}>
+            <Text style={styles.label}>FAQs</Text>
+            <TouchableOpacity style={styles.button} onPress={() => console.log('View FAQs pressed')}>
+              <Text style={styles.label}>View FAQs</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.itemRow}>
+            <Text style={styles.label}>Feedback</Text>
+            <TouchableOpacity style={styles.button} onPress={() => console.log('Provide Feedback/ Report Bugs pressed')}>
+              <Text style={styles.label}>Provide Feedback/ Report Bugs</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.itemRow}>
+            <Text style={styles.label}>Support</Text>
+            <TouchableOpacity style={styles.button} onPress={() => console.log('Contact Customer Support pressed')}>
+              <Text style={styles.label}>Contact Customer Support</Text>
+            </TouchableOpacity>
+          </View>
+          
         </ScrollView>
 
         <TouchableOpacity style={styles.saveButton} onPress={saveSettings}>
