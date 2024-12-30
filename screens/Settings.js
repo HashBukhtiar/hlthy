@@ -148,7 +148,21 @@ export default function Settings() {
           <View style={styles.itemRow}>
             <Text style={styles.label}>Blocked Users</Text>
             <TouchableOpacity style={styles.button} onPress={() => console.log('View Blocked Users pressed')}>
-              <Text style={styles.label}>View Blocked Users</Text>
+              <Text style={styles.label}>Manage Blocked Users</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.itemRow}>
+            <Text style={styles.label}>Two-Factor Authentication</Text>
+            <TouchableOpacity style={styles.button} onPress={() => console.log('2FA Setup pressed')}>
+              <Text style={styles.label}>2FA Setup</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.itemRow}>
+            <Text style={styles.label}>Active Devices</Text>
+            <TouchableOpacity style={styles.button} onPress={() => console.log('View Active Devices pressed')}>
+              <Text style={styles.label}>View Active Devices</Text>
             </TouchableOpacity>
           </View>
 
