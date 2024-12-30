@@ -17,13 +17,26 @@ const unitsData = [
   { label: 'Imperial (lbs)', value: 'imperial' },
 ];
 
+const accountPrivacyData = [
+  { label: 'Public', value: 'public' },
+  { label: 'Private', value: 'private' },
+];
+
 export default function Settings() {
+  // Profile
   const [name, setName] = useState('');
   const [username, setUsername] = useState('');
   const [bio, setBio] = useState('');
+
+  // General
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [locationEnabled, setLocationEnabled] = useState(false);
   const [units, setUnits] = useState('metric');
+
+  // Privacy and Security
+  const [accountPrivacy, setAccountPrivacy] = useState('public');
+  
+
 
   const saveSettings = () => {
     console.log('Settings saved:', {
@@ -33,6 +46,7 @@ export default function Settings() {
       notificationsEnabled,
       locationEnabled,
       units,
+      accountPrivacy,
     });
   };
 
@@ -100,7 +114,6 @@ export default function Settings() {
               thumbColor={locationEnabled ? '#f5dd4b' : '#f4f3f4'}
             />
           </View>
-
           <View style={styles.itemRow}>
             <Text style={styles.label}>Measurement Units</Text>
             <Dropdown
@@ -115,6 +128,30 @@ export default function Settings() {
               selectedTextStyle={styles.selectedTextStyle}
             />
           </View>
+
+          <Text style={styles.subheader}>Privacy and Security</Text>
+          <View style={styles.itemRow}>
+            <Text style={styles.label}>Profile Visibility</Text>
+            <Dropdown
+              data={accountPrivacyData}
+              labelField="label"
+              valueField="value"
+              value={accountPrivacy}
+              onChange={item => setAccountPrivacy(item.value)}
+              style={styles.dropdown}
+              placeholder="Public"
+              placeholderStyle={styles.placeholderStyle}
+              selectedTextStyle={styles.selectedTextStyle}
+            />
+          </View>
+
+          <View style={styles.itemRow}>
+            <Text style={styles.label}>Blocked Users</Text>
+            <TouchableOpacity style={styles.button} onPress={() => console.log('View Blocked Users pressed')}>
+              <Text style={styles.label}>View Blocked Users</Text>
+            </TouchableOpacity>
+          </View>
+
         </ScrollView>
 
         <TouchableOpacity style={styles.saveButton} onPress={saveSettings}>
@@ -192,6 +229,16 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     paddingHorizontal: 10,
     backgroundColor: '#333',
+  },
+  button: {
+    backgroundColor: '#333',
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#555',
+    alignItems: 'center',
+    marginTop: 'auto',
   },
   placeholderStyle: {
     color: '#ccc',
