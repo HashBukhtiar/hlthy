@@ -44,6 +44,12 @@ const Profile = () => {
     }, {});
   };
 
+  // Function to handle settings press
+  const handleSettingsPress = () => {
+    console.log(`Settings clicked`);
+    navigation.navigate('Settings');
+  };
+
   // Function to handle image click
   const handleImagePress = (imageUri) => {
     console.log(`Image clicked: ${imageUri}`);
@@ -152,11 +158,18 @@ const Profile = () => {
     <View style={styles.container}>
       {/* Profile Header */}
       <View style={styles.profileHeader}>
+        <TouchableOpacity
+          style={{ position: 'absolute', top: 20, right: 20 }}
+          onPress={() => handleSettingsPress()}
+        >
+          <Text style={{ color: 'white', backgroundColor: '#212121', padding: 5, borderRadius: 5 }}>Settings</Text>
+        </TouchableOpacity>
         <Image
           source={{ uri: 'https://thumbs.dreamstime.com/b/creative-illustration-default-avatar-profile-placeholder-isolated-background-art-design-grey-photo-blank-template-mockup-144855718.jpg' }}
           style={styles.profileImage}
         />
         <Text style={styles.profileName}>John Doe</Text>
+        <Text style={styles.profileUsername}>johndoe123</Text>
         <Text style={styles.profileBio}>Bio goes here. User can enter whatever they want.</Text>
         <View style={styles.statsContainer}>
           <View style={styles.statItem}>
@@ -213,6 +226,12 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     marginVertical: 10,
+  },
+  profileUsername: {
+    color: '#a6a6a6',
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom:5
   },
   profileBio: {
     color: 'gray',
