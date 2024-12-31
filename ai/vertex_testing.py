@@ -1,6 +1,6 @@
 import base64
 import vertexai
-from vertexai.generative_models import GenerativeModel, SafetySetting, Part
+from vertexai.generative_models import GenerativeModel, SafetySetting
 
 def multiturn_generate_content():
     vertexai.init(project="hlthy-421200", location="northamerica-northeast1")
