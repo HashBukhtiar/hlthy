@@ -139,3 +139,4 @@ const appStyles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'black',
   },
+});
