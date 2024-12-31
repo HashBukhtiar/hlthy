@@ -25,16 +25,13 @@ export default function AiTrainer() {
   };
 
   const togglePlanDropdown = () => setShowDropdown(!showDropdown);
-  const selectPlan = (planType) => {
-    console.log(`Plan selected: "${planType}"`);
-    console.log(`Trimmed plan type: "${planType.trim()}"`);
+
+ const selectPlan = (planType) => {
+    console.log("WorkoutPlan pressed");
     setPlan(planType);
     setShowDropdown(false);
-    if (planType.trim() === 'Workout Plan') {
-      console.log("WorkoutPlan pressed");
+    if (planType === 'Workout Plan') {
       navigation.navigate('WorkoutPlan');
-    } else {
-      console.log(`Plan type does not match: "${planType.trim()}"`);
     }
   };
 
@@ -52,7 +49,10 @@ export default function AiTrainer() {
             {['Workout Plan', 'Diet Plan', 'Both Plans'].map((option) => (
               <TouchableOpacity
                 key={option}
-                onPress={() => selectPlan(option)}
+                onPress={() => {
+                  console.log(`WorkoutPlan Pressed`);
+                  selectPlan(option);
+                }}
                 style={styles.dropdownItem}
               >
                 <Text>{option}</Text>

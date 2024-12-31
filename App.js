@@ -48,7 +48,9 @@ export default function App() {
           <Stack.Screen name="AI" options={{headerShown: false, animationEnabled: false}}>
             {props => <><AI {...props} /><BottomButtons /></>}
           </Stack.Screen>
-          <Stack.Screen name="WorkoutPlan" component={WorkoutPlan} options={{headerShown: false, animationEnabled: false}} />
+          <Stack.Screen name="WorkoutPlan" options={{headerShown: false, animationEnabled: false}}>
+            {props => <><WorkoutPlan {...props} /><BottomButtons /></>}
+          </Stack.Screen>
           <Stack.Screen name="Workouts" options={{headerShown: false, animationEnabled: false}}>
             {props => <><Workouts {...props} /><BottomButtons /></>}
           </Stack.Screen>
