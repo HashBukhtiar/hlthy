@@ -28,12 +28,23 @@ export default function AiTrainer() {
 
  const selectPlan = (planType) => {
     console.log("WorkoutPlan pressed");
-    setPlan(planType);
-    setShowDropdown(false);
-    if (planType === 'Workout Plan') {
-      navigation.navigate('WorkoutPlan');
-    }
-  };
+    try {
+        console.log(`Selecting plan: ${planType}`);
+        setPlan(planType);
+        setShowDropdown(false);
+        
+        if (planType === 'Workout Plan') {
+          console.log('Attempting navigation to WorkoutPlan');
+          navigation.navigate('WorkoutPlan');
+        } else if (planType === 'Diet Plan') {
+          console.log('Attempting navigation to DietPlan');
+          navigation.navigate('DietPlan');
+        }
+      } catch (error) {
+        console.error('Navigation error:', error);
+        Alert.alert('Navigation Error', 'Could not navigate to plan');
+      }
+    };
 
   return (
     <View style={styles.container}>

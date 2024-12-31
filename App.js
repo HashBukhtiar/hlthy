@@ -13,6 +13,7 @@ import ViewWorkout from './screens/ViewWorkout';
 import AI from './screens/AI';
 import Profile from './screens/Profile';
 import WorkoutPlan from './screens/WorkoutPlan';
+import DietPlan from './screens/DietPlan';
 import { useNavigation } from '@react-navigation/native';
 import { 
   homeIcon, 
@@ -50,6 +51,9 @@ export default function App() {
           </Stack.Screen>
           <Stack.Screen name="WorkoutPlan" options={{headerShown: false, animationEnabled: false}}>
             {props => <><WorkoutPlan {...props} /><BottomButtons /></>}
+          </Stack.Screen>
+          <Stack.Screen name="DietPlan" options={{headerShown: false, animationEnabled: false}}>
+            {props => <><DietPlan {...props} /><BottomButtons /></>}
           </Stack.Screen>
           <Stack.Screen name="Workouts" options={{headerShown: false, animationEnabled: false}}>
             {props => <><Workouts {...props} /><BottomButtons /></>}
