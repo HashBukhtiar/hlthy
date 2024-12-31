@@ -1,33 +1,44 @@
-import { StatusBar } from 'expo-status-bar';
+import React, { useState } from 'react';
 import { 
-  StyleSheet, 
+  StyleSheet,
   Text, 
   View, 
   ScrollView, 
   Image, 
-  TouchableOpacity
+  TouchableOpacity 
 } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import globalStyles from '../styles/globalStyles';
-import React from 'react';
-import { 
+import {
   icon, 
   activityIcon, 
   exploreIcon,
+  profileIcon,
 } from '../assets/images';
+import { TabView, SceneMap } from 'react-native-tab-view';
+import { Dimensions } from 'react-native';
+import MilestonesScene from './Milestones';
+
+function HomeScene() {
+  return (
+    <ScrollView contentContainerStyle={styles.postsContainer}>
+      <Text style={{ color: 'white', alignItems: 'center' }}>Posts will go here</Text>
+    </ScrollView>
+  );
+}
 
 export default function HomeFeed({ navigation }) {
-  return (
-    <View style={globalStyles.container}>
-      <View>
-        {renderTopBar()}
-      </View>
-      <StatusBar style="light" />
-      <ScrollView contentContainerStyle={styles.postsContainer}>
-        <Text style={{ color: 'white' }}>Posts will go here</Text>
-      </ScrollView>
-    </View>
-  );
-    
+  const [index, setIndex] = useState(0);
+  const [routes] = useState([
+    { key: 'home', title: 'Home' },
+    { key: 'milestones', title: 'Milestones' },
+  ]);
+
+  const renderScene = SceneMap({
+    home: HomeScene,
+    milestones: MilestonesScene,
+  });
+
   function renderTopBar() {
     return (
       <View style={styles.topBar}>
@@ -42,7 +53,7 @@ export default function HomeFeed({ navigation }) {
           >
             <Image source={exploreIcon} style={styles.buttonIcon} />
           </TouchableOpacity>
-          
+
           {/* Pulse Button */}
           <TouchableOpacity
             activeOpacity={0.7}
@@ -55,25 +66,31 @@ export default function HomeFeed({ navigation }) {
       </View>
     );
   }
+
+  return (
+    <View style={globalStyles.container}>
+      {renderTopBar()}
+      <StatusBar style="light" />
+      <TabView
+        navigationState={{ index, routes }}
+        renderScene={renderScene}
+        onIndexChange={setIndex}
+        initialLayout={{ width: Dimensions.get('window').width }}
+        renderTabBar={() => null}
+      />
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
-  postsContainer: {
-    flex: 1,
-    borderWidth: 1, 
-    borderColor: 'white',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   topBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     borderBottomColor: 'red',
-    borderWidth: 1,
+    borderBottomWidth: 1,
     paddingVertical: 10,
     paddingHorizontal: 15,
-    backgroundColor: 'black',
   },
   icon: {
     width: 40,
@@ -91,13 +108,15 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 5,
   },
-  searchBar: {
-    height: 40,
-    borderColor: 'gray',
-    borderWidth: 1,
-    paddingLeft: 10,
-    borderRadius: 10,
+  postsContainer: {
     flex: 1,
-    marginLeft: 5
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 10,
+  },
+  sceneContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

@@ -5,15 +5,18 @@ import { createStackNavigator } from '@react-navigation/stack';
 import HomeFeed from './screens/HomeFeed';
 import Pulse from './screens/Pulse';
 import Explore from './screens/Explore';
+import Post from './screens/Post';
 import Workouts from './screens/Workouts';
 import SignUp from './screens/SignUp';
 import SelectArchetype from './screens/SelectArchetype';
 import CreateWorkout from './screens/CreateWorkout';
 import ViewWorkout from './screens/ViewWorkout';
 import AI from './screens/AI';
-import Profile from './screens/Profile';
 import WorkoutPlan from './screens/WorkoutPlan';
 import DietPlan from './screens/DietPlan';
+import Profile from './screens/Profile';
+import Settings from './screens/Settings';
+import ViewPost from './screens/ViewPost';
 import { useNavigation } from '@react-navigation/native';
 import { 
   homeIcon, 
@@ -46,6 +49,9 @@ export default function App() {
           <Stack.Screen name="Explore" options={{headerShown: false, animationEnabled: false}}>
             {props => <><Explore {...props} /><BottomButtons /></>}
           </Stack.Screen>
+          <Stack.Screen name="Post" options={{headerShown: false, animationEnabled: false}}>
+            {props => <><Post {...props} /><BottomButtons /></>}
+          </Stack.Screen>
           <Stack.Screen name="AI" options={{headerShown: false, animationEnabled: false}}>
             {props => <><AI {...props} /><BottomButtons /></>}
           </Stack.Screen>
@@ -66,6 +72,12 @@ export default function App() {
           </Stack.Screen>
           <Stack.Screen name="Profile" options={{headerShown: false, animationEnabled: false}}>
             {props => <><Profile {...props} /><BottomButtons /></>}
+          </Stack.Screen>
+          <Stack.Screen name="Settings" options={{ headerShown: false }}>
+            {props => <Settings {...props} />}
+          </Stack.Screen>
+          <Stack.Screen name="ViewPost" options={{ headerShown: false }}>
+            {props => <ViewPost {...props} />}
           </Stack.Screen>
         </Stack.Navigator>
       </NavigationContainer>
@@ -98,7 +110,10 @@ export default function App() {
           <Image source={AIIcon} style={{ width: 40, height: 40, borderRadius:5 }} />
         </TouchableOpacity>
         <TouchableOpacity 
-          onPress={() => {console.log("POST pressed")}}
+          onPress={() => {
+            console.log("POST pressed")
+            navigation.navigate('Post')
+          }}
           style={globalStyles.postButton}>
             <Text style={{color: 'white', fontSize:40}}>+</Text>
         </TouchableOpacity>
@@ -124,4 +139,3 @@ const appStyles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'black',
   },
-});
