@@ -12,6 +12,8 @@ import SelectArchetype from './screens/SelectArchetype';
 import CreateWorkout from './screens/CreateWorkout';
 import ViewWorkout from './screens/ViewWorkout';
 import AI from './screens/AI';
+import WorkoutPlan from './screens/WorkoutPlan';
+import DietPlan from './screens/DietPlan';
 import Profile from './screens/Profile';
 import Settings from './screens/Settings';
 import ViewPost from './screens/ViewPost';
@@ -52,6 +54,12 @@ export default function App() {
           </Stack.Screen>
           <Stack.Screen name="AI" options={{headerShown: false, animationEnabled: false}}>
             {props => <><AI {...props} /><BottomButtons /></>}
+          </Stack.Screen>
+          <Stack.Screen name="WorkoutPlan" options={{headerShown: false, animationEnabled: false}}>
+            {props => <><WorkoutPlan {...props} /><BottomButtons /></>}
+          </Stack.Screen>
+          <Stack.Screen name="DietPlan" options={{headerShown: false, animationEnabled: false}}>
+            {props => <><DietPlan {...props} /><BottomButtons /></>}
           </Stack.Screen>
           <Stack.Screen name="Workouts" options={{headerShown: false, animationEnabled: false}}>
             {props => <><Workouts {...props} /><BottomButtons /></>}
