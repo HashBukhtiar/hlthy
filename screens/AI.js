@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { sendMessage } from '../ai/ai_chat';
 
 export default function AiTrainer() {
   const [messages, setMessages] = useState([
@@ -12,12 +13,20 @@ export default function AiTrainer() {
 
   const navigation = useNavigation();
 
-  const handleSend = () => {
+  const handleSend = async () => {
+    console.log('Send pressed');
     if (!input.trim()) return;
     const newMessage = { id: Date.now().toString(), text: input.trim(), user: 'user' };
-    const aiResponse = { id: (Date.now() + 1).toString(), text: 'This is a response from AI.', user: 'ai' };
-    setMessages([...messages, newMessage, aiResponse]);
+    setMessages([...messages, newMessage]);
     setInput('');
+  
+    try {
+      const aiReply = await sendMessage(input.trim());
+      const aiResponse = { id: (Date.now() + 1).toString(), text: aiReply, user: 'ai' };
+      setMessages((prev) => [...prev, aiResponse]);
+    } catch (error) {
+      console.error('Error calling AI:', error);
+    }
   };
 
   const togglePlanDropdown = () => setShowDropdown(!showDropdown);
