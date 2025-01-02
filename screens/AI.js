@@ -2,15 +2,10 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 
-const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16, backgroundColor: 'black' },
-  dropdown: { backgroundColor: '#ddd', padding: 8, marginTop: 4, borderRadius: 4 },
-  dropdownItem: { paddingVertical: 4 },
-  messageBubble: { backgroundColor: '#eee', padding: 8, borderRadius: 4 },
-});
-
 export default function AiTrainer() {
-  const [messages, setMessages] = useState([]);
+  const [messages, setMessages] = useState([
+    { id: '1', text: 'Hello! I am your AI Trainer. How can I help you today?', user: 'ai' },
+  ]);
   const [input, setInput] = useState('');
   const [plan, setPlan] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
@@ -20,7 +15,8 @@ export default function AiTrainer() {
   const handleSend = () => {
     if (!input.trim()) return;
     const newMessage = { id: Date.now().toString(), text: input.trim(), user: 'user' };
-    setMessages([...messages, newMessage]);
+    const aiResponse = { id: (Date.now() + 1).toString(), text: 'This is a response from AI.', user: 'ai' };
+    setMessages([...messages, newMessage, aiResponse]);
     setInput('');
   };
 
@@ -96,7 +92,9 @@ export default function AiTrainer() {
                 { alignSelf: item.user === 'user' ? 'flex-end' : 'flex-start' },
               ]}
             >
-              <Text style={styles.messageBubble}>{item.text}</Text>
+              <Text style={item.user === 'user' ? styles.userMessageBubble : styles.aiMessageBubble}>
+                {item.text}
+              </Text>
             </View>
           )}
           style={{ flex: 1 }}
@@ -129,3 +127,11 @@ export default function AiTrainer() {
     </KeyboardAvoidingView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: { flex: 1, padding: 16, backgroundColor: 'black' },
+  dropdown: { backgroundColor: '#ddd', padding: 8, marginTop: 4, borderRadius: 4 },
+  dropdownItem: { paddingVertical: 4 },
+  userMessageBubble: { backgroundColor: '#f9ccff', padding: 8, borderRadius: 4 },
+  aiMessageBubble: { backgroundColor: '#ddd', padding: 8, borderRadius: 4 },
+});
