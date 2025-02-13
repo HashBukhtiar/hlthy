@@ -60,8 +60,8 @@ def run_vertex_ai_once(user_prompt):
         return response.text
     except Exception as e:
         print(f"Error in run_vertex_ai_once: {e}")
-        return "Sorry, something went wrong with the AI."
+        return "Sorry, something went wrong with the AI. Is the Flask server running?"
 
 if __name__ == "__main__":
     print("Starting Flask server...")
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(host="0.0.0.0", port=5001, debug=True)

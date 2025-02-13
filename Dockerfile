@@ -1,26 +1,32 @@
 # Dockerfile
 
-# Use the official lightweight Python image.
 FROM python:3.9-slim
 
-# Set environment variables
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
+# Install system dependencies
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        build-essential \
+        python3-dev \
+        libffi-dev \
+        libssl-dev && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
-# Set work directory
 WORKDIR /app
 
-# Install dependencies
-COPY requirements.txt .
-RUN pip3 install --upgrade pip
-RUN pip3 install --no-cache-dir -r requirements.txt
-RUN pip3 install gunicorn
+RUN pip install --upgrade pip setuptools wheel
 
-# Copy project
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install gunicorn
+
+# Copy the application code
 COPY . .
 
-# Expose the port Flask is running on
-EXPOSE 5000
+# [OPTIONAL] If using a service account key, set the env variable:
+# ENV GOOGLE_APPLICATION_CREDENTIALS="/app/service_account_key.json"
 
-# Run the application with gunicorn
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "vertex_testing:app"]
+EXPOSE 5001
+
+# Use Gunicorn to run the Flask app; the app is located at ai/vertex_testing.py
+CMD ["gunicorn", "--bind", "0.0.0.0:5001", "ai.vertex_testing:app"]

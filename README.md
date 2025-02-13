@@ -32,10 +32,10 @@ Run the following commands to create a Docker container and build the app image.
 docker build -t gcr.io/hlthy-project-id/hlthy-ai:latest .
 ```
 
-Then, run the Docker container locally.
+Then, run the Docker container locally. Note that the container is running on port 5000 and the Flask server is on port 5001.
 
 ```
-docker run -d -p 5000:5000 --name hlthy-ai-container gcr.io/hlthy-project-id/hlthy-ai:latest
+docker run -d -p 5000:5001 --name hlthy-ai-container gcr.io/hlthy-421200/hlthy-ai:latest
 ```
 
 To specifically test AI functionality, ensure that you have installed, set up, and logged into `gcloud`. Open a new terminal and run the Flask server.
@@ -47,16 +47,16 @@ python3 ai/vertex_testing.py
 Then, in another terminal, use the following command to see if Vertex AI responds to prompts. Feel free to change the prompt accordingly.
 
 ```
-curl -X POST http://localhost:5000/api/ask \
+curl -X POST http://localhost:5001/api/ask \
      -H "Content-Type: application/json" \
-     -d '{"prompt": "Hello from Docker!"}'
+     -d '{"prompt": "Hello, when was Python created?"}'
 ```
 
 The expected response is something like this:
 
 ```
 {
-  "text": "Hello! I'm deployed in a Docker container. How can I assist you today?"
+  "text": "October 20, 1989"
 }
 ```
 
