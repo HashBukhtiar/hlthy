@@ -1,7 +1,7 @@
 export async function sendMessage(prompt) {
   try {
     console.log("Sending request to Flask:", prompt);
-    const response = await fetch('http://10.0.0.207:5000/api/ask', {
+    const response = await fetch('http://10.0.0.207:5001/api/ask', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ prompt }),
