@@ -1,7 +1,7 @@
 export async function sendMessage(prompt) {
   try {
-    console.log("Sending request to Flask:", prompt);
-    const response = await fetch('http://10.0.0.207:5001/api/ask', {
+    console.log("Sending request to Flask (Cloud Run):", prompt);
+    const response = await fetch('https://hlthy-ai-service-375457000023.northamerica-northeast2.run.app/api/ask', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ prompt }),

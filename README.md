@@ -38,7 +38,7 @@ Then, run the Docker container locally. Note that the container is running on po
 docker run -d -p 5000:5001 --name hlthy-ai-container gcr.io/hlthy-421200/hlthy-ai:latest
 ```
 
-To specifically test AI functionality, ensure that you have installed, set up, and logged into `gcloud`. Open a new terminal and run the Flask server.
+To specifically test AI functionality, ensure that you have installed, set up, and logged into `gcloud`. Open a new terminal and run the Flask server. Note that the actual container is now on GCP, and is not practical for local use. See below on how to update the GCP container after a change has been made to the codebase.
 
 ```
 python3 ai/vertex_testing.py
@@ -71,4 +71,23 @@ Once the testing and development session is complete, stop and remove the contai
 ```
 docker stop hlthy-ai-container
 docker rm hlthy-ai-container
+```
+
+**Pushing a New Version of the Container After a Change Has Been Made**
+If a change has been made to the codebase, a new docker image will have to be built and pushed to GCP Cloud Run. 
+
+```
+gcloud run deploy hlthy-ai-service \
+  --image gcr.io/PROJECT-ID/hlthy-ai:latest \
+  --platform managed \
+  --region northamerica-northeast2 \
+  --allow-unauthenticated \
+  --port 5001
+```
+
+Then run:
+
+```
+docker build -t gcr.io/PROJECT-ID/hlthy-ai:latest .
+docker push gcr.io/PROJECT-ID/hlthy-ai:latest
 ```
