@@ -1,73 +1,95 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { 
-  View, 
-  Text, 
-  TextInput, 
-  TouchableOpacity, 
-  FlatList, 
-  StyleSheet, 
-  KeyboardAvoidingView, 
-  Platform, 
-  Keyboard 
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  FlatList,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+  Keyboard,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { sendMessage } from '../ai/ai_chat';
 
+function TypingIndicator() {
+  const [dots, setDots] = useState('');
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setDots((prev) => (prev.length < 3 ? prev + '.' : ''));
+    }, 500);
+    return () => clearInterval(interval);
+  }, []);
+  return <Text style={styles.typingAnimation}>{dots}</Text>;
+}
+
 export default function AiTrainer() {
   const [messages, setMessages] = useState([
-    { id: '1', text: 'Hello! I am your AI Trainer. How can I help you today?', user: 'ai' },
+    {
+      id: '1',
+      text: 'Hello! I am your AI Trainer. How can I help you today?',
+      user: 'ai',
+    },
   ]);
   const [input, setInput] = useState('');
-  const [plan, setPlan] = useState(''); // These can be workouts IN the hlthy Workouts database (i.e. workouts in the app that can be used as context for the AI)
+  const [plan, setPlan] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
+  const [isTyping, setIsTyping] = useState(false);
 
   const navigation = useNavigation();
   const flatListRef = useRef(null);
 
   const handleSend = async () => {
     Keyboard.dismiss();
-    console.log('Send pressed');
     if (!input.trim()) return;
-    const newMessage = { id: Date.now().toString(), text: input.trim(), user: 'user' };
-    setMessages([...messages, newMessage]);
+    const newMessage = {
+      id: Date.now().toString(),
+      text: input.trim(),
+      user: 'user',
+    };
+    setMessages((prev) => [...prev, newMessage]);
     setInput('');
-  
+
+    // Show typing indicator
+    setIsTyping(true);
     try {
       const aiReply = await sendMessage(input.trim());
-      const aiResponse = { id: (Date.now() + 1).toString(), text: aiReply, user: 'ai' };
+      setIsTyping(false);
+      const aiResponse = {
+        id: (Date.now() + 1).toString(),
+        text: aiReply,
+        user: 'ai',
+      };
       setMessages((prev) => [...prev, aiResponse]);
     } catch (error) {
+      setIsTyping(false);
       console.error('Error calling AI:', error);
     }
   };
 
-  useEffect(() => {
-    if (flatListRef.current && messages.length > 0) {
+  // Scroll to bottom whenever content size changes (including when the typing indicator is rendered)
+  const scrollToBottom = () => {
+    if (flatListRef.current) {
       flatListRef.current.scrollToEnd({ animated: true });
     }
-  }, [messages]);
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, isTyping]);
 
   const togglePlanDropdown = () => setShowDropdown(!showDropdown);
 
   const selectPlan = (planType) => {
-    console.log("WorkoutPlan pressed");
-    try {
-        console.log(`Selecting plan: ${planType}`);
-        setPlan(planType);
-        setShowDropdown(false);
-        
-        if (planType === 'Workout Plan') {
-          console.log('Attempting navigation to WorkoutPlan');
-          navigation.navigate('WorkoutPlan');
-        } else if (planType === 'Diet Plan') {
-          console.log('Attempting navigation to DietPlan');
-          navigation.navigate('DietPlan');
-        }
-      } catch (error) {
-        console.error('Navigation error:', error);
-        Alert.alert('Navigation Error', 'Could not navigate to plan');
-      }
-    };
+    setPlan(planType);
+    setShowDropdown(false);
+    if (planType === 'Workout Plan') {
+      navigation.navigate('WorkoutPlan');
+    } else if (planType === 'Diet Plan') {
+      navigation.navigate('DietPlan');
+    }
+  };
 
   return (
     <KeyboardAvoidingView
@@ -79,7 +101,7 @@ export default function AiTrainer() {
         {/* Dropdown */}
         <View style={{ marginBottom: 16 }}>
           <TouchableOpacity onPress={togglePlanDropdown}>
-            <Text style={{ fontSize: 18, fontWeight: 'bold', color: 'white' }}>
+            <Text style={styles.planDropdown}>
               Your Plan{plan ? `: ${plan}` : ''}
             </Text>
           </TouchableOpacity>
@@ -88,10 +110,7 @@ export default function AiTrainer() {
               {['Workout Plan', 'Diet Plan', 'Both Plans'].map((option) => (
                 <TouchableOpacity
                   key={option}
-                  onPress={() => {
-                    console.log(`WorkoutPlan Pressed`);
-                    selectPlan(option);
-                  }}
+                  onPress={() => selectPlan(option)}
                   style={styles.dropdownItem}
                 >
                   <Text>{option}</Text>
@@ -103,12 +122,12 @@ export default function AiTrainer() {
 
         {/* Current Plan */}
         <View style={{ marginBottom: 16 }}>
-          <Text style={{ fontSize: 16, color: 'white'}}>
+          <Text style={{ fontSize: 16, color: 'white' }}>
             Current Plan: {plan || 'None'}
           </Text>
         </View>
 
-        {/* Chat History */}
+        {/* Chat History with Typing Indicator as Footer */}
         <FlatList
           ref={flatListRef}
           data={messages}
@@ -120,28 +139,27 @@ export default function AiTrainer() {
                 { alignSelf: item.user === 'user' ? 'flex-end' : 'flex-start' },
               ]}
             >
-              <Text style={item.user === 'user' ? styles.userMessageBubble : styles.aiMessageBubble}>
+              <Text
+                style={
+                  item.user === 'user'
+                    ? styles.userMessageBubble
+                    : styles.aiMessageBubble
+                }
+              >
                 {item.text}
               </Text>
             </View>
           )}
+          ListFooterComponent={isTyping ? <TypingIndicator /> : null}
+          onContentSizeChange={scrollToBottom}
           style={{ flex: 1 }}
-          onContentSizeChange={() =>
-            flatListRef.current && flatListRef.current.scrollToEnd({ animated: true })
-          }
+          contentContainerStyle={{ paddingBottom: 16 }}
         />
 
         {/* Input */}
         <View style={{ flexDirection: 'row', marginTop: 10, alignItems: 'center' }}>
           <TextInput
-            style={{
-              flex: 1,
-              borderWidth: 1,
-              borderColor: '#ccc',
-              borderRadius: 4,
-              padding: 8,
-              color: 'white',
-            }}
+            style={styles.promptInput}
             value={input}
             onChangeText={setInput}
             placeholder="Ask your AI trainer..."
@@ -149,7 +167,7 @@ export default function AiTrainer() {
           />
           <TouchableOpacity
             onPress={handleSend}
-            style={{ marginLeft: 8, padding: 8, backgroundColor: '#f9ccff', borderRadius: 4 }}
+            style={styles.sendButton}
           >
             <Text style={{ color: 'black' }}>Send</Text>
           </TouchableOpacity>
@@ -162,7 +180,11 @@ export default function AiTrainer() {
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 16, backgroundColor: 'black' },
   dropdown: { backgroundColor: '#ddd', padding: 8, marginTop: 4, borderRadius: 4 },
+  planDropdown: { fontSize: 18, fontWeight: 'bold', color: 'white' },
   dropdownItem: { paddingVertical: 4 },
   userMessageBubble: { backgroundColor: '#f9ccff', padding: 8, borderRadius: 4 },
   aiMessageBubble: { backgroundColor: '#ddd', padding: 8, borderRadius: 4 },
+  typingAnimation: { backgroundColor: 'black', color: 'white', padding: 8, borderRadius: 4, fontSize: 50, textAlign: 'center'},
+  promptInput: { flex: 1, borderWidth: 1, borderColor: '#ccc', borderRadius: 4, padding: 8, color: 'white' },
+  sendButton: { marginLeft: 8, padding: 8, backgroundColor: '#f9ccff', borderRadius: 4 }
 });
