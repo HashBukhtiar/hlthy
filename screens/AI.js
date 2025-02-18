@@ -1,5 +1,15 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
+import React, { useState, useRef, useEffect } from 'react';
+import { 
+  View, 
+  Text, 
+  TextInput, 
+  TouchableOpacity, 
+  FlatList, 
+  StyleSheet, 
+  KeyboardAvoidingView, 
+  Platform, 
+  Keyboard 
+} from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { sendMessage } from '../ai/ai_chat';
 
@@ -8,12 +18,14 @@ export default function AiTrainer() {
     { id: '1', text: 'Hello! I am your AI Trainer. How can I help you today?', user: 'ai' },
   ]);
   const [input, setInput] = useState('');
-  const [plan, setPlan] = useState('');
+  const [plan, setPlan] = useState(''); // These can be workouts IN the hlthy Workouts database (i.e. workouts in the app that can be used as context for the AI)
   const [showDropdown, setShowDropdown] = useState(false);
 
   const navigation = useNavigation();
+  const flatListRef = useRef(null);
 
   const handleSend = async () => {
+    Keyboard.dismiss();
     console.log('Send pressed');
     if (!input.trim()) return;
     const newMessage = { id: Date.now().toString(), text: input.trim(), user: 'user' };
@@ -29,9 +41,15 @@ export default function AiTrainer() {
     }
   };
 
+  useEffect(() => {
+    if (flatListRef.current && messages.length > 0) {
+      flatListRef.current.scrollToEnd({ animated: true });
+    }
+  }, [messages]);
+
   const togglePlanDropdown = () => setShowDropdown(!showDropdown);
 
- const selectPlan = (planType) => {
+  const selectPlan = (planType) => {
     console.log("WorkoutPlan pressed");
     try {
         console.log(`Selecting plan: ${planType}`);
@@ -53,7 +71,7 @@ export default function AiTrainer() {
 
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1 }}
+      style={{ flex: 1, backgroundColor: 'black' }}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 20}
     >
@@ -92,6 +110,7 @@ export default function AiTrainer() {
 
         {/* Chat History */}
         <FlatList
+          ref={flatListRef}
           data={messages}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
@@ -107,10 +126,13 @@ export default function AiTrainer() {
             </View>
           )}
           style={{ flex: 1 }}
+          onContentSizeChange={() =>
+            flatListRef.current && flatListRef.current.scrollToEnd({ animated: true })
+          }
         />
 
         {/* Input */}
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <View style={{ flexDirection: 'row', marginTop: 10, alignItems: 'center' }}>
           <TextInput
             style={{
               flex: 1,
@@ -127,9 +149,9 @@ export default function AiTrainer() {
           />
           <TouchableOpacity
             onPress={handleSend}
-            style={{ marginLeft: 8, padding: 8, backgroundColor: 'blue', borderRadius: 4 }}
+            style={{ marginLeft: 8, padding: 8, backgroundColor: '#f9ccff', borderRadius: 4 }}
           >
-            <Text style={{ color: 'white' }}>Send</Text>
+            <Text style={{ color: 'black' }}>Send</Text>
           </TouchableOpacity>
         </View>
       </View>
