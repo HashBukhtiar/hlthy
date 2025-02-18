@@ -98,33 +98,29 @@ export default function AiTrainer() {
       keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 20}
     >
       <View style={styles.container}>
-        {/* Dropdown */}
-        <View style={{ marginBottom: 16 }}>
-          <TouchableOpacity onPress={togglePlanDropdown}>
-            <Text style={styles.planDropdown}>
-              Your Plan{plan ? `: ${plan}` : ''}
-            </Text>
-          </TouchableOpacity>
-          {showDropdown && (
-            <View style={styles.dropdown}>
-              {['Workout Plan', 'Diet Plan', 'Both Plans'].map((option) => (
-                <TouchableOpacity
-                  key={option}
-                  onPress={() => selectPlan(option)}
-                  style={styles.dropdownItem}
-                >
-                  <Text>{option}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
-        </View>
-
-        {/* Current Plan */}
-        <View style={{ marginBottom: 16 }}>
-          <Text style={{ fontSize: 16, color: 'white' }}>
-            Current Plan: {plan || 'None'}
-          </Text>
+        {/* Current Plan Dropdown */}
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>hlthy AI</Text>
+          <View style={styles.dropdownContainer}>
+            <TouchableOpacity onPress={togglePlanDropdown}>
+              <Text style={styles.planDropdown}>
+                Current Plan: {plan || 'None'}
+              </Text>
+            </TouchableOpacity>
+            {showDropdown && (
+              <View style={styles.dropdown}>
+                {['Workout Plan', 'Diet Plan', 'Both Plans'].map((option) => (
+                  <TouchableOpacity
+                    key={option}
+                    onPress={() => selectPlan(option)}
+                    style={styles.dropdownItem}
+                  >
+                    <Text>{option}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </View>
         </View>
 
         {/* Chat History with Typing Indicator as Footer */}
@@ -157,7 +153,7 @@ export default function AiTrainer() {
         />
 
         {/* Input */}
-        <View style={{ flexDirection: 'row', marginTop: 10, alignItems: 'center' }}>
+        <View style={{ flexDirection: 'row', marginTop: 8, alignItems: 'center' }}>
           <TextInput
             style={styles.promptInput}
             value={input}
@@ -178,13 +174,69 @@ export default function AiTrainer() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16, backgroundColor: 'black' },
-  dropdown: { backgroundColor: '#ddd', padding: 8, marginTop: 4, borderRadius: 4 },
-  planDropdown: { fontSize: 18, fontWeight: 'bold', color: 'white' },
-  dropdownItem: { paddingVertical: 4 },
-  userMessageBubble: { backgroundColor: '#f9ccff', padding: 8, borderRadius: 4 },
-  aiMessageBubble: { backgroundColor: '#ddd', padding: 8, borderRadius: 4 },
-  typingAnimation: { backgroundColor: 'black', color: 'white', padding: 8, borderRadius: 4, fontSize: 50, textAlign: 'center'},
-  promptInput: { flex: 1, borderWidth: 1, borderColor: '#ccc', borderRadius: 4, padding: 8, color: 'white' },
-  sendButton: { marginLeft: 8, padding: 8, backgroundColor: '#f9ccff', borderRadius: 4 }
+  container: { 
+    flex: 1, 
+    padding: 16, 
+    backgroundColor: 'black' 
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: 'white',
+  },
+  dropdownContainer: {
+    alignItems: 'flex-end',
+  },
+  planDropdown: {
+    fontSize: 16,
+    color: 'white',
+  },
+  dropdown: {
+    backgroundColor: '#ddd',
+    padding: 8,
+    marginTop: 4,
+    borderRadius: 4,
+  },
+  dropdownItem: {
+    paddingVertical: 4,
+  },
+  userMessageBubble: { 
+    backgroundColor: '#f9ccff',
+    padding: 8,
+    borderRadius: 4
+   },
+  aiMessageBubble: { 
+    backgroundColor: '#ddd',
+    padding: 8, 
+    borderRadius: 4 
+  },
+  typingAnimation: { 
+    backgroundColor: 'black', 
+    color: 'white', 
+    padding: 8, 
+    borderRadius: 4, 
+    fontSize: 50, 
+    textAlign: 'center'
+  },
+  promptInput: { 
+    flex: 1, 
+    borderWidth: 1, 
+    borderColor: '#ccc', 
+    borderRadius: 4, 
+    padding: 8, 
+    color: 'white' 
+
+  },
+  sendButton: { 
+    marginLeft: 8, 
+    padding: 8, 
+    backgroundColor: '#f9ccff', 
+    borderRadius: 4 
+  }
 });
