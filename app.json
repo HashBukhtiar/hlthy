@@ -16,7 +16,8 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.hlthy"
+      "bundleIdentifier": "com.hlthy",
+      "buildNumber": "1.0.0"
     },
     "android": {
       "adaptiveIcon": {
@@ -27,6 +28,12 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "a1e6a8c1-8e53-4bb2-a30d-bfda93d63c96"
+      }
+    },
+    "owner": "derana1"
   }
 }
