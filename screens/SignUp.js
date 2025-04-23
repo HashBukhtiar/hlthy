@@ -10,11 +10,13 @@ import {
   Keyboard,
   Platform,
   TouchableOpacity,
-  Modal
+  Modal,
+  ActivityIndicator
 } from 'react-native';
 import { Button, TextInput } from 'react-native-paper';
-import { collection, addDoc, getDocs } from "firebase/firestore"; 
-import { db } from '../firebaseConfig';
+import { collection, setDoc, doc, getDocs } from "firebase/firestore"; 
+import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
+import { db, auth } from '../firebaseConfig';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
 const SignUpScreen = ({ navigation }) => {
@@ -22,6 +24,7 @@ const SignUpScreen = ({ navigation }) => {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [emailAddress, setEmailAddress] = useState('');
+  const [password, setPassword] = useState('');
   const [date, setDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [dateOfBirthFormatted, setDateOfBirthFormatted] = useState('');
@@ -29,6 +32,7 @@ const SignUpScreen = ({ navigation }) => {
   const [isUsernameAvailable, setIsUsernameAvailable] = useState(true);
   const [isEmailValid, setIsEmailValid] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
+  const [loading, setLoading] = useState(false);
   
   // Format date for display
   const formatDate = (date) => {
@@ -73,44 +77,80 @@ const SignUpScreen = ({ navigation }) => {
   };
 
   const signUp = async () => {
-    console.log("sign up pressed");
-
-    const isUsernameValid = isValidUsername(userName);
-    const isUsernameAvailable = await isAvailableUsername(userName);
-  
-    if (!isValidEmail(emailAddress) || dateOfBirthFormatted === '' || !isUsernameValid || !isUsernameAvailable) {
-      console.log("User signed up, but has invalid info.");
-      if (!isUsernameValid) {
-        setErrorMessage("Please provide a valid username.");
-      } else if (!isUsernameAvailable) {
-        setErrorMessage("That username is taken. Please try another one.");
-      } else if (!isValidEmail(emailAddress)) {
-        setErrorMessage("Please provide a valid email.");
-      } else if (dateOfBirthFormatted === '') {
-        setErrorMessage("Please select your date of birth.");
-      }
-
-      return;
-    }
-
     try {
-      const docRef = await addDoc(collection(db, "users"), {
+      // Clear previous errors
+      setErrorMessage("");
+      
+      // Validate form data
+      if (!firstName.trim() || !lastName.trim()) {
+        setErrorMessage("Please enter your name.");
+        return;
+      }
+      
+      if (!isValidUsername(userName)) {
+        setErrorMessage("Please provide a valid username.");
+        return;
+      }
+      
+      if (!isValidEmail(emailAddress)) {
+        setErrorMessage("Please provide a valid email.");
+        return;
+      }
+      
+      if (dateOfBirthFormatted === '') {
+        setErrorMessage("Please select your date of birth.");
+        return;
+      }
+      
+      // Show loading indicator
+      setLoading(true);
+      
+      // 1. Create the user account with Firebase Authentication
+      const userCredential = await createUserWithEmailAndPassword(
+        auth, 
+        emailAddress, 
+        password
+      );
+      
+      const user = userCredential.user;
+      
+      // 2. Store additional user data in Firestore
+      await setDoc(doc(db, "users", user.uid), {
         username: userName,
         first_name: firstName,
         last_name: lastName,
         email_address: emailAddress,
         date_of_birth: date,
+        created_at: new Date()
       });
-      console.log("Document written with ID: ", docRef.id);
+      
+      console.log("User created successfully:", user.uid);
+      
+      // 3. Navigate to next screen
       navigation.reset({
         index: 0,
         routes: [{ 
           name: 'SelectArchetype', 
-          params: { userId: docRef.id }
+          params: { userId: user.uid }
         }],
       });
-    } catch (e) {
-      console.error("Error adding document: ", e);
+      
+    } catch (error) {
+      // Handle specific Firebase errors
+      let errorMsg = "An error occurred during signup.";
+      
+      if (error.code === 'auth/email-already-in-use') {
+        errorMsg = "This email is already in use.";
+      } else if (error.code === 'auth/invalid-email') {
+        errorMsg = "Please enter a valid email address.";
+      } else if (error.code === 'auth/weak-password') {
+        errorMsg = "Password should be at least 6 characters.";
+      }
+      
+      console.error("Signup error:", error);
+      setErrorMessage(errorMsg);
+    } finally {
+      setLoading(false);
     }
   };
   
@@ -132,6 +172,12 @@ const SignUpScreen = ({ navigation }) => {
           </View>
           
           <View style={styles.contentContainer}>
+          {loading && (
+            <View style={styles.loadingOverlay}>
+              <ActivityIndicator size="large" color="#FFFFFF" />
+              <Text style={styles.loadingText}>Creating your account...</Text>
+            </View>
+          )}
             <Text style={[styles.header, {fontWeight: 'bold'}]}>Create an Account</Text>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
               <TextInput
@@ -179,6 +225,16 @@ const SignUpScreen = ({ navigation }) => {
               autoCapitalize='none'
               textColor='white'
               error={!isEmailValid}
+            />
+            <TextInput
+              label="Password"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+              style={styles.input}
+              mode="outlined"
+              theme={{ colors: { primary: 'white', text: 'white', underlineColor:'transparent', background: '#222222'}}}
+              textColor='white'
             />
             
             {/* Date of Birth Picker */}
@@ -321,6 +377,21 @@ const styles = StyleSheet.create({
   datePicker: {
     backgroundColor: '#222222',
     height: 250,
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  loadingText: {
+    color: 'white',
+    marginTop: 10,
   }
 });
 
