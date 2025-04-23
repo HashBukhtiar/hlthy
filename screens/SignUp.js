@@ -1,31 +1,47 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, Text, Image } from 'react-native';
+import { 
+  View, 
+  StyleSheet, 
+  Text, 
+  Image, 
+  KeyboardAvoidingView, 
+  ScrollView,
+  TouchableWithoutFeedback,
+  Keyboard,
+  Platform,
+  TouchableOpacity,
+  Modal
+} from 'react-native';
 import { Button, TextInput } from 'react-native-paper';
 import { collection, addDoc, getDocs } from "firebase/firestore"; 
 import { db } from '../firebaseConfig';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 const SignUpScreen = ({ navigation }) => {
   const [userName, setUserName] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [emailAddress, setEmailAddress] = useState('');
-  const [dateOfBirth, setDateOfBirth] = useState('');
+  const [date, setDate] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [dateOfBirthFormatted, setDateOfBirthFormatted] = useState('');
   const [isUsernameValid, setIsUsernameValid] = useState(true);
   const [isUsernameAvailable, setIsUsernameAvailable] = useState(true);
   const [isEmailValid, setIsEmailValid] = useState(true);
-  const [isDOBValid, setIsDOBValid] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
   
+  // Format date for display
+  const formatDate = (date) => {
+    const month = date.getMonth() + 1;
+    const day = date.getDate();
+    const year = date.getFullYear();
+    return `${month < 10 ? '0' + month : month}/${day < 10 ? '0' + day : day}/${year}`;
+  };
+
   // Check if the email is valid
   const isValidEmail = (email) => {
     const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return re.test(email);
-  };
-
-  // Check if the DOB is valid
-  const isValidDOB = (dob) => {
-    const re = /^(0[1-9]|1[0-2])\/(0[1-9]|[12][0-9]|3[01])\/(19|20)\d{2}$/;
-    return re.test(dob);
   };
 
   // Check if username is valid
@@ -47,12 +63,22 @@ const SignUpScreen = ({ navigation }) => {
     }
     return true;
   };
-  
+
+  // Date picker change handler
+  const onChange = (event, selectedDate) => {
+    const currentDate = selectedDate || date;
+    setShowDatePicker(Platform.OS === 'ios');
+    setDate(currentDate);
+    setDateOfBirthFormatted(formatDate(currentDate));
+  };
+
   const signUp = async () => {
+    console.log("sign up pressed");
+
     const isUsernameValid = isValidUsername(userName);
     const isUsernameAvailable = await isAvailableUsername(userName);
   
-    if (!isValidEmail(emailAddress) || !isValidDOB(dateOfBirth) || !isUsernameValid || !isUsernameAvailable) {
+    if (!isValidEmail(emailAddress) || dateOfBirthFormatted === '' || !isUsernameValid || !isUsernameAvailable) {
       console.log("User signed up, but has invalid info.");
       if (!isUsernameValid) {
         setErrorMessage("Please provide a valid username.");
@@ -60,15 +86,12 @@ const SignUpScreen = ({ navigation }) => {
         setErrorMessage("That username is taken. Please try another one.");
       } else if (!isValidEmail(emailAddress)) {
         setErrorMessage("Please provide a valid email.");
-      } else if (!isValidDOB(dateOfBirth)) {
-        setErrorMessage("Please provide a valid date of birth.");
+      } else if (dateOfBirthFormatted === '') {
+        setErrorMessage("Please select your date of birth.");
       }
+
       return;
     }
-
-    // Convert the dateOfBirth string to a Date object
-    const dobArray = dateOfBirth.split("/");
-    const dobAsDate = new Date(dobArray[2], dobArray[0] - 1, dobArray[1]);
 
     try {
       const docRef = await addDoc(collection(db, "users"), {
@@ -76,7 +99,7 @@ const SignUpScreen = ({ navigation }) => {
         first_name: firstName,
         last_name: lastName,
         email_address: emailAddress,
-        date_of_birth: dobAsDate,
+        date_of_birth: date,
       });
       console.log("Document written with ID: ", docRef.id);
       navigation.reset({
@@ -92,101 +115,146 @@ const SignUpScreen = ({ navigation }) => {
   };
   
   return (
-    <View style={styles.container}>
-    <View style={styles.container}>
-    <Image
-    style={styles.logo}
-    source={require('../assets/iconDark.png')}
-    />
-    </View>
-    <View style={styles.contentContainer}>
-    <Text style={[styles.header, {fontWeight: 'bold'}]}>Create an Account</Text>
-    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-    <TextInput
-      label="First Name"
-      value={firstName}
-      onChangeText={setFirstName}
-      style={[styles.input, { flex: 1, marginRight: 10 }]}
-      mode="outlined"
-      theme={{ colors: { primary: 'white', text: 'white', underlineColor:'transparent', background: '#222222'}}}
-      textColor='white'
-    />
-    <TextInput
-      label="Last Name"
-      value={lastName}
-      onChangeText={setLastName}
-      style={[styles.input, { flex: 1, marginLeft: 10 }]}
-      mode="outlined"
-      theme={{ colors: { primary: 'white', text: 'white', underlineColor:'transparent', background: '#222222'}}}
-      textColor='white'
-    />
-    </View>
-    <TextInput
-      label="Username"
-      value={userName}
-      onChangeText={(text) => setUserName(text.toLowerCase())}
-      onBlur={async () => {
-        setIsUsernameValid(isValidUsername(userName));
-        setIsUsernameAvailable(await isAvailableUsername(userName));
-      }}
-      style={[styles.input]}
-      mode="outlined"
-      theme={{ colors: { primary: 'white', text: 'white', underlineColor:'transparent', background: '#222222'}}}
-      textColor='white'
-      autoCapitalize='none'
-      error={!isUsernameValid}
-    />
-    <TextInput
-      label="Email Address"
-      value={emailAddress}
-      onChangeText={setEmailAddress}
-      onBlur={() => setIsEmailValid(isValidEmail(emailAddress))}
-      style={styles.input}
-      mode="outlined"
-      theme={{ colors: { primary: 'white', text: 'white', underlineColor:'transparent', background: '#222222'}}}
-      autoCapitalize='none'
-      textColor='white'
-      error={!isEmailValid}
-    />
-    <TextInput
-      label="Date of Birth (MM/DD/YYYY)"
-      value={dateOfBirth}
-      onChangeText={setDateOfBirth}
-      onBlur={() => setIsDOBValid(isValidDOB(dateOfBirth))}
-      style={[styles.input]}
-      mode="outlined"
-      theme={{ colors: { primary: 'white', text: 'white', underlineColor:'transparent', background: '#222222'}}}
-      textColor='white'
-      autoCapitalize='none'
-      error={!isDOBValid}
-    />
-    <Button 
-      mode="contained" 
-      onPress={signUp} 
-      style={[styles.button, { backgroundColor: '#FFFFFF' }]} 
-      labelStyle={{ color: '#000' }}>
-      Sign Up
-    </Button>
-    <Text style={{ color: '#FF5555', textAlign: 'center', marginTop: 15 }}>{errorMessage}</Text>
-    </View>
-    </View>
+    <KeyboardAvoidingView 
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      style={styles.container}
+    >
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <ScrollView 
+          contentContainerStyle={styles.scrollContainer}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.logoContainer}>
+            <Image
+              style={styles.logo}
+              source={require('../assets/iconDark.png')}
+            />
+          </View>
+          
+          <View style={styles.contentContainer}>
+            <Text style={[styles.header, {fontWeight: 'bold'}]}>Create an Account</Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+              <TextInput
+                label="First Name"
+                value={firstName}
+                onChangeText={setFirstName}
+                style={[styles.input, { flex: 1, marginRight: 10 }]}
+                mode="outlined"
+                theme={{ colors: { primary: 'white', text: 'white', underlineColor:'transparent', background: '#222222'}}}
+                textColor='white'
+              />
+              <TextInput
+                label="Last Name"
+                value={lastName}
+                onChangeText={setLastName}
+                style={[styles.input, { flex: 1, marginLeft: 10 }]}
+                mode="outlined"
+                theme={{ colors: { primary: 'white', text: 'white', underlineColor:'transparent', background: '#222222'}}}
+                textColor='white'
+              />
+            </View>
+            <TextInput
+              label="Username"
+              value={userName}
+              onChangeText={(text) => setUserName(text.toLowerCase())}
+              onBlur={async () => {
+                setIsUsernameValid(isValidUsername(userName));
+                setIsUsernameAvailable(await isAvailableUsername(userName));
+              }}
+              style={[styles.input]}
+              mode="outlined"
+              theme={{ colors: { primary: 'white', text: 'white', underlineColor:'transparent', background: '#222222'}}}
+              textColor='white'
+              autoCapitalize='none'
+              error={!isUsernameValid}
+            />
+            <TextInput
+              label="Email Address"
+              value={emailAddress}
+              onChangeText={setEmailAddress}
+              onBlur={() => setIsEmailValid(isValidEmail(emailAddress))}
+              style={styles.input}
+              mode="outlined"
+              theme={{ colors: { primary: 'white', text: 'white', underlineColor:'transparent', background: '#222222'}}}
+              autoCapitalize='none'
+              textColor='white'
+              error={!isEmailValid}
+            />
+            
+            {/* Date of Birth Picker */}
+            <TouchableOpacity 
+              onPress={() => setShowDatePicker(true)}
+              style={styles.dobContainer}
+            >
+              <Text style={styles.dobLabel}>Date of Birth</Text>
+              <Text style={styles.dobValue}>
+                {dateOfBirthFormatted || 'Select your date of birth'}
+              </Text>
+            </TouchableOpacity>
+
+            {showDatePicker && (
+              <Modal
+                transparent={true}
+                animationType="slide"
+                visible={showDatePicker}
+              >
+                <View style={styles.pickerModalContainer}>
+                  <View style={styles.pickerContainer}>
+                    <View style={styles.pickerHeader}>
+                      <TouchableOpacity onPress={() => setShowDatePicker(false)}>
+                        <Text style={styles.pickerCancelButton}>Cancel</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={() => {
+                        setShowDatePicker(false);
+                        setDateOfBirthFormatted(formatDate(date));
+                      }}>
+                        <Text style={styles.pickerDoneButton}>Done</Text>
+                      </TouchableOpacity>
+                    </View>
+                    <DateTimePicker
+                      value={date}
+                      mode="date"
+                      display="spinner"
+                      onChange={onChange}
+                      style={styles.datePicker}
+                      maximumDate={new Date()}
+                      minimumDate={new Date(1900, 0, 1)}
+                    />
+                  </View>
+                </View>
+              </Modal>
+            )}
+
+            <Button 
+              mode="contained" 
+              onPress={signUp} 
+              style={[styles.button, { backgroundColor: '#FFFFFF' }]} 
+              labelStyle={{ color: '#000' }}>
+              Sign Up
+            </Button>
+            <Text style={{ color: '#FF5555', textAlign: 'center', marginTop: 15, marginBottom: 20 }}>{errorMessage}</Text>
+          </View>
+        </ScrollView>
+      </TouchableWithoutFeedback>
+    </KeyboardAvoidingView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 0,
     backgroundColor: '#000000',
   },
+  scrollContainer: {
+    flexGrow: 1,
+  },
   logoContainer: {
-    flex: 1,
-    justifyContent: 'flex-start',
+    paddingTop: 20,
     alignItems: 'center',
   },
   contentContainer: {
-    flex: 3,
-    padding: 16
+    padding: 16,
+    paddingBottom: 40,
   },
   header: {
     fontSize: 24,
@@ -206,9 +274,54 @@ const styles = StyleSheet.create({
   logo: {
     width: 50,
     height: 50,
-    alignSelf: 'center',
   },
-
+  dobContainer: {
+    borderWidth: 1,
+    borderColor: 'white',
+    borderRadius: 4,
+    padding: 12,
+    marginBottom: 16,
+    backgroundColor: '#222222',
+  },
+  dobLabel: {
+    color: '#AAAAAA',
+    fontSize: 12,
+    marginBottom: 4,
+  },
+  dobValue: {
+    color: 'white',
+    fontSize: 16,
+  },
+  pickerModalContainer: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  pickerContainer: {
+    backgroundColor: '#222222',
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+  },
+  pickerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#333333',
+  },
+  pickerCancelButton: {
+    color: '#FF6666',
+    fontSize: 16,
+  },
+  pickerDoneButton: {
+    color: '#66BB6A',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  datePicker: {
+    backgroundColor: '#222222',
+    height: 250,
+  }
 });
 
 export default SignUpScreen;
