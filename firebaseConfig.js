@@ -1,7 +1,8 @@
 import { initializeApp } from 'firebase/app';
-import { getAnalytics } from 'firebase/analytics';
+import { getAnalytics, isSupported } from 'firebase/analytics';
 import { getAuth, initializeAuth, getReactNativePersistence } from 'firebase/auth';
 import { getFirestore } from "firebase/firestore";
+import ReactNativeAsyncStorage from '@react-native-async-storage/async-storage';
 import { 
   REACT_APP_API_KEY, 
   REACT_APP_AUTH_DOMAIN, 
@@ -11,8 +12,6 @@ import {
   REACT_APP_APP_ID, 
   REACT_APP_MEASUREMENT_ID 
 } from '@env';
-import { isSupported } from 'firebase/analytics';
-import ReactNativeAsyncStorage from '@react-native-async-storage/async-storage';
 
 // Initialize Firebase
 const firebaseConfig = {
@@ -34,16 +33,21 @@ let analytics;
 
 try {
   app = initializeApp(firebaseConfig);
-  auth = initializeAuth(app, {
-    persistence: getReactNativePersistence(ReactNativeAsyncStorage)
-  });
+  auth = getAuth(app);
+  
+  // Set persistence separately if needed
+  // import { setPersistence, inMemoryPersistence } from "firebase/auth";
+  // setPersistence(auth, inMemoryPersistence);
+  
   db = getFirestore(app);
   
-  isSupported().then((isSupported) => {
-    if (isSupported) {
+  // Analytics setup
+  isSupported().then((supported) => {
+    if (supported) {
       analytics = getAnalytics(app);
     }
-  });
+  }).catch(e => console.log("Analytics error:", e));
+
 } catch (error) {
   console.error("Firebase initialization error:", error);
 }

@@ -14,7 +14,7 @@ import {
   ActivityIndicator
 } from 'react-native';
 import { Button, TextInput } from 'react-native-paper';
-import { collection, setDoc, doc, getDocs } from "firebase/firestore"; 
+import { collection, setDoc, doc, getDocs, query, where, limit } from "firebase/firestore";
 import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
 import { db, auth } from '../firebaseConfig';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -59,13 +59,22 @@ const SignUpScreen = ({ navigation }) => {
 
   // Check if username is available (WIP)
   const isAvailableUsername = async (username) => {
-    const querySnapshot = await getDocs(collection(db, "users"));
-    for (const doc of querySnapshot.docs) {
-      if (doc.data().username === username) {
-        return false;
-      }
+    if (!username) return false; // Don't query if username is empty
+    try {
+      // Create a query against the collection.
+      const usersRef = collection(db, "users");
+      // Query for documents where the 'username' field matches
+      const q = query(usersRef, where("username", "==", username), limit(1));
+      
+      const querySnapshot = await getDocs(q);
+      
+      // If querySnapshot is empty, the username is available
+      return querySnapshot.empty; 
+    } catch (error) {
+      console.error("Error checking username availability:", error);
+      // Assume unavailable or handle error appropriately
+      return false; 
     }
-    return true;
   };
 
   // Date picker change handler
@@ -102,6 +111,13 @@ const SignUpScreen = ({ navigation }) => {
         return;
       }
       
+      // Check if username is available
+      const isUsernameAvailable = await isAvailableUsername(userName);
+      if (!isUsernameAvailable) {
+        setErrorMessage("That username is taken. Please try another one.");
+        return;
+      }
+      
       // Show loading indicator
       setLoading(true);
       
@@ -124,8 +140,6 @@ const SignUpScreen = ({ navigation }) => {
         created_at: new Date()
       });
       
-      console.log("User created successfully:", user.uid);
-      
       // 3. Navigate to next screen
       navigation.reset({
         index: 0,
@@ -139,12 +153,16 @@ const SignUpScreen = ({ navigation }) => {
       // Handle specific Firebase errors
       let errorMsg = "An error occurred during signup.";
       
+      console.log("Error code:", error.code);
+      
       if (error.code === 'auth/email-already-in-use') {
         errorMsg = "This email is already in use.";
       } else if (error.code === 'auth/invalid-email') {
         errorMsg = "Please enter a valid email address.";
       } else if (error.code === 'auth/weak-password') {
         errorMsg = "Password should be at least 6 characters.";
+      } else if (error.code === 'permission-denied') {
+        errorMsg = "Account created but profile setup failed. Please contact support.";
       }
       
       console.error("Signup error:", error);
@@ -283,7 +301,10 @@ const SignUpScreen = ({ navigation }) => {
 
             <Button 
               mode="contained" 
-              onPress={signUp} 
+              onPress={
+                signUp
+              }
+
               style={[styles.button, { backgroundColor: '#FFFFFF' }]} 
               labelStyle={{ color: '#000' }}>
               Sign Up
