@@ -59,7 +59,7 @@ const SignUpScreen = ({ navigation }) => {
 
   // Check if username is available (WIP)
   const isAvailableUsername = async (username) => {
-    if (!username) return false; // Don't query if username is empty
+    if (!username) return false;
     try {
       // Create a query against the collection.
       const usersRef = collection(db, "users");
