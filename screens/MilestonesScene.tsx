@@ -5,7 +5,8 @@ import {
   View, 
   ScrollView, 
   Image, 
-  TouchableOpacity 
+  TouchableOpacity,
+  Dimensions
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import globalStyles from '@/styles/globalStyles';
@@ -81,54 +82,71 @@ function MilestonesScene() {
 
   function renderMilestonesList() {
     return (
-      <ScrollView contentContainerStyle={styles.milestonesView}>
+      <ScrollView 
+        contentContainerStyle={styles.milestonesView}
+        showsHorizontalScrollIndicator={false}
+        horizontal={false}
+      >
         {milestones.map((milestone, index) => (
           <View key={index} style={styles.milestonesElement}>
-            <View style={styles.milestonesPFPImage}>
-              <Image source={milestone.profileIcon} style={styles.milestonesPFPStyle} />
-            </View>
-
-            <View style={styles.milestonesDescription}>
-              <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'}}>
-                <Text style={styles.milestoneUsername}>{milestone.username}</Text>
-                <Text style={styles.milestonesTimestamp}> · {milestone.time}</Text>
-              </View>
-              <Text style={{fontSize: 18, marginLeft: 5}}>
-                <Text style={{color: 'white'}}>{milestone.activity}: </Text> 
-                <Text style={{color: 'orange'}}>{milestone.weight}</Text>
-              </Text>
-
-              <View style={styles.reactionButtons}>
-                <TouchableOpacity activeOpacity={1} onPress={() => handleReactionPress(index, 'heartCount')} style={milestone.heartCount.selected ? styles.reactionButtonClicked : styles.reactionButtonUnclicked}>
-                  <Text style={milestone.heartCount.selected ? styles.reactionTextClicked : styles.reactionTextUnclicked}>❤️ {formatCount(milestone.heartCount.count)}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity activeOpacity={1} onPress={() => handleReactionPress(index, 'strongCount')} style={milestone.strongCount.selected ? styles.reactionButtonClicked : styles.reactionButtonUnclicked}>
-                  <Text style={milestone.strongCount.selected ? styles.reactionTextClicked : styles.reactionTextUnclicked}>💪 {formatCount(milestone.strongCount.count)}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity activeOpacity={1} onPress={() => handleReactionPress(index, 'fireCount')} style={milestone.fireCount.selected ? styles.reactionButtonClicked : styles.reactionButtonUnclicked}>
-                  <Text style={milestone.fireCount.selected ? styles.reactionTextClicked : styles.reactionTextUnclicked}>🔥 {formatCount(milestone.fireCount.count)}</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            {milestone.postImage && (
-              <TouchableOpacity onPress={() => router.push({
-                pathname: '/view-post/[id]',
-                params: {
-                  id: index.toString(),
-                  postData: JSON.stringify({
-                    image: milestone.postImage,
-                    date: new Date().toISOString(),
-                    likes: milestone.heartCount.count,
-                    username: milestone.username,
-                    profileImage: milestone.profileIcon
-                  })
-                }
-              })}>
-                <View style={styles.milestonesPostImage}>
-                  <Image source={milestone.postImage} style={styles.milestonesPostStyle} />
+            {/* Left div container */}
+            <View style={styles.leftContainer}>
+              {/* Top section of left div */}
+              <View style={styles.topSection}>
+                {/* Profile photo on left */}
+                <View style={styles.profilePhotoContainer}>
+                  <Image source={milestone.profileIcon} style={styles.milestonesPFPStyle} />
                 </View>
-              </TouchableOpacity>
+                
+                {/* User info on right */}
+                <View style={styles.userInfoContainer}>
+                  <View style={styles.usernameRow}>
+                    <Text style={styles.milestoneUsername}>{milestone.username}</Text>
+                    <Text style={styles.milestonesTimestamp}> · {milestone.time}</Text>
+                  </View>
+                  <Text style={styles.activityText}>
+                    <Text style={{color: 'white'}}>{milestone.activity}: </Text> 
+                    <Text style={{color: 'orange'}}>{milestone.weight}</Text>
+                  </Text>
+                </View>
+              </View>
+              
+              {/* Bottom section with reactions */}
+              <View style={styles.bottomSection}>
+                <View style={styles.reactionButtons}>
+                  <TouchableOpacity activeOpacity={1} onPress={() => handleReactionPress(index, 'heartCount')} style={milestone.heartCount.selected ? styles.reactionButtonClicked : styles.reactionButtonUnclicked}>
+                    <Text style={milestone.heartCount.selected ? styles.reactionTextClicked : styles.reactionTextUnclicked}>❤️ {formatCount(milestone.heartCount.count)}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity activeOpacity={1} onPress={() => handleReactionPress(index, 'strongCount')} style={milestone.strongCount.selected ? styles.reactionButtonClicked : styles.reactionButtonUnclicked}>
+                    <Text style={milestone.strongCount.selected ? styles.reactionTextClicked : styles.reactionTextUnclicked}>💪 {formatCount(milestone.strongCount.count)}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity activeOpacity={1} onPress={() => handleReactionPress(index, 'fireCount')} style={milestone.fireCount.selected ? styles.reactionButtonClicked : styles.reactionButtonUnclicked}>
+                    <Text style={milestone.fireCount.selected ? styles.reactionTextClicked : styles.reactionTextUnclicked}>🔥 {formatCount(milestone.fireCount.count)}</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+
+            {/* Right div with image preview */}
+            {milestone.postImage && (
+              <View style={styles.rightContainer}>
+                <TouchableOpacity 
+                  onPress={() => router.push({
+                    pathname: '/view-post/[id]',
+                    params: {
+                      id: index.toString(),
+                      postData: JSON.stringify({
+                        image: milestone.postImage,
+                        date: new Date().toISOString(),
+                        likes: milestone.heartCount.count,
+                        username: milestone.username,
+                        profileImage: milestone.profileIcon
+                      })
+                    }
+                  })}>
+                  <Image source={milestone.postImage} style={styles.milestonesPostStyle} />
+                </TouchableOpacity>
+              </View>
             )}
           </View>
         ))}
@@ -143,70 +161,96 @@ function MilestonesScene() {
   );
 }
 
+// Get screen width
+const { width: screenWidth } = Dimensions.get('window');
+
 const styles = StyleSheet.create({
   milestonesView: {
     marginBottom: 10,
-    paddingHorizontal: 5
+    paddingHorizontal: 5,
+    width: '100%'
   },
   milestonesElement: {
     paddingHorizontal: 10,
     paddingVertical: 10,
     marginVertical: 5,
     flexDirection: 'row',
-    justifyContent: 'flex-start',
-    alignItems: 'center',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
     backgroundColor: '#2e2e2e',
     borderRadius: 30,
+    width: screenWidth * 0.9,
+    alignSelf: 'center',
   },
+  // Left container and nested elements
+  leftContainer: {
+    flex: 1,
+    flexDirection: 'column',
+  },
+  topSection: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 6,
+  },
+  bottomSection: {
+    marginTop: 4,
+  },
+  profilePhotoContainer: {
+    marginRight: 8,
+  },
+  userInfoContainer: {
+    flex: 1,
+  },
+  usernameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  // Right container with image
+  rightContainer: {
+    marginLeft: 8,
+    marginRight: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
+  },
+  // Profile image
+  milestonesPFPStyle: {
+    width: 35,
+    height: 35,
+    borderRadius: 18,
+    borderWidth: 1.5,
+    borderColor: 'white',
+  },
+  // Post image (smaller)
+  milestonesPostStyle: {
+    width: 50,
+    height: 50,
+    borderRadius: 5,
+  },
+  // Text styles
   milestoneUsername: {
     fontWeight: 'bold',
     color: 'white',
-    fontSize: 20,
-    marginLeft: 3,
+    fontSize: 14,
   },
-  milestonesDescription: {
-    color: 'white',
-    alignItems: 'flex-start' as 'flex-start',
-    fontSize: 10,
-    flexShrink: 1,
-  },
-  milestonesPFPImage: {
-    justifyContent: 'center',
-    marginRight: 5,
-    borderRadius: 5,
-  },
-  milestonesPostImage: {
-    justifyContent: 'center',
-    marginLeft: 5,
-  },
-  milestonesPFPStyle: {
-    width: 50, 
-    height: 50, 
-    borderRadius: 25,
-    borderWidth: 2,
-    borderColor: 'white',
-  },
-  milestonesPostStyle: {
-    width: 50, 
-    height: 50, 
-    borderRadius: 5,
-  },
-  milestonesTimestamp:{
+  milestonesTimestamp: {
     color: 'grey',
-    alignItems: 'center',
-    alignSelf: 'flex-end',
+    fontSize: 11,
   },
+  activityText: {
+    fontSize: 13,
+    marginTop: 2,
+  },
+  // Reaction buttons
   reactionButtons: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 10,
+    justifyContent: 'flex-start',
   },
   reactionButtonUnclicked: {
-    padding: 7,
-    width: 80,
-    fontSize: 16,
+    padding: 4,
+    width: 65,
     color: 'white',
-    marginHorizontal: 5,
+    marginRight: 5,
     borderRadius: 5,
     borderWidth: 1,
     borderColor: 'grey',
@@ -214,26 +258,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   reactionButtonClicked: {
-    padding: 7,
-    width: 80,
-    fontSize: 16,
+    padding: 4,
+    width: 65,
     backgroundColor: 'white',
     color: 'black',
-    marginHorizontal: 5,
+    marginRight: 5,
     borderRadius: 5,
     justifyContent: 'center',
     alignItems: 'center',
   },
   reactionTextUnclicked: {
     color: 'white',
+    fontSize: 11,
   },
   reactionTextClicked: {
     color: 'black',
+    fontSize: 11,
   },
   sceneContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    width: '100%',
   },
 });
 
