@@ -1,7 +1,8 @@
 import { initializeApp } from 'firebase/app';
-import { getAnalytics } from 'firebase/analytics';
+import { getAnalytics, isSupported } from 'firebase/analytics';
 import { getAuth, initializeAuth, getReactNativePersistence } from 'firebase/auth';
 import { getFirestore } from "firebase/firestore";
+import ReactNativeAsyncStorage from '@react-native-async-storage/async-storage';
 import { 
   REACT_APP_API_KEY, 
   REACT_APP_AUTH_DOMAIN, 
@@ -11,15 +12,6 @@ import {
   REACT_APP_APP_ID, 
   REACT_APP_MEASUREMENT_ID 
 } from '@env';
-import { isSupported } from 'firebase/analytics';
-import ReactNativeAsyncStorage from '@react-native-async-storage/async-storage';
-
-// Optionally import the services that you want to use
-// import {...} from "firebase/auth";
-// import {...} from "firebase/database";
-// import {...} from "firebase/firestore";
-// import {...} from "firebase/functions";
-// import {...} from "firebase/storage";
 
 // Initialize Firebase
 const firebaseConfig = {
@@ -34,18 +26,30 @@ const firebaseConfig = {
 
 console.log("App Launched");
 
-const app = initializeApp(firebaseConfig);
-const auth = initializeAuth(app, {
-  persistence: getReactNativePersistence(ReactNativeAsyncStorage)
-});
-const db = getFirestore(app);
+let app;
+let auth;
+let db;
 let analytics;
-isSupported().then((isSupported) => {
-  if (isSupported) {
-    analytics = getAnalytics(app);
-  }
-});
-// For more information on how to access Firebase in your project,
-// see the Firebase documentation: https://firebase.google.com/docs/web/setup#access-firebase
 
-export { db };
+try {
+  app = initializeApp(firebaseConfig);
+  auth = getAuth(app);
+  
+  // Set persistence separately if needed
+  // import { setPersistence, inMemoryPersistence } from "firebase/auth";
+  // setPersistence(auth, inMemoryPersistence);
+  
+  db = getFirestore(app);
+  
+  // Analytics setup
+  isSupported().then((supported) => {
+    if (supported) {
+      analytics = getAnalytics(app);
+    }
+  }).catch(e => console.log("Analytics error:", e));
+
+} catch (error) {
+  console.error("Firebase initialization error:", error);
+}
+
+export { db, auth };
