@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { 
   StyleSheet,
   Text, 
@@ -75,6 +75,15 @@ function PostsScene() {
 export default function HomeFeed() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabType>(TabType.POSTS);
+  const flatListRef = useRef<FlatList>(null);
+  const { width: screenWidth } = Dimensions.get('window');
+
+  // Handler for FlatList scroll end
+  const handleScrollEnd = (e: any) => {
+    const contentOffsetX = e.nativeEvent.contentOffset.x;
+    const index = Math.round(contentOffsetX / screenWidth);
+    setActiveTab(index === 0 ? TabType.POSTS : TabType.MILESTONES);
+  };
 
   function renderTopBar() {
     return (
@@ -104,58 +113,32 @@ export default function HomeFeed() {
     );
   }
 
-  // Render Posts Tab Content
-  const renderPostsContent = () => (
-    <PostsScene />
-  );
-
-  // Render Milestones Tab Content
-  const renderMilestonesContent = () => (
-    <MilestonesScene />
-  );
-
-  // Render active tab content
-  const renderTabContent = () => {
-    switch (activeTab) {
-      case TabType.POSTS:
-        return renderPostsContent();
-      case TabType.MILESTONES:
-        return renderMilestonesContent();
-      default:
-        return renderPostsContent();
-    }
-  };
-
-  // Custom Tab Bar
-  const renderCustomTabBar = () => (
-    <View style={styles.tabBar}>
-      <TouchableOpacity 
-        style={[styles.tabButton, activeTab === TabType.POSTS && styles.activeTabButton]} 
-        onPress={() => setActiveTab(TabType.POSTS)}
-      >
-        <Text style={[styles.tabButtonText, activeTab === TabType.POSTS && styles.activeTabButtonText]}>POSTS</Text>
-      </TouchableOpacity>
-      <TouchableOpacity 
-        style={[styles.tabButton, activeTab === TabType.MILESTONES && styles.activeTabButton]} 
-        onPress={() => setActiveTab(TabType.MILESTONES)}
-      >
-        <Text style={[styles.tabButtonText, activeTab === TabType.MILESTONES && styles.activeTabButtonText]}>MILESTONES</Text>
-      </TouchableOpacity>
-    </View>
-  );
+  // Data for the swipeable tabs
+  const tabScenes = [
+    { key: 'posts', component: <PostsScene /> },
+    { key: 'milestones', component: <MilestonesScene /> }
+  ];
 
   return (
     <View style={globalStyles.container}>
       {renderTopBar()}
       <StatusBar style="light" />
       
-      {/* Custom Tab Bar */}
-      {renderCustomTabBar()}
-
-      {/* Tab Content */}
-      <View style={styles.tabContent}>
-        {renderTabContent()}
-      </View>
+      {/* Swipeable Tab Content - No header tabs */}
+      <FlatList
+        ref={flatListRef}
+        data={tabScenes}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        onMomentumScrollEnd={handleScrollEnd}
+        renderItem={({ item }) => (
+          <View style={[styles.tabContent, { width: screenWidth }]}>
+            {item.component}
+          </View>
+        )}
+        keyExtractor={(item) => item.key}
+      />
     </View>
   );
 }
