@@ -4,11 +4,21 @@ import { View, ActivityIndicator } from 'react-native';
 import { auth } from '@/firebaseConfig';
 import { onAuthStateChanged } from 'firebase/auth';
 
+// Backdoor to bypass login
+const BYPASS_AUTH = true;
+
 export default function Index() {
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
+    // If bypass is enabled, set authenticated to true immediately
+    if (BYPASS_AUTH) {
+      setIsAuthenticated(true);
+      setIsLoading(false);
+      return;
+    }
+
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setIsAuthenticated(!!user);
       setIsLoading(false);
@@ -25,6 +35,6 @@ export default function Index() {
     );
   }
 
-  // If user is authenticated, redirect to home feed, otherwise to signup
+  // If user is authenticated or bypass is enabled, redirect to home feed, otherwise to signup
   return isAuthenticated ? <Redirect href="/(tabs)" /> : <Redirect href="/signup" />;
 }
