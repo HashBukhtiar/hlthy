@@ -1,7 +1,7 @@
 import { initializeApp } from 'firebase/app';
 import { getAnalytics, isSupported } from 'firebase/analytics';
-import { getAuth } from 'firebase/auth';
-import { getFirestore } from "firebase/firestore";
+import { getAuth, Auth } from 'firebase/auth';
+import { getFirestore, Firestore } from "firebase/firestore";
 
 // Firebase configuration
 const firebaseConfig = {
@@ -18,8 +18,8 @@ console.log("Firebase initialization started");
 
 // Initialize Firebase
 let app;
-let auth;
-let db;
+let auth: Auth;
+let db: Firestore;
 let analytics;
 
 try {
