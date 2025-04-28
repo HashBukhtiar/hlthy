@@ -1,55 +1,56 @@
 import { initializeApp } from 'firebase/app';
 import { getAnalytics, isSupported } from 'firebase/analytics';
-import { getAuth, initializeAuth, getReactNativePersistence } from 'firebase/auth';
-import { getFirestore } from "firebase/firestore";
+import { getFirestore } from 'firebase/firestore';
+import {
+  getAuth,
+  initializeAuth,
+  getReactNativePersistence
+} from 'firebase/auth';
 import ReactNativeAsyncStorage from '@react-native-async-storage/async-storage';
-import { 
-  REACT_APP_API_KEY, 
-  REACT_APP_AUTH_DOMAIN, 
-  REACT_APP_PROJECT_ID, 
-  REACT_APP_STORAGE_BUCKET, 
-  REACT_APP_MESSAGING_SENDER_ID, 
-  REACT_APP_APP_ID, 
-  REACT_APP_MEASUREMENT_ID 
+import {
+  EXPO_PUBLIC_FIREBASE_API_KEY,
+  EXPO_PUBLIC_AUTH_DOMAIN,
+  EXPO_PUBLIC_PROJECT_ID,
+  EXPO_PUBLIC_STORAGE_BUCKET,
+  EXPO_PUBLIC_MESSAGING_SENDER_ID,
+  EXPO_PUBLIC_APP_ID,
+  EXPO_PUBLIC_MEASUREMENT_ID
 } from '@env';
 
-// Initialize Firebase
 const firebaseConfig = {
-    apiKey: REACT_APP_API_KEY,
-    authDomain: REACT_APP_AUTH_DOMAIN,
-    projectId: REACT_APP_PROJECT_ID,
-    storageBucket: REACT_APP_STORAGE_BUCKET,
-    messagingSenderId: REACT_APP_MESSAGING_SENDER_ID,
-    appId: REACT_APP_APP_ID,
-    measurementId: REACT_APP_MEASUREMENT_ID,
+  apiKey:             EXPO_PUBLIC_FIREBASE_API_KEY,
+  authDomain:         EXPO_PUBLIC_AUTH_DOMAIN,
+  projectId:          EXPO_PUBLIC_PROJECT_ID,
+  storageBucket:      EXPO_PUBLIC_STORAGE_BUCKET,
+  messagingSenderId:  EXPO_PUBLIC_MESSAGING_SENDER_ID,
+  appId:              EXPO_PUBLIC_APP_ID,
+  measurementId:      EXPO_PUBLIC_MEASUREMENT_ID,
 };
 
-console.log("App Launched");
-
-let app;
-let auth;
-let db;
-let analytics;
+let app, auth, db, analytics;
 
 try {
+  // 1) Initialize core app
   app = initializeApp(firebaseConfig);
-  auth = getAuth(app);
-  
-  // Set persistence separately if needed
-  // import { setPersistence, inMemoryPersistence } from "firebase/auth";
-  // setPersistence(auth, inMemoryPersistence);
-  
-  db = getFirestore(app);
-  
-  // Analytics setup
-  isSupported().then((supported) => {
-    if (supported) {
-      analytics = getAnalytics(app);
-    }
-  }).catch(e => console.log("Analytics error:", e));
 
+  // 2) Auth + persistence for RN
+  auth = initializeAuth(app, {
+    persistence: getReactNativePersistence(ReactNativeAsyncStorage)
+  });
+
+  // 3) Firestore
+  db = getFirestore(app);
+
+  // 4) (Optional) Analytics if supported
+  isSupported()
+    .then(supported => {
+      if (supported) analytics = getAnalytics(app);
+    })
+    .catch(e => console.log("Analytics error:", e));
+
+  console.log("Firebase initialized");
 } catch (error) {
   console.error("Firebase initialization error:", error);
 }
 
-export { db, auth };
+export { auth, db };
