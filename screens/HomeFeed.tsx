@@ -79,7 +79,7 @@ export default function HomeFeed() {
   function renderTopBar() {
     return (
       <View style={styles.topBar}>
-        <Image source={icon} style={styles.icon} />
+        <Image source={require('@/assets/images/logo-dark.png')} style={styles.icon} />
         <Text style={globalStyles.title}>hlthy</Text>
         <View style={styles.buttonContainer}>
           {/* Explore Button */}

@@ -186,7 +186,7 @@ export default function SignUp() {
           <View style={styles.logoContainer}>
             <Image
               style={styles.logo}
-              source={require('@/assets/images/icon.png')}
+              source={require('@/assets/images/logo-dark.png')}
             />
           </View>
           
