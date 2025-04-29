@@ -89,10 +89,6 @@
 
 # iOSInjectionProject/
 
-# Ignore Expo files
-.expo
-.expo-shared
-
 # # Dependency directories
 /node_modules
 # /.pnp
@@ -100,41 +96,18 @@
 
 # Debugging / Development
 .vscode/
-/.expo/
+.expo/
 .DS_Store
-# *.log
-# npm-debug.log*
-# yarn-debug.log*
-# yarn-error.log*
-# /exponent-indexeddb-data
-# /node/
+*.pem
 
-# # Build / Bundling / Compilation
-# /dist/
-# /build/
-# /ios/build/
-# /android/build/
+# local env files
+.env*.local
+.env
 
-# Environment variables
-.env*
+# typescript
+*.tsbuildinfo
 
-# # Miscellaneous
-# *.swp
-# *.tmp
+# Builds
+android/
+ios/
 
-# # IDE / Editor specific
-# .idea/
-# *.sublime-project
-# *.sublime-workspace
-# *.suo
-# *.ntvs*
-# *.njsproj
-# *.sln
-# *.sw?
-
-# Expo
-.expo
-
-# Google Services
-google-services.json
-GoogleService-Info.plist
