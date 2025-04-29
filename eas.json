@@ -16,7 +16,7 @@
     },
     "simulator": {
       "ios": {
-        "simulator": true,
+        "simulator": true
       }
     }
   },
