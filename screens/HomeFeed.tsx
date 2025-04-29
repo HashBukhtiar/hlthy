@@ -66,8 +66,9 @@ function PostsScene() {
         </TouchableOpacity>
       )}
       keyExtractor={(item, index) => index.toString()}
-      numColumns={3}
+      numColumns={1}
       contentContainerStyle={styles.postsContainer}
+      style={{ flex: 1 }}
     />
   );
 }
@@ -199,11 +200,13 @@ const styles = StyleSheet.create({
   },
   postsContainer: {
     padding: 0,
+    width: '100%',
   },
   postImage: {
-    width: Dimensions.get('window').width / 3,
-    height: Dimensions.get('window').width / 3,
+    width: '100%',
+    height: Dimensions.get('window').width,
     margin: 0,
+    marginBottom: 2,
   },
   sceneContainer: {
     flex: 1,
