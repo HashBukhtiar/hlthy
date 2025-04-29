@@ -98,10 +98,13 @@ export default function Explore() {
     return rows;
   };
 
-  return(
-    <View style={[globalStyles.container, styles.explorePage]}>
-      {renderSearchBar()}
-      <ScrollView contentContainerStyle={styles.pageContent}>
+  return (
+    <View style={globalStyles.container}>
+      <View style={styles.headerContainer}>
+        <Text style={globalStyles.title}>Explore</Text>
+      </View>
+      <ScrollView contentContainerStyle={globalStyles.contentContainer}>
+        {renderSearchBar()}
         {renderPostsGrid(buttonsData)}
       </ScrollView>
     </View>

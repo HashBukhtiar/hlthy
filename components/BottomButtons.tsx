@@ -70,12 +70,12 @@ export default function BottomButtons() {
 
 const styles = StyleSheet.create({
   buttonIcon: {
-    width: 40, 
-    height: 40, 
+    width: 35, 
+    height: 35, 
     borderRadius: 5
   },
   plusText: {
     color: 'white', 
-    fontSize: 40
+    fontSize: 35
   }
 });

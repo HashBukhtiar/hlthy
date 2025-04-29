@@ -25,7 +25,7 @@ export default function ViewPost() {
   
   return (
     <View style={[globalStyles.container, styles.container]}>
-      <ScrollView>
+      <ScrollView contentContainerStyle={globalStyles.contentContainer}>
         <Text style={styles.title}>Post #{id}</Text>
         
         {parsedPostData && (

@@ -1,10 +1,13 @@
 import { StyleSheet } from 'react-native';
 
+const BOTTOM_BAR_HEIGHT = 70;
+
 const globalStyles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: 'black',
     justifyContent: 'space-between',
+    paddingBottom: BOTTOM_BAR_HEIGHT,
   },
   title: {
     fontSize: 35,
@@ -36,11 +39,12 @@ const globalStyles = StyleSheet.create({
     borderTopColor: 'red',
     borderWidth: 1,
     position: 'absolute',
-    bottom: 0,
+    bottom: 20,
     left: 0,
     right: 0,
     backgroundColor: 'black',
     paddingVertical: 10,
+    height: BOTTOM_BAR_HEIGHT
   },
   button: {
     padding: 10,
@@ -71,6 +75,9 @@ const globalStyles = StyleSheet.create({
     borderBottomColor: 'white',
     borderBottomWidth: 2,
     marginTop: 10
+  },
+  contentContainer: {
+    paddingBottom: BOTTOM_BAR_HEIGHT,
   }
 });
 

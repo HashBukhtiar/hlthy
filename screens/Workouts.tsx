@@ -376,7 +376,10 @@ export default function Workouts() {
             <View style={styles.searchBarView}>
                 {renderSearchBar()}
             </View>
-            <ScrollView style={styles.workoutsContainer} showsVerticalScrollIndicator={false}>
+            <ScrollView 
+                style={styles.workoutsContainer} 
+                contentContainerStyle={globalStyles.contentContainer}
+                showsVerticalScrollIndicator={false}>
                 {renderMyWorkouts()}
                 {renderFavoriteWorkouts()}
                 {renderFriendsWorkouts()}

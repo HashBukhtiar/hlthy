@@ -138,6 +138,7 @@ export default function HomeFeed() {
           </View>
         )}
         keyExtractor={(item) => item.key}
+        contentContainerStyle={globalStyles.contentContainer}
       />
     </View>
   );
