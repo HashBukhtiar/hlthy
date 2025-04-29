@@ -7,7 +7,6 @@ const globalStyles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'black',
     justifyContent: 'space-between',
-    paddingBottom: BOTTOM_BAR_HEIGHT,
   },
   title: {
     fontSize: 35,
@@ -77,7 +76,7 @@ const globalStyles = StyleSheet.create({
     marginTop: 10
   },
   contentContainer: {
-    paddingBottom: BOTTOM_BAR_HEIGHT,
+    paddingBottom: BOTTOM_BAR_HEIGHT + 20,
   }
 });
 

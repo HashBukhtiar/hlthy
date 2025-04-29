@@ -133,7 +133,6 @@ export default function AI() {
     <KeyboardAvoidingView
       style={{ flex: 1, backgroundColor: 'black' }}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 20}
     >
       <View style={[globalStyles.container, styles.container]}>
         {/* Current Plan Dropdown */}
@@ -174,7 +173,7 @@ export default function AI() {
         />
 
         {/* Input */}
-        <View style={{ flexDirection: 'row', marginTop: 8, alignItems: 'center' }}>
+        <View style={styles.inputContainer}>
           <TextInput
             style={styles.promptInput}
             value={input}
@@ -256,5 +255,11 @@ const styles = StyleSheet.create({
     padding: 8, 
     backgroundColor: '#f9ccff', 
     borderRadius: 4 
-  }
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    marginTop: 8,
+    marginBottom: 60,
+    alignItems: 'center',
+  },
 });
