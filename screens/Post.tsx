@@ -147,7 +147,15 @@ export default function Post() {
                         <Text style={postStyles.postButtonText}>Open Camera</Text>
                     </TouchableOpacity>
                     <TouchableOpacity style={postStyles.cameraRollButton} onPress={openImageLibrary}>
-                        <Image source={postImage} style={{ width: 55, height: 55, resizeMode: 'contain' }}/>
+                        <Image 
+                            source={postImage}
+                            style={{ 
+                                width: 55, 
+                                height: 55, 
+                                resizeMode: 'cover',
+                                borderRadius: 27.5 
+                            }}
+                        />
                     </TouchableOpacity>
                 </View>
                 {imageUri && (
