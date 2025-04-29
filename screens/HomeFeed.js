@@ -1,68 +1,122 @@
-import { StatusBar } from 'expo-status-bar';
+import React, { useState } from 'react';
 import { 
-  StyleSheet, 
+  StyleSheet,
   Text, 
   View, 
   ScrollView, 
   Image, 
-  TouchableOpacity
-  } from 'react-native';
+  TouchableOpacity 
+} from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import globalStyles from '../styles/globalStyles';
-import React from 'react';
-import { 
+import {
   icon, 
   activityIcon, 
+  exploreIcon,
+  profileIcon,
 } from '../assets/images';
+import { TabView, SceneMap } from 'react-native-tab-view';
+import { Dimensions } from 'react-native';
+import MilestonesScene from './Milestones';
 
-export default function HomeFeed( {navigation} ) {
+function HomeScene() {
   return (
-    <View style={globalStyles.container}>
-      <View>
-        {renderTopBar()}
-      </View>
-      <StatusBar style="light" />
-      <ScrollView contentContainerStyle={styles.postsContainer}>
-        <Text style={{color:'white'}}>Posts will go here</Text>
-      </ScrollView>
-    </View>
+    <ScrollView contentContainerStyle={styles.postsContainer}>
+      <Text style={{ color: 'white', alignItems: 'center' }}>Posts will go here</Text>
+    </ScrollView>
   );
-    
+}
+
+export default function HomeFeed({ navigation }) {
+  const [index, setIndex] = useState(0);
+  const [routes] = useState([
+    { key: 'home', title: 'Home' },
+    { key: 'milestones', title: 'Milestones' },
+  ]);
+
+  const renderScene = SceneMap({
+    home: HomeScene,
+    milestones: MilestonesScene,
+  });
+
   function renderTopBar() {
     return (
       <View style={styles.topBar}>
-        <Image source={icon} style={{ width: 40, height: 40, borderRadius:5 }} />
+        <Image source={icon} style={styles.icon} />
         <Text style={globalStyles.title}>hlthy</Text>
-        <View>
-          <TouchableOpacity activeOpacity={1} onPress={() => {navigation.navigate('Activity')}}>
-            <Image source={activityIcon} style={{ width: 40, height: 40, borderRadius:5 }} />
+        <View style={styles.buttonContainer}>
+          {/* Explore Button */}
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => navigation.navigate('Explore')}
+            style={styles.button}
+          >
+            <Image source={exploreIcon} style={styles.buttonIcon} />
+          </TouchableOpacity>
+
+          {/* Pulse Button */}
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => navigation.navigate('Pulse')}
+            style={styles.button}
+          >
+            <Image source={activityIcon} style={styles.buttonIcon} />
           </TouchableOpacity>
         </View>
       </View>
     );
   }
+
+  return (
+    <View style={globalStyles.container}>
+      {renderTopBar()}
+      <StatusBar style="light" />
+      <TabView
+        navigationState={{ index, routes }}
+        renderScene={renderScene}
+        onIndexChange={setIndex}
+        initialLayout={{ width: Dimensions.get('window').width }}
+        renderTabBar={() => null}
+      />
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
-  postsContainer: {
-    flex: 1,
-    borderWidth: 1, 
-    borderColor: 'white',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   topBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
     borderBottomColor: 'red',
-    borderWidth: 1,
+    borderBottomWidth: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 15,
   },
-  searchBar: {
+  icon: {
+    width: 40,
     height: 40,
-    borderColor: 'gray',
-    borderWidth: 1,
-    paddingLeft: 10,
-    borderRadius: 10,
+    borderRadius: 5,
+  },
+  buttonContainer: {
+    flexDirection: 'row',
+  },
+  button: {
+    marginLeft: 15,
+  },
+  buttonIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 5,
+  },
+  postsContainer: {
     flex: 1,
-    marginLeft: 5
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 10,
+  },
+  sceneContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

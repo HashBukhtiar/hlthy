@@ -6,6 +6,10 @@ import workoutsIcon from './workoutsIcon.png';
 import profileIcon from './profileIcon.png';
 import exploreIcon from './exploreIcon.png';
 import postImage from './postImage.png';
+import backArrow from './backArrowIcon.png';
+import cameraRollIcon from './cameraRollIcon.png';
+import AIIcon from './AIIcon.png';
+
 
 export { 
     icon, 
@@ -16,4 +20,7 @@ export {
     profileIcon,
     exploreIcon,
     postImage,
+    backArrow,
+    cameraRollIcon,
+    AIIcon,
 }
