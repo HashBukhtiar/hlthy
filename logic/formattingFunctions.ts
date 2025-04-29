@@ -1,11 +1,11 @@
-export function displayShortenedString(username, maxLength) {
+export function displayShortenedString(username: string, maxLength: number): string {
     if (username.length > maxLength) {
         return username.substring(0, maxLength) + '...';
     }
     return username;
 }
 
-export function formatAIResponse(text) {
+export function formatAIResponse(text: string): string {
     let formattedText = text.trim();
   
     formattedText = formattedText.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
