@@ -1,6 +1,5 @@
 import { StyleSheet } from 'react-native';
 
-
 export default StyleSheet.create({
   container: {
     flex: 1,
@@ -33,7 +32,7 @@ export default StyleSheet.create({
   bottomButtonContainer: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    marginBottom: 5,
+    marginBottom: 0,
     borderTopColor: 'red',
     borderWidth: 1
   },
@@ -53,5 +52,15 @@ export default StyleSheet.create({
     alignItems: 'center',
     paddingBottom: 5,
     marginTop: 5
+  },
+  backArrowIcon: {
+    width: 30,
+    height: 30,
+    transform: [{ rotate: '180deg' }]
+  },
+  horizontalLine: {
+    borderBottomColor: 'white',
+    borderBottomWidth: 2,
+    marginTop: 10
   }
 });

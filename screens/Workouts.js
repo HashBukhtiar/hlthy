@@ -12,7 +12,7 @@ import {
 import globalStyles from '../styles/globalStyles';
 import Icon from 'react-native-vector-icons/FontAwesome';
 
-export default function Workouts() {
+export default function Workouts({ navigation }) {
     const [searchQuery, setSearchQuery] = useState('');
 
     function renderSearchBar() {
@@ -40,31 +40,61 @@ export default function Workouts() {
             <View>
                 <View style={styles.myWorkoutsHeaderView}>
                     <Text style={styles.workoutsHeaders}>My Workouts</Text>
-                    <TouchableOpacity style={styles.createWorkoutButton}>
+                    <TouchableOpacity 
+                        style={styles.createWorkoutButton}
+                        onPress={() => {
+                            console.log("Create Workout pressed");
+                            navigation.navigate('CreateWorkout');
+                        }}
+                    >
                         <Text style={{
                             color: 'black', fontWeight: 'bold', fontSize: 23}}>+</Text>
                     </TouchableOpacity>
                 </View>
                 <ScrollView horizontal={true} style={styles.myWorkoutsList} contentContainerStyle={{alignItems: 'center'}} showsHorizontalScrollIndicator={false}>
-                    <TouchableOpacity style={styles.myWorkoutsButton}>
+                    <TouchableOpacity 
+                        style={styles.myWorkoutsButton}
+                        onPress={() => {
+                            console.log("Workout pressed");
+                            navigation.navigate('ViewWorkout');
+                        }}
+                    >
                         <View style={styles.myWorkoutPreview}>
                             <Text style={styles.workoutNameText}>My Workout 1</Text>
                             <Text style={styles.workoutAuthorText}>John Doe</Text>
                         </View>
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.myWorkoutsButton}>
+                    <TouchableOpacity 
+                        style={styles.myWorkoutsButton}
+                        onPress={() => {
+                            console.log("Workout pressed");
+                            navigation.navigate('ViewWorkout');
+                        }}
+                    >
                         <View style={styles.myWorkoutPreview}>
                             <Text style={styles.workoutNameText}>My Workout 2</Text>
                             <Text style={styles.workoutAuthorText}>John Doe</Text>
                         </View>
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.myWorkoutsButton}>
+                    <TouchableOpacity 
+                        style={styles.myWorkoutsButton}
+                        onPress={() => {
+                            console.log("Workout pressed");
+                            navigation.navigate('ViewWorkout');
+                        }}
+                    >
                         <View style={styles.myWorkoutPreview}>
                             <Text style={styles.workoutNameText}>My Workout 3</Text>
                             <Text style={styles.workoutAuthorText}>John Doe</Text>
                         </View>
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.myWorkoutsButton}>
+                    <TouchableOpacity 
+                        style={styles.myWorkoutsButton}
+                        onPress={() => {
+                            console.log("Workout pressed");
+                            navigation.navigate('ViewWorkout');
+                        }}
+                    >
                         <View style={styles.myWorkoutPreview}>
                             <Text style={styles.workoutNameText}>My Workout 4</Text>
                             <Text style={styles.workoutAuthorText}>John Doe</Text>
@@ -82,25 +112,49 @@ export default function Workouts() {
                     <Text style={styles.workoutsHeaders}>Favourite Workouts</Text>
                 </View>
                 <ScrollView horizontal={true} style={styles.friendsWorkoutsList} contentContainerStyle={{alignItems: 'center'}} showsHorizontalScrollIndicator={false}>
-                    <TouchableOpacity style={styles.friendsWorkoutsButton}>
+                    <TouchableOpacity 
+                            style={styles.friendsWorkoutsButton}
+                            onPress={() => {
+                                console.log("Workout pressed");
+                                navigation.navigate('ViewWorkout');
+                            }}
+                        >
                         <View style={styles.workoutPreview}>
                             <Text style={styles.workoutNameText}>Fav Workout 1</Text>
                             <Text style={styles.workoutAuthorText}>Jane Doe</Text>
                         </View>
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.friendsWorkoutsButton}>
-                        <View style={styles.workoutPreview}>
+                    <TouchableOpacity 
+                            style={styles.friendsWorkoutsButton}
+                            onPress={() => {
+                                console.log("Workout pressed");
+                                navigation.navigate('ViewWorkout');
+                            }}
+                        >
+                            <View style={styles.workoutPreview}>
                             <Text style={styles.workoutNameText}>Fav Workout 2</Text>
                             <Text style={styles.workoutAuthorText}>John Doe</Text>
                         </View>
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.friendsWorkoutsButton}>
+                    <TouchableOpacity 
+                            style={styles.friendsWorkoutsButton}
+                            onPress={() => {
+                                console.log("Workout pressed");
+                                navigation.navigate('ViewWorkout');
+                            }}
+                        >
                         <View style={styles.workoutPreview}>
                             <Text style={styles.workoutNameText}>Fav Workout 3</Text>
                             <Text style={styles.workoutAuthorText}>Baki Hanma</Text>
                         </View>
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.friendsWorkoutsButton}>
+                    <TouchableOpacity 
+                            style={styles.friendsWorkoutsButton}
+                            onPress={() => {
+                                console.log("Workout pressed");
+                                navigation.navigate('ViewWorkout');
+                            }}
+                        >
                         <View style={styles.workoutPreview}>
                             <Text style={styles.workoutNameText}>Fav Workout 4</Text>
                             <Text style={styles.workoutAuthorText}>Chris Bum</Text>
@@ -118,25 +172,49 @@ export default function Workouts() {
                     <Text style={styles.workoutsHeaders}>Friends' Workouts</Text>
                 </View>
                 <ScrollView horizontal={true} style={styles.friendsWorkoutsList} contentContainerStyle={{alignItems: 'center'}} showsHorizontalScrollIndicator={false}>
-                    <TouchableOpacity style={styles.friendsWorkoutsButton}>
+                    <TouchableOpacity 
+                            style={styles.friendsWorkoutsButton}
+                            onPress={() => {
+                                console.log("Workout pressed");
+                                navigation.navigate('ViewWorkout');
+                            }}
+                        >
                         <View style={styles.workoutPreview}>
                             <Text style={styles.workoutNameText}>Friend Workout 1</Text>
                             <Text style={styles.workoutAuthorText}>Jane Doe</Text>
                         </View>
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.friendsWorkoutsButton}>
+                    <TouchableOpacity 
+                            style={styles.friendsWorkoutsButton}
+                            onPress={() => {
+                                console.log("Workout pressed");
+                                navigation.navigate('ViewWorkout');
+                            }}
+                        >
                         <View style={styles.workoutPreview}>
                             <Text style={styles.workoutNameText}>Friend Workout 2</Text>
                             <Text style={styles.workoutAuthorText}>Bob Smith</Text>
                         </View>
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.friendsWorkoutsButton}>
+                    <TouchableOpacity 
+                            style={styles.friendsWorkoutsButton}
+                            onPress={() => {
+                                console.log("Workout pressed");
+                                navigation.navigate('ViewWorkout');
+                            }}
+                        >
                         <View style={styles.workoutPreview}>
                             <Text style={styles.workoutNameText}>Friend Workout 3</Text>
                             <Text style={styles.workoutAuthorText}>Sigma Gyatt</Text>
                         </View>
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.friendsWorkoutsButton}>
+                    <TouchableOpacity 
+                            style={styles.friendsWorkoutsButton}
+                            onPress={() => {
+                                console.log("Workout pressed");
+                                navigation.navigate('ViewWorkout');
+                            }}
+                        >
                         <View style={styles.workoutPreview}>
                             <Text style={styles.workoutNameText}>Friend Workout 4</Text>
                             <Text style={styles.workoutAuthorText}>Fanum Tax Payer</Text>
@@ -155,7 +233,13 @@ export default function Workouts() {
                 </View>
                 <ScrollView horizontal={true} style={styles.trendingWorkoutsList} contentContainerStyle={{alignItems: 'center'}} showsHorizontalScrollIndicator={false}>
                     <View style={styles.trendingWorkouts4Group}>
-                        <TouchableOpacity style={styles.trendingWorkoutsButton}>
+                        <TouchableOpacity 
+                                style={styles.trendingWorkoutsButton}
+                                onPress={() => {
+                                    console.log("Workout pressed");
+                                    navigation.navigate('ViewWorkout');
+                                }}
+                            >
                             <View style={styles.trendingWorkoutsIcon}></View>
                             <View style={styles.trendingWorkoutsTextView}>
                                 <Text style={[styles.trendingWorkoutsText, {fontWeight: 'bold'}]}>Golf Workout</Text>
@@ -165,7 +249,13 @@ export default function Workouts() {
                                 <Icon name="ellipsis-h" size={20} color="white" />
                             </TouchableOpacity>
                         </TouchableOpacity>
-                        <TouchableOpacity style={styles.trendingWorkoutsButton}>
+                        <TouchableOpacity 
+                                style={styles.trendingWorkoutsButton}
+                                onPress={() => {
+                                    console.log("Workout pressed");
+                                    navigation.navigate('ViewWorkout');
+                                }}
+                            >
                             <View style={styles.trendingWorkoutsIcon}></View>
                             <View style={styles.trendingWorkoutsTextView}>
                                 <Text style={[styles.trendingWorkoutsText, {fontWeight: 'bold'}]}>Sock Workout</Text>
@@ -175,7 +265,13 @@ export default function Workouts() {
                                 <Icon name="ellipsis-h" size={20} color="white" />
                             </TouchableOpacity>
                         </TouchableOpacity>
-                        <TouchableOpacity style={styles.trendingWorkoutsButton}>
+                        <TouchableOpacity 
+                                style={styles.trendingWorkoutsButton}
+                                onPress={() => {
+                                    console.log("Workout pressed");
+                                    navigation.navigate('ViewWorkout');
+                                }}
+                            >
                             <View style={styles.trendingWorkoutsIcon}></View>
                             <View style={styles.trendingWorkoutsTextView}>
                                 <Text style={[styles.trendingWorkoutsText, {fontWeight: 'bold'}]}>Push Day Torture</Text>
@@ -185,7 +281,13 @@ export default function Workouts() {
                                 <Icon name="ellipsis-h" size={20} color="white" />
                             </TouchableOpacity>
                         </TouchableOpacity>
-                        <TouchableOpacity style={styles.trendingWorkoutsButton}>
+                        <TouchableOpacity 
+                                style={styles.trendingWorkoutsButton}
+                                onPress={() => {
+                                    console.log("Workout pressed");
+                                    navigation.navigate('ViewWorkout');
+                                }}
+                            >
                             <View style={styles.trendingWorkoutsIcon}></View>
                             <View style={styles.trendingWorkoutsTextView}>
                                 <Text style={[styles.trendingWorkoutsText, {fontWeight: 'bold'}]}>Basketball Workout</Text>
@@ -197,7 +299,13 @@ export default function Workouts() {
                         </TouchableOpacity>
                     </View>
                     <View style={styles.trendingWorkouts4Group}>
-                        <TouchableOpacity style={styles.trendingWorkoutsButton}>
+                    <TouchableOpacity 
+                                style={styles.trendingWorkoutsButton}
+                                onPress={() => {
+                                    console.log("Workout pressed");
+                                    navigation.navigate('ViewWorkout');
+                                }}
+                            >
                             <View style={styles.trendingWorkoutsIcon}></View>
                             <View style={styles.trendingWorkoutsTextView}>
                                 <Text style={[styles.trendingWorkoutsText, {fontWeight: 'bold'}]}>Golf Workout</Text>
@@ -207,7 +315,13 @@ export default function Workouts() {
                                 <Icon name="ellipsis-h" size={20} color="white" />
                             </TouchableOpacity>
                         </TouchableOpacity>
-                        <TouchableOpacity style={styles.trendingWorkoutsButton}>
+                        <TouchableOpacity 
+                                style={styles.trendingWorkoutsButton}
+                                onPress={() => {
+                                    console.log("Workout pressed");
+                                    navigation.navigate('ViewWorkout');
+                                }}
+                            >
                             <View style={styles.trendingWorkoutsIcon}></View>
                             <View style={styles.trendingWorkoutsTextView}>
                                 <Text style={[styles.trendingWorkoutsText, {fontWeight: 'bold'}]}>Sock Workout</Text>
@@ -217,7 +331,13 @@ export default function Workouts() {
                                 <Icon name="ellipsis-h" size={20} color="white" />
                             </TouchableOpacity>
                         </TouchableOpacity>
-                        <TouchableOpacity style={styles.trendingWorkoutsButton}>
+                        <TouchableOpacity 
+                                style={styles.trendingWorkoutsButton}
+                                onPress={() => {
+                                    console.log("Workout pressed");
+                                    navigation.navigate('ViewWorkout');
+                                }}
+                            >
                             <View style={styles.trendingWorkoutsIcon}></View>
                             <View style={styles.trendingWorkoutsTextView}>
                                 <Text style={[styles.trendingWorkoutsText, {fontWeight: 'bold'}]}>Push Day Torture</Text>
@@ -227,7 +347,13 @@ export default function Workouts() {
                                 <Icon name="ellipsis-h" size={20} color="white" />
                             </TouchableOpacity>
                         </TouchableOpacity>
-                        <TouchableOpacity style={styles.trendingWorkoutsButton}>
+                        <TouchableOpacity 
+                                style={styles.trendingWorkoutsButton}
+                                onPress={() => {
+                                    console.log("Workout pressed");
+                                    navigation.navigate('ViewWorkout');
+                                }}
+                            >
                             <View style={styles.trendingWorkoutsIcon}></View>
                             <View style={styles.trendingWorkoutsTextView}>
                                 <Text style={[styles.trendingWorkoutsText, {fontWeight: 'bold'}]}>Basketball Workout</Text>
@@ -268,7 +394,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: '#2e2e2e',
-        borderRadius: 10,
+        borderRadius: 20,
         height: 40,
         paddingLeft: 10,
         paddingRight: 10,
