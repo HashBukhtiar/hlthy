@@ -14,15 +14,16 @@
     "production": {
       "autoIncrement": true,
       "android": {
-        "image": "latest"
+        "image": "stable"
       },
       "ios": {
-        "image": "latest"
+        "image": "stable"
       }
     },
     "simulator": {
       "ios": {
-        "simulator": true
+        "simulator": true,
+        "image": "latest"
       }
     }
   },
