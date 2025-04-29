@@ -37,7 +37,7 @@ export default function BottomButtons() {
       
       <TouchableOpacity 
         onPress={() => {
-          console.log("POST pressed");
+          console.log("POST menu pressed");
           router.push('/post');
         }}
         style={globalStyles.postButton}
