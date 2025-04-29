@@ -29,8 +29,8 @@ export default function RootLayout() {
       <Stack.Screen name="signup" />
       <Stack.Screen name="select-archetype" />
       <Stack.Screen name="create-workout" />
-      <Stack.Screen name="view-workout" />
-      <Stack.Screen name="view-post" />
+      <Stack.Screen name="view-workout/[id]" options={{ animation: 'fade_from_bottom', gestureEnabled: true }} />
+      <Stack.Screen name="view-post/[id]" options={{ animation: 'fade_from_bottom', gestureEnabled: true }} />
       <Stack.Screen name="workout-plan" />
       <Stack.Screen name="diet-plan" />
       <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
