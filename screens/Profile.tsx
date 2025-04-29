@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, Image, StyleSheet, Dimensions, FlatList, TouchableOpacity, SafeAreaView } from 'react-native';
+import React, { useState, useRef, useEffect } from 'react';
+import { View, Text, Image, StyleSheet, Dimensions, FlatList, TouchableOpacity, SafeAreaView, Animated } from 'react-native';
 import { useRouter } from 'expo-router';
 import { postImage } from '@/assets/images';
 
@@ -32,6 +32,47 @@ enum TabType {
 const Profile = () => {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabType>(TabType.POSTS);
+  const flatListRef = useRef<FlatList>(null);
+  const { width: screenWidth } = Dimensions.get('window');
+  const tabIndicator = useRef(new Animated.Value(0)).current;
+  const tabWidth = screenWidth / 3; // Width of each tab
+
+  // Transform scroll position to indicator position
+  const indicatorPosition = tabIndicator.interpolate({
+    inputRange: [0, screenWidth, screenWidth * 2],
+    outputRange: [0, tabWidth, tabWidth * 2],
+    extrapolate: 'clamp'
+  });
+
+  // Scroll to specific tab when tab button is clicked
+  const scrollToTab = (tabType: TabType) => {
+    setActiveTab(tabType);
+    let index = 0;
+    if (tabType === TabType.POSTS) index = 0;
+    else if (tabType === TabType.MILESTONES) index = 1;
+    else if (tabType === TabType.WORKOUTS) index = 2;
+    
+    flatListRef.current?.scrollToOffset({ 
+      offset: index * screenWidth,
+      animated: true 
+    });
+  };
+
+  // Handler for FlatList scroll
+  const handleScroll = Animated.event(
+    [{ nativeEvent: { contentOffset: { x: tabIndicator } } }],
+    { useNativeDriver: false }
+  );
+
+  // Handler for FlatList scroll end
+  const handleScrollEnd = (e: any) => {
+    const contentOffsetX = e.nativeEvent.contentOffset.x;
+    const index = Math.round(contentOffsetX / screenWidth);
+    // Map index to the appropriate tab type
+    if (index === 0) setActiveTab(TabType.POSTS);
+    else if (index === 1) setActiveTab(TabType.MILESTONES);
+    else if (index === 2) setActiveTab(TabType.WORKOUTS);
+  };
 
   // Dummy data for posts 
   const postImages = [
@@ -191,6 +232,13 @@ const Profile = () => {
     />
   );
 
+  // Data for the swipeable tabs
+  const tabScenes = [
+    { key: 'posts', component: renderPostsContent() },
+    { key: 'milestones', component: renderMilestonesContent() },
+    { key: 'workouts', component: renderWorkoutsContent() }
+  ];
+
   // Render active tab content
   const renderTabContent = () => {
     switch (activeTab) {
@@ -209,23 +257,24 @@ const Profile = () => {
   const renderCustomTabBar = () => (
     <View style={styles.tabBar}>
       <TouchableOpacity 
-        style={[styles.tabButton, activeTab === TabType.POSTS && styles.activeTabButton]} 
-        onPress={() => setActiveTab(TabType.POSTS)}
+        style={styles.tabButton}
+        onPress={() => scrollToTab(TabType.POSTS)}
       >
         <Text style={[styles.tabButtonText, activeTab === TabType.POSTS && styles.activeTabButtonText]}>POSTS</Text>
       </TouchableOpacity>
       <TouchableOpacity 
-        style={[styles.tabButton, activeTab === TabType.MILESTONES && styles.activeTabButton]} 
-        onPress={() => setActiveTab(TabType.MILESTONES)}
+        style={styles.tabButton}
+        onPress={() => scrollToTab(TabType.MILESTONES)}
       >
         <Text style={[styles.tabButtonText, activeTab === TabType.MILESTONES && styles.activeTabButtonText]}>MILESTONES</Text>
       </TouchableOpacity>
       <TouchableOpacity 
-        style={[styles.tabButton, activeTab === TabType.WORKOUTS && styles.activeTabButton]} 
-        onPress={() => setActiveTab(TabType.WORKOUTS)}
+        style={styles.tabButton}
+        onPress={() => scrollToTab(TabType.WORKOUTS)}
       >
         <Text style={[styles.tabButtonText, activeTab === TabType.WORKOUTS && styles.activeTabButtonText]}>WORKOUTS</Text>
       </TouchableOpacity>
+      <Animated.View style={[styles.tabIndicator, { transform: [{ translateX: indicatorPosition }] }]} />
     </View>
   );
 
@@ -265,9 +314,23 @@ const Profile = () => {
       {/* Custom Tab Bar */}
       {renderCustomTabBar()}
 
-      {/* Tab Content */}
+      {/* Swipeable Tab Content */}
       <View style={styles.tabContent}>
-        {renderTabContent()}
+        <FlatList
+          ref={flatListRef}
+          data={tabScenes}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          onScroll={handleScroll}
+          onMomentumScrollEnd={handleScrollEnd}
+          renderItem={({ item }) => (
+            <View style={[styles.tabContentContainer, { width: screenWidth }]}>
+              {item.component}
+            </View>
+          )}
+          keyExtractor={(item) => item.key}
+        />
       </View>
     </SafeAreaView>
   );
@@ -334,10 +397,6 @@ const styles = StyleSheet.create({
     paddingVertical: 15,
     alignItems: 'center',
   },
-  activeTabButton: {
-    borderBottomWidth: 3,
-    borderBottomColor: 'white',
-  },
   tabButtonText: {
     color: 'gray',
     fontSize: 12,
@@ -345,6 +404,13 @@ const styles = StyleSheet.create({
   },
   activeTabButtonText: {
     color: 'white',
+  },
+  tabIndicator: {
+    position: 'absolute',
+    bottom: 0,
+    height: 3,
+    width: Dimensions.get('window').width / 3,
+    backgroundColor: 'white',
   },
   tabContent: {
     flex: 1,
@@ -363,7 +429,9 @@ const styles = StyleSheet.create({
     padding: 15,
     marginVertical: 5,
     borderRadius: 10,
-    marginHorizontal: 10,
+    marginHorizontal: 'auto',
+    width: '95%',
+    alignSelf: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -430,6 +498,11 @@ const styles = StyleSheet.create({
   },
   workoutsList: {
     padding: 10,
+  },
+  tabContentContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
 
