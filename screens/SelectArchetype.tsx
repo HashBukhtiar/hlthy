@@ -15,11 +15,11 @@ interface Archetype {
 
 // Mock images - you'll need to add these to your assets folder
 const archetypes: Archetype[] = [
-  { label: '  Athlete', value: 'athlete', image: require('@/assets/images/icon.png') },
-  { label: '  Bodybuilder', value: 'bodybuilder', image: require('@/assets/images/icon.png') },
-  { label: '  Crossfitter', value: 'crossfitter', image: require('@/assets/images/icon.png') },
-  { label: '  Generalist', value: 'generalist', image: require('@/assets/images/icon.png') },
-  { label: '  Powerlifter', value: 'powerlifter', image: require('@/assets/images/icon.png') },
+  { label: '  Athlete', value: 'athlete', image: require('@/assets/images/athlete.png') },
+  { label: '  Bodybuilder', value: 'bodybuilder', image: require('@/assets/images/bodybuilder.png') },
+  { label: '  Crossfitter', value: 'crossfitter', image: require('@/assets/images/crossfitter.png') },
+  { label: '  Generalist', value: 'generalist', image: require('@/assets/images/generalist.png') },
+  { label: '  Powerlifter', value: 'powerlifter', image: require('@/assets/images/powerlifter.png') },
 ];
 
 export default function SelectArchetype() {
