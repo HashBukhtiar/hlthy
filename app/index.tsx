@@ -35,6 +35,6 @@ export default function Index() {
     );
   }
 
-  // If user is authenticated or bypass is enabled, redirect to home feed, otherwise to signup
-  return isAuthenticated ? <Redirect href="/(tabs)" /> : <Redirect href="/signup" />;
+  // If user is authenticated or bypass is enabled, redirect to home feed, otherwise to landing page
+  return isAuthenticated ? <Redirect href="/(tabs)" /> : <Redirect href="/landing" />;
 }
