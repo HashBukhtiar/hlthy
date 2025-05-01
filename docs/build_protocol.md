@@ -31,25 +31,20 @@ eas whoami
 ```
 eas build:configure
 ```
-6. Navigate to the `eas.json` file in the root directory. Find the `build` object within. Create a new object under the `production` object called `simulator`. Here is what the `build` object should look like:
+6. Navigate to the `eas.json` file in the root directory. Find the `build` object and create a new object under the called `simulator`. Here is what the `eas.json` file should look like:
 ```
+{
+  ...
   "build": {
-    "development": {
-      "developmentClient": true,
-      "distribution": "internal"
-    },
-    "preview": {
-      "distribution": "internal"
-    },
-    "production": {
-      "autoIncrement": true
-    },
+    ...
     "simulator": {
       "ios": {
         "simulator": true,
       }
     }
   },
+  ...
+}
 ```
 7. Build through EAS using the simulator profile that was just created.
 ```
