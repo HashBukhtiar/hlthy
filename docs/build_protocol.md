@@ -7,9 +7,9 @@ Four build configurations are possible for this project:
 3. **Android Build**: Need an Android device or simulator to test it.
 4. **Expo Ejection**: This would also work for us, but I would not recommend it. It ejects the app from Expo's managed workflow, giving us control to the native code. This not only makes development way more complicated, but complicates the build process and we lose all of Expo's features. This includes their CI/CD pipeline workflow and OTA updates. From what I understand this bare approach is really only done for companies to write their own custom native code/modules in Swift or Kotlin, or to access modules not supported by Expo.
 
-This protocol provides the process for Option 2.
+This protocol provides the process for Options 2 and 3.
 
-## iOS Simulator Build Protocol
+## General Build Protocol
 
 1. Visit the builds page on expo.dev to see workflows and build processes: https://expo.dev/accounts/derana1/projects/hlthy/builds
 
@@ -31,25 +31,43 @@ eas whoami
 ```
 eas build:configure
 ```
-6. Navigate to the `eas.json` file in the root directory. Find the `build` object and create a new object under the called `simulator`. Here is what the `eas.json` file should look like:
+6. Navigate to the `eas.json` file in the root directory. The file should already include an `ios-simulator` profile. Here is what the relevant section should look like:
 ```
 {
   ...
   "build": {
     ...
-    "simulator": {
+    "ios-simulator": {
       "ios": {
         "simulator": true,
+        "image": "latest"
       }
+    },
+    "android": {
+      "buildType": "apk",
+      "image": "latest"
     }
   },
   ...
 }
 ```
-7. Build through EAS using the simulator profile that was just created.
+
+We can then continue using the iOS Simulator or using an Android build.
+
+### iOS Simulator
+7. Build through EAS using the `ios-simulator` profile.
 ```
-eas build --platform ios --profile simulator
+eas build --platform ios --profile ios-simulator
 ```
 8. Monitor the build through the link above or through the link provided by the CLI. Once the build completes, you can then do one of the following:
-    1. Download the build from the expo.dev website after monitoring the build. Then, run the iOS simulator and drag the application onto the simulator and run it.
-    2. If the CLI prompts you to run the build on the iOS simulator, click 'y' and it should do the previous option for you.
+    - Download the build from the expo.dev website after monitoring the build. Then, run the iOS simulator and drag the application onto the simulator and run it.
+    - If the CLI prompts you to run the build on the iOS simulator, click 'y' and it should do the previous option for you.
+
+### Android Build Protocol
+
+7. Build through EAS using the `android` profile.
+```
+eas build --platform ios --profile android
+```
+
+8. Monitor the build through the link above or through the link provided by the CLI. Once the build completes, you can then download the APK file from [expo.dev](https://expo.dev/accounts/hlthy/projects/hlthy/builds) and install it on your Android device or emulator.
