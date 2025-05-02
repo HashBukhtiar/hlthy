@@ -14,11 +14,15 @@
     "production": {
       "autoIncrement": true
     },
-    "simulator": {
+    "ios-simulator": {
       "ios": {
         "simulator": true,
         "image": "latest"
       }
+    },
+    "android": {
+      "buildType": "apk",
+      "image": "latest"
     }
   },
   "submit": {
