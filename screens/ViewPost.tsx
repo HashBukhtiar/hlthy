@@ -3,9 +3,11 @@ import { StyleSheet, Text, View, Image, ScrollView, TouchableOpacity, TextInput 
 import { useLocalSearchParams } from 'expo-router';
 import globalStyles from '@/styles/globalStyles';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function ViewPost() {
   const { id } = useLocalSearchParams();
+  const insets = useSafeAreaInsets();
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(156);
   const [comment, setComment] = useState('');
@@ -66,7 +68,7 @@ export default function ViewPost() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Header with user info */}
         <View style={styles.header}>
@@ -146,7 +148,7 @@ export default function ViewPost() {
       </ScrollView>
 
       {/* Comment Input */}
-      <View style={styles.commentInputContainer}>
+      <View style={[styles.commentInputContainer, { paddingBottom: Math.max(insets.bottom, 10) }]}>
         <Image 
           source={{ uri: 'https://randomuser.me/api/portraits/men/1.jpg' }} 
           style={styles.commentInputProfilePic} 
