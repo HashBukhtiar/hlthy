@@ -24,7 +24,7 @@ export default function ViewPost() {
       id: '2',
       username: 'health_junkie',
       profilePic: 'https://randomuser.me/api/portraits/women/44.jpg',
-      text: 'This is inspiring! What\'s your nutrition plan like?',
+      text: 'This is inspiring! What\'s your nutrition plan like? Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
       timestamp: '3h ago',
       likes: 8,
     },
@@ -130,21 +130,22 @@ export default function ViewPost() {
           
           {comments.map(comment => (
             <View key={comment.id} style={styles.commentItem}>
-              <Image source={{ uri: comment.profilePic }} style={styles.commentProfilePic} />
-              <View style={styles.commentContent}>
-                <View style={styles.commentHeader}>
-                  <Text style={styles.commentUsername}>{comment.username}</Text>
+              <View style={styles.commentLeftSection}>
+                <Image source={{ uri: comment.profilePic }} style={styles.commentProfilePic} />
+                <View style={styles.commentContent}>
+                  <View style={styles.commentHeader}>
+                    <Text style={styles.commentUsername}>{comment.username}</Text>
+                    <Text style={styles.commentTimestamp}>{comment.timestamp}</Text>
+                  </View>
                   <Text style={styles.commentText}>{comment.text}</Text>
                 </View>
-                <View style={styles.commentActions}>
-                  <Text style={styles.commentTimestamp}>{comment.timestamp}</Text>
-                  <Text style={styles.commentLikes}>{comment.likes} likes</Text>
-                  <Text style={styles.replyButton}>Reply</Text>
-                </View>
               </View>
-              <TouchableOpacity style={styles.commentLikeButton}>
-                <Ionicons name="heart-outline" size={14} color="#999" />
-              </TouchableOpacity>
+              <View style={styles.commentLikeContainer}>
+                <TouchableOpacity style={styles.commentLikeButton}>
+                  <Ionicons name="heart-outline" size={14} color="#999" />
+                </TouchableOpacity>
+                <Text style={styles.commentLikeCount}>{comment.likes}</Text>
+              </View>
             </View>
           ))}
         </View>
@@ -268,12 +269,17 @@ const styles = StyleSheet.create({
   commentsHeader: {
     fontWeight: '600',
     fontSize: 16,
-    marginBottom: 10,
+    marginBottom: 18,
     color: '#FFF',
   },
   commentItem: {
     flexDirection: 'row',
-    marginBottom: 15,
+    justifyContent: 'space-between',
+    marginBottom: 18,
+  },
+  commentLeftSection: {
+    flexDirection: 'row',
+    flex: 1,
     alignItems: 'flex-start',
   },
   commentProfilePic: {
@@ -281,44 +287,45 @@ const styles = StyleSheet.create({
     height: 30,
     borderRadius: 15,
     marginRight: 10,
+    alignSelf: 'flex-start',
   },
   commentContent: {
     flex: 1,
   },
   commentHeader: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    alignItems: 'center',
   },
   commentUsername: {
     fontWeight: '600',
-    marginRight: 5,
     color: '#FFF',
-  },
-  commentText: {
-    flex: 1,
-    color: '#FFF',
-  },
-  commentActions: {
-    flexDirection: 'row',
-    marginTop: 5,
+    marginRight: 8,
   },
   commentTimestamp: {
     fontSize: 12,
     color: '#999',
-    marginRight: 15,
+  },
+  commentText: {
+    color: '#FFF',
+    marginVertical: 4,
   },
   commentLikes: {
     fontSize: 12,
     color: '#999',
-    marginRight: 15,
   },
-  replyButton: {
-    fontSize: 12,
-    color: '#999',
+  commentLikeContainer: {
+    alignItems: 'center',
+    paddingLeft: 5,
+    justifyContent: 'center',
+    alignSelf: 'center',
   },
   commentLikeButton: {
-    marginLeft: 10,
     padding: 5,
+  },
+  commentLikeCount: {
+    fontSize: 10,
+    color: '#999',
+    marginTop: 2,
   },
   commentInputContainer: {
     flexDirection: 'row',
