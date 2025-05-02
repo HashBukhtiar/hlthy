@@ -11,6 +11,13 @@ export default function ViewPostScreen() {
           title: 'Post',
           headerShadowVisible: false,
           headerBackTitle: '',
+          headerTintColor: '#FFF',
+          headerStyle: {
+            backgroundColor: '#000',
+          },
+          headerTitleStyle: {
+            color: '#FFF',
+          },
         }}
       />
       <ViewPost />
@@ -21,6 +28,6 @@ export default function ViewPostScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#000',
   },
 });

@@ -68,8 +68,11 @@ export default function ViewPost() {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
-      <ScrollView showsVerticalScrollIndicator={false}>
+    <View style={[styles.container, { paddingTop: insets.top, backgroundColor: '#000' }]}>
+      <ScrollView 
+        showsVerticalScrollIndicator={false}
+        style={styles.scrollView}
+      >
         {/* Header with user info */}
         <View style={styles.header}>
           <View style={styles.userInfoContainer}>
@@ -80,7 +83,7 @@ export default function ViewPost() {
             </View>
           </View>
           <TouchableOpacity style={styles.moreButton}>
-            <Ionicons name="ellipsis-horizontal" size={20} color="#333" />
+            <Ionicons name="ellipsis-horizontal" size={20} color="#FFF" />
           </TouchableOpacity>
         </View>
 
@@ -94,18 +97,18 @@ export default function ViewPost() {
               <Ionicons 
                 name={liked ? "heart" : "heart-outline"} 
                 size={28} 
-                color={liked ? "#FF3B30" : "#333"} 
+                color={liked ? "#FF3B30" : "#FFF"} 
               />
             </TouchableOpacity>
             <TouchableOpacity style={styles.actionButton}>
-              <Ionicons name="chatbubble-outline" size={26} color="#333" />
+              <Ionicons name="chatbubble-outline" size={26} color="#FFF" />
             </TouchableOpacity>
             <TouchableOpacity style={styles.actionButton}>
-              <Ionicons name="paper-plane-outline" size={26} color="#333" />
+              <Ionicons name="paper-plane-outline" size={26} color="#FFF" />
             </TouchableOpacity>
           </View>
           <TouchableOpacity style={styles.actionButton}>
-            <Ionicons name="bookmark-outline" size={26} color="#333" />
+            <Ionicons name="bookmark-outline" size={26} color="#FFF" />
           </TouchableOpacity>
         </View>
 
@@ -156,6 +159,7 @@ export default function ViewPost() {
         <TextInput
           style={styles.commentInput}
           placeholder="Add a comment..."
+          placeholderTextColor="#666"
           value={comment}
           onChangeText={setComment}
         />
@@ -176,7 +180,10 @@ export default function ViewPost() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#000',
+  },
+  scrollView: {
+    backgroundColor: '#000',
   },
   header: {
     flexDirection: 'row',
@@ -184,7 +191,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 15,
     paddingVertical: 10,
-    borderBottomColor: '#EAEAEA',
+    borderBottomColor: '#222',
     borderBottomWidth: 1,
   },
   userInfoContainer: {
@@ -200,10 +207,11 @@ const styles = StyleSheet.create({
   username: {
     fontWeight: '600',
     fontSize: 15,
+    color: '#FFF',
   },
   location: {
     fontSize: 12,
-    color: '#666',
+    color: '#999',
   },
   moreButton: {
     padding: 5,
@@ -229,6 +237,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     paddingHorizontal: 15,
     marginBottom: 5,
+    color: '#FFF',
   },
   captionContainer: {
     flexDirection: 'row',
@@ -238,26 +247,29 @@ const styles = StyleSheet.create({
   captionUsername: {
     fontWeight: '600',
     marginRight: 5,
+    color: '#FFF',
   },
   caption: {
     flex: 1,
+    color: '#FFF',
   },
   timestamp: {
     fontSize: 12,
-    color: '#666',
+    color: '#999',
     paddingHorizontal: 15,
     marginBottom: 15,
   },
   commentsSection: {
     paddingHorizontal: 15,
     paddingVertical: 10,
-    borderTopColor: '#EAEAEA',
+    borderTopColor: '#222',
     borderTopWidth: 1,
   },
   commentsHeader: {
     fontWeight: '600',
     fontSize: 16,
     marginBottom: 10,
+    color: '#FFF',
   },
   commentItem: {
     flexDirection: 'row',
@@ -280,9 +292,11 @@ const styles = StyleSheet.create({
   commentUsername: {
     fontWeight: '600',
     marginRight: 5,
+    color: '#FFF',
   },
   commentText: {
     flex: 1,
+    color: '#FFF',
   },
   commentActions: {
     flexDirection: 'row',
@@ -290,17 +304,17 @@ const styles = StyleSheet.create({
   },
   commentTimestamp: {
     fontSize: 12,
-    color: '#666',
+    color: '#999',
     marginRight: 15,
   },
   commentLikes: {
     fontSize: 12,
-    color: '#666',
+    color: '#999',
     marginRight: 15,
   },
   replyButton: {
     fontSize: 12,
-    color: '#666',
+    color: '#999',
   },
   commentLikeButton: {
     marginLeft: 10,
@@ -311,9 +325,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 15,
     paddingVertical: 10,
-    borderTopColor: '#EAEAEA',
+    borderTopColor: '#222',
     borderTopWidth: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#000',
   },
   commentInputProfilePic: {
     width: 30,
@@ -324,24 +338,26 @@ const styles = StyleSheet.create({
   commentInput: {
     flex: 1,
     height: 36,
-    borderColor: '#EAEAEA',
+    borderColor: '#333',
     borderWidth: 1,
     borderRadius: 18,
     paddingHorizontal: 15,
     fontSize: 14,
+    color: '#FFF',
+    backgroundColor: '#111',
   },
   postButton: {
     marginLeft: 10,
     paddingHorizontal: 12,
   },
   postButtonText: {
-    color: '#007AFF',
+    color: '#0A84FF',
     fontWeight: '600',
   },
   disabledButton: {
     opacity: 0.5,
   },
   disabledButtonText: {
-    color: '#999',
+    color: '#666',
   },
 });
