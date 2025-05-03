@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, Image, StyleSheet, Dimensions, FlatList, TouchableOpacity, SafeAreaView, Animated, ActivityIndicator } from 'react-native';
+import { View, Text, Image, StyleSheet, Dimensions, FlatList, TouchableOpacity, SafeAreaView, Animated, ActivityIndicator, RefreshControl } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { postImage } from '@/assets/images';
 import { useProfileData } from '@/hooks/useProfileData';
@@ -44,6 +44,7 @@ const Profile = () => {
     error,
     refreshProfileData 
   } = useProfileData();
+  const [refreshing, setRefreshing] = useState(false);
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabType>(TabType.POSTS);
   const flatListRef = useRef<FlatList>(null);
@@ -56,6 +57,18 @@ const Profile = () => {
     outputRange: [0, tabWidth, tabWidth * 2],
     extrapolate: 'clamp'
   });
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await refreshUserProfile();
+      await refreshProfileData();
+    } catch (error) {
+      console.error("Error refreshing profile:", error);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   // Scroll to specific tab when tab button is clicked
   const scrollToTab = (tabType: TabType) => {
@@ -207,6 +220,15 @@ const Profile = () => {
       ListEmptyComponent={
         <Text style={{ color: 'gray', textAlign: 'center', padding: 30 }}>No posts yet</Text>
       }
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          tintColor="#FFFFFF"
+          colors={["#FFFFFF"]}
+          progressBackgroundColor="#212121"
+        />
+      }
     />
   );
 
@@ -292,6 +314,15 @@ const Profile = () => {
             No milestones yet
           </Text>
         }
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#FFFFFF"
+            colors={["#FFFFFF"]}
+            progressBackgroundColor="#212121"
+          />
+        }
       />
     );
   };
@@ -350,6 +381,15 @@ const Profile = () => {
           <Text style={{ color: 'gray', textAlign: 'center', padding: 30 }}>
             No workouts yet
           </Text>
+        }
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#FFFFFF"
+            colors={["#FFFFFF"]}
+            progressBackgroundColor="#212121"
+          />
         }
       />
     );
