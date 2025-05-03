@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, Image, StyleSheet, Dimensions, FlatList, TouchableOpacity, SafeAreaView, Animated, ActivityIndicator } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { postImage } from '@/assets/images';
 import { useProfileData } from '@/hooks/useProfileData';
 import { useAuth } from '@/context/AuthContext';
@@ -32,7 +32,7 @@ enum TabType {
 }
 
 const Profile = () => {
-  const { currentUser, userProfile } = useAuth();
+  const { currentUser, userProfile, refreshUserProfile } = useAuth();
   const { 
     loading, 
     profileData, 
@@ -41,7 +41,8 @@ const Profile = () => {
     workouts, 
     followers, 
     following, 
-    error 
+    error,
+    refreshProfileData 
   } = useProfileData();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabType>(TabType.POSTS);
@@ -49,7 +50,6 @@ const Profile = () => {
   const { width: screenWidth } = Dimensions.get('window');
   const tabIndicator = useRef(new Animated.Value(0)).current;
   const tabWidth = screenWidth / 3; // Width of each tab
-
   // Transform scroll position to indicator position
   const indicatorPosition = tabIndicator.interpolate({
     inputRange: [0, screenWidth, screenWidth * 2],
@@ -88,6 +88,7 @@ const Profile = () => {
   };
 
   // Dummy data for posts 
+  /*
   const postImages = [
     postImage,
     postImage,
@@ -98,7 +99,6 @@ const Profile = () => {
   ];
 
   // Dummy data for milestones
-  /*
   const milestones: Milestone[] = [
     { id: 1, exercise: 'Bench Press', reps: 10, weight: '100', date: new Date('2024-08-01'), postId: 1 },
     { id: 2, exercise: 'Squat', reps: 8, weight: '120', date: new Date('2024-08-05'), postId: 2 },
@@ -192,23 +192,6 @@ const Profile = () => {
   }
 
   // Render Posts Tab Content
-  /*
-  const renderPostsContent = () => (
-    <FlatList
-      key="posts-grid"
-      data={postImages}
-      renderItem={({ item }) => (
-        <TouchableOpacity onPress={() => handleImagePress(item)}>
-          <Image source={item} style={styles.postImage} />
-        </TouchableOpacity>
-      )}
-      keyExtractor={(item, index) => index.toString()}
-      numColumns={3}
-      contentContainerStyle={styles.postsContainer}
-    />
-  );
-  */
-
   const renderPostsContent = () => (
     <FlatList
       key="posts-grid"
@@ -228,44 +211,6 @@ const Profile = () => {
   );
 
   // Render Milestones Tab Content
-  /*
-  const renderMilestonesContent = () => {
-    const sortedMilestones = [...milestones].sort((a, b) => b.date.getTime() - a.date.getTime());
-    const groupedMilestones = groupMilestonesByMonth(sortedMilestones);
-    const monthKeys = Object.keys(groupedMilestones).sort((a, b) => 
-      new Date(b).getTime() - new Date(a).getTime()
-    );
-  
-    return (
-      <FlatList
-        key="milestones-list"
-        data={monthKeys}
-        renderItem={({ item: month }) => (
-          <View>
-            <Text style={styles.monthHeader}>{month}</Text>
-            {groupedMilestones[month].map((item) => (
-              <TouchableOpacity key={item.id} onPress={() => handleMilestonePress(item.postId)} style={styles.milestoneItem}>
-                <View style={styles.milestoneDetail}>
-                  <Text style={styles.milestoneExercise}>{item.exercise}</Text>
-                </View>
-                <View style={styles.milestoneDetail}>
-                  <Text style={styles.milestoneNumber}>{item.reps}</Text>
-                  <Text style={styles.milestoneDescriptor}>Reps</Text>
-                </View>
-                <View style={styles.milestoneDetail}>
-                  <Text style={styles.milestoneNumber}>{item.weight}</Text>
-                  <Text style={styles.milestoneDescriptor}>Weight</Text>
-                </View>
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
-        keyExtractor={(item) => item}
-      />
-    );
-  };
-  */
-
   const renderMilestonesContent = () => {
     // Early return if no milestones
     if (!milestones || milestones.length === 0) {
@@ -302,6 +247,17 @@ const Profile = () => {
       new Date(b).getTime() - new Date(a).getTime()
     );
   
+    useFocusEffect(
+      React.useCallback(() => {
+        const refresh = async () => {
+          await refreshUserProfile();
+          await refreshProfileData();
+        };
+        
+        refresh();
+      }, [])
+    );
+
     return (
       <FlatList
         key="milestones-list"
@@ -341,28 +297,6 @@ const Profile = () => {
   };
   
   // Render Workouts Tab Content
-  /*
-  const renderWorkoutsContent = () => (
-    <FlatList
-      key="workouts-grid"
-      data={sortedWorkouts}
-      renderItem={({ item }) => (
-        <TouchableOpacity key={item.id} onPress={() => handleWorkoutPress(item.id)} style={styles.workoutItem}>
-          <View style={styles.workoutDetail}>
-            <Text style={styles.workoutName}>{item.name}</Text>
-            <Text style={styles.workoutDate}>{formatDate(item.date)}</Text>
-            <Text style={styles.workoutFavorites}>{item.favorites} Favorites</Text>
-          </View>
-        </TouchableOpacity>
-      )}
-      keyExtractor={(item) => item.id.toString()}
-      numColumns={3}
-      contentContainerStyle={styles.workoutsList}
-      showsVerticalScrollIndicator={false}
-    />
-  );
-  */
-
   const renderWorkoutsContent = () => {
     // Early return if no workouts
     if (!workouts || workouts.length === 0) {

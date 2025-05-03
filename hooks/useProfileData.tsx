@@ -16,6 +16,21 @@ export function useProfileData(userId = null) {
   const [following, setFollowing] = useState([]);
   const [error, setError] = useState(null);
 
+  const refreshProfileData = async () => {
+    if (!profileId) return;
+    
+    try {
+      setLoading(true);
+      // Fetch all data again
+      // ... existing fetch code ...
+    } catch (error) {
+      console.error("Error fetching profile data:", error);
+      setError(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (!profileId) return;
     
@@ -84,6 +99,7 @@ export function useProfileData(userId = null) {
     workouts, 
     followers, 
     following, 
-    error 
+    error,
+    refreshProfileData
   };
 }

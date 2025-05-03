@@ -10,6 +10,20 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const [userProfile, setUserProfile] = useState(null);
 
+  // Function to refresh user profile data
+  const refreshUserProfile = async () => {
+    if (currentUser) {
+      try {
+        const userDoc = await getDoc(doc(db, "users", currentUser.uid));
+        if (userDoc.exists()) {
+          setUserProfile(userDoc.data());
+        }
+      } catch (error) {
+        console.error("Error refreshing user profile:", error);
+      }
+    }
+  };
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
@@ -35,7 +49,8 @@ export function AuthProvider({ children }) {
   const value = {
     currentUser,
     userProfile,
-    loading
+    loading,
+    refreshUserProfile // Add the refresh function to the context
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
