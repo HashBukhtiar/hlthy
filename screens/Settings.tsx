@@ -1,17 +1,14 @@
 import React, { useState } from 'react';
-import {
-  View,
-  ScrollView,
-  Text,
-  StyleSheet,
-  Switch,
-  TouchableOpacity,
-  TextInput,
-  TouchableWithoutFeedback,
-  Keyboard,
-} from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Alert, Image } from 'react-native';
 import { Dropdown } from 'react-native-element-dropdown';
 import globalStyles from '@/styles/globalStyles';
+import { useAuth } from '@/context/AuthContext';
+import { doc, updateDoc } from 'firebase/firestore';
+import { db, auth } from '@/firebaseConfig';
+import { signOut } from 'firebase/auth';
+import { useRouter } from 'expo-router';
+import * as ImagePicker from 'expo-image-picker';
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 interface DropdownItem {
   label: string;
@@ -62,6 +59,7 @@ const regionData: DropdownItem[] = [
 ];
 
 export default function Settings() {
+  /*
   // Profile
   const [name, setName] = useState<string>('');
   const [username, setUsername] = useState<string>('');
@@ -285,11 +283,173 @@ export default function Settings() {
       </TouchableOpacity>
     </View>
   );
+  */
+
+  const { userProfile, currentUser } = useAuth();
+  const router = useRouter();
+  const [displayName, setDisplayName] = useState(userProfile?.displayName || '');
+  const [bio, setBio] = useState(userProfile?.bio || '');
+  const [profileImage, setProfileImage] = useState(userProfile?.profileImageUrl);
+  const [loading, setLoading] = useState(false);
+  
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      router.replace('/');
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  };
+  
+  const handleUpdateProfile = async () => {
+    if (!currentUser) return;
+    
+    try {
+      setLoading(true);
+      
+      // Update user document in Firestore
+      await updateDoc(doc(db, "users", currentUser.uid), {
+        displayName,
+        bio,
+        ...(profileImage !== userProfile?.profileImageUrl && { profileImageUrl: profileImage })
+      });
+      
+      Alert.alert("Success", "Profile updated successfully");
+      router.back();
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      Alert.alert("Error", "Failed to update profile");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const pickImage = async () => {
+    // Request permission to access media library
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    
+    if (status !== 'granted') {
+      Alert.alert('Permission Denied', 'We need access to your photos to update your profile picture.');
+      return;
+    }
+    
+    try {
+      // Open image picker
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+      
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        setLoading(true);
+        
+        // Get the selected image URI
+        const uri = result.assets[0].uri;
+        
+        // Create reference to storage
+        const storage = getStorage();
+        const filename = `profile-${currentUser.uid}-${Date.now()}`;
+        const storageRef = ref(storage, `profileImages/${filename}`);
+        
+        // Convert image to blob
+        const response = await fetch(uri);
+        const blob = await response.blob();
+        
+        // Upload to Firebase Storage
+        await uploadBytes(storageRef, blob);
+        
+        // Get download URL
+        const downloadURL = await getDownloadURL(storageRef);
+        
+        // Update state with new image URL
+        setProfileImage(downloadURL);
+        setLoading(false);
+      }
+    } catch (error) {
+      console.error("Error picking image:", error);
+      Alert.alert("Error", "Failed to update profile picture");
+      setLoading(false);
+    }
+  };
+
+  return (
+    <ScrollView style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.title}>Account Settings</Text>
+      </View>
+      
+      <View style={styles.imageContainer}>
+        <Image source={{ uri: profileImage || 'https://thumbs.dreamstime.com/b/creative-illustration-default-avatar-profile-placeholder-isolated-background-art-design-grey-photo-blank-template-mockup-144855718.jpg' }} 
+               style={styles.profileImage} />
+        <TouchableOpacity style={styles.imageButton} onPress={pickImage}>
+          <Text style={styles.imageButtonText}>Change Photo</Text>
+        </TouchableOpacity>
+      </View>
+      
+      <View style={styles.formGroup}>
+        <Text style={styles.label}>Display Name</Text>
+        <TextInput
+          style={styles.input}
+          value={displayName}
+          onChangeText={setDisplayName}
+          placeholder="Display Name"
+          placeholderTextColor="#666"
+        />
+      </View>
+      
+      <View style={styles.formGroup}>
+        <Text style={styles.label}>Bio</Text>
+        <TextInput
+          style={[styles.input, styles.bioInput]}
+          value={bio}
+          onChangeText={setBio}
+          placeholder="Tell us about yourself"
+          placeholderTextColor="#666"
+          multiline
+        />
+      </View>
+      
+      <View style={styles.formGroup}>
+        <Text style={styles.label}>Username</Text>
+        <Text style={styles.staticText}>{userProfile?.username}</Text>
+        <Text style={styles.helperText}>Username cannot be changed</Text>
+      </View>
+      
+      <View style={styles.formGroup}>
+        <Text style={styles.label}>Email</Text>
+        <Text style={styles.staticText}>{currentUser?.email}</Text>
+      </View>
+      
+      <View style={styles.formGroup}>
+        <Text style={styles.label}>Archetype</Text>
+        <Text style={styles.staticText}>{userProfile?.archetype || 'Not set'}</Text>
+      </View>
+      
+      <TouchableOpacity 
+        style={styles.updateButton} 
+        onPress={handleUpdateProfile}
+        disabled={loading}>
+        <Text style={styles.updateButtonText}>
+          {loading ? 'Updating...' : 'Update Profile'}
+        </Text>
+      </TouchableOpacity>
+      
+      <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+        <Text style={styles.logoutButtonText}>Logout</Text>
+      </TouchableOpacity>
+    </ScrollView>
+  );
+
+
 }
 
 const styles = StyleSheet.create({
   container: {
-    padding: 16,
+    flex: 1,
+    backgroundColor: 'black',
+    padding: 20,
   },
   header: {
     color: '#fff',
@@ -305,6 +465,96 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     marginTop: 10,
   },
+  title: {
+    color: '#fff',
+    fontSize: 24,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  imageContainer: {
+    alignItems: 'center',
+    marginBottom: 30,
+  },
+  profileImage: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    marginBottom: 10,
+  },
+  imageButton: {
+    backgroundColor: '#333',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    marginTop: 10,
+  },
+  imageButtonText: {
+    color: 'white',
+    fontSize: 14,
+  },
+  formGroup: {
+    marginBottom: 24,
+  },
+  label: {
+    color: '#fff',
+    fontSize: 16,
+    marginBottom: 8,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#444',
+    borderRadius: 8,
+    backgroundColor: '#222',
+    color: 'white',
+    padding: 12,
+    fontSize: 16,
+  },
+  bioInput: {
+    height: 100,
+    textAlignVertical: 'top',
+    marginTop: 4,
+  },
+  staticText: {
+    color: '#ccc',
+    fontSize: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    backgroundColor: '#222',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#444',
+  },
+  helperText: {
+    color: '#888',
+    fontSize: 12,
+    marginTop: 4,
+  },
+  updateButton: {
+    backgroundColor: '#007AFF',
+    paddingVertical: 14,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 10,
+    marginBottom: 16,
+  },
+  updateButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  logoutButton: {
+    backgroundColor: '#FF3B30',
+    paddingVertical: 14,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 20,
+    marginBottom: 50,
+  },
+  logoutButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
   card: {
     backgroundColor: '#1E1E1E',
     borderRadius: 8,
@@ -316,21 +566,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 15,
-  },
-  label: {
-    color: '#fff',
-    fontSize: 16,
-    flex: 1,
-  },
-  input: {
-    flex: 2,
-    height: 40,
-    borderColor: '#555',
-    borderWidth: 1,
-    borderRadius: 5,
-    paddingHorizontal: 10,
-    color: '#fff',
-    backgroundColor: '#333',
   },
   longInput: {
     flex: 2,

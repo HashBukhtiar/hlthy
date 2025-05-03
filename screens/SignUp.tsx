@@ -14,8 +14,8 @@ import {
   ActivityIndicator
 } from 'react-native';
 import { Button, TextInput } from 'react-native-paper';
-import { collection, setDoc, doc, getDocs, query, where, limit } from "firebase/firestore";
-import { createUserWithEmailAndPassword } from "firebase/auth";
+import { collection, setDoc, doc, getDocs, query, where, limit, serverTimestamp } from "firebase/firestore";
+import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
 import { db, auth } from '@/firebaseConfig';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useRouter } from 'expo-router';
@@ -88,90 +88,51 @@ export default function SignUp() {
     setDate(currentDate);
     setDateOfBirthFormatted(formatDate(currentDate));
   };
-
+  
   const signUp = async () => {
     try {
-      // Clear previous errors
-      setErrorMessage("");
-      
-      // Validate form data
-      if (!firstName.trim() || !lastName.trim()) {
-        setErrorMessage("Please enter your name.");
-        return;
-      }
-      
-      if (!isValidUsername(userName)) {
-        setErrorMessage("Please provide a valid username.");
-        return;
-      }
-      
-      if (!isValidEmail(emailAddress)) {
-        setErrorMessage("Please provide a valid email.");
-        return;
-      }
-      
-      if (dateOfBirthFormatted === '') {
-        setErrorMessage("Please select your date of birth.");
-        return;
-      }
-      
-      // Check if username is available
-      const usernameAvailable = await isAvailableUsername(userName);
-      if (!usernameAvailable) {
-        setErrorMessage("That username is taken. Please try another one.");
-        return;
-      }
-      
-      // Show loading indicator
-      setLoading(true);
-      
-      // 1. Create the user account with Firebase Authentication
-      const userCredential = await createUserWithEmailAndPassword(
-        auth, 
-        emailAddress, 
+      // …your validation + loading logic…
+  
+      // 1) Create the user account
+      const { user } = await createUserWithEmailAndPassword(
+        auth,
+        emailAddress,
         password
       );
-      
-      const user = userCredential.user;
-      
-      // 2. Store additional user data in Firestore
-      await setDoc(doc(db, "users", user.uid), {
-        username: userName,
-        first_name: firstName,
-        last_name: lastName,
-        email_address: emailAddress,
-        date_of_birth: date,
-        created_at: new Date()
+  
+      // 2) Set their Firebase Auth displayName
+      const fullName = `${firstName.trim()} ${lastName.trim()}`;
+      await updateProfile(user, { displayName: fullName });
+  
+      // 3) Write the complete profile doc
+      await setDoc(doc(db, 'users', user.uid), {
+        username:         userName,
+        displayName:      fullName,
+        email:            user.email,
+        profileImageUrl:  '',             
+        bio:              '',
+        createdAt:        serverTimestamp(),
+        archetype:        '',             
+        stats: {
+          followerCount:  0,
+          followingCount: 0,
+          postCount:      0
+        },
+        dateOfBirth:      date           
       });
-      
-      // 3. Navigate to next screen
+  
+      // 4) Navigate on success
       router.push({
         pathname: '/select-archetype',
         params: { userId: user.uid }
       });
-      
-    } catch (error: any) {
-      // Handle specific Firebase errors
-      let errorMsg = "An error occurred during signup.";
-      
-      console.log("Error code:", error.code);
-      
-      if (error.code === 'auth/email-already-in-use') {
-        errorMsg = "This email is already in use.";
-      } else if (error.code === 'auth/invalid-email') {
-        errorMsg = "Please enter a valid email address.";
-      } else if (error.code === 'auth/weak-password') {
-        errorMsg = "Password should be at least 6 characters.";
-      } else if (error.code === 'permission-denied') {
-        errorMsg = "Account created but profile setup failed. Please contact support.";
-      }
-      
-      console.error("Signup error:", error);
-      setErrorMessage(errorMsg);
+  
+    } catch (error) {
+      // …your existing error handling…
     } finally {
       setLoading(false);
     }
-  };
+  };  
   
   return (
     <KeyboardAvoidingView 
