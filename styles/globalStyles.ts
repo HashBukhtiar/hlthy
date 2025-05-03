@@ -34,8 +34,7 @@ const globalStyles = StyleSheet.create({
   bottomButtonContainer: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    marginBottom: 0,
-    borderTopColor: 'red',
+    borderTopColor: '#666',
     borderWidth: 1,
     position: 'absolute',
     bottom: 20,
@@ -43,7 +42,8 @@ const globalStyles = StyleSheet.create({
     right: 0,
     backgroundColor: 'black',
     paddingVertical: 10,
-    height: BOTTOM_BAR_HEIGHT
+    height: BOTTOM_BAR_HEIGHT,
+    zIndex: 1000
   },
   button: {
     padding: 10,
@@ -76,7 +76,7 @@ const globalStyles = StyleSheet.create({
     marginTop: 10
   },
   contentContainer: {
-    paddingBottom: BOTTOM_BAR_HEIGHT + 20,
+    paddingBottom: BOTTOM_BAR_HEIGHT + 20
   }
 });
 

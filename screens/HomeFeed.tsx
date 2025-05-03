@@ -309,7 +309,7 @@ export default function HomeFeed() {
 
   function renderTopBar() {
     return (
-      <View style={[styles.topBar, { marginTop: insets.top }]}>
+      <View style={styles.topBar}>
         <View style={styles.logoContainer}>
           <Image source={require('@/assets/images/logo-dark.png')} style={styles.icon} />
           <Text style={globalStyles.title}>hlthy</Text>
@@ -463,7 +463,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#333',
     backgroundColor: 'black',
-    position: 'relative', // Add this to position the indicator
+    position: 'relative',
   },
   tabButton: {
     flex: 1,
@@ -490,6 +490,7 @@ const styles = StyleSheet.create({
   },
   postsContainer: {
     width: '100%',
+    paddingBottom: 70,
   },
   postContainer: {
     marginBottom: 15,
