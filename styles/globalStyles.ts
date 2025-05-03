@@ -1,6 +1,6 @@
-import { StyleSheet } from 'react-native';
+import { StyleSheet, Dimensions } from 'react-native';
 
-const BOTTOM_BAR_HEIGHT = 70;
+export const BOTTOM_BAR_HEIGHT = 60;
 
 const globalStyles = StyleSheet.create({
   container: {
@@ -34,16 +34,17 @@ const globalStyles = StyleSheet.create({
   bottomButtonContainer: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    marginBottom: 0,
-    borderTopColor: 'red',
+    borderTopColor: '#666',
     borderWidth: 1,
     position: 'absolute',
-    bottom: 20,
+    bottom: 0,
     left: 0,
     right: 0,
     backgroundColor: 'black',
-    paddingVertical: 10,
-    height: BOTTOM_BAR_HEIGHT
+    paddingTop: 5,
+    paddingBottom: 10,
+    height: BOTTOM_BAR_HEIGHT,
+    zIndex: 1000
   },
   button: {
     padding: 10,
@@ -55,14 +56,8 @@ const globalStyles = StyleSheet.create({
     color: 'white',
   },
   postButton: {
-    width: 50, 
-    height: 50, 
-    borderRadius: 25, 
-    backgroundColor: 'pink', 
     justifyContent: 'center', 
     alignItems: 'center',
-    paddingBottom: 5,
-    marginTop: 5
   },
   backArrowIcon: {
     width: 30,
@@ -77,7 +72,7 @@ const globalStyles = StyleSheet.create({
   },
   contentContainer: {
     paddingBottom: BOTTOM_BAR_HEIGHT + 20,
-  }
+  } // contentContainer obj still being used ? maybe delete
 });
 
 export default globalStyles;

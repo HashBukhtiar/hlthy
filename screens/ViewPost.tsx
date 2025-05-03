@@ -1,66 +1,58 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, Image, ScrollView, TouchableOpacity, TextInput, Modal } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import globalStyles from '@/styles/globalStyles';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import postsData, { Post, getPostById, Comment } from '@/data/posts';
 
 export default function ViewPost() {
-  const { id } = useLocalSearchParams();
+  const params = useLocalSearchParams();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  
+  // Extract id from params, ensuring it's available as a string
+  const postId = params.id ? String(params.id) : '1'; // Default to '1' if no ID found
+  
+  const [post, setPost] = useState<Post | undefined>(() => {
+    const foundPost = getPostById(postId);
+    console.log('Post ID:', postId);
+    console.log('Found post:', foundPost ? 'yes' : 'no');
+    return foundPost;
+  });
   const [liked, setLiked] = useState(false);
   const [bookmarked, setBookmarked] = useState(false);
-  const [likeCount, setLikeCount] = useState(156);
+  const [likeCount, setLikeCount] = useState(0);
   const [comment, setComment] = useState('');
   const [sortModalVisible, setSortModalVisible] = useState(false);
   const [sortType, setSortType] = useState('Recent');
-  const [comments, setComments] = useState([
-    {
-      id: '1',
-      username: 'fitnessGuru',
-      profilePic: 'https://randomuser.me/api/portraits/men/32.jpg',
-      text: 'Amazing progress! Keep up the great work!',
-      timestamp: '2h ago',
-      likes: 12,
-      liked: false,
-    },
-    {
-      id: '2',
-      username: 'health_junkie',
-      profilePic: 'https://randomuser.me/api/portraits/women/44.jpg',
-      text: 'This is inspiring! What\'s your nutrition plan like? Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
-      timestamp: '3h ago',
-      likes: 8,
-      liked: false,
-    },
-  ]);
+  const [comments, setComments] = useState<Comment[]>([]);
 
-  // Mock post data (would be fetched from API/database in a real app)
-  const post = {
-    id: id,
-    username: 'alex_fitness',
-    fullName: 'Alex Johnson',
-    profilePic: 'https://randomuser.me/api/portraits/men/22.jpg',
-    imageUrl: 'https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
-    caption: 'Just finished my morning workout session! Feeling great and ready to tackle the day. #fitness #health #motivation',
-    timestamp: 'May 1, 2025',
-    location: 'Fitness First Gym',
-    attachedWorkout: {
-      id: '123',
-      title: 'Impossible Leg Day',
-      author: 'John Doe',
-      length: '1h 30min',
-      segments: 2
-    },
-    attachedMilestone: {
-      id: '456',
-      title: '10k Run Personal Best',
-      achievement: 'Ran 10K in under 45 minutes',
-      date: 'May 1, 2025',
-      category: 'Running'
+  // Update state when post data is available
+  useEffect(() => {
+    if (post) {
+      setLiked(post.isLiked);
+      setBookmarked(post.isBookmarked);
+      setLikeCount(post.likes);
+      setComments(post.commentsList || []);
     }
-  };
+  }, [post]);
+
+  if (!post) {
+    return (
+      <View style={[styles.container, { paddingTop: insets.top }]}>
+        <View style={styles.notFoundContainer}>
+          <Text style={styles.notFoundText}>Post not found</Text>
+          <TouchableOpacity 
+            style={styles.backButton}
+            onPress={() => router.back()}
+          >
+            <Text style={styles.backButtonText}>Go Back</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
 
   const handleLike = () => {
     if (liked) {
@@ -96,19 +88,15 @@ export default function ViewPost() {
     setSortType(type);
     setSortModalVisible(false);
     
-    // Sort comments based on selected type
     const sortedComments = [...comments];
     switch (type) {
       case 'Recent':
-        // Sort by recent - for demo we'll just reverse the current order
         setComments(sortedComments.reverse());
         break;
       case 'Popular':
-        // Sort by most likes
         setComments(sortedComments.sort((a, b) => b.likes - a.likes));
         break;
       case 'Relevant':
-        // For demo purposes, just randomize the order to simulate relevance
         setComments(sortedComments.sort(() => Math.random() - 0.5));
         break;
       default:
@@ -127,7 +115,6 @@ export default function ViewPost() {
   const handleCommentLike = (commentId: string) => {
     setComments(comments.map(item => {
       if (item.id === commentId) {
-        // Toggle liked state and update count
         const newLikedState = !item.liked;
         return {
           ...item,
@@ -145,7 +132,6 @@ export default function ViewPost() {
         showsVerticalScrollIndicator={false}
         style={styles.scrollView}
       >
-        {/* Header with user info */}
         <View style={styles.header}>
           <View style={styles.userInfoContainer}>
             <Image source={{ uri: post.profilePic }} style={styles.profilePic} />
@@ -159,10 +145,8 @@ export default function ViewPost() {
           </TouchableOpacity>
         </View>
 
-        {/* Post Image */}
         <Image source={{ uri: post.imageUrl }} style={styles.postImage} />
 
-        {/* Action Buttons */}
         <View style={styles.actionButtons}>
           <View style={styles.leftActions}>
             <TouchableOpacity style={styles.actionButton} onPress={handleLike}>
@@ -188,22 +172,18 @@ export default function ViewPost() {
           </TouchableOpacity>
         </View>
 
-        {/* Likes */}
         <Text style={styles.likes}>{likeCount} likes</Text>
 
-        {/* Caption */}
         <View style={styles.captionContainer}>
           <Text style={styles.caption}>{post.caption}</Text>
         </View>
 
-        {/* Posted Date */}
         <Text style={styles.timestamp}>{post.timestamp}</Text>
 
-        {/* Attached Milestone (if exists) */}
         {post.attachedMilestone && (
           <TouchableOpacity 
             style={styles.attachedMilestoneContainer}
-            onPress={() => navigateToMilestone(post.attachedMilestone.id)}
+            onPress={() => navigateToMilestone(post.attachedMilestone!.id)}
           >
             <View style={styles.attachedMilestoneContent}>
               <View style={styles.attachedMilestoneInfo}>
@@ -222,11 +202,10 @@ export default function ViewPost() {
           </TouchableOpacity>
         )}
 
-        {/* Attached Workout (if exists) */}
         {post.attachedWorkout && (
           <TouchableOpacity 
             style={styles.attachedWorkoutContainer}
-            onPress={() => navigateToWorkout(post.attachedWorkout.id)}
+            onPress={() => navigateToWorkout(post.attachedWorkout!.id)}
           >
             <View style={styles.attachedWorkoutContent}>
               <View style={styles.attachedWorkoutInfo}>
@@ -245,7 +224,6 @@ export default function ViewPost() {
           </TouchableOpacity>
         )}
 
-        {/* Comments Section */}
         <View style={styles.commentsSection}>
           <View style={styles.commentsHeaderContainer}>
             <View style={styles.commentsHeaderLeft}>
@@ -296,7 +274,6 @@ export default function ViewPost() {
         </View>
       </ScrollView>
 
-      {/* Comment Input */}
       <View style={[styles.commentInputContainer, { paddingBottom: Math.max(insets.bottom, 10) }]}>
         <Image 
           source={{ uri: 'https://randomuser.me/api/portraits/men/1.jpg' }} 
@@ -320,7 +297,6 @@ export default function ViewPost() {
         </TouchableOpacity>
       </View>
 
-      {/* Sort Modal */}
       <Modal
         animationType="slide"
         transparent={true}
@@ -687,5 +663,26 @@ const styles = StyleSheet.create({
   selectedSortOptionText: {
     color: '#0A84FF',
     fontWeight: '500',
+  },
+  notFoundContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  notFoundText: {
+    color: 'white',
+    fontSize: 18,
+    marginBottom: 20,
+  },
+  backButton: {
+    backgroundColor: '#333',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+  },
+  backButtonText: {
+    color: 'white',
+    fontWeight: '600',
   },
 });

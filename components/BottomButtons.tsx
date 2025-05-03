@@ -1,81 +1,190 @@
-import React from 'react';
-import { View, TouchableOpacity, Image, Text, StyleSheet } from 'react-native';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
+import { View, TouchableOpacity, StyleSheet, Animated, Dimensions } from 'react-native';
 import { useRouter, usePathname } from 'expo-router';
-import globalStyles from '@/styles/globalStyles';
-import { 
-  homeIcon, 
-  workoutsIcon, 
-  profileIcon,
-  AIIcon,
-} from '@/assets/images';
+import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import globalStyles, { BOTTOM_BAR_HEIGHT } from '@/styles/globalStyles';
 
-export default function BottomButtons() {
+function BottomButtons() {
   const router = useRouter();
   const pathname = usePathname();
+  const insets = useSafeAreaInsets();
+  const { width } = Dimensions.get('window');
+  
+  // Create animated value for the slider indicator
+  const indicatorPosition = useRef(new Animated.Value(0)).current;
+  const buttonWidth = width / 5;
+  
+  // Keep track of current position
+  const [currentPosition, setCurrentPosition] = useState(0);
+
+  // Update the indicator position based on the current route
+  useEffect(() => {
+    let position = 0;
+    
+    if (pathname === '/' || pathname.includes('/(tabs)')) {
+      position = 0; // Home
+    } else if (pathname.includes('/ai')) {
+      position = 1; // AI
+    } else if (pathname.includes('/post')) {
+      position = 2; // Post
+    } else if (pathname.includes('/workouts') || pathname.includes('/view-workout')) {
+      position = 3; // Workouts
+    } else if (pathname.includes('/profile')) {
+      position = 4; // Profile
+    }
+
+    // Only animate if position changed
+    if (position !== currentPosition) {
+      Animated.spring(indicatorPosition, {
+        toValue: position * buttonWidth,
+        useNativeDriver: true,
+        tension: 100,
+        friction: 10
+      }).start();
+      setCurrentPosition(position);
+    }
+  }, [pathname, buttonWidth, currentPosition]);
+
+  // Helper to determine if a route is active
+  const isActive = useCallback((route: string) => {
+    if (route === 'home' && (pathname === '/' || pathname.includes('/(tabs)') || pathname.includes('/pulse') || pathname.includes('/explore') || pathname.includes('/view-milestone'))) return true;
+    if (route === 'ai' && pathname.includes('/ai')) return true;
+    if (route === 'post' && pathname.includes('/post')) return true;
+    if (route === 'workouts' && (pathname.includes('/workouts') || pathname.includes('/view-workout'))) return true;
+    if (route === 'profile' && pathname.includes('/profile')) return true;
+    return false;
+  }, [pathname]);
+
+  // Navigation handlers with useCallback to prevent re-renders
+  const navigateHome = useCallback(() => {
+    router.push('/');
+  }, [router]);
+
+  const navigateAI = useCallback(() => {
+    router.push('/ai');
+  }, [router]);
+
+  const navigatePost = useCallback(() => {
+    router.push('/post');
+  }, [router]);
+
+  const navigateWorkouts = useCallback(() => {
+    router.push('/workouts');
+  }, [router]);
+
+  const navigateProfile = useCallback(() => {
+    router.push('/profile');
+  }, [router]);
 
   return (
-    <View style={[globalStyles.bottomButtonContainer, {backgroundColor: 'black'}]}>
+    <View 
+      style={[
+        styles.bottomBar, 
+        { 
+          paddingBottom: Math.max(insets.bottom, 10),
+          height: BOTTOM_BAR_HEIGHT + insets.bottom
+        }
+      ]}
+    >
+      {/* Animated slider indicator */}
+      <Animated.View 
+        style={[
+          styles.sliderIndicator,
+          { transform: [{ translateX: indicatorPosition }] }
+        ]}
+      />
+
       <TouchableOpacity 
-        style={globalStyles.button} 
-        onPress={() => {
-          console.log("HomeFeed pressed"); 
-          router.push('/');
-        }}
+        style={styles.navButton} 
+        onPress={navigateHome}
+        activeOpacity={0.7}
       >
-        <Image source={homeIcon} style={styles.buttonIcon} />
+        <Ionicons 
+          name="home" 
+          size={28} 
+          color={isActive('home') ? "white" : "grey"} 
+        />
       </TouchableOpacity>
       
       <TouchableOpacity 
-        style={globalStyles.button} 
-        onPress={() => {
-          console.log("AI pressed");
-          router.push('/ai');
-        }}
+        style={styles.navButton} 
+        onPress={navigateAI}
+        activeOpacity={0.7}
       >
-        <Image source={AIIcon} style={styles.buttonIcon} />
+        <Ionicons 
+          name="chatbubbles" 
+          size={28} 
+          color={isActive('ai') ? "white" : "grey"} 
+        />
       </TouchableOpacity>
       
       <TouchableOpacity 
-        onPress={() => {
-          console.log("POST menu pressed");
-          router.push('/post');
-        }}
-        style={globalStyles.postButton}
+        onPress={navigatePost}
+        style={styles.navButton}
+        activeOpacity={0.7}
       >
-        <Text style={styles.plusText}>+</Text>
+        <Ionicons 
+          name="add-circle" 
+          size={40} 
+          color={isActive('post') ? "white" : "grey"} 
+        />
       </TouchableOpacity>
       
       <TouchableOpacity 
-        style={globalStyles.button} 
-        onPress={() => {
-          console.log("Workouts pressed");
-          router.push('/workouts');
-        }}
+        style={styles.navButton} 
+        onPress={navigateWorkouts}
+        activeOpacity={0.7}
       >
-        <Image source={workoutsIcon} style={styles.buttonIcon} />
+        <Ionicons 
+          name="flame" 
+          size={28} 
+          color={isActive('workouts') ? "white" : "grey"} 
+        />
       </TouchableOpacity>
       
       <TouchableOpacity 
-        style={globalStyles.button} 
-        onPress={() => {
-          console.log("Profile pressed");
-          router.push('/profile');
-        }}
+        style={styles.navButton} 
+        onPress={navigateProfile}
+        activeOpacity={0.7}
       >
-        <Image source={profileIcon} style={styles.buttonIcon} />
+        <Ionicons 
+          name="person" 
+          size={28} 
+          color={isActive('profile') ? "white" : "grey"} 
+        />
       </TouchableOpacity>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  buttonIcon: {
-    width: 35, 
-    height: 35, 
-    borderRadius: 5
+  bottomBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    borderTopColor: '#333',
+    borderTopWidth: 1,
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'black',
+    paddingTop: 5,
+    zIndex: 1000
   },
-  plusText: {
-    color: 'white', 
-    fontSize: 35
-  }
+  navButton: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  sliderIndicator: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: Dimensions.get('window').width / 5,
+    height: 2,
+    backgroundColor: 'white',
+  },
 });
+
+export default React.memo(BottomButtons);
