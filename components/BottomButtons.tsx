@@ -1,20 +1,32 @@
 import React from 'react';
 import { View, TouchableOpacity, Image, Text, StyleSheet } from 'react-native';
 import { useRouter, usePathname } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import globalStyles from '@/styles/globalStyles';
-import { 
-  homeIcon, 
-  workoutsIcon, 
-  profileIcon,
-  AIIcon,
+import {
+//   homeIcon,
+//   aiIcon,
+  workoutsIcon,
+//   profileIcon,
 } from '@/assets/images';
 
 export default function BottomButtons() {
   const router = useRouter();
   const pathname = usePathname();
+  const insets = useSafeAreaInsets();
 
   return (
-    <View style={[globalStyles.bottomButtonContainer, {backgroundColor: 'black'}]}>
+    <View 
+      style={[
+        globalStyles.bottomButtonContainer, 
+        { 
+          backgroundColor: 'black',
+          paddingBottom: Math.max(insets.bottom, 10),
+          height: globalStyles.bottomButtonContainer.height + insets.bottom
+        }
+      ]}
+    >
       <TouchableOpacity 
         style={globalStyles.button} 
         onPress={() => {
@@ -22,7 +34,7 @@ export default function BottomButtons() {
           router.push('/');
         }}
       >
-        <Image source={homeIcon} style={styles.buttonIcon} />
+        <Ionicons name="home" size={28} color="white" />
       </TouchableOpacity>
       
       <TouchableOpacity 
@@ -32,7 +44,7 @@ export default function BottomButtons() {
           router.push('/ai');
         }}
       >
-        <Image source={AIIcon} style={styles.buttonIcon} />
+        <Ionicons name="chatbubbles" size={28} color="white" />
       </TouchableOpacity>
       
       <TouchableOpacity 
@@ -42,7 +54,8 @@ export default function BottomButtons() {
         }}
         style={globalStyles.postButton}
       >
-        <Text style={styles.plusText}>+</Text>
+        {/* <Ionicons name="add-circle" size={50} color="#ff2d55" /> */}
+        <Ionicons name="add-circle" size={40} color="white" />
       </TouchableOpacity>
       
       <TouchableOpacity 
@@ -52,7 +65,9 @@ export default function BottomButtons() {
           router.push('/workouts');
         }}
       >
-        <Image source={workoutsIcon} style={styles.buttonIcon} />
+        {/* make workout icon colour white */}
+        {/* <Image source={workoutsIcon} style={{ width: 28, height: 28, tintColor: 'white' }} /> */}
+        <Ionicons name="flame" size={28} color="white" />
       </TouchableOpacity>
       
       <TouchableOpacity 
@@ -62,18 +77,13 @@ export default function BottomButtons() {
           router.push('/profile');
         }}
       >
-        <Image source={profileIcon} style={styles.buttonIcon} />
+        <Ionicons name="person" size={28} color="white" />
       </TouchableOpacity>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  buttonIcon: {
-    width: 35, 
-    height: 35, 
-    borderRadius: 5
-  },
   plusText: {
     color: 'white', 
     fontSize: 35
