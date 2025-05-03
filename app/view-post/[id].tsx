@@ -1,18 +1,33 @@
 import React from 'react';
-import { StyleSheet, SafeAreaView } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import ViewPost from '@/screens/ViewPost';
+import { Stack } from 'expo-router';
 
 export default function ViewPostScreen() {
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
+      <Stack.Screen 
+        options={{
+          title: 'Post',
+          headerShadowVisible: false,
+          headerBackTitle: '',
+          headerTintColor: '#FFF',
+          headerStyle: {
+            backgroundColor: '#000',
+          },
+          headerTitleStyle: {
+            color: '#FFF',
+          },
+        }}
+      />
       <ViewPost />
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: 'black',
+    backgroundColor: '#000',
   },
 });
