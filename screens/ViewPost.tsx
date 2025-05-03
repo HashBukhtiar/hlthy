@@ -23,6 +23,7 @@ export default function ViewPost() {
       text: 'Amazing progress! Keep up the great work!',
       timestamp: '2h ago',
       likes: 12,
+      liked: false,
     },
     {
       id: '2',
@@ -31,6 +32,7 @@ export default function ViewPost() {
       text: 'This is inspiring! What\'s your nutrition plan like? Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
       timestamp: '3h ago',
       likes: 8,
+      liked: false,
     },
   ]);
 
@@ -83,6 +85,7 @@ export default function ViewPost() {
       text: comment,
       timestamp: 'Just now',
       likes: 0,
+      liked: false,
     };
 
     setComments([newComment, ...comments]);
@@ -119,6 +122,21 @@ export default function ViewPost() {
 
   const navigateToMilestone = (milestoneId: string) => {
     router.push(`/view-milestone/${milestoneId}`);
+  };
+
+  const handleCommentLike = (commentId: string) => {
+    setComments(comments.map(item => {
+      if (item.id === commentId) {
+        // Toggle liked state and update count
+        const newLikedState = !item.liked;
+        return {
+          ...item,
+          liked: newLikedState,
+          likes: newLikedState ? item.likes + 1 : item.likes - 1
+        };
+      }
+      return item;
+    }));
   };
 
   return (
@@ -256,10 +274,22 @@ export default function ViewPost() {
                 </View>
               </View>
               <View style={styles.commentLikeContainer}>
-                <TouchableOpacity style={styles.commentLikeButton}>
-                  <Ionicons name="heart-outline" size={14} color="#999" />
+                <TouchableOpacity 
+                  style={styles.commentLikeButton}
+                  onPress={() => handleCommentLike(comment.id)}
+                >
+                  <Ionicons 
+                    name={comment.liked ? "heart" : "heart-outline"} 
+                    size={14} 
+                    color={comment.liked ? "#FF3B30" : "#999"}
+                  />
                 </TouchableOpacity>
-                <Text style={styles.commentLikeCount}>{comment.likes}</Text>
+                <Text style={[
+                  styles.commentLikeCount,
+                  comment.liked && styles.commentLikedCount
+                ]}>
+                  {comment.likes}
+                </Text>
               </View>
             </View>
           ))}
@@ -569,7 +599,9 @@ const styles = StyleSheet.create({
   commentLikeCount: {
     fontSize: 12,
     color: '#999',
-    marginTop: 2,
+  },
+  commentLikedCount: {
+    color: '#FF3B30',
   },
   commentInputContainer: {
     flexDirection: 'row',
