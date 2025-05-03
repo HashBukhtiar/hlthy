@@ -53,11 +53,12 @@ export default function Login() {
       // Sign in with Firebase Authentication
       await signInWithEmailAndPassword(auth, emailAddress, password);
       
-      // Auth state change will redirect user via the index.tsx router
+      // Navigate to root where index.tsx will handle the redirect
+      router.replace('/');
       
     } catch (error: any) {
       // Handle specific Firebase errors
-      let errorMsg = "An error occurred during login.";
+      let errorMsg = "An error occurred during login, ensure your email and password.";
       
       console.log("Error code:", error.code);
       
