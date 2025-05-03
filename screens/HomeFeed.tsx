@@ -23,6 +23,7 @@ import {
   postImage,
 } from '@/assets/images';
 import MilestonesScene from './MilestonesScene';
+import postsData, { Post } from '@/data/posts';
 
 enum TabType {
   POSTS = 'POSTS',
@@ -32,63 +33,7 @@ enum TabType {
 function PostsScene() {
   const router = useRouter();
   
-  // Mock data for posts
-  const posts = [
-    {
-      id: '1',
-      username: 'alex_fitness',
-      fullName: 'Alex Johnson',
-      profilePic: 'https://randomuser.me/api/portraits/men/22.jpg',
-      imageUrl: 'https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
-      caption: 'Just finished my morning workout session! Feeling great and ready to tackle the day. #fitness #health #motivation',
-      timestamp: '20m ago',
-      location: 'Fitness First Gym',
-      likes: 156,
-      comments: 12,
-      isLiked: false,
-      isBookmarked: false,
-      hasAttachedWorkout: true,
-      workoutTitle: 'Morning HIIT Session',
-      workoutDetails: 'by Alex Johnson • 4 segments • 45min'
-    },
-    {
-      id: '2',
-      username: 'health_junkie',
-      fullName: 'Sarah Williams',
-      profilePic: 'https://randomuser.me/api/portraits/women/44.jpg',
-      imageUrl: 'https://images.unsplash.com/photo-1490645935967-10de6ba17061?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
-      caption: 'Made this protein-packed breakfast bowl to fuel my day! Featuring fresh berries, Greek yogurt, and homemade granola. #healthyeating #breakfast #nutrition',
-      timestamp: '1h ago',
-      location: 'Home Kitchen',
-      likes: 243,
-      comments: 18,
-      isLiked: true,
-      isBookmarked: true,
-      hasAttachedWorkout: false,
-    },
-    {
-      id: '3',
-      username: 'runner_dave',
-      fullName: 'Dave Peterson',
-      profilePic: 'https://randomuser.me/api/portraits/men/32.jpg',
-      imageUrl: 'https://images.unsplash.com/photo-1552674605-db6ffd4facb5?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
-      caption: 'New personal best on my 10K run today! Hard work pays off. #running #personalrecord #fitness',
-      timestamp: '3h ago',
-      location: 'City Park Trail',
-      likes: 189,
-      comments: 24,
-      isLiked: false,
-      isBookmarked: false,
-      hasAttachedWorkout: true,
-      workoutTitle: '10K Morning Run',
-      workoutDetails: 'by Dave Peterson • 1 segment • 45min',
-      hasMilestone: true,
-      milestoneTitle: '10K Run Personal Best',
-      milestoneDetails: 'Ran 10K in under 45 minutes • May 2, 2025',
-    },
-  ];
-
-  const [feedPosts, setFeedPosts] = useState(posts);
+  const [feedPosts, setFeedPosts] = useState<Post[]>(postsData);
   const [newComment, setNewComment] = useState('');
   const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
 
@@ -122,12 +67,12 @@ function PostsScene() {
     }));
   };
 
-  const navigateToWorkout = (postId: string) => {
-    router.push(`/view-workout/${postId}`);
+  const navigateToWorkout = (workoutId: string) => {
+    router.push(`/view-workout/${workoutId}`);
   };
 
-  const navigateToMilestone = (postId: string) => {
-    router.push(`/view-milestone/${postId}`);
+  const navigateToMilestone = (milestoneId: string) => {
+    router.push(`/view-milestone/${milestoneId}`);
   };
 
   const handleCommentPress = (postId: string) => {
@@ -158,7 +103,7 @@ function PostsScene() {
     setActiveCommentId(null);
   };
 
-  const renderPost = ({ item }: { item: any }) => (
+  const renderPost = ({ item }: { item: Post }) => (
     <View style={styles.postContainer}>
       {/* Header with user info */}
       <View style={styles.postHeader}>
@@ -206,7 +151,7 @@ function PostsScene() {
           </TouchableOpacity>
         </View>
         <TouchableOpacity 
-          style={styles.actionButton}
+          style={[styles.actionButton, styles.bookmarkButton]}
           onPress={() => toggleBookmark(item.id)}
         >
           <Ionicons 
@@ -265,20 +210,20 @@ function PostsScene() {
       )}
 
       {/* Attached Milestone (if exists) */}
-      {item.hasMilestone && (
+      {item.attachedMilestone && (
         <TouchableOpacity 
           style={styles.attachedItemContainer}
-          onPress={() => navigateToMilestone(item.id)}
+          onPress={() => item.attachedMilestone && navigateToMilestone(item.attachedMilestone.id)}
         >
           <View style={styles.attachedItemContent}>
             <View style={styles.attachedItemInfo}>
               <Ionicons name="trophy-outline" size={18} color="#FFF" style={styles.attachedItemIcon} />
               <View>
                 <Text style={styles.attachedItemTitle}>
-                  {item.milestoneTitle}
+                  {item.attachedMilestone.title}
                 </Text>
                 <Text style={styles.attachedItemDetails}>
-                  {item.milestoneDetails}
+                  {item.attachedMilestone.details}
                 </Text>
               </View>
             </View>
@@ -288,20 +233,20 @@ function PostsScene() {
       )}
 
       {/* Attached Workout (if exists) */}
-      {item.hasAttachedWorkout && (
+      {item.attachedWorkout && (
         <TouchableOpacity 
           style={styles.attachedItemContainer}
-          onPress={() => navigateToWorkout(item.id)}
+          onPress={() => item.attachedWorkout && navigateToWorkout(item.attachedWorkout.id)}
         >
           <View style={styles.attachedItemContent}>
             <View style={styles.attachedItemInfo}>
               <Ionicons name="barbell-outline" size={18} color="#FFF" style={styles.attachedItemIcon} />
               <View>
                 <Text style={styles.attachedItemTitle}>
-                  {item.workoutTitle}
+                  {item.attachedWorkout.title}
                 </Text>
                 <Text style={styles.attachedItemDetails}>
-                  {item.workoutDetails}
+                  {item.attachedWorkout.details}
                 </Text>
               </View>
             </View>
