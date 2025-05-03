@@ -1,8 +1,8 @@
 import React from 'react';
 import { ScrollView, View, Text, TouchableOpacity, Image, StyleSheet } from 'react-native';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import globalStyles from '@/styles/globalStyles';
 
 interface WorkoutExercise {
@@ -25,8 +25,9 @@ interface WorkoutData {
 }
 
 export default function ViewWorkout() {
-  const navigation = useNavigation();
-  const { workoutId } = useLocalSearchParams<{ workoutId: string }>();
+  const router = useRouter();
+  const params = useLocalSearchParams();
+  const workoutId = params.id as string;
 
   // Mock API result - In a real app, you would fetch this data based on workoutId
   const workoutData: WorkoutData = {
@@ -61,7 +62,7 @@ export default function ViewWorkout() {
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color="white" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>View Workout</Text>
