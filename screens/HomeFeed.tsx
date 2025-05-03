@@ -16,12 +16,12 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import globalStyles from '@/styles/globalStyles';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import {
-  icon, 
-  activityIcon, 
-  exploreIcon,
-  postImage,
-} from '@/assets/images';
+// import {
+//   icon, 
+//   activityIcon, 
+//   exploreIcon,
+//   postImage,
+// } from '@/assets/images';
 import MilestonesScene from './MilestonesScene';
 import postsData, { Post } from '@/data/posts';
 
@@ -315,6 +315,17 @@ export default function HomeFeed() {
           <Text style={globalStyles.title}>hlthy</Text>
         </View>
         <View style={styles.buttonContainer}>
+          {/* Pulse Button */}
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => router.push('/pulse')}
+            style={styles.button}
+          >
+            {/* <Image source={activityIcon} style={styles.buttonIcon} /> */}
+            <Ionicons name="fitness-outline" size={32} color="#FFF" />
+            {/* <Ionicons name="pulse" size={32} color="#FFF" /> */}
+          </TouchableOpacity>
+
           {/* Explore Button */}
           <TouchableOpacity
             activeOpacity={0.7}
@@ -323,16 +334,6 @@ export default function HomeFeed() {
           >
             {/* <Image source={exploreIcon} style={styles.buttonIcon} /> */}
             <Ionicons name="search" size={32} color="#FFF" />
-          </TouchableOpacity>
-
-          {/* Pulse Button */}
-          <TouchableOpacity
-            activeOpacity={0.7}
-            onPress={() => router.push('/pulse')}
-            style={styles.button}
-          >
-            {/* <Image source={activityIcon} style={styles.buttonIcon} /> */}
-            <Ionicons name="pulse" size={32} color="#FFF" />
           </TouchableOpacity>
         </View>
       </View>
