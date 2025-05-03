@@ -321,7 +321,8 @@ export default function HomeFeed() {
             onPress={() => router.push('/explore')}
             style={styles.button}
           >
-            <Image source={exploreIcon} style={styles.buttonIcon} />
+            {/* <Image source={exploreIcon} style={styles.buttonIcon} /> */}
+            <Ionicons name="search" size={32} color="#FFF" />
           </TouchableOpacity>
 
           {/* Pulse Button */}
@@ -330,7 +331,8 @@ export default function HomeFeed() {
             onPress={() => router.push('/pulse')}
             style={styles.button}
           >
-            <Image source={activityIcon} style={styles.buttonIcon} />
+            {/* <Image source={activityIcon} style={styles.buttonIcon} /> */}
+            <Ionicons name="pulse" size={32} color="#FFF" />
           </TouchableOpacity>
         </View>
       </View>
