@@ -1,16 +1,20 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View, Image, ScrollView, TouchableOpacity, TextInput } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+import { StyleSheet, Text, View, Image, ScrollView, TouchableOpacity, TextInput, Modal } from 'react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import globalStyles from '@/styles/globalStyles';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function ViewPost() {
   const { id } = useLocalSearchParams();
+  const router = useRouter();
   const insets = useSafeAreaInsets();
   const [liked, setLiked] = useState(false);
+  const [bookmarked, setBookmarked] = useState(false);
   const [likeCount, setLikeCount] = useState(156);
   const [comment, setComment] = useState('');
+  const [sortModalVisible, setSortModalVisible] = useState(false);
+  const [sortType, setSortType] = useState('Recent');
   const [comments, setComments] = useState([
     {
       id: '1',
@@ -40,6 +44,13 @@ export default function ViewPost() {
     caption: 'Just finished my morning workout session! Feeling great and ready to tackle the day. #fitness #health #motivation',
     timestamp: 'May 1, 2025',
     location: 'Fitness First Gym',
+    attachedWorkout: {
+      id: '123',
+      title: 'Impossible Leg Day',
+      author: 'John Doe',
+      length: '1h 30min',
+      segments: 2
+    }
   };
 
   const handleLike = () => {
@@ -49,6 +60,10 @@ export default function ViewPost() {
       setLikeCount(likeCount + 1);
     }
     setLiked(!liked);
+  };
+
+  const handleBookmark = () => {
+    setBookmarked(!bookmarked);
   };
 
   const addComment = () => {
@@ -65,6 +80,34 @@ export default function ViewPost() {
 
     setComments([newComment, ...comments]);
     setComment('');
+  };
+
+  const handleSort = (type: string) => {
+    setSortType(type);
+    setSortModalVisible(false);
+    
+    // Sort comments based on selected type
+    const sortedComments = [...comments];
+    switch (type) {
+      case 'Recent':
+        // Sort by recent - for demo we'll just reverse the current order
+        setComments(sortedComments.reverse());
+        break;
+      case 'Popular':
+        // Sort by most likes
+        setComments(sortedComments.sort((a, b) => b.likes - a.likes));
+        break;
+      case 'Relevant':
+        // For demo purposes, just randomize the order to simulate relevance
+        setComments(sortedComments.sort(() => Math.random() - 0.5));
+        break;
+      default:
+        break;
+    }
+  };
+
+  const navigateToWorkout = (workoutId) => {
+    router.push(`/view-workout/${workoutId}`);
   };
 
   return (
@@ -107,8 +150,12 @@ export default function ViewPost() {
               <Ionicons name="paper-plane-outline" size={26} color="#FFF" />
             </TouchableOpacity>
           </View>
-          <TouchableOpacity style={styles.actionButton}>
-            <Ionicons name="bookmark-outline" size={26} color="#FFF" />
+          <TouchableOpacity style={styles.actionButton} onPress={handleBookmark}>
+            <Ionicons 
+              name={bookmarked ? "bookmark" : "bookmark-outline"} 
+              size={26} 
+              color="#FFF" 
+            />
           </TouchableOpacity>
         </View>
 
@@ -117,16 +164,50 @@ export default function ViewPost() {
 
         {/* Caption */}
         <View style={styles.captionContainer}>
-          <Text style={styles.captionUsername}>{post.username}</Text>
           <Text style={styles.caption}>{post.caption}</Text>
         </View>
 
         {/* Posted Date */}
         <Text style={styles.timestamp}>{post.timestamp}</Text>
 
+        {/* Attached Workout (if exists) */}
+        {post.attachedWorkout && (
+          <TouchableOpacity 
+            style={styles.attachedWorkoutContainer}
+            onPress={() => navigateToWorkout(post.attachedWorkout.id)}
+          >
+            <View style={styles.attachedWorkoutContent}>
+              <View style={styles.attachedWorkoutInfo}>
+                <Ionicons name="barbell-outline" size={18} color="#FFF" style={styles.workoutIcon} />
+                <View>
+                  <Text style={styles.attachedWorkoutTitle}>
+                    {post.attachedWorkout.title}
+                  </Text>
+                  <Text style={styles.attachedWorkoutDetails}>
+                    by {post.attachedWorkout.author} • {post.attachedWorkout.segments} segments • {post.attachedWorkout.length}
+                  </Text>
+                </View>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#999" />
+            </View>
+          </TouchableOpacity>
+        )}
+
         {/* Comments Section */}
         <View style={styles.commentsSection}>
-          <Text style={styles.commentsHeader}>Comments</Text>
+          <View style={styles.commentsHeaderContainer}>
+            <View style={styles.commentsHeaderLeft}>
+              <Text style={styles.commentsHeader}>Comments</Text>
+              <Text style={styles.commentCount}>{comments.length}</Text>
+            </View>
+            <TouchableOpacity 
+              style={styles.sortButton}
+              onPress={() => setSortModalVisible(true)}
+            >
+              <Text style={styles.sortButtonText}>{sortType}</Text>
+              <Ionicons name="chevron-down" size={14} color="#999" />
+            </TouchableOpacity>
+          </View>
           
           {comments.map(comment => (
             <View key={comment.id} style={styles.commentItem}>
@@ -174,6 +255,44 @@ export default function ViewPost() {
           </Text>
         </TouchableOpacity>
       </View>
+
+      {/* Sort Modal */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={sortModalVisible}
+        onRequestClose={() => setSortModalVisible(false)}
+      >
+        <TouchableOpacity 
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setSortModalVisible(false)}
+        >
+          <View style={styles.modalView}>
+            <Text style={styles.modalTitle}>Sort Comments By</Text>
+            {['Recency', 'Popularity', 'Relevance'].map((type) => (
+              <TouchableOpacity
+                key={type}
+                style={[
+                  styles.sortOption,
+                  sortType === type && styles.selectedSortOption
+                ]}
+                onPress={() => handleSort(type)}
+              >
+                <Text style={[
+                  styles.sortOptionText,
+                  sortType === type && styles.selectedSortOptionText
+                ]}>
+                  {type}
+                </Text>
+                {sortType === type && (
+                  <Ionicons name="checkmark" size={18} color="#0A84FF" />
+                )}
+              </TouchableOpacity>
+            ))}
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
@@ -227,6 +346,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 15,
     paddingVertical: 10,
+    marginRight: -15
   },
   leftActions: {
     flexDirection: 'row',
@@ -245,14 +365,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     marginBottom: 5,
   },
-  captionUsername: {
-    fontWeight: '600',
-    marginRight: 5,
-    color: '#FFF',
-  },
   caption: {
     flex: 1,
     color: '#FFF',
+    marginBottom: 5,
   },
   timestamp: {
     fontSize: 12,
@@ -260,17 +376,79 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     marginBottom: 15,
   },
+  attachedWorkoutContainer: {
+    backgroundColor: '#111',
+    marginHorizontal: 15,
+    marginBottom: 15,
+    borderRadius: 12,
+    overflow: 'hidden',
+    borderColor: '#222',
+    borderWidth: 1,
+    padding: 12,
+  },
+  attachedWorkoutContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  attachedWorkoutInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  workoutIcon: {
+    marginRight: 12,
+    backgroundColor: '#333',
+    padding: 8,
+    borderRadius: 18,
+  },
+  attachedWorkoutTitle: {
+    color: '#FFF',
+    fontWeight: '600',
+    fontSize: 15,
+  },
+  attachedWorkoutDetails: {
+    color: '#999',
+    fontSize: 13,
+    marginTop: 2,
+  },
   commentsSection: {
     paddingHorizontal: 15,
     paddingVertical: 10,
     borderTopColor: '#222',
     borderTopWidth: 1,
   },
+  commentsHeaderContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 18,
+  },
+  commentsHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   commentsHeader: {
     fontWeight: '600',
     fontSize: 16,
-    marginBottom: 18,
     color: '#FFF',
+    marginRight: 8,
+  },
+  commentCount: {
+    fontSize: 16,
+    color: '#999'
+  },
+  sortButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#111',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 15,
+  },
+  sortButtonText: {
+    color: '#999',
+    fontSize: 12,
+    marginRight: 4,
   },
   commentItem: {
     flexDirection: 'row',
@@ -309,10 +487,6 @@ const styles = StyleSheet.create({
     color: '#FFF',
     marginVertical: 4,
   },
-  commentLikes: {
-    fontSize: 12,
-    color: '#999',
-  },
   commentLikeContainer: {
     alignItems: 'center',
     paddingLeft: 5,
@@ -323,7 +497,7 @@ const styles = StyleSheet.create({
     padding: 5,
   },
   commentLikeCount: {
-    fontSize: 10,
+    fontSize: 12,
     color: '#999',
     marginTop: 2,
   },
@@ -366,5 +540,50 @@ const styles = StyleSheet.create({
   },
   disabledButtonText: {
     color: '#666',
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalView: {
+    backgroundColor: '#1C1C1E',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#FFF',
+    marginBottom: 15,
+    textAlign: 'center',
+  },
+  sortOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 15,
+    borderBottomColor: '#333',
+    borderBottomWidth: 1,
+  },
+  selectedSortOption: {
+    backgroundColor: 'rgba(10, 132, 255, 0.1)',
+  },
+  sortOptionText: {
+    color: '#FFF',
+    fontSize: 16,
+  },
+  selectedSortOptionText: {
+    color: '#0A84FF',
+    fontWeight: '500',
   },
 });
