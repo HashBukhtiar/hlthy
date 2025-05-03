@@ -1,6 +1,6 @@
 import { StyleSheet, Dimensions } from 'react-native';
 
-const BOTTOM_BAR_HEIGHT = 60;
+export const BOTTOM_BAR_HEIGHT = 60;
 
 const globalStyles = StyleSheet.create({
   container: {
