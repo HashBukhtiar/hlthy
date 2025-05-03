@@ -7,7 +7,6 @@
     "development": {
       "developmentClient": true,
       "channel": "development",
-      "image": "latest",
       "ios": {
         "simulator": true
       },
@@ -17,7 +16,6 @@
     },
     "preview": {
       "channel": "preview",
-      "image": "stable",
       "ios": {
         "simulator": true
       },
