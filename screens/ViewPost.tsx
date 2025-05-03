@@ -50,6 +50,13 @@ export default function ViewPost() {
       author: 'John Doe',
       length: '1h 30min',
       segments: 2
+    },
+    attachedMilestone: {
+      id: '456',
+      title: '10k Run Personal Best',
+      achievement: 'Ran 10K in under 45 minutes',
+      date: 'May 1, 2025',
+      category: 'Running'
     }
   };
 
@@ -106,8 +113,12 @@ export default function ViewPost() {
     }
   };
 
-  const navigateToWorkout = (workoutId) => {
+  const navigateToWorkout = (workoutId: string) => {
     router.push(`/view-workout/${workoutId}`);
+  };
+
+  const navigateToMilestone = (milestoneId: string) => {
+    router.push(`/view-milestone/${milestoneId}`);
   };
 
   return (
@@ -169,6 +180,29 @@ export default function ViewPost() {
 
         {/* Posted Date */}
         <Text style={styles.timestamp}>{post.timestamp}</Text>
+
+        {/* Attached Milestone (if exists) */}
+        {post.attachedMilestone && (
+          <TouchableOpacity 
+            style={styles.attachedMilestoneContainer}
+            onPress={() => navigateToMilestone(post.attachedMilestone.id)}
+          >
+            <View style={styles.attachedMilestoneContent}>
+              <View style={styles.attachedMilestoneInfo}>
+                <Ionicons name="trophy-outline" size={18} color="#FFF" style={styles.milestoneIcon} />
+                <View>
+                  <Text style={styles.attachedMilestoneTitle}>
+                    {post.attachedMilestone.title}
+                  </Text>
+                  <Text style={styles.attachedMilestoneDetails}>
+                    {post.attachedMilestone.achievement} • {post.attachedMilestone.date}
+                  </Text>
+                </View>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#999" />
+            </View>
+          </TouchableOpacity>
+        )}
 
         {/* Attached Workout (if exists) */}
         {post.attachedWorkout && (
@@ -407,6 +441,42 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   attachedWorkoutDetails: {
+    color: '#999',
+    fontSize: 13,
+    marginTop: 2,
+  },
+  attachedMilestoneContainer: {
+    backgroundColor: '#111',
+    marginHorizontal: 15,
+    marginBottom: 15,
+    borderRadius: 12,
+    overflow: 'hidden',
+    borderColor: '#222',
+    borderWidth: 1,
+    padding: 12,
+  },
+  attachedMilestoneContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  attachedMilestoneInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  milestoneIcon: {
+    marginRight: 12,
+    backgroundColor: '#333',
+    padding: 8,
+    borderRadius: 18,
+  },
+  attachedMilestoneTitle: {
+    color: '#FFF',
+    fontWeight: '600',
+    fontSize: 15,
+  },
+  attachedMilestoneDetails: {
     color: '#999',
     fontSize: 13,
     marginTop: 2,
