@@ -48,7 +48,7 @@ function BottomButtons() {
 
   // Helper to determine if a route is active
   const isActive = useCallback((route: string) => {
-    if (route === 'home' && (pathname === '/' || pathname.includes('/(tabs)') || pathname.includes('/pulse') || pathname.includes('/explore'))) return true;
+    if (route === 'home' && (pathname === '/' || pathname.includes('/(tabs)') || pathname.includes('/pulse') || pathname.includes('/explore') || pathname.includes('/view-milestone'))) return true;
     if (route === 'ai' && pathname.includes('/ai')) return true;
     if (route === 'post' && pathname.includes('/post')) return true;
     if (route === 'workouts' && (pathname.includes('/workouts') || pathname.includes('/view-workout'))) return true;
