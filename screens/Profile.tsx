@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, Image, StyleSheet, Dimensions, FlatList, TouchableOpacity, SafeAreaView, Animated, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, Text, Image, StyleSheet, Dimensions, FlatList, TouchableOpacity, SafeAreaView, Animated, ActivityIndicator, RefreshControl, Modal } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { postImage } from '@/assets/images';
 import { useProfileData } from '@/hooks/useProfileData';
 import { useAuth } from '@/context/AuthContext';
+import { Ionicons } from '@expo/vector-icons';
 
 // Import archetype icons
 const archetypeIcons = {
@@ -12,6 +13,15 @@ const archetypeIcons = {
   'crossfitter': require('@/assets/images/crossfitter.png'),
   'generalist': require('@/assets/images/generalist.png'),
   'powerlifter': require('@/assets/images/powerlifter.png'),
+};
+
+// Archetype descriptions for tooltips. Should we add this to the DB?
+const archetypeDescriptions = {
+  'athlete': 'Balanced all-round athletic performance with focus on endurance and strength.',
+  'bodybuilder': 'Focus on muscle hypertrophy, symmetry, and aesthetic physique development.',
+  'crossfitter': 'High-intensity functional movements combining gymnastics, weightlifting, and cardio.',
+  'generalist': 'Well-rounded fitness approach with balanced strength, cardio, and flexibility goals.',
+  'powerlifter': 'Specialized in maximizing strength in the squat, bench press, and deadlift.',
 };
 
 interface Milestone {
@@ -60,6 +70,9 @@ const Profile = () => {
   const { width: screenWidth } = Dimensions.get('window');
   const tabIndicator = useRef(new Animated.Value(0)).current;
   const tabWidth = screenWidth / 3; // Width of each tab
+  const [tooltipVisible, setTooltipVisible] = useState(false);
+  const [tooltipText, setTooltipText] = useState('');
+
   // Transform scroll position to indicator position
   const indicatorPosition = tabIndicator.interpolate({
     inputRange: [0, screenWidth, screenWidth * 2],
@@ -109,26 +122,6 @@ const Profile = () => {
     else if (index === 2) setActiveTab(TabType.WORKOUTS);
   };
 
-  // Dummy data for posts 
-  /*
-  const postImages = [
-    postImage,
-    postImage,
-    postImage,
-    postImage,
-    postImage,
-    postImage,
-  ];
-
-  // Dummy data for milestones
-  const milestones: Milestone[] = [
-    { id: 1, exercise: 'Bench Press', reps: 10, weight: '100', date: new Date('2024-08-01'), postId: 1 },
-    { id: 2, exercise: 'Squat', reps: 8, weight: '120', date: new Date('2024-08-05'), postId: 2 },
-    { id: 3, exercise: 'Deadlift', reps: 5, weight: '140', date: new Date('2024-08-10'), postId: 3 },
-    { id: 4, exercise: 'Leg Press', reps: 1, weight: '400', date: new Date('2024-09-01'), postId: 4 },
-  ];
-  */
-
   const groupMilestonesByMonth = (milestones: Milestone[]): GroupedMilestones => {
     return milestones.reduce((groups: GroupedMilestones, milestone) => {
       const adjustedDate = new Date(milestone.date);
@@ -171,16 +164,6 @@ const Profile = () => {
   const handleMilestonePress = (postId: number) => {
     console.log(`Milestone clicked, navigating to Milestone ID=${postId}`);
   };
-
-  // Dummy data for workouts
-  /*
-  const workouts: Workout[] = [
-    { id: 1, name: 'Full Body Workout', date: new Date('2024-08-01'), favorites: 10 },
-    { id: 2, name: 'Upper Body Blast', date: new Date('2024-08-05'), favorites: 20 },
-    { id: 3, name: 'Leg Day', date: new Date('2024-08-10'), favorites: 15 },
-    { id: 4, name: 'Cardio Session', date: new Date('2024-09-01'), favorites: 5 },
-  ];
-  */
 
   // Function to handle workout click
   const handleWorkoutPress = (workoutId: number) => {
@@ -469,13 +452,19 @@ const Profile = () => {
         <Text style={styles.profileBio}>{profileData?.bio || 'No bio yet'}</Text>
 
         <View style={styles.statsContainer}>
-          <View style={styles.statItem}>
+          <TouchableOpacity 
+            style={styles.statItem}
+            onPress={() => {
+              setTooltipText(archetypeDescriptions[profileData?.archetype?.toLowerCase() || 'generalist']);
+              setTooltipVisible(true);
+            }}
+          >
             <Image
               source={archetypeIcons[profileData?.archetype?.toLowerCase() || 'generalist']}
               style={styles.archetypeIcon}
             />
             <Text style={styles.statLabel}>Archetype</Text>
-          </View>
+          </TouchableOpacity>
           <TouchableOpacity 
             style={styles.statItem}
             onPress={() => router.push(`/followers/${currentUser.uid}`)}
@@ -492,6 +481,42 @@ const Profile = () => {
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* Tooltip Modal */}
+      <Modal
+        transparent={true}
+        visible={tooltipVisible}
+        animationType="fade"
+        onRequestClose={() => setTooltipVisible(false)}
+      >
+        <TouchableOpacity 
+          style={styles.tooltipContainer} 
+          activeOpacity={1} 
+          onPress={() => setTooltipVisible(false)}
+        >
+          <View style={styles.tooltip}>
+            <View style={styles.tooltipHeader}>
+              <Image
+                source={archetypeIcons[profileData?.archetype?.toLowerCase() || 'generalist']}
+                style={styles.tooltipIcon}
+              />
+              <Text style={styles.tooltipTitle}>
+                {profileData?.archetype?.split(' ').map(word => 
+                  word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+                ).join(' ') || 'Generalist'} {/* title case */}
+              </Text>
+            </View>
+            <View style={styles.tooltipDivider} />
+            <Text style={styles.tooltipText}>{tooltipText}</Text>
+            <TouchableOpacity
+              onPress={() => setTooltipVisible(false)}
+              style={styles.tooltipCloseButton}
+            >
+              <Text style={styles.tooltipButtonText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
 
       {/* Custom Tab Bar */}
       {renderCustomTabBar()}
@@ -708,6 +733,58 @@ const styles = StyleSheet.create({
     width: 18,
     height: 18,
     marginBottom: 5,
+  },
+  tooltipContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+  },
+  tooltip: {
+    backgroundColor: '#333',
+    paddingVertical: 20,
+    paddingHorizontal: 15,
+    borderRadius: 10,
+    alignItems: 'center',
+    maxWidth: '80%',
+  },
+  tooltipHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  tooltipIcon: {
+    width: 30,
+    height: 30,
+    marginRight: 10,
+  },
+  tooltipTitle: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  tooltipDivider: {
+    height: 1,
+    backgroundColor: 'white',
+    width: '100%',
+    marginVertical: 5,
+  },
+  tooltipText: {
+    color: 'white',
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 10,
+  },
+  tooltipCloseButton: {
+    marginTop: 10,
+    backgroundColor: '#555',
+    paddingVertical: 5,
+    paddingHorizontal: 15,
+    borderRadius: 5,
+  },
+  tooltipButtonText: {
+    color: 'white',
+    fontSize: 14,
   },
 });
 
