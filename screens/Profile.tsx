@@ -5,6 +5,15 @@ import { postImage } from '@/assets/images';
 import { useProfileData } from '@/hooks/useProfileData';
 import { useAuth } from '@/context/AuthContext';
 
+// Import archetype icons
+const archetypeIcons = {
+  'athlete': require('@/assets/images/athlete.png'),
+  'bodybuilder': require('@/assets/images/bodybuilder.png'),
+  'crossfitter': require('@/assets/images/crossfitter.png'),
+  'generalist': require('@/assets/images/generalist.png'),
+  'powerlifter': require('@/assets/images/powerlifter.png'),
+};
+
 interface Milestone {
   id: number;
   exercise: string;
@@ -458,19 +467,14 @@ const Profile = () => {
         <Text style={styles.profileName}>{profileData?.displayName || 'User'}</Text>
         <Text style={styles.profileUsername}>@{profileData?.username || 'username'}</Text>
         <Text style={styles.profileBio}>{profileData?.bio || 'No bio yet'}</Text>
-        
-        {/* Archetype Display */}
-        {profileData?.archetype && (
-          <View style={styles.archetypeContainer}>
-            <Text style={styles.archetypeLabel}>Archetype</Text>
-            <Text style={styles.archetypeText}>{profileData.archetype}</Text>
-          </View>
-        )}
-        
+
         <View style={styles.statsContainer}>
           <View style={styles.statItem}>
-            <Text style={styles.statNumber}>{posts.length}</Text>
-            <Text style={styles.statLabel}>Posts</Text>
+            <Image
+              source={archetypeIcons[profileData?.archetype?.toLowerCase() || 'generalist']}
+              style={styles.archetypeIcon}
+            />
+            <Text style={styles.statLabel}>Archetype</Text>
           </View>
           <TouchableOpacity 
             style={styles.statItem}
@@ -699,6 +703,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
     textAlign: 'center',
+  },
+  archetypeIcon: {
+    width: 18,
+    height: 18,
+    marginBottom: 5,
   },
 });
 
