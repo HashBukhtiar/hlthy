@@ -32,7 +32,14 @@ Run the following commands to create a Docker container and build the app image.
 docker build -t gcr.io/hlthy-project-id/hlthy-ai:latest .
 ```
 
-Then, run the Docker container locally. Note that the container is running on port 5000 and the Flask server is on port 5001.
+Note that after running this command locally several times, it could take up a substantial amount of space, so run the following command to free up that used spaced:
+
+```
+docker builder prune -a
+docker build --no-cache -t gcr.io/hlthy-project-id/hlthy-ai:latest .
+```
+
+Once the Docker container is built, test it to by running the locally. Note that the container is running on port 5000 and the Flask server is on port 5001.
 
 ```
 docker run -d -p 5000:5001 --name hlthy-ai-container gcr.io/hlthy-421200/hlthy-ai:latest
@@ -91,3 +98,4 @@ Then run:
 docker build -t gcr.io/PROJECT-ID/hlthy-ai:latest .
 docker push gcr.io/PROJECT-ID/hlthy-ai:latest
 ```
+
