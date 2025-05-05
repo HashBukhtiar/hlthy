@@ -124,14 +124,37 @@ const Profile = () => {
 
   const groupMilestonesByMonth = (milestones: Milestone[]): GroupedMilestones => {
     return milestones.reduce((groups: GroupedMilestones, milestone) => {
-      const adjustedDate = new Date(milestone.date);
-      adjustedDate.setDate(adjustedDate.getDate() + 1);
-      const monthYear = adjustedDate.toLocaleString('default', { month: 'long', year: 'numeric' });
-      if (!groups[monthYear]) {
-        groups[monthYear] = [];
+      // Handle potentially missing date
+      if (!milestone.date) {
+        const unknownGroup = 'Unknown Date';
+        if (!groups[unknownGroup]) {
+          groups[unknownGroup] = [];
+        }
+        groups[unknownGroup].push(milestone);
+        return groups;
       }
-      groups[monthYear].push(milestone);
-  
+      
+      try {
+        // Convert Firebase timestamp to Date if needed
+        const dateObj = milestone.date.toDate ? milestone.date.toDate() : new Date(milestone.date);
+        const adjustedDate = new Date(dateObj);
+        adjustedDate.setDate(adjustedDate.getDate() + 1);
+        const monthYear = adjustedDate.toLocaleString('default', { month: 'long', year: 'numeric' });
+        
+        if (!groups[monthYear]) {
+          groups[monthYear] = [];
+        }
+        groups[monthYear].push(milestone);
+      } catch (error) {
+        console.log("Error processing milestone date:", error);
+        // Add to 'Unknown Date' group if there's an error
+        const unknownGroup = 'Unknown Date';
+        if (!groups[unknownGroup]) {
+          groups[unknownGroup] = [];
+        }
+        groups[unknownGroup].push(milestone);
+      }
+      
       return groups;
     }, {});
   };
@@ -169,8 +192,26 @@ const Profile = () => {
 
   const sortedWorkouts = [...workouts].sort((a, b) => b.date.getTime() - a.date.getTime());
 
-  const formatDate = (date: Date): string => {
-    return date.toLocaleString('default', { month: 'long', day: 'numeric', year: 'numeric' });
+  const formatDate = (date: Date | null | undefined): string => {
+    if (!date) return 'No date';
+    
+    // Check if it's a Firestore timestamp (has toDate method)
+    if (date.toDate && typeof date.toDate === 'function') {
+      try {
+        return date.toDate().toLocaleString('default', { month: 'long', day: 'numeric', year: 'numeric' });
+      } catch (error) {
+        console.log("Error formatting Firestore timestamp:", error);
+        return 'Invalid date';
+      }
+    }
+    
+    // Regular Date object
+    try {
+      return new Date(date).toLocaleString('default', { month: 'long', day: 'numeric', year: 'numeric' });
+    } catch (error) {
+      console.log("Error formatting date:", error);
+      return 'Invalid date';
+    }
   };
 
   if (loading) {
@@ -183,9 +224,23 @@ const Profile = () => {
   
   if (error) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'black' }}>
-        <Text style={{ color: 'white' }}>Error loading profile. Please try again.</Text>
-      </View>
+      <SafeAreaView style={styles.container}>
+        <View style={styles.profileHeader}>
+          <Image
+            source={{ uri: userProfile?.profileImageUrl || 'https://thumbs.dreamstime.com/b/creative-illustration-default-avatar-profile-placeholder-isolated-background-art-design-grey-photo-blank-template-mockup-144855718.jpg' }}
+            style={styles.profileImage}
+          />
+          <Text style={styles.profileName}>{userProfile?.displayName || 'User'}</Text>
+          <Text style={styles.profileBio}>Error loading complete profile data</Text>
+          
+          <TouchableOpacity 
+            style={styles.retryButton} 
+            onPress={onRefresh}
+          >
+            <Text style={styles.retryText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
     );
   }
 
@@ -325,9 +380,36 @@ const Profile = () => {
   
     // Convert Firestore timestamps to Date objects and sort workouts
     const sortedWorkouts = [...workouts].sort((a, b) => {
-      const dateA = a.date instanceof Date ? a.date : new Date(a.date.seconds * 1000);
-      const dateB = b.date instanceof Date ? b.date : new Date(b.date.seconds * 1000);
-      return dateB.getTime() - dateA.getTime();
+      try {
+        // Safely handle a.date being undefined or missing seconds
+        let dateA;
+        if (!a.date) {
+          dateA = new Date(0); // Default to epoch start if no date
+        } else if (a.date instanceof Date) {
+          dateA = a.date;
+        } else if (a.date.seconds) {
+          dateA = new Date(a.date.seconds * 1000);
+        } else {
+          dateA = new Date(a.date);
+        }
+    
+        // Safely handle b.date being undefined or missing seconds
+        let dateB;
+        if (!b.date) {
+          dateB = new Date(0); // Default to epoch start if no date
+        } else if (b.date instanceof Date) {
+          dateB = b.date;
+        } else if (b.date.seconds) {
+          dateB = new Date(b.date.seconds * 1000);
+        } else {
+          dateB = new Date(b.date);
+        }
+    
+        return dateB.getTime() - dateA.getTime();
+      } catch (error) {
+        console.error("Error sorting workout dates:", error, { a, b });
+        return 0; // Keep original order on error
+      }
     });
   
     return (
@@ -335,11 +417,38 @@ const Profile = () => {
         key="workouts-grid"
         data={sortedWorkouts}
         renderItem={({ item }) => {
-          // Ensure the date is properly formatted
-          const workoutDate = item.date instanceof Date 
-            ? item.date 
-            : new Date(item.date.seconds * 1000);
-            
+          // Safely handle the date with comprehensive error checking
+          let formattedDate = "No date available";
+          
+          try {
+            if (item.date) {
+              // Get a proper date object first
+              let workoutDate;
+              
+              if (item.date instanceof Date) {
+                workoutDate = item.date;
+              } else if (item.date.toDate && typeof item.date.toDate === 'function') {
+                // Firestore timestamp
+                workoutDate = item.date.toDate();
+              } else if (item.date.seconds) {
+                // Old Firestore timestamp format
+                workoutDate = new Date(item.date.seconds * 1000);
+              } else {
+                // Try regular conversion
+                workoutDate = new Date(item.date);
+              }
+              
+              formattedDate = workoutDate.toLocaleString('default', { 
+                month: 'long', 
+                day: 'numeric', 
+                year: 'numeric' 
+              });
+            }
+          } catch (error) {
+            console.log("Error formatting workout date:", error, item.date);
+            formattedDate = "Invalid date";
+          }
+              
           return (
             <TouchableOpacity 
               key={item.id} 
@@ -347,10 +456,8 @@ const Profile = () => {
               style={styles.workoutItem}
             >
               <View style={styles.workoutDetail}>
-                <Text style={styles.workoutName}>{item.name}</Text>
-                <Text style={styles.workoutDate}>
-                  {workoutDate.toLocaleString('default', { month: 'long', day: 'numeric', year: 'numeric' })}
-                </Text>
+                <Text style={styles.workoutName}>{item.name || 'Unnamed Workout'}</Text>
+                <Text style={styles.workoutDate}>{formattedDate}</Text>
                 <Text style={styles.workoutFavorites}>
                   {item.favorites || 0} Favorites
                 </Text>

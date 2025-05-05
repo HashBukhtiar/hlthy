@@ -4,7 +4,6 @@ import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "fire
 import { db, storage } from '@/firebaseConfig';
 import { useAuth } from '@/context/AuthContext';
 
-// Post interface matching DBDESIGN.md
 export interface Post {
   id: string;
   authorId: string;
@@ -136,70 +135,38 @@ export function usePostsData() {
   };
 
   // Add a new post
-  const addPost = async (postData: {
-    caption: string,
-    imageUri: string | null,
-    isMilestone: boolean,
-    milestoneDetails?: any,
-    visibility: 'public' | 'followers',
-    workoutId?: string
-  }) => {
+  const addPost = async (postData) => {
     if (!currentUser || !userProfile) {
       throw new Error("User not authenticated");
     }
     
     try {
-      // 1. Upload image to Firebase Storage (if provided)
-      let imageUrl = "";
-      
-      if (postData.imageUri) {
-        const storage = getStorage();
-        const filename = `posts/${currentUser.uid}/${Date.now()}.jpg`;
-        const storageRef = ref(storage, filename);
-        
-        // Fetch the image and convert to blob
-        const response = await fetch(postData.imageUri);
-        const blob = await response.blob();
-        
-        // Upload image
-        await uploadBytes(storageRef, blob);
-        imageUrl = await getDownloadURL(storageRef);
+      // Validate required fields
+      if (!currentUser.uid || !userProfile.username) {
+        throw new Error("Missing user information for post");
       }
       
-      // 2. Create post document in Firestore
+      // Create post document with validated data
       const postRef = await addDoc(collection(db, "posts"), {
         authorId: currentUser.uid,
-        authorUsername: userProfile.username,
+        authorUsername: userProfile.username || "Unknown user",
         authorProfileImageUrl: userProfile.profileImageUrl || "",
-        caption: postData.caption,
-        imageUrl: imageUrl,
+        caption: postData.caption || "",
+        imageUrl: postData.imageUri ? await uploadImage(postData.imageUri) : "",
         createdAt: new Date(),
-        isMilestone: postData.isMilestone,
-        milestoneDetails: postData.isMilestone ? postData.milestoneDetails : null,
+        isMilestone: Boolean(postData.isMilestone),
+        milestoneDetails: postData.milestoneDetails || null,
         reactionCount: 0,
         commentCount: 0,
-        visibility: postData.visibility,
+        visibility: postData.visibility || "public",
         workoutId: postData.workoutId || null
       });
       
-      // 3. Update user's post count
-      await updateDoc(doc(db, "users", currentUser.uid), {
-        "stats.postCount": increment(1)
-      });
-      
-      // 4. Update user's milestone count if applicable
-      if (postData.isMilestone) {
-        await updateDoc(doc(db, "users", currentUser.uid), {
-          "stats.milestoneCount": increment(1)
-        });
-      }
-      
       console.log("Created post with ID:", postRef.id);
-
       return postRef.id;
-    } catch (err) {
-      console.error("Error creating post:", err);
-      throw err;
+    } catch (error) {
+      console.error("Error creating post:", error);
+      throw error;
     }
   };
 
