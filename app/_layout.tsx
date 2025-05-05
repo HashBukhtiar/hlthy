@@ -19,7 +19,8 @@ export default function RootLayout() {
     'signup',
     'select-archetype',
     'landing',
-    'login'
+    'login',
+    'post'
   ];
 
   // Check if we should hide the bottom bar based on current route

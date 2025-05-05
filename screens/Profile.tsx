@@ -25,12 +25,12 @@ const archetypeDescriptions = {
 };
 
 interface Milestone {
-  id: number;
-  exercise: string;
-  reps: number;
-  weight: string;
-  date: Date;
-  postId: number;
+  id: string;
+  postId: string;
+  exercise?: string;
+  reps?: number;
+  weight?: string;
+  date?: any;
 }
 
 interface Workout {
@@ -285,41 +285,57 @@ const Profile = () => {
   
     // Convert Firestore timestamps to Date objects and sort milestones
     const sortedMilestones = [...milestones].sort((a, b) => {
-      const dateA = a.date instanceof Date ? a.date : new Date(a.date.seconds * 1000);
-      const dateB = b.date instanceof Date ? b.date : new Date(b.date.seconds * 1000);
+      let dateA = a.date;
+      let dateB = b.date;
+  
+      if (dateA && typeof dateA === 'object' && dateA.seconds) {
+        dateA = new Date(dateA.seconds * 1000);
+      } else if (dateA) {
+        dateA = new Date(dateA);
+      } else {
+        dateA = null;
+      }
+  
+      if (dateB && typeof dateB === 'object' && dateB.seconds) {
+        dateB = new Date(dateB.seconds * 1000);
+      } else if (dateB) {
+        dateB = new Date(dateB);
+      } else {
+        dateB = null;
+      }
+  
+      if (!dateA && !dateB) return 0;
+      if (!dateA) return 1;
+      if (!dateB) return -1;
+  
       return dateB.getTime() - dateA.getTime();
     });
   
     // Group milestones by month
     const groupedMilestones = sortedMilestones.reduce((groups, milestone) => {
-      const date = milestone.date instanceof Date 
-        ? milestone.date 
-        : new Date(milestone.date.seconds * 1000);
-      
+      let date = milestone.date;
+  
+      if (date && typeof date === 'object' && date.seconds) {
+        date = new Date(date.seconds * 1000);
+      } else if (date) {
+        date = new Date(date);
+      } else {
+        return groups; // Skip if no valid date
+      }
+  
       const monthYear = date.toLocaleString('default', { month: 'long', year: 'numeric' });
-      
+  
       if (!groups[monthYear]) {
         groups[monthYear] = [];
       }
       groups[monthYear].push(milestone);
       return groups;
     }, {});
-    
-    const monthKeys = Object.keys(groupedMilestones).sort((a, b) => 
-      new Date(b).getTime() - new Date(a).getTime()
-    );
-  
-    useFocusEffect(
-      React.useCallback(() => {
-        const refresh = async () => {
-          await refreshUserProfile();
-          await refreshProfileData();
-        };
-        
-        refresh();
-      }, [])
-    );
 
+    console.log("Grouped Milestones:", groupedMilestones);
+  
+    const monthKeys = Object.keys(groupedMilestones).sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
+  
     return (
       <FlatList
         key="milestones-list"
@@ -328,20 +344,20 @@ const Profile = () => {
           <View>
             <Text style={styles.monthHeader}>{month}</Text>
             {groupedMilestones[month].map((item) => (
-              <TouchableOpacity 
-                key={item.id} 
+              <TouchableOpacity
+                key={item.id}
                 onPress={() => handleMilestonePress(item.postId)}
                 style={styles.milestoneItem}
               >
                 <View style={styles.milestoneDetail}>
-                  <Text style={styles.milestoneExercise}>{item.exercise}</Text>
+                  <Text style={styles.milestoneExercise}>{item.exercise || 'No Exercise'}</Text>
                 </View>
                 <View style={styles.milestoneDetail}>
-                  <Text style={styles.milestoneNumber}>{item.reps}</Text>
+                  <Text style={styles.milestoneNumber}>{item.reps || 0}</Text>
                   <Text style={styles.milestoneDescriptor}>Reps</Text>
                 </View>
                 <View style={styles.milestoneDetail}>
-                  <Text style={styles.milestoneNumber}>{item.weight}</Text>
+                  <Text style={styles.milestoneNumber}>{item.weight || '0'}</Text>
                   <Text style={styles.milestoneDescriptor}>Weight</Text>
                 </View>
               </TouchableOpacity>

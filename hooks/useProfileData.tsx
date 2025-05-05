@@ -77,7 +77,7 @@ export function useProfileData(userId = null) {
           .filter(post => post.isMilestone && post.milestoneDetails)
           .map(post => {
             // Format milestone data for UI
-            let milestone = {
+            let milestone: Milestone = { // Explicit type annotation
               id: post.id,
               postId: post.id,
               date: post.createdAt,
@@ -85,7 +85,7 @@ export function useProfileData(userId = null) {
               reps: 0,
               weight: ''
             };
-            
+
             if (post.milestoneDetails.type === 'PR') {
               milestone.exercise = post.milestoneDetails.exercise || 'Unknown Exercise';
               milestone.reps = post.milestoneDetails.reps || 0;
@@ -94,10 +94,10 @@ export function useProfileData(userId = null) {
               milestone.exercise = post.milestoneDetails.type === 'weightLoss' ? 'Weight Loss' : 'Weight Gain';
               milestone.weight = `${post.milestoneDetails.newWeight || 0} ${post.milestoneDetails.newWeightUnit || ''}`;
             }
-            
+
             return milestone;
           });
-        
+        console.log("User Milestones:", userMilestones);
         console.log(`Extracted ${userMilestones.length} milestones from posts`);
       } catch (milestoneError) {
         console.error("Error processing milestones:", milestoneError);

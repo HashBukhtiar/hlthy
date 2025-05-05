@@ -63,9 +63,16 @@ export function usePostsData() {
         
         // Check if current user has liked this post
         if (currentUser) {
-          const reactionRef = doc.ref.collection('reactions').doc(currentUser.uid);
-          const reactionDoc = await getDoc(reactionRef);
-          post.isLiked = reactionDoc.exists();
+          try {
+            const reactionRef = collection(db, "posts", doc.id, "reactions");
+            const reactionQuery = query(reactionRef, where("__name__", "==", currentUser.uid));
+            const reactionSnapshot = await getDocs(reactionQuery);
+
+            post.isLiked = !reactionSnapshot.empty;
+          } catch (err) {
+            console.log("Error checking reaction status:", err);
+            post.isLiked = false;
+          }
         }
         
         postsData.push(post);
@@ -74,11 +81,12 @@ export function usePostsData() {
       setPosts(postsData);
     } catch (err) {
       console.error("Error fetching posts:", err);
-      setError(err as Error);
+      setError(err);
     } finally {
       setLoading(false);
     }
   };
+
 
   const uploadImage = async (imageUri: string): Promise<string> => {
     try {
