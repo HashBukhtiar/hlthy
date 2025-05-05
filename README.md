@@ -42,7 +42,7 @@ docker build --no-cache -t gcr.io/hlthy-project-id/hlthy-ai:latest .
 Once the Docker container is built, test it to by running the locally. Note that the container is running on port 5000 and the Flask server is on port 5001.
 
 ```
-docker run -d -p 5000:5001 --name hlthy-ai-container gcr.io/hlthy-421200/hlthy-ai:latest
+docker run -d -p 5000:5001 --name hlthy-ai-container gcr.io/hlthy-project-id/hlthy-ai:latest
 ```
 
 To specifically test AI functionality, ensure that you have installed, set up, and logged into `gcloud`. Open a new terminal and run the Flask server. Note that the actual container is now on GCP, and is not practical for local use. See below on how to update the GCP container after a change has been made to the codebase.
@@ -84,12 +84,7 @@ docker rm hlthy-ai-container
 If a change has been made to the codebase, a new docker image will have to be built and pushed to GCP Cloud Run. 
 
 ```
-gcloud run deploy hlthy-ai-service \
-  --image gcr.io/PROJECT-ID/hlthy-ai:latest \
-  --platform managed \
-  --region northamerica-northeast2 \
-  --allow-unauthenticated \
-  --port 5001
+gcloud run deploy hlthy-ai-service --image gcr.io/PROJECT-ID/hlthy-ai:latest --platform managed --region northamerica-northeast2 --allow-unauthenticated --port 5001
 ```
 
 Then run:
@@ -98,4 +93,3 @@ Then run:
 docker build -t gcr.io/PROJECT-ID/hlthy-ai:latest .
 docker push gcr.io/PROJECT-ID/hlthy-ai:latest
 ```
-
