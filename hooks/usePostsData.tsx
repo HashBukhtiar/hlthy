@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { collection, query, orderBy, getDocs, deleteDoc, doc, getDoc, addDoc, updateDoc, increment, where } from 'firebase/firestore';
+import { collection, query, orderBy, getDocs, deleteDoc, doc, getDoc, setDoc, addDoc, updateDoc, increment, where } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import { db, storage } from '@/firebaseConfig';
 import { useAuth } from '@/context/AuthContext';
@@ -116,19 +116,20 @@ export function usePostsData() {
       console.log("Fetching post with ID:", postId);
       const postRef = doc(db, "posts", postId);
       const postDoc = await getDoc(postRef);
-      
+
       if (!postDoc.exists()) {
         console.log("Post does not exist in Firestore");
         throw new Error("Post not found");
       }
-      
+
       console.log("Post found:", postDoc.data());
       const post = { id: postDoc.id, ...postDoc.data() } as Post;
-      
+
       // Check if user has liked this post
       if (currentUser) {
         try {
-          const reactionRef = doc(db, "posts", doc.id, "reactions", currentUser.uid);
+          // Use postId here instead of doc.id
+          const reactionRef = doc(db, "posts", postId, "reactions", currentUser.uid);
           const reactionDoc = await getDoc(reactionRef);
           post.isLiked = reactionDoc.exists();
         } catch (err) {
@@ -136,7 +137,7 @@ export function usePostsData() {
           post.isLiked = false;
         }
       }
-      
+
       return post;
     } catch (err) {
       console.error("Error getting post:", err);
