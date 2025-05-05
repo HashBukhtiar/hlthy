@@ -102,51 +102,94 @@ export default function Settings() {
   };
 
   const pickImage = async () => {
-    // Request permission to access media library
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    
-    if (status !== 'granted') {
-      Alert.alert('Permission Denied', 'We need access to your photos to update your profile picture.');
-      return;
-    }
-    
     try {
-      // Open image picker
+      // Request permission
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      
+      if (status !== 'granted') {
+        Alert.alert('Permission Denied', 'We need access to your photos to update your profile picture.');
+        return;
+      }
+      
+      // Open image picker with base64 support as fallback
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [1, 1],
-        quality: 0.8,
+        quality: 0.4, // Even lower quality
+        base64: true, // Request base64 as fallback
       });
       
-      if (!result.canceled && result.assets && result.assets.length > 0) {
-        setLoading(true);
-        
-        // Get the selected image URI
-        const uri = result.assets[0].uri;
-        
-        // Create reference to storage
-        const storage = getStorage();
-        const filename = `profile-${currentUser.uid}-${Date.now()}`;
-        const storageRef = ref(storage, `profileImages/${currentUser.uid}/${filename}`);
-        
-        // Convert image to blob
+      if (result.canceled || !result.assets || !result.assets.length) {
+        return;
+      }
+      
+      setLoading(true);
+      console.log("Image selected, preparing upload...");
+      
+      // Get image URI and base64
+      const uri = result.assets[0].uri;
+      const base64Data = result.assets[0].base64;
+      
+      // Try simpler path (no user subfolder)
+      const storage = getStorage();
+      const filename = `profile_${Date.now()}.jpg`;
+      const storageRef = ref(storage, `profileImages/${filename}`);
+      
+      console.log(`Uploading to simplified path: profileImages/${filename}`);
+      
+      try {
+        // First attempt with blob
         const response = await fetch(uri);
         const blob = await response.blob();
         
-        // Upload to Firebase Storage
+        console.log("Image size:", Math.round(blob.size/1024), "KB");
+        
+        if (blob.size > 5000000) { // 5MB limit check
+          Alert.alert("Image too large", "Please select a smaller image or use lower quality");
+          setLoading(false);
+          return;
+        }
+        
+        console.log("Attempting blob upload...");
         await uploadBytes(storageRef, blob);
+        console.log("Upload successful!");
         
-        // Get download URL
+        // Get URL
         const downloadURL = await getDownloadURL(storageRef);
+        console.log("Download URL retrieved:", downloadURL);
         
-        // Update state with new image URL
+        // Update state
         setProfileImage(downloadURL);
-        setLoading(false);
+      } catch (blobError) {
+        console.error("Blob upload failed:", blobError);
+        
+        // Try base64 fallback if available
+        if (base64Data) {
+          try {
+            console.log("Trying base64 fallback...");
+            
+            // Create a temporary data URL to display while we handle server update
+            const tempUrl = `data:image/jpeg;base64,${base64Data}`;
+            setProfileImage(tempUrl);
+            
+            Alert.alert(
+              "Image Preview Only",
+              "Image upload to server failed, but we're showing a preview. Please try again later or contact support.",
+              [{ text: "OK" }]
+            );
+          } catch (base64Error) {
+            console.error("Base64 fallback failed:", base64Error);
+            Alert.alert("Upload Failed", "Could not upload image. Please try again later.");
+          }
+        } else {
+          Alert.alert("Upload Failed", "Please check your internet connection and try again.");
+        }
       }
     } catch (error) {
-      console.error("Error picking image:", error);
+      console.error("Error in image picking process:", error);
       Alert.alert("Error", "Failed to update profile picture");
+    } finally {
       setLoading(false);
     }
   };
