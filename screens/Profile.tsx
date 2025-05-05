@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, Image, StyleSheet, Dimensions, FlatList, TouchableOpacity, SafeAreaView, Animated, ActivityIndicator, RefreshControl, Modal } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { postImage } from '@/assets/images';
-import { useProfileData } from '@/hooks/useProfileData';
+import { useProfileData, GroupedMilestones, Milestone } from '@/hooks/useProfileData'; // Import interfaces if needed
 import { useAuth } from '@/context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -24,24 +24,11 @@ const archetypeDescriptions = {
   'powerlifter': 'Specialized in maximizing strength in the squat, bench press, and deadlift.',
 };
 
-interface Milestone {
-  id: string;
-  postId: string;
-  exercise?: string;
-  reps?: number;
-  weight?: string;
-  date?: any;
-}
-
 interface Workout {
   id: number;
   name: string;
   date: Date;
   favorites: number;
-}
-
-interface GroupedMilestones {
-  [monthYear: string]: Milestone[];
 }
 
 enum TabType {
@@ -52,16 +39,16 @@ enum TabType {
 
 const Profile = () => {
   const { currentUser, userProfile, refreshUserProfile } = useAuth();
-  const { 
-    loading, 
-    profileData, 
-    posts, 
-    milestones, 
-    workouts, 
-    followers, 
-    following, 
+  const {
+    loading,
+    profileData,
+    posts,
+    groupedMilestones,
+    workouts,
+    followers,
+    following,
     error,
-    refreshProfileData 
+    refreshProfileData
   } = useProfileData();
   const [refreshing, setRefreshing] = useState(false);
   const router = useRouter();
@@ -69,7 +56,7 @@ const Profile = () => {
   const flatListRef = useRef<FlatList>(null);
   const { width: screenWidth } = Dimensions.get('window');
   const tabIndicator = useRef(new Animated.Value(0)).current;
-  const tabWidth = screenWidth / 3; // Width of each tab
+  const tabWidth = screenWidth / 3;
   const [tooltipVisible, setTooltipVisible] = useState(false);
   const [tooltipText, setTooltipText] = useState('');
 
@@ -177,8 +164,14 @@ const Profile = () => {
   };
 
   // Function to handle milestone click
-  const handleMilestonePress = (postId: number) => {
-    console.log(`Milestone clicked, navigating to Milestone ID=${postId}`);
+  const handleMilestonePress = (postId: string) => {
+    console.log(`Milestone clicked, navigating to Post ID=${postId}`);
+    // Navigate to the post view, not a dedicated milestone view unless you have one
+     router.push({
+       pathname: '/view-post/[id]',
+       params: { id: postId }
+     });
+    router.push(`/view-milestone/${postId}`); // Assuming postId is the relevant ID
   };
 
   // Function to handle workout click
@@ -274,68 +267,32 @@ const Profile = () => {
 
   // Render Milestones Tab Content
   const renderMilestonesContent = () => {
-    // Early return if no milestones
-    if (!milestones || milestones.length === 0) {
+    const monthKeys = Object.keys(groupedMilestones).sort((a, b) => {
+        // Sort month keys chronologically (most recent first)
+        try {
+            // Attempt to parse dates for sorting
+            const dateA = new Date(`01 ${a}`); // e.g., "01 May 2024"
+            const dateB = new Date(`01 ${b}`); // e.g., "01 June 2024"
+            return dateB.getTime() - dateA.getTime();
+        } catch (e) {
+            console.error("Error parsing month keys for sorting:", e);
+            return 0; // Fallback to original order if parsing fails
+        }
+    });
+
+    // Early return if no milestones after grouping
+    if (monthKeys.length === 0) {
       return (
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
           <Text style={{ color: 'gray', textAlign: 'center' }}>No milestones yet. Add a post with a milestone to see it here.</Text>
         </View>
       );
     }
-  
-    // Convert Firestore timestamps to Date objects and sort milestones
-    const sortedMilestones = [...milestones].sort((a, b) => {
-      let dateA = a.date;
-      let dateB = b.date;
-  
-      if (dateA && typeof dateA === 'object' && dateA.seconds) {
-        dateA = new Date(dateA.seconds * 1000);
-      } else if (dateA) {
-        dateA = new Date(dateA);
-      } else {
-        dateA = null;
-      }
-  
-      if (dateB && typeof dateB === 'object' && dateB.seconds) {
-        dateB = new Date(dateB.seconds * 1000);
-      } else if (dateB) {
-        dateB = new Date(dateB);
-      } else {
-        dateB = null;
-      }
-  
-      if (!dateA && !dateB) return 0;
-      if (!dateA) return 1;
-      if (!dateB) return -1;
-  
-      return dateB.getTime() - dateA.getTime();
-    });
-  
-    // Group milestones by month
-    const groupedMilestones = sortedMilestones.reduce((groups, milestone) => {
-      let date = milestone.date;
-  
-      if (date && typeof date === 'object' && date.seconds) {
-        date = new Date(date.seconds * 1000);
-      } else if (date) {
-        date = new Date(date);
-      } else {
-        return groups; // Skip if no valid date
-      }
-  
-      const monthYear = date.toLocaleString('default', { month: 'long', year: 'numeric' });
-  
-      if (!groups[monthYear]) {
-        groups[monthYear] = [];
-      }
-      groups[monthYear].push(milestone);
-      return groups;
-    }, {});
 
-    console.log("Grouped Milestones:", groupedMilestones);
-  
-    const monthKeys = Object.keys(groupedMilestones).sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
-  
+    console.log("Rendering Milestones - Month Keys:", monthKeys);
+    console.log("Rendering Milestones - Grouped Data:", groupedMilestones);
+
+
     return (
       <FlatList
         key="milestones-list"
@@ -345,27 +302,31 @@ const Profile = () => {
             <Text style={styles.monthHeader}>{month}</Text>
             {groupedMilestones[month].map((item) => (
               <TouchableOpacity
-                key={item.id}
-                onPress={() => handleMilestonePress(item.postId)}
+                key={item.id} // Use milestone's unique ID (which is the post ID)
+                onPress={() => handleMilestonePress(item.postId)} // Pass postId (string)
                 style={styles.milestoneItem}
               >
+                {/* Display milestone details */}
                 <View style={styles.milestoneDetail}>
-                  <Text style={styles.milestoneExercise}>{item.exercise || 'No Exercise'}</Text>
+                  <Text style={styles.milestoneExercise}>{item.exercise || 'Milestone'}</Text>
                 </View>
+                {item.reps !== undefined && item.reps > 0 && ( // Conditionally render reps if available
+                   <View style={styles.milestoneDetail}>
+                     <Text style={styles.milestoneNumber}>{item.reps}</Text>
+                     <Text style={styles.milestoneDescriptor}>Reps</Text>
+                   </View>
+                )}
                 <View style={styles.milestoneDetail}>
-                  <Text style={styles.milestoneNumber}>{item.reps || 0}</Text>
-                  <Text style={styles.milestoneDescriptor}>Reps</Text>
-                </View>
-                <View style={styles.milestoneDetail}>
-                  <Text style={styles.milestoneNumber}>{item.weight || '0'}</Text>
-                  <Text style={styles.milestoneDescriptor}>Weight</Text>
+                  <Text style={styles.milestoneNumber}>{item.weight || ''}</Text>
+                  {/* Conditionally render descriptor based on content */}
+                  {item.weight && <Text style={styles.milestoneDescriptor}>Weight</Text>}
                 </View>
               </TouchableOpacity>
             ))}
           </View>
         )}
-        keyExtractor={(item) => item}
-        ListEmptyComponent={
+        keyExtractor={(item) => item} // Key is the month string
+        ListEmptyComponent={ // This might be redundant now with the check above
           <Text style={{ color: 'gray', textAlign: 'center', padding: 30 }}>
             No milestones yet
           </Text>
@@ -653,6 +614,7 @@ const Profile = () => {
             </View>
           )}
           keyExtractor={(item) => item.key}
+          initialScrollIndex={0}
         />
       </View>
     </SafeAreaView>
