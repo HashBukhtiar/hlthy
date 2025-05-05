@@ -143,20 +143,13 @@ const Profile = () => {
   };
 
   // Function to handle image click
-  const handleImagePress = (imageUri: any) => {
-    console.log(`Image clicked`);
+  const handleImagePress = (post: any) => {
+    console.log(`Image clicked - Post ID: ${post.id}`);
+    
+    // Navigate to view post with the actual Firebase document ID
     router.push({
       pathname: '/view-post/[id]',
-      params: {
-        id: '1', // Using a placeholder ID
-        postData: JSON.stringify({
-          image: imageUri,
-          date: new Date().toISOString(),
-          likes: 0,
-          username: 'John Doe',
-          profileImage: 'https://thumbs.dreamstime.com/b/creative-illustration-default-avatar-profile-placeholder-isolated-background-art-design-grey-photo-blank-template-mockup-144855718.jpg'
-        })
-      }
+      params: { id: post.id }
     });
   };
 

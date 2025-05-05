@@ -1,43 +1,180 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, Image, ScrollView, TouchableOpacity, TextInput, Modal } from 'react-native';
+import { StyleSheet, Text, View, Image, ScrollView, TouchableOpacity, TextInput, Modal, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import globalStyles from '@/styles/globalStyles';
-import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import postsData, { Post, getPostById, Comment } from '@/data/posts';
+import { Ionicons } from '@expo/vector-icons';
+import { usePostsData, Post, Comment } from '@/hooks/usePostsData';
+import { useAuth } from '@/context/AuthContext';
 
 export default function ViewPost() {
   const params = useLocalSearchParams();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { currentUser, userProfile } = useAuth();
+  const { getPostById, getPostComments, likePost, unlikePost, addComment } = usePostsData();
   
-  // Extract id from params, ensuring it's available as a string
-  const postId = params.id ? String(params.id) : '1'; // Default to '1' if no ID found
+  // Extract id from params
+  const postId = params.id ? String(params.id) : '';
   
-  const [post, setPost] = useState<Post | undefined>(() => {
-    const foundPost = getPostById(postId);
-    console.log('Post ID:', postId);
-    console.log('Found post:', foundPost ? 'yes' : 'no');
-    return foundPost;
-  });
-  const [liked, setLiked] = useState(false);
-  const [bookmarked, setBookmarked] = useState(false);
-  const [likeCount, setLikeCount] = useState(0);
-  const [comment, setComment] = useState('');
-  const [sortModalVisible, setSortModalVisible] = useState(false);
-  const [sortType, setSortType] = useState('Recent');
+  const [post, setPost] = useState<Post | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
-
-  // Update state when post data is available
+  const [loading, setLoading] = useState(true);
+  const [commentText, setCommentText] = useState('');
+  const [sortModalVisible, setSortModalVisible] = useState(false);
+  const [sortType, setSortType] = useState('Recency');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  
+  // Fetch post and comments
   useEffect(() => {
-    if (post) {
-      setLiked(post.isLiked);
-      setBookmarked(post.isBookmarked);
-      setLikeCount(post.likes);
-      setComments(post.commentsList || []);
-    }
-  }, [post]);
+    const fetchPostData = async () => {
+      if (!postId) {
+        console.error("No post ID provided");
+        setLoading(false);
+        return;
+      }
 
+      console.log("Fetching post with ID:", postId);
+      
+      try {
+        setLoading(true);
+        
+        // Get post data
+        const fetchedPost = await getPostById(postId);
+        setPost(fetchedPost);
+        
+        // Get comments
+        const fetchedComments = await getPostComments(postId);
+        setComments(fetchedComments);
+      } catch (error) {
+        console.error("Error fetching post:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchPostData();
+  }, [postId]);
+  
+  const handleLike = async () => {
+    if (!post || !currentUser) return;
+    
+    try {
+      if (post.isLiked) {
+        await unlikePost(post.id);
+        setPost({...post, isLiked: false, reactionCount: post.reactionCount - 1});
+      } else {
+        await likePost(post.id);
+        setPost({...post, isLiked: true, reactionCount: post.reactionCount + 1});
+      }
+    } catch (error) {
+      console.error("Error toggling like:", error);
+    }
+  };
+  
+  const handleBookmark = async () => {
+    // Implement bookmark functionality with Firebase
+    if (!post || !currentUser) return;
+    
+    try {
+      // For now, just toggle the UI state
+      setPost({...post, isBookmarked: !post.isBookmarked});
+      // TODO: Implement actual bookmark logic with Firebase
+    } catch (error) {
+      console.error("Error toggling bookmark:", error);
+    }
+  };
+  
+  const handleAddComment = async () => {
+    if (!post || !currentUser || !commentText.trim() || isSubmitting) return;
+    
+    try {
+      setIsSubmitting(true);
+      
+      // Add comment to Firebase
+      const newComment = await addComment(post.id, commentText.trim());
+      
+      // Update local state
+      setComments([newComment, ...comments]);
+      setCommentText('');
+      setPost({...post, commentCount: post.commentCount + 1});
+    } catch (error) {
+      console.error("Error adding comment:", error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+  
+  const handleRefresh = async () => {
+    if (!postId) return;
+    
+    try {
+      setRefreshing(true);
+      
+      // Refetch post and comments
+      const refreshedPost = await getPostById(postId);
+      setPost(refreshedPost);
+      
+      const refreshedComments = await getPostComments(postId);
+      setComments(refreshedComments);
+    } catch (error) {
+      console.error("Error refreshing data:", error);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+  
+  const handleCommentLike = async (commentId: string) => {
+    // TODO: Implement comment like functionality with Firebase
+    setComments(comments.map(item => {
+      if (item.id === commentId) {
+        const newLikedState = !item.liked;
+        return {
+          ...item,
+          liked: newLikedState,
+          likes: newLikedState ? item.likes + 1 : item.likes - 1
+        };
+      }
+      return item;
+    }));
+  };
+  
+  const handleSort = (type: string) => {
+    setSortType(type);
+    setSortModalVisible(false);
+    
+    const sortedComments = [...comments];
+    switch (type) {
+      case 'Recency':
+        setComments(sortedComments.sort((a, b) => 
+          b.createdAt?.toDate?.() > a.createdAt?.toDate?.() ? 1 : -1
+        ));
+        break;
+      case 'Popularity':
+        setComments(sortedComments.sort((a, b) => (b.likes || 0) - (a.likes || 0)));
+        break;
+      case 'Relevance':
+        // You might want to implement a more sophisticated relevance algorithm
+        setComments(sortedComments);
+        break;
+      default:
+        break;
+    }
+  };
+  
+  const navigateToWorkout = (workoutId: string) => {
+    router.push(`/view-workout/${workoutId}`);
+  };
+  
+  if (loading) {
+    return (
+      <View style={[styles.container, { paddingTop: insets.top, justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color="#0A84FF" />
+        <Text style={{ color: '#999', marginTop: 20 }}>Loading post...</Text>
+      </View>
+    );
+  }
+  
   if (!post) {
     return (
       <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -53,77 +190,24 @@ export default function ViewPost() {
       </View>
     );
   }
-
-  const handleLike = () => {
-    if (liked) {
-      setLikeCount(likeCount - 1);
-    } else {
-      setLikeCount(likeCount + 1);
-    }
-    setLiked(!liked);
-  };
-
-  const handleBookmark = () => {
-    setBookmarked(!bookmarked);
-  };
-
-  const addComment = () => {
-    if (comment.trim() === '') return;
+  
+  const formatDate = (timestamp) => {
+    if (!timestamp) return 'Just now';
     
-    const newComment = {
-      id: Date.now().toString(),
-      username: 'you',
-      profilePic: 'https://randomuser.me/api/portraits/men/1.jpg',
-      text: comment,
-      timestamp: 'Just now',
-      likes: 0,
-      liked: false,
-    };
-
-    setComments([newComment, ...comments]);
-    setComment('');
-  };
-
-  const handleSort = (type: string) => {
-    setSortType(type);
-    setSortModalVisible(false);
-    
-    const sortedComments = [...comments];
-    switch (type) {
-      case 'Recent':
-        setComments(sortedComments.reverse());
-        break;
-      case 'Popular':
-        setComments(sortedComments.sort((a, b) => b.likes - a.likes));
-        break;
-      case 'Relevant':
-        setComments(sortedComments.sort(() => Math.random() - 0.5));
-        break;
-      default:
-        break;
+    try {
+      const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+      const now = new Date();
+      const diffInSeconds = Math.floor((now - date) / 1000);
+      
+      if (diffInSeconds < 60) return 'Just now';
+      if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
+      if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
+      if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}d ago`;
+      
+      return date.toLocaleDateString();
+    } catch (e) {
+      return 'Unknown date';
     }
-  };
-
-  const navigateToWorkout = (workoutId: string) => {
-    router.push(`/view-workout/${workoutId}`);
-  };
-
-  const navigateToMilestone = (milestoneId: string) => {
-    router.push(`/view-milestone/${milestoneId}`);
-  };
-
-  const handleCommentLike = (commentId: string) => {
-    setComments(comments.map(item => {
-      if (item.id === commentId) {
-        const newLikedState = !item.liked;
-        return {
-          ...item,
-          liked: newLikedState,
-          likes: newLikedState ? item.likes + 1 : item.likes - 1
-        };
-      }
-      return item;
-    }));
   };
 
   return (
@@ -134,10 +218,10 @@ export default function ViewPost() {
       >
         <View style={styles.header}>
           <View style={styles.userInfoContainer}>
-            <Image source={{ uri: post.profilePic }} style={styles.profilePic} />
+            <Image source={{ uri: post.authorProfileImageUrl || 'https://via.placeholder.com/150' }} style={styles.profilePic} />
             <View>
-              <Text style={styles.username}>{post.username}</Text>
-              <Text style={styles.location}>{post.location}</Text>
+              <Text style={styles.username}>{post.authorUsername}</Text>
+              <Text style={styles.location}>{formatDate(post.createdAt)}</Text>
             </View>
           </View>
           <TouchableOpacity style={styles.moreButton}>
@@ -145,15 +229,17 @@ export default function ViewPost() {
           </TouchableOpacity>
         </View>
 
-        <Image source={{ uri: post.imageUrl }} style={styles.postImage} />
+        {post.imageUrl && (
+          <Image source={{ uri: post.imageUrl }} style={styles.postImage} />
+        )}
 
         <View style={styles.actionButtons}>
           <View style={styles.leftActions}>
             <TouchableOpacity style={styles.actionButton} onPress={handleLike}>
               <Ionicons 
-                name={liked ? "heart" : "heart-outline"} 
+                name={post.isLiked ? "heart" : "heart-outline"} 
                 size={28} 
-                color={liked ? "#FF3B30" : "#FFF"} 
+                color={post.isLiked ? "#FF3B30" : "#FFF"} 
               />
             </TouchableOpacity>
             <TouchableOpacity style={styles.actionButton}>
@@ -165,35 +251,38 @@ export default function ViewPost() {
           </View>
           <TouchableOpacity style={styles.actionButton} onPress={handleBookmark}>
             <Ionicons 
-              name={bookmarked ? "bookmark" : "bookmark-outline"} 
+              name={post.isBookmarked ? "bookmark" : "bookmark-outline"} 
               size={26} 
               color="#FFF" 
             />
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.likes}>{likeCount} likes</Text>
+        <Text style={styles.likes}>{post.reactionCount || 0} likes</Text>
 
         <View style={styles.captionContainer}>
           <Text style={styles.caption}>{post.caption}</Text>
         </View>
 
-        <Text style={styles.timestamp}>{post.timestamp}</Text>
+        <Text style={styles.timestamp}>{formatDate(post.createdAt)}</Text>
 
-        {post.attachedMilestone && (
+        {post.isMilestone && post.milestoneDetails && (
           <TouchableOpacity 
             style={styles.attachedMilestoneContainer}
-            onPress={() => navigateToMilestone(post.attachedMilestone!.id)}
           >
             <View style={styles.attachedMilestoneContent}>
               <View style={styles.attachedMilestoneInfo}>
                 <Ionicons name="trophy-outline" size={18} color="#FFF" style={styles.milestoneIcon} />
                 <View>
                   <Text style={styles.attachedMilestoneTitle}>
-                    {post.attachedMilestone.title}
+                    {post.milestoneDetails.type === 'PR' ? 'Personal Record' : 
+                     post.milestoneDetails.type === 'weightLoss' ? 'Weight Loss' : 'Weight Gain'}
                   </Text>
                   <Text style={styles.attachedMilestoneDetails}>
-                    {post.attachedMilestone.achievement} • {post.attachedMilestone.date}
+                    {post.milestoneDetails.type === 'PR' ? 
+                      `${post.milestoneDetails.exercise}: ${post.milestoneDetails.value} ${post.milestoneDetails.weightUnit} × ${post.milestoneDetails.reps} reps` : 
+                      `New weight: ${post.milestoneDetails.newWeight} ${post.milestoneDetails.newWeightUnit}`
+                    }
                   </Text>
                 </View>
               </View>
@@ -202,20 +291,20 @@ export default function ViewPost() {
           </TouchableOpacity>
         )}
 
-        {post.attachedWorkout && (
+        {post.workoutId && (
           <TouchableOpacity 
             style={styles.attachedWorkoutContainer}
-            onPress={() => navigateToWorkout(post.attachedWorkout!.id)}
+            onPress={() => navigateToWorkout(post.workoutId)}
           >
             <View style={styles.attachedWorkoutContent}>
               <View style={styles.attachedWorkoutInfo}>
                 <Ionicons name="barbell-outline" size={18} color="#FFF" style={styles.workoutIcon} />
                 <View>
                   <Text style={styles.attachedWorkoutTitle}>
-                    {post.attachedWorkout.title}
+                    Workout
                   </Text>
                   <Text style={styles.attachedWorkoutDetails}>
-                    by {post.attachedWorkout.author} • {post.attachedWorkout.segments} segments • {post.attachedWorkout.length}
+                    View attached workout details
                   </Text>
                 </View>
               </View>
@@ -228,7 +317,7 @@ export default function ViewPost() {
           <View style={styles.commentsHeaderContainer}>
             <View style={styles.commentsHeaderLeft}>
               <Text style={styles.commentsHeader}>Comments</Text>
-              <Text style={styles.commentCount}>{comments.length}</Text>
+              <Text style={styles.commentCount}>{post.commentCount || 0}</Text>
             </View>
             <TouchableOpacity 
               style={styles.sortButton}
@@ -239,14 +328,20 @@ export default function ViewPost() {
             </TouchableOpacity>
           </View>
           
+          {comments.length === 0 && (
+            <Text style={{ color: '#999', textAlign: 'center', marginTop: 20, marginBottom: 20 }}>
+              No comments yet. Be the first to comment!
+            </Text>
+          )}
+          
           {comments.map(comment => (
             <View key={comment.id} style={styles.commentItem}>
               <View style={styles.commentLeftSection}>
-                <Image source={{ uri: comment.profilePic }} style={styles.commentProfilePic} />
+                <Image source={{ uri: comment.authorProfileImageUrl || 'https://via.placeholder.com/150' }} style={styles.commentProfilePic} />
                 <View style={styles.commentContent}>
                   <View style={styles.commentHeader}>
-                    <Text style={styles.commentUsername}>{comment.username}</Text>
-                    <Text style={styles.commentTimestamp}>{comment.timestamp}</Text>
+                    <Text style={styles.commentUsername}>{comment.authorUsername}</Text>
+                    <Text style={styles.commentTimestamp}>{formatDate(comment.createdAt)}</Text>
                   </View>
                   <Text style={styles.commentText}>{comment.text}</Text>
                 </View>
@@ -266,7 +361,7 @@ export default function ViewPost() {
                   styles.commentLikeCount,
                   comment.liked && styles.commentLikedCount
                 ]}>
-                  {comment.likes}
+                  {comment.likes || 0}
                 </Text>
               </View>
             </View>
@@ -276,24 +371,34 @@ export default function ViewPost() {
 
       <View style={[styles.commentInputContainer, { paddingBottom: Math.max(insets.bottom, 10) }]}>
         <Image 
-          source={{ uri: 'https://randomuser.me/api/portraits/men/1.jpg' }} 
+          source={{ uri: userProfile?.profileImageUrl || 'https://via.placeholder.com/150' }} 
           style={styles.commentInputProfilePic} 
         />
         <TextInput
           style={styles.commentInput}
           placeholder="Add a comment..."
           placeholderTextColor="#666"
-          value={comment}
-          onChangeText={setComment}
+          value={commentText}
+          onChangeText={setCommentText}
         />
         <TouchableOpacity 
-          style={[styles.postButton, comment.trim() === '' && styles.disabledButton]}
-          onPress={addComment}
-          disabled={comment.trim() === ''}
+          style={[
+            styles.postButton, 
+            (commentText.trim() === '' || isSubmitting) && styles.disabledButton
+          ]}
+          onPress={handleAddComment}
+          disabled={commentText.trim() === '' || isSubmitting}
         >
-          <Text style={[styles.postButtonText, comment.trim() === '' && styles.disabledButtonText]}>
-            Post
-          </Text>
+          {isSubmitting ? (
+            <ActivityIndicator size="small" color="#0A84FF" />
+          ) : (
+            <Text style={[
+              styles.postButtonText, 
+              commentText.trim() === '' && styles.disabledButtonText
+            ]}>
+              Post
+            </Text>
+          )}
         </TouchableOpacity>
       </View>
 
