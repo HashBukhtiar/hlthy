@@ -80,6 +80,28 @@ export function usePostsData() {
     }
   };
 
+  const uploadImage = async (imageUri: string): Promise<string> => {
+    try {
+      const filename = `posts/${currentUser.uid}/${Date.now()}.jpg`;
+      const storageRef = ref(storage, filename);
+      
+      // Fetch the image and convert to blob
+      const response = await fetch(imageUri);
+      const blob = await response.blob();
+      
+      // Upload image
+      await uploadBytes(storageRef, blob);
+      
+      // Get download URL
+      const downloadURL = await getDownloadURL(storageRef);
+      
+      return downloadURL;
+    } catch (error) {
+      console.error("Error uploading image:", error);
+      throw error;
+    }
+  };
+
   // Get a specific post by ID
   const getPostById = async (postId: string) => {
     try {
