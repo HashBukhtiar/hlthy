@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, Image, ScrollView, TouchableOpacity, TextInput, Modal, ActivityIndicator } from 'react-native';
+import { StyleSheet, Text, View, Image, ScrollView, TouchableOpacity, TextInput, Modal, ActivityIndicator, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,12 +7,12 @@ import { usePostsData, Post, Comment } from '@/hooks/usePostsData';
 import { useAuth } from '@/context/AuthContext';
 
 export default function ViewPost() {
+  const [menuVisible, setMenuVisible] = useState(false);
   const params = useLocalSearchParams();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { currentUser, userProfile } = useAuth();
-  const { getPostById, getPostComments, likePost, unlikePost, addComment } = usePostsData();
-  
+  const { getPostById, getPostComments, likePost, unlikePost, addComment, deletePost } = usePostsData();  
   // Extract id from params
   const postId = params.id ? String(params.id) : '';
   
@@ -103,6 +103,43 @@ export default function ViewPost() {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleDeletePost = async () => {
+    if (!post || !currentUser) return;
+    
+    Alert.alert(
+      "Delete Post",
+      "Are you sure you want to delete this post? This cannot be undone.",
+      [
+        {
+          text: "Cancel",
+          style: "cancel"
+        },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              setMenuVisible(false);
+              // Show loading
+              setLoading(true);
+              
+              await deletePost(post.id);
+              
+              // Navigate back after successful deletion
+              Alert.alert("Success", "Post deleted successfully", [
+                { text: "OK", onPress: () => router.replace('/') }
+              ]);
+            } catch (error) {
+              console.error("Error deleting post:", error);
+              Alert.alert("Error", "Could not delete post. Please try again.");
+              setLoading(false);
+            }
+          }
+        }
+      ]
+    );
   };
   
   const handleRefresh = async () => {
@@ -224,9 +261,11 @@ export default function ViewPost() {
               <Text style={styles.location}>{formatDate(post.createdAt)}</Text>
             </View>
           </View>
-          <TouchableOpacity style={styles.moreButton}>
-            <Ionicons name="ellipsis-horizontal" size={20} color="#FFF" />
-          </TouchableOpacity>
+          {post.authorId === currentUser?.uid && (
+            <TouchableOpacity style={styles.moreButton} onPress={() => setMenuVisible(true)}>
+              <Ionicons name="ellipsis-horizontal" size={20} color="#FFF" />
+            </TouchableOpacity>
+          )}
         </View>
 
         {post.imageUrl && (
@@ -435,6 +474,36 @@ export default function ViewPost() {
                 )}
               </TouchableOpacity>
             ))}
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      <Modal
+        transparent={true}
+        visible={menuVisible}
+        animationType="fade"
+        onRequestClose={() => setMenuVisible(false)}
+      >
+        <TouchableOpacity 
+          style={styles.modalOverlay} 
+          activeOpacity={1} 
+          onPress={() => setMenuVisible(false)}
+        >
+          <View style={styles.menuModalContent}>
+            <TouchableOpacity 
+              style={styles.menuItem}
+              onPress={handleDeletePost}
+            >
+              <Ionicons name="trash-outline" size={20} color="#FF3B30" />
+              <Text style={[styles.menuItemText, { color: '#FF3B30' }]}>Delete Post</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.menuItem}
+              onPress={() => setMenuVisible(false)}
+            >
+              <Text style={styles.menuItemText}>Cancel</Text>
+            </TouchableOpacity>
           </View>
         </TouchableOpacity>
       </Modal>
@@ -789,5 +858,32 @@ const styles = StyleSheet.create({
   backButtonText: {
     color: 'white',
     fontWeight: '600',
+  },
+  menuModalContent: {
+    position: 'absolute',
+    right: 15,
+    top: 50,
+    backgroundColor: '#1C1C1E',
+    borderRadius: 12,
+    overflow: 'hidden',
+    width: 180,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#333',
+  },
+  menuItemText: {
+    color: '#FFF',
+    fontSize: 16,
+    marginLeft: 12,
   },
 });

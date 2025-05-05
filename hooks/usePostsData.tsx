@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { collection, query, orderBy, getDocs, doc, getDoc, addDoc, updateDoc, increment, where } from 'firebase/firestore';
-import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { collection, query, orderBy, getDocs, deleteDoc, doc, getDoc, addDoc, updateDoc, increment, where } from 'firebase/firestore';
+import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import { db, storage } from '@/firebaseConfig';
 import { useAuth } from '@/context/AuthContext';
 
@@ -203,6 +203,59 @@ export function usePostsData() {
     }
   };
 
+  const deletePost = async (postId: string) => {
+    if (!currentUser) throw new Error("User not authenticated");
+    
+    try {
+      // Get the post to check ownership
+      const postRef = doc(db, "posts", postId);
+      const postSnap = await getDoc(postRef);
+      
+      if (!postSnap.exists()) {
+        throw new Error("Post not found");
+      }
+      
+      const postData = postSnap.data();
+      
+      // Security check: Ensure user owns the post
+      if (postData.authorId !== currentUser.uid) {
+        throw new Error("Not authorized to delete this post");
+      }
+      
+      // 1. Delete post image from storage if it exists
+      if (postData.imageUrl) {
+        const imageRef = ref(storage, postData.imageUrl);
+        await deleteObject(imageRef).catch(err => console.log("Image may not exist:", err));
+      }
+      
+      // 2. Delete all comments in the subcollection
+      const commentsRef = collection(db, "posts", postId, "comments");
+      const commentDocs = await getDocs(commentsRef);
+      
+      const deleteCommentPromises = commentDocs.docs.map(commentDoc => 
+        deleteDoc(doc(db, "posts", postId, "comments", commentDoc.id))
+      );
+      await Promise.all(deleteCommentPromises);
+      
+      // 3. Delete all reactions in the subcollection
+      const reactionsRef = collection(db, "posts", postId, "reactions");
+      const reactionDocs = await getDocs(reactionsRef);
+      
+      const deleteReactionPromises = reactionDocs.docs.map(reactionDoc => 
+        deleteDoc(doc(db, "posts", postId, "reactions", reactionDoc.id))
+      );
+      await Promise.all(deleteReactionPromises);
+      
+      // 4. Finally delete the post document itself
+      await deleteDoc(postRef);
+      
+      return true;
+    } catch (error) {
+      console.error("Error deleting post:", error);
+      throw error;
+    }
+  };
+
   // Add like to a post
   const likePost = async (postId: string) => {
     if (!currentUser) {
@@ -314,6 +367,7 @@ export function usePostsData() {
     addPost,
     likePost,
     unlikePost,
-    addComment
+    addComment,
+    deletePost
   };
 }
