@@ -20,7 +20,7 @@ export interface GroupedMilestones {
 export function useProfileData(userId = null) {
   const { currentUser } = useAuth();
   const profileId = userId || currentUser?.uid;
-  
+
   const [loading, setLoading] = useState(true);
   const [profileData, setProfileData] = useState(null);
   const [posts, setPosts] = useState([]);
@@ -46,10 +46,10 @@ export function useProfileData(userId = null) {
         else if (!dateB) dateB = null;
 
         if (!dateA && !dateB) return 0;
-        if (!dateA) return 1; // Put items without dates last
-        if (!dateB) return -1; // Put items without dates last
+        if (!dateA) return 1;
+        if (!dateB) return -1;
 
-        return dateB.getTime() - dateA.getTime(); // Sort descending
+        return dateB.getTime() - dateA.getTime();
     });
 
     // Group sorted milestones
@@ -60,11 +60,7 @@ export function useProfileData(userId = null) {
         if (date && typeof date === 'object' && date.seconds) date = new Date(date.seconds * 1000);
         else if (date && !(date instanceof Date)) date = new Date(date);
         else if (!date || !(date instanceof Date)) {
-            // Handle milestones without a valid date if necessary, e.g., group under "Unknown Date"
-            // const unknownGroup = 'Unknown Date';
-            // if (!groups[unknownGroup]) groups[unknownGroup] = [];
-            // groups[unknownGroup].push(milestone);
-            return groups; // Or simply skip if no valid date
+            return groups;
         }
 
         try {
@@ -75,24 +71,24 @@ export function useProfileData(userId = null) {
             groups[monthYear].push(milestone);
         } catch (error) {
             console.error("Error formatting month/year for milestone:", error, milestone);
-            // Optionally group under an error category
         }
         return groups;
     }, {});
 };
 
+  // Possibly redundant function, might remove later
   const refreshProfileData = async () => {
     try {
       setLoading(true);
       setError(null);
-      
+
       console.log("Starting profile data refresh for user:", currentUser?.uid);
-      
+
       if (!currentUser) {
         console.error("No current user found");
         throw new Error("User not authenticated");
       }
-      
+
       // Initialize empty data containers for graceful degradation
       let userData = {};
       let userPosts = [];
@@ -100,12 +96,12 @@ export function useProfileData(userId = null) {
       let userWorkouts = [];
       let userFollowers = [];
       let userFollowing = [];
-      
+
       // 1. Fetch basic user profile data
       try {
         const userRef = doc(db, "users", currentUser.uid);
         const userDoc = await getDoc(userRef);
-        
+
         if (userDoc.exists()) {
           userData = userDoc.data();
           console.log("Retrieved basic profile data");
@@ -116,7 +112,7 @@ export function useProfileData(userId = null) {
         console.error("Error fetching user profile:", profileError);
         // Continue with other data
       }
-      
+
       // 2. Fetch user posts with proper error handling
       try {
         const postsQuery = query(
@@ -124,18 +120,17 @@ export function useProfileData(userId = null) {
           where("authorId", "==", currentUser.uid),
           orderBy("createdAt", "desc")
         );
-        
+
         const postSnap = await getDocs(postsQuery);
-        userPosts = postSnap.docs.map(doc => ({ 
-          id: doc.id, 
-          ...doc.data() 
+        userPosts = postSnap.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
         }));
         console.log(`Retrieved ${userPosts.length} user posts`);
       } catch (postsError) {
         console.error("Error fetching posts:", postsError);
-        // Continue with other data
       }
-      
+
       // 3. Extract milestones from posts that have isMilestone flag
       try {
         userMilestones = userPosts
@@ -162,13 +157,13 @@ export function useProfileData(userId = null) {
 
             return milestone;
           });
-        console.log("User Milestones:", userMilestones);
+        console.log("User Milestones (raw):", userMilestones);
         console.log(`Extracted ${userMilestones.length} milestones from posts`);
       } catch (milestoneError) {
         console.error("Error processing milestones:", milestoneError);
         // Continue with other data
       }
-      
+
       // 4. Fetch user workouts
       try {
         const workoutsQuery = query(
@@ -176,20 +171,18 @@ export function useProfileData(userId = null) {
           where("userId", "==", currentUser.uid),
           orderBy("createdAt", "desc")
         );
-        
+
         const workoutSnap = await getDocs(workoutsQuery);
-        userWorkouts = workoutSnap.docs.map(doc => ({ 
+        userWorkouts = workoutSnap.docs.map(doc => ({
           id: doc.id,
           ...doc.data(),
-          // Ensure each workout has a date field
           date: doc.data().date || doc.data().createdAt || new Date()
         }));
         console.log(`Retrieved ${userWorkouts.length} workouts`);
       } catch (workoutsError) {
         console.error("Error fetching workouts:", workoutsError);
-        // Continue with other data
       }
-      
+
       // 5. Fetch followers
       try {
         const followersQuery = query(collection(db, "users", currentUser.uid, "followers"));
@@ -201,9 +194,8 @@ export function useProfileData(userId = null) {
         console.log(`Retrieved ${userFollowers.length} followers`);
       } catch (followersError) {
         console.error("Error fetching followers:", followersError);
-        // Continue with other data
       }
-      
+
       // 6. Fetch following
       try {
         const followingQuery = query(collection(db, "users", currentUser.uid, "following"));
@@ -217,15 +209,19 @@ export function useProfileData(userId = null) {
         console.error("Error fetching following:", followingError);
         // Continue with other data
       }
-      
+
+      // --- Group the extracted milestones ---
+      const finalGroupedMilestones = groupAndSortMilestones(userMilestones);
+      console.log("Final Grouped Milestones (from refresh):", finalGroupedMilestones);
+
       // Update all state variables with fetched data
       setProfileData(userData);
-      setPosts(userPosts); 
-      setMilestones(userMilestones);
+      setPosts(userPosts);
+      setGroupedMilestones(finalGroupedMilestones);
       setWorkouts(userWorkouts);
       setFollowers(userFollowers);
       setFollowing(userFollowing);
-      
+
       console.log("Profile data refresh complete");
     } catch (err) {
       console.error("Error fetching profile data:", err);
@@ -236,6 +232,7 @@ export function useProfileData(userId = null) {
     }
   };
 
+  // This is the primary function called by useEffect
   const fetchProfileData = async () => {
     if (!profileId) {
         setLoading(false);
