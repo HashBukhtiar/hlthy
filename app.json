@@ -24,7 +24,8 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/icon.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "package": "com.derana1.hlthy"
     },
     "web": {
       "bundler": "metro",
@@ -45,6 +46,12 @@
         "projectId": "a1e6a8c1-8e53-4bb2-a30d-bfda93d63c96"
       }
     },
-    "owner": "hlthy"
+    "owner": "hlthy",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/a1e6a8c1-8e53-4bb2-a30d-bfda93d63c96"
+    }
   }
 }
