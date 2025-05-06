@@ -1,26 +1,34 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, Image, StyleSheet, Dimensions, FlatList, TouchableOpacity, SafeAreaView, Animated } from 'react-native';
-import { useRouter } from 'expo-router';
+import { View, Text, Image, StyleSheet, Dimensions, FlatList, TouchableOpacity, SafeAreaView, Animated, ActivityIndicator, RefreshControl, Modal } from 'react-native';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { postImage } from '@/assets/images';
+import { useProfileData, GroupedMilestones, Milestone } from '@/hooks/useProfileData'; // Import interfaces if needed
+import { useAuth } from '@/context/AuthContext';
+import { Ionicons } from '@expo/vector-icons';
 
-interface Milestone {
-  id: number;
-  exercise: string;
-  reps: number;
-  weight: string;
-  date: Date;
-  postId: number;
-}
+// Import archetype icons
+const archetypeIcons = {
+  'athlete': require('@/assets/images/athlete.png'),
+  'bodybuilder': require('@/assets/images/bodybuilder.png'),
+  'crossfitter': require('@/assets/images/crossfitter.png'),
+  'generalist': require('@/assets/images/generalist.png'),
+  'powerlifter': require('@/assets/images/powerlifter.png'),
+};
+
+// Archetype descriptions for tooltips. Should we add this to the DB?
+const archetypeDescriptions = {
+  'athlete': 'Balanced all-round athletic performance with focus on endurance and strength.',
+  'bodybuilder': 'Focus on muscle hypertrophy, symmetry, and aesthetic physique development.',
+  'crossfitter': 'High-intensity functional movements combining gymnastics, weightlifting, and cardio.',
+  'generalist': 'Well-rounded fitness approach with balanced strength, cardio, and flexibility goals.',
+  'powerlifter': 'Specialized in maximizing strength in the squat, bench press, and deadlift.',
+};
 
 interface Workout {
   id: number;
   name: string;
   date: Date;
   favorites: number;
-}
-
-interface GroupedMilestones {
-  [monthYear: string]: Milestone[];
 }
 
 enum TabType {
@@ -30,12 +38,27 @@ enum TabType {
 }
 
 const Profile = () => {
+  const { currentUser, userProfile, refreshUserProfile } = useAuth();
+  const {
+    loading,
+    profileData,
+    posts,
+    groupedMilestones,
+    workouts,
+    followers,
+    following,
+    error,
+    refreshProfileData
+  } = useProfileData();
+  const [refreshing, setRefreshing] = useState(false);
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabType>(TabType.POSTS);
   const flatListRef = useRef<FlatList>(null);
   const { width: screenWidth } = Dimensions.get('window');
   const tabIndicator = useRef(new Animated.Value(0)).current;
-  const tabWidth = screenWidth / 3; // Width of each tab
+  const tabWidth = screenWidth / 3;
+  const [tooltipVisible, setTooltipVisible] = useState(false);
+  const [tooltipText, setTooltipText] = useState('');
 
   // Transform scroll position to indicator position
   const indicatorPosition = tabIndicator.interpolate({
@@ -43,6 +66,18 @@ const Profile = () => {
     outputRange: [0, tabWidth, tabWidth * 2],
     extrapolate: 'clamp'
   });
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await refreshUserProfile();
+      await refreshProfileData();
+    } catch (error) {
+      console.error("Error refreshing profile:", error);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   // Scroll to specific tab when tab button is clicked
   const scrollToTab = (tabType: TabType) => {
@@ -74,34 +109,39 @@ const Profile = () => {
     else if (index === 2) setActiveTab(TabType.WORKOUTS);
   };
 
-  // Dummy data for posts 
-  const postImages = [
-    postImage,
-    postImage,
-    postImage,
-    postImage,
-    postImage,
-    postImage,
-  ];
-
-  // Dummy data for milestones
-  const milestones: Milestone[] = [
-    { id: 1, exercise: 'Bench Press', reps: 10, weight: '100', date: new Date('2024-08-01'), postId: 1 },
-    { id: 2, exercise: 'Squat', reps: 8, weight: '120', date: new Date('2024-08-05'), postId: 2 },
-    { id: 3, exercise: 'Deadlift', reps: 5, weight: '140', date: new Date('2024-08-10'), postId: 3 },
-    { id: 4, exercise: 'Leg Press', reps: 1, weight: '400', date: new Date('2024-09-01'), postId: 4 },
-  ];
-
   const groupMilestonesByMonth = (milestones: Milestone[]): GroupedMilestones => {
     return milestones.reduce((groups: GroupedMilestones, milestone) => {
-      const adjustedDate = new Date(milestone.date);
-      adjustedDate.setDate(adjustedDate.getDate() + 1);
-      const monthYear = adjustedDate.toLocaleString('default', { month: 'long', year: 'numeric' });
-      if (!groups[monthYear]) {
-        groups[monthYear] = [];
+      // Handle potentially missing date
+      if (!milestone.date) {
+        const unknownGroup = 'Unknown Date';
+        if (!groups[unknownGroup]) {
+          groups[unknownGroup] = [];
+        }
+        groups[unknownGroup].push(milestone);
+        return groups;
       }
-      groups[monthYear].push(milestone);
-  
+      
+      try {
+        // Convert Firebase timestamp to Date if needed
+        const dateObj = milestone.date.toDate ? milestone.date.toDate() : new Date(milestone.date);
+        const adjustedDate = new Date(dateObj);
+        adjustedDate.setDate(adjustedDate.getDate() + 1);
+        const monthYear = adjustedDate.toLocaleString('default', { month: 'long', year: 'numeric' });
+        
+        if (!groups[monthYear]) {
+          groups[monthYear] = [];
+        }
+        groups[monthYear].push(milestone);
+      } catch (error) {
+        console.log("Error processing milestone date:", error);
+        // Add to 'Unknown Date' group if there's an error
+        const unknownGroup = 'Unknown Date';
+        if (!groups[unknownGroup]) {
+          groups[unknownGroup] = [];
+        }
+        groups[unknownGroup].push(milestone);
+      }
+      
       return groups;
     }, {});
   };
@@ -113,35 +153,26 @@ const Profile = () => {
   };
 
   // Function to handle image click
-  const handleImagePress = (imageUri: any) => {
-    console.log(`Image clicked`);
+  const handleImagePress = (post: any) => {
+    console.log(`Image clicked - Post ID: ${post.id}`);
+    
+    // Navigate to view post with the actual Firebase document ID
     router.push({
       pathname: '/view-post/[id]',
-      params: {
-        id: '1', // Using a placeholder ID
-        postData: JSON.stringify({
-          image: imageUri,
-          date: new Date().toISOString(),
-          likes: 0,
-          username: 'John Doe',
-          profileImage: 'https://thumbs.dreamstime.com/b/creative-illustration-default-avatar-profile-placeholder-isolated-background-art-design-grey-photo-blank-template-mockup-144855718.jpg'
-        })
-      }
+      params: { id: post.id }
     });
   };
 
   // Function to handle milestone click
-  const handleMilestonePress = (postId: number) => {
-    console.log(`Milestone clicked, navigating to Milestone ID=${postId}`);
+  const handleMilestonePress = (postId: string) => {
+    console.log(`Milestone clicked, navigating to Post ID=${postId}`);
+    // Navigate to the post view, not a dedicated milestone view unless you have one
+     router.push({
+       pathname: '/view-post/[id]',
+       params: { id: postId }
+     });
+    router.push(`/view-milestone/${postId}`); // Assuming postId is the relevant ID
   };
-
-  // Dummy data for workouts
-  const workouts: Workout[] = [
-    { id: 1, name: 'Full Body Workout', date: new Date('2024-08-01'), favorites: 10 },
-    { id: 2, name: 'Upper Body Blast', date: new Date('2024-08-05'), favorites: 20 },
-    { id: 3, name: 'Leg Day', date: new Date('2024-08-10'), favorites: 15 },
-    { id: 4, name: 'Cardio Session', date: new Date('2024-09-01'), favorites: 5 },
-  ];
 
   // Function to handle workout click
   const handleWorkoutPress = (workoutId: number) => {
@@ -154,34 +185,114 @@ const Profile = () => {
 
   const sortedWorkouts = [...workouts].sort((a, b) => b.date.getTime() - a.date.getTime());
 
-  const formatDate = (date: Date): string => {
-    return date.toLocaleString('default', { month: 'long', day: 'numeric', year: 'numeric' });
+  const formatDate = (date: Date | null | undefined): string => {
+    if (!date) return 'No date';
+    
+    // Check if it's a Firestore timestamp (has toDate method)
+    if (date.toDate && typeof date.toDate === 'function') {
+      try {
+        return date.toDate().toLocaleString('default', { month: 'long', day: 'numeric', year: 'numeric' });
+      } catch (error) {
+        console.log("Error formatting Firestore timestamp:", error);
+        return 'Invalid date';
+      }
+    }
+    
+    // Regular Date object
+    try {
+      return new Date(date).toLocaleString('default', { month: 'long', day: 'numeric', year: 'numeric' });
+    } catch (error) {
+      console.log("Error formatting date:", error);
+      return 'Invalid date';
+    }
   };
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'black' }}>
+        <ActivityIndicator size="large" color="white" />
+      </View>
+    );
+  }
+  
+  if (error) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.profileHeader}>
+          <Image
+            source={{ uri: userProfile?.profileImageUrl || 'https://thumbs.dreamstime.com/b/creative-illustration-default-avatar-profile-placeholder-isolated-background-art-design-grey-photo-blank-template-mockup-144855718.jpg' }}
+            style={styles.profileImage}
+          />
+          <Text style={styles.profileName}>{userProfile?.displayName || 'User'}</Text>
+          <Text style={styles.profileBio}>Error loading complete profile data</Text>
+          
+          <TouchableOpacity 
+            style={styles.retryButton} 
+            onPress={onRefresh}
+          >
+            <Text style={styles.retryText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   // Render Posts Tab Content
   const renderPostsContent = () => (
     <FlatList
       key="posts-grid"
-      data={postImages}
+      data={posts}
       renderItem={({ item }) => (
         <TouchableOpacity onPress={() => handleImagePress(item)}>
-          <Image source={item} style={styles.postImage} />
+          <Image source={{ uri: item.imageUrl }} style={styles.postImage} />
         </TouchableOpacity>
       )}
-      keyExtractor={(item, index) => index.toString()}
+      keyExtractor={(item) => item.id}
       numColumns={3}
       contentContainerStyle={styles.postsContainer}
+      ListEmptyComponent={
+        <Text style={{ color: 'gray', textAlign: 'center', padding: 30 }}>No posts yet</Text>
+      }
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          tintColor="#FFFFFF"
+          colors={["#FFFFFF"]}
+          progressBackgroundColor="#212121"
+        />
+      }
     />
   );
 
   // Render Milestones Tab Content
   const renderMilestonesContent = () => {
-    const sortedMilestones = [...milestones].sort((a, b) => b.date.getTime() - a.date.getTime());
-    const groupedMilestones = groupMilestonesByMonth(sortedMilestones);
-    const monthKeys = Object.keys(groupedMilestones).sort((a, b) => 
-      new Date(b).getTime() - new Date(a).getTime()
-    );
-  
+    const monthKeys = Object.keys(groupedMilestones).sort((a, b) => {
+        // Sort month keys chronologically (most recent first)
+        try {
+            // Attempt to parse dates for sorting
+            const dateA = new Date(`01 ${a}`); // e.g., "01 May 2024"
+            const dateB = new Date(`01 ${b}`); // e.g., "01 June 2024"
+            return dateB.getTime() - dateA.getTime();
+        } catch (e) {
+            console.error("Error parsing month keys for sorting:", e);
+            return 0; // Fallback to original order if parsing fails
+        }
+    });
+
+    // Early return if no milestones after grouping
+    if (monthKeys.length === 0) {
+      return (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+          <Text style={{ color: 'gray', textAlign: 'center' }}>No milestones yet. Add a post with a milestone to see it here.</Text>
+        </View>
+      );
+    }
+
+    console.log("Rendering Milestones - Month Keys:", monthKeys);
+    console.log("Rendering Milestones - Grouped Data:", groupedMilestones);
+
+
     return (
       <FlatList
         key="milestones-list"
@@ -190,47 +301,168 @@ const Profile = () => {
           <View>
             <Text style={styles.monthHeader}>{month}</Text>
             {groupedMilestones[month].map((item) => (
-              <TouchableOpacity key={item.id} onPress={() => handleMilestonePress(item.postId)} style={styles.milestoneItem}>
+              <TouchableOpacity
+                key={item.id} // Use milestone's unique ID (which is the post ID)
+                onPress={() => handleMilestonePress(item.postId)} // Pass postId (string)
+                style={styles.milestoneItem}
+              >
+                {/* Display milestone details */}
                 <View style={styles.milestoneDetail}>
-                  <Text style={styles.milestoneExercise}>{item.exercise}</Text>
+                  <Text style={styles.milestoneExercise}>{item.exercise || 'Milestone'}</Text>
                 </View>
+                {item.reps !== undefined && item.reps > 0 && ( // Conditionally render reps if available
+                   <View style={styles.milestoneDetail}>
+                     <Text style={styles.milestoneNumber}>{item.reps}</Text>
+                     <Text style={styles.milestoneDescriptor}>Reps</Text>
+                   </View>
+                )}
                 <View style={styles.milestoneDetail}>
-                  <Text style={styles.milestoneNumber}>{item.reps}</Text>
-                  <Text style={styles.milestoneDescriptor}>Reps</Text>
-                </View>
-                <View style={styles.milestoneDetail}>
-                  <Text style={styles.milestoneNumber}>{item.weight}</Text>
-                  <Text style={styles.milestoneDescriptor}>Weight</Text>
+                  <Text style={styles.milestoneNumber}>{item.weight || ''}</Text>
+                  {/* Conditionally render descriptor based on content */}
+                  {item.weight && <Text style={styles.milestoneDescriptor}>Weight</Text>}
                 </View>
               </TouchableOpacity>
             ))}
           </View>
         )}
-        keyExtractor={(item) => item}
+        keyExtractor={(item) => item} // Key is the month string
+        ListEmptyComponent={ // This might be redundant now with the check above
+          <Text style={{ color: 'gray', textAlign: 'center', padding: 30 }}>
+            No milestones yet
+          </Text>
+        }
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#FFFFFF"
+            colors={["#FFFFFF"]}
+            progressBackgroundColor="#212121"
+          />
+        }
       />
     );
   };
-
+  
   // Render Workouts Tab Content
-  const renderWorkoutsContent = () => (
-    <FlatList
-      key="workouts-grid"
-      data={sortedWorkouts}
-      renderItem={({ item }) => (
-        <TouchableOpacity key={item.id} onPress={() => handleWorkoutPress(item.id)} style={styles.workoutItem}>
-          <View style={styles.workoutDetail}>
-            <Text style={styles.workoutName}>{item.name}</Text>
-            <Text style={styles.workoutDate}>{formatDate(item.date)}</Text>
-            <Text style={styles.workoutFavorites}>{item.favorites} Favorites</Text>
-          </View>
-        </TouchableOpacity>
-      )}
-      keyExtractor={(item) => item.id.toString()}
-      numColumns={3}
-      contentContainerStyle={styles.workoutsList}
-      showsVerticalScrollIndicator={false}
-    />
-  );
+  const renderWorkoutsContent = () => {
+    // Early return if no workouts
+    if (!workouts || workouts.length === 0) {
+      return (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+          <Text style={{ color: 'gray', textAlign: 'center' }}>No workouts yet. Create a workout to see it here.</Text>
+        </View>
+      );
+    }
+  
+    // Convert Firestore timestamps to Date objects and sort workouts
+    const sortedWorkouts = [...workouts].sort((a, b) => {
+      try {
+        // Safely handle a.date being undefined or missing seconds
+        let dateA;
+        if (!a.date) {
+          dateA = new Date(0); // Default to epoch start if no date
+        } else if (a.date instanceof Date) {
+          dateA = a.date;
+        } else if (a.date.seconds) {
+          dateA = new Date(a.date.seconds * 1000);
+        } else {
+          dateA = new Date(a.date);
+        }
+    
+        // Safely handle b.date being undefined or missing seconds
+        let dateB;
+        if (!b.date) {
+          dateB = new Date(0); // Default to epoch start if no date
+        } else if (b.date instanceof Date) {
+          dateB = b.date;
+        } else if (b.date.seconds) {
+          dateB = new Date(b.date.seconds * 1000);
+        } else {
+          dateB = new Date(b.date);
+        }
+    
+        return dateB.getTime() - dateA.getTime();
+      } catch (error) {
+        console.error("Error sorting workout dates:", error, { a, b });
+        return 0; // Keep original order on error
+      }
+    });
+  
+    return (
+      <FlatList
+        key="workouts-grid"
+        data={sortedWorkouts}
+        renderItem={({ item }) => {
+          // Safely handle the date with comprehensive error checking
+          let formattedDate = "No date available";
+          
+          try {
+            if (item.date) {
+              // Get a proper date object first
+              let workoutDate;
+              
+              if (item.date instanceof Date) {
+                workoutDate = item.date;
+              } else if (item.date.toDate && typeof item.date.toDate === 'function') {
+                // Firestore timestamp
+                workoutDate = item.date.toDate();
+              } else if (item.date.seconds) {
+                // Old Firestore timestamp format
+                workoutDate = new Date(item.date.seconds * 1000);
+              } else {
+                // Try regular conversion
+                workoutDate = new Date(item.date);
+              }
+              
+              formattedDate = workoutDate.toLocaleString('default', { 
+                month: 'long', 
+                day: 'numeric', 
+                year: 'numeric' 
+              });
+            }
+          } catch (error) {
+            console.log("Error formatting workout date:", error, item.date);
+            formattedDate = "Invalid date";
+          }
+              
+          return (
+            <TouchableOpacity 
+              key={item.id} 
+              onPress={() => handleWorkoutPress(item.id)} 
+              style={styles.workoutItem}
+            >
+              <View style={styles.workoutDetail}>
+                <Text style={styles.workoutName}>{item.name || 'Unnamed Workout'}</Text>
+                <Text style={styles.workoutDate}>{formattedDate}</Text>
+                <Text style={styles.workoutFavorites}>
+                  {item.favorites || 0} Favorites
+                </Text>
+              </View>
+            </TouchableOpacity>
+          );
+        }}
+        keyExtractor={(item) => item.id.toString()}
+        numColumns={3}
+        contentContainerStyle={styles.workoutsList}
+        showsVerticalScrollIndicator={false}
+        ListEmptyComponent={
+          <Text style={{ color: 'gray', textAlign: 'center', padding: 30 }}>
+            No workouts yet
+          </Text>
+        }
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#FFFFFF"
+            colors={["#FFFFFF"]}
+            progressBackgroundColor="#212121"
+          />
+        }
+      />
+    );
+  };
 
   // Data for the swipeable tabs
   const tabScenes = [
@@ -289,27 +521,79 @@ const Profile = () => {
           <Text style={{ color: 'white', backgroundColor: '#212121', padding: 5, borderRadius: 5 }}>Settings</Text>
         </TouchableOpacity>
         <Image
-          source={{ uri: 'https://thumbs.dreamstime.com/b/creative-illustration-default-avatar-profile-placeholder-isolated-background-art-design-grey-photo-blank-template-mockup-144855718.jpg' }}
+          source={{ uri: profileData?.profileImageUrl || 'https://thumbs.dreamstime.com/b/creative-illustration-default-avatar-profile-placeholder-isolated-background-art-design-grey-photo-blank-template-mockup-144855718.jpg' }}
           style={styles.profileImage}
         />
-        <Text style={styles.profileName}>John Doe</Text>
-        <Text style={styles.profileUsername}>johndoe123</Text>
-        <Text style={styles.profileBio}>Bio goes here. User can enter whatever they want.</Text>
+        <Text style={styles.profileName}>{profileData?.displayName || 'User'}</Text>
+        <Text style={styles.profileUsername}>@{profileData?.username || 'username'}</Text>
+        <Text style={styles.profileBio}>{profileData?.bio || 'No bio yet'}</Text>
+
         <View style={styles.statsContainer}>
-          <View style={styles.statItem}>
-            <Text style={styles.statNumber}>0</Text>
-            <Text style={styles.statLabel}>Posts</Text>
-          </View>
-          <View style={styles.statItem}>
-            <Text style={styles.statNumber}>0</Text>
+          <TouchableOpacity 
+            style={styles.statItem}
+            onPress={() => {
+              setTooltipText(archetypeDescriptions[profileData?.archetype?.toLowerCase() || 'generalist']);
+              setTooltipVisible(true);
+            }}
+          >
+            <Image
+              source={archetypeIcons[profileData?.archetype?.toLowerCase() || 'generalist']}
+              style={styles.archetypeIcon}
+            />
+            <Text style={styles.statLabel}>Archetype</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.statItem}
+            onPress={() => router.push(`/followers/${currentUser.uid}`)}
+          >
+            <Text style={styles.statNumber}>{followers.length}</Text>
             <Text style={styles.statLabel}>Followers</Text>
-          </View>
-          <View style={styles.statItem}>
-            <Text style={styles.statNumber}>0</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.statItem}
+            onPress={() => router.push(`/following/${currentUser.uid}`)}
+          >
+            <Text style={styles.statNumber}>{following.length}</Text>
             <Text style={styles.statLabel}>Following</Text>
-          </View>
+          </TouchableOpacity>
         </View>
       </View>
+
+      {/* Tooltip Modal */}
+      <Modal
+        transparent={true}
+        visible={tooltipVisible}
+        animationType="fade"
+        onRequestClose={() => setTooltipVisible(false)}
+      >
+        <TouchableOpacity 
+          style={styles.tooltipContainer} 
+          activeOpacity={1} 
+          onPress={() => setTooltipVisible(false)}
+        >
+          <View style={styles.tooltip}>
+            <View style={styles.tooltipHeader}>
+              <Image
+                source={archetypeIcons[profileData?.archetype?.toLowerCase() || 'generalist']}
+                style={styles.tooltipIcon}
+              />
+              <Text style={styles.tooltipTitle}>
+                {profileData?.archetype?.split(' ').map(word => 
+                  word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+                ).join(' ') || 'Generalist'} {/* title case */}
+              </Text>
+            </View>
+            <View style={styles.tooltipDivider} />
+            <Text style={styles.tooltipText}>{tooltipText}</Text>
+            <TouchableOpacity
+              onPress={() => setTooltipVisible(false)}
+              style={styles.tooltipCloseButton}
+            >
+              <Text style={styles.tooltipButtonText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
 
       {/* Custom Tab Bar */}
       {renderCustomTabBar()}
@@ -330,6 +614,7 @@ const Profile = () => {
             </View>
           )}
           keyExtractor={(item) => item.key}
+          initialScrollIndex={0}
         />
       </View>
     </SafeAreaView>
@@ -503,6 +788,81 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  archetypeContainer: {
+    backgroundColor: '#212121',
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+    marginTop: 10,
+  },
+  archetypeLabel: {
+    color: 'gray',
+    fontSize: 12,
+    textAlign: 'center',
+  },
+  archetypeText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  archetypeIcon: {
+    width: 18,
+    height: 18,
+    marginBottom: 5,
+  },
+  tooltipContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+  },
+  tooltip: {
+    backgroundColor: '#333',
+    paddingVertical: 20,
+    paddingHorizontal: 15,
+    borderRadius: 10,
+    alignItems: 'center',
+    maxWidth: '80%',
+  },
+  tooltipHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  tooltipIcon: {
+    width: 30,
+    height: 30,
+    marginRight: 10,
+  },
+  tooltipTitle: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  tooltipDivider: {
+    height: 1,
+    backgroundColor: 'white',
+    width: '100%',
+    marginVertical: 5,
+  },
+  tooltipText: {
+    color: 'white',
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 10,
+  },
+  tooltipCloseButton: {
+    marginTop: 10,
+    backgroundColor: '#555',
+    paddingVertical: 5,
+    paddingHorizontal: 15,
+    borderRadius: 5,
+  },
+  tooltipButtonText: {
+    color: 'white',
+    fontSize: 14,
   },
 });
 

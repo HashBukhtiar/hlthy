@@ -12,15 +12,18 @@ import {
     KeyboardAvoidingView,
     Platform,
     StyleSheet,
-    Modal
+    Modal,
+    ActivityIndicator
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import globalStyles from '@/styles/globalStyles';
 import * as ImagePicker from 'expo-image-picker';
 import { Dropdown } from 'react-native-element-dropdown';
 import { Ionicons } from '@expo/vector-icons';
-
 import { postImage } from '@/assets/images';
+import { usePostsData } from '@/hooks/usePostsData';
+import { useAuth } from '@/context/AuthContext';
+import { serverTimestamp } from 'firebase/firestore';
 
 interface DropdownItem {
     label: string;
@@ -28,6 +31,11 @@ interface DropdownItem {
 }
 
 export default function Post() {
+    const { addPost } = usePostsData();
+    const { currentUser, userProfile } = useAuth();
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [formError, setFormError] = useState<string | null>(null);
+
     const router = useRouter();
     const [caption, setCaption] = useState('');
     const [imageUri, setImageUri] = useState<string | null>(null);
@@ -172,6 +180,12 @@ export default function Post() {
     const removeWorkout = () => {
         setSelectedWorkout(null);
     };
+
+    {formError ? (
+        <View style={postStyles.errorContainer}>
+          <Text style={postStyles.errorText}>{formError}</Text>
+        </View>
+      ) : null}
 
     const renderPostScroll = () => {
         return (
@@ -385,6 +399,72 @@ export default function Post() {
         );
     }
 
+    const handleSubmitPost = async () => {
+        try {
+          if (!imageUri && !caption.trim() && !milestoneSwitchValue) {
+            setFormError("Please add an image, caption, or milestone");
+            return;
+          }
+          
+          setIsSubmitting(true);
+          setFormError(null);
+          
+          // Prepare milestone details if enabled
+          let milestoneDetails = null;
+          if (milestoneSwitchValue && valueMilestone) {
+            if (valueMilestone === 'PR') {
+              if (!exerciseSearch.trim() || !amount || !weightUnit || !reps) {
+                setFormError("Please complete all milestone fields");
+                setIsSubmitting(false);
+                return;
+              }
+              milestoneDetails = {
+                type: valueMilestone,
+                exercise: exerciseSearch,
+                value: amount,
+                weightUnit,
+                reps: parseInt(reps)
+              };
+            } else if (valueMilestone === 'weightLoss' || valueMilestone === 'weightGain') {
+              if (!newWeight || !newWeightUnit) {
+                setFormError("Please enter your new weight");
+                setIsSubmitting(false);
+                return;
+              }
+              milestoneDetails = {
+                type: valueMilestone,
+                newWeight,
+                newWeightUnit
+              };
+            }
+          }
+          
+          const postData = {
+            caption: caption.trim(),
+            imageUri,
+            isMilestone: milestoneSwitchValue && !!valueMilestone,
+            milestoneDetails,
+            visibility: valuePrivacy || 'public',
+            workoutId: selectedWorkout?.id
+          };
+          
+          const postId = await addPost(postData);
+          console.log("Successfully created post with ID:", postId);
+          Alert.alert('Success', 'Your post has been created!', [
+            { text: 'OK', onPress: () => {
+                console.log("Navigating back to home after post creation");
+                router.push('/');
+            }}
+        ]);
+        } catch (error) {
+          console.error('Error creating post:', error);
+          setFormError('Failed to create post. Please try again.');
+        } finally {
+          setIsSubmitting(false);
+        }
+    };
+
+
     return (
         <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -398,12 +478,17 @@ export default function Post() {
                         <Text style={postStyles.buttonText} >Back</Text>
                     </TouchableOpacity>
                     <Text style={postStyles.postTitle}>Create Post</Text>
-                    <TouchableOpacity style={postStyles.button} onPress={() => {
-                            router.push('/');
-                            Alert.alert('Post Created', 'Your post has been created successfully!');
-                        }}>
-                        <Text style={postStyles.buttonText}>Post</Text>
-                    </TouchableOpacity>
+                    <TouchableOpacity 
+                        style={[postStyles.button, isSubmitting && postStyles.disabledButton]} 
+                        onPress={handleSubmitPost}
+                        disabled={isSubmitting}
+                        >
+                        {isSubmitting ? (
+                            <ActivityIndicator size="small" color="#FFF" />
+                        ) : (
+                            <Text style={postStyles.buttonText}>Post</Text>
+                        )}
+                        </TouchableOpacity>
                 </View>
                 {renderPostScroll()}
             </View>
@@ -771,4 +856,19 @@ const postStyles = StyleSheet.create({
         fontSize: 12,
         marginTop: 2,
     },
+    errorContainer: {
+        backgroundColor: 'rgba(255, 59, 48, 0.1)',
+        padding: 10,
+        marginVertical: 10,
+        borderRadius: 5,
+        borderWidth: 1,
+        borderColor: '#FF3B30',
+    },
+        errorText: {
+        color: '#FF3B30',
+        textAlign: 'center',
+    },
+        disabledButton: {
+        opacity: 0.5,
+    }
 });

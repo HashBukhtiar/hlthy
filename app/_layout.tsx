@@ -5,6 +5,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { View, StyleSheet } from 'react-native';
 import BottomButtons from '@/components/BottomButtons';
 import { usePathname } from 'expo-router';
+import { AuthProvider } from '@/context/AuthContext';
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
@@ -17,7 +18,9 @@ export default function RootLayout() {
     'view-post',
     'signup',
     'select-archetype',
-    'landing'
+    'landing',
+    'login',
+    'post'
   ];
 
   // Check if we should hide the bottom bar based on current route
@@ -33,43 +36,45 @@ export default function RootLayout() {
   }, [pathname]);
 
   return (
-    <SafeAreaProvider>
-      <View style={styles.container}>
-        <Stack
-          screenOptions={{
-            headerShown: false,
-            contentStyle: { backgroundColor: 'black' },
-            animation: 'none',
-          }}
-        >
-          {/* Main tab screens with disabled swipe gestures */}
-          <Stack.Screen name="(tabs)" options={{ gestureEnabled: false }} />
-          <Stack.Screen name="post" options={{ gestureEnabled: false }} />
-          <Stack.Screen name="ai" options={{ gestureEnabled: false }} />
-          <Stack.Screen name="workouts" options={{ gestureEnabled: false }} />
-          <Stack.Screen name="profile" options={{ gestureEnabled: false }} />
+    <AuthProvider>
+      <SafeAreaProvider>
+        <View style={styles.container}>
+          <Stack
+            screenOptions={{
+              headerShown: false,
+              contentStyle: { backgroundColor: 'black' },
+              animation: 'none',
+            }}
+          >
+            {/* Main tab screens with disabled swipe gestures */}
+            <Stack.Screen name="(tabs)" options={{ gestureEnabled: false }} />
+            <Stack.Screen name="post" options={{ gestureEnabled: false }} />
+            <Stack.Screen name="ai" options={{ gestureEnabled: false }} />
+            <Stack.Screen name="workouts" options={{ gestureEnabled: false }} />
+            <Stack.Screen name="profile" options={{ gestureEnabled: false }} />
+            
+            {/* Screens with swipe back enabled */}
+            <Stack.Screen name="pulse" options={{ gestureEnabled: true, animation: 'slide_from_right' }} />
+            <Stack.Screen name="explore" options={{ gestureEnabled: true, animation: 'slide_from_right' }} />
+            <Stack.Screen name="settings" options={{ gestureEnabled: true, animation: 'slide_from_right' }} />
+            
+            {/* Other screens */}
+            <Stack.Screen name="signup" />
+            <Stack.Screen name="select-archetype" />
+            <Stack.Screen name="create-workout" options={{ animation: 'slide_from_bottom', gestureEnabled: true }} />
+            <Stack.Screen name="view-workout/[id]" options={{ animation: 'fade_from_bottom', gestureEnabled: true }} />
+            <Stack.Screen name="view-post/[id]" options={{ animation: 'fade_from_bottom', gestureEnabled: true }} />
+            <Stack.Screen name="view-milestone/[id]" options={{ animation: 'fade_from_bottom', gestureEnabled: true }} />
+            <Stack.Screen name="workout-plan" />
+            <Stack.Screen name="diet-plan" />
+            <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
+          </Stack>
           
-          {/* Screens with swipe back enabled */}
-          <Stack.Screen name="pulse" options={{ gestureEnabled: true, animation: 'slide_from_right' }} />
-          <Stack.Screen name="explore" options={{ gestureEnabled: true, animation: 'slide_from_right' }} />
-          <Stack.Screen name="settings" options={{ gestureEnabled: true, animation: 'slide_from_right' }} />
-          
-          {/* Other screens */}
-          <Stack.Screen name="signup" />
-          <Stack.Screen name="select-archetype" />
-          <Stack.Screen name="create-workout" options={{ animation: 'slide_from_bottom', gestureEnabled: true }} />
-          <Stack.Screen name="view-workout/[id]" options={{ animation: 'fade_from_bottom', gestureEnabled: true }} />
-          <Stack.Screen name="view-post/[id]" options={{ animation: 'fade_from_bottom', gestureEnabled: true }} />
-          <Stack.Screen name="view-milestone/[id]" options={{ animation: 'fade_from_bottom', gestureEnabled: true }} />
-          <Stack.Screen name="workout-plan" />
-          <Stack.Screen name="diet-plan" />
-          <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
-        </Stack>
-        
-        {/* Bottom navigation that persists across route changes but hides on specific screens */}
-        {showBottomBar && <BottomButtons />}
-      </View>
-    </SafeAreaProvider>
+          {/* Bottom navigation that persists across route changes but hides on specific screens */}
+          {showBottomBar && <BottomButtons />}
+        </View>
+      </SafeAreaProvider>
+    </AuthProvider>
   );
 }
 

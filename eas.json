@@ -27,7 +27,8 @@
       "extends": "preview",
       "ios": {
         "simulator": false
-      }
+      },
+      "channel": "preview-device"
     },
     "production": {
       "autoIncrement": true,

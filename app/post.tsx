@@ -7,7 +7,6 @@ export default function PostScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <Post />
-      <BottomButtons />
     </SafeAreaView>
   );
 }

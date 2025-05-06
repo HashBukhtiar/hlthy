@@ -1,7 +1,8 @@
-import { initializeApp } from 'firebase/app';
+import { initializeApp, setLogLevel } from 'firebase/app';
 import { getAnalytics, isSupported } from 'firebase/analytics';
 import { getAuth, Auth } from 'firebase/auth';
 import { getFirestore, Firestore } from "firebase/firestore";
+import { getStorage } from "firebase/storage";
 
 // Firebase configuration
 const firebaseConfig = {
@@ -21,11 +22,13 @@ let app;
 let auth: Auth;
 let db: Firestore;
 let analytics;
+let storage; // Add storage variable
 
 try {
   app = initializeApp(firebaseConfig);
   auth = getAuth(app);
   db = getFirestore(app);
+  storage = getStorage(app);
   
   // Analytics setup - only supported in certain environments
   isSupported()
@@ -39,9 +42,11 @@ try {
     })
     .catch(e => console.log("Analytics initialization error:", e));
 
+  console.log("Firebase storage initialized");
+
 } catch (error) {
   console.error("Firebase initialization error:", error);
   console.log(firebaseConfig);
 }
 
-export { db, auth };
+export { db, auth, storage };
