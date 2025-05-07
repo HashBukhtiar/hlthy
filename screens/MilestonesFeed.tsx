@@ -27,12 +27,18 @@ export interface MilestoneDetails {
   newWeightUnit?: string;
   previousWeight?: number;
   previousWeightUnit?: string;
+  previousValue?: number;
+  previousReps?: number;
+  improvement?: string;
+  totalLoss?: number;
+  percentageLoss?: string;
 }
 
 export interface Milestone {
   id: string;
   userId: string;
   username: string;
+  fullName?: string;
   profileImageUrl: string;
   createdAt: Date;
   milestoneType: 'PR' | 'weightLoss' | 'weightGain' | string;
@@ -50,6 +56,7 @@ export default function MilestonesFeed() {
       id: 'm1',
       userId: 'user1',
       username: 'fitness_pro',
+      fullName: 'Alex Fitness',
       profileImageUrl: 'https://randomuser.me/api/portraits/men/32.jpg',
       createdAt: new Date(Date.now() - 8640000 * 2), // 2 days ago
       milestoneType: 'PR', 
@@ -57,7 +64,10 @@ export default function MilestonesFeed() {
         exercise: 'Bench Press',
         value: 225,
         weightUnit: 'lbs',
-        reps: 5
+        reps: 5,
+        previousValue: 205,
+        previousReps: 5,
+        improvement: '9.7%'
       },
       reactions: {
         '❤️': 24,
@@ -72,6 +82,7 @@ export default function MilestonesFeed() {
       id: 'm2',
       userId: 'user2',
       username: 'runner_girl',
+      fullName: 'Sarah Runner',
       profileImageUrl: 'https://randomuser.me/api/portraits/women/44.jpg',
       createdAt: new Date(Date.now() - 86400000), // 1 day ago
       milestoneType: 'PR',
@@ -79,7 +90,10 @@ export default function MilestonesFeed() {
         exercise: '10K Run',
         value: 42.5,
         weightUnit: 'min',
-        reps: 1
+        reps: 1,
+        previousValue: 45.8,
+        previousReps: 1,
+        improvement: '7.2%'
       },
       reactions: {
         '❤️': 18,
@@ -93,6 +107,7 @@ export default function MilestonesFeed() {
       id: 'm3',
       userId: 'user3',
       username: 'weightloss_journey',
+      fullName: 'Jamie Progress',
       profileImageUrl: 'https://randomuser.me/api/portraits/women/68.jpg',
       createdAt: new Date(Date.now() - 43200000), // 12 hours ago
       milestoneType: 'weightLoss',
@@ -100,7 +115,9 @@ export default function MilestonesFeed() {
         newWeight: 165,
         newWeightUnit: 'lbs',
         previousWeight: 180,
-        previousWeightUnit: 'lbs'
+        previousWeightUnit: 'lbs',
+        totalLoss: 15,
+        percentageLoss: '8.3%'
       },
       reactions: {
         '❤️': 35,
@@ -178,34 +195,88 @@ export default function MilestonesFeed() {
   const renderMilestoneDetails = (milestone: Milestone) => {
     if (milestone.milestoneType === 'PR') {
       return (
-        <View style={styles.milestoneValueContainer}>
-          <Text style={styles.milestoneValue}>
-            <Text style={styles.milestoneStat}>{milestone.details.value} {milestone.details.weightUnit}</Text>
-            {milestone.details.reps && milestone.details.reps > 1 ? ` × ${milestone.details.reps} reps` : ''}
-          </Text>
-          <Text style={styles.milestoneExercise}>{milestone.details.exercise}</Text>
+        <View style={styles.detailsContainer}>
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>Exercise:</Text>
+            <Text style={styles.detailValue}>{milestone.details.exercise}</Text>
+          </View>
+          
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>New PR:</Text>
+            <Text style={styles.detailValue}>
+              <Text style={styles.highlightedValue}>{milestone.details.value} {milestone.details.weightUnit}</Text>
+              {milestone.details.reps && milestone.details.reps > 1 ? ` × ${milestone.details.reps} reps` : ''}
+            </Text>
+          </View>
+          
+          {milestone.details.previousValue && (
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Previous:</Text>
+              <Text style={styles.detailValue}>
+                {milestone.details.previousValue} {milestone.details.weightUnit}
+                {milestone.details.previousReps && milestone.details.previousReps > 1 ? ` × ${milestone.details.previousReps} reps` : ''}
+              </Text>
+            </View>
+          )}
+          
+          {milestone.details.improvement && (
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Improvement:</Text>
+              <Text style={styles.detailValue}>
+                <Text style={styles.improvementValue}>{milestone.details.improvement}</Text>
+              </Text>
+            </View>
+          )}
         </View>
       );
     } else if (milestone.milestoneType === 'weightLoss' || milestone.milestoneType === 'weightGain') {
       const isLoss = milestone.milestoneType === 'weightLoss';
-      const diff = Math.abs((milestone.details.previousWeight || 0) - (milestone.details.newWeight || 0));
       
       return (
-        <View style={styles.milestoneValueContainer}>
-          <Text style={styles.milestoneValue}>
-            <Text style={styles.milestoneStat}>{milestone.details.newWeight} {milestone.details.newWeightUnit}</Text>
-          </Text>
-          <Text style={styles.milestoneExercise}>
-            {isLoss ? 'Weight Loss' : 'Weight Gain'} 
-            <Text style={[styles.milestoneDiff, {color: isLoss ? '#4CD964' : '#FF9500'}]}>
-              {' '}({isLoss ? '-' : '+'}{diff} {milestone.details.newWeightUnit})
+        <View style={styles.detailsContainer}>
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>Type:</Text>
+            <Text style={styles.detailValue}>
+              {isLoss ? 'Weight Loss' : 'Weight Gain'}
             </Text>
-          </Text>
+          </View>
+          
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>New Weight:</Text>
+            <Text style={styles.detailValue}>
+              <Text style={styles.highlightedValue}>
+                {milestone.details.newWeight} {milestone.details.newWeightUnit}
+              </Text>
+            </Text>
+          </View>
+          
+          {milestone.details.previousWeight && (
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Previous:</Text>
+              <Text style={styles.detailValue}>
+                {milestone.details.previousWeight} {milestone.details.previousWeightUnit}
+              </Text>
+            </View>
+          )}
+          
+          {milestone.details.totalLoss && (
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>
+                {isLoss ? 'Total Loss:' : 'Total Gain:'}
+              </Text>
+              <Text style={styles.detailValue}>
+                <Text style={isLoss ? styles.lossValue : styles.gainValue}>
+                  {isLoss ? '-' : '+'}{milestone.details.totalLoss} {milestone.details.newWeightUnit}
+                  {milestone.details.percentageLoss && ` (${milestone.details.percentageLoss})`}
+                </Text>
+              </Text>
+            </View>
+          )}
         </View>
       );
     }
     
-    return <Text style={styles.milestoneExercise}>New Achievement</Text>;
+    return null;
   };
   
   if (milestones.length === 0) {
@@ -223,66 +294,76 @@ export default function MilestonesFeed() {
       showsVerticalScrollIndicator={false}
       contentContainerStyle={styles.milestonesContainer}
       renderItem={({item}) => (
-        <TouchableOpacity 
-          style={styles.milestoneContainer}
-          onPress={() => navigateToMilestone(item.id)}
-          activeOpacity={0.9}
-        >
-          {/* Header */}
-          <View style={styles.milestoneHeader}>
+        <View style={styles.milestoneContainer}>
+          {/* Header with profile info */}
+          <View style={styles.header}>
             <TouchableOpacity 
-              style={styles.milestoneUserInfo}
+              style={styles.userInfoContainer}
               onPress={() => navigateToProfile(item.userId)}
             >
               <Image 
                 source={{ uri: item.profileImageUrl }} 
-                style={styles.milestoneProfilePic} 
+                style={styles.profilePic} 
               />
               <View>
-                <Text style={styles.milestoneUsername}>{item.username}</Text>
-                <Text style={styles.milestoneTime}>{formatTimeAgo(item.createdAt)}</Text>
+                <Text style={styles.username}>{item.username}</Text>
+                {item.fullName && <Text style={styles.fullName}>{item.fullName}</Text>}
               </View>
             </TouchableOpacity>
-            <View style={styles.milestoneAchievementBadge}>
-              <Ionicons name="trophy" size={12} color="#FFD700" />
-              <Text style={styles.milestoneAchievementText}>
-                {item.milestoneType === 'PR' ? 'New PR' : 
-                 item.milestoneType === 'weightLoss' ? 'Weight Loss' : 
-                 item.milestoneType === 'weightGain' ? 'Weight Gain' : 'Achievement'}
-              </Text>
+            <View style={styles.rightHeader}>
+              <Text style={styles.timestamp}>{formatTimeAgo(item.createdAt)}</Text>
             </View>
           </View>
           
-          {/* Content with milestone details and attached image */}
-          <View style={styles.milestoneContent}>
-            <View style={styles.milestoneMainContent}>
-              <View style={styles.milestoneIconContainer}>
-                {item.milestoneType === 'PR' ? (
-                  <Ionicons name="barbell-outline" size={24} color="#FFF" style={styles.milestoneIcon} />
-                ) : (
-                  <Ionicons name="fitness-outline" size={24} color="#FFF" style={styles.milestoneIcon} />
+          {/* Milestone Card Content */}
+          <TouchableOpacity 
+            style={styles.milestoneCardWrapper}
+            onPress={() => navigateToMilestone(item.id)}
+            activeOpacity={0.9}
+          >
+            <View style={styles.milestoneCard}>
+              {/* Milestone Card Header */}
+              <View style={styles.milestoneHeader}>
+                <View style={styles.milestoneIconContainer}>
+                  {item.milestoneType === 'PR' ? (
+                    <Ionicons name="barbell-outline" size={28} color="#FFF" style={styles.milestoneIcon} />
+                  ) : (
+                    <Ionicons name="fitness-outline" size={28} color="#FFF" style={styles.milestoneIcon} />
+                  )}
+                </View>
+                <View style={styles.milestoneTitleContainer}>
+                  <Text style={styles.milestoneType}>
+                    {item.milestoneType === 'PR' ? 'Personal Record' : 
+                     item.milestoneType === 'weightLoss' ? 'Weight Loss' : 'Weight Gain'}
+                  </Text>
+                  <Text style={styles.milestoneDate}>{item.createdAt.toDateString()}</Text>
+                </View>
+                
+                {/* Post Preview (if available) */}
+                {item.postImageUrl && (
+                  <TouchableOpacity 
+                    style={styles.postPreviewContainer}
+                    onPress={() => navigateToPost(item.associatedPostId || '')}
+                    activeOpacity={0.9}
+                  >
+                    <Image 
+                      source={{ uri: item.postImageUrl }} 
+                      style={styles.postPreviewImage} 
+                    />
+                    <View style={styles.postPreviewOverlay}>
+                      <Ionicons name="camera" size={12} color="#FFF" />
+                    </View>
+                  </TouchableOpacity>
                 )}
               </View>
               
+              {/* Milestone Details */}
               {renderMilestoneDetails(item)}
             </View>
-            
-            {/* Associated Post Image (if available) - inside widget on the right */}
-            {item.postImageUrl && (
-              <TouchableOpacity 
-                style={styles.milestoneImageContainer}
-                onPress={() => navigateToPost(item.associatedPostId || '')}
-              >
-                <Image source={{ uri: item.postImageUrl }} style={styles.milestoneImage} />
-                <View style={styles.milestoneImageOverlay}>
-                  <Ionicons name="camera" size={14} color="#FFF" />
-                </View>
-              </TouchableOpacity>
-            )}
-          </View>
+          </TouchableOpacity>
           
           {/* Reactions */}
-          <View style={styles.milestoneReactionsContainer}>
+          <View style={styles.reactionsContainer}>
             <View style={styles.reactionButtons}>
               {['❤️', '💪', '🔥'].map(emoji => (
                 <TouchableOpacity 
@@ -301,102 +382,199 @@ export default function MilestonesFeed() {
               ))}
             </View>
             
-            {/* View Post link when post image exists */}
-            {item.postImageUrl && (
-              <TouchableOpacity 
-                style={styles.viewPostButton}
-                onPress={() => navigateToPost(item.associatedPostId || '')}
-              >
-                <Text style={styles.viewPostButtonText}>View Post</Text>
-                <Ionicons name="chevron-forward" size={12} color="#999" />
-              </TouchableOpacity>
-            )}
+            {/* View Full Details Link */}
+            <TouchableOpacity 
+              style={styles.viewDetailsButton}
+              onPress={() => navigateToMilestone(item.id)}
+            >
+              <Text style={styles.viewDetailsText}>View Details</Text>
+              <Ionicons name="chevron-forward" size={14} color="#0A84FF" />
+            </TouchableOpacity>
           </View>
-          
-          {/* View Full Milestone Button */}
-          <TouchableOpacity 
-            style={styles.viewMilestoneButton}
-            onPress={() => navigateToMilestone(item.id)}
-          >
-            <Text style={styles.viewMilestoneText}>View Details</Text>
-            <Ionicons name="chevron-forward" size={14} color="#0A84FF" />
-          </TouchableOpacity>
-        </TouchableOpacity>
+        </View>
       )}
     />
   );
 }
 
 const styles = StyleSheet.create({
+  milestonesContainer: {
+    width: '100%',
+    paddingBottom: 70,
+  },
   milestoneContainer: {
     marginBottom: 15,
     borderBottomColor: '#222',
     borderBottomWidth: 1,
     paddingBottom: 15,
   },
-  milestoneContent: {
+  header: {
     flexDirection: 'row',
-    marginHorizontal: 15,
-    marginVertical: 12,
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+  },
+  userInfoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  profilePic: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 10,
+  },
+  username: {
+    fontWeight: '600',
+    fontSize: 16,
+    color: '#FFF',
+  },
+  fullName: {
+    fontSize: 14,
+    color: '#999',
+  },
+  rightHeader: {
+    alignItems: 'flex-end',
+  },
+  timestamp: {
+    fontSize: 12,
+    color: '#999',
+  },
+  milestoneCardWrapper: {
+    paddingHorizontal: 15,
+  },
+  milestoneCard: {
     backgroundColor: '#1A1A1A',
     borderRadius: 12,
     overflow: 'hidden',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#333',
   },
-  milestoneMainContent: {
+  milestoneHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 15,
-    flex: 1,
+    borderBottomWidth: 1,
+    borderBottomColor: '#333',
   },
   milestoneIconContainer: {
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: '#2A2A2A',
+    backgroundColor: '#333',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 15,
+    marginRight: 12,
   },
   milestoneIcon: {
-    padding: 5,
+    // No additional styles needed
   },
-  milestoneImageContainer: {
-    width: 90,
-    height: 90,
+  milestoneTitleContainer: {
+    flex: 1,
+  },
+  milestoneType: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  milestoneDate: {
+    color: '#999',
+    fontSize: 12,
+  },
+  postPreviewContainer: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
     overflow: 'hidden',
+    marginLeft: 10,
   },
-  milestoneImage: {
+  postPreviewImage: {
     width: '100%',
     height: '100%',
   },
-  milestoneValueContainer: {
-    flex: 1,
-  },
-  milestoneValue: {
-    color: '#DDD',
-    fontSize: 14,
-  },
-  milestoneStat: {
-    color: '#4CD964',
-  },
-  milestoneExercise: {
-    color: '#999',
-    fontSize: 13,
-    marginTop: 2,
-  },
-  milestoneDiff: {
-    fontSize: 13,
-  },
-  milestoneImageOverlay: {
+  postPreviewOverlay: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    paddingVertical: 4,
+    paddingVertical: 2,
     alignItems: 'center',
+  },
+  detailsContainer: {
+    padding: 15,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  detailLabel: {
+    color: '#999',
+    fontSize: 14,
+  },
+  detailValue: {
+    color: '#FFF',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  highlightedValue: {
+    color: '#4CD964',
+    fontWeight: 'bold',
+  },
+  improvementValue: {
+    color: '#4CD964',
+    fontWeight: 'bold',
+  },
+  lossValue: {
+    color: '#4CD964',
+    fontWeight: 'bold',
+  },
+  gainValue: {
+    color: '#FF9500',
+    fontWeight: 'bold',
+  },
+  reactionsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 15,
+    paddingTop: 12,
+    marginTop: 10,
+  },
+  reactionButtons: {
+    flexDirection: 'row',
+  },
+  combinedReactionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#333',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16,
+    marginRight: 8,
+  },
+  activeReactionButton: {
+    backgroundColor: '#0A84FF',
+  },
+  reactionEmoji: {
+    fontSize: 14,
+    marginRight: 4,
+  },
+  reactionCount: {
+    fontSize: 12,
+    color: '#FFF',
+  },
+  viewDetailsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  viewDetailsText: {
+    fontSize: 14,
+    color: '#0A84FF',
+    marginRight: 4,
   },
   emptyMilestonesContainer: {
     flex: 1,
@@ -408,97 +586,5 @@ const styles = StyleSheet.create({
     color: 'gray',
     fontSize: 16,
     fontWeight: 'bold',
-  },
-  milestonesContainer: {
-    width: '100%',
-    paddingBottom: 70,
-  },
-  milestoneHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 15,
-    paddingVertical: 10,
-    borderBottomColor: '#222',
-    borderBottomWidth: 0.5,
-  },
-  milestoneUserInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  milestoneProfilePic: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    marginRight: 10,
-  },
-  milestoneUsername: {
-    fontWeight: '600',
-    fontSize: 15,
-    color: '#FFF',
-  },
-  milestoneTime: {
-    fontSize: 12,
-    color: '#999',
-  },
-  milestoneAchievementBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#333',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  milestoneAchievementText: {
-    fontSize: 12,
-    color: '#FFD700',
-    marginLeft: 4,
-  },
-  reactionButtons: {
-    flexDirection: 'row',
-  },
-  combinedReactionButton: {
-    backgroundColor: '#333',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    marginRight: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  activeReactionButton: {
-    backgroundColor: '#0A84FF',
-  },
-  reactionEmoji: {
-    fontSize: 14,
-    color: '#FFF',
-    marginRight: 4,
-  },
-  reactionCount: {
-    fontSize: 12,
-    color: '#FFF',
-  },
-  viewMilestoneButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 10,
-    borderTopColor: '#222',
-    borderTopWidth: 1,
-  },
-  viewMilestoneText: {
-    fontSize: 14,
-    color: '#0A84FF',
-    marginRight: 4,
-  },
-  viewPostButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginLeft: 8,
-  },
-  viewPostButtonText: {
-    fontSize: 12,
-    color: '#999',
-    marginRight: 4,
   },
 });
