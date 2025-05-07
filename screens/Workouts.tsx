@@ -12,6 +12,7 @@ import {
 import { useRouter } from 'expo-router';
 import globalStyles from '@/styles/globalStyles';
 import Icon from 'react-native-vector-icons/FontAwesome';
+import { BlurView } from 'expo-blur';
 
 export default function Workouts() {
     const [searchQuery, setSearchQuery] = useState('');
@@ -58,13 +59,17 @@ export default function Workouts() {
                         style={styles.myWorkoutsButton}
                         onPress={() => {
                             console.log("Workout pressed");
-                            router.push('/view-workout/1');
+                            router.push('/view-workout/1'); // Ensure this route exists
                         }}
                     >
-                        <View style={styles.myWorkoutPreview}>
+                        <Image 
+                            source={{ uri: 'https://ca.gymshark.com/_next/image?url=https%3A%2F%2Fimages.ctfassets.net%2F8urtyqugdt2l%2FfIOvOyiWNuyVnlhs7LnFt%2F9d2b2df51fdce86e93c0d1b0d28afc1e%2Fdesktop-cbum-back-workout.jpg&w=3840&q=85' }}
+                            style={StyleSheet.absoluteFill}
+                        />
+                        <BlurView intensity={100} tint="dark" style={styles.myWorkoutPreview}>
                             <Text style={styles.workoutNameText}>My Workout 1</Text>
                             <Text style={styles.workoutAuthorText}>John Doe</Text>
-                        </View>
+                        </BlurView>
                     </TouchableOpacity>
                     <TouchableOpacity 
                         style={styles.myWorkoutsButton}
@@ -73,10 +78,10 @@ export default function Workouts() {
                             router.push('/view-workout/2');
                         }}
                     >
-                        <View style={styles.myWorkoutPreview}>
+                        <BlurView intensity={80} tint="dark" style={styles.myWorkoutPreview}>
                             <Text style={styles.workoutNameText}>My Workout 2</Text>
                             <Text style={styles.workoutAuthorText}>John Doe</Text>
-                        </View>
+                        </BlurView>
                     </TouchableOpacity>
                     <TouchableOpacity 
                         style={styles.myWorkoutsButton}
@@ -85,22 +90,10 @@ export default function Workouts() {
                             router.push('/view-workout/3');
                         }}
                     >
-                        <View style={styles.myWorkoutPreview}>
+                        <BlurView intensity={80} tint="dark" style={styles.myWorkoutPreview}>
                             <Text style={styles.workoutNameText}>My Workout 3</Text>
-                            <Text style={styles.workoutAuthorText}>John Doe</Text>
-                        </View>
-                    </TouchableOpacity>
-                    <TouchableOpacity 
-                        style={styles.myWorkoutsButton}
-                        onPress={() => {
-                            console.log("Workout pressed");
-                            router.push('/view-workout/4');
-                        }}
-                    >
-                        <View style={styles.myWorkoutPreview}>
-                            <Text style={styles.workoutNameText}>My Workout 4</Text>
-                            <Text style={styles.workoutAuthorText}>John Doe</Text>
-                        </View>
+                            <Text style={styles.workoutAuthorText}>John Pork</Text>
+                        </BlurView>
                     </TouchableOpacity>
                 </ScrollView>
             </View>
@@ -115,52 +108,40 @@ export default function Workouts() {
                 </View>
                 <ScrollView horizontal={true} style={styles.friendsWorkoutsList} contentContainerStyle={{alignItems: 'center'}} showsHorizontalScrollIndicator={false}>
                     <TouchableOpacity 
-                            style={styles.friendsWorkoutsButton}
-                            onPress={() => {
-                                console.log("Workout pressed");
-                                router.push('/view-workout/5');
-                            }}
-                        >
-                        <View style={styles.workoutPreview}>
+                        style={styles.friendsWorkoutsButton}
+                        onPress={() => {
+                            console.log("Workout pressed");
+                            router.push('/view-workout/5'); // Ensure this route exists
+                        }}
+                    >
+                        <BlurView intensity={80} tint="dark" style={styles.workoutPreview}>
                             <Text style={styles.workoutNameText}>Fav Workout 1</Text>
                             <Text style={styles.workoutAuthorText}>Jane Doe</Text>
-                        </View>
+                        </BlurView>
                     </TouchableOpacity>
                     <TouchableOpacity 
-                            style={styles.friendsWorkoutsButton}
-                            onPress={() => {
-                                console.log("Workout pressed");
-                                router.push('/view-workout/6');
-                            }}
-                        >
-                            <View style={styles.workoutPreview}>
+                        style={styles.friendsWorkoutsButton}
+                        onPress={() => {
+                            console.log("Workout pressed");
+                            router.push('/view-workout/6');
+                        }}
+                    >
+                        <BlurView intensity={80} tint="dark" style={styles.workoutPreview}>
                             <Text style={styles.workoutNameText}>Fav Workout 2</Text>
                             <Text style={styles.workoutAuthorText}>John Doe</Text>
-                        </View>
+                        </BlurView>
                     </TouchableOpacity>
                     <TouchableOpacity 
-                            style={styles.friendsWorkoutsButton}
-                            onPress={() => {
-                                console.log("Workout pressed");
-                                router.push('/view-workout/7');
-                            }}
-                        >
-                        <View style={styles.workoutPreview}>
+                        style={styles.friendsWorkoutsButton}
+                        onPress={() => {
+                            console.log("Workout pressed");
+                            router.push('/view-workout/7');
+                        }}
+                    >
+                        <BlurView intensity={80} tint="dark" style={styles.workoutPreview}>
                             <Text style={styles.workoutNameText}>Fav Workout 3</Text>
-                            <Text style={styles.workoutAuthorText}>Baki Hanma</Text>
-                        </View>
-                    </TouchableOpacity>
-                    <TouchableOpacity 
-                            style={styles.friendsWorkoutsButton}
-                            onPress={() => {
-                                console.log("Workout pressed");
-                                router.push('/view-workout/8');
-                            }}
-                        >
-                        <View style={styles.workoutPreview}>
-                            <Text style={styles.workoutNameText}>Fav Workout 4</Text>
-                            <Text style={styles.workoutAuthorText}>Chris Bum</Text>
-                        </View>
+                            <Text style={styles.workoutAuthorText}>Tim Cheese</Text>
+                        </BlurView>
                     </TouchableOpacity>
                 </ScrollView>
             </View>
@@ -175,52 +156,40 @@ export default function Workouts() {
                 </View>
                 <ScrollView horizontal={true} style={styles.friendsWorkoutsList} contentContainerStyle={{alignItems: 'center'}} showsHorizontalScrollIndicator={false}>
                     <TouchableOpacity 
-                            style={styles.friendsWorkoutsButton}
-                            onPress={() => {
-                                console.log("Workout pressed");
-                                router.push('/view-workout/9');
-                            }}
-                        >
-                        <View style={styles.workoutPreview}>
+                        style={styles.friendsWorkoutsButton}
+                        onPress={() => {
+                            console.log("Workout pressed");
+                            router.push('/view-workout/9'); // Ensure this route exists
+                        }}
+                    >
+                        <BlurView intensity={80} tint="dark" style={styles.workoutPreview}>
                             <Text style={styles.workoutNameText}>Friend Workout 1</Text>
                             <Text style={styles.workoutAuthorText}>Jane Doe</Text>
-                        </View>
+                        </BlurView>
                     </TouchableOpacity>
                     <TouchableOpacity 
-                            style={styles.friendsWorkoutsButton}
-                            onPress={() => {
-                                console.log("Workout pressed");
-                                router.push('/view-workout/10');
-                            }}
-                        >
-                        <View style={styles.workoutPreview}>
+                        style={styles.friendsWorkoutsButton}
+                        onPress={() => {
+                            console.log("Workout pressed");
+                            router.push('/view-workout/10');
+                        }}
+                    >
+                        <BlurView intensity={80} tint="dark" style={styles.workoutPreview}>
                             <Text style={styles.workoutNameText}>Friend Workout 2</Text>
                             <Text style={styles.workoutAuthorText}>Bob Smith</Text>
-                        </View>
+                        </BlurView>
                     </TouchableOpacity>
                     <TouchableOpacity 
-                            style={styles.friendsWorkoutsButton}
-                            onPress={() => {
-                                console.log("Workout pressed");
-                                router.push('/view-workout/11');
-                            }}
-                        >
-                        <View style={styles.workoutPreview}>
+                        style={styles.friendsWorkoutsButton}
+                        onPress={() => {
+                            console.log("Workout pressed");
+                            router.push('/view-workout/11');
+                        }}
+                    >
+                        <BlurView intensity={80} tint="dark" style={styles.workoutPreview}>
                             <Text style={styles.workoutNameText}>Friend Workout 3</Text>
-                            <Text style={styles.workoutAuthorText}>Sigma Gyatt</Text>
-                        </View>
-                    </TouchableOpacity>
-                    <TouchableOpacity 
-                            style={styles.friendsWorkoutsButton}
-                            onPress={() => {
-                                console.log("Workout pressed");
-                                router.push('/view-workout/12');
-                            }}
-                        >
-                        <View style={styles.workoutPreview}>
-                            <Text style={styles.workoutNameText}>Friend Workout 4</Text>
-                            <Text style={styles.workoutAuthorText}>Fanum Tax Payer</Text>
-                        </View>
+                            <Text style={styles.workoutAuthorText}>Kibutsuji Muzan</Text>
+                        </BlurView>
                     </TouchableOpacity>
                 </ScrollView>
             </View>
@@ -493,33 +462,37 @@ const styles = StyleSheet.create({
     trendingWorkoutsTextView: {
         justifyContent: 'center',
         alignItems: 'flex-start',
-        width: '80%',
+        flex: 1,
+        paddingLeft: 5,
     },
     trendingWorkoutsText: {
         color: 'white',
-        marginLeft: 5,
     },
     trendingWorkoutsMoreButton: {
         justifyContent: 'center',
-        width: '10%',
+        paddingLeft: 10,
     },
     myWorkoutPreview: {
+        width: '100%',
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: 'rgba(50, 50, 50, 0.5)',
-        padding: 10
+        padding: 10,
     },
     workoutPreview: {
+        width: '100%',
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: 'rgba(50, 50, 50, 0.5)',
-        padding: 5
+        padding: 5,
     },
     workoutNameText: {
         fontWeight: 'bold',
         color: 'white',
+        fontSize: 16,
+        textAlign: 'center',
     },
     workoutAuthorText: {
         color: '#D0D0D0',
+        fontSize: 12,
+        textAlign: 'center',
     }
 });
