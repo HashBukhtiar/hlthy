@@ -48,6 +48,7 @@ export interface Milestone {
   associatedPostId?: string;
   postImageUrl?: string;
   pinned?: boolean;
+  top5Percent?: boolean;
 }
 
 export default function MilestonesFeed() {
@@ -77,7 +78,8 @@ export default function MilestonesFeed() {
       userReaction: null,
       associatedPostId: 'post1',
       postImageUrl: 'https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
-      pinned: true
+      pinned: false,
+      top5Percent: true
     },
     {
       id: 'm2',
@@ -101,7 +103,9 @@ export default function MilestonesFeed() {
         '🔥': 12
       },
       userReaction: '❤️',
-      associatedPostId: 'post2'
+      associatedPostId: 'post2',
+      top5Percent: false,
+      pinned: false
     },
     {
       id: 'm3',
@@ -126,7 +130,8 @@ export default function MilestonesFeed() {
       userReaction: '🔥',
       associatedPostId: 'post3',
       postImageUrl: 'https://images.unsplash.com/photo-1535743686920-55e4145369b9?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
-      pinned: false
+      pinned: true,
+      top5Percent: false
     }
   ]);
   
@@ -280,7 +285,8 @@ export default function MilestonesFeed() {
   };
 
   const renderMilestoneCard = (item: Milestone) => {
-    if (item.pinned) {
+    // Top 5% has priority over pinned status
+    if (item.top5Percent) {
       return (
         <View style={styles.gradientWrapper}>
           <LinearGradient
@@ -303,11 +309,10 @@ export default function MilestonesFeed() {
                 <View style={styles.milestoneTitleContainer}>
                   <Text style={styles.milestoneType}>
                     {item.fullName}
-                    <Text style={{color: '#FF5E69'}}> {'\u2605'}</Text>
                   </Text>
                   <Text style={styles.milestoneDate}>
                     {formatTimeAgo(item.createdAt)}
-                    <Text style={{color: '#FF8A56'}}> • Pinned</Text>
+                    <Text style={{color: '#FF5E69'}}> • Top 5%</Text>
                   </Text>
                 </View>
                 
@@ -364,9 +369,88 @@ export default function MilestonesFeed() {
           </LinearGradient>
         </View>
       );
+    } else if (item.pinned) {
+      // Only apply pinned styles if not top5Percent
+      return (
+        <View style={styles.pinnedWrapper}>
+          <View style={styles.pinnedBorder}>
+            <View style={styles.pinnedInnerContainer}>
+              {/* Milestone Card Header */}
+              <View style={styles.milestoneHeader}>
+                <View style={styles.milestoneIconContainer}>
+                  <TouchableOpacity onPress={() => navigateToProfile(item.userId)}>
+                    <Image 
+                      source={{ uri: item.profileImageUrl }} 
+                      style={styles.profilePic}
+                    />
+                  </TouchableOpacity>
+                </View>
+                <View style={styles.milestoneTitleContainer}>
+                  <Text style={styles.milestoneType}>
+                    {item.fullName}
+                  </Text>
+                  <Text style={styles.milestoneDate}>
+                    {formatTimeAgo(item.createdAt)}
+                    <Text style={{color: '#FF5E69'}}> • Pinned</Text>
+                  </Text>
+                </View>
+                
+                {/* Post Preview (if available) */}
+                {item.postImageUrl && (
+                  <TouchableOpacity 
+                    style={styles.postPreviewContainer}
+                    onPress={() => navigateToPost(item.associatedPostId || '')}
+                    activeOpacity={0.9}
+                  >
+                    <Image 
+                      source={{ uri: item.postImageUrl }} 
+                      style={styles.postPreviewImage} 
+                    />
+                    <View style={styles.postPreviewOverlay}>
+                      <Ionicons name="camera" size={12} color="#FFF" />
+                    </View>
+                  </TouchableOpacity>
+                )}
+              </View>
+              
+              {/* Milestone Details */}
+              {renderMilestoneDetails(item)}
+              
+              {/* Reactions and View Details */}
+              <View style={styles.cardFooter}>
+                <View style={styles.reactionButtons}>
+                  {['❤️', '💪', '🔥'].map(emoji => (
+                    <TouchableOpacity 
+                      key={emoji}
+                      style={[
+                        styles.combinedReactionButton,
+                        item.userReaction === emoji && styles.activeReactionButton
+                      ]}
+                      onPress={() => handleReaction(item.id, emoji)}
+                    >
+                      <Text style={styles.reactionEmoji}>{emoji}</Text>
+                      {(item.reactions[emoji] && item.reactions[emoji] > 0) && (
+                        <Text style={styles.reactionCount}>{item.reactions[emoji]}</Text>
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                
+                <TouchableOpacity 
+                  style={styles.viewDetailsButton}
+                  onPress={() => navigateToMilestone(item.id)}
+                >
+                  <Text style={styles.viewDetailsText}>View Details</Text>
+                  <Ionicons name="chevron-forward" size={14} color="#FF5E69" />
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </View>
+      );
     }
     
-    // Regular non-pinned milestone card
+    // Regular non-pinned, non-top5 milestone card
     return (
       <View style={styles.milestoneCard}>
         {/* Milestone Card Header */}
@@ -524,7 +608,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   gradientBorder: {
-    padding: 2,
+    padding: 2, // This padding creates the space for the gradient border
     borderRadius: 12,
   },
   gradientInnerContainer: {
@@ -532,14 +616,20 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     overflow: 'hidden',
   },
-  pinnedMilestoneCard: {
-    position: 'relative', // Needed for the pseudo gradient border effect
-    borderWidth: 0, // Remove default border
-    shadowColor: '#B16CEA',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.4,
-    shadowRadius: 6,
-    elevation: 5,
+  pinnedWrapper: {
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  pinnedBorder: {
+    padding: 2,
+    borderRadius: 12,
+    borderColor: '#FF5E69', // Solid color for pinned milestones
+    borderWidth: 2,
+  },
+  pinnedInnerContainer: {
+    backgroundColor: '#1A1A1A',
+    borderRadius: 10,
+    overflow: 'hidden',
   },
   milestoneHeader: {
     flexDirection: 'row',
@@ -651,7 +741,7 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   activeReactionButton: {
-    backgroundColor: '#FF2D55',
+    backgroundColor: '#FF5E69',
   },
   reactionEmoji: {
     fontSize: 14,
@@ -667,7 +757,7 @@ const styles = StyleSheet.create({
   },
   viewDetailsText: {
     fontSize: 14,
-    color: '#FF2D55',
+    color: '#FF5E69',
     marginRight: 4,
   },
   cardFooter: {

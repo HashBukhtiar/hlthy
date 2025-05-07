@@ -12,6 +12,7 @@ export default function ViewMilestone() {
   const [loading, setLoading] = useState(true);
   const [milestone, setMilestone] = useState(null);
   const [isPinned, setIsPinned] = useState(false);
+  const [isTop5Percent, setIsTop5Percent] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -20,7 +21,6 @@ export default function ViewMilestone() {
       if (id === 'm1') {
         const milestoneData = {
           id: 'm1',
-          userId: 'user1',
           userId: 'user1',
           username: 'fitness_pro',
           fullName: 'Alex Fitness',
@@ -62,12 +62,14 @@ export default function ViewMilestone() {
               createdAt: new Date(Date.now() - 18000000)
             }
           ],
-          pinned: true
+          pinned: true,
+          top5Percent: false
         };
         setMilestone(milestoneData);
         setIsPinned(milestoneData.pinned);
+        setIsTop5Percent(milestoneData.top5Percent);
       } else if (id === 'm2') {
-        setMilestone({
+        const milestoneData = {
           id: 'm2',
           userId: 'user2',
           username: 'runner_girl',
@@ -101,10 +103,14 @@ export default function ViewMilestone() {
               createdAt: new Date(Date.now() - 50000000)
             }
           ],
-          pinned: false
-        });
+          pinned: false,
+          top5Percent: true
+        };
+        setMilestone(milestoneData);
+        setIsPinned(milestoneData.pinned);
+        setIsTop5Percent(milestoneData.top5Percent);
       } else if (id === 'm3') {
-        setMilestone({
+        const milestoneData = {
           id: 'm3',
           userId: 'user3',
           username: 'weightloss_journey',
@@ -146,10 +152,46 @@ export default function ViewMilestone() {
               createdAt: new Date(Date.now() - 7200000)
             }
           ],
-          pinned: false
-        });
+          pinned: false,
+          top5Percent: false
+        };
+        setMilestone(milestoneData);
+        setIsPinned(milestoneData.pinned);
+        setIsTop5Percent(milestoneData.top5Percent);
+      } else if (id === 'm4') {
+        const milestoneData = {
+          id: 'm4',
+          userId: 'user7',
+          username: 'super_athlete',
+          fullName: 'Jamie Athlete',
+          profileImageUrl: 'https://randomuser.me/api/portraits/women/28.jpg',
+          createdAt: new Date(Date.now() - 120000),
+          milestoneType: 'PR',
+          details: {
+            exercise: 'Squat',
+            value: 315,
+            weightUnit: 'lbs',
+            reps: 3,
+            previousValue: 275,
+            previousReps: 3,
+            improvement: '14.5%'
+          },
+          reactions: {
+            '❤️': 45,
+            '💪': 32,
+            '🔥': 29
+          },
+          userReaction: null,
+          associatedPostId: 'post4',
+          comments: [],
+          pinned: true,
+          top5Percent: true
+        };
+        setMilestone(milestoneData);
+        setIsPinned(milestoneData.pinned);
+        setIsTop5Percent(milestoneData.top5Percent);
       } else {
-        setMilestone({
+        const milestoneData = {
           id: id || 'unknown',
           userId: 'user1',
           username: 'hlthy_user',
@@ -173,8 +215,12 @@ export default function ViewMilestone() {
           },
           userReaction: null,
           comments: [],
-          pinned: false
-        });
+          pinned: false,
+          top5Percent: false
+        };
+        setMilestone(milestoneData);
+        setIsPinned(milestoneData.pinned);
+        setIsTop5Percent(milestoneData.top5Percent);
       }
       
       setLoading(false);
@@ -375,7 +421,7 @@ export default function ViewMilestone() {
         </View>
         
         <View style={styles.milestoneCard}>
-          {milestone.pinned ? (
+          {isTop5Percent ? (
             <LinearGradient
               colors={['#B16CEA', '#FF5E69', '#FF8A56', '#FFA84B']}
               start={{ x: 0, y: 0 }}
@@ -395,11 +441,10 @@ export default function ViewMilestone() {
                     <Text style={styles.milestoneType}>
                       {milestone.milestoneType === 'PR' ? 'Personal Record' : 
                        milestone.milestoneType === 'weightLoss' ? 'Weight Loss' : 'Weight Gain'}
-                      {milestone.pinned && <Text style={{color: '#FF5E69'}}> ★</Text>}
                     </Text>
                     <Text style={styles.milestoneDate}>
                       {milestone.createdAt.toDateString()}
-                      {milestone.pinned && <Text style={{color: '#FF8A56'}}> • Pinned</Text>}
+                      <Text style={{color: '#FFA84B'}}> • Top 5%</Text>
                     </Text>
                   </View>
                 </View>
@@ -407,6 +452,30 @@ export default function ViewMilestone() {
                 {renderMilestoneDetails()}
               </View>
             </LinearGradient>
+          ) : isPinned ? (
+            <View style={styles.pinnedContainer}>
+              <View style={styles.milestoneHeader}>
+                <View style={styles.milestoneIconContainer}>
+                  {milestone.milestoneType === 'PR' ? (
+                    <Ionicons name="barbell-outline" size={32} color="#FFF" style={styles.milestoneIcon} />
+                  ) : (
+                    <Ionicons name="fitness-outline" size={32} color="#FFF" style={styles.milestoneIcon} />
+                  )}
+                </View>
+                <View style={styles.milestoneTitleContainer}>
+                  <Text style={styles.milestoneType}>
+                    {milestone.milestoneType === 'PR' ? 'Personal Record' : 
+                     milestone.milestoneType === 'weightLoss' ? 'Weight Loss' : 'Weight Gain'}
+                  </Text>
+                  <Text style={styles.milestoneDate}>
+                    {milestone.createdAt.toDateString()}
+                    <Text style={{color: '#FF5E69'}}> • Pinned</Text>
+                  </Text>
+                </View>
+              </View>
+              
+              {renderMilestoneDetails()}
+            </View>
           ) : (
             <>
               <View style={styles.milestoneHeader}>
@@ -584,14 +653,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#333',
   },
-  pinnedMilestoneCard: {
-    position: 'relative',
-    borderWidth: 0,
-    shadowColor: '#B16CEA',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.4,
-    shadowRadius: 6,
-    elevation: 5,
+  pinnedContainer: {
+    backgroundColor: '#1A1A1A',
+    borderRadius: 12,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#333',
   },
   gradientWrapper: {
     margin: 15,
