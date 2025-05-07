@@ -348,38 +348,37 @@ export default function MilestonesFeed() {
               
               {/* Milestone Details */}
               {renderMilestoneDetails(item)}
+              
+              {/* Reactions and View Details - Now inside the card */}
+              <View style={styles.cardFooter}>
+                <View style={styles.reactionButtons}>
+                  {['❤️', '💪', '🔥'].map(emoji => (
+                    <TouchableOpacity 
+                      key={emoji}
+                      style={[
+                        styles.combinedReactionButton,
+                        item.userReaction === emoji && styles.activeReactionButton
+                      ]}
+                      onPress={() => handleReaction(item.id, emoji)}
+                    >
+                      <Text style={styles.reactionEmoji}>{emoji}</Text>
+                      {(item.reactions[emoji] && item.reactions[emoji] > 0) && (
+                        <Text style={styles.reactionCount}>{item.reactions[emoji]}</Text>
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                
+                <TouchableOpacity 
+                  style={styles.viewDetailsButton}
+                  onPress={() => navigateToMilestone(item.id)}
+                >
+                  <Text style={styles.viewDetailsText}>View Details</Text>
+                  <Ionicons name="chevron-forward" size={14} color="#FF2D55" />
+                </TouchableOpacity>
+              </View>
             </View>
           </TouchableOpacity>
-          
-          {/* Reactions */}
-          <View style={styles.reactionsContainer}>
-            <View style={styles.reactionButtons}>
-              {['❤️', '💪', '🔥'].map(emoji => (
-                <TouchableOpacity 
-                  key={emoji}
-                  style={[
-                    styles.combinedReactionButton,
-                    item.userReaction === emoji && styles.activeReactionButton
-                  ]}
-                  onPress={() => handleReaction(item.id, emoji)}
-                >
-                  <Text style={styles.reactionEmoji}>{emoji}</Text>
-                  {(item.reactions[emoji] && item.reactions[emoji] > 0) && (
-                    <Text style={styles.reactionCount}>{item.reactions[emoji]}</Text>
-                  )}
-                </TouchableOpacity>
-              ))}
-            </View>
-            
-            {/* View Full Details Link */}
-            <TouchableOpacity 
-              style={styles.viewDetailsButton}
-              onPress={() => navigateToMilestone(item.id)}
-            >
-              <Text style={styles.viewDetailsText}>View Details</Text>
-              <Ionicons name="chevron-forward" size={14} color="#0A84FF" />
-            </TouchableOpacity>
-          </View>
         </View>
       )}
     />
@@ -392,10 +391,8 @@ const styles = StyleSheet.create({
     paddingBottom: 70,
   },
   milestoneContainer: {
-    marginBottom: 15,
-    borderBottomColor: '#222',
-    borderBottomWidth: 1,
-    paddingBottom: 15,
+    paddingTop: 15,
+    paddingBottom: 10,
   },
   header: {
     flexDirection: 'row',
@@ -411,7 +408,7 @@ const styles = StyleSheet.create({
   profilePic: {
     width: 50,
     height: 50,
-    borderRadius: 25, // Match the container radius
+    borderRadius: 25,
   },
   username: {
     fontWeight: '600',
@@ -505,6 +502,7 @@ const styles = StyleSheet.create({
   },
   detailsContainer: {
     padding: 15,
+    paddingBottom: 10,
   },
   detailRow: {
     flexDirection: 'row',
@@ -557,7 +555,7 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   activeReactionButton: {
-    backgroundColor: '#0A84FF',
+    backgroundColor: '#FF2D55',
   },
   reactionEmoji: {
     fontSize: 14,
@@ -573,8 +571,17 @@ const styles = StyleSheet.create({
   },
   viewDetailsText: {
     fontSize: 14,
-    color: '#0A84FF',
+    color: '#FF2D55',
     marginRight: 4,
+  },
+  cardFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#333',
   },
   emptyMilestonesContainer: {
     flex: 1,
