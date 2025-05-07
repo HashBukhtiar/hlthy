@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, Image, StyleSheet, Dimensions, FlatList, TouchableOpacity, SafeAreaView, Animated, ActivityIndicator, RefreshControl, Modal } from 'react-native';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { postImage } from '@/assets/images';
 import { useProfileData, GroupedMilestones, Milestone } from '@/hooks/useProfileData'; // Import interfaces if needed
 import { useAuth } from '@/context/AuthContext';
@@ -31,14 +31,18 @@ interface Workout {
   favorites: number;
 }
 
+interface ProfileScreenProps {
+  userId?: string;
+}
+
 enum TabType {
   POSTS = 'POSTS',
   MILESTONES = 'MILESTONES',
   WORKOUTS = 'WORKOUTS'
 }
 
-const Profile = () => {
-  const { currentUser, userProfile, refreshUserProfile } = useAuth();
+const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
+  const { currentUser, userProfile: currentUserProfile, refreshUserProfile } = useAuth();
   const {
     loading,
     profileData,
@@ -48,8 +52,9 @@ const Profile = () => {
     followers,
     following,
     error,
-    refreshProfileData
-  } = useProfileData();
+    refreshProfileData,
+    // Add isFollowing and follow/unfollow functions later if needed
+  } = useProfileData(routeUserId);
   const [refreshing, setRefreshing] = useState(false);
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabType>(TabType.POSTS);
@@ -59,6 +64,9 @@ const Profile = () => {
   const tabWidth = screenWidth / 3;
   const [tooltipVisible, setTooltipVisible] = useState(false);
   const [tooltipText, setTooltipText] = useState('');
+
+  const isOwnProfile = !routeUserId || routeUserId === currentUser?.uid;
+  const displayProfileData = isOwnProfile ? (profileData || currentUserProfile) : profileData;
 
   // Transform scroll position to indicator position
   const indicatorPosition = tabIndicator.interpolate({
@@ -70,7 +78,9 @@ const Profile = () => {
   const onRefresh = async () => {
     setRefreshing(true);
     try {
-      await refreshUserProfile();
+      if (isOwnProfile) {
+        await refreshUserProfile();
+      }
       await refreshProfileData();
     } catch (error) {
       console.error("Error refreshing profile:", error);
@@ -514,44 +524,62 @@ const Profile = () => {
     <SafeAreaView style={styles.container}>
       {/* Profile Header */}
       <View style={styles.profileHeader}>
-        <TouchableOpacity
-          style={{ position: 'absolute', top: 20, right: 20 }}
-          onPress={() => handleSettingsPress()}
-        >
-          <Text style={{ color: 'white', backgroundColor: '#212121', padding: 5, borderRadius: 5 }}>Settings</Text>
-        </TouchableOpacity>
+        {/* Conditionally render Settings button only for own profile */}
+        {isOwnProfile && (
+          <TouchableOpacity
+            style={{ position: 'absolute', top: 20, right: 20, zIndex: 1 }} // Ensure zIndex if overlapping
+            onPress={handleSettingsPress}
+          >
+            <Text style={{ color: 'white', backgroundColor: '#212121', padding: 8, borderRadius: 5 }}>Settings</Text>
+          </TouchableOpacity>
+        )}
+        {/* Back button if not own profile and not part of a stack that provides one */}
+        {!isOwnProfile && router.canGoBack() && (
+           <TouchableOpacity
+            style={{ position: 'absolute', top: 20, left: 20, zIndex: 1 }}
+            onPress={() => router.back()}
+          >
+            <Ionicons name="arrow-back" size={24} color="white" />
+          </TouchableOpacity>
+        )}
+
         <Image
-          source={{ uri: profileData?.profileImageUrl || 'https://thumbs.dreamstime.com/b/creative-illustration-default-avatar-profile-placeholder-isolated-background-art-design-grey-photo-blank-template-mockup-144855718.jpg' }}
+          source={{ uri: displayProfileData?.profileImageUrl || 'https://thumbs.dreamstime.com/b/creative-illustration-default-avatar-profile-placeholder-isolated-background-art-design-grey-photo-blank-template-mockup-144855718.jpg' }}
           style={styles.profileImage}
         />
-        <Text style={styles.profileName}>{profileData?.displayName || 'User'}</Text>
-        <Text style={styles.profileUsername}>@{profileData?.username || 'username'}</Text>
-        <Text style={styles.profileBio}>{profileData?.bio || 'No bio yet'}</Text>
+        <Text style={styles.profileName}>{displayProfileData?.displayName || 'User'}</Text>
+        <Text style={styles.profileUsername}>@{displayProfileData?.username || 'username'}</Text>
+        <Text style={styles.profileBio}>{displayProfileData?.bio || 'No bio yet'}</Text>
 
         <View style={styles.statsContainer}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.statItem}
             onPress={() => {
-              setTooltipText(archetypeDescriptions[profileData?.archetype?.toLowerCase() || 'generalist']);
-              setTooltipVisible(true);
+              if (displayProfileData?.archetype) {
+                setTooltipText(archetypeDescriptions[displayProfileData.archetype.toLowerCase() || 'generalist']);
+                setTooltipVisible(true);
+              }
             }}
+            disabled={!displayProfileData?.archetype}
           >
             <Image
-              source={archetypeIcons[profileData?.archetype?.toLowerCase() || 'generalist']}
+              source={archetypeIcons[displayProfileData?.archetype?.toLowerCase() || 'generalist']}
               style={styles.archetypeIcon}
             />
             <Text style={styles.statLabel}>Archetype</Text>
           </TouchableOpacity>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.statItem}
-            onPress={() => router.push(`/followers/${currentUser.uid}`)}
+            // Pass the ID of the profile being viewed
+            onPress={() => router.push(`/followers/${displayProfileData?.id || currentUser?.uid}`)}
           >
             <Text style={styles.statNumber}>{followers.length}</Text>
             <Text style={styles.statLabel}>Followers</Text>
           </TouchableOpacity>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.statItem}
-            onPress={() => router.push(`/following/${currentUser.uid}`)}
+            // Pass the ID of the profile being viewed
+            onPress={() => router.push(`/following/${displayProfileData?.id || currentUser?.uid}`)}
           >
             <Text style={styles.statNumber}>{following.length}</Text>
             <Text style={styles.statLabel}>Following</Text>
@@ -559,28 +587,28 @@ const Profile = () => {
         </View>
       </View>
 
-      {/* Tooltip Modal */}
+      {/* Tooltip Modal - ensure displayProfileData is used */}
       <Modal
         transparent={true}
         visible={tooltipVisible}
         animationType="fade"
         onRequestClose={() => setTooltipVisible(false)}
       >
-        <TouchableOpacity 
-          style={styles.tooltipContainer} 
-          activeOpacity={1} 
+        <TouchableOpacity
+          style={styles.tooltipContainer}
+          activeOpacity={1}
           onPress={() => setTooltipVisible(false)}
         >
           <View style={styles.tooltip}>
             <View style={styles.tooltipHeader}>
               <Image
-                source={archetypeIcons[profileData?.archetype?.toLowerCase() || 'generalist']}
+                source={archetypeIcons[displayProfileData?.archetype?.toLowerCase() || 'generalist']}
                 style={styles.tooltipIcon}
               />
               <Text style={styles.tooltipTitle}>
-                {profileData?.archetype?.split(' ').map(word => 
+                {displayProfileData?.archetype?.split(' ').map(word =>
                   word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
-                ).join(' ') || 'Generalist'} {/* title case */}
+                ).join(' ') || 'Generalist'}
               </Text>
             </View>
             <View style={styles.tooltipDivider} />
@@ -602,7 +630,7 @@ const Profile = () => {
       <View style={styles.tabContent}>
         <FlatList
           ref={flatListRef}
-          data={tabScenes}
+          data={tabScenes} // Ensure tabScenes uses the updated render functions
           horizontal
           pagingEnabled
           showsHorizontalScrollIndicator={false}
@@ -614,7 +642,7 @@ const Profile = () => {
             </View>
           )}
           keyExtractor={(item) => item.key}
-          initialScrollIndex={0}
+          initialScrollIndex={0} // Start at Posts tab
         />
       </View>
     </SafeAreaView>
