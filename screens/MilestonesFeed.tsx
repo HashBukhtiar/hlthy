@@ -295,25 +295,6 @@ export default function MilestonesFeed() {
       contentContainerStyle={styles.milestonesContainer}
       renderItem={({item}) => (
         <View style={styles.milestoneContainer}>
-          {/* Header with profile info */}
-          <View style={styles.header}>
-            <TouchableOpacity 
-              style={styles.userInfoContainer}
-              onPress={() => navigateToProfile(item.userId)}
-            >
-              <Image 
-                source={{ uri: item.profileImageUrl }} 
-                style={styles.profilePic} 
-              />
-              <View>
-                <Text style={styles.username}>{item.username}</Text>
-                {item.fullName && <Text style={styles.fullName}>{item.fullName}</Text>}
-              </View>
-            </TouchableOpacity>
-            <View style={styles.rightHeader}>
-              <Text style={styles.timestamp}>{formatTimeAgo(item.createdAt)}</Text>
-            </View>
-          </View>
           
           {/* Milestone Card Content */}
           <TouchableOpacity 
@@ -325,18 +306,18 @@ export default function MilestonesFeed() {
               {/* Milestone Card Header */}
               <View style={styles.milestoneHeader}>
                 <View style={styles.milestoneIconContainer}>
-                  {item.milestoneType === 'PR' ? (
-                    <Ionicons name="barbell-outline" size={28} color="#FFF" style={styles.milestoneIcon} />
-                  ) : (
-                    <Ionicons name="fitness-outline" size={28} color="#FFF" style={styles.milestoneIcon} />
-                  )}
+                  <TouchableOpacity onPress={() => navigateToProfile(item.userId)}>
+                    <Image 
+                      source={{ uri: item.profileImageUrl }} 
+                      style={styles.profilePic}
+                    />
+                  </TouchableOpacity>
                 </View>
                 <View style={styles.milestoneTitleContainer}>
                   <Text style={styles.milestoneType}>
-                    {item.milestoneType === 'PR' ? 'Personal Record' : 
-                     item.milestoneType === 'weightLoss' ? 'Weight Loss' : 'Weight Gain'}
+                    {item.fullName || item.username}
                   </Text>
-                  <Text style={styles.milestoneDate}>{item.createdAt.toDateString()}</Text>
+                  <Text style={styles.milestoneDate}>{formatTimeAgo(item.createdAt)}</Text>
                 </View>
                 
                 {/* Post Preview (if available) */}
@@ -420,10 +401,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   profilePic: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    marginRight: 10,
+    width: 50,
+    height: 50,
+    borderRadius: 25, // Match the container radius
   },
   username: {
     fontWeight: '600',
@@ -462,9 +442,7 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: '#333',
-    justifyContent: 'center',
-    alignItems: 'center',
+    overflow: 'hidden', // Add overflow hidden to ensure image stays in circle
     marginRight: 12,
   },
   milestoneIcon: {
@@ -478,6 +456,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     marginBottom: 4,
+  },
+  usernameText: {
+    color: '#999',
+    fontSize: 12,
   },
   milestoneDate: {
     color: '#999',
