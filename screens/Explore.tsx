@@ -30,6 +30,9 @@ export default function Explore() {
   const buttonsData: PostData[] = [
     { id: '1', label: 'Post 1', image: 'https://via.placeholder.com/150' },
     { id: '2', label: 'Post 2', image: 'https://via.placeholder.com/150' },
+    { id: '3', label: 'Post 3', image: 'https://via.placeholder.com/150' },
+    { id: '4', label: 'Post 4', image: 'https://via.placeholder.com/150' },
+    { id: '5', label: 'Post 5', image: 'https://via.placeholder.com/150' },
     // ... more mock posts
   ];
 
@@ -123,29 +126,31 @@ export default function Explore() {
 
   // Original posts grid (can be conditionally rendered or removed)
   const renderPostsGrid = (buttons: PostData[]) => {
-    // ... (your existing posts grid logic - keep if needed for default view)
-    // For now, we'll hide it if a search is active
     if (searchQuery.trim().length > 0 || searchPerformed) {
         return null;
     }
 
     const rows = [];
-    for (let i = 0; i < buttons.length; i += 3) {
-      const chunk = buttons.slice(i, i + 3);
+    const itemsPerRow = 3;
+    for (let i = 0; i < buttons.length; i += itemsPerRow) {
+      const chunk = buttons.slice(i, i + itemsPerRow);
       rows.push(
         <View key={`row-${i}`} style={styles.row}>
-          {chunk.map((button) => (
+          {chunk.map((button, index) => (
             <TouchableOpacity
               key={button.id}
-              style={styles.postPreview}
+              style={[
+                styles.postPreview,
+                index < chunk.length - 1 ? { marginRight: '2%' } : null
+              ]}
               onPress={() => router.push({
-                pathname: '/view-post/[id]', // Ensure this route exists
+                pathname: '/view-post/[id]',
                 params: {
                   id: button.id.toString(),
-                  // Pass necessary post data if view-post expects it
                 }
               })}
             >
+              {/* Render post image here */}
               <Text style={styles.postPreviewText}>{button.label}</Text>
             </TouchableOpacity>
           ))}
@@ -221,21 +226,23 @@ const styles = StyleSheet.create({
   // Styles for the posts grid (can be adjusted or removed if not used)
   row: {
     flexDirection: 'row',
-    justifyContent: 'space-between', // Or 'space-around'
-    marginBottom: 5, // Adjust spacing between rows
-    paddingHorizontal: 5, // Add some horizontal padding to the row container
+    justifyContent: 'flex-start', // Changed from 'space-between'
+    marginBottom: 5, 
+    paddingHorizontal: 5, 
   },
   postPreview: {
-    // Calculate width based on screen width and desired spacing
-    // For 3 items per row with some spacing: (screenWidth - (spacing * (itemsPerRow + 1))) / itemsPerRow
-    // This is a simplified approach, consider using Dimensions API for more accuracy
-    width: '32%', // Adjust for desired spacing
-    aspectRatio: 1, // Make it square
+    width: '32%', 
+    aspectRatio: 1, 
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'grey', // Placeholder
+    backgroundColor: 'grey', 
     borderRadius: 10,
-    marginBottom: 5, // Spacing below each post item
+    marginBottom: 5, 
+    // To add space between items if desired, you can add a marginRight here:
+    // marginRight: '2%', // Example: (100 - (32*3)) / 2 for spacing between 3 items
+    // If you add marginRight, you might need to adjust the width or handle the last item differently
+    // or ensure the row can wrap if it exceeds 100% width with margins.
+    // For simplicity, 'flex-start' with current width will place them next to each other.
   },
   postPreviewText: {
     color: 'white',

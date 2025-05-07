@@ -343,9 +343,9 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
     </View>
   );
 
-  const prevLoading = useRef(loading); // This hook is fine here
+  const prevLoading = useRef(loading);
 
-  useEffect(() => { // This hook is fine here
+  useEffect(() => { 
     if (prevLoading.current === true && loading === false) {
       if (flatListRef.current) {
         let targetIndex = 0;
@@ -388,7 +388,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
           
           <TouchableOpacity 
             style={styles.retryButton} 
-            onPress={onRefresh} // onRefresh is defined above
+            onPress={onRefresh}
           >
             <Text style={styles.retryText}>Retry</Text>
           </TouchableOpacity>
