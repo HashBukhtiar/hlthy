@@ -253,32 +253,33 @@ export default function MilestonesFeed() {
             </View>
           </View>
           
-          {/* Content */}
+          {/* Content with milestone details and attached image */}
           <View style={styles.milestoneContent}>
-            <View style={styles.milestoneIconContainer}>
-              {item.milestoneType === 'PR' ? (
-                <Ionicons name="barbell-outline" size={24} color="#FFF" style={styles.milestoneIcon} />
-              ) : (
-                <Ionicons name="fitness-outline" size={24} color="#FFF" style={styles.milestoneIcon} />
-              )}
+            <View style={styles.milestoneMainContent}>
+              <View style={styles.milestoneIconContainer}>
+                {item.milestoneType === 'PR' ? (
+                  <Ionicons name="barbell-outline" size={24} color="#FFF" style={styles.milestoneIcon} />
+                ) : (
+                  <Ionicons name="fitness-outline" size={24} color="#FFF" style={styles.milestoneIcon} />
+                )}
+              </View>
+              
+              {renderMilestoneDetails(item)}
             </View>
             
-            {renderMilestoneDetails(item)}
+            {/* Associated Post Image (if available) - inside widget on the right */}
+            {item.postImageUrl && (
+              <TouchableOpacity 
+                style={styles.milestoneImageContainer}
+                onPress={() => navigateToPost(item.associatedPostId || '')}
+              >
+                <Image source={{ uri: item.postImageUrl }} style={styles.milestoneImage} />
+                <View style={styles.milestoneImageOverlay}>
+                  <Ionicons name="camera" size={14} color="#FFF" />
+                </View>
+              </TouchableOpacity>
+            )}
           </View>
-          
-          {/* Associated Post Image (if available) */}
-          {item.postImageUrl && (
-            <TouchableOpacity 
-              style={styles.milestoneImageContainer}
-              onPress={() => navigateToPost(item.associatedPostId || '')}
-            >
-              <Image source={{ uri: item.postImageUrl }} style={styles.milestoneImage} />
-              <View style={styles.milestoneImageOverlay}>
-                <Ionicons name="camera" size={16} color="#FFF" />
-                <Text style={styles.viewPostText}>View Post</Text>
-              </View>
-            </TouchableOpacity>
-          )}
           
           {/* Reactions */}
           <View style={styles.milestoneReactionsContainer}>
@@ -299,6 +300,17 @@ export default function MilestonesFeed() {
                 </TouchableOpacity>
               ))}
             </View>
+            
+            {/* View Post link when post image exists */}
+            {item.postImageUrl && (
+              <TouchableOpacity 
+                style={styles.viewPostButton}
+                onPress={() => navigateToPost(item.associatedPostId || '')}
+              >
+                <Text style={styles.viewPostButtonText}>View Post</Text>
+                <Ionicons name="chevron-forward" size={12} color="#999" />
+              </TouchableOpacity>
+            )}
           </View>
           
           {/* View Full Milestone Button */}
@@ -324,13 +336,19 @@ const styles = StyleSheet.create({
   },
   milestoneContent: {
     flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 15,
-    paddingVertical: 15,
-    backgroundColor: '#1A1A1A',
     marginHorizontal: 15,
+    marginVertical: 12,
+    backgroundColor: '#1A1A1A',
     borderRadius: 12,
-    marginBottom: 12,
+    overflow: 'hidden',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  milestoneMainContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 15,
+    flex: 1,
   },
   milestoneIconContainer: {
     width: 50,
@@ -344,14 +362,17 @@ const styles = StyleSheet.create({
   milestoneIcon: {
     padding: 5,
   },
-  milestoneDetails: {
-    flex: 1,
+  milestoneImageContainer: {
+    width: 90,
+    height: 90,
+    overflow: 'hidden',
   },
-  milestoneTitle: {
-    color: 'white',
-    fontWeight: 'bold',
-    fontSize: 16,
-    marginBottom: 5,
+  milestoneImage: {
+    width: '100%',
+    height: '100%',
+  },
+  milestoneValueContainer: {
+    flex: 1,
   },
   milestoneValue: {
     color: '#DDD',
@@ -360,17 +381,22 @@ const styles = StyleSheet.create({
   milestoneStat: {
     color: '#4CD964',
   },
-  milestoneImageContainer: {
-    marginHorizontal: 15,
-    height: 200,
-    borderRadius: 12,
-    overflow: 'hidden',
-    marginBottom: 12,
+  milestoneExercise: {
+    color: '#999',
+    fontSize: 13,
+    marginTop: 2,
   },
-  milestoneImage: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 12,
+  milestoneDiff: {
+    fontSize: 13,
+  },
+  milestoneImageOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    paddingVertical: 4,
+    alignItems: 'center',
   },
   emptyMilestonesContainer: {
     flex: 1,
@@ -428,40 +454,6 @@ const styles = StyleSheet.create({
     color: '#FFD700',
     marginLeft: 4,
   },
-  milestoneValueContainer: {
-    flex: 1,
-  },
-  milestoneExercise: {
-    color: '#999',
-    fontSize: 13,
-    marginTop: 2,
-  },
-  milestoneDiff: {
-    fontSize: 13,
-  },
-  milestoneImageOverlay: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    paddingVertical: 8,
-    alignItems: 'center',
-  },
-  viewPostText: {
-    color: '#FFF',
-    fontSize: 12,
-    marginTop: 2,
-  },
-  milestoneReactionsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 15,
-    paddingVertical: 10,
-    borderTopColor: '#222',
-    borderTopWidth: 1,
-  },
   reactionButtons: {
     flexDirection: 'row',
   },
@@ -497,6 +489,16 @@ const styles = StyleSheet.create({
   viewMilestoneText: {
     fontSize: 14,
     color: '#0A84FF',
+    marginRight: 4,
+  },
+  viewPostButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 8,
+  },
+  viewPostButtonText: {
+    fontSize: 12,
+    color: '#999',
     marginRight: 4,
   },
 });
