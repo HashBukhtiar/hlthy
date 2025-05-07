@@ -3,6 +3,7 @@ import { StyleSheet, Text, View, Image, TouchableOpacity, ScrollView, ActivityIn
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 
 export default function ViewMilestone() {
   const { id } = useLocalSearchParams();
@@ -19,6 +20,7 @@ export default function ViewMilestone() {
       if (id === 'm1') {
         const milestoneData = {
           id: 'm1',
+          userId: 'user1',
           userId: 'user1',
           username: 'fitness_pro',
           fullName: 'Alex Fitness',
@@ -372,25 +374,61 @@ export default function ViewMilestone() {
           </View>
         </View>
         
-        <View style={[styles.milestoneCard, milestone.pinned && styles.pinnedMilestoneCard]}>
-          <View style={styles.milestoneHeader}>
-            <View style={styles.milestoneIconContainer}>
-              {milestone.milestoneType === 'PR' ? (
-                <Ionicons name="barbell-outline" size={32} color="#FFF" style={styles.milestoneIcon} />
-              ) : (
-                <Ionicons name="fitness-outline" size={32} color="#FFF" style={styles.milestoneIcon} />
-              )}
-            </View>
-            <View style={styles.milestoneTitleContainer}>
-              <Text style={styles.milestoneType}>
-                {milestone.milestoneType === 'PR' ? 'Personal Record' : 
-                 milestone.milestoneType === 'weightLoss' ? 'Weight Loss' : 'Weight Gain'}
-              </Text>
-              <Text style={styles.milestoneDate}>{milestone.createdAt.toDateString()}</Text>
-            </View>
-          </View>
-          
-          {renderMilestoneDetails()}
+        <View style={styles.milestoneCard}>
+          {milestone.pinned ? (
+            <LinearGradient
+              colors={['#B16CEA', '#FF5E69', '#FF8A56', '#FFA84B']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.gradientBorder}
+            >
+              <View style={styles.gradientInnerContainer}>
+                <View style={styles.milestoneHeader}>
+                  <View style={styles.milestoneIconContainer}>
+                    {milestone.milestoneType === 'PR' ? (
+                      <Ionicons name="barbell-outline" size={32} color="#FFF" style={styles.milestoneIcon} />
+                    ) : (
+                      <Ionicons name="fitness-outline" size={32} color="#FFF" style={styles.milestoneIcon} />
+                    )}
+                  </View>
+                  <View style={styles.milestoneTitleContainer}>
+                    <Text style={styles.milestoneType}>
+                      {milestone.milestoneType === 'PR' ? 'Personal Record' : 
+                       milestone.milestoneType === 'weightLoss' ? 'Weight Loss' : 'Weight Gain'}
+                      {milestone.pinned && <Text style={{color: '#FF5E69'}}> ★</Text>}
+                    </Text>
+                    <Text style={styles.milestoneDate}>
+                      {milestone.createdAt.toDateString()}
+                      {milestone.pinned && <Text style={{color: '#FF8A56'}}> • Pinned</Text>}
+                    </Text>
+                  </View>
+                </View>
+                
+                {renderMilestoneDetails()}
+              </View>
+            </LinearGradient>
+          ) : (
+            <>
+              <View style={styles.milestoneHeader}>
+                <View style={styles.milestoneIconContainer}>
+                  {milestone.milestoneType === 'PR' ? (
+                    <Ionicons name="barbell-outline" size={32} color="#FFF" style={styles.milestoneIcon} />
+                  ) : (
+                    <Ionicons name="fitness-outline" size={32} color="#FFF" style={styles.milestoneIcon} />
+                  )}
+                </View>
+                <View style={styles.milestoneTitleContainer}>
+                  <Text style={styles.milestoneType}>
+                    {milestone.milestoneType === 'PR' ? 'Personal Record' : 
+                     milestone.milestoneType === 'weightLoss' ? 'Weight Loss' : 'Weight Gain'}
+                  </Text>
+                  <Text style={styles.milestoneDate}>{milestone.createdAt.toDateString()}</Text>
+                </View>
+              </View>
+              
+              {renderMilestoneDetails()}
+            </>
+          )}
         </View>
         
         {milestone.postImageUrl && (
@@ -547,13 +585,27 @@ const styles = StyleSheet.create({
     borderColor: '#333',
   },
   pinnedMilestoneCard: {
-    borderColor: '#FF6B8A',
-    borderWidth: 2,
-    shadowColor: '#FF6B8A',
+    position: 'relative',
+    borderWidth: 0,
+    shadowColor: '#B16CEA',
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
-    elevation: 4,
+    shadowOpacity: 0.4,
+    shadowRadius: 6,
+    elevation: 5,
+  },
+  gradientWrapper: {
+    margin: 15,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  gradientBorder: {
+    padding: 2,
+    borderRadius: 12,
+  },
+  gradientInnerContainer: {
+    backgroundColor: '#1A1A1A',
+    borderRadius: 10,
+    overflow: 'hidden',
   },
   milestoneHeader: {
     flexDirection: 'row',

@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 
 // Define interfaces for milestone data
 export interface MilestoneReactions {
@@ -277,34 +278,18 @@ export default function MilestonesFeed() {
     
     return null;
   };
-  
-  if (milestones.length === 0) {
-    return (
-      <View style={styles.emptyMilestonesContainer}>
-        <Text style={styles.emptyMilestonesText}>No milestones to display</Text>
-      </View>
-    );
-  }
-  
-  return (
-    <FlatList
-      data={milestones}
-      keyExtractor={(item) => item.id}
-      showsVerticalScrollIndicator={false}
-      contentContainerStyle={styles.milestonesContainer}
-      renderItem={({item}) => (
-        <View style={styles.milestoneContainer}>
-          
-          {/* Milestone Card Content */}
-          <TouchableOpacity 
-            style={styles.milestoneCardWrapper}
-            onPress={() => navigateToMilestone(item.id)}
-            activeOpacity={0.9}
+
+  const renderMilestoneCard = (item: Milestone) => {
+    if (item.pinned) {
+      return (
+        <View style={styles.gradientWrapper}>
+          <LinearGradient
+            colors={['#B16CEA', '#FF5E69', '#FF8A56', '#FFA84B']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.gradientBorder}
           >
-            <View style={[
-              styles.milestoneCard,
-              item.pinned ? styles.pinnedMilestoneCard : null
-            ]}>
+            <View style={styles.gradientInnerContainer}>
               {/* Milestone Card Header */}
               <View style={styles.milestoneHeader}>
                 <View style={styles.milestoneIconContainer}>
@@ -318,14 +303,12 @@ export default function MilestonesFeed() {
                 <View style={styles.milestoneTitleContainer}>
                   <Text style={styles.milestoneType}>
                     {item.fullName}
+                    <Text style={{color: '#FF5E69'}}> {'\u2605'}</Text>
                   </Text>
                   <Text style={styles.milestoneDate}>
                     {formatTimeAgo(item.createdAt)}
-                    {item.pinned && (
-                        // format: 3h ago [dot] pinned
-                        <Text> • Pinned</Text>
-                    )}
-                </Text>
+                    <Text style={{color: '#FF8A56'}}> • Pinned</Text>
+                  </Text>
                 </View>
                 
                 {/* Post Preview (if available) */}
@@ -349,7 +332,7 @@ export default function MilestonesFeed() {
               {/* Milestone Details */}
               {renderMilestoneDetails(item)}
               
-              {/* Reactions and View Details - Now inside the card */}
+              {/* Reactions and View Details */}
               <View style={styles.cardFooter}>
                 <View style={styles.reactionButtons}>
                   {['❤️', '💪', '🔥'].map(emoji => (
@@ -374,10 +357,110 @@ export default function MilestonesFeed() {
                   onPress={() => navigateToMilestone(item.id)}
                 >
                   <Text style={styles.viewDetailsText}>View Details</Text>
-                  <Ionicons name="chevron-forward" size={14} color="#FF2D55" />
+                  <Ionicons name="chevron-forward" size={14} color="#FF5E69" />
                 </TouchableOpacity>
               </View>
             </View>
+          </LinearGradient>
+        </View>
+      );
+    }
+    
+    // Regular non-pinned milestone card
+    return (
+      <View style={styles.milestoneCard}>
+        {/* Milestone Card Header */}
+        <View style={styles.milestoneHeader}>
+          <View style={styles.milestoneIconContainer}>
+            <TouchableOpacity onPress={() => navigateToProfile(item.userId)}>
+              <Image 
+                source={{ uri: item.profileImageUrl }} 
+                style={styles.profilePic}
+              />
+            </TouchableOpacity>
+          </View>
+          <View style={styles.milestoneTitleContainer}>
+            <Text style={styles.milestoneType}>
+              {item.fullName}
+            </Text>
+            <Text style={styles.milestoneDate}>{formatTimeAgo(item.createdAt)}</Text>
+          </View>
+          
+          {/* Post Preview (if available) */}
+          {item.postImageUrl && (
+            <TouchableOpacity 
+              style={styles.postPreviewContainer}
+              onPress={() => navigateToPost(item.associatedPostId || '')}
+              activeOpacity={0.9}
+            >
+              <Image 
+                source={{ uri: item.postImageUrl }} 
+                style={styles.postPreviewImage} 
+              />
+              <View style={styles.postPreviewOverlay}>
+                <Ionicons name="camera" size={12} color="#FFF" />
+              </View>
+            </TouchableOpacity>
+          )}
+        </View>
+        
+        {/* Milestone Details */}
+        {renderMilestoneDetails(item)}
+        
+        {/* Reactions and View Details */}
+        <View style={styles.cardFooter}>
+          <View style={styles.reactionButtons}>
+            {['❤️', '💪', '🔥'].map(emoji => (
+              <TouchableOpacity 
+                key={emoji}
+                style={[
+                  styles.combinedReactionButton,
+                  item.userReaction === emoji && styles.activeReactionButton
+                ]}
+                onPress={() => handleReaction(item.id, emoji)}
+              >
+                <Text style={styles.reactionEmoji}>{emoji}</Text>
+                {(item.reactions[emoji] && item.reactions[emoji] > 0) && (
+                  <Text style={styles.reactionCount}>{item.reactions[emoji]}</Text>
+                )}
+              </TouchableOpacity>
+            ))}
+          </View>
+          
+          <TouchableOpacity 
+            style={styles.viewDetailsButton}
+            onPress={() => navigateToMilestone(item.id)}
+          >
+            <Text style={styles.viewDetailsText}>View Details</Text>
+            <Ionicons name="chevron-forward" size={14} color="#FF2D55" />
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  };
+
+  if (milestones.length === 0) {
+    return (
+      <View style={styles.emptyMilestonesContainer}>
+        <Text style={styles.emptyMilestonesText}>No milestones to display</Text>
+      </View>
+    );
+  }
+  
+  return (
+    <FlatList
+      data={milestones}
+      keyExtractor={(item) => item.id}
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={styles.milestonesContainer}
+      renderItem={({item}) => (
+        <View style={styles.milestoneContainer}>
+          <TouchableOpacity 
+            style={styles.milestoneCardWrapper}
+            onPress={() => navigateToMilestone(item.id)}
+            activeOpacity={0.9}
+          >
+            {renderMilestoneCard(item)}
           </TouchableOpacity>
         </View>
       )}
@@ -436,14 +519,27 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#333',
   },
+  gradientWrapper: {
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  gradientBorder: {
+    padding: 2,
+    borderRadius: 12,
+  },
+  gradientInnerContainer: {
+    backgroundColor: '#1A1A1A',
+    borderRadius: 10,
+    overflow: 'hidden',
+  },
   pinnedMilestoneCard: {
-    borderColor: '#FF6B8A',
-    borderWidth: 2,
-    shadowColor: '#FF6B8A',
+    position: 'relative', // Needed for the pseudo gradient border effect
+    borderWidth: 0, // Remove default border
+    shadowColor: '#B16CEA',
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
-    elevation: 4,
+    shadowOpacity: 0.4,
+    shadowRadius: 6,
+    elevation: 5,
   },
   milestoneHeader: {
     flexDirection: 'row',
@@ -502,7 +598,7 @@ const styles = StyleSheet.create({
   },
   detailsContainer: {
     padding: 15,
-    paddingBottom: 10,
+    paddingBottom: 8,
   },
   detailRow: {
     flexDirection: 'row',
