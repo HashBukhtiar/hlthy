@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { collection, query, orderBy, getDocs, deleteDoc, doc, getDoc, addDoc, updateDoc, increment, where, setDoc } from 'firebase/firestore';
+import { collection, query, orderBy, getDocs, deleteDoc, doc, getDoc, addDoc, updateDoc, increment, where, setDoc, runTransaction, serverTimestamp } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import { db, storage } from '@/firebaseConfig';
 import { useAuth } from '@/context/AuthContext';
@@ -22,15 +22,15 @@ export function useProfileData(userId = null) {
   const profileIdToFetch = userId || currentUser?.uid;
 
   const [loading, setLoading] = useState(true);
-  const [profileData, setProfileData] = useState(null);
-  const [posts, setPosts] = useState([]);
+  const [profileData, setProfileData] = useState<any | null>(null);
+  const [posts, setPosts] = useState<any[]>([]);
   const [groupedMilestones, setGroupedMilestones] = useState<GroupedMilestones>({});
-  const [workouts, setWorkouts] = useState([]);
-  const [followers, setFollowers] = useState([]);
-  const [following, setFollowing] = useState([]);
-  const [error, setError] = useState(null);
-  // IMPLEMENT THIS LATER
+  const [workouts, setWorkouts] = useState<any[]>([]);
+  const [followers, setFollowers] = useState<any[]>([]);
+  const [following, setFollowing] = useState<any[]>([]);
+  const [error, setError] = useState<Error | null>(null);
   const [isFollowingStatus, setIsFollowingStatus] = useState(false);
+  const [followActionLoading, setFollowActionLoading] = useState(false);
 
   const groupAndSortMilestones = (milestonesToSort: Milestone[]): GroupedMilestones => {
     // Sort milestones first
@@ -207,6 +207,28 @@ export function useProfileData(userId = null) {
         }
       }
 
+      try {
+        const followingQuery = query(collection(db, "users", profileIdToFetch, "following"));
+        const followingSnap = await getDocs(followingQuery);
+        userFollowingData = followingSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        console.log(`Retrieved ${userFollowingData.length} following for:`, profileIdToFetch);
+      } catch (followingError) {
+        console.error("Error fetching following:", followingError);
+      }
+      
+      // Fetch follow status if not own profile and currentUser is available
+      if (currentUser && profileIdToFetch !== currentUser.uid) {
+        try {
+          const followDoc = await getDoc(doc(db, "users", profileIdToFetch, "followers", currentUser.uid));
+          setIsFollowingStatus(followDoc.exists());
+          console.log(`Follow status for ${profileIdToFetch} by ${currentUser.uid}: ${followDoc.exists()}`);
+        } catch (followStatusError) {
+          console.error("Error checking follow status:", followStatusError);
+        }
+      } else if (profileIdToFetch === currentUser?.uid) {
+        setIsFollowingStatus(false);
+      }
+
       // --- Group the extracted milestones ---
       const finalGroupedMilestones = groupAndSortMilestones(userMilestonesRaw);
       console.log("Final Grouped Milestones for:", profileIdToFetch, finalGroupedMilestones);
@@ -229,6 +251,104 @@ export function useProfileData(userId = null) {
     }
   };
 
+  const followUser = async (targetUserId: string) => {
+    if (!currentUser || !currentUser.uid || followActionLoading) {
+      console.error("Current user not found or action in progress for follow operation");
+      return;
+    }
+    const currentUserId = currentUser.uid;
+    if (currentUserId === targetUserId) {
+      console.error("Cannot follow yourself");
+      return;
+    }
+    setFollowActionLoading(true);
+
+    const targetUserFollowersRef = doc(db, "users", targetUserId, "followers", currentUserId);
+    const currentUserFollowingRef = doc(db, "users", currentUserId, "following", targetUserId);
+    const targetUserDocRef = doc(db, "users", targetUserId);
+    const currentUserDocRef = doc(db, "users", currentUserId);
+
+    try {
+      await runTransaction(db, async (transaction) => {
+        const targetUserSnap = await transaction.get(targetUserDocRef);
+        const currentUserSnap = await transaction.get(currentUserDocRef);
+
+        if (!targetUserSnap.exists() || !currentUserSnap.exists()) {
+          throw new Error("User document not found for follow operation.");
+        }
+
+        transaction.set(targetUserFollowersRef, { followedAt: serverTimestamp() });
+        transaction.set(currentUserFollowingRef, { followingSince: serverTimestamp() });
+        transaction.update(targetUserDocRef, { followerCount: increment(1) });
+        transaction.update(currentUserDocRef, { followingCount: increment(1) });
+      });
+
+      setIsFollowingStatus(true);
+      // Optimistically update local state for the viewed profile's follower count
+      setProfileData(prev => prev ? { ...prev, followerCount: (prev.followerCount || 0) + 1 } : null);
+      // Add current user to local followers list for immediate UI update
+      setFollowers(prev => [...prev, { id: currentUserId, username: currentUser.displayName || 'You' }]);
+
+
+      console.log("Successfully followed user:", targetUserId);
+    } catch (error) {
+      console.error("Error following user:", error);
+      // Revert optimistic UI update if needed or show error
+    } finally {
+      setFollowActionLoading(false);
+    }
+  };
+
+  const unfollowUser = async (targetUserId: string) => {
+    if (!currentUser || !currentUser.uid || followActionLoading) {
+      console.error("Current user not found or action in progress for unfollow operation");
+      return;
+    }
+    const currentUserId = currentUser.uid;
+    if (currentUserId === targetUserId) {
+      console.error("Cannot unfollow yourself");
+      return;
+    }
+    setFollowActionLoading(true);
+
+    const targetUserFollowersRef = doc(db, "users", targetUserId, "followers", currentUserId);
+    const currentUserFollowingRef = doc(db, "users", currentUserId, "following", targetUserId);
+    const targetUserDocRef = doc(db, "users", targetUserId);
+    const currentUserDocRef = doc(db, "users", currentUserId);
+
+    try {
+      await runTransaction(db, async (transaction) => {
+        const targetUserSnap = await transaction.get(targetUserDocRef);
+        const currentUserSnap = await transaction.get(currentUserDocRef);
+
+        if (!targetUserSnap.exists() || !currentUserSnap.exists()) {
+          throw new Error("User document not found for unfollow operation.");
+        }
+        
+        // Ensure followerCount and followingCount do not go below 0
+        const currentFollowerCount = targetUserSnap.data()?.followerCount || 0;
+        const currentFollowingCount = currentUserSnap.data()?.followingCount || 0;
+
+        transaction.delete(targetUserFollowersRef);
+        transaction.delete(currentUserFollowingRef);
+        transaction.update(targetUserDocRef, { followerCount: increment(currentFollowerCount > 0 ? -1 : 0) });
+        transaction.update(currentUserDocRef, { followingCount: increment(currentFollowingCount > 0 ? -1 : 0) });
+      });
+
+      setIsFollowingStatus(false);
+      // Optimistically update local state for the viewed profile's follower count
+      setProfileData(prev => prev ? { ...prev, followerCount: Math.max(0, (prev.followerCount || 0) - 1) } : null);
+      // Remove current user from local followers list
+      setFollowers(prev => prev.filter(follower => follower.id !== currentUserId));
+
+      console.log("Successfully unfollowed user:", targetUserId);
+    } catch (error) {
+      console.error("Error unfollowing user:", error);
+    } finally {
+      setFollowActionLoading(false);
+    }
+  };
+
   const refreshProfileData = async () => {
     console.log("Manual refresh triggered for profile ID:", profileIdToFetch);
     await fetchProfileData();
@@ -243,7 +363,7 @@ export function useProfileData(userId = null) {
       setLoading(false); 
       console.log("profileIdToFetch is null/undefined in useEffect, not fetching.");
     }
-  }, [profileIdToFetch]); // Re-fetch if profileIdToFetch changes
+  }, [profileIdToFetch, currentUser?.uid]);
 
   return {
     loading,
@@ -255,9 +375,10 @@ export function useProfileData(userId = null) {
     following,
     error,
     refreshProfileData,
-    // isFollowingStatus, // Add later
-    // followUser, // Add later
-    // unfollowUser, // Add later
+    isFollowingStatus,
+    followUser, 
+    unfollowUser,
+    followActionLoading,
     viewedProfileId: profileIdToFetch
   };
 }

@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, Image, StyleSheet, Dimensions, FlatList, TouchableOpacity, SafeAreaView, Animated, ActivityIndicator, RefreshControl, Modal } from 'react-native';
 import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { postImage } from '@/assets/images';
 import { useProfileData, GroupedMilestones, Milestone } from '@/hooks/useProfileData'; // Import interfaces if needed
 import { useAuth } from '@/context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
@@ -43,6 +42,7 @@ enum TabType {
 
 const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
   const { currentUser, userProfile: currentUserProfile, refreshUserProfile } = useAuth();
+  
   const {
     loading,
     profileData,
@@ -53,7 +53,11 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
     following,
     error,
     refreshProfileData,
-    // Add isFollowing and follow/unfollow functions later if needed
+    isFollowingStatus,
+    followUser,
+    unfollowUser,
+    followActionLoading,
+    viewedProfileId
   } = useProfileData(routeUserId);
   const [refreshing, setRefreshing] = useState(false);
   const router = useRouter();
@@ -524,22 +528,50 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
     <SafeAreaView style={styles.container}>
       {/* Profile Header */}
       <View style={styles.profileHeader}>
-        {/* Conditionally render Settings button only for own profile */}
+        {/* Settings Button (Own Profile) */}
         {isOwnProfile && (
           <TouchableOpacity
-            style={{ position: 'absolute', top: 20, right: 20, zIndex: 1 }} // Ensure zIndex if overlapping
+            style={styles.settingsButton} // Use a dedicated style
             onPress={handleSettingsPress}
           >
-            <Text style={{ color: 'white', backgroundColor: '#212121', padding: 8, borderRadius: 5 }}>Settings</Text>
+            <Ionicons name="settings-outline" size={24} color="white" />
           </TouchableOpacity>
         )}
-        {/* Back button if not own profile and not part of a stack that provides one */}
+        {/* Back Button (Other's Profile) */}
         {!isOwnProfile && router.canGoBack() && (
            <TouchableOpacity
-            style={{ position: 'absolute', top: 20, left: 20, zIndex: 1 }}
+            style={styles.backButton} // Use a dedicated style
             onPress={() => router.back()}
           >
-            <Ionicons name="arrow-back" size={24} color="white" />
+            <Ionicons name="arrow-back" size={28} color="white" />
+          </TouchableOpacity>
+        )}
+
+        {/* Follow/Unfollow Button (Other's Profile) */}
+        {!isOwnProfile && displayProfileData && (
+          <TouchableOpacity
+            style={[
+              styles.followButton,
+              isFollowingStatus ? styles.unfollowButtonActive : styles.followButtonActive,
+              followActionLoading && styles.followButtonDisabled
+            ]}
+            onPress={() => {
+              if (followActionLoading) return; // Prevent multiple clicks
+              if (isFollowingStatus) {
+                unfollowUser(displayProfileData.id);
+              } else {
+                followUser(displayProfileData.id);
+              }
+            }}
+            disabled={followActionLoading}
+          >
+            {followActionLoading ? (
+              <ActivityIndicator size="small" color="white" />
+            ) : (
+              <Text style={styles.followButtonText}>
+                {isFollowingStatus ? 'Unfollow' : 'Follow'}
+              </Text>
+            )}
           </TouchableOpacity>
         )}
 
@@ -549,9 +581,11 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
         />
         <Text style={styles.profileName}>{displayProfileData?.displayName || 'User'}</Text>
         <Text style={styles.profileUsername}>@{displayProfileData?.username || 'username'}</Text>
+        {/* Archetype display under username is REMOVED from here */}
         <Text style={styles.profileBio}>{displayProfileData?.bio || 'No bio yet'}</Text>
 
         <View style={styles.statsContainer}>
+          {/* Archetype Stat Item */}
           <TouchableOpacity
             style={styles.statItem}
             onPress={() => {
@@ -560,28 +594,28 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
                 setTooltipVisible(true);
               }
             }}
-            disabled={!displayProfileData?.archetype}
+            disabled={!displayProfileData?.archetype} // Disable if no archetype
           >
             <Image
               source={archetypeIcons[displayProfileData?.archetype?.toLowerCase() || 'generalist']}
-              style={styles.archetypeIcon}
+              style={styles.archetypeIcon} // Use the original archetypeIcon style for stats bar
             />
             <Text style={styles.statLabel}>Archetype</Text>
           </TouchableOpacity>
+          {/* Followers Stat Item */}
           <TouchableOpacity
             style={styles.statItem}
-            // Pass the ID of the profile being viewed
-            onPress={() => router.push(`/followers/${displayProfileData?.id || currentUser?.uid}`)}
+            onPress={() => router.push(`/followers/${viewedProfileId || currentUser?.uid}`)}
           >
-            <Text style={styles.statNumber}>{followers.length}</Text>
+            <Text style={styles.statNumber}>{profileData?.followerCount !== undefined ? profileData.followerCount : followers.length}</Text>
             <Text style={styles.statLabel}>Followers</Text>
           </TouchableOpacity>
+          {/* Following Stat Item */}
           <TouchableOpacity
             style={styles.statItem}
-            // Pass the ID of the profile being viewed
-            onPress={() => router.push(`/following/${displayProfileData?.id || currentUser?.uid}`)}
+            onPress={() => router.push(`/following/${viewedProfileId || currentUser?.uid}`)}
           >
-            <Text style={styles.statNumber}>{following.length}</Text>
+            <Text style={styles.statNumber}>{profileData?.followingCount !== undefined ? profileData.followingCount : following.length}</Text>
             <Text style={styles.statLabel}>Following</Text>
           </TouchableOpacity>
         </View>
@@ -829,15 +863,9 @@ const styles = StyleSheet.create({
     fontSize: 12,
     textAlign: 'center',
   },
-  archetypeText: {
-    color: 'white',
-    fontSize: 14,
-    fontWeight: 'bold',
-    textAlign: 'center',
-  },
   archetypeIcon: {
-    width: 18,
-    height: 18,
+    width: 24,
+    height: 24,
     marginBottom: 5,
   },
   tooltipContainer: {
@@ -891,6 +919,51 @@ const styles = StyleSheet.create({
   tooltipButtonText: {
     color: 'white',
     fontSize: 14,
+  },
+  settingsButton: {
+    position: 'absolute',
+    top: 15,
+    right: 15,
+    zIndex: 1,
+    padding: 8,
+  },
+  backButton: {
+    position: 'absolute',
+    top: 15,
+    left: 15,
+    zIndex: 1,
+    padding: 8,
+  },
+  followButton: {
+    position: 'absolute',
+    top: 15,
+    right: 15,
+    zIndex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 15,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  followButtonActive: {
+    backgroundColor: '#007AFF',
+    borderColor: '#007AFF',
+  },
+  unfollowButtonActive: {
+    backgroundColor: 'transparent',
+    borderColor: '#555',
+  },
+  followButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  followButtonDisabled: {
+    opacity: 0.7,
+  },
+  archetypeText: { 
+    color: 'white',
+    fontSize: 13, 
+    fontWeight: '600',
   },
 });
 
