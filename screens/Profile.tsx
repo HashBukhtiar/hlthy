@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { useProfileData, GroupedMilestones, Milestone } from '@/hooks/useProfileData';
 import { useAuth } from '@/context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
+import { formatCount } from '@/logic/formattingFunctions';
 
 // Import archetype icons
 const archetypeIcons = {
@@ -322,7 +323,9 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
         style={styles.tabButton}
         onPress={() => scrollToTab(TabType.POSTS)}
       >
-        <Text style={[styles.tabButtonText, activeTab === TabType.POSTS && styles.activeTabButtonText]}>POSTS</Text>
+        <Text style={[styles.tabButtonText, activeTab === TabType.POSTS && styles.activeTabButtonText]}>
+          POSTS {posts ? `(${formatCount(posts.length)})` : '(0)'}
+        </Text>
       </TouchableOpacity>
       <TouchableOpacity 
         style={styles.tabButton}
