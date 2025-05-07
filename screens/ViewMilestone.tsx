@@ -10,13 +10,14 @@ export default function ViewMilestone() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [milestone, setMilestone] = useState(null);
+  const [isPinned, setIsPinned] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
       await new Promise(resolve => setTimeout(resolve, 500));
       
       if (id === 'm1') {
-        setMilestone({
+        const milestoneData = {
           id: 'm1',
           userId: 'user1',
           username: 'fitness_pro',
@@ -58,8 +59,11 @@ export default function ViewMilestone() {
               text: 'Great form on that bench. Next goal: 250?',
               createdAt: new Date(Date.now() - 18000000)
             }
-          ]
-        });
+          ],
+          pinned: true
+        };
+        setMilestone(milestoneData);
+        setIsPinned(milestoneData.pinned);
       } else if (id === 'm2') {
         setMilestone({
           id: 'm2',
@@ -94,7 +98,8 @@ export default function ViewMilestone() {
               text: 'Wow, you\'re getting so fast! What\'s your training plan?',
               createdAt: new Date(Date.now() - 50000000)
             }
-          ]
+          ],
+          pinned: false
         });
       } else if (id === 'm3') {
         setMilestone({
@@ -138,7 +143,8 @@ export default function ViewMilestone() {
               text: 'Consistent progress is key. Great work!',
               createdAt: new Date(Date.now() - 7200000)
             }
-          ]
+          ],
+          pinned: false
         });
       } else {
         setMilestone({
@@ -164,7 +170,8 @@ export default function ViewMilestone() {
             '🔥': 5
           },
           userReaction: null,
-          comments: []
+          comments: [],
+          pinned: false
         });
       }
       
@@ -354,19 +361,18 @@ export default function ViewMilestone() {
           >
             <Image source={{ uri: milestone.profileImageUrl }} style={styles.profilePic} />
             <View>
-              <Text style={styles.username}>{milestone.username}</Text>
               <Text style={styles.fullName}>{milestone.fullName}</Text>
             </View>
           </TouchableOpacity>
           <View style={styles.rightHeader}>
             <Text style={styles.timestamp}>{formatTimeAgo(milestone.createdAt)}</Text>
-            <TouchableOpacity onPress={handleShare}>
+            <TouchableOpacity onPress={handleShare} style={styles.iconButton}>
               <Ionicons name="share-outline" size={20} color="#FFF" />
             </TouchableOpacity>
           </View>
         </View>
         
-        <View style={styles.milestoneCard}>
+        <View style={[styles.milestoneCard, milestone.pinned && styles.pinnedMilestoneCard]}>
           <View style={styles.milestoneHeader}>
             <View style={styles.milestoneIconContainer}>
               {milestone.milestoneType === 'PR' ? (
@@ -517,11 +523,6 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     marginRight: 10,
   },
-  username: {
-    fontWeight: '600',
-    fontSize: 16,
-    color: '#FFF',
-  },
   fullName: {
     fontSize: 14,
     color: '#999',
@@ -534,6 +535,9 @@ const styles = StyleSheet.create({
     color: '#999',
     marginBottom: 5,
   },
+  iconButton: {
+    marginLeft: 10,
+  },
   milestoneCard: {
     backgroundColor: '#1A1A1A',
     margin: 15,
@@ -541,6 +545,15 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: '#333',
+  },
+  pinnedMilestoneCard: {
+    borderColor: '#FF6B8A',
+    borderWidth: 2,
+    shadowColor: '#FF6B8A',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 4,
   },
   milestoneHeader: {
     flexDirection: 'row',

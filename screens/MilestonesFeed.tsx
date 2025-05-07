@@ -37,7 +37,6 @@ export interface MilestoneDetails {
 export interface Milestone {
   id: string;
   userId: string;
-  username: string;
   fullName?: string;
   profileImageUrl: string;
   createdAt: Date;
@@ -47,6 +46,7 @@ export interface Milestone {
   userReaction: string | null;
   associatedPostId?: string;
   postImageUrl?: string;
+  pinned?: boolean;
 }
 
 export default function MilestonesFeed() {
@@ -55,7 +55,6 @@ export default function MilestonesFeed() {
     {
       id: 'm1',
       userId: 'user1',
-      username: 'fitness_pro',
       fullName: 'Alex Fitness',
       profileImageUrl: 'https://randomuser.me/api/portraits/men/32.jpg',
       createdAt: new Date(Date.now() - 8640000 * 2), // 2 days ago
@@ -76,12 +75,12 @@ export default function MilestonesFeed() {
       },
       userReaction: null,
       associatedPostId: 'post1',
-      postImageUrl: 'https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80'
+      postImageUrl: 'https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
+      pinned: true
     },
     {
       id: 'm2',
       userId: 'user2',
-      username: 'runner_girl',
       fullName: 'Sarah Runner',
       profileImageUrl: 'https://randomuser.me/api/portraits/women/44.jpg',
       createdAt: new Date(Date.now() - 86400000), // 1 day ago
@@ -106,7 +105,6 @@ export default function MilestonesFeed() {
     {
       id: 'm3',
       userId: 'user3',
-      username: 'weightloss_journey',
       fullName: 'Jamie Progress',
       profileImageUrl: 'https://randomuser.me/api/portraits/women/68.jpg',
       createdAt: new Date(Date.now() - 43200000), // 12 hours ago
@@ -126,7 +124,8 @@ export default function MilestonesFeed() {
       },
       userReaction: '🔥',
       associatedPostId: 'post3',
-      postImageUrl: 'https://images.unsplash.com/photo-1535743686920-55e4145369b9?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80'
+      postImageUrl: 'https://images.unsplash.com/photo-1535743686920-55e4145369b9?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
+      pinned: false
     }
   ]);
   
@@ -302,7 +301,10 @@ export default function MilestonesFeed() {
             onPress={() => navigateToMilestone(item.id)}
             activeOpacity={0.9}
           >
-            <View style={styles.milestoneCard}>
+            <View style={[
+              styles.milestoneCard,
+              item.pinned ? styles.pinnedMilestoneCard : null
+            ]}>
               {/* Milestone Card Header */}
               <View style={styles.milestoneHeader}>
                 <View style={styles.milestoneIconContainer}>
@@ -315,9 +317,15 @@ export default function MilestonesFeed() {
                 </View>
                 <View style={styles.milestoneTitleContainer}>
                   <Text style={styles.milestoneType}>
-                    {item.fullName || item.username}
+                    {item.fullName}
                   </Text>
-                  <Text style={styles.milestoneDate}>{formatTimeAgo(item.createdAt)}</Text>
+                  <Text style={styles.milestoneDate}>
+                    {formatTimeAgo(item.createdAt)}
+                    {item.pinned && (
+                        // format: 3h ago [dot] pinned
+                        <Text> • Pinned</Text>
+                    )}
+                </Text>
                 </View>
                 
                 {/* Post Preview (if available) */}
@@ -431,6 +439,15 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#333',
   },
+  pinnedMilestoneCard: {
+    borderColor: '#FF6B8A',
+    borderWidth: 2,
+    shadowColor: '#FF6B8A',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 4,
+  },
   milestoneHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -460,6 +477,7 @@ const styles = StyleSheet.create({
   usernameText: {
     color: '#999',
     fontSize: 12,
+    marginBottom: 2,
   },
   milestoneDate: {
     color: '#999',
