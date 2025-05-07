@@ -28,184 +28,10 @@ enum TabType {
 function MilestonesFeed() {
   const router = useRouter();
   
-  // Sample milestone data (would come from backend in production)
-  const [milestoneFeed, setMilestoneFeed] = useState([
-    {
-      id: 'm1',
-      username: '@davidjones',
-      displayName: 'David Jones',
-      profilePic: 'https://randomuser.me/api/portraits/men/32.jpg',
-      timestamp: '5m ago',
-      type: 'PR',
-      exercise: 'Bench Press',
-      value: '225',
-      units: 'lbs',
-      reps: 8,
-      isLiked: false,
-      reactions: {
-        likes: 42,
-        strong: 18,
-        fire: 7
-      },
-      imageUrl: 'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?q=80&w=1740&auto=format&fit=crop',
-    },
-    {
-      id: 'm2',
-      username: '@sarahfit',
-      displayName: 'Sarah Miller',
-      profilePic: 'https://randomuser.me/api/portraits/women/44.jpg',
-      timestamp: '1h ago',
-      type: 'Weight Loss',
-      newWeight: '145',
-      units: 'lbs',
-      totalLost: '10',
-      isLiked: true,
-      reactions: {
-        likes: 87,
-        strong: 32,
-        fire: 21
-      }
-    },
-    {
-      id: 'm3',
-      username: '@michaelthomas',
-      displayName: 'Michael Thomas',
-      profilePic: 'https://randomuser.me/api/portraits/men/55.jpg',
-      timestamp: '2h ago',
-      type: 'PR',
-      exercise: 'Deadlift',
-      value: '315',
-      units: 'lbs',
-      reps: 5,
-      isLiked: false,
-      reactions: {
-        likes: 65,
-        strong: 40,
-        fire: 15
-      },
-      imageUrl: 'https://images.unsplash.com/photo-1598268030500-8c0fabf0a25a?q=80&w=1740&auto=format&fit=crop',
-    }
-  ]);
-
-  const handleViewMilestone = (milestoneId) => {
-    router.push(`/view-milestone/${milestoneId}`);
-  };
-
-  const toggleReaction = (milestoneId, reactionType) => {
-    setMilestoneFeed(milestoneFeed.map(milestone => {
-      if (milestone.id === milestoneId) {
-        const isCurrentlyLiked = 
-          reactionType === 'likes' ? milestone.isLiked : false;
-        
-        return {
-          ...milestone,
-          isLiked: reactionType === 'likes' ? !milestone.isLiked : milestone.isLiked,
-          reactions: {
-            ...milestone.reactions,
-            [reactionType]: isCurrentlyLiked 
-              ? milestone.reactions[reactionType] - 1 
-              : milestone.reactions[reactionType] + 1
-          }
-        };
-      }
-      return milestone;
-    }));
-  };
-
-  const renderMilestone = ({ item }) => (
-    <View style={styles.milestoneContainer}>
-      {/* Header with user info */}
-      <View style={styles.postHeader}>
-        <TouchableOpacity style={styles.userInfoContainer}>
-          <Image source={{ uri: item.profilePic }} style={styles.profilePic} />
-          <View>
-            <Text style={styles.username}>{item.displayName}</Text>
-            <Text style={styles.location}>{item.timestamp}</Text>
-          </View>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.moreButton}>
-          <Ionicons name="ellipsis-horizontal" size={20} color="#FFF" />
-        </TouchableOpacity>
-      </View>
-
-      {/* Milestone Content */}
-      <TouchableOpacity 
-        activeOpacity={0.9}
-        style={styles.milestoneContent}
-        onPress={() => handleViewMilestone(item.id)}
-      >
-        <View style={styles.milestoneIconContainer}>
-          <Ionicons 
-            name="trophy" 
-            size={24} 
-            color="#FFD700" 
-            style={styles.milestoneIcon} 
-          />
-        </View>
-        <View style={styles.milestoneDetails}>
-          <Text style={styles.milestoneTitle}>
-            {item.type === 'PR' ? 'Personal Record' : 'Weight Loss'}
-          </Text>
-          <Text style={styles.milestoneValue}>
-            {item.type === 'PR' 
-              ? `${item.exercise}: ${item.value} ${item.units} × ${item.reps} reps` 
-              : `New Weight: ${item.newWeight} ${item.units}`
-            }
-            {item.totalLost && (
-              <Text style={styles.milestoneStat}> (-{item.totalLost} lbs)</Text>
-            )}
-          </Text>
-        </View>
-        {item.imageUrl && (
-          <View style={styles.milestoneImageContainer}>
-            <Image source={{ uri: item.imageUrl }} style={styles.milestoneImage} />
-          </View>
-        )}
-      </TouchableOpacity>
-
-      {/* Action Buttons */}
-      <View style={styles.actionButtons}>
-        <View style={styles.leftActions}>
-          <TouchableOpacity 
-            style={styles.actionButton} 
-            onPress={() => toggleReaction(item.id, 'likes')}
-          >
-            <Ionicons 
-              name={item.isLiked ? "heart" : "heart-outline"} 
-              size={28} 
-              color={item.isLiked ? "#FF3B30" : "#FFF"} 
-            />
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={styles.actionButton}
-            onPress={() => toggleReaction(item.id, 'strong')}
-          >
-            <Ionicons name="fitness" size={26} color="#FFF" />
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={styles.actionButton}
-            onPress={() => toggleReaction(item.id, 'fire')}
-          >
-            <Ionicons name="flame" size={26} color="#FFF" />
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* Reactions Count */}
-      <Text style={styles.likes}>
-        {item.reactions.likes} likes • {item.reactions.strong} 💪 • {item.reactions.fire} 🔥
-      </Text>
-    </View>
-  );
-  
   return (
-    <FlatList
-      data={milestoneFeed}
-      renderItem={renderMilestone}
-      keyExtractor={item => item.id}
-      showsVerticalScrollIndicator={false}
-      contentContainerStyle={styles.postsContainer}
-    />
+    <View style={styles.emptyMilestonesContainer}>
+      <Text style={styles.emptyMilestonesText}>No milestones to display</Text>
+    </View>
   );
 }
 
@@ -898,5 +724,16 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 8,
+  },
+  emptyMilestonesContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'black',
+  },
+  emptyMilestonesText: {
+    color: 'gray',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });
