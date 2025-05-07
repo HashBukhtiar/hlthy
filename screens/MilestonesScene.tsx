@@ -3,12 +3,13 @@ import {
   StyleSheet,
   Text, 
   View, 
-  ScrollView, 
   Image, 
   TouchableOpacity,
-  Dimensions
+  Dimensions,
+  FlatList
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import globalStyles from '@/styles/globalStyles';
 import {
   profileIcon,
@@ -21,7 +22,9 @@ interface ReactionCount {
 }
 
 interface Milestone {
+  id?: string;
   username: string;
+  displayName?: string;
   time: string;
   activity: string;
   weight: string;
@@ -30,31 +33,51 @@ interface Milestone {
   heartCount: ReactionCount;
   strongCount: ReactionCount;
   fireCount: ReactionCount;
+  type?: 'PR' | 'weightLoss' | 'weightGain';
 }
 
 function MilestonesScene() {
   const router = useRouter();
   const [milestones, setMilestones] = useState<Milestone[]>([
     {
+      id: 'm1',
       username: '@sungjinwoo',
+      displayName: 'Sung Jin-Woo',
       time: '2m',
       activity: 'Bench Press',
       weight: '225 lbs',
+      type: 'PR',
       profileIcon: profileIcon,
       postImage: postImage,
       heartCount: { count: 999, selected: false },
-      strongCount: { count: 999999, selected: false },
-      fireCount: { count: 0, selected: false }
+      strongCount: { count: 42, selected: false },
+      fireCount: { count: 18, selected: false }
     },
     {
+      id: 'm2',
       username: '@username2',
+      displayName: 'Alex Smith',
       time: '5m',
       activity: 'Deadlift',
-      weight: '30,000 lbs',
+      weight: '315 lbs',
+      type: 'PR',
       profileIcon: profileIcon,
-      heartCount: { count: 0, selected: false },
-      strongCount: { count: -1, selected: false },
-      fireCount: { count: 0, selected: false }
+      heartCount: { count: 32, selected: false },
+      strongCount: { count: 15, selected: false },
+      fireCount: { count: 6, selected: false }
+    },
+    {
+      id: 'm3',
+      username: '@fitnessfreak',
+      displayName: 'Jessica Fit',
+      time: '20m',
+      activity: 'Weight Loss',
+      weight: '145 lbs',
+      type: 'weightLoss',
+      profileIcon: profileIcon,
+      heartCount: { count: 87, selected: false },
+      strongCount: { count: 21, selected: false },
+      fireCount: { count: 35, selected: true }
     },
   ]);
 
@@ -80,83 +103,115 @@ function MilestonesScene() {
     });
   }
 
-  function renderMilestonesList() {
-    return (
-      <ScrollView 
-        contentContainerStyle={styles.milestonesView}
-        showsHorizontalScrollIndicator={false}
-        horizontal={false}
-      >
-        {milestones.map((milestone, index) => (
-          <View key={index} style={styles.milestonesElement}>
-            {/* Left div container */}
-            <View style={styles.leftContainer}>
-              {/* Top section of left div */}
-              <View style={styles.topSection}>
-                {/* Profile photo on left */}
-                <View style={styles.profilePhotoContainer}>
-                  <Image source={milestone.profileIcon} style={styles.milestonesPFPStyle} />
-                </View>
-                
-                {/* User info on right */}
-                <View style={styles.userInfoContainer}>
-                  <View style={styles.usernameRow}>
-                    <Text style={styles.milestoneUsername}>{milestone.username}</Text>
-                    <Text style={styles.milestonesTimestamp}> · {milestone.time}</Text>
-                  </View>
-                  <Text style={styles.activityText}>
-                    <Text style={{color: 'white'}}>{milestone.activity}: </Text> 
-                    <Text style={{color: 'orange'}}>{milestone.weight}</Text>
-                  </Text>
-                </View>
-              </View>
-              
-              {/* Bottom section with reactions */}
-              <View style={styles.bottomSection}>
-                <View style={styles.reactionButtons}>
-                  <TouchableOpacity activeOpacity={1} onPress={() => handleReactionPress(index, 'heartCount')} style={milestone.heartCount.selected ? styles.reactionButtonClicked : styles.reactionButtonUnclicked}>
-                    <Text style={milestone.heartCount.selected ? styles.reactionTextClicked : styles.reactionTextUnclicked}>❤️ {formatCount(milestone.heartCount.count)}</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity activeOpacity={1} onPress={() => handleReactionPress(index, 'strongCount')} style={milestone.strongCount.selected ? styles.reactionButtonClicked : styles.reactionButtonUnclicked}>
-                    <Text style={milestone.strongCount.selected ? styles.reactionTextClicked : styles.reactionTextUnclicked}>💪 {formatCount(milestone.strongCount.count)}</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity activeOpacity={1} onPress={() => handleReactionPress(index, 'fireCount')} style={milestone.fireCount.selected ? styles.reactionButtonClicked : styles.reactionButtonUnclicked}>
-                    <Text style={milestone.fireCount.selected ? styles.reactionTextClicked : styles.reactionTextUnclicked}>🔥 {formatCount(milestone.fireCount.count)}</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </View>
+  const handleViewMilestone = (milestoneId) => {
+    router.push(`/view-milestone/${milestoneId}`);
+  };
 
-            {/* Right div with image preview */}
-            {milestone.postImage && (
-              <View style={styles.rightContainer}>
-                <TouchableOpacity 
-                  onPress={() => router.push({
-                    pathname: '/view-post/[id]',
-                    params: {
-                      id: index.toString(),
-                      postData: JSON.stringify({
-                        image: milestone.postImage,
-                        date: new Date().toISOString(),
-                        likes: milestone.heartCount.count,
-                        username: milestone.username,
-                        profileImage: milestone.profileIcon
-                      })
-                    }
-                  })}>
-                  <Image source={milestone.postImage} style={styles.milestonesPostStyle} />
-                </TouchableOpacity>
-              </View>
-            )}
+  const renderMilestone = ({ item, index }) => (
+    <View style={styles.milestoneContainer}>
+      {/* Header with user info */}
+      <View style={styles.postHeader}>
+        <TouchableOpacity style={styles.userInfoContainer}>
+          <Image source={item.profileIcon} style={styles.profilePic} />
+          <View>
+            <Text style={styles.username}>{item.displayName || item.username}</Text>
+            <Text style={styles.timestamp}>{item.time}</Text>
           </View>
-        ))}
-      </ScrollView>
-    );
-  }
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.moreButton}>
+          <Ionicons name="ellipsis-horizontal" size={20} color="#FFF" />
+        </TouchableOpacity>
+      </View>
+
+      {/* Milestone Content */}
+      <TouchableOpacity 
+        activeOpacity={0.9}
+        style={styles.milestoneContent}
+        onPress={() => handleViewMilestone(item.id || index.toString())}
+      >
+        <View style={styles.milestoneIconContainer}>
+          <Ionicons 
+            name="trophy" 
+            size={24} 
+            color="#FFD700" 
+            style={styles.milestoneIcon} 
+          />
+        </View>
+        <View style={styles.milestoneDetails}>
+          <Text style={styles.milestoneTitle}>
+            {item.type === 'PR' ? 'Personal Record' : 
+             item.type === 'weightLoss' ? 'Weight Loss' : 
+             item.type === 'weightGain' ? 'Weight Gain' : 
+             'Achievement'}
+          </Text>
+          <Text style={styles.milestoneValue}>
+            {item.type === 'PR' 
+              ? `${item.activity}: ${item.weight}` 
+              : item.type === 'weightLoss'
+              ? `New Weight: ${item.weight}`
+              : `${item.activity}: ${item.weight}`
+            }
+          </Text>
+        </View>
+        {item.postImage && (
+          <View style={styles.milestoneImageContainer}>
+            <Image source={item.postImage} style={styles.milestoneImage} />
+          </View>
+        )}
+      </TouchableOpacity>
+
+      {/* Action Buttons */}
+      <View style={styles.actionButtons}>
+        <View style={styles.reactionsContainer}>
+          <TouchableOpacity 
+            style={styles.reactionButton} 
+            onPress={() => handleReactionPress(index, 'heartCount')}
+          >
+            <Ionicons 
+              name={item.heartCount.selected ? "heart" : "heart-outline"} 
+              size={22} 
+              color={item.heartCount.selected ? "#FF3B30" : "#FFF"} 
+            />
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.reactionButton}
+            onPress={() => handleReactionPress(index, 'strongCount')}
+          >
+            <Ionicons 
+              name="fitness" 
+              size={22} 
+              color={item.strongCount.selected ? "#4CD964" : "#FFF"} 
+            />
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.reactionButton}
+            onPress={() => handleReactionPress(index, 'fireCount')}
+          >
+            <Ionicons 
+              name="flame" 
+              size={22} 
+              color={item.fireCount.selected ? "#FF9500" : "#FFF"} 
+            />
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Reactions Count */}
+      <Text style={styles.reactionsCount}>
+        {formatCount(item.heartCount.count)} likes • {formatCount(item.strongCount.count)} 💪 • {formatCount(item.fireCount.count)} 🔥
+      </Text>
+    </View>
+  );
 
   return (
     <View style={styles.sceneContainer}>
-      {renderMilestonesList()}
+      <FlatList
+        data={milestones}
+        renderItem={renderMilestone}
+        keyExtractor={(item, index) => item.id || index.toString()}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.listContainer}
+      />
     </View>
   );
 }
@@ -165,121 +220,98 @@ function MilestonesScene() {
 const { width: screenWidth } = Dimensions.get('window');
 
 const styles = StyleSheet.create({
-  milestonesView: {
-    marginBottom: 10,
-    paddingHorizontal: 5,
-    width: '100%'
-  },
-  milestonesElement: {
-    paddingHorizontal: 10,
-    paddingVertical: 10,
-    marginVertical: 5,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    backgroundColor: '#2e2e2e',
-    borderRadius: 30,
-    width: screenWidth * 0.9,
-    alignSelf: 'center',
-  },
-  // Left container and nested elements
-  leftContainer: {
-    flex: 1,
-    flexDirection: 'column',
-  },
-  topSection: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 6,
-  },
-  bottomSection: {
-    marginTop: 4,
-  },
-  profilePhotoContainer: {
-    marginRight: 8,
-  },
-  userInfoContainer: {
-    flex: 1,
-  },
-  usernameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  // Right container with image
-  rightContainer: {
-    marginLeft: 8,
-    marginRight: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    alignSelf: 'center',
-  },
-  // Profile image
-  milestonesPFPStyle: {
-    width: 35,
-    height: 35,
-    borderRadius: 18,
-    borderWidth: 1.5,
-    borderColor: 'white',
-  },
-  // Post image (smaller)
-  milestonesPostStyle: {
-    width: 50,
-    height: 50,
-    borderRadius: 5,
-  },
-  // Text styles
-  milestoneUsername: {
-    fontWeight: 'bold',
-    color: 'white',
-    fontSize: 14,
-  },
-  milestonesTimestamp: {
-    color: 'grey',
-    fontSize: 11,
-  },
-  activityText: {
-    fontSize: 13,
-    marginTop: 2,
-  },
-  // Reaction buttons
-  reactionButtons: {
-    flexDirection: 'row',
-    justifyContent: 'flex-start',
-  },
-  reactionButtonUnclicked: {
-    padding: 4,
-    width: 65,
-    color: 'white',
-    marginRight: 5,
-    borderRadius: 5,
-    borderWidth: 1,
-    borderColor: 'grey',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  reactionButtonClicked: {
-    padding: 4,
-    width: 65,
-    backgroundColor: 'white',
-    color: 'black',
-    marginRight: 5,
-    borderRadius: 5,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  reactionTextUnclicked: {
-    color: 'white',
-    fontSize: 11,
-  },
-  reactionTextClicked: {
-    color: 'black',
-    fontSize: 11,
-  },
   sceneContainer: {
     flex: 1,
-    justifyContent: 'center',
+    backgroundColor: '#1C1C1E',
+    paddingTop: 10,
+  },
+  listContainer: {
+    paddingBottom: 20,
+  },
+  milestoneContainer: {
+    backgroundColor: '#2C2C2E',
+    borderRadius: 12,
+    marginHorizontal: 10,
+    marginVertical: 5,
+    padding: 10,
+  },
+  postHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    width: '100%',
+    marginBottom: 10,
+  },
+  userInfoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  profilePic: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 10,
+  },
+  username: {
+    color: '#FFF',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  timestamp: {
+    color: '#8E8E93',
+    fontSize: 12,
+  },
+  moreButton: {
+    padding: 5,
+  },
+  milestoneContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  milestoneIconContainer: {
+    marginRight: 10,
+  },
+  milestoneIcon: {
+    backgroundColor: '#3A3A3C',
+    borderRadius: 12,
+    padding: 5,
+  },
+  milestoneDetails: {
+    flex: 1,
+  },
+  milestoneTitle: {
+    color: '#FFF',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  milestoneValue: {
+    color: '#FFD700',
+    fontSize: 14,
+  },
+  milestoneImageContainer: {
+    marginLeft: 10,
+  },
+  milestoneImage: {
+    width: 50,
+    height: 50,
+    borderRadius: 8,
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 5,
+  },
+  reactionsContainer: {
+    flexDirection: 'row',
+  },
+  reactionButton: {
+    marginHorizontal: 5,
+  },
+  reactionsCount: {
+    color: '#8E8E93',
+    fontSize: 12,
+    textAlign: 'center',
   },
 });
 
