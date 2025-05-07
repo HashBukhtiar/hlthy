@@ -45,22 +45,20 @@ export default function Explore() {
     setIsLoading(true);
     setSearchPerformed(true);
     try {
-      // Assuming users have a 'username' field that is queryable.
-      // For case-insensitive search, you might store a lowercase version of username.
       // This is a simple prefix search.
       const usersRef = collection(db, 'users');
       const q = query(
         usersRef,
-        where('username', '>=', text.toLowerCase()), // Search by lowercase username
+        where('username', '>=', text.toLowerCase()), 
         where('username', '<=', text.toLowerCase() + '\uf8ff'),
-        limit(10) // Limit the number of results
+        limit(10)
       );
       const querySnapshot = await getDocs(q);
       const users: UserSearchResult[] = querySnapshot.docs.map(doc => ({
         id: doc.id,
         username: doc.data().username,
         displayName: doc.data().displayName,
-        profilePictureUrl: doc.data().profilePictureUrl,
+        profilePictureUrl: doc.data().profileImageUrl, 
       }));
       setSearchResults(users);
     } catch (error) {
