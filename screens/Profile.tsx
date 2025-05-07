@@ -1,7 +1,7 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react'; // Added useCallback, useMemo
 import { View, Text, Image, StyleSheet, Dimensions, FlatList, TouchableOpacity, SafeAreaView, Animated, ActivityIndicator, RefreshControl, Modal } from 'react-native';
-import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useProfileData, GroupedMilestones, Milestone } from '@/hooks/useProfileData'; // Import interfaces if needed
+import { useRouter } from 'expo-router';
+import { useProfileData, GroupedMilestones, Milestone } from '@/hooks/useProfileData';
 import { useAuth } from '@/context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -59,6 +59,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
     followActionLoading,
     viewedProfileId
   } = useProfileData(routeUserId);
+
   const [refreshing, setRefreshing] = useState(false);
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabType>(TabType.POSTS);
@@ -72,14 +73,13 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
   const isOwnProfile = !routeUserId || routeUserId === currentUser?.uid;
   const displayProfileData = isOwnProfile ? (profileData || currentUserProfile) : profileData;
 
-  // Transform scroll position to indicator position
   const indicatorPosition = tabIndicator.interpolate({
     inputRange: [0, screenWidth, screenWidth * 2],
     outputRange: [0, tabWidth, tabWidth * 2],
     extrapolate: 'clamp'
   });
 
-  const onRefresh = async () => {
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
       if (isOwnProfile) {
@@ -91,9 +91,8 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
     } finally {
       setRefreshing(false);
     }
-  };
+  }, [isOwnProfile, refreshUserProfile, refreshProfileData]); // Removed setRefreshing from deps as it's a setter
 
-  // Scroll to specific tab when tab button is clicked
   const scrollToTab = (tabType: TabType) => {
     setActiveTab(tabType);
     let index = 0;
@@ -107,152 +106,51 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
     });
   };
 
-  // Handler for FlatList scroll
   const handleScroll = Animated.event(
     [{ nativeEvent: { contentOffset: { x: tabIndicator } } }],
     { useNativeDriver: false }
   );
 
-  // Handler for FlatList scroll end
   const handleScrollEnd = (e: any) => {
     const contentOffsetX = e.nativeEvent.contentOffset.x;
     const index = Math.round(contentOffsetX / screenWidth);
-    // Map index to the appropriate tab type
     if (index === 0) setActiveTab(TabType.POSTS);
     else if (index === 1) setActiveTab(TabType.MILESTONES);
     else if (index === 2) setActiveTab(TabType.WORKOUTS);
   };
 
-  const groupMilestonesByMonth = (milestones: Milestone[]): GroupedMilestones => {
-    return milestones.reduce((groups: GroupedMilestones, milestone) => {
-      // Handle potentially missing date
-      if (!milestone.date) {
-        const unknownGroup = 'Unknown Date';
-        if (!groups[unknownGroup]) {
-          groups[unknownGroup] = [];
-        }
-        groups[unknownGroup].push(milestone);
-        return groups;
-      }
-      
-      try {
-        // Convert Firebase timestamp to Date if needed
-        const dateObj = milestone.date.toDate ? milestone.date.toDate() : new Date(milestone.date);
-        const adjustedDate = new Date(dateObj);
-        adjustedDate.setDate(adjustedDate.getDate() + 1);
-        const monthYear = adjustedDate.toLocaleString('default', { month: 'long', year: 'numeric' });
-        
-        if (!groups[monthYear]) {
-          groups[monthYear] = [];
-        }
-        groups[monthYear].push(milestone);
-      } catch (error) {
-        console.log("Error processing milestone date:", error);
-        // Add to 'Unknown Date' group if there's an error
-        const unknownGroup = 'Unknown Date';
-        if (!groups[unknownGroup]) {
-          groups[unknownGroup] = [];
-        }
-        groups[unknownGroup].push(milestone);
-      }
-      
-      return groups;
-    }, {});
-  };
-
-  // Function to handle settings press
   const handleSettingsPress = () => {
     console.log(`Settings clicked`);
     router.push('/settings');
   };
 
-  // Function to handle image click
-  const handleImagePress = (post: any) => {
+  const handleImagePress = useCallback((post: any) => {
     console.log(`Image clicked - Post ID: ${post.id}`);
-    
-    // Navigate to view post with the actual Firebase document ID
     router.push({
       pathname: '/view-post/[id]',
       params: { id: post.id }
     });
-  };
+  }, [router]);
 
-  // Function to handle milestone click
-  const handleMilestonePress = (postId: string) => {
+  const handleMilestonePress = useCallback((postId: string) => {
     console.log(`Milestone clicked, navigating to Post ID=${postId}`);
-    // Navigate to the post view, not a dedicated milestone view unless you have one
      router.push({
-       pathname: '/view-post/[id]',
+       pathname: '/view-post/[id]', 
        params: { id: postId }
      });
-    router.push(`/view-milestone/${postId}`); // Assuming postId is the relevant ID
-  };
+    // router.push(`/view-milestone/${postId}`); // Original line, if you have this route
+  }, [router]);
 
-  // Function to handle workout click
-  const handleWorkoutPress = (workoutId: number) => {
+  const handleWorkoutPress = useCallback((workoutId: number) => {
     console.log(`Workout clicked, navigating to Workout ID=${workoutId}`);
     router.push({
       pathname: '/view-workout/[id]',
       params: { id: workoutId.toString() }
     });
-  };
+  }, [router]);
 
-  const sortedWorkouts = [...workouts].sort((a, b) => b.date.getTime() - a.date.getTime());
-
-  const formatDate = (date: Date | null | undefined): string => {
-    if (!date) return 'No date';
-    
-    // Check if it's a Firestore timestamp (has toDate method)
-    if (date.toDate && typeof date.toDate === 'function') {
-      try {
-        return date.toDate().toLocaleString('default', { month: 'long', day: 'numeric', year: 'numeric' });
-      } catch (error) {
-        console.log("Error formatting Firestore timestamp:", error);
-        return 'Invalid date';
-      }
-    }
-    
-    // Regular Date object
-    try {
-      return new Date(date).toLocaleString('default', { month: 'long', day: 'numeric', year: 'numeric' });
-    } catch (error) {
-      console.log("Error formatting date:", error);
-      return 'Invalid date';
-    }
-  };
-
-  if (loading) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'black' }}>
-        <ActivityIndicator size="large" color="white" />
-      </View>
-    );
-  }
-  
-  if (error) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.profileHeader}>
-          <Image
-            source={{ uri: userProfile?.profileImageUrl || 'https://thumbs.dreamstime.com/b/creative-illustration-default-avatar-profile-placeholder-isolated-background-art-design-grey-photo-blank-template-mockup-144855718.jpg' }}
-            style={styles.profileImage}
-          />
-          <Text style={styles.profileName}>{userProfile?.displayName || 'User'}</Text>
-          <Text style={styles.profileBio}>Error loading complete profile data</Text>
-          
-          <TouchableOpacity 
-            style={styles.retryButton} 
-            onPress={onRefresh}
-          >
-            <Text style={styles.retryText}>Retry</Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  // Render Posts Tab Content
-  const renderPostsContent = () => (
+  // MOVED HOOKS UP: Define tab rendering logic before early returns
+  const renderPostsContent = useCallback(() => (
     <FlatList
       key="posts-grid"
       data={posts}
@@ -277,36 +175,31 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
         />
       }
     />
-  );
+  ), [posts, refreshing, handleImagePress, onRefresh]);
 
-  // Render Milestones Tab Content
-  const renderMilestonesContent = () => {
+  const renderMilestonesContent = useCallback(() => {
     const monthKeys = Object.keys(groupedMilestones).sort((a, b) => {
-        // Sort month keys chronologically (most recent first)
         try {
-            // Attempt to parse dates for sorting
-            const dateA = new Date(`01 ${a}`); // e.g., "01 May 2024"
-            const dateB = new Date(`01 ${b}`); // e.g., "01 June 2024"
+            const dateA = new Date(`01 ${a}`);
+            const dateB = new Date(`01 ${b}`);
             return dateB.getTime() - dateA.getTime();
-        } catch (e) {
-            console.error("Error parsing month keys for sorting:", e);
-            return 0; // Fallback to original order if parsing fails
-        }
+        } catch (e) { return 0; }
     });
 
-    // Early return if no milestones after grouping
     if (monthKeys.length === 0) {
       return (
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20, minHeight: 200 }}>
           <Text style={{ color: 'gray', textAlign: 'center' }}>No milestones yet. Add a post with a milestone to see it here.</Text>
+           <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#FFFFFF"
+            colors={["#FFFFFF"]}
+            progressBackgroundColor="#212121"
+          />
         </View>
       );
     }
-
-    console.log("Rendering Milestones - Month Keys:", monthKeys);
-    console.log("Rendering Milestones - Grouped Data:", groupedMilestones);
-
-
     return (
       <FlatList
         key="milestones-list"
@@ -316,15 +209,14 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
             <Text style={styles.monthHeader}>{month}</Text>
             {groupedMilestones[month].map((item) => (
               <TouchableOpacity
-                key={item.id} // Use milestone's unique ID (which is the post ID)
-                onPress={() => handleMilestonePress(item.postId)} // Pass postId (string)
+                key={item.id}
+                onPress={() => handleMilestonePress(item.postId)}
                 style={styles.milestoneItem}
               >
-                {/* Display milestone details */}
                 <View style={styles.milestoneDetail}>
                   <Text style={styles.milestoneExercise}>{item.exercise || 'Milestone'}</Text>
                 </View>
-                {item.reps !== undefined && item.reps > 0 && ( // Conditionally render reps if available
+                {item.reps !== undefined && item.reps > 0 && (
                    <View style={styles.milestoneDetail}>
                      <Text style={styles.milestoneNumber}>{item.reps}</Text>
                      <Text style={styles.milestoneDescriptor}>Reps</Text>
@@ -332,19 +224,13 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
                 )}
                 <View style={styles.milestoneDetail}>
                   <Text style={styles.milestoneNumber}>{item.weight || ''}</Text>
-                  {/* Conditionally render descriptor based on content */}
                   {item.weight && <Text style={styles.milestoneDescriptor}>Weight</Text>}
                 </View>
               </TouchableOpacity>
             ))}
           </View>
         )}
-        keyExtractor={(item) => item} // Key is the month string
-        ListEmptyComponent={ // This might be redundant now with the check above
-          <Text style={{ color: 'gray', textAlign: 'center', padding: 30 }}>
-            No milestones yet
-          </Text>
-        }
+        keyExtractor={(item) => item}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -356,102 +242,48 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
         }
       />
     );
-  };
+  }, [groupedMilestones, refreshing, handleMilestonePress, onRefresh]);
   
-  // Render Workouts Tab Content
-  const renderWorkoutsContent = () => {
-    // Early return if no workouts
+  const renderWorkoutsContent = useCallback(() => {
     if (!workouts || workouts.length === 0) {
       return (
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20, minHeight: 200 }}>
           <Text style={{ color: 'gray', textAlign: 'center' }}>No workouts yet. Create a workout to see it here.</Text>
+           <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#FFFFFF"
+            colors={["#FFFFFF"]}
+            progressBackgroundColor="#212121"
+          />
         </View>
       );
     }
-  
-    // Convert Firestore timestamps to Date objects and sort workouts
-    const sortedWorkouts = [...workouts].sort((a, b) => {
+    const sortedWorkoutsData = [...workouts].sort((a, b) => {
       try {
-        // Safely handle a.date being undefined or missing seconds
-        let dateA;
-        if (!a.date) {
-          dateA = new Date(0); // Default to epoch start if no date
-        } else if (a.date instanceof Date) {
-          dateA = a.date;
-        } else if (a.date.seconds) {
-          dateA = new Date(a.date.seconds * 1000);
-        } else {
-          dateA = new Date(a.date);
-        }
-    
-        // Safely handle b.date being undefined or missing seconds
-        let dateB;
-        if (!b.date) {
-          dateB = new Date(0); // Default to epoch start if no date
-        } else if (b.date instanceof Date) {
-          dateB = b.date;
-        } else if (b.date.seconds) {
-          dateB = new Date(b.date.seconds * 1000);
-        } else {
-          dateB = new Date(b.date);
-        }
-    
+        let dateA = a.date?.toDate ? a.date.toDate() : new Date(a.date || 0);
+        let dateB = b.date?.toDate ? b.date.toDate() : new Date(b.date || 0);
         return dateB.getTime() - dateA.getTime();
-      } catch (error) {
-        console.error("Error sorting workout dates:", error, { a, b });
-        return 0; // Keep original order on error
-      }
+      } catch (error) { return 0; }
     });
-  
     return (
       <FlatList
         key="workouts-grid"
-        data={sortedWorkouts}
+        data={sortedWorkoutsData}
         renderItem={({ item }) => {
-          // Safely handle the date with comprehensive error checking
           let formattedDate = "No date available";
-          
           try {
             if (item.date) {
-              // Get a proper date object first
-              let workoutDate;
-              
-              if (item.date instanceof Date) {
-                workoutDate = item.date;
-              } else if (item.date.toDate && typeof item.date.toDate === 'function') {
-                // Firestore timestamp
-                workoutDate = item.date.toDate();
-              } else if (item.date.seconds) {
-                // Old Firestore timestamp format
-                workoutDate = new Date(item.date.seconds * 1000);
-              } else {
-                // Try regular conversion
-                workoutDate = new Date(item.date);
-              }
-              
-              formattedDate = workoutDate.toLocaleString('default', { 
-                month: 'long', 
-                day: 'numeric', 
-                year: 'numeric' 
-              });
+              const workoutDate = item.date.toDate ? item.date.toDate() : new Date(item.date);
+              formattedDate = workoutDate.toLocaleString('default', { month: 'long', day: 'numeric', year: 'numeric' });
             }
-          } catch (error) {
-            console.log("Error formatting workout date:", error, item.date);
-            formattedDate = "Invalid date";
-          }
-              
+          } catch (error) { formattedDate = "Invalid date"; }
           return (
-            <TouchableOpacity 
-              key={item.id} 
-              onPress={() => handleWorkoutPress(item.id)} 
-              style={styles.workoutItem}
-            >
+            <TouchableOpacity key={item.id} onPress={() => handleWorkoutPress(item.id)} style={styles.workoutItem}>
               <View style={styles.workoutDetail}>
                 <Text style={styles.workoutName}>{item.name || 'Unnamed Workout'}</Text>
                 <Text style={styles.workoutDate}>{formattedDate}</Text>
-                <Text style={styles.workoutFavorites}>
-                  {item.favorites || 0} Favorites
-                </Text>
+                <Text style={styles.workoutFavorites}>{item.favorites || 0} Favorites</Text>
               </View>
             </TouchableOpacity>
           );
@@ -460,11 +292,6 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
         numColumns={3}
         contentContainerStyle={styles.workoutsList}
         showsVerticalScrollIndicator={false}
-        ListEmptyComponent={
-          <Text style={{ color: 'gray', textAlign: 'center', padding: 30 }}>
-            No workouts yet
-          </Text>
-        }
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -476,30 +303,19 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
         }
       />
     );
-  };
+  }, [workouts, refreshing, handleWorkoutPress, onRefresh]);
 
-  // Data for the swipeable tabs
-  const tabScenes = [
-    { key: 'posts', component: renderPostsContent() },
-    { key: 'milestones', component: renderMilestonesContent() },
-    { key: 'workouts', component: renderWorkoutsContent() }
-  ];
+  const postsTabComponent = useMemo(() => renderPostsContent(), [renderPostsContent]);
+  const milestonesTabComponent = useMemo(() => renderMilestonesContent(), [renderMilestonesContent]);
+  const workoutsTabComponent = useMemo(() => renderWorkoutsContent(), [renderWorkoutsContent]);
 
-  // Render active tab content
-  const renderTabContent = () => {
-    switch (activeTab) {
-      case TabType.POSTS:
-        return renderPostsContent();
-      case TabType.MILESTONES:
-        return renderMilestonesContent();
-      case TabType.WORKOUTS:
-        return renderWorkoutsContent();
-      default:
-        return renderPostsContent();
-    }
-  };
+  const tabScenes = useMemo(() => [
+    { key: 'posts', component: postsTabComponent },
+    { key: 'milestones', component: milestonesTabComponent },
+    { key: 'workouts', component: workoutsTabComponent },
+  ], [postsTabComponent, milestonesTabComponent, workoutsTabComponent]);
 
-  // Custom Tab Bar
+  // Custom Tab Bar - Not a hook, so its definition order is more flexible but good to keep with related logic
   const renderCustomTabBar = () => (
     <View style={styles.tabBar}>
       <TouchableOpacity 
@@ -524,6 +340,61 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
     </View>
   );
 
+  const prevLoading = useRef(loading); // This hook is fine here
+
+  useEffect(() => { // This hook is fine here
+    if (prevLoading.current === true && loading === false) {
+      if (flatListRef.current) {
+        let targetIndex = 0;
+        if (activeTab === TabType.MILESTONES) {
+          targetIndex = 1;
+        } else if (activeTab === TabType.WORKOUTS) {
+          targetIndex = 2;
+        }
+        setTimeout(() => {
+          flatListRef.current?.scrollToOffset({
+            offset: targetIndex * screenWidth,
+            animated: false, 
+          });
+        }, 0); 
+      }
+    }
+    prevLoading.current = loading;
+  }, [loading, activeTab, screenWidth]);
+
+
+  // Early returns for loading and error states
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'black' }}>
+        <ActivityIndicator size="large" color="white" />
+      </View>
+    );
+  }
+  
+  if (error) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.profileHeader}>
+          <Image
+            source={{ uri: currentUserProfile?.profileImageUrl || 'https://thumbs.dreamstime.com/b/creative-illustration-default-avatar-profile-placeholder-isolated-background-art-design-grey-photo-blank-template-mockup-144855718.jpg' }}
+            style={styles.profileImage}
+          />
+          <Text style={styles.profileName}>{currentUserProfile?.displayName || 'User'}</Text>
+          <Text style={styles.profileBio}>Error loading complete profile data</Text>
+          
+          <TouchableOpacity 
+            style={styles.retryButton} 
+            onPress={onRefresh} // onRefresh is defined above
+          >
+            <Text style={styles.retryText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Main return statement for the component
   return (
     <SafeAreaView style={styles.container}>
       {/* Profile Header */}
@@ -531,7 +402,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
         {/* Settings Button (Own Profile) */}
         {isOwnProfile && (
           <TouchableOpacity
-            style={styles.settingsButton} // Use a dedicated style
+            style={styles.settingsButton}
             onPress={handleSettingsPress}
           >
             <Ionicons name="settings-outline" size={24} color="white" />
@@ -540,7 +411,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
         {/* Back Button (Other's Profile) */}
         {!isOwnProfile && router.canGoBack() && (
            <TouchableOpacity
-            style={styles.backButton} // Use a dedicated style
+            style={styles.backButton}
             onPress={() => router.back()}
           >
             <Ionicons name="arrow-back" size={28} color="white" />
@@ -556,7 +427,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
               followActionLoading && styles.followButtonDisabled
             ]}
             onPress={() => {
-              if (followActionLoading) return; // Prevent multiple clicks
+              if (followActionLoading) return;
               if (isFollowingStatus) {
                 unfollowUser(displayProfileData.id);
               } else {
@@ -581,11 +452,9 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
         />
         <Text style={styles.profileName}>{displayProfileData?.displayName || 'User'}</Text>
         <Text style={styles.profileUsername}>@{displayProfileData?.username || 'username'}</Text>
-        {/* Archetype display under username is REMOVED from here */}
         <Text style={styles.profileBio}>{displayProfileData?.bio || 'No bio yet'}</Text>
 
         <View style={styles.statsContainer}>
-          {/* Archetype Stat Item */}
           <TouchableOpacity
             style={styles.statItem}
             onPress={() => {
@@ -594,15 +463,14 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
                 setTooltipVisible(true);
               }
             }}
-            disabled={!displayProfileData?.archetype} // Disable if no archetype
+            disabled={!displayProfileData?.archetype}
           >
             <Image
               source={archetypeIcons[displayProfileData?.archetype?.toLowerCase() || 'generalist']}
-              style={styles.archetypeIcon} // Use the original archetypeIcon style for stats bar
+              style={styles.archetypeIcon}
             />
             <Text style={styles.statLabel}>Archetype</Text>
           </TouchableOpacity>
-          {/* Followers Stat Item */}
           <TouchableOpacity
             style={styles.statItem}
             onPress={() => router.push(`/followers/${viewedProfileId || currentUser?.uid}`)}
@@ -610,7 +478,6 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
             <Text style={styles.statNumber}>{profileData?.followerCount !== undefined ? profileData.followerCount : followers.length}</Text>
             <Text style={styles.statLabel}>Followers</Text>
           </TouchableOpacity>
-          {/* Following Stat Item */}
           <TouchableOpacity
             style={styles.statItem}
             onPress={() => router.push(`/following/${viewedProfileId || currentUser?.uid}`)}
@@ -621,7 +488,6 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
         </View>
       </View>
 
-      {/* Tooltip Modal - ensure displayProfileData is used */}
       <Modal
         transparent={true}
         visible={tooltipVisible}
@@ -657,14 +523,12 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
         </TouchableOpacity>
       </Modal>
 
-      {/* Custom Tab Bar */}
       {renderCustomTabBar()}
 
-      {/* Swipeable Tab Content */}
       <View style={styles.tabContent}>
         <FlatList
           ref={flatListRef}
-          data={tabScenes} // Ensure tabScenes uses the updated render functions
+          data={tabScenes} // tabScenes is defined above
           horizontal
           pagingEnabled
           showsHorizontalScrollIndicator={false}
@@ -676,7 +540,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
             </View>
           )}
           keyExtractor={(item) => item.key}
-          initialScrollIndex={0} // Start at Posts tab
+          initialScrollIndex={0}
         />
       </View>
     </SafeAreaView>
