@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react'; // Added useCallback, useMemo
-import { View, Text, Image, StyleSheet, Dimensions, FlatList, TouchableOpacity, SafeAreaView, Animated, ActivityIndicator, RefreshControl, Modal } from 'react-native';
+import { View, ScrollView, Text, Image, StyleSheet, Dimensions, FlatList, TouchableOpacity, SafeAreaView, Animated, ActivityIndicator, RefreshControl, Modal } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useProfileData, GroupedMilestones, Milestone } from '@/hooks/useProfileData';
 import { useAuth } from '@/context/AuthContext';
@@ -58,7 +58,10 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
     followUser,
     unfollowUser,
     followActionLoading,
-    viewedProfileId
+    viewedProfileId,
+    createdWorkouts,
+    savedWorkouts,
+    loadingWorkouts,
   } = useProfileData(routeUserId);
 
   const [refreshing, setRefreshing] = useState(false);
@@ -150,7 +153,48 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
     });
   }, [router]);
 
-  // MOVED HOOKS UP: Define tab rendering logic before early returns
+  const renderWorkoutListItem = (item: any, index: number) => ( // Use 'any' or a proper WorkoutItemData type
+    <TouchableOpacity 
+        key={item.id || index} 
+        style={styles.workoutItem}
+        onPress={() => router.push(`/view-workout/${item.id}`)}
+    >
+        <Image 
+            source={item.coverImageUrl ? { uri: item.coverImageUrl } : require('@/assets/images/default_workout_cover.png')} 
+            style={styles.workoutItemImage} 
+        />
+        <View style={styles.workoutItemTextContainer}>
+            <Text style={styles.workoutItemTitle} numberOfLines={1}>{item.title}</Text>
+            <Text style={styles.workoutItemCreator} numberOfLines={1}>by {item.creatorUsername}</Text>
+        </View>
+    </TouchableOpacity>
+  );
+
+  const renderWorkoutsTab = () => {
+    if (loadingWorkouts && createdWorkouts.length === 0 && savedWorkouts.length === 0) {
+      return <ActivityIndicator style={{ marginTop: 20 }} size="large" color="white"/>;
+    }
+
+    return (
+      <ScrollView style={styles.tabContentContainer}>
+        <Text style={styles.tabSectionHeader}>Created Workouts ({createdWorkouts.length})</Text>
+        {createdWorkouts.length > 0 ? (
+          createdWorkouts.map(renderWorkoutListItem)
+        ) : (
+          <Text style={styles.emptyTabText}>No workouts created yet.</Text>
+        )}
+
+        <Text style={styles.tabSectionHeader}>Saved Workouts ({savedWorkouts.length})</Text>
+        {savedWorkouts.length > 0 ? (
+          savedWorkouts.map(renderWorkoutListItem)
+        ) : (
+          <Text style={styles.emptyTabText}>No workouts saved yet.</Text>
+        )}
+        <View style={{ height: 20 }} />
+      </ScrollView>
+    );
+  };
+
   const renderPostsContent = useCallback(() => (
     <FlatList
       key="posts-grid"
@@ -555,6 +599,52 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'black',
   },
+  tabContentContainer: {
+    paddingHorizontal: 10,
+  },
+  tabSectionHeader: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginTop: 20,
+    marginBottom: 10,
+    paddingHorizontal: 5,
+  },
+  emptyTabText: {
+    color: 'grey',
+    textAlign: 'center',
+    marginTop: 10,
+    marginBottom: 20,
+    fontSize: 14,
+  },
+  workoutItem: {
+    flexDirection: 'row',
+    backgroundColor: '#222',
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 10,
+    alignItems: 'center',
+  },
+  workoutItemImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+    marginRight: 10,
+    backgroundColor: '#333',
+  },
+  workoutItemTextContainer: {
+    flex: 1,
+  },
+  workoutItemTitle: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  workoutItemCreator: {
+    color: '#aaa',
+    fontSize: 12,
+    marginTop: 2,
+  },
   profileHeader: {
     alignItems: 'center',
     padding: 20,
@@ -680,15 +770,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'black',
     marginTop: 10
   },
-  workoutItem: {
-    overflow: 'hidden',
-    width: Dimensions.get('window').width / 3 - 15,
-    height: Dimensions.get('window').width / 3 - 15,
-    borderRadius: 15,
-    backgroundColor: 'grey',
-    margin: 5,
-    justifyContent: 'flex-end',
-  },
   workoutDetail: {
     justifyContent: 'center',
     alignItems: 'center',
@@ -712,11 +793,6 @@ const styles = StyleSheet.create({
   },
   workoutsList: {
     padding: 10,
-  },
-  tabContentContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   archetypeContainer: {
     backgroundColor: '#212121',

@@ -17,6 +17,14 @@ export interface GroupedMilestones {
   [monthYear: string]: Milestone[];
 }
 
+interface WorkoutItemData {
+  id: string;
+  title: string;
+  creatorId: string;
+  creatorUsername: string;
+  coverImageUrl?: string | null;
+}
+
 export function useProfileData(userId = null) {
   const { currentUser } = useAuth();
   const profileIdToFetch = userId || currentUser?.uid;

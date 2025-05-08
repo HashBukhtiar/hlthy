@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { ScrollView, View, Text, TouchableOpacity, Image, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import globalStyles from '@/styles/globalStyles';
 import { db } from '@/firebaseConfig'; 
 import { doc, getDoc, Timestamp, updateDoc, increment, setDoc, deleteDoc } from 'firebase/firestore';
 import { useAuth } from '@/context/AuthContext'; 
@@ -61,6 +60,8 @@ export default function ViewWorkout() {
       }
       try {
         setLoading(true);
+        setError(null); 
+        setWorkoutData(null); 
         const workoutDocRef = doc(db, 'workouts', workoutId);
         const workoutDocSnap = await getDoc(workoutDocRef);
 
@@ -68,21 +69,17 @@ export default function ViewWorkout() {
           const data = workoutDocSnap.data() as Omit<WorkoutData, 'id'>;
           setWorkoutData({ id: workoutDocSnap.id, ...data });
 
-          // Check if current user has favorited this workout
           if (currentUser) {
             const favoriteDocRef = doc(db, `users/${currentUser.uid}/savedWorkouts`, workoutId);
             const favoriteDocSnap = await getDoc(favoriteDocRef);
             setIsFavorited(favoriteDocSnap.exists());
           }
-
         } else {
           setError("Workout not found.");
-          Alert.alert("Error", "Workout not found.");
         }
       } catch (err: any) {
         console.error("Error fetching workout:", err);
         setError("Failed to load workout data.");
-        Alert.alert("Error", "Could not load workout data. Please try again.");
       } finally {
         setLoading(false);
       }
@@ -180,9 +177,40 @@ export default function ViewWorkout() {
     });
     return formatTotalDuration(totalMinutes);
   };
-  
-  const displayWorkoutLength = workoutData ? calculateTotalLength(workoutData.segments) : "N/A";
 
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.centered]}>
+        <ActivityIndicator size="large" color="#ff2d55" />
+        <Text style={{ color: 'grey', marginTop: 10 }}>Loading Workout...</Text>
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={[styles.container, styles.centered]}>
+        <Text style={styles.errorText}>{error}</Text>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButtonOnError}>
+          <Text style={styles.backButtonText}>Go Back</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  if (!workoutData) {
+    return (
+      <View style={[styles.container, styles.centered]}>
+        <Text style={styles.errorText}>Workout data is not available.</Text>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButtonOnError}>
+          <Text style={styles.backButtonText}>Go Back</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+  
+  const displayWorkoutLength = calculateTotalLength(workoutData.segments);
+  
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>

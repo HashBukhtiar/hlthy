@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
     StyleSheet,
     View,
@@ -8,15 +8,128 @@ import {
     TextInput,
     ScrollView,
     Dimensions,
+    ActivityIndicator,
+    RefreshControl,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import globalStyles from '@/styles/globalStyles';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import { BlurView } from 'expo-blur';
+import { useAuth } from '@/context/AuthContext';
+import { db } from '@/firebaseConfig';
+import { collection, query, where, getDocs, orderBy, limit, doc, getDoc as getFirestoreDoc } from 'firebase/firestore';
+
+interface WorkoutItemData {
+    id: string;
+    title: string;
+    creatorId: string;
+    creatorUsername: string;
+    coverImageUrl?: string | null;
+    savedCount?: number;
+  }
 
 export default function Workouts() {
     const [searchQuery, setSearchQuery] = useState('');
     const router = useRouter();
+    const { currentUser } = useAuth();
+
+    const [myWorkouts, setMyWorkouts] = useState<WorkoutItemData[]>([]);
+    const [favoriteWorkouts, setFavoriteWorkouts] = useState<WorkoutItemData[]>([]);
+    const [trendingWorkouts, setTrendingWorkouts] = useState<WorkoutItemData[]>([]);
+    
+    const [loadingMyWorkouts, setLoadingMyWorkouts] = useState(false);
+    const [loadingFavorites, setLoadingFavorites] = useState(false);
+    const [loadingTrending, setLoadingTrending] = useState(false);
+    const [refreshing, setRefreshing] = useState(false);
+
+    const fetchMyWorkouts = useCallback(async () => {
+        if (!currentUser) return;
+        setLoadingMyWorkouts(true);
+        try {
+            const q = query(
+                collection(db, 'workouts'), 
+                where('creatorId', '==', currentUser.uid),
+                orderBy('createdAt', 'desc')
+            );
+            const querySnapshot = await getDocs(q);
+            const workoutsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as WorkoutItemData));
+            setMyWorkouts(workoutsData);
+        } catch (error) {
+            console.error("Error fetching my workouts: ", error);
+        } finally {
+            setLoadingMyWorkouts(false);
+        }
+    }, [currentUser]);
+
+    const fetchFavoriteWorkouts = useCallback(async () => {
+        if (!currentUser) return;
+        setLoadingFavorites(true);
+        try {
+            const savedWorkoutsRef = collection(db, `users/${currentUser.uid}/savedWorkouts`);
+            const savedSnapshot = await getDocs(savedWorkoutsRef);
+            const workoutIds = savedSnapshot.docs.map(doc => doc.id);
+
+            if (workoutIds.length === 0) {
+                setFavoriteWorkouts([]);
+                setLoadingFavorites(false);
+                return;
+            }
+            
+            // Firestore 'in' query is limited to 10 items. If more, batch or fetch individually.
+            // For simplicity, fetching individually here. For many favorites, batching is better.
+            const favWorkoutsData: WorkoutItemData[] = [];
+            for (const id of workoutIds) {
+                const workoutDocRef = doc(db, 'workouts', id);
+                const workoutDocSnap = await getFirestoreDoc(workoutDocRef);
+                if (workoutDocSnap.exists()) {
+                    favWorkoutsData.push({ id: workoutDocSnap.id, ...workoutDocSnap.data() } as WorkoutItemData);
+                }
+            }
+            setFavoriteWorkouts(favWorkoutsData);
+
+        } catch (error) {
+            console.error("Error fetching favorite workouts: ", error);
+        } finally {
+            setLoadingFavorites(false);
+        }
+    }, [currentUser]);
+
+    const fetchTrendingWorkouts = useCallback(async () => {
+        setLoadingTrending(true);
+        try {
+            const q = query(
+                collection(db, 'workouts'),
+                where('isPublic', '==', true), 
+                orderBy('savedCount', 'desc'), 
+                limit(10) 
+            );
+            const querySnapshot = await getDocs(q);
+            const workoutsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as WorkoutItemData));
+            setTrendingWorkouts(workoutsData);
+        } catch (error) {
+            console.error("Error fetching trending workouts: ", error);
+        } finally {
+            setLoadingTrending(false);
+        }
+    }, []);
+
+
+    useEffect(() => {
+        if (currentUser) {
+            fetchMyWorkouts();
+            fetchFavoriteWorkouts();
+        }
+        fetchTrendingWorkouts();
+    }, [currentUser, fetchMyWorkouts, fetchFavoriteWorkouts, fetchTrendingWorkouts]);
+
+    const onRefresh = useCallback(() => {
+        setRefreshing(true);
+        Promise.all([
+            currentUser ? fetchMyWorkouts() : Promise.resolve(),
+            currentUser ? fetchFavoriteWorkouts() : Promise.resolve(),
+            fetchTrendingWorkouts()
+        ]).finally(() => setRefreshing(false));
+    }, [currentUser, fetchMyWorkouts, fetchFavoriteWorkouts, fetchTrendingWorkouts]);
 
     function renderSearchBar() {
         return (
@@ -38,304 +151,119 @@ export default function Workouts() {
         );
     }
 
+    const renderWorkoutItem = (item: WorkoutItemData, itemStyle: any, blurStyle: any) => (
+        <TouchableOpacity 
+            key={item.id}
+            style={itemStyle}
+            onPress={() => router.push(`/view-workout/${item.id}`)}
+        >
+            <Image 
+                source={item.coverImageUrl ? { uri: item.coverImageUrl } : require('@/assets/images/default_workout_cover.png')}
+                style={StyleSheet.absoluteFill}
+            />
+            <BlurView intensity={80} tint="dark" style={blurStyle}>
+                <Text style={styles.workoutNameText} numberOfLines={1}>{item.title}</Text>
+                <Text style={styles.workoutAuthorText} numberOfLines={1}>by {item.creatorUsername}</Text>
+            </BlurView>
+        </TouchableOpacity>
+    );
+
+
     function renderMyWorkouts() {
+        if (loadingMyWorkouts && myWorkouts.length === 0) {
+            return <ActivityIndicator style={styles.listLoadingIndicator} size="small" color="white" />;
+        }
+        if (!currentUser) {
+            return <Text style={styles.placeholderText}>Login to see your workouts.</Text>;
+        }
+        if (myWorkouts.length === 0 && !loadingMyWorkouts) {
+            return <Text style={styles.placeholderText}>You haven't created any workouts yet.</Text>;
+        }
         return (
             <View>
                 <View style={styles.myWorkoutsHeaderView}>
                     <Text style={styles.workoutsHeaders}>My Workouts</Text>
                     <TouchableOpacity 
                         style={styles.createWorkoutButton}
-                        onPress={() => {
-                            console.log("Create Workout pressed");
-                            router.push('/create-workout');
-                        }}
+                        onPress={() => router.push('/create-workout')}
                     >
-                        <Text style={{
-                            color: 'black', fontWeight: 'bold', fontSize: 23}}>+</Text>
+                        <Text style={{ color: 'black', fontWeight: 'bold', fontSize: 23 }}>+</Text>
                     </TouchableOpacity>
                 </View>
-                <ScrollView horizontal={true} style={styles.myWorkoutsList} contentContainerStyle={{alignItems: 'center'}} showsHorizontalScrollIndicator={false}>
-                    <TouchableOpacity 
-                        style={styles.myWorkoutsButton}
-                        onPress={() => {
-                            console.log("Workout pressed");
-                            router.push('/view-workout/1'); // Ensure this route exists
-                        }}
-                    >
-                        <Image 
-                            source={{ uri: 'https://ca.gymshark.com/_next/image?url=https%3A%2F%2Fimages.ctfassets.net%2F8urtyqugdt2l%2FfIOvOyiWNuyVnlhs7LnFt%2F9d2b2df51fdce86e93c0d1b0d28afc1e%2Fdesktop-cbum-back-workout.jpg&w=3840&q=85' }}
-                            style={StyleSheet.absoluteFill}
-                        />
-                        <BlurView intensity={100} tint="dark" style={styles.myWorkoutPreview}>
-                            <Text style={styles.workoutNameText}>My Workout 1</Text>
-                            <Text style={styles.workoutAuthorText}>John Doe</Text>
-                        </BlurView>
-                    </TouchableOpacity>
-                    <TouchableOpacity 
-                        style={styles.myWorkoutsButton}
-                        onPress={() => {
-                            console.log("Workout pressed");
-                            router.push('/view-workout/2');
-                        }}
-                    >
-                        <BlurView intensity={100} tint="dark" style={styles.myWorkoutPreview}>
-                            <Text style={styles.workoutNameText}>My Workout 2</Text>
-                            <Text style={styles.workoutAuthorText}>John Doe</Text>
-                        </BlurView>
-                    </TouchableOpacity>
-                    <TouchableOpacity 
-                        style={styles.myWorkoutsButton}
-                        onPress={() => {
-                            console.log("Workout pressed");
-                            router.push('/view-workout/3');
-                        }}
-                    >
-                        <BlurView intensity={100} tint="dark" style={styles.myWorkoutPreview}>
-                            <Text style={styles.workoutNameText}>My Workout 3</Text>
-                            <Text style={styles.workoutAuthorText}>John Pork</Text>
-                        </BlurView>
-                    </TouchableOpacity>
+                <ScrollView horizontal={true} style={styles.myWorkoutsList} showsHorizontalScrollIndicator={false}>
+                    {myWorkouts.map(item => renderWorkoutItem(item, styles.myWorkoutsButton, styles.myWorkoutPreview))}
                 </ScrollView>
             </View>
         );
     }
 
     function renderFavoriteWorkouts() {
+        if (loadingFavorites && favoriteWorkouts.length === 0) {
+            return <ActivityIndicator style={styles.listLoadingIndicator} size="small" color="white" />;
+        }
+        if (!currentUser) {
+            return <Text style={styles.placeholderText}>Login to see your favorite workouts.</Text>;
+        }
+        if (favoriteWorkouts.length === 0 && !loadingFavorites) {
+            return <Text style={styles.placeholderText}>No favorite workouts yet.</Text>;
+        }
         return (
             <View>
                 <View style={styles.myWorkoutsHeaderView}>
                     <Text style={styles.workoutsHeaders}>Favourite Workouts</Text>
                 </View>
-                <ScrollView horizontal={true} style={styles.friendsWorkoutsList} contentContainerStyle={{alignItems: 'center'}} showsHorizontalScrollIndicator={false}>
-                    <TouchableOpacity 
-                        style={styles.friendsWorkoutsButton}
-                        onPress={() => {
-                            console.log("Workout pressed");
-                            router.push('/view-workout/5'); // Ensure this route exists
-                        }}
-                    >
-                        <BlurView intensity={100} tint="dark" style={styles.workoutPreview}>
-                            <Text style={styles.workoutNameText}>Fav Workout 1</Text>
-                            <Text style={styles.workoutAuthorText}>Jane Doe</Text>
-                        </BlurView>
-                    </TouchableOpacity>
-                    <TouchableOpacity 
-                        style={styles.friendsWorkoutsButton}
-                        onPress={() => {
-                            console.log("Workout pressed");
-                            router.push('/view-workout/6');
-                        }}
-                    >
-                        <BlurView intensity={100} tint="dark" style={styles.workoutPreview}>
-                            <Text style={styles.workoutNameText}>Fav Workout 2</Text>
-                            <Text style={styles.workoutAuthorText}>John Doe</Text>
-                        </BlurView>
-                    </TouchableOpacity>
-                    <TouchableOpacity 
-                        style={styles.friendsWorkoutsButton}
-                        onPress={() => {
-                            console.log("Workout pressed");
-                            router.push('/view-workout/7');
-                        }}
-                    >
-                        <BlurView intensity={100} tint="dark" style={styles.workoutPreview}>
-                            <Text style={styles.workoutNameText}>Fav Workout 3</Text>
-                            <Text style={styles.workoutAuthorText}>Tim Cheese</Text>
-                        </BlurView>
-                    </TouchableOpacity>
+                <ScrollView horizontal={true} style={styles.friendsWorkoutsList} showsHorizontalScrollIndicator={false}>
+                    {favoriteWorkouts.map(item => renderWorkoutItem(item, styles.friendsWorkoutsButton, styles.workoutPreview))}
                 </ScrollView>
             </View>
         );
     }
-
+    
+    // Placeholder for Friends' Workouts
     function renderFriendsWorkouts() {
         return (
             <View>
                 <View style={styles.myWorkoutsHeaderView}>
                     <Text style={styles.workoutsHeaders}>Friends' Workouts</Text>
                 </View>
-                <ScrollView horizontal={true} style={styles.friendsWorkoutsList} contentContainerStyle={{alignItems: 'center'}} showsHorizontalScrollIndicator={false}>
-                    <TouchableOpacity 
-                        style={styles.friendsWorkoutsButton}
-                        onPress={() => {
-                            console.log("Workout pressed");
-                            router.push('/view-workout/9'); // Ensure this route exists
-                        }}
-                    >
-                        <BlurView intensity={100} tint="dark" style={styles.workoutPreview}>
-                            <Text style={styles.workoutNameText}>Friend Workout 1</Text>
-                            <Text style={styles.workoutAuthorText}>Jane Doe</Text>
-                        </BlurView>
-                    </TouchableOpacity>
-                    <TouchableOpacity 
-                        style={styles.friendsWorkoutsButton}
-                        onPress={() => {
-                            console.log("Workout pressed");
-                            router.push('/view-workout/10');
-                        }}
-                    >
-                        <BlurView intensity={100} tint="dark" style={styles.workoutPreview}>
-                            <Text style={styles.workoutNameText}>Friend Workout 2</Text>
-                            <Text style={styles.workoutAuthorText}>Bob Smith</Text>
-                        </BlurView>
-                    </TouchableOpacity>
-                    <TouchableOpacity 
-                        style={styles.friendsWorkoutsButton}
-                        onPress={() => {
-                            console.log("Workout pressed");
-                            router.push('/view-workout/11');
-                        }}
-                    >
-                        <BlurView intensity={100} tint="dark" style={styles.workoutPreview}>
-                            <Text style={styles.workoutNameText}>Friend Workout 3</Text>
-                            <Text style={styles.workoutAuthorText}>Kibutsuji Muzan</Text>
-                        </BlurView>
-                    </TouchableOpacity>
-                </ScrollView>
+                <Text style={styles.placeholderText}>Friends' workouts coming soon!</Text>
             </View>
         );
     }
 
     function renderTrendingWorkouts() {
+        if (loadingTrending && trendingWorkouts.length === 0) {
+             return <ActivityIndicator style={styles.listLoadingIndicator} size="small" color="white" />;
+        }
+         if (trendingWorkouts.length === 0 && !loadingTrending) {
+            return <Text style={styles.placeholderText}>No trending workouts available.</Text>;
+        }
+        
         return (
             <View>
                 <View style={styles.myWorkoutsHeaderView}>
                     <Text style={styles.workoutsHeaders}>Trending Workouts</Text>
                 </View>
-                <ScrollView horizontal={true} style={styles.trendingWorkoutsList} contentContainerStyle={{alignItems: 'center'}} showsHorizontalScrollIndicator={false}>
-                    <View style={styles.trendingWorkouts4Group}>
+                <View style={styles.trendingWorkoutsVerticalList}>
+                    {trendingWorkouts.map((item) => (
                         <TouchableOpacity 
-                                style={styles.trendingWorkoutsButton}
-                                onPress={() => {
-                                    console.log("Workout pressed");
-                                    router.push('/view-workout/13');
-                                }}
-                            >
-                            <View style={styles.trendingWorkoutsIcon}></View>
+                            key={item.id}
+                            style={styles.trendingWorkoutsButton}
+                            onPress={() => router.push(`/view-workout/${item.id}`)}
+                        >
+                            <Image 
+                                source={item.coverImageUrl ? { uri: item.coverImageUrl } : require('@/assets/images/default_workout_cover.png')}
+                                style={styles.trendingWorkoutsIcon} 
+                            />
                             <View style={styles.trendingWorkoutsTextView}>
-                                <Text style={[styles.trendingWorkoutsText, {fontWeight: 'bold'}]}>Golf Workout</Text>
-                                <Text style={[styles.trendingWorkoutsText, {color: '#D0D0D0'}]}>Matt Martel</Text>
+                                <Text style={[styles.trendingWorkoutsText, {fontWeight: 'bold'}]} numberOfLines={1}>{item.title}</Text>
+                                <Text style={[styles.trendingWorkoutsText, {color: '#D0D0D0'}]} numberOfLines={1}>by {item.creatorUsername}</Text>
                             </View>
-                            <TouchableOpacity style={styles.trendingWorkoutsMoreButton}>
-                                <Icon name="ellipsis-h" size={20} color="white" />
-                            </TouchableOpacity>
+                            
+                            <Text style={styles.trendingSavedCount}>{item.savedCount || 0} saves</Text>
                         </TouchableOpacity>
-                        <TouchableOpacity 
-                                style={styles.trendingWorkoutsButton}
-                                onPress={() => {
-                                    console.log("Workout pressed");
-                                    router.push('/view-workout/14');
-                                }}
-                            >
-                            <View style={styles.trendingWorkoutsIcon}></View>
-                            <View style={styles.trendingWorkoutsTextView}>
-                                <Text style={[styles.trendingWorkoutsText, {fontWeight: 'bold'}]}>Sock Workout</Text>
-                                <Text style={[styles.trendingWorkoutsText, {color: '#D0D0D0'}]}>Matt Martel</Text>
-                            </View>
-                            <TouchableOpacity style={styles.trendingWorkoutsMoreButton}>
-                                <Icon name="ellipsis-h" size={20} color="white" />
-                            </TouchableOpacity>
-                        </TouchableOpacity>
-                        <TouchableOpacity 
-                                style={styles.trendingWorkoutsButton}
-                                onPress={() => {
-                                    console.log("Workout pressed");
-                                    router.push('/view-workout/15');
-                                }}
-                            >
-                            <View style={styles.trendingWorkoutsIcon}></View>
-                            <View style={styles.trendingWorkoutsTextView}>
-                                <Text style={[styles.trendingWorkoutsText, {fontWeight: 'bold'}]}>Push Day Torture</Text>
-                                <Text style={[styles.trendingWorkoutsText, {color: '#D0D0D0'}]}>Matt Martel</Text>
-                            </View>
-                            <TouchableOpacity style={styles.trendingWorkoutsMoreButton}>
-                                <Icon name="ellipsis-h" size={20} color="white" />
-                            </TouchableOpacity>
-                        </TouchableOpacity>
-                        <TouchableOpacity 
-                                style={styles.trendingWorkoutsButton}
-                                onPress={() => {
-                                    console.log("Workout pressed");
-                                    router.push('/view-workout/16');
-                                }}
-                            >
-                            <View style={styles.trendingWorkoutsIcon}></View>
-                            <View style={styles.trendingWorkoutsTextView}>
-                                <Text style={[styles.trendingWorkoutsText, {fontWeight: 'bold'}]}>Basketball Workout</Text>
-                                <Text style={[styles.trendingWorkoutsText, {color: '#D0D0D0'}]}>Matt Martel</Text>
-                            </View>
-                            <TouchableOpacity style={styles.trendingWorkoutsMoreButton}>
-                                <Icon name="ellipsis-h" size={20} color="white" />
-                            </TouchableOpacity>
-                        </TouchableOpacity>
-                    </View>
-                    <View style={styles.trendingWorkouts4Group}>
-                    <TouchableOpacity 
-                                style={styles.trendingWorkoutsButton}
-                                onPress={() => {
-                                    console.log("Workout pressed");
-                                    router.push('/view-workout/17');
-                                }}
-                            >
-                            <View style={styles.trendingWorkoutsIcon}></View>
-                            <View style={styles.trendingWorkoutsTextView}>
-                                <Text style={[styles.trendingWorkoutsText, {fontWeight: 'bold'}]}>Golf Workout</Text>
-                                <Text style={[styles.trendingWorkoutsText, {color: '#D0D0D0'}]}>Matt Martel</Text>
-                            </View>
-                            <TouchableOpacity style={styles.trendingWorkoutsMoreButton}>
-                                <Icon name="ellipsis-h" size={20} color="white" />
-                            </TouchableOpacity>
-                        </TouchableOpacity>
-                        <TouchableOpacity 
-                                style={styles.trendingWorkoutsButton}
-                                onPress={() => {
-                                    console.log("Workout pressed");
-                                    router.push('/view-workout/18');
-                                }}
-                            >
-                            <View style={styles.trendingWorkoutsIcon}></View>
-                            <View style={styles.trendingWorkoutsTextView}>
-                                <Text style={[styles.trendingWorkoutsText, {fontWeight: 'bold'}]}>Sock Workout</Text>
-                                <Text style={[styles.trendingWorkoutsText, {color: '#D0D0D0'}]}>Matt Martel</Text>
-                            </View>
-                            <TouchableOpacity style={styles.trendingWorkoutsMoreButton}>
-                                <Icon name="ellipsis-h" size={20} color="white" />
-                            </TouchableOpacity>
-                        </TouchableOpacity>
-                        <TouchableOpacity 
-                                style={styles.trendingWorkoutsButton}
-                                onPress={() => {
-                                    console.log("Workout pressed");
-                                    router.push('/view-workout/19');
-                                }}
-                            >
-                            <View style={styles.trendingWorkoutsIcon}></View>
-                            <View style={styles.trendingWorkoutsTextView}>
-                                <Text style={[styles.trendingWorkoutsText, {fontWeight: 'bold'}]}>Push Day Torture</Text>
-                                <Text style={[styles.trendingWorkoutsText, {color: '#D0D0D0'}]}>Matt Martel</Text>
-                            </View>
-                            <TouchableOpacity style={styles.trendingWorkoutsMoreButton}>
-                                <Icon name="ellipsis-h" size={20} color="white" />
-                            </TouchableOpacity>
-                        </TouchableOpacity>
-                        <TouchableOpacity 
-                                style={styles.trendingWorkoutsButton}
-                                onPress={() => {
-                                    console.log("Workout pressed");
-                                    router.push('/view-workout/20');
-                                }}
-                            >
-                            <View style={styles.trendingWorkoutsIcon}></View>
-                            <View style={styles.trendingWorkoutsTextView}>
-                                <Text style={[styles.trendingWorkoutsText, {fontWeight: 'bold'}]}>Basketball Workout</Text>
-                                <Text style={[styles.trendingWorkoutsText, {color: '#D0D0D0'}]}>Matt Martel</Text>
-                            </View>
-                            <TouchableOpacity style={styles.trendingWorkoutsMoreButton}>
-                                <Icon name="ellipsis-h" size={20} color="white" />
-                            </TouchableOpacity>
-                        </TouchableOpacity>
-                    </View>
-                </ScrollView>
+                    ))}
+                </View>
             </View>
         );
     }
@@ -348,14 +276,19 @@ export default function Workouts() {
             <ScrollView 
                 style={styles.workoutsContainer} 
                 contentContainerStyle={globalStyles.contentContainer}
-                showsVerticalScrollIndicator={false}>
+                showsVerticalScrollIndicator={false}
+                refreshControl={
+                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="white"/>
+                }
+            >
                 {renderMyWorkouts()}
                 {renderFavoriteWorkouts()}
-                {renderFriendsWorkouts()}
+                {renderFriendsWorkouts()} 
                 {renderTrendingWorkouts()}
+                <View style={{height: 30}} />
             </ScrollView>
         </View>
-    )
+    );
 }
 
 const styles = StyleSheet.create({
@@ -384,59 +317,96 @@ const styles = StyleSheet.create({
     },
     workoutsHeaders: {
         color: 'white',
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        fontSize: 30,
+        fontSize: 24, // Slightly smaller for section headers
         fontWeight: 'bold',
-        marginTop: 20,
     },
     myWorkoutsHeaderView: {
         flexDirection: 'row',
-        padding: 10,
+        paddingHorizontal: 15, // Consistent padding
+        paddingVertical: 10,
         justifyContent: 'space-between',
         alignItems: 'center',
+        marginTop: 10, // Space above section
     },
     createWorkoutButton: {
-        backgroundColor: 'pink',
-        borderRadius: 50,
+        backgroundColor: '#ff2d55', // Theme color
+        borderRadius: 20, // Circular
         width: 40,
         height: 40,
         alignItems: 'center',
         justifyContent: 'center',
     },
-    myWorkoutsList: {
-        flexDirection: 'row',
-        padding: 10,
-        height: 210,
+    myWorkoutsList: { // Horizontal scroll
+        paddingLeft: 15, // Start items from edge
+        paddingRight: 5, // Space at the end
+        height: 210, 
     },
-    myWorkoutsButton: {
+    myWorkoutsButton: { 
+        overflow: 'hidden', 
+        width: 180, // Adjusted size
+        height: 180, 
+        borderRadius: 20, // Softer corners
+        backgroundColor: '#333', 
+        marginRight: 10,
+        justifyContent: 'flex-end', 
+    },
+    myWorkoutPreview: { 
+        width: '100%', 
+        justifyContent: 'center',
+        alignItems: 'flex-start', // Align text to start
+        padding: 12, // Adjusted padding
+    },
+    workoutNameText: {
+        fontWeight: 'bold',
+        color: 'white',
+        fontSize: 15, 
+        marginBottom: 2,
+    },
+    workoutAuthorText: {
+        color: '#E0E0E0', 
+        fontSize: 11,
+    },
+    friendsWorkoutsList: { // Horizontal scroll
+        paddingLeft: 15,
+        paddingRight: 5,
+        height: 170, // Slightly smaller
+    },
+    friendsWorkoutsButton: { // For favorites, friends
         overflow: 'hidden',
-        width: 200,
-        height: 200,
-        borderRadius: 35,
-        backgroundColor: 'grey',
+        width: 150, // Adjusted size
+        height: 150,
+        borderRadius: 15,
+        backgroundColor: '#333', 
         marginRight: 10,
         justifyContent: 'flex-end',
     },
-    friendsWorkoutsList: {
-        flexDirection: 'row',
+    workoutPreview: { // For favorites, friends blur
+        width: '100%',
+        justifyContent: 'center',
+        alignItems: 'flex-start',
         padding: 10,
-        height: 160,
     },
-    friendsWorkoutsButton: {
-        overflow: 'hidden',
-        width: 140,
-        height: 140,
-        borderRadius: 25,
-        backgroundColor: 'grey',
-        marginRight: 10,
-        justifyContent: 'flex-end',
-    },
-    trendingWorkoutsList: {
+    trendingWorkoutsList: { // Original horizontal style, if needed
         flexDirection: 'row',
         padding: 5,
         height: 220,
+    },
+    trendingWorkoutsButton: { // For vertical list items
+        flexDirection: 'row',
+        width: '100%', 
+        paddingVertical: 10,
+        paddingHorizontal: 5,
+        borderBottomWidth: 1,
+        borderBottomColor: '#2a2a2a',
+        alignItems: 'center',
+    },
+    trendingWorkoutsTextView: {
+        justifyContent: 'center',
+        alignItems: 'flex-start',
+        flex: 1, 
+    },
+    trendingWorkoutsText: {
+        color: 'white',
     },
     trendingWorkouts4Group: {
         flexDirection: 'column',
@@ -445,54 +415,33 @@ const styles = StyleSheet.create({
         marginBottom: 10,
         alignItems: 'center'
     },  
-    trendingWorkoutsButton: {
-        flexDirection: 'row',
-        width: '95%',
-        paddingVertical: 5,
-        borderTopWidth: 1,
-        borderBottomWidth: 1,
-        borderColor: 'grey',
-    },
-    trendingWorkoutsIcon: {
-        width: 40,
-        height: 40,
-        borderRadius: 5,
-        backgroundColor: 'grey',
-    },
-    trendingWorkoutsTextView: {
-        justifyContent: 'center',
-        alignItems: 'flex-start',
-        flex: 1,
-        paddingLeft: 5,
-    },
-    trendingWorkoutsText: {
-        color: 'white',
+    trendingWorkoutsIcon: { 
+        width: 50,
+        height: 50,
+        borderRadius: 8,
+        backgroundColor: '#333',
+        marginRight: 10,
     },
     trendingWorkoutsMoreButton: {
         justifyContent: 'center',
         paddingLeft: 10,
     },
-    myWorkoutPreview: {
-        width: '100%',
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: 10,
-    },
-    workoutPreview: {
-        width: '100%',
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: 5,
-    },
-    workoutNameText: {
-        fontWeight: 'bold',
-        color: 'white',
-        fontSize: 16,
+    placeholderText: {
+        color: 'grey',
         textAlign: 'center',
+        marginVertical: 20,
+        marginHorizontal: 10,
+        fontSize: 14,
     },
-    workoutAuthorText: {
-        color: '#D0D0D0',
+    listLoadingIndicator: {
+        marginVertical: 20,
+    },
+    trendingWorkoutsVerticalList: { 
+        paddingHorizontal: 10,
+    },
+    trendingSavedCount: {
+        color: '#aaa',
         fontSize: 12,
-        textAlign: 'center',
-    }
+        marginLeft: 10,
+    }, 
 });
