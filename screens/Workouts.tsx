@@ -205,7 +205,14 @@ export default function Workouts() {
             return <Text style={styles.placeholderText}>Login to see your favorite workouts.</Text>;
         }
         if (favoriteWorkouts.length === 0 && !loadingFavorites) {
-            return <Text style={styles.placeholderText}>No favorite workouts yet.</Text>;
+            return (
+            <View>
+                <View style={styles.myWorkoutsHeaderView}>
+                    <Text style={styles.workoutsHeaders}>Favourite Workouts</Text>
+                </View>
+                <Text style={styles.placeholderText}>No favorite workouts yet.</Text>
+            </View>
+            );
         }
         return (
             <View>
@@ -317,35 +324,35 @@ const styles = StyleSheet.create({
     },
     workoutsHeaders: {
         color: 'white',
-        fontSize: 24, // Slightly smaller for section headers
+        fontSize: 24, 
         fontWeight: 'bold',
     },
     myWorkoutsHeaderView: {
         flexDirection: 'row',
-        paddingHorizontal: 15, // Consistent padding
+        paddingHorizontal: 15, 
         paddingVertical: 10,
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginTop: 10, // Space above section
+        marginTop: 10, 
     },
     createWorkoutButton: {
-        backgroundColor: '#ff2d55', // Theme color
-        borderRadius: 20, // Circular
+        backgroundColor: '#ff2d55', 
+        borderRadius: 20, 
         width: 40,
         height: 40,
         alignItems: 'center',
         justifyContent: 'center',
     },
-    myWorkoutsList: { // Horizontal scroll
-        paddingLeft: 15, // Start items from edge
-        paddingRight: 5, // Space at the end
+    myWorkoutsList: { 
+        paddingLeft: 15, 
+        paddingRight: 5, 
         height: 210, 
     },
     myWorkoutsButton: { 
         overflow: 'hidden', 
-        width: 180, // Adjusted size
+        width: 180, 
         height: 180, 
-        borderRadius: 20, // Softer corners
+        borderRadius: 20, 
         backgroundColor: '#333', 
         marginRight: 10,
         justifyContent: 'flex-end', 
@@ -353,8 +360,8 @@ const styles = StyleSheet.create({
     myWorkoutPreview: { 
         width: '100%', 
         justifyContent: 'center',
-        alignItems: 'flex-start', // Align text to start
-        padding: 12, // Adjusted padding
+        alignItems: 'flex-start', 
+        padding: 12, 
     },
     workoutNameText: {
         fontWeight: 'bold',
@@ -366,32 +373,32 @@ const styles = StyleSheet.create({
         color: '#E0E0E0', 
         fontSize: 11,
     },
-    friendsWorkoutsList: { // Horizontal scroll
+    friendsWorkoutsList: { 
         paddingLeft: 15,
         paddingRight: 5,
-        height: 170, // Slightly smaller
+        height: 170, 
     },
-    friendsWorkoutsButton: { // For favorites, friends
+    friendsWorkoutsButton: { 
         overflow: 'hidden',
-        width: 150, // Adjusted size
+        width: 150, 
         height: 150,
         borderRadius: 15,
         backgroundColor: '#333', 
         marginRight: 10,
         justifyContent: 'flex-end',
     },
-    workoutPreview: { // For favorites, friends blur
+    workoutPreview: { 
         width: '100%',
         justifyContent: 'center',
         alignItems: 'flex-start',
         padding: 10,
     },
-    trendingWorkoutsList: { // Original horizontal style, if needed
+    trendingWorkoutsList: { 
         flexDirection: 'row',
         padding: 5,
         height: 220,
     },
-    trendingWorkoutsButton: { // For vertical list items
+    trendingWorkoutsButton: { 
         flexDirection: 'row',
         width: '100%', 
         paddingVertical: 10,
