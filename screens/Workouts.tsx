@@ -181,7 +181,13 @@ export default function Workouts() {
                 <View>
                     <View style={styles.myWorkoutsHeaderView}>
                         <Text style={styles.workoutsHeaders}>My Workouts</Text>
-                    </View>
+                        <TouchableOpacity 
+                            style={styles.createWorkoutButton}
+                            onPress={() => router.push('/create-workout')}
+                        >
+                            <Text style={{ color: 'black', fontWeight: 'bold', fontSize: 23 }}>+</Text>
+                        </TouchableOpacity>
+                        </View>
                     <Text style={styles.placeholderText}>You haven't created any workouts yet.</Text>
                 </View>
             );
