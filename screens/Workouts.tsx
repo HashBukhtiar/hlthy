@@ -8,6 +8,7 @@ import {
     TextInput,
     ScrollView,
     Dimensions,
+    FlatList,
     ActivityIndicator,
     RefreshControl,
 } from 'react-native';
@@ -37,10 +38,13 @@ export default function Workouts() {
     const [favoriteWorkouts, setFavoriteWorkouts] = useState<WorkoutItemData[]>([]);
     const [trendingWorkouts, setTrendingWorkouts] = useState<WorkoutItemData[]>([]);
     
+    const [searchResults, setSearchResults] = useState<WorkoutItemData[]>([]);
+    
     const [loadingMyWorkouts, setLoadingMyWorkouts] = useState(false);
     const [loadingFavorites, setLoadingFavorites] = useState(false);
     const [loadingTrending, setLoadingTrending] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
+    const [isSearching, setIsSearching] = useState(false);
 
     const fetchMyWorkouts = useCallback(async () => {
         if (!currentUser) return;
@@ -56,6 +60,7 @@ export default function Workouts() {
             setMyWorkouts(workoutsData);
         } catch (error) {
             console.error("Error fetching my workouts: ", error);
+            setMyWorkouts([]); 
         } finally {
             setLoadingMyWorkouts(false);
         }
@@ -75,20 +80,18 @@ export default function Workouts() {
                 return;
             }
             
-            // Firestore 'in' query is limited to 10 items. If more, batch or fetch individually.
-            // For simplicity, fetching individually here. For many favorites, batching is better.
             const favWorkoutsData: WorkoutItemData[] = [];
-            for (const id of workoutIds) {
+            for (const id of workoutIds.slice(0, 30)) { 
                 const workoutDocRef = doc(db, 'workouts', id);
                 const workoutDocSnap = await getFirestoreDoc(workoutDocRef);
                 if (workoutDocSnap.exists()) {
                     favWorkoutsData.push({ id: workoutDocSnap.id, ...workoutDocSnap.data() } as WorkoutItemData);
                 }
             }
-            setFavoriteWorkouts(favWorkoutsData);
-
+            setFavoriteWorkouts(favWorkoutsData); 
         } catch (error) {
             console.error("Error fetching favorite workouts: ", error);
+            setFavoriteWorkouts([]);
         } finally {
             setLoadingFavorites(false);
         }
@@ -101,13 +104,14 @@ export default function Workouts() {
                 collection(db, 'workouts'),
                 where('isPublic', '==', true), 
                 orderBy('savedCount', 'desc'), 
-                limit(10) 
+                limit(50) // Fetch more for a broader search pool initially
             );
             const querySnapshot = await getDocs(q);
             const workoutsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as WorkoutItemData));
-            setTrendingWorkouts(workoutsData);
+            setTrendingWorkouts(workoutsData); 
         } catch (error) {
             console.error("Error fetching trending workouts: ", error);
+            setTrendingWorkouts([]); 
         } finally {
             setLoadingTrending(false);
         }
@@ -120,10 +124,39 @@ export default function Workouts() {
             fetchFavoriteWorkouts();
         }
         fetchTrendingWorkouts();
-    }, [currentUser, fetchMyWorkouts, fetchFavoriteWorkouts, fetchTrendingWorkouts]);
+    }, [currentUser, fetchMyWorkouts, fetchFavoriteWorkouts, fetchTrendingWorkouts]); 
+
+    useEffect(() => {
+        const lowerCaseQuery = searchQuery.toLowerCase().trim();
+
+        if (!lowerCaseQuery) {
+            setSearchResults([]);
+            setIsSearching(false); // Hide search results overlay
+            return;
+        }
+
+        setIsSearching(true); // Show search results overlay
+
+        // Combine all workouts and deduplicate
+        const allWorkoutsMap = new Map<string, WorkoutItemData>();
+        myWorkouts.forEach(workout => allWorkoutsMap.set(workout.id, workout));
+        favoriteWorkouts.forEach(workout => allWorkoutsMap.set(workout.id, workout));
+        trendingWorkouts.forEach(workout => allWorkoutsMap.set(workout.id, workout));
+        
+        const uniqueWorkouts = Array.from(allWorkoutsMap.values());
+
+        const filtered = uniqueWorkouts.filter(
+            (workout) =>
+                workout.title.toLowerCase().includes(lowerCaseQuery) ||
+                workout.creatorUsername.toLowerCase().includes(lowerCaseQuery)
+        );
+        setSearchResults(filtered);
+    }, [searchQuery, myWorkouts, favoriteWorkouts, trendingWorkouts]);
+
 
     const onRefresh = useCallback(() => {
         setRefreshing(true);
+        setSearchQuery('');
         Promise.all([
             currentUser ? fetchMyWorkouts() : Promise.resolve(),
             currentUser ? fetchFavoriteWorkouts() : Promise.resolve(),
@@ -137,10 +170,12 @@ export default function Workouts() {
                 <Icon name="search" size={20} color="grey" />
                 <TextInput
                     style={styles.searchBar}
-                    onChangeText={(text) => {setSearchQuery(text)}}
+                    onChangeText={(text) => setSearchQuery(text)}
                     value={searchQuery}
-                    placeholder="Search Workouts..."
+                    placeholder="Search Workouts by Title or Creator..."
                     placeholderTextColor="grey"
+                    // onFocus={() => setIsSearching(true)} // Can be used if you want overlay on focus
+                    // onBlur={() => !searchQuery && setIsSearching(false)} // Hide if query is empty on blur
                 />
                 {searchQuery ? (
                     <TouchableOpacity onPress={() => setSearchQuery('')}>
@@ -150,7 +185,6 @@ export default function Workouts() {
             </View>
         );
     }
-
     const renderWorkoutItem = (item: WorkoutItemData, itemStyle: any, blurStyle: any) => (
         <TouchableOpacity 
             key={item.id}
@@ -168,29 +202,51 @@ export default function Workouts() {
         </TouchableOpacity>
     );
 
+    const renderWorkoutCarouselItem = (item: WorkoutItemData, itemStyle: any, blurStyle: any) => (
+        <TouchableOpacity 
+            key={item.id}
+            style={itemStyle}
+            onPress={() => {
+                router.push(`/view-workout/${item.id}`);
+                setSearchQuery(''); // Clear search when navigating from carousel
+            }}
+        >
+            <Image 
+                source={item.coverImageUrl ? { uri: item.coverImageUrl } : require('@/assets/images/default_workout_cover.png')}
+                style={StyleSheet.absoluteFill}
+            />
+            <BlurView intensity={80} tint="dark" style={blurStyle}>
+                <Text style={styles.workoutNameText} numberOfLines={1}>{item.title}</Text>
+                <Text style={styles.workoutAuthorText} numberOfLines={1}>by {item.creatorUsername}</Text>
+            </BlurView>
+        </TouchableOpacity>
+    );
+
+    // New item renderer for search results list
+    const renderSearchResultItem = ({ item }: { item: WorkoutItemData }) => (
+        <TouchableOpacity
+            style={styles.searchResultItem}
+            onPress={() => {
+                router.push(`/view-workout/${item.id}`);
+                setSearchQuery(''); // Clear search and hide overlay
+            }}
+        >
+            <Image
+                source={item.coverImageUrl ? { uri: item.coverImageUrl } : require('@/assets/images/default_workout_cover.png')}
+                style={styles.searchResultImage}
+            />
+            <View style={styles.searchResultTextContainer}>
+                <Text style={styles.searchResultTitle} numberOfLines={1}>{item.title}</Text>
+                <Text style={styles.searchResultCreator} numberOfLines={1}>by {item.creatorUsername}</Text>
+            </View>
+            {/* Optionally, add savedCount or other info */}
+        </TouchableOpacity>
+    );
 
     function renderMyWorkouts() {
-        if (loadingMyWorkouts && myWorkouts.length === 0) {
-            return <ActivityIndicator style={styles.listLoadingIndicator} size="small" color="white" />;
-        }
+        // This section is now only rendered if not searching
         if (!currentUser) {
             return <Text style={styles.placeholderText}>Login to see your workouts.</Text>;
-        }
-        if (myWorkouts.length === 0 && !loadingMyWorkouts) {
-            return (
-                <View>
-                    <View style={styles.myWorkoutsHeaderView}>
-                        <Text style={styles.workoutsHeaders}>My Workouts</Text>
-                        <TouchableOpacity 
-                            style={styles.createWorkoutButton}
-                            onPress={() => router.push('/create-workout')}
-                        >
-                            <Text style={{ color: 'black', fontWeight: 'bold', fontSize: 23 }}>+</Text>
-                        </TouchableOpacity>
-                        </View>
-                    <Text style={styles.placeholderText}>You haven't created any workouts yet.</Text>
-                </View>
-            );
         }
         return (
             <View>
@@ -203,44 +259,44 @@ export default function Workouts() {
                         <Text style={{ color: 'black', fontWeight: 'bold', fontSize: 23 }}>+</Text>
                     </TouchableOpacity>
                 </View>
-                <ScrollView horizontal={true} style={styles.myWorkoutsList} showsHorizontalScrollIndicator={false}>
-                    {myWorkouts.map(item => renderWorkoutItem(item, styles.myWorkoutsButton, styles.myWorkoutPreview))}
-                </ScrollView>
+                {loadingMyWorkouts && myWorkouts.length === 0 ? (
+                    <ActivityIndicator style={styles.listLoadingIndicator} size="small" color="white" />
+                ) : myWorkouts.length === 0 ? (
+                    <Text style={styles.placeholderText}>You haven't created any workouts yet.</Text>
+                ) : (
+                    <ScrollView horizontal={true} style={styles.myWorkoutsList} showsHorizontalScrollIndicator={false}>
+                        {myWorkouts.map(item => renderWorkoutCarouselItem(item, styles.myWorkoutsButton, styles.myWorkoutPreview))}
+                    </ScrollView>
+                )}
             </View>
         );
     }
 
     function renderFavoriteWorkouts() {
-        if (loadingFavorites && favoriteWorkouts.length === 0) {
-            return <ActivityIndicator style={styles.listLoadingIndicator} size="small" color="white" />;
-        }
+        // This section is now only rendered if not searching
         if (!currentUser) {
             return <Text style={styles.placeholderText}>Login to see your favorite workouts.</Text>;
-        }
-        if (favoriteWorkouts.length === 0 && !loadingFavorites) {
-            return (
-                <View>
-                    <View style={styles.myWorkoutsHeaderView}>
-                        <Text style={styles.workoutsHeaders}>Favourite Workouts</Text>
-                    </View>
-                    <Text style={styles.placeholderText}>No favorite workouts yet.</Text>
-                </View>
-            );
         }
         return (
             <View>
                 <View style={styles.myWorkoutsHeaderView}>
                     <Text style={styles.workoutsHeaders}>Favourite Workouts</Text>
                 </View>
-                <ScrollView horizontal={true} style={styles.friendsWorkoutsList} showsHorizontalScrollIndicator={false}>
-                    {favoriteWorkouts.map(item => renderWorkoutItem(item, styles.friendsWorkoutsButton, styles.workoutPreview))}
-                </ScrollView>
+                {loadingFavorites && favoriteWorkouts.length === 0 ? (
+                     <ActivityIndicator style={styles.listLoadingIndicator} size="small" color="white" />
+                ) : favoriteWorkouts.length === 0 ? (
+                    <Text style={styles.placeholderText}>No favorite workouts yet.</Text>
+                ) : (
+                    <ScrollView horizontal={true} style={styles.friendsWorkoutsList} showsHorizontalScrollIndicator={false}>
+                        {favoriteWorkouts.map(item => renderWorkoutCarouselItem(item, styles.friendsWorkoutsButton, styles.workoutPreview))}
+                    </ScrollView>
+                )}
             </View>
         );
     }
     
-    // Placeholder for Friends' Workouts
     function renderFriendsWorkouts() {
+        // This section is now only rendered if not searching
         return (
             <View>
                 <View style={styles.myWorkoutsHeaderView}>
@@ -252,40 +308,42 @@ export default function Workouts() {
     }
 
     function renderTrendingWorkouts() {
-        if (loadingTrending && trendingWorkouts.length === 0) {
-             return <ActivityIndicator style={styles.listLoadingIndicator} size="small" color="white" />;
-        }
-         if (trendingWorkouts.length === 0 && !loadingTrending) {
-            return <Text style={styles.placeholderText}>No trending workouts available.</Text>;
-        }
-        
+        // This section is now only rendered if not searching
         return (
             <View>
                 <View style={styles.myWorkoutsHeaderView}>
                     <Text style={styles.workoutsHeaders}>Trending Workouts</Text>
                 </View>
-                <View style={styles.trendingWorkoutsVerticalList}>
-                    {trendingWorkouts.map((item) => (
-                        <TouchableOpacity 
-                            key={item.id}
-                            style={styles.trendingWorkoutsButton}
-                            onPress={() => router.push(`/view-workout/${item.id}`)}
-                        >
-                            <Image 
-                                source={item.coverImageUrl ? { uri: item.coverImageUrl } : require('@/assets/images/default_workout_cover.png')}
-                                style={styles.trendingWorkoutsIcon} 
-                            />
-                            <View style={styles.trendingWorkoutsTextView}>
-                                <Text style={[styles.trendingWorkoutsText, {fontWeight: 'bold'}]} numberOfLines={1}>{item.title}</Text>
-                                <Text style={[styles.trendingWorkoutsText, {color: '#D0D0D0'}]} numberOfLines={1}>by {item.creatorUsername}</Text>
-                            </View>
-                            
-                            <Text style={styles.trendingSavedCount}>{item.savedCount || 0} saves</Text>
-                        </TouchableOpacity>
-                    ))}
-                </View>
+                {loadingTrending && trendingWorkouts.length === 0 ? (
+                    <ActivityIndicator style={styles.listLoadingIndicator} size="small" color="white" />
+                ) : trendingWorkouts.length === 0 ? (
+                    <Text style={styles.placeholderText}>No trending workouts available.</Text>
+                ) : (
+                    <View style={styles.trendingWorkoutsVerticalList}>
+                        {trendingWorkouts.map((item) => ( // Using original trendingWorkouts list
+                            <TouchableOpacity 
+                                key={item.id}
+                                style={styles.trendingWorkoutsButton}
+                                onPress={() => {
+                                    router.push(`/view-workout/${item.id}`);
+                                    setSearchQuery(''); // Clear search
+                                }}
+                            >
+                                <Image 
+                                    source={item.coverImageUrl ? { uri: item.coverImageUrl } : require('@/assets/images/default_workout_cover.png')}
+                                    style={styles.trendingWorkoutsIcon} 
+                                />
+                                <View style={styles.trendingWorkoutsTextView}>
+                                    <Text style={[styles.trendingWorkoutsText, {fontWeight: 'bold'}]} numberOfLines={1}>{item.title}</Text>
+                                    <Text style={[styles.trendingWorkoutsText, {color: '#D0D0D0'}]} numberOfLines={1}>by {item.creatorUsername}</Text>
+                                </View>
+                                <Text style={styles.trendingSavedCount}>{item.savedCount || 0} saves</Text>
+                            </TouchableOpacity>
+                        ))}
+                    </View>
+                )}
             </View>
-        );
+        ); 
     }
 
     return (
@@ -293,20 +351,36 @@ export default function Workouts() {
             <View style={styles.searchBarView}>
                 {renderSearchBar()}
             </View>
-            <ScrollView 
-                style={styles.workoutsContainer} 
-                contentContainerStyle={globalStyles.contentContainer}
-                showsVerticalScrollIndicator={false}
-                refreshControl={
-                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="white"/>
-                }
-            >
-                {renderMyWorkouts()}
-                {renderFavoriteWorkouts()}
-                {renderFriendsWorkouts()} 
-                {renderTrendingWorkouts()}
-                <View style={{height: 30}} />
-            </ScrollView>
+
+            {isSearching ? (
+                <View style={styles.searchResultsContainer}>
+                    {searchResults.length > 0 ? (
+                        <FlatList
+                            data={searchResults}
+                            renderItem={renderSearchResultItem}
+                            keyExtractor={(item) => item.id}
+                            contentContainerStyle={styles.searchResultsList}
+                        />
+                    ) : (
+                        <Text style={styles.placeholderText}>No results found for "{searchQuery}"</Text>
+                    )}
+                </View>
+            ) : (
+                <ScrollView 
+                    style={styles.workoutsContainer} 
+                    contentContainerStyle={globalStyles.contentContainer}
+                    showsVerticalScrollIndicator={false}
+                    refreshControl={
+                        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="white"/>
+                    }
+                >
+                    {renderMyWorkouts()}
+                    {renderFavoriteWorkouts()}
+                    {renderFriendsWorkouts()} 
+                    {renderTrendingWorkouts()}
+                    <View style={{height: 30}} />
+                </ScrollView>
+            )}
         </View>
     );
 }
@@ -331,6 +405,56 @@ const styles = StyleSheet.create({
         flex: 1,
         color: 'white',
         marginLeft: 10,
+    },
+    searchResultsContainer: {
+        flex: 1, // Take up remaining space below search bar
+        backgroundColor: 'black', // Or your app's main background
+    },
+    searchResultsList: {
+        paddingHorizontal: 10,
+        paddingTop: 10,
+    },
+    searchResultItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 12,
+        paddingHorizontal: 5,
+        borderBottomWidth: 1,
+        borderBottomColor: '#2C2C2E', // Darker separator
+    },
+    searchResultImage: {
+        width: 50,
+        height: 50,
+        borderRadius: 8,
+        marginRight: 12,
+        backgroundColor: '#333', // Placeholder
+    },
+    searchResultTextContainer: {
+        flex: 1,
+        justifyContent: 'center',
+    },
+    searchResultTitle: {
+        color: 'white',
+        fontSize: 16,
+        fontWeight: 'bold',
+    },
+    searchResultCreator: {
+        color: '#AEAEB2', // Lighter grey
+        fontSize: 13,
+        marginTop: 2,
+    },
+    placeholderText: { // Re-used for no search results
+        color: 'grey',
+        textAlign: 'center',
+        marginVertical: 20,
+        marginHorizontal: 10,
+        fontSize: 14,
+        flex: 1, // To center in searchResultsContainer if it's the only child
+        justifyContent: 'center', // To center vertically
+        alignItems: 'center', // To center horizontally
+    },
+    listLoadingIndicator: {
+        marginVertical: 20,
     },
     workoutsContainer: {
         flex: 1,
@@ -445,16 +569,6 @@ const styles = StyleSheet.create({
     trendingWorkoutsMoreButton: {
         justifyContent: 'center',
         paddingLeft: 10,
-    },
-    placeholderText: {
-        color: 'grey',
-        textAlign: 'center',
-        marginVertical: 20,
-        marginHorizontal: 10,
-        fontSize: 14,
-    },
-    listLoadingIndicator: {
-        marginVertical: 20,
     },
     trendingWorkoutsVerticalList: { 
         paddingHorizontal: 10,
