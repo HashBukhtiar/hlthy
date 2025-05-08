@@ -78,7 +78,7 @@ export default function Workouts() {
                             router.push('/view-workout/2');
                         }}
                     >
-                        <BlurView intensity={80} tint="dark" style={styles.myWorkoutPreview}>
+                        <BlurView intensity={100} tint="dark" style={styles.myWorkoutPreview}>
                             <Text style={styles.workoutNameText}>My Workout 2</Text>
                             <Text style={styles.workoutAuthorText}>John Doe</Text>
                         </BlurView>
@@ -90,7 +90,7 @@ export default function Workouts() {
                             router.push('/view-workout/3');
                         }}
                     >
-                        <BlurView intensity={80} tint="dark" style={styles.myWorkoutPreview}>
+                        <BlurView intensity={100} tint="dark" style={styles.myWorkoutPreview}>
                             <Text style={styles.workoutNameText}>My Workout 3</Text>
                             <Text style={styles.workoutAuthorText}>John Pork</Text>
                         </BlurView>
@@ -114,7 +114,7 @@ export default function Workouts() {
                             router.push('/view-workout/5'); // Ensure this route exists
                         }}
                     >
-                        <BlurView intensity={80} tint="dark" style={styles.workoutPreview}>
+                        <BlurView intensity={100} tint="dark" style={styles.workoutPreview}>
                             <Text style={styles.workoutNameText}>Fav Workout 1</Text>
                             <Text style={styles.workoutAuthorText}>Jane Doe</Text>
                         </BlurView>
@@ -126,7 +126,7 @@ export default function Workouts() {
                             router.push('/view-workout/6');
                         }}
                     >
-                        <BlurView intensity={80} tint="dark" style={styles.workoutPreview}>
+                        <BlurView intensity={100} tint="dark" style={styles.workoutPreview}>
                             <Text style={styles.workoutNameText}>Fav Workout 2</Text>
                             <Text style={styles.workoutAuthorText}>John Doe</Text>
                         </BlurView>
@@ -138,7 +138,7 @@ export default function Workouts() {
                             router.push('/view-workout/7');
                         }}
                     >
-                        <BlurView intensity={80} tint="dark" style={styles.workoutPreview}>
+                        <BlurView intensity={100} tint="dark" style={styles.workoutPreview}>
                             <Text style={styles.workoutNameText}>Fav Workout 3</Text>
                             <Text style={styles.workoutAuthorText}>Tim Cheese</Text>
                         </BlurView>
@@ -162,7 +162,7 @@ export default function Workouts() {
                             router.push('/view-workout/9'); // Ensure this route exists
                         }}
                     >
-                        <BlurView intensity={80} tint="dark" style={styles.workoutPreview}>
+                        <BlurView intensity={100} tint="dark" style={styles.workoutPreview}>
                             <Text style={styles.workoutNameText}>Friend Workout 1</Text>
                             <Text style={styles.workoutAuthorText}>Jane Doe</Text>
                         </BlurView>
@@ -174,7 +174,7 @@ export default function Workouts() {
                             router.push('/view-workout/10');
                         }}
                     >
-                        <BlurView intensity={80} tint="dark" style={styles.workoutPreview}>
+                        <BlurView intensity={100} tint="dark" style={styles.workoutPreview}>
                             <Text style={styles.workoutNameText}>Friend Workout 2</Text>
                             <Text style={styles.workoutAuthorText}>Bob Smith</Text>
                         </BlurView>
@@ -186,7 +186,7 @@ export default function Workouts() {
                             router.push('/view-workout/11');
                         }}
                     >
-                        <BlurView intensity={80} tint="dark" style={styles.workoutPreview}>
+                        <BlurView intensity={100} tint="dark" style={styles.workoutPreview}>
                             <Text style={styles.workoutNameText}>Friend Workout 3</Text>
                             <Text style={styles.workoutAuthorText}>Kibutsuji Muzan</Text>
                         </BlurView>
