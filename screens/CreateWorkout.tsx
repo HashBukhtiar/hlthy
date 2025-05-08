@@ -8,7 +8,8 @@ import {
   ScrollView, 
   Image,
   Alert,
-  Switch
+  Switch,
+  ActivityIndicator
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import globalStyles from '@/styles/globalStyles';
