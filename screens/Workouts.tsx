@@ -177,7 +177,14 @@ export default function Workouts() {
             return <Text style={styles.placeholderText}>Login to see your workouts.</Text>;
         }
         if (myWorkouts.length === 0 && !loadingMyWorkouts) {
-            return <Text style={styles.placeholderText}>You haven't created any workouts yet.</Text>;
+            return (
+                <View>
+                    <View style={styles.myWorkoutsHeaderView}>
+                        <Text style={styles.workoutsHeaders}>My Workouts</Text>
+                    </View>
+                    <Text style={styles.placeholderText}>You haven't created any workouts yet.</Text>
+                </View>
+            );
         }
         return (
             <View>
@@ -206,12 +213,12 @@ export default function Workouts() {
         }
         if (favoriteWorkouts.length === 0 && !loadingFavorites) {
             return (
-            <View>
-                <View style={styles.myWorkoutsHeaderView}>
-                    <Text style={styles.workoutsHeaders}>Favourite Workouts</Text>
+                <View>
+                    <View style={styles.myWorkoutsHeaderView}>
+                        <Text style={styles.workoutsHeaders}>Favourite Workouts</Text>
+                    </View>
+                    <Text style={styles.placeholderText}>No favorite workouts yet.</Text>
                 </View>
-                <Text style={styles.placeholderText}>No favorite workouts yet.</Text>
-            </View>
             );
         }
         return (
