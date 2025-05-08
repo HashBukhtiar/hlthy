@@ -304,10 +304,11 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
         </View>
       );
     }
+    // Sort workouts by creation date, newest first
     const sortedWorkoutsData = [...workouts].sort((a, b) => {
       try {
-        let dateA = a.date?.toDate ? a.date.toDate() : new Date(a.date || 0);
-        let dateB = b.date?.toDate ? b.date.toDate() : new Date(b.date || 0);
+        const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(0);
+        const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(0);
         return dateB.getTime() - dateA.getTime();
       } catch (error) { return 0; }
     });
@@ -318,23 +319,26 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
         renderItem={({ item }) => {
           let formattedDate = "No date available";
           try {
-            if (item.date) {
-              const workoutDate = item.date.toDate ? item.date.toDate() : new Date(item.date);
+            if (item.createdAt && item.createdAt.toDate) {
+              const workoutDate = item.createdAt.toDate();
+              formattedDate = workoutDate.toLocaleString('default', { month: 'long', day: 'numeric', year: 'numeric' });
+            } else if (item.createdAt) { 
+              const workoutDate = new Date(item.createdAt);
               formattedDate = workoutDate.toLocaleString('default', { month: 'long', day: 'numeric', year: 'numeric' });
             }
           } catch (error) { formattedDate = "Invalid date"; }
           return (
             <TouchableOpacity key={item.id} onPress={() => handleWorkoutPress(item.id)} style={styles.workoutItem}>
               <View style={styles.workoutDetail}>
-                <Text style={styles.workoutName}>{item.name || 'Unnamed Workout'}</Text>
+                <Text style={styles.workoutName}>{item.title || 'Unnamed Workout'}</Text>
                 <Text style={styles.workoutDate}>{formattedDate}</Text>
-                <Text style={styles.workoutFavorites}>{item.favorites || 0} Favorites</Text>
+                <Text style={styles.workoutFavorites}>{item.savedCount || 0} Favorites</Text>
               </View>
             </TouchableOpacity>
           );
         }}
         keyExtractor={(item) => item.id.toString()}
-        numColumns={3}
+        numColumns={3} 
         contentContainerStyle={styles.workoutsList}
         showsVerticalScrollIndicator={false}
         refreshControl={
