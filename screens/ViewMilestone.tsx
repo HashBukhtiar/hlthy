@@ -42,24 +42,6 @@ export default function ViewMilestone() {
           userReaction: null,
           associatedPostId: 'post1',
           postImageUrl: 'https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
-          comments: [
-            {
-              id: 'c1',
-              userId: 'user2',
-              username: 'lifter_1',
-              profileImageUrl: 'https://randomuser.me/api/portraits/men/42.jpg',
-              text: 'Amazing progress! Keep pushing!',
-              createdAt: new Date(Date.now() - 36000000)
-            },
-            {
-              id: 'c2',
-              userId: 'user3',
-              username: 'fit_coach',
-              profileImageUrl: 'https://randomuser.me/api/portraits/women/24.jpg',
-              text: 'Great form on that bench. Next goal: 250?',
-              createdAt: new Date(Date.now() - 18000000)
-            }
-          ],
           pinned: true,
           top5Percent: false
         };
@@ -89,16 +71,6 @@ export default function ViewMilestone() {
           },
           userReaction: '❤️',
           associatedPostId: 'post2',
-          comments: [
-            {
-              id: 'c3',
-              userId: 'user4',
-              username: 'track_star',
-              profileImageUrl: 'https://randomuser.me/api/portraits/women/33.jpg',
-              text: 'Wow, you\'re getting so fast! What\'s your training plan?',
-              createdAt: new Date(Date.now() - 50000000)
-            }
-          ],
           pinned: false,
           top5Percent: true
         };
@@ -128,24 +100,6 @@ export default function ViewMilestone() {
           userReaction: '❤️',
           associatedPostId: 'post3',
           postImageUrl: 'https://images.unsplash.com/photo-1535743686920-55e4145369b9?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
-          comments: [
-            {
-              id: 'c4',
-              userId: 'user5',
-              username: 'fitness_journey2',
-              profileImageUrl: 'https://randomuser.me/api/portraits/women/55.jpg',
-              text: 'So inspiring! What changes did you make to your diet?',
-              createdAt: new Date(Date.now() - 21600000)
-            },
-            {
-              id: 'c5',
-              userId: 'user6',
-              username: 'health_coach',
-              profileImageUrl: 'https://randomuser.me/api/portraits/men/66.jpg',
-              text: 'Consistent progress is key. Great work!',
-              createdAt: new Date(Date.now() - 7200000)
-            }
-          ],
           pinned: false,
           top5Percent: false
         };
@@ -175,7 +129,6 @@ export default function ViewMilestone() {
           },
           userReaction: null,
           associatedPostId: 'post4',
-          comments: [],
           pinned: true,
           top5Percent: true
         };
@@ -204,7 +157,6 @@ export default function ViewMilestone() {
             '❤️': 12
           },
           userReaction: null,
-          comments: [],
           pinned: false,
           top5Percent: false
         };
@@ -532,44 +484,6 @@ export default function ViewMilestone() {
             </View>
           </View>
         </View>
-        
-        <View style={styles.commentsContainer}>
-          <Text style={styles.sectionTitle}>Comments</Text>
-          {milestone.comments && milestone.comments.length > 0 ? (
-            <View style={styles.commentsList}>
-              {milestone.comments.map((comment) => (
-                <View key={comment.id} style={styles.commentItem}>
-                  <TouchableOpacity 
-                    onPress={() => navigateToProfile(comment.userId)}
-                    style={styles.commentUserInfo}
-                  >
-                    <Image source={{ uri: comment.profileImageUrl }} style={styles.commentProfilePic} />
-                    <View style={styles.commentContent}>
-                      <View style={styles.commentHeader}>
-                        <Text style={styles.commentUsername}>{comment.username}</Text>
-                        <Text style={styles.commentTime}>{formatTimeAgo(comment.createdAt)}</Text>
-                      </View>
-                      <Text style={styles.commentText}>{comment.text}</Text>
-                    </View>
-                  </TouchableOpacity>
-                </View>
-              ))}
-            </View>
-          ) : (
-            <Text style={styles.noCommentsText}>No comments yet</Text>
-          )}
-          
-          <TouchableOpacity 
-            style={styles.viewCommentsButton}
-            onPress={() => milestone.associatedPostId && navigateToPost(milestone.associatedPostId)}
-          >
-            <Text style={styles.viewCommentsText}>
-              {milestone.comments && milestone.comments.length > 0 ? 
-                'View all comments' : 'Add a comment'}
-            </Text>
-            <Ionicons name="chatbubble-outline" size={16} color="#0A84FF" style={{marginLeft: 5}} />
-          </TouchableOpacity>
-        </View>
       </ScrollView>
     </View>
   );
@@ -816,69 +730,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   commentsContainer: {
-    margin: 15,
-    padding: 15,
-    backgroundColor: '#1A1A1A',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#333',
-    marginBottom: 30,
-  },
-  commentsList: {
-    marginBottom: 15,
-  },
-  commentItem: {
-    marginBottom: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#333',
-    paddingBottom: 15,
-  },
-  commentUserInfo: {
-    flexDirection: 'row',
-  },
-  commentProfilePic: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    marginRight: 10,
-  },
-  commentContent: {
-    flex: 1,
-  },
-  commentHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 5,
-  },
-  commentUsername: {
-    color: '#FFF',
-    fontWeight: '500',
-    fontSize: 14,
-  },
-  commentTime: {
-    color: '#999',
-    fontSize: 12,
-  },
-  commentText: {
-    color: '#FFF',
-    fontSize: 14,
-  },
-  noCommentsText: {
-    color: '#999',
-    fontSize: 14,
-    marginBottom: 15,
-  },
-  viewCommentsButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingTop: 15,
-    borderTopWidth: 1,
-    borderTopColor: '#333',
-  },
-  viewCommentsText: {
-    color: '#0A84FF',
-    fontWeight: '500',
+    display: 'none', // Hide comments container but keep the styles
   },
 });
