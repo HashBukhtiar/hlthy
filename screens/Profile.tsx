@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react'; // Added useCallback, useMemo
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { View, ScrollView, Text, Image, StyleSheet, Dimensions, FlatList, TouchableOpacity, SafeAreaView, Animated, ActivityIndicator, RefreshControl, Modal } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useProfileData, GroupedMilestones, Milestone } from '@/hooks/useProfileData';
@@ -96,7 +96,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
     } finally {
       setRefreshing(false);
     }
-  }, [isOwnProfile, refreshUserProfile, refreshProfileData]); // Removed setRefreshing from deps as it's a setter
+  }, [isOwnProfile, refreshUserProfile, refreshProfileData]); 
 
   const scrollToTab = (tabType: TabType) => {
     setActiveTab(tabType);
@@ -143,7 +143,6 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
        pathname: '/view-post/[id]', 
        params: { id: postId }
      });
-    // router.push(`/view-milestone/${postId}`); // Original line, if you have this route
   }, [router]);
 
   const handleWorkoutPress = useCallback((workoutId: number) => {
@@ -291,7 +290,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
   }, [groupedMilestones, refreshing, handleMilestonePress, onRefresh]);
   
   const renderWorkoutsContent = useCallback(() => {
-    if (loadingWorkouts && (!workouts || workouts.length === 0)) { // Check loadingWorkouts as well
+    if (loadingWorkouts && (!workouts || workouts.length === 0)) { 
         return (
           <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20, minHeight: 200 }}>
             <ActivityIndicator size="large" color="white" />
@@ -324,14 +323,14 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
 
     return (
       <FlatList
-        key="workouts-list-single-column" // Changed key for clarity
+        key="workouts-list-single-column"
         data={sortedWorkoutsData}
         renderItem={({ item }) => {
           let formattedDate = "Date N/A";
           try {
             if (item.createdAt) {
               const workoutDate = item.createdAt?.toDate ? item.createdAt.toDate() : new Date(item.createdAt);
-              formattedDate = workoutDate.toLocaleDateString('en-US', { // More standard date format
+              formattedDate = workoutDate.toLocaleDateString('en-US', { 
                 year: 'numeric', 
                 month: 'short', 
                 day: 'numeric' 
@@ -343,7 +342,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
             <TouchableOpacity 
               key={item.id} 
               onPress={() => handleWorkoutPress(item.id)} 
-              style={styles.workoutListItemRowStyle} // Use a new or adapted style for list items
+              style={styles.workoutListItemRowStyle}
             >
               <Image 
                 source={item.coverImageUrl ? { uri: item.coverImageUrl } : require('@/assets/images/default_workout_cover.png')} 
@@ -354,12 +353,14 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
                 <Text style={styles.workoutListItemMetaStyle}>{formattedDate}</Text>
                 <Text style={styles.workoutListItemMetaStyle}>{item.savedCount || 0} saves</Text>
               </View>
+              {isOwnProfile && !item.isPublic && (
+                <Ionicons name="lock-closed" size={24} color="#888" />
+              )}
             </TouchableOpacity>
           );
         }}
         keyExtractor={(item) => item.id.toString()}
-        // numColumns={1} // Default is 1, so this can be omitted
-        contentContainerStyle={styles.workoutsListSingleColumn} // Adjusted style for list container
+        contentContainerStyle={styles.workoutsListSingleColumn} 
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -799,27 +800,28 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   workoutsListSingleColumn: {
-    paddingVertical: 10, // Add vertical padding if needed
-    paddingHorizontal: 5, // Horizontal padding for the list container
+    paddingVertical: 10,
+    paddingHorizontal: 5,
   },
   workoutListItemRowStyle: {
     flexDirection: 'row',
-    backgroundColor: '#1C1C1E', // Slightly different background for differentiation
+    backgroundColor: '#1C1C1E',
     borderRadius: 8,
     padding: 12,
     marginBottom: 12,
-    alignItems: 'center', // Align image and text block vertically
-    marginHorizontal: 10, // Add horizontal margin to each item
+    alignItems: 'center',
+    marginHorizontal: 10,
+    justifyContent: 'space-between', 
   },
   workoutListItemImageStyle: {
-    width: 70, // Slightly larger image
+    width: 70, 
     height: 70,
     borderRadius: 6,
     marginRight: 12,
-    backgroundColor: '#333', // Placeholder
+    backgroundColor: '#333', 
   },
   workoutListItemTextContainerStyle: {
-    flex: 1, // Take remaining space
+    flex: 1,
     justifyContent: 'center',
   },
   workoutListItemTitleStyle: {
@@ -829,7 +831,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   workoutListItemMetaStyle: {
-    color: '#AEAEB2', // A light grey for meta text
+    color: '#AEAEB2',
     fontSize: 13,
     marginBottom: 2,
   },
