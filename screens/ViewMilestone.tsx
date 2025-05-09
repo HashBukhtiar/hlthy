@@ -382,7 +382,7 @@ export default function ViewMilestone() {
           </TouchableOpacity>
           
           <TouchableOpacity onPress={handleShare} style={styles.shareButton}>
-            <Ionicons name="share-outline" size={22} color="#FFF" />
+            <Ionicons name="paper-plane-outline" size={22} color="#FFF" />
           </TouchableOpacity>
         </View>
 
@@ -521,7 +521,7 @@ export default function ViewMilestone() {
             style={styles.actionButton}
             onPress={handleShare}
           >
-            <Ionicons name="share-social-outline" size={24} color="#FFF" style={styles.actionIcon} />
+            <Ionicons name="paper-plane-outline" size={24} color="#FFF" style={styles.actionIcon} />
             <Text style={styles.actionButtonText}>Share</Text>
           </TouchableOpacity>
         </View>

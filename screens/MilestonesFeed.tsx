@@ -356,7 +356,7 @@ export default function MilestonesFeed() {
                   style={styles.footerButton}
                   onPress={() => handleShare(item)}
                 >
-                  <Ionicons name="share-outline" size={20} color="#FFF" />
+                  <Ionicons name="paper-plane-outline" size={20} color="#FFF" />
                   <Text style={styles.footerButtonText}>Share</Text>
                 </TouchableOpacity>
               </View>
@@ -441,7 +441,7 @@ export default function MilestonesFeed() {
                   style={styles.footerButton}
                   onPress={() => handleShare(item)}
                 >
-                  <Ionicons name="share-outline" size={20} color="#FFF" />
+                  <Ionicons name="paper-plane-outline" size={20} color="#FFF" />
                   <Text style={styles.footerButtonText}>Share</Text>
                 </TouchableOpacity>
               </View>
@@ -522,7 +522,7 @@ export default function MilestonesFeed() {
             style={styles.footerButton}
             onPress={() => handleShare(item)}
           >
-            <Ionicons name="share-outline" size={20} color="#FFF" />
+            <Ionicons name="paper-plane-outline" size={20} color="#FFF" />
             <Text style={styles.footerButtonText}>Share</Text>
           </TouchableOpacity>
         </View>
