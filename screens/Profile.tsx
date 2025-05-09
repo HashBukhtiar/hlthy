@@ -338,6 +338,10 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
             }
           } catch (error) { formattedDate = "Invalid Date"; }
           
+          if (!item.isPublic && !isOwnProfile) {
+            return null;
+          }
+
           return (
             <TouchableOpacity 
               key={item.id} 
