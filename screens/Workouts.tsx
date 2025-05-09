@@ -339,9 +339,10 @@ export default function Workouts() {
         }
         return (
             <View>
-                <View style={styles.myWorkoutsHeaderView}>
+                <TouchableOpacity style={styles.myWorkoutsHeaderView} onPress={() => router.push('/following-workouts')}>
                     <Text style={styles.workoutsHeaders}>Workouts By People You Follow</Text>
-                </View>
+                    <Ionicons name="chevron-forward-outline" size={24} color="grey" />
+                </TouchableOpacity>
                 {loadingFollowingWorkouts && followingWorkouts.length === 0 ? (
                     <ActivityIndicator style={styles.listLoadingIndicator} size="small" color="white" />
                 ) : followingWorkouts.length === 0 ? (
