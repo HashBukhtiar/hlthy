@@ -14,8 +14,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 // Define interfaces for milestone data
 export interface MilestoneReactions {
   '❤️': number;
-  '💪': number;
-  '🔥': number;
   [key: string]: number;
 }
 
@@ -71,9 +69,7 @@ export default function MilestonesFeed() {
         improvement: '9.7%'
       },
       reactions: {
-        '❤️': 24,
-        '💪': 15,
-        '🔥': 8
+        '❤️': 24
       },
       userReaction: null,
       associatedPostId: 'post1',
@@ -98,9 +94,7 @@ export default function MilestonesFeed() {
         improvement: '7.2%'
       },
       reactions: {
-        '❤️': 18,
-        '💪': 7,
-        '🔥': 12
+        '❤️': 18
       },
       userReaction: '❤️',
       associatedPostId: 'post2',
@@ -123,11 +117,9 @@ export default function MilestonesFeed() {
         percentageLoss: '8.3%'
       },
       reactions: {
-        '❤️': 35,
-        '💪': 22,
-        '🔥': 19
+        '❤️': 35
       },
-      userReaction: '🔥',
+      userReaction: null,
       associatedPostId: 'post3',
       postImageUrl: 'https://images.unsplash.com/photo-1535743686920-55e4145369b9?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
       pinned: true,
@@ -340,7 +332,7 @@ export default function MilestonesFeed() {
               {/* Reactions and View Details */}
               <View style={styles.cardFooter}>
                 <View style={styles.reactionButtons}>
-                  {['❤️', '💪', '🔥'].map(emoji => (
+                  {['❤️'].map(emoji => (
                     <TouchableOpacity 
                       key={emoji}
                       style={[
@@ -419,7 +411,7 @@ export default function MilestonesFeed() {
               {/* Reactions and View Details */}
               <View style={styles.cardFooter}>
                 <View style={styles.reactionButtons}>
-                  {['❤️', '💪', '🔥'].map(emoji => (
+                  {['❤️'].map(emoji => (
                     <TouchableOpacity 
                       key={emoji}
                       style={[
@@ -494,7 +486,7 @@ export default function MilestonesFeed() {
         {/* Reactions and View Details */}
         <View style={styles.cardFooter}>
           <View style={styles.reactionButtons}>
-            {['❤️', '💪', '🔥'].map(emoji => (
+            {['❤️'].map(emoji => (
               <TouchableOpacity 
                 key={emoji}
                 style={[
@@ -623,7 +615,8 @@ const styles = StyleSheet.create({
   pinnedBorder: {
     padding: 2,
     borderRadius: 12,
-    borderColor: '#FF5E69', // Solid color for pinned milestones
+    // borderColor: '#FF5E69',
+    borderColor: 'rgba(255, 94, 105, 0.75)',
     borderWidth: 2,
   },
   pinnedInnerContainer: {

@@ -37,9 +37,7 @@ export default function ViewMilestone() {
             improvement: '9.7%'
           },
           reactions: {
-            '❤️': 24,
-            '💪': 15,
-            '🔥': 8
+            '❤️': 24
           },
           userReaction: null,
           associatedPostId: 'post1',
@@ -87,9 +85,7 @@ export default function ViewMilestone() {
             improvement: '7.2%'
           },
           reactions: {
-            '❤️': 18,
-            '💪': 7,
-            '🔥': 12
+            '❤️': 18
           },
           userReaction: '❤️',
           associatedPostId: 'post2',
@@ -127,11 +123,9 @@ export default function ViewMilestone() {
             percentageLoss: '8.3%'
           },
           reactions: {
-            '❤️': 35,
-            '💪': 22,
-            '🔥': 19
+            '❤️': 35
           },
-          userReaction: '🔥',
+          userReaction: '❤️',
           associatedPostId: 'post3',
           postImageUrl: 'https://images.unsplash.com/photo-1535743686920-55e4145369b9?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
           comments: [
@@ -177,9 +171,7 @@ export default function ViewMilestone() {
             improvement: '14.5%'
           },
           reactions: {
-            '❤️': 45,
-            '💪': 32,
-            '🔥': 29
+            '❤️': 45
           },
           userReaction: null,
           associatedPostId: 'post4',
@@ -209,9 +201,7 @@ export default function ViewMilestone() {
             improvement: '10.5%'
           },
           reactions: {
-            '❤️': 12,
-            '💪': 8,
-            '🔥': 5
+            '❤️': 12
           },
           userReaction: null,
           comments: [],
@@ -521,7 +511,7 @@ export default function ViewMilestone() {
           <Text style={styles.sectionTitle}>Reactions</Text>
           <View style={styles.reactionsContent}>
             <View style={styles.reactionButtons}>
-              {['❤️', '💪', '🔥'].map(emoji => (
+              {['❤️'].map(emoji => (
                 <TouchableOpacity 
                   key={emoji}
                   style={[
