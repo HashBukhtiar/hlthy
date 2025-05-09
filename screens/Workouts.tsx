@@ -199,7 +199,7 @@ export default function Workouts() {
                 source={item.coverImageUrl ? { uri: item.coverImageUrl } : require('@/assets/images/default_workout_cover.png')}
                 style={StyleSheet.absoluteFill}
             />
-            <BlurView intensity={30} tint="dark" style={blurStyle}>
+            <BlurView intensity={25} tint="dark" style={blurStyle}>
                 <Text style={styles.workoutNameText} numberOfLines={1}>{item.title}</Text>
                 <Text style={styles.workoutAuthorText} numberOfLines={1}>by {item.creatorUsername}</Text>
             </BlurView>
@@ -240,7 +240,7 @@ export default function Workouts() {
                         style={styles.createWorkoutButton}
                         onPress={() => router.push('/create-workout')}
                     >
-                        <Text style={{ color: 'black', fontWeight: 'bold', fontSize: 23 }}>+</Text>
+                        <Text style={{ color: 'black', fontWeight: 'bold', fontSize: 18 }}>+ Create New</Text>
                     </TouchableOpacity>
                 </View>
                 {loadingMyWorkouts && myWorkouts.length === 0 ? (
@@ -458,9 +458,9 @@ const styles = StyleSheet.create({
     },
     createWorkoutButton: {
         backgroundColor: '#ff2d55', 
-        borderRadius: 20, 
-        width: 40,
-        height: 40,
+        borderRadius: 5, 
+        width: 140,
+        height: 30,
         alignItems: 'center',
         justifyContent: 'center',
     },

@@ -212,7 +212,7 @@ export default function ViewWorkout() {
   const displayWorkoutLength = calculateTotalLength(workoutData.segments);
   
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color="white" />
@@ -293,7 +293,8 @@ export default function ViewWorkout() {
 const styles = StyleSheet.create({
   container: { 
     flex: 1, 
-    backgroundColor: 'black' 
+    backgroundColor: 'black',
+    marginBottom: 30
   },
   centered: {
     justifyContent: 'center',
@@ -318,7 +319,7 @@ const styles = StyleSheet.create({
   header: { 
     flexDirection: 'row', 
     alignItems: 'center', 
-    paddingTop: 50,
+    paddingTop: 10,
     paddingBottom: 10,
     paddingHorizontal: 15, 
     justifyContent: 'space-between', 
@@ -335,7 +336,6 @@ const styles = StyleSheet.create({
     marginHorizontal: 10, 
   },
   menuButton: { 
-    // backgroundColor: '#303030', // Can remove if only icon
     borderRadius: 15, 
     width: 35,
     height: 35, 
@@ -344,9 +344,7 @@ const styles = StyleSheet.create({
   },
   workoutImage: { 
     width: '100%',
-    height: 250, 
-    // borderRadius: 15, // Removed if full width
-    // alignSelf: 'center', // Not needed if full width
+    height: 250,
     marginTop: 0,
   },
   workoutTitle: { 
