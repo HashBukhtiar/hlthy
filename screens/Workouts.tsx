@@ -29,6 +29,16 @@ interface WorkoutItemData {
     savedCount?: number;
 }
 
+const chunkArray = (array: WorkoutItemData[], size: number): WorkoutItemData[][] => {
+  const chunkedArr: WorkoutItemData[][] = [];
+  let index = 0;
+  while (index < array.length) {
+    chunkedArr.push(array.slice(index, size + index));
+    index += size;
+  }
+  return chunkedArr;
+};
+
 export default function Workouts() {
     const [searchQuery, setSearchQuery] = useState('');
     const router = useRouter();
@@ -292,44 +302,54 @@ export default function Workouts() {
     }
 
     function renderTrendingWorkouts() {
-        // This section is now only rendered if not searching
+        const topTwelveWorkouts = trendingWorkouts.slice(0, 12);
+        const columnsOfFour = chunkArray(topTwelveWorkouts, 4); // Group into 3 columns of 4 items
+
         return (
             <View>
                 <View style={styles.myWorkoutsHeaderView}>
                     <Text style={styles.workoutsHeaders}>Trending Workouts</Text>
                 </View>
-                {loadingTrending && trendingWorkouts.length === 0 ? (
+                {loadingTrending && topTwelveWorkouts.length === 0 ? (
                     <ActivityIndicator style={styles.listLoadingIndicator} size="small" color="white" />
-                ) : trendingWorkouts.length === 0 ? (
+                ) : topTwelveWorkouts.length === 0 ? (
                     <Text style={styles.placeholderText}>No trending workouts available.</Text>
                 ) : (
-                    <View style={styles.trendingWorkoutsVerticalList}>
-                        {trendingWorkouts.map((item) => ( 
-                            <TouchableOpacity 
-                                key={item.id}
-                                style={styles.trendingWorkoutsButton}
-                                onPress={() => {
-                                    router.push(`/view-workout/${item.id}`);
-                                    setSearchQuery(''); 
-                                }}
-                            >
-                                <Image 
-                                    source={item.coverImageUrl ? { uri: item.coverImageUrl } : require('@/assets/images/default_workout_cover.png')}
-                                    style={styles.trendingWorkoutsIcon} 
-                                />
-                                <View style={styles.trendingWorkoutsTextView}>
-                                    <Text style={[styles.trendingWorkoutsText, {fontWeight: 'bold'}]} numberOfLines={1}>{item.title}</Text>
-                                    <Text style={[styles.trendingWorkoutsText, {color: '#D0D0D0'}]} numberOfLines={1}>by {item.creatorUsername}</Text>
-                                </View>
-                                <Text style={styles.trendingSavedCount}>{item.savedCount || 0} saves</Text>
-                            </TouchableOpacity>
+                    <ScrollView 
+                        horizontal={true} 
+                        showsHorizontalScrollIndicator={false}
+                        style={styles.trendingHorizontalScrollView}
+                        contentContainerStyle={styles.trendingHorizontalScrollContent}
+                    >
+                        {columnsOfFour.map((columnItems, columnIndex) => (
+                            <View key={`column-${columnIndex}`} style={styles.trendingColumn}>
+                                {columnItems.map((item) => (
+                                    <TouchableOpacity
+                                        key={item.id}
+                                        style={styles.trendingColumnItemCard}
+                                        onPress={() => {
+                                            router.push(`/view-workout/${item.id}`);
+                                            setSearchQuery('');
+                                        }}
+                                    >
+                                        <Image
+                                            source={item.coverImageUrl ? { uri: item.coverImageUrl } : require('@/assets/images/default_workout_cover.png')}
+                                            style={styles.trendingColumnItemImage}
+                                        />
+                                        <View style={styles.trendingColumnItemTextContainer}>
+                                            <Text style={styles.trendingColumnItemTitle} numberOfLines={1}>{item.title}</Text>
+                                            <Text style={styles.trendingColumnItemCreator} numberOfLines={1}>by {item.creatorUsername}</Text>
+                                            <Text style={styles.trendingColumnItemSaves} numberOfLines={1}>{item.savedCount || 0} saves</Text>
+                                        </View>
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
                         ))}
-                    </View>
+                    </ScrollView>
                 )}
             </View>
-        ); 
+        );
     }
-
     return (
         <View style={globalStyles.container}>
             <View style={styles.searchBarView}>
@@ -562,4 +582,50 @@ const styles = StyleSheet.create({
         fontSize: 12,
         marginLeft: 10,
     }, 
-});
+    trendingHorizontalScrollView: {
+        paddingVertical: 10, 
+    },
+    trendingHorizontalScrollContent: {
+        paddingHorizontal: 15, 
+    },
+    trendingColumn: {
+        width: Dimensions.get('window').width * 0.9, 
+        marginRight: 15, 
+        borderRadius: 10,
+    },
+    trendingColumnItemCard: {
+        backgroundColor: '#2C2C2E', 
+        borderRadius: 12,
+        marginBottom: 12, 
+        overflow: 'hidden', 
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 5,
+    },
+    trendingColumnItemImage: {
+        width: 60, 
+        height: 60,
+        borderRadius: 8,
+        marginRight: 10,
+        backgroundColor: '#3A3A3C',
+    },
+    trendingColumnItemTextContainer: {
+        flex: 1, 
+        justifyContent: 'center',
+    },
+    trendingColumnItemTitle: {
+        color: 'white',
+        fontSize: 13,
+        fontWeight: 'bold',
+        marginBottom: 2,
+    },
+    trendingColumnItemCreator: {
+        color: '#b0b0b0',
+        fontSize: 11,
+        marginBottom: 3,
+    },
+    trendingColumnItemSaves: {
+        color: '#888888',
+        fontSize: 10,
+    },
+})
