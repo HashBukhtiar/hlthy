@@ -346,20 +346,29 @@ export default function ViewMilestone() {
       <ScrollView showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <TouchableOpacity 
+            style={styles.backButton}
+            onPress={() => router.back()}
+          >
+            <Ionicons name="arrow-back" size={24} color="#FFF" />
+          </TouchableOpacity>
+          
+          <TouchableOpacity onPress={handleShare} style={styles.shareButton}>
+            <Ionicons name="share-outline" size={22} color="#FFF" />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.userSection}>
+          <TouchableOpacity 
             style={styles.userInfoContainer}
             onPress={() => navigateToProfile(milestone.userId)}
           >
             <Image source={{ uri: milestone.profileImageUrl }} style={styles.profilePic} />
             <View>
               <Text style={styles.fullName}>{milestone.fullName}</Text>
+              <Text style={styles.username}>@{milestone.username}</Text>
             </View>
           </TouchableOpacity>
-          <View style={styles.rightHeader}>
-            <Text style={styles.timestamp}>{formatTimeAgo(milestone.createdAt)}</Text>
-            <TouchableOpacity onPress={handleShare} style={styles.iconButton}>
-              <Ionicons name="share-outline" size={20} color="#FFF" />
-            </TouchableOpacity>
-          </View>
+          <Text style={styles.timestamp}>{formatTimeAgo(milestone.createdAt)}</Text>
         </View>
         
         <View style={styles.milestoneCard}>
@@ -459,30 +468,33 @@ export default function ViewMilestone() {
           </TouchableOpacity>
         )}
         
-        <View style={styles.reactionsContainer}>
-          <Text style={styles.sectionTitle}>Reactions</Text>
-          <View style={styles.reactionsContent}>
-            <View style={styles.reactionButtons}>
-              {['❤️'].map(emoji => (
-                <TouchableOpacity 
-                  key={emoji}
-                  style={[
-                    styles.combinedReactionButton,
-                    milestone.userReaction === emoji && styles.activeReactionButton
-                  ]}
-                  onPress={() => handleReaction(emoji)}
-                >
-                  <Text style={styles.reactionEmoji}>{emoji}</Text>
-                  {(milestone.reactions[emoji] && milestone.reactions[emoji] > 0) && (
-                    <Text style={styles.reactionCount}>{milestone.reactions[emoji]}</Text>
-                  )}
-                </TouchableOpacity>
-              ))}
-              {Object.values(milestone.reactions).reduce((a, b) => a + b, 0) === 0 && (
-                <Text style={styles.noReactionsText}>No reactions yet</Text>
-              )}
-            </View>
-          </View>
+        <View style={styles.actionButtonsContainer}>
+          <TouchableOpacity 
+            style={[
+              styles.actionButton,
+              milestone.userReaction === '❤️' && styles.activeActionButton
+            ]}
+            onPress={() => handleReaction('❤️')}
+          >
+            <Ionicons 
+              name={milestone.userReaction === '❤️' ? "heart" : "heart-outline"} 
+              size={24} 
+              color={milestone.userReaction === '❤️' ? "#fff" : "#FFF"} 
+              style={styles.actionIcon}
+            />
+            <Text style={styles.actionButtonText}>
+              {milestone.userReaction === '❤️' ? 'Liked' : 'Like'} 
+              {milestone.reactions['❤️'] && milestone.reactions['❤️'] > 0 && ` (${milestone.reactions['❤️']})`}
+            </Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={styles.actionButton}
+            onPress={handleShare}
+          >
+            <Ionicons name="share-social-outline" size={24} color="#FFF" style={styles.actionIcon} />
+            <Text style={styles.actionButtonText}>Share</Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
     </View>
@@ -494,60 +506,59 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#000',
   },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  emptyText: {
-    color: 'gray',
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 20,
-  },
-  backButton: {
-    backgroundColor: '#333',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-  },
-  backButtonText: {
-    color: 'white',
-    fontWeight: '600',
-  },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 15,
     paddingVertical: 15,
-    borderBottomColor: '#222',
-    borderBottomWidth: 1,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  shareButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  userSection: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingBottom: 20,
   },
   userInfoContainer: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   profilePic: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    marginRight: 10,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    marginRight: 12,
   },
   fullName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#FFF',
+    marginBottom: 2,
+  },
+  username: {
     fontSize: 14,
     color: '#999',
   },
-  rightHeader: {
-    alignItems: 'flex-end',
-  },
   timestamp: {
-    fontSize: 12,
+    fontSize: 14,
     color: '#999',
-    marginBottom: 5,
-  },
-  iconButton: {
-    marginLeft: 10,
   },
   milestoneCard: {
     backgroundColor: '#1A1A1A',
@@ -563,11 +574,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: '#333',
-  },
-  gradientWrapper: {
-    margin: 15,
-    borderRadius: 12,
-    overflow: 'hidden',
   },
   gradientBorder: {
     padding: 2,
@@ -682,54 +688,60 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     marginRight: 5,
   },
-  reactionsContainer: {
-    margin: 15,
-    padding: 15,
-    backgroundColor: '#1A1A1A',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#333',
-  },
-  sectionTitle: {
-    color: '#FFF',
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 15,
-  },
-  reactionsContent: {
-    alignItems: 'flex-start',
-  },
-  reactionButtons: {
+  actionButtonsContainer: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    justifyContent: 'space-around',
+    paddingVertical: 20,
+    paddingHorizontal: 15,
+    borderTopWidth: 1,
+    borderTopColor: '#222',
+    marginTop: 20,
+    marginBottom: 30,
   },
-  combinedReactionButton: {
+  actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#333',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-    marginRight: 10,
-    marginBottom: 10,
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 25,
+    backgroundColor: '#1A1A1A',
+    borderWidth: 1,
+    borderColor: '#333',
+    flex: 1,
+    marginHorizontal: 8,
   },
-  activeReactionButton: {
-    backgroundColor: '#0A84FF',
+  activeActionButton: {
+    backgroundColor: '#FF5E69',
+    borderColor: '#FF5E69',
   },
-  reactionEmoji: {
-    fontSize: 16,
-    marginRight: 5,
+  actionIcon: {
+    marginRight: 8,
   },
-  reactionCount: {
-    fontSize: 14,
+  actionButtonText: {
     color: '#FFF',
-    fontWeight: '500',
+    fontWeight: 'bold',
+    fontSize: 16,
   },
-  noReactionsText: {
-    color: '#999',
-    fontSize: 14,
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  commentsContainer: {
-    display: 'none', // Hide comments container but keep the styles
+  emptyText: {
+    color: 'gray',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 20,
+  },
+  backButton: {
+    backgroundColor: '#333',
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    borderRadius: 20,
+  },
+  backButtonText: {
+    color: 'white',
+    fontWeight: '600',
   },
 });

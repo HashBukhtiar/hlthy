@@ -5,7 +5,8 @@ import {
   View, 
   Image, 
   TouchableOpacity, 
-  FlatList 
+  FlatList, 
+  Share 
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -189,6 +190,17 @@ export default function MilestonesFeed() {
     router.push(`/profile?id=${userId}`);
   };
 
+  const handleShare = async (milestone: Milestone) => {
+    try {
+      await Share.share({
+        message: `Check out this amazing milestone on Hlthy!`,
+        url: `https://hlthy.app/milestone/${milestone.id}`
+      });
+    } catch (error) {
+      console.error('Error sharing milestone:', error);
+    }
+  };
+
   const renderMilestoneDetails = (milestone: Milestone) => {
     if (milestone.milestoneType === 'PR') {
       return (
@@ -289,72 +301,78 @@ export default function MilestonesFeed() {
           >
             <View style={styles.gradientInnerContainer}>
               {/* Milestone Card Header */}
-              <View style={styles.milestoneHeader}>
-                <View style={styles.milestoneIconContainer}>
-                  <TouchableOpacity onPress={() => navigateToProfile(item.userId)}>
-                    <Image 
-                      source={{ uri: item.profileImageUrl }} 
-                      style={styles.profilePic}
-                    />
-                  </TouchableOpacity>
-                </View>
-                <View style={styles.milestoneTitleContainer}>
-                  <Text style={styles.milestoneType}>
-                    {item.fullName}
-                  </Text>
-                  <Text style={styles.milestoneDate}>
-                    {formatTimeAgo(item.createdAt)}
-                    <Text style={{color: '#FF5E69'}}> • Top 5%</Text>
-                  </Text>
+              <TouchableOpacity 
+                activeOpacity={0.9}
+                onPress={() => navigateToMilestone(item.id)}
+              >
+                <View style={styles.milestoneHeader}>
+                  <View style={styles.milestoneIconContainer}>
+                    <TouchableOpacity onPress={() => navigateToProfile(item.userId)}>
+                      <Image 
+                        source={{ uri: item.profileImageUrl }} 
+                        style={styles.profilePic}
+                      />
+                    </TouchableOpacity>
+                  </View>
+                  <View style={styles.milestoneTitleContainer}>
+                    <Text style={styles.milestoneType}>
+                      {item.fullName}
+                    </Text>
+                    <Text style={styles.milestoneDate}>
+                      {formatTimeAgo(item.createdAt)}
+                      <Text style={{color: '#FF5E69'}}> • Top 5%</Text>
+                    </Text>
+                  </View>
+                  
+                  {/* Post Preview (if available) */}
+                  {item.postImageUrl && (
+                    <TouchableOpacity 
+                      style={styles.postPreviewContainer}
+                      onPress={() => navigateToPost(item.associatedPostId || '')}
+                      activeOpacity={0.9}
+                    >
+                      <Image 
+                        source={{ uri: item.postImageUrl }} 
+                        style={styles.postPreviewImage} 
+                      />
+                      <View style={styles.postPreviewOverlay}>
+                        <Ionicons name="camera" size={12} color="#FFF" />
+                      </View>
+                    </TouchableOpacity>
+                  )}
                 </View>
                 
-                {/* Post Preview (if available) */}
-                {item.postImageUrl && (
-                  <TouchableOpacity 
-                    style={styles.postPreviewContainer}
-                    onPress={() => navigateToPost(item.associatedPostId || '')}
-                    activeOpacity={0.9}
-                  >
-                    <Image 
-                      source={{ uri: item.postImageUrl }} 
-                      style={styles.postPreviewImage} 
-                    />
-                    <View style={styles.postPreviewOverlay}>
-                      <Ionicons name="camera" size={12} color="#FFF" />
-                    </View>
-                  </TouchableOpacity>
-                )}
-              </View>
+                {/* Milestone Details */}
+                {renderMilestoneDetails(item)}
+              </TouchableOpacity>
               
-              {/* Milestone Details */}
-              {renderMilestoneDetails(item)}
-              
-              {/* Reactions and View Details */}
+              {/* Reactions and Share */}
               <View style={styles.cardFooter}>
-                <View style={styles.reactionButtons}>
-                  {['❤️'].map(emoji => (
-                    <TouchableOpacity 
-                      key={emoji}
-                      style={[
-                        styles.combinedReactionButton,
-                        item.userReaction === emoji && styles.activeReactionButton
-                      ]}
-                      onPress={() => handleReaction(item.id, emoji)}
-                    >
-                      <Text style={styles.reactionEmoji}>{emoji}</Text>
-                      {(item.reactions[emoji] && item.reactions[emoji] > 0) && (
-                        <Text style={styles.reactionCount}>{item.reactions[emoji]}</Text>
-                      )}
-                    </TouchableOpacity>
-                  ))}
-                </View>
+                <TouchableOpacity 
+                  style={[
+                    styles.footerButton,
+                    item.userReaction === '❤️' && styles.activeFooterButton
+                  ]}
+                  onPress={() => handleReaction(item.id, '❤️')}
+                >
+                  <Ionicons 
+                    name={item.userReaction === '❤️' ? "heart" : "heart-outline"} 
+                    size={20} 
+                    color={item.userReaction === '❤️' ? "#fff" : "#FFF"} 
+                  />
+                  <Text style={styles.footerButtonText}>
+                    {item.reactions['❤️'] && item.reactions['❤️'] > 0 
+                      ? `${item.reactions['❤️']}` 
+                      : "Like"}
+                  </Text>
+                </TouchableOpacity>
                 
                 <TouchableOpacity 
-                  style={styles.viewDetailsButton}
-                  onPress={() => navigateToMilestone(item.id)}
+                  style={styles.footerButton}
+                  onPress={() => handleShare(item)}
                 >
-                  <Text style={styles.viewDetailsText}>View Details</Text>
-                  <Ionicons name="chevron-forward" size={14} color="#FF5E69" />
+                  <Ionicons name="share-outline" size={20} color="#FFF" />
+                  <Text style={styles.footerButtonText}>Share</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -368,72 +386,78 @@ export default function MilestonesFeed() {
           <View style={styles.pinnedBorder}>
             <View style={styles.pinnedInnerContainer}>
               {/* Milestone Card Header */}
-              <View style={styles.milestoneHeader}>
-                <View style={styles.milestoneIconContainer}>
-                  <TouchableOpacity onPress={() => navigateToProfile(item.userId)}>
-                    <Image 
-                      source={{ uri: item.profileImageUrl }} 
-                      style={styles.profilePic}
-                    />
-                  </TouchableOpacity>
-                </View>
-                <View style={styles.milestoneTitleContainer}>
-                  <Text style={styles.milestoneType}>
-                    {item.fullName}
-                  </Text>
-                  <Text style={styles.milestoneDate}>
-                    {formatTimeAgo(item.createdAt)}
-                    <Text style={{color: '#FF5E69'}}> • Pinned</Text>
-                  </Text>
+              <TouchableOpacity 
+                activeOpacity={0.9}
+                onPress={() => navigateToMilestone(item.id)}
+              >
+                <View style={styles.milestoneHeader}>
+                  <View style={styles.milestoneIconContainer}>
+                    <TouchableOpacity onPress={() => navigateToProfile(item.userId)}>
+                      <Image 
+                        source={{ uri: item.profileImageUrl }} 
+                        style={styles.profilePic}
+                      />
+                    </TouchableOpacity>
+                  </View>
+                  <View style={styles.milestoneTitleContainer}>
+                    <Text style={styles.milestoneType}>
+                      {item.fullName}
+                    </Text>
+                    <Text style={styles.milestoneDate}>
+                      {formatTimeAgo(item.createdAt)}
+                      <Text style={{color: '#FF5E69'}}> • Pinned</Text>
+                    </Text>
+                  </View>
+                  
+                  {/* Post Preview (if available) */}
+                  {item.postImageUrl && (
+                    <TouchableOpacity 
+                      style={styles.postPreviewContainer}
+                      onPress={() => navigateToPost(item.associatedPostId || '')}
+                      activeOpacity={0.9}
+                    >
+                      <Image 
+                        source={{ uri: item.postImageUrl }} 
+                        style={styles.postPreviewImage} 
+                      />
+                      <View style={styles.postPreviewOverlay}>
+                        <Ionicons name="camera" size={12} color="#FFF" />
+                      </View>
+                    </TouchableOpacity>
+                  )}
                 </View>
                 
-                {/* Post Preview (if available) */}
-                {item.postImageUrl && (
-                  <TouchableOpacity 
-                    style={styles.postPreviewContainer}
-                    onPress={() => navigateToPost(item.associatedPostId || '')}
-                    activeOpacity={0.9}
-                  >
-                    <Image 
-                      source={{ uri: item.postImageUrl }} 
-                      style={styles.postPreviewImage} 
-                    />
-                    <View style={styles.postPreviewOverlay}>
-                      <Ionicons name="camera" size={12} color="#FFF" />
-                    </View>
-                  </TouchableOpacity>
-                )}
-              </View>
+                {/* Milestone Details */}
+                {renderMilestoneDetails(item)}
+              </TouchableOpacity>
               
-              {/* Milestone Details */}
-              {renderMilestoneDetails(item)}
-              
-              {/* Reactions and View Details */}
+              {/* Reactions and Share */}
               <View style={styles.cardFooter}>
-                <View style={styles.reactionButtons}>
-                  {['❤️'].map(emoji => (
-                    <TouchableOpacity 
-                      key={emoji}
-                      style={[
-                        styles.combinedReactionButton,
-                        item.userReaction === emoji && styles.activeReactionButton
-                      ]}
-                      onPress={() => handleReaction(item.id, emoji)}
-                    >
-                      <Text style={styles.reactionEmoji}>{emoji}</Text>
-                      {(item.reactions[emoji] && item.reactions[emoji] > 0) && (
-                        <Text style={styles.reactionCount}>{item.reactions[emoji]}</Text>
-                      )}
-                    </TouchableOpacity>
-                  ))}
-                </View>
+                <TouchableOpacity 
+                  style={[
+                    styles.footerButton,
+                    item.userReaction === '❤️' && styles.activeFooterButton
+                  ]}
+                  onPress={() => handleReaction(item.id, '❤️')}
+                >
+                  <Ionicons 
+                    name={item.userReaction === '❤️' ? "heart" : "heart-outline"} 
+                    size={20} 
+                    color={item.userReaction === '❤️' ? "#fff" : "#FFF"} 
+                  />
+                  <Text style={styles.footerButtonText}>
+                    {item.reactions['❤️'] && item.reactions['❤️'] > 0 
+                      ? `${item.reactions['❤️']}` 
+                      : "Like"}
+                  </Text>
+                </TouchableOpacity>
                 
                 <TouchableOpacity 
-                  style={styles.viewDetailsButton}
-                  onPress={() => navigateToMilestone(item.id)}
+                  style={styles.footerButton}
+                  onPress={() => handleShare(item)}
                 >
-                  <Text style={styles.viewDetailsText}>View Details</Text>
-                  <Ionicons name="chevron-forward" size={14} color="#FF5E69" />
+                  <Ionicons name="share-outline" size={20} color="#FFF" />
+                  <Text style={styles.footerButtonText}>Share</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -446,69 +470,75 @@ export default function MilestonesFeed() {
     return (
       <View style={styles.milestoneCard}>
         {/* Milestone Card Header */}
-        <View style={styles.milestoneHeader}>
-          <View style={styles.milestoneIconContainer}>
-            <TouchableOpacity onPress={() => navigateToProfile(item.userId)}>
-              <Image 
-                source={{ uri: item.profileImageUrl }} 
-                style={styles.profilePic}
-              />
-            </TouchableOpacity>
-          </View>
-          <View style={styles.milestoneTitleContainer}>
-            <Text style={styles.milestoneType}>
-              {item.fullName}
-            </Text>
-            <Text style={styles.milestoneDate}>{formatTimeAgo(item.createdAt)}</Text>
+        <TouchableOpacity 
+          activeOpacity={0.9}
+          onPress={() => navigateToMilestone(item.id)}
+        >
+          <View style={styles.milestoneHeader}>
+            <View style={styles.milestoneIconContainer}>
+              <TouchableOpacity onPress={() => navigateToProfile(item.userId)}>
+                <Image 
+                  source={{ uri: item.profileImageUrl }} 
+                  style={styles.profilePic}
+                />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.milestoneTitleContainer}>
+              <Text style={styles.milestoneType}>
+                {item.fullName}
+              </Text>
+              <Text style={styles.milestoneDate}>{formatTimeAgo(item.createdAt)}</Text>
+            </View>
+            
+            {/* Post Preview (if available) */}
+            {item.postImageUrl && (
+              <TouchableOpacity 
+                style={styles.postPreviewContainer}
+                onPress={() => navigateToPost(item.associatedPostId || '')}
+                activeOpacity={0.9}
+              >
+                <Image 
+                  source={{ uri: item.postImageUrl }} 
+                  style={styles.postPreviewImage} 
+                />
+                <View style={styles.postPreviewOverlay}>
+                  <Ionicons name="camera" size={12} color="#FFF" />
+                </View>
+              </TouchableOpacity>
+            )}
           </View>
           
-          {/* Post Preview (if available) */}
-          {item.postImageUrl && (
-            <TouchableOpacity 
-              style={styles.postPreviewContainer}
-              onPress={() => navigateToPost(item.associatedPostId || '')}
-              activeOpacity={0.9}
-            >
-              <Image 
-                source={{ uri: item.postImageUrl }} 
-                style={styles.postPreviewImage} 
-              />
-              <View style={styles.postPreviewOverlay}>
-                <Ionicons name="camera" size={12} color="#FFF" />
-              </View>
-            </TouchableOpacity>
-          )}
-        </View>
+          {/* Milestone Details */}
+          {renderMilestoneDetails(item)}
+        </TouchableOpacity>
         
-        {/* Milestone Details */}
-        {renderMilestoneDetails(item)}
-        
-        {/* Reactions and View Details */}
+        {/* Reactions and Share */}
         <View style={styles.cardFooter}>
-          <View style={styles.reactionButtons}>
-            {['❤️'].map(emoji => (
-              <TouchableOpacity 
-                key={emoji}
-                style={[
-                  styles.combinedReactionButton,
-                  item.userReaction === emoji && styles.activeReactionButton
-                ]}
-                onPress={() => handleReaction(item.id, emoji)}
-              >
-                <Text style={styles.reactionEmoji}>{emoji}</Text>
-                {(item.reactions[emoji] && item.reactions[emoji] > 0) && (
-                  <Text style={styles.reactionCount}>{item.reactions[emoji]}</Text>
-                )}
-              </TouchableOpacity>
-            ))}
-          </View>
+          <TouchableOpacity 
+            style={[
+              styles.footerButton,
+              item.userReaction === '❤️' && styles.activeFooterButton
+            ]}
+            onPress={() => handleReaction(item.id, '❤️')}
+          >
+            <Ionicons 
+              name={item.userReaction === '❤️' ? "heart" : "heart-outline"} 
+              size={20} 
+              color={item.userReaction === '❤️' ? "#fff" : "#FFF"} 
+            />
+            <Text style={styles.footerButtonText}>
+              {item.reactions['❤️'] && item.reactions['❤️'] > 0 
+                ? `${item.reactions['❤️']}` 
+                : "Like"}
+            </Text>
+          </TouchableOpacity>
           
           <TouchableOpacity 
-            style={styles.viewDetailsButton}
-            onPress={() => navigateToMilestone(item.id)}
+            style={styles.footerButton}
+            onPress={() => handleShare(item)}
           >
-            <Text style={styles.viewDetailsText}>View Details</Text>
-            <Ionicons name="chevron-forward" size={14} color="#FF2D55" />
+            <Ionicons name="share-outline" size={20} color="#FFF" />
+            <Text style={styles.footerButtonText}>Share</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -531,13 +561,7 @@ export default function MilestonesFeed() {
       contentContainerStyle={styles.milestonesContainer}
       renderItem={({item}) => (
         <View style={styles.milestoneContainer}>
-          <TouchableOpacity 
-            style={styles.milestoneCardWrapper}
-            onPress={() => navigateToMilestone(item.id)}
-            activeOpacity={0.9}
-          >
-            {renderMilestoneCard(item)}
-          </TouchableOpacity>
+          {renderMilestoneCard(item)}
         </View>
       )}
     />
@@ -755,12 +779,29 @@ const styles = StyleSheet.create({
   },
   cardFooter: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     paddingHorizontal: 15,
     paddingVertical: 10,
     borderTopWidth: 1,
     borderTopColor: '#333',
+  },
+  footerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    marginRight: 12,
+    backgroundColor: 'transparent',
+    flex: 1,
+  },
+  activeFooterButton: {
+    backgroundColor: '#FF5E69',
+  },
+  footerButtonText: {
+    color: '#fff',
+    marginLeft: 6,
+    fontWeight: '500',
   },
   emptyMilestonesContainer: {
     flex: 1,
