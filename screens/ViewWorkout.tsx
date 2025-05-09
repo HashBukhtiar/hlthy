@@ -155,44 +155,13 @@ export default function ViewWorkout() {
   
   const parseDuration = (durationStr: string): number => {
     if (!durationStr || typeof durationStr !== 'string') return 0;
-    let totalMinutes = 0;
-    const parts = durationStr.toLowerCase().split(/\s+/); 
-
-    for (let i = 0; i < parts.length; i++) {
-        const part = parts[i];
-        if (!isNaN(Number(part))) {
-            const value = parseInt(part, 10);
-            let unit = parts[i+1] || "";
-
-            if (unit.startsWith('h')) { 
-                totalMinutes += value * 60;
-                i++; 
-            } else if (unit.startsWith('m')) {
-                totalMinutes += value;
-                i++; 
-            } else if (!unit && i === 0 && parts.length === 1 && !isNaN(value)) {
-                
-                
-                totalMinutes += value;
-            }
-        }
-    }
-    return totalMinutes;
+    
+    const minutes = parseInt(durationStr, 10);
+    return isNaN(minutes) ? 0 : minutes;
   };
 
   const formatTotalDuration = (totalMinutes: number): string => {
-    if (totalMinutes === 0) return "N/A";
-    const hours = Math.floor(totalMinutes / 60);
-    const minutes = totalMinutes % 60;
-    let formatted = "";
-    if (hours > 0) {
-        formatted += `${hours}h`;
-    }
-    if (minutes > 0) {
-        if (hours > 0) formatted += " ";
-        formatted += `${minutes}m`;
-    }
-    return formatted || "0m";
+    return `${totalMinutes} minutes`;
   };
   
   const calculateTotalLength = (segments: WorkoutSegment[]): string => {
@@ -285,7 +254,7 @@ export default function ViewWorkout() {
           <View style={styles.segmentHeader}>
             <Text style={styles.segmentName}>{segment.name}</Text>
             <View style={styles.segmentInfo}>
-              <Text style={styles.segmentDetails}>{segment.exercises.length} exercises • {segment.length}</Text>
+              <Text style={styles.segmentDetails}>{segment.exercises.length} exercises • {segment.length} mins</Text>
             </View>
           </View>
           

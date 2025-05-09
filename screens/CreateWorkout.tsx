@@ -46,7 +46,7 @@ export default function CreateWorkout() {
     {
       id: Date.now().toString(),
       name: 'Warm Up',
-      length: '15 mins',
+      length: '15',
       exercises: []
     }
   ]);
@@ -99,7 +99,7 @@ export default function CreateWorkout() {
     const newSegment = {
       id: Date.now().toString(),
       name: 'New Segment',
-      length: '30 mins',
+      length: '30',
       exercises: []
     };
     
@@ -138,7 +138,7 @@ export default function CreateWorkout() {
       if (segment.id === segmentId) {
         return {
           ...segment,
-          [field]: value
+          [field]: field === 'length' ? value.replace(/[^0-9]/g, '') : value
         };
       }
       return segment;
@@ -355,14 +355,15 @@ export default function CreateWorkout() {
                 </View>
                 
                 <View style={styles.segmentInputContainer}>
-                  <Text style={styles.segmentInputLabel}>Length</Text>
+                  <Text style={styles.segmentInputLabel}>Length (minutes)</Text>
                   <TextInput
                     style={styles.segmentInput}
                     value={segment.length}
                     onChangeText={(value) => updateSegment(segment.id, 'length', value)}
-                    placeholder="e.g., 30 mins"
+                    placeholder="e.g., 15"
                     placeholderTextColor="#666"
                     editable={!isSaving}
+                    keyboardType="number-pad"
                   />
                 </View>
               </View>
