@@ -5,12 +5,50 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 
+// Define interfaces for milestone data
+export interface MilestoneStats {
+  likes: number;
+}
+
+export interface MilestoneDetails {
+  exercise?: string;
+  value?: number;
+  weightUnit?: string;
+  reps?: number;
+  newWeight?: number;
+  newWeightUnit?: string;
+  previousWeight?: number;
+  previousWeightUnit?: string;
+  previousValue?: number;
+  previousReps?: number;
+  improvement?: string;
+  totalLoss?: number;
+  percentageLoss?: string;
+}
+
+export interface Milestone {
+  id: string;
+  userId: string;
+  username: string;
+  fullName?: string;
+  profileImageUrl: string;
+  createdAt: Date;
+  milestoneType: 'PR' | 'weightLoss' | 'weightGain' | string;
+  details: MilestoneDetails;
+  stats: MilestoneStats;
+  isLiked: boolean;
+  associatedPostId?: string;
+  postImageUrl?: string;
+  pinned?: boolean;
+  top5Percent?: boolean;
+}
+
 export default function ViewMilestone() {
   const { id } = useLocalSearchParams();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [milestone, setMilestone] = useState(null);
+  const [milestone, setMilestone] = useState<Milestone | null>(null);
   const [isPinned, setIsPinned] = useState(false);
   const [isTop5Percent, setIsTop5Percent] = useState(false);
 
@@ -19,7 +57,7 @@ export default function ViewMilestone() {
       await new Promise(resolve => setTimeout(resolve, 500));
       
       if (id === 'm1') {
-        const milestoneData = {
+        const milestoneData: Milestone = {
           id: 'm1',
           userId: 'user1',
           username: 'fitness_pro',
@@ -36,10 +74,10 @@ export default function ViewMilestone() {
             previousReps: 5,
             improvement: '9.7%'
           },
-          reactions: {
-            '❤️': 24
+          stats: {
+            likes: 24
           },
-          userReaction: null,
+          isLiked: false,
           associatedPostId: 'post1',
           postImageUrl: 'https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
           pinned: true,
@@ -49,7 +87,7 @@ export default function ViewMilestone() {
         setIsPinned(milestoneData.pinned);
         setIsTop5Percent(milestoneData.top5Percent);
       } else if (id === 'm2') {
-        const milestoneData = {
+        const milestoneData: Milestone = {
           id: 'm2',
           userId: 'user2',
           username: 'runner_girl',
@@ -66,10 +104,10 @@ export default function ViewMilestone() {
             previousReps: 1,
             improvement: '7.2%'
           },
-          reactions: {
-            '❤️': 18
+          stats: {
+            likes: 18
           },
-          userReaction: '❤️',
+          isLiked: true,
           associatedPostId: 'post2',
           pinned: false,
           top5Percent: true
@@ -78,7 +116,7 @@ export default function ViewMilestone() {
         setIsPinned(milestoneData.pinned);
         setIsTop5Percent(milestoneData.top5Percent);
       } else if (id === 'm3') {
-        const milestoneData = {
+        const milestoneData: Milestone = {
           id: 'm3',
           userId: 'user3',
           username: 'weightloss_journey',
@@ -94,10 +132,10 @@ export default function ViewMilestone() {
             totalLoss: 15,
             percentageLoss: '8.3%'
           },
-          reactions: {
-            '❤️': 35
+          stats: {
+            likes: 35
           },
-          userReaction: '❤️',
+          isLiked: true,
           associatedPostId: 'post3',
           postImageUrl: 'https://images.unsplash.com/photo-1535743686920-55e4145369b9?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
           pinned: false,
@@ -107,7 +145,7 @@ export default function ViewMilestone() {
         setIsPinned(milestoneData.pinned);
         setIsTop5Percent(milestoneData.top5Percent);
       } else if (id === 'm4') {
-        const milestoneData = {
+        const milestoneData: Milestone = {
           id: 'm4',
           userId: 'user7',
           username: 'super_athlete',
@@ -124,10 +162,10 @@ export default function ViewMilestone() {
             previousReps: 3,
             improvement: '14.5%'
           },
-          reactions: {
-            '❤️': 45
+          stats: {
+            likes: 45
           },
-          userReaction: null,
+          isLiked: false,
           associatedPostId: 'post4',
           pinned: true,
           top5Percent: true
@@ -136,8 +174,8 @@ export default function ViewMilestone() {
         setIsPinned(milestoneData.pinned);
         setIsTop5Percent(milestoneData.top5Percent);
       } else {
-        const milestoneData = {
-          id: id || 'unknown',
+        const milestoneData: Milestone = {
+          id: id as string || 'unknown',
           userId: 'user1',
           username: 'hlthy_user',
           fullName: 'Hlthy User',
@@ -153,10 +191,10 @@ export default function ViewMilestone() {
             previousReps: 3,
             improvement: '10.5%'
           },
-          reactions: {
-            '❤️': 12
+          stats: {
+            likes: 12
           },
-          userReaction: null,
+          isLiked: false,
           pinned: false,
           top5Percent: false
         };
@@ -171,32 +209,23 @@ export default function ViewMilestone() {
     fetchData();
   }, [id]);
 
-  const handleReaction = (reaction) => {
+  const handleLike = () => {
     if (!milestone) return;
     
     setMilestone(prevState => {
-      const updatedReactions = { ...prevState.reactions };
+      if (!prevState) return null;
       
-      if (prevState.userReaction === reaction) {
-        updatedReactions[reaction] = Math.max(0, updatedReactions[reaction] - 1);
-        
-        return {
-          ...prevState,
-          reactions: updatedReactions,
-          userReaction: null
-        };
-      }
-      
-      if (prevState.userReaction) {
-        updatedReactions[prevState.userReaction] = Math.max(0, updatedReactions[prevState.userReaction] - 1);
-      }
-      
-      updatedReactions[reaction] = (updatedReactions[reaction] || 0) + 1;
+      // Toggle liked status
+      const newIsLiked = !prevState.isLiked;
+      const likeDelta = newIsLiked ? 1 : -1;
       
       return {
         ...prevState,
-        reactions: updatedReactions,
-        userReaction: reaction
+        isLiked: newIsLiked,
+        stats: {
+          ...prevState.stats,
+          likes: Math.max(0, prevState.stats.likes + likeDelta)
+        }
       };
     });
   };
@@ -472,19 +501,19 @@ export default function ViewMilestone() {
           <TouchableOpacity 
             style={[
               styles.actionButton,
-              milestone.userReaction === '❤️' && styles.activeActionButton
+              milestone.isLiked && styles.activeActionButton
             ]}
-            onPress={() => handleReaction('❤️')}
+            onPress={handleLike}
           >
             <Ionicons 
-              name={milestone.userReaction === '❤️' ? "heart" : "heart-outline"} 
+              name={milestone.isLiked ? "heart" : "heart-outline"} 
               size={24} 
-              color={milestone.userReaction === '❤️' ? "#fff" : "#FFF"} 
+              color={milestone.isLiked ? "#fff" : "#FFF"} 
               style={styles.actionIcon}
             />
             <Text style={styles.actionButtonText}>
-              {milestone.userReaction === '❤️' ? 'Liked' : 'Like'} 
-              {milestone.reactions['❤️'] && milestone.reactions['❤️'] > 0 && ` (${milestone.reactions['❤️']})`}
+              {milestone.isLiked ? 'Liked' : 'Like'} 
+              {milestone.stats.likes > 0 && ` (${milestone.stats.likes})`}
             </Text>
           </TouchableOpacity>
           

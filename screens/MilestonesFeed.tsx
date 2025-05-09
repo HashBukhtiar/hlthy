@@ -13,9 +13,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 
 // Define interfaces for milestone data
-export interface MilestoneReactions {
-  '❤️': number;
-  [key: string]: number;
+export interface MilestoneStats {
+  likes: number;
 }
 
 export interface MilestoneDetails {
@@ -42,8 +41,8 @@ export interface Milestone {
   createdAt: Date;
   milestoneType: 'PR' | 'weightLoss' | 'weightGain' | string;
   details: MilestoneDetails;
-  reactions: MilestoneReactions;
-  userReaction: string | null;
+  stats: MilestoneStats;
+  isLiked: boolean;
   associatedPostId?: string;
   postImageUrl?: string;
   pinned?: boolean;
@@ -69,10 +68,10 @@ export default function MilestonesFeed() {
         previousReps: 5,
         improvement: '9.7%'
       },
-      reactions: {
-        '❤️': 24
+      stats: {
+        likes: 24
       },
-      userReaction: null,
+      isLiked: false,
       associatedPostId: 'post1',
       postImageUrl: 'https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
       pinned: false,
@@ -94,10 +93,10 @@ export default function MilestonesFeed() {
         previousReps: 1,
         improvement: '7.2%'
       },
-      reactions: {
-        '❤️': 18
+      stats: {
+        likes: 18
       },
-      userReaction: '❤️',
+      isLiked: true,
       associatedPostId: 'post2',
       top5Percent: false,
       pinned: false
@@ -117,10 +116,10 @@ export default function MilestonesFeed() {
         totalLoss: 15,
         percentageLoss: '8.3%'
       },
-      reactions: {
-        '❤️': 35
+      stats: {
+        likes: 35
       },
-      userReaction: null,
+      isLiked: false,
       associatedPostId: 'post3',
       postImageUrl: 'https://images.unsplash.com/photo-1535743686920-55e4145369b9?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
       pinned: true,
@@ -142,34 +141,20 @@ export default function MilestonesFeed() {
     return date.toLocaleDateString();
   };
   
-  const handleReaction = (milestoneId: string, reaction: string): void => {
+  const handleLike = (milestoneId: string): void => {
     setMilestones(milestones.map(milestone => {
       if (milestone.id === milestoneId) {
-        // If user already reacted with this reaction, remove it
-        if (milestone.userReaction === reaction) {
-          const updatedReactions = { ...milestone.reactions };
-          updatedReactions[reaction] = Math.max(0, updatedReactions[reaction] - 1);
-          
-          return {
-            ...milestone,
-            reactions: updatedReactions,
-            userReaction: null
-          };
-        }
-        
-        // If user reacted with a different reaction, remove previous and add new
-        const updatedReactions = { ...milestone.reactions };
-        
-        if (milestone.userReaction) {
-          updatedReactions[milestone.userReaction] = Math.max(0, updatedReactions[milestone.userReaction] - 1);
-        }
-        
-        updatedReactions[reaction] = (updatedReactions[reaction] || 0) + 1;
+        // Toggle liked status and update like count
+        const newIsLiked = !milestone.isLiked;
+        const likeDelta = newIsLiked ? 1 : -1;
         
         return {
           ...milestone,
-          reactions: updatedReactions,
-          userReaction: reaction
+          isLiked: newIsLiked,
+          stats: {
+            ...milestone.stats,
+            likes: Math.max(0, milestone.stats.likes + likeDelta)
+          }
         };
       }
       return milestone;
@@ -346,23 +331,23 @@ export default function MilestonesFeed() {
                 {renderMilestoneDetails(item)}
               </TouchableOpacity>
               
-              {/* Reactions and Share */}
+              {/* Like and Share */}
               <View style={styles.cardFooter}>
                 <TouchableOpacity 
                   style={[
                     styles.footerButton,
-                    item.userReaction === '❤️' && styles.activeFooterButton
+                    item.isLiked && styles.activeFooterButton
                   ]}
-                  onPress={() => handleReaction(item.id, '❤️')}
+                  onPress={() => handleLike(item.id)}
                 >
                   <Ionicons 
-                    name={item.userReaction === '❤️' ? "heart" : "heart-outline"} 
+                    name={item.isLiked ? "heart" : "heart-outline"} 
                     size={20} 
-                    color={item.userReaction === '❤️' ? "#fff" : "#FFF"} 
+                    color={item.isLiked ? "#fff" : "#FFF"} 
                   />
                   <Text style={styles.footerButtonText}>
-                    {item.reactions['❤️'] && item.reactions['❤️'] > 0 
-                      ? `${item.reactions['❤️']}` 
+                    {item.stats.likes > 0 
+                      ? `${item.stats.likes}` 
                       : "Like"}
                   </Text>
                 </TouchableOpacity>
@@ -431,23 +416,23 @@ export default function MilestonesFeed() {
                 {renderMilestoneDetails(item)}
               </TouchableOpacity>
               
-              {/* Reactions and Share */}
+              {/* Like and Share */}
               <View style={styles.cardFooter}>
                 <TouchableOpacity 
                   style={[
                     styles.footerButton,
-                    item.userReaction === '❤️' && styles.activeFooterButton
+                    item.isLiked && styles.activeFooterButton
                   ]}
-                  onPress={() => handleReaction(item.id, '❤️')}
+                  onPress={() => handleLike(item.id)}
                 >
                   <Ionicons 
-                    name={item.userReaction === '❤️' ? "heart" : "heart-outline"} 
+                    name={item.isLiked ? "heart" : "heart-outline"} 
                     size={20} 
-                    color={item.userReaction === '❤️' ? "#fff" : "#FFF"} 
+                    color={item.isLiked ? "#fff" : "#FFF"} 
                   />
                   <Text style={styles.footerButtonText}>
-                    {item.reactions['❤️'] && item.reactions['❤️'] > 0 
-                      ? `${item.reactions['❤️']}` 
+                    {item.stats.likes > 0 
+                      ? `${item.stats.likes}` 
                       : "Like"}
                   </Text>
                 </TouchableOpacity>
@@ -512,23 +497,23 @@ export default function MilestonesFeed() {
           {renderMilestoneDetails(item)}
         </TouchableOpacity>
         
-        {/* Reactions and Share */}
+        {/* Like and Share */}
         <View style={styles.cardFooter}>
           <TouchableOpacity 
             style={[
               styles.footerButton,
-              item.userReaction === '❤️' && styles.activeFooterButton
+              item.isLiked && styles.activeFooterButton
             ]}
-            onPress={() => handleReaction(item.id, '❤️')}
+            onPress={() => handleLike(item.id)}
           >
             <Ionicons 
-              name={item.userReaction === '❤️' ? "heart" : "heart-outline"} 
+              name={item.isLiked ? "heart" : "heart-outline"} 
               size={20} 
-              color={item.userReaction === '❤️' ? "#fff" : "#FFF"} 
+              color={item.isLiked ? "#fff" : "#FFF"} 
             />
             <Text style={styles.footerButtonText}>
-              {item.reactions['❤️'] && item.reactions['❤️'] > 0 
-                ? `${item.reactions['❤️']}` 
+              {item.stats.likes > 0 
+                ? `${item.stats.likes}` 
                 : "Like"}
             </Text>
           </TouchableOpacity>
