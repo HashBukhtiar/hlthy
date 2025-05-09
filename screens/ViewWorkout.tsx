@@ -215,19 +215,56 @@ export default function ViewWorkout() {
         <Text style={styles.headerTitle} numberOfLines={1} ellipsizeMode="tail">
           {workoutData.title}
         </Text>
-        <TouchableOpacity onPress={handleToggleFavorite} disabled={favoriteLoading || !currentUser}>
-          <View style={styles.menuButton}>
-            {favoriteLoading ? (
-              <ActivityIndicator size="small" color="white" />
-            ) : (
-              <Ionicons 
-                name={isFavorited ? "heart" : "heart-outline"} 
-                size={20} 
-                color={isFavorited ? "#ff2d55" : "white"} 
-              />
-            )}
-          </View>
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          {currentUser && workoutData.creatorId === currentUser.uid && (
+            <>
+              <TouchableOpacity onPress={() => {/* TODO: Implement Edit Workout */}} style={styles.menuButton}>
+                <Ionicons name="pencil" size={20} color="white" />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => {
+                Alert.alert(
+                  "Delete Workout",
+                  "Are you sure you want to delete this workout?",
+                  [
+                    {
+                      text: "Cancel",
+                      style: "cancel"
+                    },
+                    {
+                      text: "Delete",
+                      style: "destructive",
+                      onPress: async () => {
+                        try {
+                          const workoutDocRef = doc(db, 'workouts', workoutId);
+                          await deleteDoc(workoutDocRef);
+                          router.back();
+                        } catch (error) {
+                          console.error("Error deleting workout:", error);
+                          Alert.alert("Error", "Failed to delete workout.");
+                        }
+                      },
+                    }
+                  ]
+                );
+              }} style={styles.menuButton}>
+                <Ionicons name="trash" size={20} color="white" />
+              </TouchableOpacity>
+            </>
+          )}
+          <TouchableOpacity onPress={handleToggleFavorite} disabled={favoriteLoading || !currentUser}>
+            <View style={styles.menuButton}>
+              {favoriteLoading ? (
+                <ActivityIndicator size="small" color="white" />
+              ) : (
+                <Ionicons
+                  name={isFavorited ? "heart" : "heart-outline"}
+                  size={20}
+                  color={isFavorited ? "#ff2d55" : "white"}
+                />
+              )}
+            </View>
+          </TouchableOpacity>
+        </View>
       </View>
       
       <Image
