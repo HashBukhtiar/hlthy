@@ -273,6 +273,7 @@ export default function CreateWorkout() {
         contentContainerStyle={{ paddingBottom: 200 }}
         ref={scrollViewRef}
         showsVerticalScrollIndicator={false}
+        keyboardDismissMode='on-drag'
       >
         {/* Cover Image */}
         <TouchableOpacity style={styles.imageContainer} onPress={pickImage}>
