@@ -334,16 +334,13 @@ export default function MilestonesFeed() {
               {/* Like and Share */}
               <View style={styles.cardFooter}>
                 <TouchableOpacity 
-                  style={[
-                    styles.footerButton,
-                    item.isLiked && styles.activeFooterButton
-                  ]}
+                  style={styles.footerButton}
                   onPress={() => handleLike(item.id)}
                 >
                   <Ionicons 
                     name={item.isLiked ? "heart" : "heart-outline"} 
                     size={20} 
-                    color={item.isLiked ? "#fff" : "#FFF"} 
+                    color={item.isLiked ? "#FF69B4" : "#FFF"} 
                   />
                   <Text style={styles.footerButtonText}>
                     {item.stats.likes > 0 
@@ -419,18 +416,15 @@ export default function MilestonesFeed() {
               {/* Like and Share */}
               <View style={styles.cardFooter}>
                 <TouchableOpacity 
-                  style={[
-                    styles.footerButton,
-                    item.isLiked && styles.activeFooterButton
-                  ]}
+                  style={styles.footerButton}
                   onPress={() => handleLike(item.id)}
                 >
                   <Ionicons 
                     name={item.isLiked ? "heart" : "heart-outline"} 
                     size={20} 
-                    color={item.isLiked ? "#fff" : "#FFF"} 
+                    color={item.isLiked ? "#FF69B4" : "#FFF"} 
                   />
-                  <Text style={styles.footerButtonText}>
+                  <Text style={[styles.footerButtonText, { color: item.isLiked ? 'pink' : 'white' }]}>
                     {item.stats.likes > 0 
                       ? `${item.stats.likes}` 
                       : "Like"}
@@ -500,16 +494,13 @@ export default function MilestonesFeed() {
         {/* Like and Share */}
         <View style={styles.cardFooter}>
           <TouchableOpacity 
-            style={[
-              styles.footerButton,
-              item.isLiked && styles.activeFooterButton
-            ]}
+            style={styles.footerButton}
             onPress={() => handleLike(item.id)}
           >
             <Ionicons 
               name={item.isLiked ? "heart" : "heart-outline"} 
               size={20} 
-              color={item.isLiked ? "#fff" : "#FFF"} 
+              color={item.isLiked ? "#FF69B4" : "#FFF"} 
             />
             <Text style={styles.footerButtonText}>
               {item.stats.likes > 0 
@@ -765,7 +756,7 @@ const styles = StyleSheet.create({
   cardFooter: {
     flexDirection: 'row',
     paddingHorizontal: 15,
-    paddingVertical: 10,
+    paddingVertical: 5,
     borderTopWidth: 1,
     borderTopColor: '#333',
   },
@@ -781,7 +772,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   activeFooterButton: {
-    backgroundColor: '#FF5E69',
+    backgroundColor: 'transparent',
   },
   footerButtonText: {
     color: '#fff',

@@ -499,16 +499,13 @@ export default function ViewMilestone() {
         
         <View style={styles.actionButtonsContainer}>
           <TouchableOpacity 
-            style={[
-              styles.actionButton,
-              milestone.isLiked && styles.activeActionButton
-            ]}
+            style={styles.actionButton}
             onPress={handleLike}
           >
             <Ionicons 
               name={milestone.isLiked ? "heart" : "heart-outline"} 
               size={24} 
-              color={milestone.isLiked ? "#fff" : "#FFF"} 
+              color={milestone.isLiked ? "#FF69B4" : "#FFF"} 
               style={styles.actionIcon}
             />
             <Text style={styles.actionButtonText}>
@@ -741,8 +738,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 8,
   },
   activeActionButton: {
-    backgroundColor: '#FF5E69',
-    borderColor: '#FF5E69',
+    display: 'none',
   },
   actionIcon: {
     marginRight: 8,
