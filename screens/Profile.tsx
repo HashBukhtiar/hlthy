@@ -357,7 +357,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
                 <Text style={styles.workoutListItemMetaStyle}>{formattedDate}</Text>
                 <Text style={styles.workoutListItemMetaStyle}>{item.savedCount || 0} saves</Text>
               </View>
-              {isOwnProfile && !item.isPublic && (
+              {item.isPublic !== true && isOwnProfile && (
                 <Ionicons name="lock-closed" size={24} color="#888" />
               )}
             </TouchableOpacity>

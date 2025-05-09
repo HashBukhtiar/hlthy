@@ -478,7 +478,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingBottom: 15,
+    paddingTop: 50,
+    paddingBottom: 10,
     backgroundColor: '#000',
   },
   headerTitle: {
@@ -546,7 +547,7 @@ const styles = StyleSheet.create({
   },
   segmentContainer: {
     marginHorizontal: 20,
-    marginBottom: 25,
+    marginBottom: 20,
     backgroundColor: '#222',
     borderRadius: 15,
     padding: 15,
