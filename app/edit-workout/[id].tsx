@@ -10,9 +10,8 @@ import {
   Alert,
   Switch,
   ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform
 } from 'react-native';
+import { StackActions, useNavigation } from '@react-navigation/native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import globalStyles from '@/styles/globalStyles';
 import { Ionicons } from '@expo/vector-icons';
@@ -38,6 +37,7 @@ interface WorkoutSegment {
 
 export default function EditWorkout() {
   const router = useRouter();
+  const navigation = useNavigation();
   const { id } = useLocalSearchParams();
   const { currentUser } = useAuth();
 
@@ -256,7 +256,7 @@ export default function EditWorkout() {
       Alert.alert(
         'Workout Updated',
         'Your workout has been updated successfully!',
-        [{ text: 'OK', onPress: () => router.back() }]
+        [{ onPress: () => navigation.dispatch(StackActions.pop(2)) }]
       );
 
     } catch (error) {
