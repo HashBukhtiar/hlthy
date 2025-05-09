@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import globalStyles from '@/styles/globalStyles';
-import Icon from 'react-native-vector-icons/FontAwesome';
+import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { useAuth } from '@/context/AuthContext';
 import { db } from '@/firebaseConfig';
@@ -46,12 +46,14 @@ export default function Workouts() {
 
     const [myWorkouts, setMyWorkouts] = useState<WorkoutItemData[]>([]);
     const [favoriteWorkouts, setFavoriteWorkouts] = useState<WorkoutItemData[]>([]);
+    const [followingWorkouts, setFollowingWorkouts] = useState<WorkoutItemData[]>([]);
     const [trendingWorkouts, setTrendingWorkouts] = useState<WorkoutItemData[]>([]);
     
     const [searchResults, setSearchResults] = useState<WorkoutItemData[]>([]);
     
     const [loadingMyWorkouts, setLoadingMyWorkouts] = useState(false);
     const [loadingFavorites, setLoadingFavorites] = useState(false);
+    const [loadingFollowingWorkouts, setLoadingFollowingWorkouts] = useState(false);
     const [loadingTrending, setLoadingTrending] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
     const [isSearching, setIsSearching] = useState(false);
@@ -106,6 +108,48 @@ export default function Workouts() {
             setLoadingFavorites(false);
         }
     }, [currentUser]);
+
+    const fetchFollowingWorkouts = useCallback(async () => {
+        if (!currentUser) return;
+        setLoadingFollowingWorkouts(true);
+        try {
+            
+            const followingRef = collection(db, `users/${currentUser.uid}/following`);
+            const followingSnapshot = await getDocs(followingRef);
+            const followingIds = followingSnapshot.docs.map(doc => doc.id);
+
+            if (followingIds.length === 0) {
+                setFollowingWorkouts([]);
+                setLoadingFollowingWorkouts(false);
+                return;
+            }
+
+            
+            const q = query(
+                collection(db, 'workouts'),
+                where('creatorId', 'in', followingIds),
+                orderBy('createdAt', 'desc')
+            );
+            const querySnapshot = await getDocs(q);
+            const workoutsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as WorkoutItemData));
+            setFollowingWorkouts(workoutsData);
+        } catch (error) {
+            console.error("Error fetching workouts from people you follow: ", error);
+            setFollowingWorkouts([]);
+        } finally {
+            setLoadingFollowingWorkouts(false);
+        }
+    }, [currentUser]);
+
+    useEffect(() => {
+        if (currentUser) {
+            fetchMyWorkouts();
+            fetchFavoriteWorkouts();
+            fetchFollowingWorkouts(); 
+        }
+        fetchTrendingWorkouts();
+    }, [currentUser, fetchMyWorkouts, fetchFavoriteWorkouts, fetchTrendingWorkouts, fetchFollowingWorkouts]);
+
 
     const fetchTrendingWorkouts = useCallback(async () => {
         setLoadingTrending(true);
@@ -177,7 +221,7 @@ export default function Workouts() {
     function renderSearchBar() {
         return (
             <View style={styles.searchBarContainer}>
-                <Icon name="search" size={20} color="grey" />
+                <Ionicons name="search" size={24} color="grey" />
                 <TextInput
                     style={styles.searchBar}
                     onChangeText={(text) => setSearchQuery(text)}
@@ -267,43 +311,53 @@ export default function Workouts() {
     }
 
     function renderFavoriteWorkouts() {
-        // This section is now only rendered if not searching
         if (!currentUser) {
             return <Text style={styles.placeholderText}>Login to see your favorite workouts.</Text>;
         }
         return (
             <View>
-                <View style={styles.myWorkoutsHeaderView}>
+                <TouchableOpacity style={styles.myWorkoutsHeaderView} onPress={() => router.push('/favorite-workouts')}>
                     <Text style={styles.workoutsHeaders}>Favourite Workouts</Text>
-                </View>
+                    <Ionicons name="chevron-forward-outline" size={24} color="grey" />
+                </TouchableOpacity>
                 {loadingFavorites && favoriteWorkouts.length === 0 ? (
                      <ActivityIndicator style={styles.listLoadingIndicator} size="small" color="white" />
                 ) : favoriteWorkouts.length === 0 ? (
                     <Text style={styles.placeholderText}>No favorite workouts yet.</Text>
                 ) : (
-                    <ScrollView horizontal={true} style={styles.friendsWorkoutsList} showsHorizontalScrollIndicator={false}>
-                        {favoriteWorkouts.map(item => renderWorkoutCarouselItem(item, styles.friendsWorkoutsButton, styles.workoutPreview))}
+                    <ScrollView horizontal={true} style={styles.followingWorkoutsList} showsHorizontalScrollIndicator={false}>
+                        {favoriteWorkouts.map(item => renderWorkoutCarouselItem(item, styles.followingWorkoutsButton, styles.workoutPreview))}
                     </ScrollView>
                 )}
             </View>
         );
     }
     
-    function renderFriendsWorkouts() {
-        // This section is now only rendered if not searching
+    function renderFollowingWorkouts() {
+        if (!currentUser) {
+            return <Text style={styles.placeholderText}>Login to see workouts from people you follow.</Text>;
+        }
         return (
             <View>
                 <View style={styles.myWorkoutsHeaderView}>
-                    <Text style={styles.workoutsHeaders}>Friends' Workouts</Text>
+                    <Text style={styles.workoutsHeaders}>Workouts From People You Follow</Text>
                 </View>
-                <Text style={styles.placeholderText}>Friends' workouts coming soon!</Text>
+                {loadingFollowingWorkouts && followingWorkouts.length === 0 ? (
+                    <ActivityIndicator style={styles.listLoadingIndicator} size="small" color="white" />
+                ) : followingWorkouts.length === 0 ? (
+                    <Text style={styles.placeholderText}>No workouts from people you follow yet.</Text>
+                ) : (
+                    <ScrollView horizontal={true} style={styles.followingWorkoutsList} showsHorizontalScrollIndicator={false}>
+                        {followingWorkouts.map(item => renderWorkoutCarouselItem(item, styles.followingWorkoutsButton, styles.workoutPreview))}
+                    </ScrollView>
+                )}
             </View>
         );
     }
 
     function renderTrendingWorkouts() {
         const topTwelveWorkouts = trendingWorkouts.slice(0, 12);
-        const columnsOfFour = chunkArray(topTwelveWorkouts, 4); // Group into 3 columns of 4 items
+        const columnsOfFour = chunkArray(topTwelveWorkouts, 4); 
 
         return (
             <View>
@@ -380,7 +434,7 @@ export default function Workouts() {
                 >
                     {renderMyWorkouts()}
                     {renderFavoriteWorkouts()}
-                    {renderFriendsWorkouts()} 
+                    {renderFollowingWorkouts()}
                     {renderTrendingWorkouts()}
                     <View style={{height: 30}} />
                 </ScrollView>
@@ -513,12 +567,12 @@ const styles = StyleSheet.create({
         color: '#E0E0E0', 
         fontSize: 11,
     },
-    friendsWorkoutsList: { 
+    followingWorkoutsList: { 
         paddingLeft: 15,
         paddingRight: 5,
         height: 170, 
     },
-    friendsWorkoutsButton: { 
+    followingWorkoutsButton: { 
         overflow: 'hidden',
         width: 150, 
         height: 150,
