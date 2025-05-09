@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ScrollView, View, Text, TouchableOpacity, Image, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { ScrollView, View, Text, TouchableOpacity, Image, StyleSheet, ActivityIndicator, Alert, Dimensions } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { db } from '@/firebaseConfig'; 
@@ -49,6 +49,7 @@ export default function ViewWorkout() {
   const [error, setError] = useState<string | null>(null);
   const [isFavorited, setIsFavorited] = useState(false);
   const [favoriteLoading, setFavoriteLoading] = useState(false);
+  const [calculatedImageHeight, setCalculatedImageHeight] = useState<number>(200);
 
 
   useEffect(() => {
@@ -67,7 +68,32 @@ export default function ViewWorkout() {
 
         if (workoutDocSnap.exists()) {
           const data = workoutDocSnap.data() as Omit<WorkoutData, 'id'>;
-          setWorkoutData({ id: workoutDocSnap.id, ...data });
+          const fullWorkoutData = { id: workoutDocSnap.id, ...data };
+          setWorkoutData(fullWorkoutData);
+
+          // Get image dimensions after workoutData is set
+          if (fullWorkoutData.coverImageUrl) {
+            Image.getSize(
+              fullWorkoutData.coverImageUrl,
+              (width, height) => {
+                const screenWidth = Dimensions.get('window').width;
+                setCalculatedImageHeight(screenWidth * (height / width));
+              },
+              (err) => {
+                console.error("Failed to get network image size:", err);
+                setCalculatedImageHeight(200); // Fallback height on error
+              }
+            );
+          } else {
+            // Handle local default image
+            const localImageSource = Image.resolveAssetSource(require('@/assets/images/default_workout_cover.png'));
+            if (localImageSource) {
+              const screenWidth = Dimensions.get('window').width;
+              setCalculatedImageHeight(screenWidth * (localImageSource.height / localImageSource.width));
+            } else {
+              setCalculatedImageHeight(200); // Fallback for local image
+            }
+          }
 
           if (currentUser) {
             const favoriteDocRef = doc(db, `users/${currentUser.uid}/savedWorkouts`, workoutId);
@@ -237,12 +263,22 @@ export default function ViewWorkout() {
       
       <Image
         source={workoutData.coverImageUrl ? { uri: workoutData.coverImageUrl } : require('@/assets/images/default_workout_cover.png')}
-        style={styles.workoutImage}
+        style={[styles.workoutImage, { height: calculatedImageHeight }]} 
+        resizeMode="cover" 
       />
       
       <Text style={styles.workoutTitle}>{workoutData.title}</Text>
       <Text style={styles.creatorName}>by {workoutData.creatorUsername}</Text>
       <Text style={styles.workoutLength}>{displayWorkoutLength} • {workoutData.savedCount} saves</Text>
+
+      {workoutData.description && (
+        <>
+          <Text style={styles.descriptionTitle}>Description</Text>
+          <View style={styles.descriptionCard}>
+            <Text style={styles.descriptionText}>{workoutData.description}</Text>
+          </View>
+        </>
+      )}
 
       {workoutData.segments.map((segment, segmentIndex) => (
         <View key={segment.id || segmentIndex} style={{ marginTop: segmentIndex === 0 ? 30 : 10 }}>
@@ -276,16 +312,7 @@ export default function ViewWorkout() {
           </View>
         </View>
       ))}
-
-      {workoutData.description && (
-        <>
-          <Text style={styles.descriptionTitle}>Description</Text>
-          <View style={styles.descriptionCard}>
-            <Text style={styles.descriptionText}>{workoutData.description}</Text>
-          </View>
-        </>
-      )}
-      <View style={{ height: 50 }} />
+      <View style={{ height: 80 }} />
     </ScrollView>
   );
 }
@@ -294,7 +321,6 @@ const styles = StyleSheet.create({
   container: { 
     flex: 1, 
     backgroundColor: 'black',
-    marginBottom: 30
   },
   centered: {
     justifyContent: 'center',
@@ -344,7 +370,6 @@ const styles = StyleSheet.create({
   },
   workoutImage: { 
     width: '100%',
-    height: 250,
     marginTop: 0,
   },
   workoutTitle: { 
@@ -446,8 +471,7 @@ const styles = StyleSheet.create({
   descriptionTitle: { 
     color: '#c0c0c0', 
     fontSize: 18, 
-    fontWeight: 'bold', 
-    marginTop: 25,
+    fontWeight: 'bold',
     paddingHorizontal: 20, 
   },
   descriptionCard: { 
