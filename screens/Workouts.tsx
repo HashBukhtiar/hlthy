@@ -27,7 +27,7 @@ interface WorkoutItemData {
     creatorUsername: string;
     coverImageUrl?: string | null;
     savedCount?: number;
-  }
+}
 
 export default function Workouts() {
     const [searchQuery, setSearchQuery] = useState('');
@@ -104,7 +104,7 @@ export default function Workouts() {
                 collection(db, 'workouts'),
                 where('isPublic', '==', true), 
                 orderBy('savedCount', 'desc'), 
-                limit(50) // Fetch more for a broader search pool initially
+                limit(50) 
             );
             const querySnapshot = await getDocs(q);
             const workoutsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as WorkoutItemData));
@@ -131,11 +131,11 @@ export default function Workouts() {
 
         if (!lowerCaseQuery) {
             setSearchResults([]);
-            setIsSearching(false); // Hide search results overlay
+            setIsSearching(false);
             return;
         }
 
-        setIsSearching(true); // Show search results overlay
+        setIsSearching(true);
 
         // Combine all workouts and deduplicate
         const allWorkoutsMap = new Map<string, WorkoutItemData>();
@@ -185,22 +185,6 @@ export default function Workouts() {
             </View>
         );
     }
-    const renderWorkoutItem = (item: WorkoutItemData, itemStyle: any, blurStyle: any) => (
-        <TouchableOpacity 
-            key={item.id}
-            style={itemStyle}
-            onPress={() => router.push(`/view-workout/${item.id}`)}
-        >
-            <Image 
-                source={item.coverImageUrl ? { uri: item.coverImageUrl } : require('@/assets/images/default_workout_cover.png')}
-                style={StyleSheet.absoluteFill}
-            />
-            <BlurView intensity={80} tint="dark" style={blurStyle}>
-                <Text style={styles.workoutNameText} numberOfLines={1}>{item.title}</Text>
-                <Text style={styles.workoutAuthorText} numberOfLines={1}>by {item.creatorUsername}</Text>
-            </BlurView>
-        </TouchableOpacity>
-    );
 
     const renderWorkoutCarouselItem = (item: WorkoutItemData, itemStyle: any, blurStyle: any) => (
         <TouchableOpacity 
@@ -208,14 +192,14 @@ export default function Workouts() {
             style={itemStyle}
             onPress={() => {
                 router.push(`/view-workout/${item.id}`);
-                setSearchQuery(''); // Clear search when navigating from carousel
+                setSearchQuery('');
             }}
         >
             <Image 
                 source={item.coverImageUrl ? { uri: item.coverImageUrl } : require('@/assets/images/default_workout_cover.png')}
                 style={StyleSheet.absoluteFill}
             />
-            <BlurView intensity={80} tint="dark" style={blurStyle}>
+            <BlurView intensity={30} tint="dark" style={blurStyle}>
                 <Text style={styles.workoutNameText} numberOfLines={1}>{item.title}</Text>
                 <Text style={styles.workoutAuthorText} numberOfLines={1}>by {item.creatorUsername}</Text>
             </BlurView>
@@ -228,7 +212,7 @@ export default function Workouts() {
             style={styles.searchResultItem}
             onPress={() => {
                 router.push(`/view-workout/${item.id}`);
-                setSearchQuery(''); // Clear search and hide overlay
+                setSearchQuery('');
             }}
         >
             <Image
@@ -320,13 +304,13 @@ export default function Workouts() {
                     <Text style={styles.placeholderText}>No trending workouts available.</Text>
                 ) : (
                     <View style={styles.trendingWorkoutsVerticalList}>
-                        {trendingWorkouts.map((item) => ( // Using original trendingWorkouts list
+                        {trendingWorkouts.map((item) => ( 
                             <TouchableOpacity 
                                 key={item.id}
                                 style={styles.trendingWorkoutsButton}
                                 onPress={() => {
                                     router.push(`/view-workout/${item.id}`);
-                                    setSearchQuery(''); // Clear search
+                                    setSearchQuery(''); 
                                 }}
                             >
                                 <Image 
@@ -407,8 +391,8 @@ const styles = StyleSheet.create({
         marginLeft: 10,
     },
     searchResultsContainer: {
-        flex: 1, // Take up remaining space below search bar
-        backgroundColor: 'black', // Or your app's main background
+        flex: 1, 
+        backgroundColor: 'black', 
     },
     searchResultsList: {
         paddingHorizontal: 10,
@@ -420,14 +404,14 @@ const styles = StyleSheet.create({
         paddingVertical: 12,
         paddingHorizontal: 5,
         borderBottomWidth: 1,
-        borderBottomColor: '#2C2C2E', // Darker separator
+        borderBottomColor: '#2C2C2E',
     },
     searchResultImage: {
         width: 50,
         height: 50,
         borderRadius: 8,
         marginRight: 12,
-        backgroundColor: '#333', // Placeholder
+        backgroundColor: '#333', 
     },
     searchResultTextContainer: {
         flex: 1,
@@ -439,19 +423,19 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
     },
     searchResultCreator: {
-        color: '#AEAEB2', // Lighter grey
+        color: '#AEAEB2', 
         fontSize: 13,
         marginTop: 2,
     },
-    placeholderText: { // Re-used for no search results
+    placeholderText: { 
         color: 'grey',
         textAlign: 'center',
         marginVertical: 20,
         marginHorizontal: 10,
         fontSize: 14,
-        flex: 1, // To center in searchResultsContainer if it's the only child
-        justifyContent: 'center', // To center vertically
-        alignItems: 'center', // To center horizontally
+        flex: 1, 
+        justifyContent: 'center', 
+        alignItems: 'center',
     },
     listLoadingIndicator: {
         marginVertical: 20,

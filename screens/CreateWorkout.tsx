@@ -9,7 +9,9 @@ import {
   Image,
   Alert,
   Switch,
-  ActivityIndicator
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import globalStyles from '@/styles/globalStyles';
@@ -268,6 +270,7 @@ export default function CreateWorkout() {
 
       <ScrollView 
         style={styles.scrollView}
+        contentContainerStyle={{ paddingBottom: 200 }}
         ref={scrollViewRef}
         showsVerticalScrollIndicator={false}
       >
@@ -468,7 +471,7 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
-    backgroundColor: 'black',
+    backgroundColor: 'black'
   },
   imageContainer: {
     width: '80%',
