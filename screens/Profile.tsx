@@ -5,6 +5,7 @@ import { useProfileData, GroupedMilestones, Milestone } from '@/hooks/useProfile
 import { useAuth } from '@/context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import { formatCount } from '@/logic/formattingFunctions';
+import { BOTTOM_BAR_HEIGHT } from '@/styles/globalStyles';
 
 // Import archetype icons
 const archetypeIcons = {
@@ -153,10 +154,10 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
     });
   }, [router]);
 
-  const renderWorkoutListItem = (item: any, index: number) => ( // Use 'any' or a proper WorkoutItemData type
+  const renderWorkoutListItem = (item: any, index: number) => ( 
     <TouchableOpacity 
         key={item.id || index} 
-        style={styles.workoutItem}
+        style={styles.workoutItem} 
         onPress={() => router.push(`/view-workout/${item.id}`)}
     >
         <Image 
@@ -290,10 +291,17 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
   }, [groupedMilestones, refreshing, handleMilestonePress, onRefresh]);
   
   const renderWorkoutsContent = useCallback(() => {
+    if (loadingWorkouts && (!workouts || workouts.length === 0)) { // Check loadingWorkouts as well
+        return (
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20, minHeight: 200 }}>
+            <ActivityIndicator size="large" color="white" />
+          </View>
+        );
+    }
     if (!workouts || workouts.length === 0) {
       return (
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20, minHeight: 200 }}>
-          <Text style={{ color: 'gray', textAlign: 'center' }}>No workouts yet. Create a workout to see it here.</Text>
+          <Text style={{ color: 'gray', textAlign: 'center' }}>No workouts yet. Create or save a workout to see it here.</Text>
            <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
@@ -307,39 +315,51 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
     // Sort workouts by creation date, newest first
     const sortedWorkoutsData = [...workouts].sort((a, b) => {
       try {
-        const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(0);
-        const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(0);
+        // Assuming createdAt can be a Firestore Timestamp or a string/number date
+        const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0);
+        const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0);
         return dateB.getTime() - dateA.getTime();
       } catch (error) { return 0; }
     });
+
     return (
       <FlatList
-        key="workouts-grid"
+        key="workouts-list-single-column" // Changed key for clarity
         data={sortedWorkoutsData}
         renderItem={({ item }) => {
-          let formattedDate = "No date available";
+          let formattedDate = "Date N/A";
           try {
-            if (item.createdAt && item.createdAt.toDate) {
-              const workoutDate = item.createdAt.toDate();
-              formattedDate = workoutDate.toLocaleString('default', { month: 'long', day: 'numeric', year: 'numeric' });
-            } else if (item.createdAt) { 
-              const workoutDate = new Date(item.createdAt);
-              formattedDate = workoutDate.toLocaleString('default', { month: 'long', day: 'numeric', year: 'numeric' });
+            if (item.createdAt) {
+              const workoutDate = item.createdAt?.toDate ? item.createdAt.toDate() : new Date(item.createdAt);
+              formattedDate = workoutDate.toLocaleDateString('en-US', { // More standard date format
+                year: 'numeric', 
+                month: 'short', 
+                day: 'numeric' 
+              });
             }
-          } catch (error) { formattedDate = "Invalid date"; }
+          } catch (error) { formattedDate = "Invalid Date"; }
+          
           return (
-            <TouchableOpacity key={item.id} onPress={() => handleWorkoutPress(item.id)} style={styles.workoutItem}>
-              <View style={styles.workoutDetail}>
-                <Text style={styles.workoutName}>{item.title || 'Unnamed Workout'}</Text>
-                <Text style={styles.workoutDate}>{formattedDate}</Text>
-                <Text style={styles.workoutFavorites}>{item.savedCount || 0} Favorites</Text>
+            <TouchableOpacity 
+              key={item.id} 
+              onPress={() => handleWorkoutPress(item.id)} 
+              style={styles.workoutListItemRowStyle} // Use a new or adapted style for list items
+            >
+              <Image 
+                source={item.coverImageUrl ? { uri: item.coverImageUrl } : require('@/assets/images/default_workout_cover.png')} 
+                style={styles.workoutListItemImageStyle} 
+              />
+              <View style={styles.workoutListItemTextContainerStyle}>
+                <Text style={styles.workoutListItemTitleStyle} numberOfLines={2}>{item.title || 'Unnamed Workout'}</Text>
+                <Text style={styles.workoutListItemMetaStyle}>{formattedDate}</Text>
+                <Text style={styles.workoutListItemMetaStyle}>{item.savedCount || 0} saves</Text>
               </View>
             </TouchableOpacity>
           );
         }}
         keyExtractor={(item) => item.id.toString()}
-        numColumns={3} 
-        contentContainerStyle={styles.workoutsList}
+        // numColumns={1} // Default is 1, so this can be omitted
+        contentContainerStyle={styles.workoutsListSingleColumn} // Adjusted style for list container
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -352,7 +372,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
         }
       />
     );
-  }, [workouts, refreshing, handleWorkoutPress, onRefresh]);
+  }, [workouts, refreshing, handleWorkoutPress, onRefresh, loadingWorkouts]);
 
   const postsTabComponent = useMemo(() => renderPostsContent(), [renderPostsContent]);
   const milestonesTabComponent = useMemo(() => renderMilestonesContent(), [renderMilestonesContent]);
@@ -621,34 +641,6 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     fontSize: 14,
   },
-  workoutItem: {
-    flexDirection: 'row',
-    backgroundColor: '#222',
-    borderRadius: 10,
-    padding: 10,
-    marginBottom: 10,
-    alignItems: 'center',
-  },
-  workoutItemImage: {
-    width: 60,
-    height: 60,
-    borderRadius: 8,
-    marginRight: 10,
-    backgroundColor: '#333',
-  },
-  workoutItemTextContainer: {
-    flex: 1,
-  },
-  workoutItemTitle: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  workoutItemCreator: {
-    color: '#aaa',
-    fontSize: 12,
-    marginTop: 2,
-  },
   profileHeader: {
     alignItems: 'center',
     padding: 20,
@@ -723,6 +715,7 @@ const styles = StyleSheet.create({
   tabContent: {
     flex: 1,
     backgroundColor: 'black',
+    marginBottom: BOTTOM_BAR_HEIGHT
   },
   postsContainer: {
     padding: 0,
@@ -774,29 +767,71 @@ const styles = StyleSheet.create({
     backgroundColor: 'black',
     marginTop: 10
   },
-  workoutDetail: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(50, 50, 50, 0.5)',
-    paddingVertical: 10,
-    paddingHorizontal: 5,
-  },
-  workoutName: {
-    fontWeight: 'bold',
-    color: 'white',
-    fontSize: 12,
-    marginBottom: 3,
-  },
-  workoutDate: {
-    color: '#D0D0D0',
-    fontSize: 10,
-  },
-  workoutFavorites: {
-    color: '#D0D0D0',
-    fontSize: 10,
-  },
   workoutsList: {
     padding: 10,
+  },
+  workoutItem: {
+    flexDirection: 'row',
+    backgroundColor: '#222',
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 10,
+    alignItems: 'center',
+  },
+  workoutItemImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+    marginRight: 10,
+    backgroundColor: '#333',
+  },
+  workoutItemTextContainer: {
+    flex: 1,
+  },
+  workoutItemTitle: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  workoutItemCreator: {
+    color: '#aaa',
+    fontSize: 12,
+    marginTop: 2,
+  },
+  workoutsListSingleColumn: {
+    paddingVertical: 10, // Add vertical padding if needed
+    paddingHorizontal: 5, // Horizontal padding for the list container
+  },
+  workoutListItemRowStyle: {
+    flexDirection: 'row',
+    backgroundColor: '#1C1C1E', // Slightly different background for differentiation
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+    alignItems: 'center', // Align image and text block vertically
+    marginHorizontal: 10, // Add horizontal margin to each item
+  },
+  workoutListItemImageStyle: {
+    width: 70, // Slightly larger image
+    height: 70,
+    borderRadius: 6,
+    marginRight: 12,
+    backgroundColor: '#333', // Placeholder
+  },
+  workoutListItemTextContainerStyle: {
+    flex: 1, // Take remaining space
+    justifyContent: 'center',
+  },
+  workoutListItemTitleStyle: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  workoutListItemMetaStyle: {
+    color: '#AEAEB2', // A light grey for meta text
+    fontSize: 13,
+    marginBottom: 2,
   },
   archetypeContainer: {
     backgroundColor: '#212121',
@@ -911,6 +946,18 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 13, 
     fontWeight: '600',
+  },
+  retryButton: {
+    backgroundColor: '#007AFF',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    marginTop: 15,
+  },
+  retryText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });
 

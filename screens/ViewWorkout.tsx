@@ -459,9 +459,8 @@ const styles = StyleSheet.create({
   },
   workoutReps: { 
     color: '#b7b7b7', 
-    // fontWeight: 'bold', // Can be normal weight
-    fontSize: 14, // Adjusted size
-    marginLeft: 8 // Space before reps
+    fontSize: 14, 
+    marginLeft: 8 
   },
   divider: { 
     height: 1, 

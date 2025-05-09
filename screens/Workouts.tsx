@@ -474,7 +474,6 @@ const styles = StyleSheet.create({
         paddingVertical: 10,
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginTop: 10, 
     },
     createWorkoutButton: {
         backgroundColor: '#ff2d55', 
