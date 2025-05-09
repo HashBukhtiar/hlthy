@@ -274,181 +274,64 @@ export default function MilestonesFeed() {
   };
 
   const renderMilestoneCard = (item: Milestone) => {
-    // Top 5% has priority over pinned status
+    // Determine the styling based on milestone status
+    let CardWrapper = View;
+    let wrapperStyle = styles.milestoneCard;
+    let innerContent = null;
+    
     if (item.top5Percent) {
-      return (
-        <View style={styles.gradientWrapper}>
-          <LinearGradient
-            colors={['#B16CEA', '#FF5E69', '#FF8A56', '#FFA84B']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.gradientBorder}
-          >
-            <View style={styles.gradientInnerContainer}>
-              {/* Milestone Card Header */}
-              <TouchableOpacity 
-                activeOpacity={0.9}
-                onPress={() => navigateToMilestone(item.id)}
-              >
-                <View style={styles.milestoneHeader}>
-                  <View style={styles.milestoneIconContainer}>
-                    <TouchableOpacity onPress={() => navigateToProfile(item.userId)}>
-                      <Image 
-                        source={{ uri: item.profileImageUrl }} 
-                        style={styles.profilePic}
-                      />
-                    </TouchableOpacity>
-                  </View>
-                  <View style={styles.milestoneTitleContainer}>
-                    <Text style={styles.milestoneType}>
-                      {item.fullName}
-                    </Text>
-                    <Text style={styles.milestoneDate}>
-                      {formatTimeAgo(item.createdAt)}
-                      <Text style={{color: '#FF5E69'}}> • Top 5%</Text>
-                    </Text>
-                  </View>
-                  
-                  {/* Post Preview (if available) */}
-                  {item.postImageUrl && (
-                    <TouchableOpacity 
-                      style={styles.postPreviewContainer}
-                      onPress={() => navigateToPost(item.associatedPostId || '')}
-                      activeOpacity={0.9}
-                    >
-                      <Image 
-                        source={{ uri: item.postImageUrl }} 
-                        style={styles.postPreviewImage} 
-                      />
-                      <View style={styles.postPreviewOverlay}>
-                        <Ionicons name="camera" size={12} color="#FFF" />
-                      </View>
-                    </TouchableOpacity>
-                  )}
-                </View>
-                
-                {/* Milestone Details */}
-                {renderMilestoneDetails(item)}
-              </TouchableOpacity>
-              
-              {/* Like and Share */}
-              <View style={styles.cardFooter}>
-                <TouchableOpacity 
-                  style={styles.footerButton}
-                  onPress={() => handleLike(item.id)}
-                >
-                  <Ionicons 
-                    name={item.isLiked ? "heart" : "heart-outline"} 
-                    size={20} 
-                    color={item.isLiked ? "#FF69B4" : "#FFF"} 
-                  />
-                  <Text style={styles.footerButtonText}>
-                    {item.stats.likes > 0 
-                      ? `${item.stats.likes}` 
-                      : "Like"}
-                  </Text>
-                </TouchableOpacity>
-                
-                <TouchableOpacity 
-                  style={styles.footerButton}
-                  onPress={() => handleShare(item)}
-                >
-                  <Ionicons name="paper-plane-outline" size={20} color="#FFF" />
-                  <Text style={styles.footerButtonText}>Share</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </LinearGradient>
+      // Top 5% milestone with gradient border
+      CardWrapper = LinearGradient;
+      wrapperStyle = styles.gradientBorder;
+      innerContent = (
+        <View style={styles.gradientInnerContainer}>
+          {renderCardContent(item, true, 'Top 5%', '#FFA84B')}
         </View>
       );
     } else if (item.pinned) {
-      // Only apply pinned styles if not top5Percent
+      // Pinned milestone 
+      wrapperStyle = styles.pinnedBorder;
+      innerContent = (
+        <View style={styles.pinnedInnerContainer}>
+          {renderCardContent(item, true, 'Pinned', '#FF5E69')}
+        </View>
+      );
+    } else {
+      // Regular milestone
+      innerContent = renderCardContent(item);
+    }
+    
+    // Render the appropriate card with gradient if top 5%
+    if (item.top5Percent) {
       return (
-        <View style={styles.pinnedWrapper}>
-          <View style={styles.pinnedBorder}>
-            <View style={styles.pinnedInnerContainer}>
-              {/* Milestone Card Header */}
-              <TouchableOpacity 
-                activeOpacity={0.9}
-                onPress={() => navigateToMilestone(item.id)}
-              >
-                <View style={styles.milestoneHeader}>
-                  <View style={styles.milestoneIconContainer}>
-                    <TouchableOpacity onPress={() => navigateToProfile(item.userId)}>
-                      <Image 
-                        source={{ uri: item.profileImageUrl }} 
-                        style={styles.profilePic}
-                      />
-                    </TouchableOpacity>
-                  </View>
-                  <View style={styles.milestoneTitleContainer}>
-                    <Text style={styles.milestoneType}>
-                      {item.fullName}
-                    </Text>
-                    <Text style={styles.milestoneDate}>
-                      {formatTimeAgo(item.createdAt)}
-                      <Text style={{color: '#FF5E69'}}> • Pinned</Text>
-                    </Text>
-                  </View>
-                  
-                  {/* Post Preview (if available) */}
-                  {item.postImageUrl && (
-                    <TouchableOpacity 
-                      style={styles.postPreviewContainer}
-                      onPress={() => navigateToPost(item.associatedPostId || '')}
-                      activeOpacity={0.9}
-                    >
-                      <Image 
-                        source={{ uri: item.postImageUrl }} 
-                        style={styles.postPreviewImage} 
-                      />
-                      <View style={styles.postPreviewOverlay}>
-                        <Ionicons name="camera" size={12} color="#FFF" />
-                      </View>
-                    </TouchableOpacity>
-                  )}
-                </View>
-                
-                {/* Milestone Details */}
-                {renderMilestoneDetails(item)}
-              </TouchableOpacity>
-              
-              {/* Like and Share */}
-              <View style={styles.cardFooter}>
-                <TouchableOpacity 
-                  style={styles.footerButton}
-                  onPress={() => handleLike(item.id)}
-                >
-                  <Ionicons 
-                    name={item.isLiked ? "heart" : "heart-outline"} 
-                    size={20} 
-                    color={item.isLiked ? "#FF69B4" : "#FFF"} 
-                  />
-                  <Text style={[styles.footerButtonText, { color: item.isLiked ? 'pink' : 'white' }]}>
-                    {item.stats.likes > 0 
-                      ? `${item.stats.likes}` 
-                      : "Like"}
-                  </Text>
-                </TouchableOpacity>
-                
-                <TouchableOpacity 
-                  style={styles.footerButton}
-                  onPress={() => handleShare(item)}
-                >
-                  <Ionicons name="paper-plane-outline" size={20} color="#FFF" />
-                  <Text style={styles.footerButtonText}>Share</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
+        <View style={styles.gradientWrapper}>
+          <CardWrapper
+            colors={['#B16CEA', '#FF5E69', '#FF8A56', '#FFA84B']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={wrapperStyle}
+          >
+            {innerContent}
+          </CardWrapper>
         </View>
       );
     }
     
-    // Regular non-pinned, non-top5 milestone card
+    // For pinned or regular milestones
     return (
-      <View style={styles.milestoneCard}>
-        {/* Milestone Card Header */}
+      <View style={item.pinned ? styles.pinnedWrapper : null}>
+        <View style={wrapperStyle}>
+          {innerContent}
+        </View>
+      </View>
+    );
+  };
+
+  // Helper function to render the card content
+  const renderCardContent = (item: Milestone, hasStatus = false, statusText = '', statusColor = '') => {
+    return (
+      <>
+        {/* Milestone Card Header and Details */}
         <TouchableOpacity 
           activeOpacity={0.9}
           onPress={() => navigateToMilestone(item.id)}
@@ -466,7 +349,10 @@ export default function MilestonesFeed() {
               <Text style={styles.milestoneType}>
                 {item.fullName}
               </Text>
-              <Text style={styles.milestoneDate}>{formatTimeAgo(item.createdAt)}</Text>
+              <Text style={styles.milestoneDate}>
+                {formatTimeAgo(item.createdAt)}
+                {hasStatus && <Text style={{color: statusColor}}> • {statusText}</Text>}
+              </Text>
             </View>
             
             {/* Post Preview (if available) */}
@@ -517,7 +403,7 @@ export default function MilestonesFeed() {
             <Text style={styles.footerButtonText}>Share</Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </>
     );
   };
 
@@ -770,9 +656,6 @@ const styles = StyleSheet.create({
     marginRight: 12,
     backgroundColor: 'transparent',
     flex: 1,
-  },
-  activeFooterButton: {
-    backgroundColor: 'transparent',
   },
   footerButtonText: {
     color: '#fff',
