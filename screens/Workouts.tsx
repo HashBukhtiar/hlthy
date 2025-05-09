@@ -340,7 +340,7 @@ export default function Workouts() {
         return (
             <View>
                 <View style={styles.myWorkoutsHeaderView}>
-                    <Text style={styles.workoutsHeaders}>Workouts From People You Follow</Text>
+                    <Text style={styles.workoutsHeaders}>Workouts By People You Follow</Text>
                 </View>
                 {loadingFollowingWorkouts && followingWorkouts.length === 0 ? (
                     <ActivityIndicator style={styles.listLoadingIndicator} size="small" color="white" />
