@@ -218,7 +218,7 @@ export default function ViewWorkout() {
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           {currentUser && workoutData.creatorId === currentUser.uid && (
             <>
-              <TouchableOpacity onPress={() => {/* TODO: Implement Edit Workout */}} style={styles.menuButton}>
+              <TouchableOpacity onPress={() => router.push(`/edit-workout/${workoutId}`)} style={styles.menuButton}>
                 <Ionicons name="pencil" size={20} color="white" />
               </TouchableOpacity>
               <TouchableOpacity onPress={() => {
