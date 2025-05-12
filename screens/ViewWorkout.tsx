@@ -257,9 +257,9 @@ export default function ViewWorkout() {
                 <ActivityIndicator size="small" color="white" />
               ) : (
                 <Ionicons
-                  name={isFavorited ? "heart" : "heart-outline"}
+                  name={isFavorited ? "bookmark" : "bookmark-outline"}
                   size={20}
-                  color={isFavorited ? "#ff2d55" : "white"}
+                  color="white"
                 />
               )}
             </View>
@@ -267,15 +267,19 @@ export default function ViewWorkout() {
         </View>
       </View>
       
-      <Image
-        source={workoutData.coverImageUrl ? { uri: workoutData.coverImageUrl } : require('@/assets/images/default_workout_cover.png')}
-        style={[styles.workoutImage, { height: calculatedImageHeight }]} 
-        resizeMode="cover" 
-      />
+      <View style={styles.imageContainer}>
+        <Image
+          source={workoutData.coverImageUrl ? { uri: workoutData.coverImageUrl } : require('@/assets/images/default_workout_cover.png')}
+          style={styles.workoutImage} 
+          resizeMode="cover" 
+        />
+      </View>
       
-      <Text style={styles.workoutTitle}>{workoutData.title}</Text>
-      <Text style={styles.creatorName}>by {workoutData.creatorUsername}</Text>
-      <Text style={styles.workoutLength}>{displayWorkoutLength} • {workoutData.savedCount} saves</Text>
+      <View style={styles.workoutInfoContainer}>
+        <Text style={styles.workoutTitle}>{workoutData.title}</Text>
+        <Text style={styles.creatorName}>by {workoutData.creatorUsername}</Text>
+        <Text style={styles.workoutLength}>{displayWorkoutLength} • {workoutData.savedCount} saves</Text>
+      </View>
 
       {workoutData.description && (
         <>
@@ -374,32 +378,42 @@ const styles = StyleSheet.create({
     justifyContent: 'center', 
     alignItems: 'center' 
   },
+  imageContainer: {
+    alignItems: 'center',
+    marginTop: 20,
+    paddingHorizontal: 15,
+  },
   workoutImage: { 
-    width: '100%',
-    marginTop: 0,
+    width: '60%',
+    aspectRatio: 1,
+    borderRadius: 20,
+    borderWidth: 0.5,
+    borderColor: '#444',
+  },
+  workoutInfoContainer: {
+    alignItems: 'center',
+    paddingHorizontal: 15,
+    marginTop: 15,
+    marginBottom: 10,
   },
   workoutTitle: { 
     color: '#ffffff', 
-    fontSize: 26,
+    fontSize: 24,
     fontWeight: 'bold', 
-    
-    marginTop: 20,
-    paddingHorizontal: 20,
+    textAlign: 'center',
   },
   creatorName: { 
     color: '#b7b7b7', 
     fontSize: 16,
-    
     marginTop: 5,
-    paddingHorizontal: 20,
+    textAlign: 'center',
   },
   workoutLength: { 
     color: '#888888',
     fontSize: 14, 
-    
     marginTop: 7,
-    paddingHorizontal: 20,
-    marginBottom: 20,
+    textAlign: 'center',
+    marginBottom: 10,
   },
   segmentHeader: { 
     flexDirection: 'row', 
