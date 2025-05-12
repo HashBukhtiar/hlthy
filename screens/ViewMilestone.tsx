@@ -81,7 +81,7 @@ export default function ViewMilestone() {
           associatedPostId: 'post1',
           postImageUrl: 'https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
           pinned: true,
-          top5Percent: false
+          top5Percent: true
         };
         setMilestone(milestoneData);
         setIsPinned(milestoneData.pinned);
@@ -110,7 +110,7 @@ export default function ViewMilestone() {
           isLiked: true,
           associatedPostId: 'post2',
           pinned: false,
-          top5Percent: true
+          top5Percent: false
         };
         setMilestone(milestoneData);
         setIsPinned(milestoneData.pinned);
@@ -138,7 +138,7 @@ export default function ViewMilestone() {
           isLiked: true,
           associatedPostId: 'post3',
           postImageUrl: 'https://images.unsplash.com/photo-1535743686920-55e4145369b9?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
-          pinned: false,
+          pinned: true,
           top5Percent: false
         };
         setMilestone(milestoneData);
@@ -428,28 +428,30 @@ export default function ViewMilestone() {
               </View>
             </LinearGradient>
           ) : isPinned ? (
-            <View style={styles.pinnedContainer}>
-              <View style={styles.milestoneHeader}>
-                <View style={styles.milestoneIconContainer}>
-                  {milestone.milestoneType === 'PR' ? (
-                    <Ionicons name="barbell-outline" size={32} color="#FFF" style={styles.milestoneIcon} />
-                  ) : (
-                    <Ionicons name="fitness-outline" size={32} color="#FFF" style={styles.milestoneIcon} />
-                  )}
+            <View style={styles.pinnedBorder}>
+              <View style={styles.pinnedInnerContainer}>
+                <View style={styles.milestoneHeader}>
+                  <View style={styles.milestoneIconContainer}>
+                    {milestone.milestoneType === 'PR' ? (
+                      <Ionicons name="barbell-outline" size={32} color="#FFF" style={styles.milestoneIcon} />
+                    ) : (
+                      <Ionicons name="fitness-outline" size={32} color="#FFF" style={styles.milestoneIcon} />
+                    )}
+                  </View>
+                  <View style={styles.milestoneTitleContainer}>
+                    <Text style={styles.milestoneType}>
+                      {milestone.milestoneType === 'PR' ? 'Personal Record' : 
+                       milestone.milestoneType === 'weightLoss' ? 'Weight Loss' : 'Weight Gain'}
+                    </Text>
+                    <Text style={styles.milestoneDate}>
+                      {milestone.createdAt.toDateString()}
+                      <Text style={{color: '#FF5E69'}}> • Pinned</Text>
+                    </Text>
+                  </View>
                 </View>
-                <View style={styles.milestoneTitleContainer}>
-                  <Text style={styles.milestoneType}>
-                    {milestone.milestoneType === 'PR' ? 'Personal Record' : 
-                     milestone.milestoneType === 'weightLoss' ? 'Weight Loss' : 'Weight Gain'}
-                  </Text>
-                  <Text style={styles.milestoneDate}>
-                    {milestone.createdAt.toDateString()}
-                    <Text style={{color: '#FF5E69'}}> • Pinned</Text>
-                  </Text>
-                </View>
+                
+                {renderMilestoneDetails()}
               </View>
-              
-              {renderMilestoneDetails()}
             </View>
           ) : (
             <>
@@ -577,12 +579,16 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#333',
   },
-  pinnedContainer: {
-    backgroundColor: '#1A1A1A',
+  pinnedBorder: {
+    padding: 2,
     borderRadius: 12,
-    overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#333',
+    borderColor: '#FF5E69',
+  },
+  pinnedInnerContainer: {
+    backgroundColor: '#1A1A1A',
+    borderRadius: 10,
+    overflow: 'hidden',
   },
   gradientBorder: {
     padding: 2,
