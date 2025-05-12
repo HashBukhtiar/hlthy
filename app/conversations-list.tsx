@@ -89,7 +89,7 @@ export default function ConversationsListScreen() {
             style={styles.itemContainer} 
             onPress={() => {
                 if (item.isPinnedAI) {
-                    router.push('/(tabs)/ai');
+                    router.push('/dms');
                 } else {
                     router.push(`/chat/${item.id}`);
                 }
