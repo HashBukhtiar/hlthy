@@ -49,8 +49,6 @@ export default function ViewWorkout() {
   const [error, setError] = useState<string | null>(null);
   const [isFavorited, setIsFavorited] = useState(false);
   const [favoriteLoading, setFavoriteLoading] = useState(false);
-  const [calculatedImageHeight, setCalculatedImageHeight] = useState<number>(200);
-
 
   useEffect(() => {
     const fetchWorkout = async () => {
@@ -70,31 +68,6 @@ export default function ViewWorkout() {
           const data = workoutDocSnap.data() as Omit<WorkoutData, 'id'>;
           const fullWorkoutData = { id: workoutDocSnap.id, ...data };
           setWorkoutData(fullWorkoutData);
-
-          // Get image dimensions after workoutData is set
-          if (fullWorkoutData.coverImageUrl) {
-            Image.getSize(
-              fullWorkoutData.coverImageUrl,
-              (width, height) => {
-                const screenWidth = Dimensions.get('window').width;
-                setCalculatedImageHeight(screenWidth * (height / width));
-              },
-              (err) => {
-                console.error("Failed to get network image size:", err);
-                setCalculatedImageHeight(200); // Fallback height on error
-              }
-            );
-          } else {
-            // Handle local default image
-            const localImageSource = Image.resolveAssetSource(require('@/assets/images/default_workout_cover.png'));
-            if (localImageSource) {
-              const screenWidth = Dimensions.get('window').width;
-              setCalculatedImageHeight(screenWidth * (localImageSource.height / localImageSource.width));
-            } else {
-              setCalculatedImageHeight(200); // Fallback for local image
-            }
-          }
-
           if (currentUser) {
             const favoriteDocRef = doc(db, `users/${currentUser.uid}/savedWorkouts`, workoutId);
             const favoriteDocSnap = await getDoc(favoriteDocRef);
@@ -270,7 +243,7 @@ export default function ViewWorkout() {
       <View style={styles.imageContainer}>
         <Image
           source={workoutData.coverImageUrl ? { uri: workoutData.coverImageUrl } : require('@/assets/images/default_workout_cover.png')}
-          style={styles.workoutImage} 
+          style={styles.workoutImage}
           resizeMode="cover" 
         />
       </View>
@@ -384,6 +357,7 @@ const styles = StyleSheet.create({
   },
   workoutImage: { 
     width: '60%',
+    height: undefined,
     aspectRatio: 1,
     borderRadius: 20,
     borderWidth: 0.5,
