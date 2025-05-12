@@ -372,9 +372,7 @@ export default function ViewMilestone() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      <ScrollView 
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollViewContent}>
+      <View style={[styles.fixedHeader, { paddingTop: insets.top }]}>
         <View style={styles.userSection}>
           <TouchableOpacity 
             style={styles.userInfoContainer}
@@ -388,6 +386,14 @@ export default function ViewMilestone() {
           </TouchableOpacity>
           <Text style={styles.timestamp}>{formatTimeAgo(milestone.createdAt)}</Text>
         </View>
+      </View>
+
+      {/* Scrollable content */}
+      <ScrollView 
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollViewContent}>
+        
+        <View style={[styles.headerSpacer, { height: insets.top }]} />
         
         <View style={styles.milestoneCard}>
           {isTop5Percent ? (
@@ -521,12 +527,23 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#000',
   },
+  fixedHeader: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#000',
+    zIndex: 1,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+  },
+  headerSpacer: {
+    height: 80,
+  },
   userSection: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingBottom: 20,
   },
   userInfoContainer: {
     flexDirection: 'row',
@@ -685,9 +702,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
     paddingVertical: 20,
     paddingHorizontal: 15,
-    borderTopWidth: 1,
-    borderTopColor: '#222',
-    marginTop: 20,
     marginBottom: 30,
   },
   actionButton: {
