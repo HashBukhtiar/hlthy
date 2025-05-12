@@ -13,10 +13,15 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import globalStyles from '@/styles/globalStyles';
+import { db } from '@/firebaseConfig';
+import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, Timestamp } from 'firebase/firestore';
+import { useAuth } from '@/context/AuthContext';
 
-// Assuming sendMessage function exists in this file path
-// You may need to adjust the import path based on your actual project structure
-import { sendMessage } from '@/ai/ai_chat';
+interface FirestoreMessageData {
+  senderId: string;
+  text: string;
+  createdAt: Timestamp;
+}
 
 interface Message {
   id: string;
@@ -25,6 +30,11 @@ interface Message {
 }
 
 type Plan = 'Workout Plan' | 'Diet Plan' | 'Both Plans' | '';
+
+// Placeholder for the actual AI conversation ID and AI's sender ID
+// These would typically be fetched or defined in a config
+const AI_CONVERSATION_ID = "your_pinned_ai_conversation_id"; 
+const AI_SENDER_ID = "ai_system_sender_id";
 
 function TypingIndicator() {
   const [dots, setDots] = useState<string>('');
@@ -39,14 +49,9 @@ function TypingIndicator() {
   return <Text style={styles.typingAnimation}>{dots}</Text>;
 }
 
-export default function AI() {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
-      text: 'Hello! I am your AI Trainer. How can I help you today?',
-      user: 'ai',
-    },
-  ]);
+export default function DMs() {
+  const { currentUser } = useAuth();
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState<string>('');
   const [plan, setPlan] = useState<Plan>('');
   const [showDropdown, setShowDropdown] = useState<boolean>(false);
@@ -55,35 +60,63 @@ export default function AI() {
   const navigation = useNavigation();
   const flatListRef = useRef<FlatList | null>(null);
 
+  useEffect(() => {
+    if (!currentUser || !AI_CONVERSATION_ID) return;
+
+    // Listen for messages in the AI conversation
+    const messagesRef = collection(db, "conversations", AI_CONVERSATION_ID, "messages");
+    const q = query(messagesRef, orderBy("createdAt", "asc"));
+
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+      const fetchedMessages: Message[] = [];
+      let hasNewAIMessage = false;
+      querySnapshot.forEach((doc) => {
+        const data = doc.data() as FirestoreMessageData;
+        const message: Message = {
+          id: doc.id,
+          text: data.text,
+          user: data.senderId === currentUser.uid ? 'user' : (data.senderId === AI_SENDER_ID ? 'ai' : 'user'),
+          createdAt: data.createdAt?.toDate(),
+        };
+        fetchedMessages.push(message);
+        if (data.senderId === AI_SENDER_ID && (!messages.find(m => m.id === doc.id))) {
+            hasNewAIMessage = true;
+        }
+      });
+      setMessages(fetchedMessages);
+      if (hasNewAIMessage) {
+        setIsTyping(false); 
+      }
+    });
+
+    return () => unsubscribe();
+  }, [currentUser, messages]); 
+
+
+
   const handleSend = async () => {
     Keyboard.dismiss();
-    if (!input.trim()) return;
+    if (!input.trim() || !currentUser) return;
     
-    const newMessage: Message = {
-      id: Date.now().toString(),
-      text: input.trim(),
-      user: 'user',
-    };
-    
-    setMessages((prev) => [...prev, newMessage]);
-    setInput('');
+    const textToSend = input.trim();
+    setInput(''); // Clear input immediately
 
-    // Show typing indicator
-    setIsTyping(true);
+    // Add user's message to Firestore
     try {
-      const aiReply = await sendMessage(input.trim());
-      setIsTyping(false);
-      
-      const aiResponse: Message = {
-        id: (Date.now() + 1).toString(),
-        text: aiReply,
-        user: 'ai',
-      };
-      
-      setMessages((prev) => [...prev, aiResponse]);
+      const messagesRef = collection(db, "conversations", AI_CONVERSATION_ID, "messages");
+      await addDoc(messagesRef, {
+        senderId: currentUser.uid,
+        text: textToSend,
+        createdAt: serverTimestamp(),
+      });
+      // User message will appear via the onSnapshot listener.
+      // A Cloud Function listening to this collection would trigger the AI service.
+      // The AI's response would then be added to Firestore by that Cloud Function.
+      setIsTyping(true); // Assume AI starts "typing" after user sends a message
     } catch (error) {
-      setIsTyping(false);
-      console.error('Error calling AI:', error);
+      console.error('Error sending message to Firestore:', error);
+      // Optionally, re-add the input to the text field or show an error
+      // setInput(textToSend); 
     }
   };
 

@@ -152,22 +152,6 @@ This document outlines the proposed Firestore database structure for the Hlthy s
         *   `otherParticipantUsername`: String (Denormalized username of the other participant).
         *   `otherParticipantProfileImage`: String (Denormalized profile image of the other participant).
 
-### 8. `workouts`
-
-*   **Path:** `/workouts/{workoutId}`
-*   **Document ID:** Auto-generated (`workoutId`)
-*   **Purpose:** Stores workout templates created by users.
-*   **Fields:**
-    *   `creatorId`: String (`userId`)
-    *   `creatorUsername`: String (Denormalized)
-    *   `title`: String
-    *   `description`: String
-    *   `exercises`: Array<Map> (e.g., `{ exerciseId: 'ref', name: 'Bench Press', sets: 3, reps: '8-12' }`)
-    *   `createdAt`: Timestamp
-    *   `isPublic`: Boolean
-    *   `tags`: Array<String>
-    *   `savedCount`: Number (Denormalized)
-
 **Cloud Functions for DM System:**
 
 1.  **`onMessageCreate`:**
