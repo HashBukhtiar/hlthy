@@ -282,47 +282,44 @@ export default function ViewWorkout() {
       </View>
 
       {workoutData.description && (
-        <>
+        <View style={styles.descriptionContainer}>
           <Text style={styles.descriptionTitle}>Description</Text>
           <View style={styles.descriptionCard}>
             <Text style={styles.descriptionText}>{workoutData.description}</Text>
           </View>
-        </>
+        </View>
       )}
 
-      {workoutData.segments.map((segment, segmentIndex) => (
-        <View key={segment.id || segmentIndex} style={{ marginTop: segmentIndex === 0 ? 30 : 10 }}>
-          <View style={styles.segmentHeader}>
-            <Text style={styles.segmentName}>{segment.name}</Text>
-            <View style={styles.segmentInfo}>
-              <Text style={styles.segmentDetails}>{segment.exercises.length} exercises • {segment.length} mins</Text>
+      <View style={styles.segmentsContainer}>
+        {workoutData.segments.map((segment, segmentIndex) => (
+          <View key={segment.id || segmentIndex} style={[styles.segmentWrapper, segmentIndex === 0 ? styles.firstSegmentWrapper : null]}>
+            <View style={styles.segmentHeader}>
+              <Text style={styles.segmentName}>{segment.name}</Text>
+              <View style={styles.segmentInfo}>
+                <Text style={styles.segmentDetails}>{segment.exercises.length} exercises • {segment.length}</Text>
+              </View>
             </View>
-          </View>
-          
-          <View style={styles.segmentCard}>
-            {segment.exercises.map((exercise, index) => (
-              <View key={exercise.id || index}>
-                <View style={styles.workoutRow}>
-                  <View style={styles.workoutInfo}>
+            
+            <View style={styles.segmentCard}>
+              {segment.exercises.map((exercise, index) => (
+                <View key={exercise.id || index} style={styles.exerciseContainer}>
+                  <View style={styles.workoutRow}>
                     <View style={styles.workoutNumberCircle}>
                       <Text style={styles.workoutNumber}>{index + 1}</Text>
                     </View>
-                    <Text style={styles.workoutName}>{exercise.name}</Text>
-                    <Text style={styles.workoutReps}>({exercise.sets} × {exercise.reps})</Text>
+                    <View style={styles.exerciseDetails}>
+                      <Text style={styles.workoutName}>{exercise.name}</Text>
+                      <Text style={styles.workoutReps}>{exercise.sets} sets × {exercise.reps} reps</Text>
+                    </View>
                   </View>
-                  {/* Optional: More actions per exercise 
-                  <TouchableOpacity>
-                    <Ionicons name="ellipsis-horizontal" size={18} color="white" />
-                  </TouchableOpacity>
-                  */}
+                  {index < segment.exercises.length - 1 && <View style={styles.divider} />}
                 </View>
-                {index < segment.exercises.length - 1 && <View style={styles.divider} />}
-              </View>
-            ))}
+              ))}
+            </View>
           </View>
-        </View>
-      ))}
-      <View style={{ height: 80 }} />
+        ))}
+      </View>
+      <View style={styles.bottomPadding} />
     </ScrollView>
   );
 }
@@ -415,94 +412,129 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 10,
   },
+  segmentsContainer: {
+    marginTop: 25,
+  },
+  segmentWrapper: {
+    marginBottom: 25,
+    marginHorizontal: 20,
+  },
+  firstSegmentWrapper: {
+    marginTop: 5,
+  },
   segmentHeader: { 
     flexDirection: 'row', 
     justifyContent: 'space-between', 
     alignItems: 'center',
-    paddingHorizontal: 20, 
-    marginBottom: 5, 
+    marginBottom: 10,
+    paddingHorizontal: 5,
   },
   segmentName: { 
     color: '#ffffff', 
-    fontSize: 20,
-    fontWeight: 'bold' 
+    fontSize: 19,
+    fontWeight: 'bold',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   segmentInfo: { 
-    
-    
+    backgroundColor: 'rgba(80, 80, 80, 0.2)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
   },
   segmentDetails: { 
-    color: '#888888',
-    fontSize: 14 
+    color: '#b0b0b0',
+    fontSize: 14,
+    fontWeight: '500',
   },
   segmentCard: { 
     backgroundColor: '#1e1e1e',
-    borderRadius: 15,
-    marginTop: 10, 
-    marginHorizontal: 20, 
-    paddingVertical: 15, 
-    paddingHorizontal: 20, 
+    borderRadius: 18,
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    borderWidth: 1,
+    borderColor: '#2a2a2a',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  exerciseContainer: {
+    marginBottom: 4,
   },
   workoutRow: { 
     flexDirection: 'row', 
-    justifyContent: 'space-between', 
     alignItems: 'center', 
-    marginVertical: 8
-  },
-  workoutInfo: { 
-    flexDirection: 'row', 
-    alignItems: 'center',
-    flex: 1, 
+    paddingVertical: 12,
   },
   workoutNumberCircle: { 
-    width: 28, 
-    height: 28, 
-    borderRadius: 14, 
-    backgroundColor: '#444', 
+    width: 36, 
+    height: 36, 
+    borderRadius: 18, 
+    backgroundColor: '#ff2d55', 
     justifyContent: 'center', 
     alignItems: 'center', 
-    
-    marginRight: 12,
-    
+    marginRight: 15,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
   },
   workoutNumber: { 
-    fontSize: 14, 
-    color: '#e0e0e0', 
+    fontSize: 16, 
+    color: '#ffffff', 
     fontWeight: 'bold' 
   },
+  exerciseDetails: {
+    flex: 1,
+  },
   workoutName: { 
-    color: '#f3f3f3', 
+    color: '#ffffff', 
     fontWeight: 'bold', 
-    fontSize: 17, 
-   
-    flexShrink: 1, 
+    fontSize: 17,
+    marginBottom: 4,
   },
   workoutReps: { 
     color: '#b7b7b7', 
-    fontSize: 14, 
-    marginLeft: 8 
+    fontSize: 14,
   },
   divider: { 
     height: 1, 
-    backgroundColor: '#333', 
-    marginVertical: 10 
+    backgroundColor: '#2a2a2a', 
+    marginVertical: 6
+  },
+  descriptionContainer: {
+    marginTop: 10,
+    marginHorizontal: 20,
   },
   descriptionTitle: { 
-    color: '#c0c0c0', 
-    fontSize: 18, 
+    color: '#ffffff', 
+    fontSize: 19, 
     fontWeight: 'bold',
-    paddingHorizontal: 20, 
+    marginBottom: 10,
+    marginLeft: 5,
   },
   descriptionCard: { 
-    backgroundColor: '#1e1e1e', 
-    borderRadius: 15, 
-    marginTop: 10, 
-    marginHorizontal: 20, 
-    padding: 20 
+    backgroundColor: 'transparent', 
+    borderRadius: 18, 
+    paddingHorizontal: 5,
+    borderWidth: 0,
+    borderColor: 'transparent',
+    shadowColor: 'transparent',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    elevation: 0,
   },
   descriptionText: { 
-    color: '#b7b7b7', 
-    fontSize: 15,
-    lineHeight: 22, 
+    color: '#d0d0d0', 
+    fontSize: 16,
+    lineHeight: 24,
+    fontWeight: '400', 
+  },
+  bottomPadding: {
+    height: 80,
   },
 });
