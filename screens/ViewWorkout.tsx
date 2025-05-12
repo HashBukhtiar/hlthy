@@ -277,7 +277,9 @@ export default function ViewWorkout() {
       
       <View style={styles.workoutInfoContainer}>
         <Text style={styles.workoutTitle}>{workoutData.title}</Text>
-        <Text style={styles.creatorName}>by {workoutData.creatorUsername}</Text>
+        <TouchableOpacity onPress={() => router.push(`/profile/${workoutData.creatorId}`)}>
+          <Text style={[styles.creatorName, styles.clickableText]}>{workoutData.creatorUsername}</Text>
+        </TouchableOpacity>
         <Text style={styles.workoutLength}>{displayWorkoutLength} • {workoutData.savedCount} saves</Text>
       </View>
 
@@ -400,7 +402,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   creatorName: { 
-    color: '#b7b7b7', 
+    color: '#ff2d55',
     fontSize: 16,
     marginTop: 5,
     textAlign: 'center',
