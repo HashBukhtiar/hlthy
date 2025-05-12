@@ -25,7 +25,8 @@ interface ConversationMetadata {
 }
 
 interface CombinedConversationItem extends UserConversationData, ConversationMetadata {
-    id: string; 
+    id: string;
+    isPinnedAI?: boolean; // Add isPinnedAI property
 }
 
 interface UserData {
@@ -37,13 +38,7 @@ interface UserData {
 export default function DMs() {
     const { currentUser } = useAuth();
     const router = useRouter();
-    const [conversations, setConversations] = useState<CombinedConversationItem[]>([
-        {
-            id: 'ai_conversation',
-            isPinnedAI: true,
-            lastMessageText: 'Ask me anything!',
-        }
-    ]);
+    const [conversations, setConversations] = useState<CombinedConversationItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [isSearching, setIsSearching] = useState(false);
     const [searchText, setSearchText] = useState('');
@@ -87,17 +82,17 @@ export default function DMs() {
             });
 
             const fetchedConversations = (await Promise.all(combinedDataPromises))
-                                            .filter(conv => conv !== null) as CombinedConversationItem[];
-            
-            fetchedConversations.sort((a, b) => {
-                if (a.isPinnedAI && !b.isPinnedAI) return -1;
-                if (!a.isPinnedAI && b.isPinnedAI) return 1;
-                const timeA = a.lastMessageAt?.toDate().getTime() || 0;
-                const timeB = b.lastMessageAt?.toDate().getTime() || 0;
-                return timeB - timeA;
-            });
+                .filter(conv => conv !== null) as CombinedConversationItem[];
 
-            setConversations(fetchedConversations);
+            // Create AI conversation object
+            const aiConversation: CombinedConversationItem = {
+                id: 'ai_conversation',
+                isPinnedAI: true,
+                lastMessageText: 'Ask me anything!',
+            };
+
+            // Prepend AI conversation to the list
+            setConversations([aiConversation, ...fetchedConversations]);
         } catch (error) {
             console.error("Error fetching conversations: ", error);
         } finally {
@@ -199,9 +194,9 @@ export default function DMs() {
             console.error("Error starting conversation: ", error);
         } finally {
             setSearchLoading(false);
-            setIsSearching(false); 
+            setIsSearching(false);
             setSearchText('');
-            setSearchResults([]); 
+            setSearchResults([]);
         }
     }, [currentUser, router]);
 
@@ -211,19 +206,15 @@ export default function DMs() {
     };
 
     const renderItem = ({ item }: { item: CombinedConversationItem }) => (
-        <TouchableOpacity 
-            style={styles.itemContainer} 
+        <TouchableOpacity
+            style={styles.itemContainer}
             onPress={() => {
-                if (item.isPinnedAI) {
-                    router.push('/ai-chat');
-                } else {
-                    router.push(`/chat/${item.id}`);
-                }
+                router.push(`/chat/${item.id}`);
             }}
         >
-            <Image 
-                source={item.otherParticipantProfileImage ? { uri: item.otherParticipantProfileImage } : require('@/assets/images/profile-icon.png')} 
-                style={styles.profilePic} 
+            <Image
+                source={item.otherParticipantProfileImage ? { uri: item.otherParticipantProfileImage } : require('@/assets/images/profile-icon.png')}
+                style={styles.profilePic}
             />
             <View style={styles.textContainer}>
                 <Text style={styles.username}>{item.isPinnedAI ? "hlthy AI" : item.otherParticipantUsername || "Chat"}</Text>
@@ -247,59 +238,59 @@ export default function DMs() {
     );
 
     return (
-      <View style={{ flex: 1, backgroundColor: 'black' }}>
-        <View style={styles.header}>
-          <Text style={styles.headerText}>Messages</Text>
-          <TouchableOpacity style={styles.composeButton} onPress={handleComposePress}>
-            <Ionicons name="pencil-sharp" size={30} color="white" />
-          </TouchableOpacity>
+        <View style={{ flex: 1, backgroundColor: 'black' }}>
+            <View style={styles.header}>
+                <Text style={styles.headerText}>Messages</Text>
+                <TouchableOpacity style={styles.composeButton} onPress={handleComposePress}>
+                    <Ionicons name="pencil-sharp" size={30} color="white" />
+                </TouchableOpacity>
+            </View>
+            {isSearching ? (
+                <View style={styles.searchContainer}>
+                    <TextInput
+                        ref={searchInputRef}
+                        style={styles.searchInput}
+                        placeholder="Search for users..."
+                        placeholderTextColor="#888"
+                        value={searchText}
+                        onChangeText={setSearchText}
+                        onSubmitEditing={searchUsers}
+                    />
+                    <TouchableOpacity style={styles.cancelButton} onPress={() => {
+                        setIsSearching(false);
+                        setSearchText('');
+                        setSearchResults([]);
+                    }}>
+                        <Text style={styles.cancelButtonText}>Cancel</Text>
+                    </TouchableOpacity>
+                </View>
+            ) : null}
+            {loading ? (
+                <View style={styles.centered}><ActivityIndicator size="large" color="#fff" /></View>
+            ) : isSearching ? (
+                searchLoading ? (
+                    <View style={styles.centered}><ActivityIndicator size="large" color="#fff" /></View>
+                ) : searchResults.length === 0 ? (
+                    <View style={styles.centered}><Text style={styles.emptyText}>No users found.</Text></View>
+                ) : (
+                    <FlatList
+                        data={searchResults}
+                        renderItem={renderSearchItem}
+                        keyExtractor={(item) => item.id}
+                        style={{ backgroundColor: 'black' }}
+                    />
+                )
+            ) : conversations.length === 0 ? (
+                <View style={styles.centered}><Text style={styles.emptyText}>No conversations yet.</Text></View>
+            ) : (
+                <FlatList
+                    data={conversations}
+                    renderItem={renderItem}
+                    keyExtractor={(item) => item.id}
+                    style={{ backgroundColor: 'black' }}
+                />
+            )}
         </View>
-        {isSearching ? (
-          <View style={styles.searchContainer}>
-            <TextInput
-              ref={searchInputRef}
-              style={styles.searchInput}
-              placeholder="Search for users..."
-              placeholderTextColor="#888"
-              value={searchText}
-              onChangeText={setSearchText}
-              onSubmitEditing={searchUsers}
-            />
-            <TouchableOpacity style={styles.cancelButton} onPress={() => {
-              setIsSearching(false);
-              setSearchText('');
-              setSearchResults([]);
-            }}>
-              <Text style={styles.cancelButtonText}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        ) : null}
-        {loading ? (
-            <View style={styles.centered}><ActivityIndicator size="large" color="#fff" /></View>
-        ) : isSearching ? (
-          searchLoading ? (
-            <View style={styles.centered}><ActivityIndicator size="large" color="#fff" /></View>
-          ) : searchResults.length === 0 ? (
-            <View style={styles.centered}><Text style={styles.emptyText}>No users found.</Text></View>
-          ) : (
-            <FlatList
-              data={searchResults}
-              renderItem={renderSearchItem}
-              keyExtractor={(item) => item.id}
-              style={{ backgroundColor: 'black' }}
-            />
-          )
-        ) : conversations.length === 0 ? (
-          <View style={styles.centered}><Text style={styles.emptyText}>No conversations yet.</Text></View>
-        ) : (
-          <FlatList
-            data={conversations}
-            renderItem={renderItem}
-            keyExtractor={(item) => item.id}
-            style={{ backgroundColor: 'black' }}
-          />
-        )}
-      </View>
     );
 }
 
@@ -322,50 +313,50 @@ const styles = StyleSheet.create({
     composeButton: {
         padding: 5,
     },
-    itemContainer: { 
-      flexDirection: 'row', 
-      padding: 15, 
-      alignItems: 'center', 
-      borderBottomWidth: 1, 
-      borderBottomColor: '#333' 
+    itemContainer: {
+        flexDirection: 'row',
+        padding: 15,
+        alignItems: 'center',
+        borderBottomWidth: 1,
+        borderBottomColor: '#333'
 
     },
-    profilePic: { 
-      width: 50, 
-      height: 50, 
-      borderRadius: 25, 
-      marginRight: 15, 
-      backgroundColor: '#555' 
+    profilePic: {
+        width: 50,
+        height: 50,
+        borderRadius: 25,
+        marginRight: 15,
+        backgroundColor: '#555'
 
     },
     textContainer: { flex: 1 },
-    username: { 
-      fontWeight: 'bold',
-      color: 'white', 
-      fontSize: 16 
+    username: {
+        fontWeight: 'bold',
+        color: 'white',
+        fontSize: 16
 
     },
-    lastMessage: { 
-      color: 'gray', 
-      fontSize: 14 
+    lastMessage: {
+        color: 'gray',
+        fontSize: 14
 
     },
-    time: { 
-      fontSize: 12, 
-      color: 'gray', 
-      marginLeft: 5 
+    time: {
+        fontSize: 12,
+        color: 'gray',
+        marginLeft: 5
 
     },
-    centered: { 
-      flex: 1, 
-      justifyContent: 'center',
-       alignItems: 'center', 
-      backgroundColor: 'black' 
+    centered: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: 'black'
 
     },
-    emptyText: { 
-      color: 'gray', 
-      fontSize: 16 
+    emptyText: {
+        color: 'gray',
+        fontSize: 16
 
     },
     newConversationButton: {
