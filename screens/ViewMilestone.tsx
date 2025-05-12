@@ -348,7 +348,7 @@ export default function ViewMilestone() {
   if (loading) {
     return (
       <View style={[styles.container, { paddingTop: insets.top, justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color="#0A84FF" />
+        <ActivityIndicator size="large" color="#ff2d55" />
         <Text style={{ color: '#999', marginTop: 20 }}>Loading milestone...</Text>
       </View>
     );
@@ -487,7 +487,7 @@ export default function ViewMilestone() {
             <Image source={{ uri: milestone.postImageUrl }} style={styles.associatedPostImage} />
             <View style={styles.viewPostButton}>
               <Text style={styles.viewPostButtonText}>View Full Post</Text>
-              <Ionicons name="chevron-forward" size={16} color="#0A84FF" />
+              <Ionicons name="chevron-forward" size={16} color="#ff2d55" />
             </View>
           </TouchableOpacity>
         )}
@@ -693,7 +693,7 @@ const styles = StyleSheet.create({
     borderTopColor: '#333',
   },
   viewPostButtonText: {
-    color: '#0A84FF',
+    color: '#ff2d55',
     fontWeight: '500',
     marginRight: 5,
   },
