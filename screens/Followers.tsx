@@ -67,8 +67,8 @@ export default function Followers() {
     router.back();
   };
   
-  const handleUserPress = (userId) => {
-    router.push(`/profile/${userId}`);
+  const handleUserPress = (pressedUserId: string) => { 
+    router.push(`/profile/${pressedUserId}`);
   };
 
   if (loading) {

@@ -72,7 +72,7 @@ const globalStyles = StyleSheet.create({
   },
   contentContainer: {
     paddingBottom: BOTTOM_BAR_HEIGHT + 20,
-  } // contentContainer obj still being used ? maybe delete
+  }
 });
 
 export default globalStyles;
