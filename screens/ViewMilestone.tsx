@@ -372,17 +372,15 @@ export default function ViewMilestone() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollViewContent}>
         <View style={styles.header}>
           <TouchableOpacity 
             style={styles.backButton}
             onPress={() => router.back()}
           >
             <Ionicons name="arrow-back" size={24} color="#FFF" />
-          </TouchableOpacity>
-          
-          <TouchableOpacity onPress={handleShare} style={styles.shareButton}>
-            <Ionicons name="paper-plane-outline" size={22} color="#FFF" />
           </TouchableOpacity>
         </View>
 
@@ -540,14 +538,6 @@ const styles = StyleSheet.create({
     paddingVertical: 15,
   },
   backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  shareButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
@@ -768,5 +758,8 @@ const styles = StyleSheet.create({
   backButtonText: {
     color: 'white',
     fontWeight: '600',
+  },
+  scrollViewContent: {
+    paddingBottom: 70,
   },
 });
