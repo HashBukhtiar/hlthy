@@ -15,7 +15,7 @@ import {
   Image
 } from 'react-native';
 import { db } from '@/firebaseConfig';
-import { doc, getDoc, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, Timestamp } from 'firebase/firestore';
+import { doc, getDoc, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, Timestamp, updateDoc } from 'firebase/firestore'; // Import updateDoc
 import { useAuth } from '@/context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -162,6 +162,33 @@ export default function ChatScreen() {
           text: textToSend,
           createdAt: serverTimestamp(),
         });
+
+         // Update lastMessageAt and lastMessageText in /conversations/{conversationId}
+         const conversationRef = doc(db, "conversations", conversationId);
+         await updateDoc(conversationRef, {
+             lastMessageAt: serverTimestamp(),
+             lastMessageText: textToSend,
+         });
+
+         // Update lastMessageAt and lastMessageText in users/{userId}/conversations/{conversationId} for both users
+         const userConvRef1 = doc(db, `users/${currentUser.uid}/conversations`, conversationId);
+         await updateDoc(userConvRef1, {
+             lastMessageAt: serverTimestamp(),
+             lastMessageText: textToSend,
+         });
+
+         // Get the other user's ID
+         const conversationSnap = await getDoc(conversationRef);
+         const conversationData = conversationSnap.data();
+         const otherUserId = conversationData?.participants?.find((uid: string) => uid !== currentUser.uid);
+
+         if (otherUserId) {
+             const userConvRef2 = doc(db, `users/${otherUserId}/conversations`, conversationId);
+             await updateDoc(userConvRef2, {
+                 lastMessageAt: serverTimestamp(),
+                 lastMessageText: textToSend,
+             });
+         }
       } catch (error) {
         console.error('Error sending message to Firestore:', error);
       }
