@@ -14,10 +14,8 @@ import {
   SafeAreaView,
   Image
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import globalStyles from '@/styles/globalStyles';
 import { db } from '@/firebaseConfig';
-import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, Timestamp } from 'firebase/firestore';
+import { doc, getDoc, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { useAuth } from '@/context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -88,9 +86,9 @@ export default function ChatScreen() {
       // Fetch the chat title and profile image from Firestore
       const conversationRef = doc(db, "conversations", conversationId);
       getDoc(conversationRef)
-        .then((doc) => {
-          if (doc.exists()) {
-            const data = doc.data();
+        .then((docSnapshot) => {
+          if (docSnapshot.exists()) {
+            const data = docSnapshot.data();
             const participantUsernames = data?.participantUsernames;
             const participantProfileImages = data?.participantProfileImages; // Get profile images
             if (participantUsernames && participantProfileImages) {

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, FlatList, TouchableOpacity, Image, StyleSheet, ActivityIndicator, TextInput } from 'react-native';
 import { useAuth } from '@/context/AuthContext';
 import { db } from '@/firebaseConfig';
-import { collection, getDocs, doc, getDoc, Timestamp, query, where, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, Timestamp, query, where, setDoc, serverTimestamp } from 'firebase/firestore';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -146,7 +146,7 @@ export default function DMs() {
         try {
             // Check if a conversation already exists between the two users
             const conversationId = generateConversationId(currentUser.uid, selectedUserId);
-            const conversationRef = doc(db, 'conversations', conversationId);
+            const conversationRef = doc(db, 'conversations', conversationId); 
             const conversationSnap = await getDoc(conversationRef);
 
             if (conversationSnap.exists()) {
@@ -157,34 +157,35 @@ export default function DMs() {
                 const newConversationData = {
                     participants: [currentUser.uid, selectedUserId],
                     lastMessageAt: serverTimestamp(),
-                    lastMessageText: '',
+                    lastMessageText: '', // Initialize as empty
                     participantUsernames: {
-                        [currentUser.uid]: currentUser.username || 'Unknown',
-                        [selectedUserId]: selectedUsername || 'Unknown',
+                        [currentUser.uid]: currentUser.displayName || currentUser.email || 'Current User', // Ensure username is available
+                        [selectedUserId]: selectedUsername || 'User',
                     },
                     participantProfileImages: {
-                        [currentUser.uid]: currentUser.profileImageUrl || '',
+                        [currentUser.uid]: currentUser.photoURL || '',
                         [selectedUserId]: selectedProfileImage || '',
                     },
+                    isPinnedAI: false, // Explicitly set for non-AI chats
                 };
 
-                await addDoc(collection(db, 'conversations'), newConversationData);
+                await setDoc(conversationRef, newConversationData); // Use setDoc to create the main conversation with the generated ID
 
-                // Link the conversation to both users
-                const userConversationsRef1 = collection(db, `users/${currentUser.uid}/conversations`);
-                await addDoc(userConversationsRef1, {
-                    conversationId: conversationId,
+                // Link the conversation to both users using the same conversationId as the document ID
+                const userConvDocRef1 = doc(db, `users/${currentUser.uid}/conversations`, conversationId);
+                await setDoc(userConvDocRef1, {
                     otherParticipantId: selectedUserId,
-                    otherParticipantUsername: selectedUsername || 'Unknown',
+                    otherParticipantUsername: selectedUsername || 'User',
                     otherParticipantProfileImage: selectedProfileImage || '',
+                    // lastRead: serverTimestamp(), // Optionally initialize lastRead
                 });
 
-                const userConversationsRef2 = collection(db, `users/${selectedUserId}/conversations`);
-                await addDoc(userConversationsRef2, {
-                    conversationId: conversationId,
+                const userConvDocRef2 = doc(db, `users/${selectedUserId}/conversations`, conversationId);
+                await setDoc(userConvDocRef2, {
                     otherParticipantId: currentUser.uid,
-                    otherParticipantUsername: currentUser.username || 'Unknown',
-                    otherParticipantProfileImage: currentUser.profileImageUrl || '',
+                    otherParticipantUsername: currentUser.displayName || currentUser.email || 'Current User',
+                    otherParticipantProfileImage: currentUser.photoURL || '',
+                    // lastRead: serverTimestamp(), // Optionally initialize lastRead
                 });
 
                 // Navigate to the new conversation
