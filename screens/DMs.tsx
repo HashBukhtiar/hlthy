@@ -211,13 +211,16 @@ export default function DMs() {
 
     const renderItem = ({ item }: { item: CombinedConversationItem }) => (
         <TouchableOpacity
-            style={styles.itemContainer}
+            style={[
+                styles.itemContainer,
+                item.isPinnedAI ? styles.aiChatItem : null
+            ]}
             onPress={() => {
                 router.push(`/chat/${item.id}`);
             }}
         >
             <Image
-                source={item.otherParticipantProfileImage ? { uri: item.otherParticipantProfileImage } : require('@/assets/images/profile-icon.png')}
+                source={item.isPinnedAI ? require('@/assets/images/icon.png') : item.otherParticipantProfileImage ? { uri: item.otherParticipantProfileImage } : require('@/assets/images/profile-icon.png')}
                 style={styles.profilePic}
             />
             <View style={styles.textContainer}>
@@ -404,14 +407,8 @@ const styles = StyleSheet.create({
         borderBottomWidth: 1,
         borderBottomColor: '#333',
     },
-    profilePic: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        marginRight: 15,
-    },
-    username: {
-        color: 'white',
-        fontSize: 16,
+    aiChatItem: { 
+        borderColor: '#d466ff', 
+        borderWidth: 2, 
     },
 });

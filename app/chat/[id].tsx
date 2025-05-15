@@ -48,19 +48,16 @@ export default function ChatScreen() {
 
   useEffect(() => {
     if (!currentUser || !conversationId) return;
-
-    // Set the chat title and profile image based on the conversation ID
     if (conversationId === 'ai_conversation') {
       setChatTitle('hlthy AI');
-      setProfileImageUrl(null); // No profile image for AI
-      // Initialize AI conversation with a default message
+      setProfileImageUrl(Image.resolveAssetSource(require('@/assets/images/icon.png')).uri);
       setMessages([{
         id: 'ai_welcome',
         text: 'Hello! How can I help you today?',
         user: 'ai',
         createdAt: new Date(),
       }]);
-      setLoading(false); // Set loading to false immediately
+      setLoading(false);
     } else {
       // Fetch messages from Firestore for other conversations
       setLoading(true);
