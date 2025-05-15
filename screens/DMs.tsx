@@ -5,6 +5,7 @@ import { db } from '@/firebaseConfig';
 import { collection, getDocs, doc, getDoc, Timestamp, query, where, setDoc, serverTimestamp } from 'firebase/firestore';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 
 interface UserConversationData {
     // Fields from /users/{userId}/conversations/{conversationId}
@@ -100,9 +101,11 @@ export default function DMs() {
         }
     }, [currentUser]);
 
-    useEffect(() => {
-        fetchConversations();
-    }, [fetchConversations]);
+    useFocusEffect(
+        React.useCallback(() => {
+            fetchConversations();
+        }, [fetchConversations])
+    );
 
     const searchUsers = useCallback(async () => {
         if (!searchText.trim()) {
@@ -146,7 +149,7 @@ export default function DMs() {
         try {
             // Check if a conversation already exists between the two users
             const conversationId = generateConversationId(currentUser.uid, selectedUserId);
-            const conversationRef = doc(db, 'conversations', conversationId); 
+            const conversationRef = doc(db, 'conversations', conversationId);
             const conversationSnap = await getDoc(conversationRef);
 
             if (conversationSnap.exists()) {
