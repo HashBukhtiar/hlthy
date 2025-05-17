@@ -12,10 +12,13 @@ import {
   ListRenderItem,
   ActivityIndicator,
   SafeAreaView,
-  Image
+  Image,
+  Alert,
+  Modal,
+  Pressable
 } from 'react-native';
 import { db } from '@/firebaseConfig';
-import { doc, getDoc, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, Timestamp, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, Timestamp, updateDoc, deleteDoc, getDocs } from 'firebase/firestore';
 import { useAuth } from '@/context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -58,6 +61,8 @@ export default function ChatScreen() {
   const flatListRef = useRef<FlatList | null>(null);
   const [chatTitle, setChatTitle] = useState<string>('');
   const [profileImageUrl, setProfileImageUrl] = useState<string | null>(null);
+  const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
 
   useEffect(() => {
     if (!currentUser || !conversationId) return;
@@ -161,12 +166,12 @@ export default function ChatScreen() {
   }, [currentUser, conversationId]);
 
   useEffect(() => {
-  if (messages.length > 0 && !loading && flatListRef.current) {
-    setTimeout(() => {
-      flatListRef.current?.scrollToEnd({ animated: false });
-    }, 100);
-  }
-}, [messages, loading]);
+    if (messages.length > 0 && !loading && flatListRef.current) {
+      setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: false });
+      }, 100);
+    }
+  }, [messages, loading]);
 
   const handleSend = async () => {
     Keyboard.dismiss();
@@ -241,6 +246,78 @@ export default function ChatScreen() {
     }
   };
 
+  const handleDeleteMessage = async () => {
+    if (!selectedMessage || !currentUser || !conversationId || conversationId === 'ai_conversation') {
+      setDeleteModalVisible(false);
+      setSelectedMessage(null);
+      return;
+    }
+    
+    try {
+      // Only allow deleting your own messages
+      if (selectedMessage.user !== 'user') {
+        Alert.alert("Cannot Delete", "You can only delete your own messages.");
+        setDeleteModalVisible(false);
+        setSelectedMessage(null);
+        return;
+      }
+      
+      // Delete the message from Firestore
+      const messageRef = doc(db, "conversations", conversationId, "messages", selectedMessage.id);
+      await deleteDoc(messageRef);
+      
+      // Close modal and clear selection
+      setDeleteModalVisible(false);
+      setSelectedMessage(null);
+      
+      // If we just deleted the last message, update the conversation metadata
+      const messagesQuery = query(
+        collection(db, "conversations", conversationId, "messages"),
+        orderBy("createdAt", "desc")
+      );
+      const messagesSnapshot = await getDocs(messagesQuery);
+      
+      if (!messagesSnapshot.empty) {
+        const lastMessage = messagesSnapshot.docs[0].data() as FirestoreMessageData;
+        
+        // Update lastMessageText in conversations/{conversationId}
+        const conversationRef = doc(db, "conversations", conversationId);
+        await updateDoc(conversationRef, {
+          lastMessageText: lastMessage.text || "Message deleted",
+        });
+        
+        // Update lastMessageText in both users' conversation references
+        const userConvRef1 = doc(db, `users/${currentUser.uid}/conversations`, conversationId);
+        await updateDoc(userConvRef1, {
+          lastMessageText: lastMessage.text || "Message deleted",
+        });
+        
+        // Get the other user's ID and update their conversation reference too
+        const conversationSnap = await getDoc(conversationRef);
+        const conversationData = conversationSnap.data();
+        const otherUserId = conversationData?.participants?.find((uid: string) => uid !== currentUser.uid);
+        
+        if (otherUserId) {
+          const userConvRef2 = doc(db, `users/${otherUserId}/conversations`, conversationId);
+          await updateDoc(userConvRef2, {
+            lastMessageText: lastMessage.text || "Message deleted",
+          });
+        }
+      }
+    } catch (error) {
+      console.error("Error deleting message:", error);
+      Alert.alert("Error", "Failed to delete message. Please try again.");
+    }
+  };
+
+  const handleLongPress = (message: Message) => {
+    // Only allow deleting your own messages
+    if (message.user === 'user' && message.type !== 'dateHeader') {
+      setSelectedMessage(message);
+      setDeleteModalVisible(true);
+    }
+  };
+
   const renderMessage: ListRenderItem<Message> = ({ item }) => {
     // Render date header
     if (item.type === 'dateHeader') {
@@ -250,11 +327,16 @@ export default function ChatScreen() {
         </View>
       );
     }
+
     if (item.sharedPost) {
       return (
-        <View style={[
-          item.user === 'user' ? { alignSelf: 'flex-end' } : { alignSelf: 'flex-start' }
-        ]}>
+        <TouchableOpacity 
+          style={[
+            item.user === 'user' ? { alignSelf: 'flex-end' } : { alignSelf: 'flex-start' }
+          ]}
+          onLongPress={() => handleLongPress(item)}
+          delayLongPress={500} // Set delay for long press
+        >
           <TouchableOpacity 
             style={styles.sharedPostContainer}
             onPress={() => router.push(`/view-post/${item.sharedPost?.id}`)}
@@ -276,22 +358,25 @@ export default function ChatScreen() {
               {item.sharedPost.caption || "No caption"}
             </Text>
           </TouchableOpacity>
-        </View>
+        </TouchableOpacity>
       );
     }
     
     // Render regular message
     return (
-      <View
+      <TouchableOpacity 
         style={[
           styles.messageBubble,
           item.user === 'user' ? styles.currentUserMessage : item.user === 'other' ? styles.otherUserMessage : styles.aiMessage,
         ]}
+        onLongPress={() => handleLongPress(item)}
+        delayLongPress={500} 
+        activeOpacity={0.7}
       >
         <Text style={item.user === 'user' ? styles.currentUserText : item.user === 'other' ? styles.otherUserText : styles.aiText}>
           {item.text}
         </Text>
-      </View>
+      </TouchableOpacity>
     );
   };
 
@@ -332,6 +417,43 @@ export default function ChatScreen() {
             onLayout={() => flatListRef.current?.scrollToEnd({ animated: false })}
           />
         )}
+
+        {/* Delete Message Modal */}
+        <Modal
+          transparent={true}
+          visible={deleteModalVisible}
+          animationType="fade"
+          onRequestClose={() => setDeleteModalVisible(false)}
+        >
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setDeleteModalVisible(false)}
+          >
+            <View style={styles.modalContainer}>
+              <View style={styles.modalContent}>
+                <Text style={styles.modalTitle}>Delete Message</Text>
+                <Text style={styles.modalText}>Are you sure you want to delete this message?</Text>
+                
+                <View style={styles.modalButtons}>
+                  <TouchableOpacity 
+                    style={[styles.modalButton, styles.cancelButton]}
+                    onPress={() => setDeleteModalVisible(false)}
+                  >
+                    <Text style={styles.buttonText}>Cancel</Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity 
+                    style={[styles.modalButton, styles.deleteButton]}
+                    onPress={handleDeleteMessage}
+                  >
+                    <Text style={styles.buttonText}>Delete</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          </TouchableOpacity>
+        </Modal>
 
         {/* Input */}
         <View style={styles.inputContainer}>
@@ -484,5 +606,55 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     paddingHorizontal: 12,
     borderRadius: 10,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContainer: {
+    width: '80%',
+    backgroundColor: '#222',
+    borderRadius: 15,
+    overflow: 'hidden',
+  },
+  modalContent: {
+    padding: 20,
+  },
+  modalTitle: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 15,
+    textAlign: 'center',
+  },
+  modalText: {
+    color: '#DDD',
+    fontSize: 16,
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginHorizontal: 5,
+  },
+  cancelButton: {
+    backgroundColor: '#444',
+  },
+  deleteButton: {
+    backgroundColor: '#FF3B30',
+  },
+  buttonText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 16,
   },
 });
