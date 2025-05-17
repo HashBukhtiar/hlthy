@@ -1,8 +1,11 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, FlatList, TouchableOpacity, Image, StyleSheet, ActivityIndicator, TextInput } from 'react-native';
+import React, { useState, useCallback, useRef } from 'react';
+import {
+    View, Text, FlatList, TouchableOpacity, Image, StyleSheet, ActivityIndicator, TextInput,
+    Animated, PanResponder, Alert
+} from 'react-native';
 import { useAuth } from '@/context/AuthContext';
 import { db } from '@/firebaseConfig';
-import { collection, getDocs, doc, getDoc, Timestamp, query, where, setDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, Timestamp, query, where, setDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
@@ -27,7 +30,7 @@ interface ConversationMetadata {
 
 interface CombinedConversationItem extends UserConversationData, ConversationMetadata {
     id: string;
-    isPinnedAI?: boolean; // Add isPinnedAI property
+    isPinnedAI?: boolean;
 }
 
 interface UserData {
@@ -35,6 +38,108 @@ interface UserData {
     username: string;
     profileImageUrl?: string;
 }
+
+const SwipeableChatItem = ({ item }: { item: CombinedConversationItem }) => {
+    const swipe = useRef(new Animated.Value(0)).current;
+
+    const panResponder = useRef(
+        PanResponder.create({
+            onMoveShouldSetPanResponder: (evt, gestureState) => {
+                // Only allow swipe if it's not the AI chat
+                return !item.isPinnedAI && Math.abs(gestureState.dx) > 5;
+            },
+            onPanResponderMove: (evt, gestureState) => {
+                swipe.setValue(gestureState.dx);
+            },
+            onPanResponderRelease: (evt, gestureState) => {
+                const SWIPE_THRESHOLD = 100;
+                if (gestureState.dx < -SWIPE_THRESHOLD) {
+                    // Swipe left: Delete
+                    handleDeleteConversation(item.id, item.otherParticipantUsername || 'User');
+                }
+
+                // Reset swipe position
+                Animated.spring(swipe, {
+                    toValue: 0,
+                    useNativeDriver: false,
+                }).start();
+            },
+            onPanResponderTerminate: () => {
+                // Reset swipe position if gesture is interrupted
+                Animated.spring(swipe, {
+                    toValue: 0,
+                    useNativeDriver: false,
+                }).start();
+            },
+        })
+    ).current;
+
+    const handleDeleteConversation = async (conversationId: string, username: string) => {
+        Alert.alert(
+            "Delete Conversation",
+            `Are you sure you want to delete this conversation with ${username}?`,
+            [
+                {
+                    text: "Cancel",
+                    style: "cancel"
+                },
+                {
+                    text: "Delete",
+                    onPress: async () => {
+                        try {
+                            // Delete the conversation metadata
+                            const conversationRef = doc(db, 'conversations', conversationId);
+                            await deleteDoc(conversationRef);
+
+                            // Delete the user-specific conversation data
+                            const userConvRef = doc(db, `users/${currentUser.uid}/conversations`, conversationId);
+                            await deleteDoc(userConvRef);
+
+                            // Update the conversations state to remove the deleted conversation
+                            setConversations(prevConversations => prevConversations.filter(conv => conv.id !== conversationId));
+                        } catch (error) {
+                            console.error("Error deleting conversation: ", error);
+                        }
+                    },
+                    style: 'destructive',
+                }
+            ],
+            { cancelable: false }
+        );
+    };
+
+    return (
+        <View>
+            <View style={styles.swipeActions}>
+                <TouchableOpacity
+                    style={[styles.actionButton, styles.deleteButton]}
+                    onPress={() => handleDeleteConversation(item.id)}
+                >
+                    <Ionicons name="trash" size={30} color="white" />
+                    <Text style={styles.actionText}>Delete</Text>
+                </TouchableOpacity>
+            </View>
+            <Animated.View
+                style={[
+                    styles.itemContainer,
+                    item.isPinnedAI ? styles.aiChatItem : null,
+                    { transform: [{ translateX: swipe }] }
+                ]}
+                {...panResponder.panHandlers}
+            >
+                <Image
+                    source={item.isPinnedAI ? require('@/assets/images/icon.png') : item.otherParticipantProfileImage ? { uri: item.otherParticipantProfileImage } : require('@/assets/images/profile-icon.png')}
+                    style={styles.profilePic}
+                />
+                <View style={styles.textContainer}>
+                    <Text style={styles.username}>{item.isPinnedAI ? "hlthy AI" : item.otherParticipantUsername || "Chat"}</Text>
+                    <Text style={styles.lastMessage} numberOfLines={1}>{item.lastMessageText || "No messages yet"}</Text>
+                </View>
+                {item.lastMessageAt && <Text style={styles.time}>{item.lastMessageAt.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>}
+            </Animated.View>
+        </View>
+    );
+};
 
 export default function DMs() {
     const { currentUser } = useAuth();
@@ -160,20 +265,19 @@ export default function DMs() {
                 const newConversationData = {
                     participants: [currentUser.uid, selectedUserId],
                     lastMessageAt: serverTimestamp(),
-                    lastMessageText: '', // Initialize as empty
+                    lastMessageText: '',
                     participantUsernames: {
-                        [currentUser.uid]: currentUser.displayName || currentUser.email || 'Current User', // Ensure username is available
+                        [currentUser.uid]: currentUser.displayName || currentUser.email || 'Current User',
                         [selectedUserId]: selectedUsername || 'User',
                     },
                     participantProfileImages: {
                         [currentUser.uid]: currentUser.photoURL || '',
                         [selectedUserId]: selectedProfileImage || '',
                     },
-                    isPinnedAI: false, // Explicitly set for non-AI chats
+                    isPinnedAI: false,
                 };
 
-                await setDoc(conversationRef, newConversationData); // Use setDoc to create the main conversation with the generated ID
-
+                await setDoc(conversationRef, newConversationData);
                 // Link the conversation to both users using the same conversationId as the document ID
                 const userConvDocRef1 = doc(db, `users/${currentUser.uid}/conversations`, conversationId);
                 await setDoc(userConvDocRef1, {
@@ -209,27 +313,13 @@ export default function DMs() {
         return `${sortedIds[0]}_${sortedIds[1]}`;
     };
 
-    const renderItem = ({ item }: { item: CombinedConversationItem }) => (
-        <TouchableOpacity
-            style={[
-                styles.itemContainer,
-                item.isPinnedAI ? styles.aiChatItem : null
-            ]}
-            onPress={() => {
-                router.push(`/chat/${item.id}`);
-            }}
-        >
-            <Image
-                source={item.isPinnedAI ? require('@/assets/images/icon.png') : item.otherParticipantProfileImage ? { uri: item.otherParticipantProfileImage } : require('@/assets/images/profile-icon.png')}
-                style={styles.profilePic}
+    const renderItem = ({ item }: { item: CombinedConversationItem }) => {
+        return (
+            <SwipeableChatItem
+                item={item}
             />
-            <View style={styles.textContainer}>
-                <Text style={styles.username}>{item.isPinnedAI ? "hlthy AI" : item.otherParticipantUsername || "Chat"}</Text>
-                <Text style={styles.lastMessage} numberOfLines={1}>{item.lastMessageText || "No messages yet"}</Text>
-            </View>
-            {item.lastMessageAt && <Text style={styles.time}>{item.lastMessageAt.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>}
-        </TouchableOpacity>
-    );
+        );
+    };
 
     const renderSearchItem = ({ item }: { item: UserData }) => (
         <TouchableOpacity
@@ -325,8 +415,8 @@ const styles = StyleSheet.create({
         padding: 15,
         alignItems: 'center',
         borderBottomWidth: 1,
-        borderBottomColor: '#333'
-
+        borderBottomColor: '#333',
+        backgroundColor: 'black',
     },
     profilePic: {
         width: 50,
@@ -407,8 +497,30 @@ const styles = StyleSheet.create({
         borderBottomWidth: 1,
         borderBottomColor: '#333',
     },
-    aiChatItem: { 
-        borderColor: '#d466ff', 
-        borderWidth: 2, 
+    aiChatItem: {
+        borderColor: '#d466ff',
+        borderWidth: 2,
+    },
+    swipeActions: {
+        position: 'absolute',
+        top: 0,
+        bottom: 0,
+        left: 0,
+        right: 0,
+        flexDirection: 'row',
+        justifyContent: 'flex-end',
+        backgroundColor: 'transparent',
+    },
+    actionButton: {
+        width: 100,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    deleteButton: {
+        backgroundColor: 'red',
+    },
+    actionText: {
+        color: 'white',
+        fontSize: 16,
     },
 });
