@@ -39,15 +39,27 @@ interface UserData {
     profileImageUrl?: string;
 }
 
-const SwipeableChatItem = ({ item, setConversations }: { item: CombinedConversationItem, setConversations: React.Dispatch<React.SetStateAction<CombinedConversationItem[]>> }) => {
-    const router = useRouter(); // Add this to access the router
+const SwipeableChatItem = ({ 
+    item, 
+    setConversations,
+    currentUser 
+}: { 
+    item: CombinedConversationItem, 
+    setConversations: React.Dispatch<React.SetStateAction<CombinedConversationItem[]>>,
+    currentUser: any  
+}) => {    
+    const router = useRouter();
     const swipe = useRef(new Animated.Value(0)).current;
+    const isSwiping = useRef(false);
 
     const panResponder = useRef(
         PanResponder.create({
+            onStartShouldSetPanResponder: () => false,
             onMoveShouldSetPanResponder: (evt, gestureState) => {
-                // Only allow swipe if it's not the AI chat
-                return !item.isPinnedAI && Math.abs(gestureState.dx) > 5;
+                return !item.isPinnedAI && Math.abs(gestureState.dx) > 5 && Math.abs(gestureState.dx) > Math.abs(gestureState.dy);
+            },
+            onPanResponderGrant: () => {
+                isSwiping.current = true;
             },
             onPanResponderMove: (evt, gestureState) => {
                 swipe.setValue(gestureState.dx);
@@ -63,14 +75,18 @@ const SwipeableChatItem = ({ item, setConversations }: { item: CombinedConversat
                 Animated.spring(swipe, {
                     toValue: 0,
                     useNativeDriver: false,
-                }).start();
+                }).start(() => {
+                    isSwiping.current = false; 
+                });
             },
             onPanResponderTerminate: () => {
                 // Reset swipe position if gesture is interrupted
                 Animated.spring(swipe, {
                     toValue: 0,
                     useNativeDriver: false,
-                }).start();
+                }).start(() => {
+                    isSwiping.current = false;
+                });
             },
         })
     ).current;
@@ -88,6 +104,9 @@ const SwipeableChatItem = ({ item, setConversations }: { item: CombinedConversat
                     text: "Delete",
                     onPress: async () => {
                         try {
+                            // Remove the useAuth() hook call and use the prop instead
+                            if (!currentUser) return;
+                            
                             // Delete the conversation metadata
                             const conversationRef = doc(db, 'conversations', conversationId);
                             await deleteDoc(conversationRef);
@@ -97,7 +116,9 @@ const SwipeableChatItem = ({ item, setConversations }: { item: CombinedConversat
                             await deleteDoc(userConvRef);
 
                             // Update the conversations state to remove the deleted conversation
-                            setConversations(prevConversations => prevConversations.filter(conv => conv.id !== conversationId));
+                            setConversations(prevConversations => 
+                                prevConversations.filter(conv => conv.id !== conversationId)
+                            );
                         } catch (error) {
                             console.error("Error deleting conversation: ", error);
                         }
@@ -110,11 +131,14 @@ const SwipeableChatItem = ({ item, setConversations }: { item: CombinedConversat
     };
 
     const navigateToChat = () => {
-        router.push(`/chat/${item.id}`);
+        // Only navigate if we weren't swiping
+        if (!isSwiping.current) {
+            router.push(`/chat/${item.id}`);
+        }
     };
 
     return (
-        <View>
+        <View {...panResponder.panHandlers}>
             <View style={styles.swipeActions}>
                 <TouchableOpacity
                     style={[styles.actionButton, styles.deleteButton]}
@@ -124,14 +148,16 @@ const SwipeableChatItem = ({ item, setConversations }: { item: CombinedConversat
                     <Text style={styles.actionText}>Delete</Text>
                 </TouchableOpacity>
             </View>
-            <TouchableOpacity onPress={navigateToChat} activeOpacity={0.7}>
+            <TouchableOpacity 
+                onPress={navigateToChat} 
+                activeOpacity={1}
+            >
                 <Animated.View
                     style={[
                         styles.itemContainer,
                         item.isPinnedAI ? styles.aiChatItem : null,
                         { transform: [{ translateX: swipe }] }
                     ]}
-                    {...panResponder.panHandlers}
                 >
                     <Image
                         source={item.isPinnedAI ? require('@/assets/images/icon.png') : item.otherParticipantProfileImage ? { uri: item.otherParticipantProfileImage } : require('@/assets/images/profile-icon.png')}
@@ -325,6 +351,7 @@ export default function DMs() {
             <SwipeableChatItem
                 item={item}
                 setConversations={setConversations}
+                currentUser={currentUser}
             />
         );
     };
