@@ -44,6 +44,7 @@ interface Message {
     caption: string;
     authorUsername: string;
   };
+  type?: 'message' | 'dateHeader';
 }
 
 export default function ChatScreen() {
@@ -78,17 +79,44 @@ export default function ChatScreen() {
 
       const unsubscribe = onSnapshot(q, (querySnapshot) => {
         const fetchedMessages: Message[] = [];
+        let currentDate: string | null = null;
+        
         querySnapshot.forEach((doc) => {
-        const data = doc.data() as FirestoreMessageData;
-        const message: Message = {
-          id: doc.id,
-          text: data.text,
-          user: data.senderId === currentUser.uid ? 'user' : 'other',
-          createdAt: data.createdAt?.toDate(),
-          sharedPost: data.sharedPost,
-        };
-        fetchedMessages.push(message);
-      });
+          const data = doc.data() as FirestoreMessageData;
+          const messageDate = data.createdAt?.toDate();
+          
+          if (messageDate) {
+            // Format the date as "Month Date Year"
+            const formattedDate = messageDate.toLocaleDateString('en-US', {
+              month: 'long',
+              day: 'numeric',
+              year: 'numeric'
+            });
+            
+            // If this is a new date, add a date header
+            if (formattedDate !== currentDate) {
+              currentDate = formattedDate;
+              fetchedMessages.push({
+                id: `date-${messageDate.getTime()}`,
+                text: formattedDate,
+                user: 'other', // This doesn't matter for date headers
+                type: 'dateHeader'
+              });
+            }
+          }
+          
+          // Add the actual message
+          const message: Message = {
+            id: doc.id,
+            text: data.text,
+            user: data.senderId === currentUser.uid ? 'user' : 'other',
+            createdAt: messageDate,
+            sharedPost: data.sharedPost,
+            type: 'message'
+          };
+          fetchedMessages.push(message);
+        });
+        
         setMessages(fetchedMessages);
         setLoading(false);
       });
@@ -131,6 +159,14 @@ export default function ChatScreen() {
       return () => unsubscribe();
     }
   }, [currentUser, conversationId]);
+
+  useEffect(() => {
+  if (messages.length > 0 && !loading && flatListRef.current) {
+    setTimeout(() => {
+      flatListRef.current?.scrollToEnd({ animated: false });
+    }, 100);
+  }
+}, [messages, loading]);
 
   const handleSend = async () => {
     Keyboard.dismiss();
@@ -206,10 +242,17 @@ export default function ChatScreen() {
   };
 
   const renderMessage: ListRenderItem<Message> = ({ item }) => {
+    // Render date header
+    if (item.type === 'dateHeader') {
+      return (
+        <View style={styles.dateHeaderContainer}>
+          <Text style={styles.dateHeaderText}>{item.text}</Text>
+        </View>
+      );
+    }
     if (item.sharedPost) {
       return (
         <View style={[
-          styles.messageContainer,
           item.user === 'user' ? { alignSelf: 'flex-end' } : { alignSelf: 'flex-start' }
         ]}>
           <TouchableOpacity 
@@ -237,6 +280,7 @@ export default function ChatScreen() {
       );
     }
     
+    // Render regular message
     return (
       <View
         style={[
@@ -263,7 +307,7 @@ export default function ChatScreen() {
             <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
               <Ionicons name="arrow-back" size={24} color="white" />
             </TouchableOpacity>
-            {profileImageUrl ? ( // Conditionally render profile image
+            {profileImageUrl ? (
               <Image source={{ uri: profileImageUrl }} style={styles.profilePic} />
             ) : (
               <Image source={require('@/assets/images/profile-icon.png')} style={styles.profilePic} /> // Default profile icon
@@ -284,6 +328,8 @@ export default function ChatScreen() {
             renderItem={renderMessage}
             style={{ flex: 1 }}
             contentContainerStyle={styles.messagesContainer}
+            onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: false })}
+            onLayout={() => flatListRef.current?.scrollToEnd({ animated: false })}
           />
         )}
 
@@ -425,5 +471,18 @@ const styles = StyleSheet.create({
     fontSize: 14,
     paddingHorizontal: 8,
     paddingVertical: 10,
+  },
+  dateHeaderContainer: {
+    alignItems: 'center',
+    marginVertical: 15,
+    paddingVertical: 5,
+  },
+  dateHeaderText: {
+    color: '#999',
+    fontSize: 14,
+    fontWeight: '500',
+    paddingVertical: 5,
+    paddingHorizontal: 12,
+    borderRadius: 10,
   },
 });
