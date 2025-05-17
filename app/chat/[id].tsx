@@ -15,7 +15,7 @@ import {
   Image
 } from 'react-native';
 import { db } from '@/firebaseConfig';
-import { doc, getDoc, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, Timestamp, updateDoc } from 'firebase/firestore'; // Import updateDoc
+import { doc, getDoc, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, Timestamp, updateDoc } from 'firebase/firestore';
 import { useAuth } from '@/context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -25,6 +25,12 @@ interface FirestoreMessageData {
   senderId: string;
   text: string;
   createdAt: Timestamp;
+  sharedPost?: {
+    id: string;
+    imageUrl: string | null;
+    caption: string;
+    authorUsername: string;
+  };
 }
 
 interface Message {
@@ -32,6 +38,12 @@ interface Message {
   text: string;
   user: 'user' | 'other' | 'ai';
   createdAt?: Date;
+  sharedPost?: {
+    id: string;
+    imageUrl: string | null;
+    caption: string;
+    authorUsername: string;
+  };
 }
 
 export default function ChatScreen() {
@@ -67,15 +79,16 @@ export default function ChatScreen() {
       const unsubscribe = onSnapshot(q, (querySnapshot) => {
         const fetchedMessages: Message[] = [];
         querySnapshot.forEach((doc) => {
-          const data = doc.data() as FirestoreMessageData;
-          const message: Message = {
-            id: doc.id,
-            text: data.text,
-            user: data.senderId === currentUser.uid ? 'user' : 'other',
-            createdAt: data.createdAt?.toDate(),
-          };
-          fetchedMessages.push(message);
-        });
+        const data = doc.data() as FirestoreMessageData;
+        const message: Message = {
+          id: doc.id,
+          text: data.text,
+          user: data.senderId === currentUser.uid ? 'user' : 'other',
+          createdAt: data.createdAt?.toDate(),
+          sharedPost: data.sharedPost,
+        };
+        fetchedMessages.push(message);
+      });
         setMessages(fetchedMessages);
         setLoading(false);
       });
@@ -192,18 +205,51 @@ export default function ChatScreen() {
     }
   };
 
-  const renderMessage: ListRenderItem<Message> = ({ item }) => (
-    <View
-      style={[
-        styles.messageBubble,
-        item.user === 'user' ? styles.currentUserMessage : item.user === 'other' ? styles.otherUserMessage : styles.aiMessage,
-      ]}
-    >
-      <Text style={item.user === 'user' ? styles.currentUserText : item.user === 'other' ? styles.otherUserText : styles.aiText}>
-        {item.text}
-      </Text>
-    </View>
-  );
+  const renderMessage: ListRenderItem<Message> = ({ item }) => {
+    if (item.sharedPost) {
+      return (
+        <View style={[
+          styles.messageContainer,
+          item.user === 'user' ? { alignSelf: 'flex-end' } : { alignSelf: 'flex-start' }
+        ]}>
+          <TouchableOpacity 
+            style={styles.sharedPostContainer}
+            onPress={() => router.push(`/view-post/${item.sharedPost?.id}`)}
+          >
+            <View style={styles.sharedPostHeader}>
+              <Ionicons name="share-social-outline" size={16} color="#FFF" style={{marginRight: 5}} />
+              <Text style={styles.sharedPostHeaderText}>Shared Post by {item.sharedPost.authorUsername}</Text>
+            </View>
+            
+            {item.sharedPost.imageUrl && (
+              <Image 
+                source={{uri: item.sharedPost.imageUrl}} 
+                style={styles.sharedPostImage} 
+                resizeMode="cover"
+              />
+            )}
+            
+            <Text style={styles.sharedPostCaption} numberOfLines={2}>
+              {item.sharedPost.caption || "No caption"}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+    
+    return (
+      <View
+        style={[
+          styles.messageBubble,
+          item.user === 'user' ? styles.currentUserMessage : item.user === 'other' ? styles.otherUserMessage : styles.aiMessage,
+        ]}
+      >
+        <Text style={item.user === 'user' ? styles.currentUserText : item.user === 'other' ? styles.otherUserText : styles.aiText}>
+          {item.text}
+        </Text>
+      </View>
+    );
+  };
 
   return (
     <KeyboardAvoidingView
@@ -348,5 +394,36 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  sharedPostContainer: {
+    marginTop: 10,
+    borderRadius: 10,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(30, 30, 30, 0.8)',
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  sharedPostHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#333',
+  },
+  sharedPostHeaderText: {
+    color: '#FFF',
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  sharedPostImage: {
+    width: '100%',
+    height: 150,
+    backgroundColor: '#333',
+  },
+  sharedPostCaption: {
+    color: '#FFF',
+    fontSize: 14,
+    paddingHorizontal: 8,
+    paddingVertical: 10,
   },
 });

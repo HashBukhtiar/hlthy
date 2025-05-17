@@ -39,7 +39,8 @@ interface UserData {
     profileImageUrl?: string;
 }
 
-const SwipeableChatItem = ({ item }: { item: CombinedConversationItem }) => {
+const SwipeableChatItem = ({ item, setConversations }: { item: CombinedConversationItem, setConversations: React.Dispatch<React.SetStateAction<CombinedConversationItem[]>> }) => {
+    const router = useRouter(); // Add this to access the router
     const swipe = useRef(new Animated.Value(0)).current;
 
     const panResponder = useRef(
@@ -108,35 +109,41 @@ const SwipeableChatItem = ({ item }: { item: CombinedConversationItem }) => {
         );
     };
 
+    const navigateToChat = () => {
+        router.push(`/chat/${item.id}`);
+    };
+
     return (
         <View>
             <View style={styles.swipeActions}>
                 <TouchableOpacity
                     style={[styles.actionButton, styles.deleteButton]}
-                    onPress={() => handleDeleteConversation(item.id)}
+                    onPress={() => handleDeleteConversation(item.id, item.otherParticipantUsername || 'User')}
                 >
                     <Ionicons name="trash" size={30} color="white" />
                     <Text style={styles.actionText}>Delete</Text>
                 </TouchableOpacity>
             </View>
-            <Animated.View
-                style={[
-                    styles.itemContainer,
-                    item.isPinnedAI ? styles.aiChatItem : null,
-                    { transform: [{ translateX: swipe }] }
-                ]}
-                {...panResponder.panHandlers}
-            >
-                <Image
-                    source={item.isPinnedAI ? require('@/assets/images/icon.png') : item.otherParticipantProfileImage ? { uri: item.otherParticipantProfileImage } : require('@/assets/images/profile-icon.png')}
-                    style={styles.profilePic}
-                />
-                <View style={styles.textContainer}>
-                    <Text style={styles.username}>{item.isPinnedAI ? "hlthy AI" : item.otherParticipantUsername || "Chat"}</Text>
-                    <Text style={styles.lastMessage} numberOfLines={1}>{item.lastMessageText || "No messages yet"}</Text>
-                </View>
-                {item.lastMessageAt && <Text style={styles.time}>{item.lastMessageAt.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>}
-            </Animated.View>
+            <TouchableOpacity onPress={navigateToChat} activeOpacity={0.7}>
+                <Animated.View
+                    style={[
+                        styles.itemContainer,
+                        item.isPinnedAI ? styles.aiChatItem : null,
+                        { transform: [{ translateX: swipe }] }
+                    ]}
+                    {...panResponder.panHandlers}
+                >
+                    <Image
+                        source={item.isPinnedAI ? require('@/assets/images/icon.png') : item.otherParticipantProfileImage ? { uri: item.otherParticipantProfileImage } : require('@/assets/images/profile-icon.png')}
+                        style={styles.profilePic}
+                    />
+                    <View style={styles.textContainer}>
+                        <Text style={styles.username}>{item.isPinnedAI ? "hlthy AI" : item.otherParticipantUsername || "Chat"}</Text>
+                        <Text style={styles.lastMessage} numberOfLines={1}>{item.lastMessageText || "No messages yet"}</Text>
+                    </View>
+                    {item.lastMessageAt && <Text style={styles.time}>{item.lastMessageAt.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>}
+                </Animated.View>
+            </TouchableOpacity>
         </View>
     );
 };
@@ -317,6 +324,7 @@ export default function DMs() {
         return (
             <SwipeableChatItem
                 item={item}
+                setConversations={setConversations}
             />
         );
     };

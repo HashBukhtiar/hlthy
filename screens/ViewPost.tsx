@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, Image, ScrollView, TouchableOpacity, TextInput, Modal, ActivityIndicator, Alert } from 'react-native';
+import { StyleSheet, Text, View, Image, ScrollView, TouchableOpacity, FlatList, TextInput, Modal, ActivityIndicator, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { usePostsData, Post, Comment } from '@/hooks/usePostsData';
 import { useAuth } from '@/context/AuthContext';
+import { collection } from 'firebase/firestore';
+import { db } from '@/firebaseConfig';
+import { query, where, getDocs, doc, setDoc, getDoc, addDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
 
 export default function ViewPost() {
   const [menuVisible, setMenuVisible] = useState(false);
@@ -13,7 +16,6 @@ export default function ViewPost() {
   const insets = useSafeAreaInsets();
   const { currentUser, userProfile } = useAuth();
   const { getPostById, getPostComments, likePost, unlikePost, addComment, deletePost } = usePostsData();  
-  // Extract id from params
   const postId = params.id ? String(params.id) : '';
   
   const [post, setPost] = useState<Post | null>(null);
@@ -24,6 +26,11 @@ export default function ViewPost() {
   const [sortType, setSortType] = useState('Recency');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+
+  const [shareModalVisible, setShareModalVisible] = useState(false);
+  const [searchText, setSearchText] = useState('');
+  const [searchResults, setSearchResults] = useState<{id: string, username: string, profileImageUrl?: string}[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
   
   // Fetch post and comments
   useEffect(() => {
@@ -55,6 +62,136 @@ export default function ViewPost() {
     
     fetchPostData();
   }, [postId]);
+
+  const handleSharePost = () => {
+    setShareModalVisible(true);
+  };
+
+  const searchUsers = async () => {
+    if (!searchText.trim()) {
+      setSearchResults([]);
+      return;
+    }
+
+    setSearchLoading(true);
+    try {
+      const usersRef = collection(db, 'users');
+      const q = query(
+        usersRef,
+        where('username', '>=', searchText.toLowerCase()),
+        where('username', '<=', searchText.toLowerCase() + '\uf8ff')
+      );
+
+      const querySnapshot = await getDocs(q);
+      const users: {id: string, username: string, profileImageUrl?: string}[] = [];
+      querySnapshot.forEach(doc => {
+        if (doc.id !== currentUser?.uid) {
+          users.push({
+            id: doc.id,
+            username: doc.data().username,
+            profileImageUrl: doc.data().profileImageUrl,
+          });
+        }
+      });
+      setSearchResults(users);
+    } catch (error) {
+      console.error("Error searching users:", error);
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
+  const sharePostWithUser = async (userId: string, username: string, profileImageUrl?: string) => {
+    if (!currentUser || !post) return;
+    
+    try {
+      // Check if a conversation already exists between the two users
+      const conversationId = generateConversationId(currentUser.uid, userId);
+      const conversationRef = doc(db, 'conversations', conversationId);
+      const conversationSnap = await getDoc(conversationRef);
+
+      // Create conversation if it doesn't exist
+      if (!conversationSnap.exists()) {
+        // Create a new conversation document
+        const newConversationData = {
+          participants: [currentUser.uid, userId],
+          lastMessageAt: serverTimestamp(),
+          lastMessageText: `${currentUser.displayName || 'User'} shared a post`,
+          participantUsernames: {
+            [currentUser.uid]: currentUser.displayName || currentUser.email || 'Current User',
+            [userId]: username || 'User',
+          },
+          participantProfileImages: {
+            [currentUser.uid]: currentUser.photoURL || '',
+            [userId]: profileImageUrl || '',
+          },
+        };
+
+        await setDoc(conversationRef, newConversationData);
+        
+        // Create user-specific conversation entries
+        const userConvDocRef1 = doc(db, `users/${currentUser.uid}/conversations`, conversationId);
+        await setDoc(userConvDocRef1, {
+          otherParticipantId: userId,
+          otherParticipantUsername: username || 'User',
+          otherParticipantProfileImage: profileImageUrl || '',
+        });
+
+        const userConvDocRef2 = doc(db, `users/${userId}/conversations`, conversationId);
+        await setDoc(userConvDocRef2, {
+          otherParticipantId: currentUser.uid,
+          otherParticipantUsername: currentUser.displayName || currentUser.email || 'Current User',
+          otherParticipantProfileImage: currentUser.photoURL || '',
+        });
+      }
+
+      // Add a message with the shared post
+      const messagesRef = collection(db, "conversations", conversationId, "messages");
+      await addDoc(messagesRef, {
+        senderId: currentUser.uid,
+        text: post.caption ? `Shared a post: "${post.caption.substring(0, 50)}${post.caption.length > 50 ? '...' : ''}"` : 'Shared a post',
+        createdAt: serverTimestamp(),
+        sharedPost: {
+          id: post.id,
+          imageUrl: post.imageUrl || null,
+          caption: post.caption || '',
+          authorUsername: post.authorUsername || '',
+        }
+      });
+
+      // Update conversation metadata
+      await updateDoc(conversationRef, {
+        lastMessageAt: serverTimestamp(),
+        lastMessageText: 'Shared a post',
+      });
+
+      // Update user-specific conversation data
+      const userConvRef1 = doc(db, `users/${currentUser.uid}/conversations`, conversationId);
+      await updateDoc(userConvRef1, {
+        lastMessageAt: serverTimestamp(),
+        lastMessageText: 'Shared a post',
+      });
+
+      const userConvRef2 = doc(db, `users/${userId}/conversations`, conversationId);
+      await updateDoc(userConvRef2, {
+        lastMessageAt: serverTimestamp(),
+        lastMessageText: 'Shared a post',
+      });
+
+      // Close modal and show confirmation
+      setShareModalVisible(false);
+      Alert.alert("Success", "Post shared successfully");
+    } catch (error) {
+      console.error("Error sharing post:", error);
+      Alert.alert("Error", "Failed to share post. Please try again.");
+    }
+  };
+
+  // Helper function to generate conversation ID
+  const generateConversationId = (userId1: string, userId2: string): string => {
+    const sortedIds = [userId1, userId2].sort();
+    return `${sortedIds[0]}_${sortedIds[1]}`;
+  };
   
   const handleLike = async () => {
     if (!post || !currentUser) return;
@@ -284,7 +421,7 @@ export default function ViewPost() {
             <TouchableOpacity style={styles.actionButton}>
               <Ionicons name="chatbubble-outline" size={26} color="#FFF" />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.actionButton}>
+            <TouchableOpacity style={styles.actionButton} onPress={handleSharePost}>
               <Ionicons name="paper-plane-outline" size={26} color="#FFF" />
             </TouchableOpacity>
           </View>
@@ -506,6 +643,66 @@ export default function ViewPost() {
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
+      </Modal>
+
+      {/* Share Post Modal */}
+      <Modal
+        transparent={true}
+        visible={shareModalVisible}
+        animationType="slide"
+        onRequestClose={() => setShareModalVisible(false)}
+      >
+        <View style={styles.shareModalContainer}>
+          <View style={styles.shareModalContent}>
+            <View style={styles.shareModalHeader}>
+              <Text style={styles.shareModalTitle}>Share to</Text>
+              <TouchableOpacity onPress={() => setShareModalVisible(false)}>
+                <Ionicons name="close" size={24} color="#FFF" />
+              </TouchableOpacity>
+            </View>
+            
+            <View style={styles.searchContainer}>
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search users..."
+                placeholderTextColor="#888"
+                value={searchText}
+                onChangeText={setSearchText}
+                onSubmitEditing={searchUsers}
+                autoCapitalize="none"
+              />
+              <TouchableOpacity style={styles.searchButton} onPress={searchUsers}>
+                <Ionicons name="search" size={20} color="#FFF" />
+              </TouchableOpacity>
+            </View>
+            
+            {searchLoading ? (
+              <ActivityIndicator size="large" color="#0A84FF" style={{marginTop: 20}} />
+            ) : (
+              <FlatList
+                data={searchResults}
+                keyExtractor={(item) => item.id}
+                renderItem={({ item }) => (
+                  <TouchableOpacity 
+                    style={styles.userItem}
+                    onPress={() => sharePostWithUser(item.id, item.username, item.profileImageUrl)}
+                  >
+                    <Image 
+                      source={item.profileImageUrl ? { uri: item.profileImageUrl } : require('@/assets/images/profile-icon.png')} 
+                      style={styles.userItemImage} 
+                    />
+                    <Text style={styles.userItemText}>{item.username}</Text>
+                  </TouchableOpacity>
+                )}
+                ListEmptyComponent={
+                  <Text style={styles.emptyResultsText}>
+                    {searchText ? "No users found" : "Search for users to share with"}
+                  </Text>
+                }
+              />
+            )}
+          </View>
+        </View>
       </Modal>
     </View>
   );
@@ -885,5 +1082,73 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: 16,
     marginLeft: 12,
+  },
+  shareModalContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'flex-end',
+  },
+  shareModalContent: {
+    backgroundColor: '#121212',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingHorizontal: 15,
+    paddingTop: 15,
+    paddingBottom: 30,
+    maxHeight: '80%',
+  },
+  shareModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingBottom: 15,
+    borderBottomColor: '#333',
+    borderBottomWidth: 1,
+  },
+  shareModalTitle: {
+    color: '#FFF',
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    marginVertical: 15,
+    alignItems: 'center',
+  },
+  searchInput: {
+    flex: 1,
+    backgroundColor: '#333',
+    color: '#FFF',
+    borderRadius: 10,
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    marginRight: 10,
+  },
+  searchButton: {
+    backgroundColor: '#0A84FF',
+    padding: 10,
+    borderRadius: 10,
+  },
+  userItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomColor: '#333',
+    borderBottomWidth: 1,
+  },
+  userItemImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 15,
+  },
+  userItemText: {
+    color: '#FFF',
+    fontSize: 16,
+  },
+  emptyResultsText: {
+    color: '#888',
+    textAlign: 'center',
+    marginTop: 20,
   },
 });
