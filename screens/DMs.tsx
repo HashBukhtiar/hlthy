@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useRef } from 'react';
 import {
-    View, Text, FlatList, TouchableOpacity, Image, StyleSheet, ActivityIndicator, TextInput, Alert, TouchableHighlight
+    View, Text, FlatList, TouchableOpacity, Image, StyleSheet, ActivityIndicator, TextInput, Alert, TouchableHighlight, RefreshControl
 } from 'react-native';
 import { useAuth } from '@/context/AuthContext';
 import { db } from '@/firebaseConfig';
@@ -138,7 +138,14 @@ export default function DMs() {
     const [searchResults, setSearchResults] = useState<UserData[]>([]);
     const [searchLoading, setSearchLoading] = useState(false);
     const searchInputRef = useRef<TextInput>(null);
+    const [refreshing, setRefreshing] = useState(false);
 
+    const handleRefresh = useCallback(async () => {
+        setRefreshing(true);
+        await fetchConversations();
+        setRefreshing(false);
+    }, [fetchConversations]);
+    
     const handleComposePress = () => {
         setIsSearching(true);
         setTimeout(() => {
@@ -397,6 +404,15 @@ export default function DMs() {
                     renderItem={renderItem}
                     keyExtractor={(item) => item.id}
                     style={{ backgroundColor: 'black' }}
+                    refreshControl={
+                        <RefreshControl
+                            refreshing={refreshing}
+                            onRefresh={handleRefresh}
+                            colors={['#d466ff']} 
+                            tintColor="#d466ff"
+                            progressBackgroundColor="#1a0d26"
+                        />
+                    }
                 />
             )}
         </View>
