@@ -33,6 +33,12 @@ interface FirestoreMessageData {
     caption: string;
     authorUsername: string;
   };
+  sharedWorkout?: {
+    id: string;
+    title: string;
+    coverImageUrl?: string;
+    creatorUsername: string;
+  };
 }
 
 interface Message {
@@ -45,6 +51,12 @@ interface Message {
     imageUrl: string | null;
     caption: string;
     authorUsername: string;
+  };
+  sharedWorkout?: {
+    id: string;
+    title: string;
+    coverImageUrl?: string;
+    creatorUsername: string;
   };
   type?: 'message' | 'dateHeader';
 }
@@ -103,19 +115,19 @@ export default function ChatScreen() {
               fetchedMessages.push({
                 id: `date-${messageDate.getTime()}`,
                 text: formattedDate,
-                user: 'other', // This doesn't matter for date headers
+                user: 'other', 
                 type: 'dateHeader'
               });
             }
           }
           
-          // Add the actual message
           const message: Message = {
             id: doc.id,
             text: data.text,
             user: data.senderId === currentUser.uid ? 'user' : 'other',
             createdAt: messageDate,
             sharedPost: data.sharedPost,
+            sharedWorkout: data.sharedWorkout,
             type: 'message'
           };
           fetchedMessages.push(message);
@@ -464,6 +476,36 @@ export default function ChatScreen() {
         </TouchableOpacity>
       );
     }
+
+    if (item.sharedWorkout) {
+      return (
+        <TouchableOpacity
+          style={[item.user === 'user' ? { alignSelf: 'flex-end' } : { alignSelf: 'flex-start' }]}
+          onLongPress={() => handleLongPress(item)}
+          delayLongPress={500}
+        >
+          <TouchableOpacity
+            style={styles.sharedWorkoutContainer}
+            onPress={() => router.push(`/view-workout/${item.sharedWorkout?.id}`)}
+          >
+            <View style={styles.sharedWorkoutHeader}>
+              <Ionicons name="share-social-outline" size={16} color="#FFF" style={{ marginRight: 5 }} />
+              <Text style={styles.sharedWorkoutHeaderText}>Shared Workout by {item.sharedWorkout.creatorUsername}</Text>
+            </View>
+            {item.sharedWorkout.coverImageUrl && (
+              <Image
+                source={{ uri: item.sharedWorkout.coverImageUrl }}
+                style={styles.sharedWorkoutImage}
+                resizeMode="cover"
+              />
+            )}
+            <Text style={styles.sharedWorkoutTitle} numberOfLines={2}>
+              {item.sharedWorkout.title}
+            </Text>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      );
+    }
     
     // Render regular message
     return (
@@ -759,5 +801,37 @@ const styles = StyleSheet.create({
     color: 'white',
     fontWeight: 'bold',
     fontSize: 16,
+  },
+  sharedWorkoutContainer: {
+    marginTop: 10,
+    borderRadius: 12,
+    backgroundColor: 'rgba(100, 20, 20, 0.8)',
+    borderWidth: 2,
+    borderColor: '#b00',
+    overflow: 'hidden',
+  },
+  sharedWorkoutHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#b00',
+    backgroundColor: 'rgba(80, 20, 20, 0.9)', 
+  },
+  sharedWorkoutHeaderText: {
+    color: '#FFF',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  sharedWorkoutImage: {
+    width: '100%',
+    height: 150,
+    backgroundColor: '#333',
+  },
+  sharedWorkoutTitle: {
+    color: '#FFF',
+    fontSize: 14,
+    padding: 10,
+    textAlign: 'center',
   },
 });
