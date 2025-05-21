@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ScrollView, View, Text, TouchableOpacity, Image, StyleSheet, ActivityIndicator, Alert, Modal, TextInput, FlatList } from 'react-native';
+import { ScrollView, View, Text, TouchableOpacity, Image, StyleSheet, ActivityIndicator, Alert, Modal, TextInput, FlatList, KeyboardAvoidingView, Platform } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { db } from '@/firebaseConfig'; 
@@ -62,10 +62,11 @@ export default function ViewWorkout() {
     }
     try {
       setSearchLoading(true);
+      const lowerText = text.toLowerCase();
       const q = query(
         collection(db, 'users'),
-        where('username', '>=', text),
-        where('username', '<=', text + '\uf8ff'),
+        where('username', '>=', lowerText),
+        where('username', '<=', lowerText + '\uf8ff'),
         orderBy('username'),
         limit(10)
       );
@@ -428,42 +429,82 @@ export default function ViewWorkout() {
       </View>
       <View style={styles.bottomPadding} />
       <Modal
+        transparent={true}
         visible={shareModalVisible}
-        transparent
         animationType="slide"
         onRequestClose={() => setShareModalVisible(false)}
       >
-        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'center' }}>
-          <View style={{ backgroundColor: '#333', margin: 20, borderRadius: 10, padding: 10 }}>
-            <Text style={{ color: 'white', fontSize: 18, marginBottom: 10 }}>Share Workout</Text>
-            <TextInput
-              placeholder="Search users..."
-              placeholderTextColor="#888"
-              value={searchText}
-              onChangeText={handleSearchUsers}
-              style={{ backgroundColor: '#444', color: 'white', borderRadius: 5, padding: 10, marginBottom: 10 }}
-            />
+        <KeyboardAvoidingView
+          style={styles.shareModalContainer}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 100}
+        >
+          <View style={styles.shareModalContent}>
+            {/* Header with "Share to" and X button */}
+            <View style={styles.shareModalHeader}>
+              <Text style={styles.shareModalTitle}>Share to</Text>
+              <TouchableOpacity onPress={() => setShareModalVisible(false)}>
+                <Ionicons name="close" size={24} color="#FFF" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Search container */}
+            <View style={styles.searchContainer}>
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search users..."
+                placeholderTextColor="#888"
+                value={searchText}
+                onChangeText={handleSearchUsers}
+                onSubmitEditing={handleSearchUsers}
+                autoCapitalize="none"
+              />
+            </View>
+
+            {/* Loading or list of users */}
             {searchLoading ? (
-              <ActivityIndicator size="small" color="#fff" />
+              <ActivityIndicator
+                size="large"
+                color="#0A84FF"
+                style={{ marginTop: 20 }}
+              />
             ) : (
               <FlatList
                 data={searchResults}
                 keyExtractor={(item) => item.id}
                 renderItem={({ item }) => (
-                  <TouchableOpacity onPress={() => shareWorkoutWithUser(item.id, item.username, item.profileImageUrl)}>
-                    <Text style={{ color: 'white', marginVertical: 6 }}>{item.username}</Text>
+                  <TouchableOpacity
+                    style={styles.userItem}
+                    onPress={() =>
+                      shareWorkoutWithUser(
+                        item.id,
+                        item.username,
+                        item.profileImageUrl
+                      )
+                    }
+                  >
+                    <Image
+                      source={
+                        item.profileImageUrl
+                          ? { uri: item.profileImageUrl }
+                          : require('@/assets/images/profile-icon.png')
+                      }
+                      style={styles.userItemImage}
+                    />
+                    <Text style={styles.userItemText}>{item.username}</Text>
                   </TouchableOpacity>
                 )}
+                ListEmptyComponent={
+                  <Text style={styles.emptyResultsText}>
+                    {searchText
+                      ? "No users found"
+                      : "Search for users to share with"}
+                  </Text>
+                }
               />
             )}
-            <TouchableOpacity
-              onPress={() => setShareModalVisible(false)}
-              style={{ alignSelf: 'flex-end', marginTop: 10 }}
-            >
-              <Text style={{ color: '#ff2d55' }}>Close</Text>
-            </TouchableOpacity>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </ScrollView>
   );
@@ -685,5 +726,68 @@ const styles = StyleSheet.create({
   },
   clickableText: {
     textDecorationLine: 'underline',
+  },
+  shareModalContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'flex-end',
+  },
+  shareModalContent: {
+    backgroundColor: '#121212',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingHorizontal: 15,
+    paddingTop: 15,
+    paddingBottom: 30,
+    maxHeight: '80%',
+  },
+  shareModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingBottom: 15,
+    borderBottomColor: '#333',
+    borderBottomWidth: 1,
+  },
+  shareModalTitle: {
+    color: '#FFF',
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    marginVertical: 15,
+    alignItems: 'center',
+  },
+  searchInput: {
+    flex: 1,
+    backgroundColor: '#333',
+    color: '#FFF',
+    borderRadius: 10,
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    marginRight: 10,
+  },
+  userItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomColor: '#333',
+    borderBottomWidth: 1,
+  },
+  userItemImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 15,
+  },
+  userItemText: {
+    color: '#FFF',
+    fontSize: 16,
+  },
+  emptyResultsText: {
+    color: '#888',
+    textAlign: 'center',
+    marginTop: 20,
   },
 });
