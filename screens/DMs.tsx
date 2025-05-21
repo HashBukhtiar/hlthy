@@ -1,11 +1,10 @@
 import React, { useState, useCallback, useRef } from 'react';
 import {
-    View, Text, FlatList, TouchableOpacity, Image, StyleSheet, ActivityIndicator, TextInput,
-    Animated, PanResponder, Alert
+    View, Text, FlatList, TouchableOpacity, Image, StyleSheet, ActivityIndicator, TextInput, Alert, TouchableHighlight
 } from 'react-native';
 import { useAuth } from '@/context/AuthContext';
 import { db } from '@/firebaseConfig';
-import { collection, getDocs, doc, getDoc, Timestamp, query, where, setDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, updateDoc, getDoc, Timestamp, query, where, setDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
@@ -39,7 +38,7 @@ interface UserData {
     profileImageUrl?: string;
 }
 
-const SwipeableChatItem = ({ 
+const ChatItem = ({ 
     item, 
     setConversations,
     currentUser 
@@ -49,47 +48,7 @@ const SwipeableChatItem = ({
     currentUser: any  
 }) => {    
     const router = useRouter();
-    const swipe = useRef(new Animated.Value(0)).current;
-    const isSwiping = useRef(false);
-
-    const panResponder = useRef(
-        PanResponder.create({
-            onStartShouldSetPanResponder: () => false,
-            onMoveShouldSetPanResponder: (evt, gestureState) => {
-                return !item.isPinnedAI && Math.abs(gestureState.dx) > 5 && Math.abs(gestureState.dx) > Math.abs(gestureState.dy);
-            },
-            onPanResponderGrant: () => {
-                isSwiping.current = true;
-            },
-            onPanResponderMove: (evt, gestureState) => {
-                swipe.setValue(gestureState.dx);
-            },
-            onPanResponderRelease: (evt, gestureState) => {
-                const SWIPE_THRESHOLD = 100;
-                if (gestureState.dx < -SWIPE_THRESHOLD) {
-                    // Swipe left: Delete
-                    handleDeleteConversation(item.id, item.otherParticipantUsername || 'User');
-                }
-
-                // Reset swipe position
-                Animated.spring(swipe, {
-                    toValue: 0,
-                    useNativeDriver: false,
-                }).start(() => {
-                    isSwiping.current = false; 
-                });
-            },
-            onPanResponderTerminate: () => {
-                // Reset swipe position if gesture is interrupted
-                Animated.spring(swipe, {
-                    toValue: 0,
-                    useNativeDriver: false,
-                }).start(() => {
-                    isSwiping.current = false;
-                });
-            },
-        })
-    ).current;
+    const [isPressed, setIsPressed] = useState(false);
 
     const handleDeleteConversation = async (conversationId: string, username: string) => {
         Alert.alert(
@@ -104,7 +63,6 @@ const SwipeableChatItem = ({
                     text: "Delete",
                     onPress: async () => {
                         try {
-                            // Remove the useAuth() hook call and use the prop instead
                             if (!currentUser) return;
                             
                             // Delete the conversation metadata
@@ -130,47 +88,43 @@ const SwipeableChatItem = ({
         );
     };
 
-    const navigateToChat = () => {
-        // Only navigate if we weren't swiping
-        if (!isSwiping.current) {
-            router.push(`/chat/${item.id}`);
+    const handleLongPress = () => {
+        if (!item.isPinnedAI) {
+            handleDeleteConversation(item.id, item.otherParticipantUsername || 'User');
         }
     };
 
+    const navigateToChat = () => {
+        router.push(`/chat/${item.id}`);
+    };
+
     return (
-        <View {...panResponder.panHandlers}>
-            <View style={styles.swipeActions}>
-                <TouchableOpacity
-                    style={[styles.actionButton, styles.deleteButton]}
-                    onPress={() => handleDeleteConversation(item.id, item.otherParticipantUsername || 'User')}
-                >
-                    <Ionicons name="trash" size={30} color="white" />
-                    <Text style={styles.actionText}>Delete</Text>
-                </TouchableOpacity>
-            </View>
-            <TouchableOpacity 
-                onPress={navigateToChat} 
-                activeOpacity={1}
+        <TouchableHighlight 
+            onPress={navigateToChat}
+            onLongPress={handleLongPress}
+            delayLongPress={500}
+            underlayColor="#222" // Dark color shows when pressed
+            onShowUnderlay={() => setIsPressed(true)}
+            onHideUnderlay={() => setIsPressed(false)}
+        >
+            <View
+                style={[
+                    styles.itemContainer,
+                    item.isPinnedAI ? styles.aiChatItem : null,
+                    isPressed ? styles.pressedItem : null, 
+                ]}
             >
-                <Animated.View
-                    style={[
-                        styles.itemContainer,
-                        item.isPinnedAI ? styles.aiChatItem : null,
-                        { transform: [{ translateX: swipe }] }
-                    ]}
-                >
-                    <Image
-                        source={item.isPinnedAI ? require('@/assets/images/icon.png') : item.otherParticipantProfileImage ? { uri: item.otherParticipantProfileImage } : require('@/assets/images/profile-icon.png')}
-                        style={styles.profilePic}
-                    />
-                    <View style={styles.textContainer}>
-                        <Text style={styles.username}>{item.isPinnedAI ? "hlthy AI" : item.otherParticipantUsername || "Chat"}</Text>
-                        <Text style={styles.lastMessage} numberOfLines={1}>{item.lastMessageText || "No messages yet"}</Text>
-                    </View>
-                    {item.lastMessageAt && <Text style={styles.time}>{item.lastMessageAt.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>}
-                </Animated.View>
-            </TouchableOpacity>
-        </View>
+                <Image
+                    source={item.isPinnedAI ? require('@/assets/images/icon.png') : item.otherParticipantProfileImage ? { uri: item.otherParticipantProfileImage } : require('@/assets/images/profile-icon.png')}
+                    style={styles.profilePic}
+                />
+                <View style={styles.textContainer}>
+                    <Text style={styles.username}>{item.isPinnedAI ? "hlthy AI" : item.otherParticipantUsername || "Chat"}</Text>
+                    <Text style={styles.lastMessage} numberOfLines={1}>{item.lastMessageText || "No messages yet"}</Text>
+                </View>
+                {item.lastMessageAt && <Text style={styles.time}>{item.lastMessageAt.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>}
+            </View>
+        </TouchableHighlight>
     );
 };
 
@@ -211,6 +165,29 @@ export default function DMs() {
 
                 if (conversationMetaSnap.exists()) {
                     const conversationMetaData = conversationMetaSnap.data() as ConversationMetadata;
+                    
+                    // Get the other participant's ID
+                    const otherParticipantId = userConvData.otherParticipantId;
+                    
+                    // If otherParticipantProfileImage is missing but we have participantProfileImages
+                    if ((!userConvData.otherParticipantProfileImage || userConvData.otherParticipantProfileImage === '') 
+                        && conversationMetaData.participantProfileImages && otherParticipantId) {
+                        
+                        // Use the profile image from the conversation metadata
+                        userConvData.otherParticipantProfileImage = 
+                            conversationMetaData.participantProfileImages[otherParticipantId] || '';
+                            
+                        // Update the user's conversation document with the correct profile image
+                        try {
+                            const userConvRef = doc(db, `users/${currentUser.uid}/conversations`, conversationId);
+                            await updateDoc(userConvRef, {
+                                otherParticipantProfileImage: userConvData.otherParticipantProfileImage
+                            });
+                        } catch (e) {
+                            console.log("Error updating profile image:", e);
+                        }
+                    }
+                    
                     return {
                         id: conversationId,
                         ...userConvData,
@@ -348,7 +325,7 @@ export default function DMs() {
 
     const renderItem = ({ item }: { item: CombinedConversationItem }) => {
         return (
-            <SwipeableChatItem
+            <ChatItem
                 item={item}
                 setConversations={setConversations}
                 currentUser={currentUser}
@@ -461,7 +438,9 @@ const styles = StyleSheet.create({
         backgroundColor: '#555'
 
     },
-    textContainer: { flex: 1 },
+    textContainer: { 
+        flex: 1 
+    },
     username: {
         fontWeight: 'bold',
         color: 'white',
@@ -533,8 +512,13 @@ const styles = StyleSheet.create({
         borderBottomColor: '#333',
     },
     aiChatItem: {
+        backgroundColor: '#1a0d26',
         borderColor: '#d466ff',
+        borderBottomColor: '#d466ff',
         borderWidth: 2,
+        borderBottomWidth: 2,
+        borderRadius: 10,
+        marginVertical: 4,
     },
     swipeActions: {
         position: 'absolute',
@@ -558,4 +542,8 @@ const styles = StyleSheet.create({
         color: 'white',
         fontSize: 16,
     },
+    pressedItem: {
+    backgroundColor: '#222', 
+    borderLeftWidth: 3,
+},
 });

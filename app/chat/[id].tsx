@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -15,7 +15,6 @@ import {
   Image,
   Alert,
   Modal,
-  Pressable
 } from 'react-native';
 import { db } from '@/firebaseConfig';
 import { doc, getDoc, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, Timestamp, updateDoc, deleteDoc, getDocs } from 'firebase/firestore';
@@ -133,15 +132,44 @@ export default function ChatScreen() {
           if (docSnapshot.exists()) {
             const data = docSnapshot.data();
             const participantUsernames = data?.participantUsernames;
-            const participantProfileImages = data?.participantProfileImages; // Get profile images
-            if (participantUsernames && participantProfileImages) {
+            const participantProfileImages = data?.participantProfileImages;
+            if (participantUsernames) {
               // Get the other participant's username and profile image
               const otherUserId = Object.keys(participantUsernames).find(
                 (uid) => uid !== currentUser.uid
               );
               if (otherUserId) {
                 setChatTitle(participantUsernames[otherUserId] || 'Chat');
-                setProfileImageUrl(participantProfileImages[otherUserId] || null); // Set profile image URL
+                
+                // Try to get the profile image from participantProfileImages
+                let profileImg = null;
+                if (participantProfileImages && participantProfileImages[otherUserId]) {
+                  profileImg = participantProfileImages[otherUserId];
+                }
+                
+                // If still null, try to fetch the user's profile directly
+                if (!profileImg || profileImg === '') {
+                  const userRef = doc(db, 'users', otherUserId);
+                  getDoc(userRef).then(userDoc => {
+                    if (userDoc.exists() && userDoc.data().profileImageUrl) {
+                      setProfileImageUrl(userDoc.data().profileImageUrl);
+                      
+                      // Update the conversation with the correct image
+                      try {
+                        if (participantProfileImages) {
+                          participantProfileImages[otherUserId] = userDoc.data().profileImageUrl;
+                          updateDoc(conversationRef, {
+                            participantProfileImages: participantProfileImages
+                          });
+                        }
+                      } catch (e) {
+                        console.log("Error updating profile image in conversation:", e);
+                      }
+                    }
+                  }).catch(err => console.error("Error fetching user data:", err));
+                } else {
+                  setProfileImageUrl(profileImg);
+                }
               } else {
                 setChatTitle('Chat');
                 setProfileImageUrl(null);
@@ -150,9 +178,6 @@ export default function ChatScreen() {
               setChatTitle('Chat');
               setProfileImageUrl(null);
             }
-          } else {
-            setChatTitle('Chat');
-            setProfileImageUrl(null);
           }
         })
         .catch((error) => {
