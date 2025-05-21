@@ -65,11 +65,10 @@ const ChatItem = ({
                         try {
                             if (!currentUser) return;
                             
-                            // Delete the conversation metadata
-                            const conversationRef = doc(db, 'conversations', conversationId);
-                            await deleteDoc(conversationRef);
-
-                            // Delete the user-specific conversation data
+                            // CHANGE: Don't delete the conversation document itself, just remove 
+                            // the current user's reference to it
+                            
+                            // Delete only the user-specific conversation data
                             const userConvRef = doc(db, `users/${currentUser.uid}/conversations`, conversationId);
                             await deleteDoc(userConvRef);
 
@@ -139,12 +138,6 @@ export default function DMs() {
     const [searchLoading, setSearchLoading] = useState(false);
     const searchInputRef = useRef<TextInput>(null);
     const [refreshing, setRefreshing] = useState(false);
-
-    const handleRefresh = useCallback(async () => {
-        setRefreshing(true);
-        await fetchConversations();
-        setRefreshing(false);
-    }, [fetchConversations]);
     
     const handleComposePress = () => {
         setIsSearching(true);
@@ -176,22 +169,56 @@ export default function DMs() {
                     // Get the other participant's ID
                     const otherParticipantId = userConvData.otherParticipantId;
                     
-                    // If otherParticipantProfileImage is missing but we have participantProfileImages
+                    // Check if profile image is missing or empty
                     if ((!userConvData.otherParticipantProfileImage || userConvData.otherParticipantProfileImage === '') 
-                        && conversationMetaData.participantProfileImages && otherParticipantId) {
+                        && otherParticipantId) {
                         
-                        // Use the profile image from the conversation metadata
-                        userConvData.otherParticipantProfileImage = 
-                            conversationMetaData.participantProfileImages[otherParticipantId] || '';
+                        let profileImageUrl = '';
+                        
+                        // First try to get it from conversation metadata
+                        if (conversationMetaData.participantProfileImages && 
+                            conversationMetaData.participantProfileImages[otherParticipantId]) {
+                            profileImageUrl = conversationMetaData.participantProfileImages[otherParticipantId];
+                        }
+                        
+                        // If still empty, fetch directly from the user's profile
+                        if (!profileImageUrl) {
+                            try {
+                                const otherUserRef = doc(db, 'users', otherParticipantId);
+                                const otherUserSnap = await getDoc(otherUserRef);
+                                
+                                if (otherUserSnap.exists() && otherUserSnap.data().profileImageUrl) {
+                                    profileImageUrl = otherUserSnap.data().profileImageUrl;
+                                    
+                                    // Also update the conversation metadata for future reference
+                                    if (conversationMetaData.participantProfileImages) {
+                                        const updatedProfileImages = {
+                                            ...conversationMetaData.participantProfileImages,
+                                            [otherParticipantId]: profileImageUrl
+                                        };
+                                        
+                                        await updateDoc(conversationMetaRef, {
+                                            participantProfileImages: updatedProfileImages
+                                        });
+                                    }
+                                }
+                            } catch (e) {
+                                console.log("Error fetching other user profile:", e);
+                            }
+                        }
+                        
+                        // If we found a profile image, update the conversation document
+                        if (profileImageUrl) {
+                            userConvData.otherParticipantProfileImage = profileImageUrl;
                             
-                        // Update the user's conversation document with the correct profile image
-                        try {
-                            const userConvRef = doc(db, `users/${currentUser.uid}/conversations`, conversationId);
-                            await updateDoc(userConvRef, {
-                                otherParticipantProfileImage: userConvData.otherParticipantProfileImage
-                            });
-                        } catch (e) {
-                            console.log("Error updating profile image:", e);
+                            try {
+                                const userConvRef = doc(db, `users/${currentUser.uid}/conversations`, conversationId);
+                                await updateDoc(userConvRef, {
+                                    otherParticipantProfileImage: profileImageUrl
+                                });
+                            } catch (e) {
+                                console.log("Error updating profile image:", e);
+                            }
                         }
                     }
                     
@@ -204,6 +231,7 @@ export default function DMs() {
                 return null;
             });
 
+            // Rest of your function remains the same
             const fetchedConversations = (await Promise.all(combinedDataPromises))
                 .filter(conv => conv !== null) as CombinedConversationItem[];
 
@@ -228,6 +256,12 @@ export default function DMs() {
             fetchConversations();
         }, [fetchConversations])
     );
+
+    const handleRefresh = useCallback(async () => {
+        setRefreshing(true);
+        await fetchConversations();
+        setRefreshing(false);
+    }, [fetchConversations]);
 
     const searchUsers = useCallback(async () => {
         if (!searchText.trim()) {
