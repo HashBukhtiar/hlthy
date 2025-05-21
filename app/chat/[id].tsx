@@ -194,7 +194,7 @@ export default function ChatScreen() {
     if (messages.length > 0 && !loading && flatListRef.current) {
       setTimeout(() => {
         flatListRef.current?.scrollToEnd({ animated: false });
-      }, 100);
+      }, 200);
     }
   }, [messages, loading]);
 
@@ -459,9 +459,7 @@ export default function ChatScreen() {
               />
             )}
             
-            <Text style={styles.sharedPostCaption} numberOfLines={2}>
-              {item.sharedPost.caption || "No caption"}
-            </Text>
+            {item.sharedPost.caption ? <Text style={styles.sharedPostCaption} numberOfLines={2}>{item.sharedPost.caption}</Text> : null}
           </TouchableOpacity>
         </TouchableOpacity>
       );
@@ -491,7 +489,7 @@ export default function ChatScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <View style={styles.container}>
-        <SafeAreaView>
+        <SafeAreaView style={{ backgroundColor: '#1E1E1E' }}>
           {/* Header */}
           <View style={styles.header}>
             <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
@@ -587,7 +585,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#1E1E1E',
-    paddingTop: 15, 
+    paddingTop: Platform.OS === 'ios' ? 0 : 20,
     paddingBottom: 10,
     paddingHorizontal: 10,
     borderBottomWidth: 1,
