@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, Image, ScrollView, TouchableOpacity, FlatList, TextInput, Modal, ActivityIndicator, Alert } from 'react-native';
+import { StyleSheet, Text, View, Image, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform, FlatList, TextInput, Modal, ActivityIndicator, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,7 +7,7 @@ import { usePostsData, Post, Comment } from '@/hooks/usePostsData';
 import { useAuth } from '@/context/AuthContext';
 import { collection } from 'firebase/firestore';
 import { db } from '@/firebaseConfig';
-import { query, where, getDocs, doc, setDoc, getDoc, addDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
+import { query, where, limit, getDocs, doc, setDoc, getDoc, addDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
 
 export default function ViewPost() {
   const [menuVisible, setMenuVisible] = useState(false);
@@ -79,7 +79,8 @@ export default function ViewPost() {
       const q = query(
         usersRef,
         where('username', '>=', searchText.toLowerCase()),
-        where('username', '<=', searchText.toLowerCase() + '\uf8ff')
+        where('username', '<=', searchText.toLowerCase() + '\uf8ff'),
+        limit(10)
       );
 
       const querySnapshot = await getDocs(q);
@@ -100,6 +101,14 @@ export default function ViewPost() {
       setSearchLoading(false);
     }
   };
+
+useEffect(() => {
+  const delayDebounceFn = setTimeout(() => {
+    searchUsers();
+  }, 500);
+
+  return () => clearTimeout(delayDebounceFn);
+}, [searchText]);
 
   const sharePostWithUser = async (userId: string, username: string, profileImageUrl?: string) => {
     if (!currentUser || !post) return;
@@ -652,7 +661,11 @@ export default function ViewPost() {
         animationType="slide"
         onRequestClose={() => setShareModalVisible(false)}
       >
-        <View style={styles.shareModalContainer}>
+        <KeyboardAvoidingView
+          style={styles.shareModalContainer}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 100} // Adjust as needed
+        >
           <View style={styles.shareModalContent}>
             <View style={styles.shareModalHeader}>
               <Text style={styles.shareModalTitle}>Share to</Text>
@@ -660,7 +673,7 @@ export default function ViewPost() {
                 <Ionicons name="close" size={24} color="#FFF" />
               </TouchableOpacity>
             </View>
-            
+
             <View style={styles.searchContainer}>
               <TextInput
                 style={styles.searchInput}
@@ -671,25 +684,22 @@ export default function ViewPost() {
                 onSubmitEditing={searchUsers}
                 autoCapitalize="none"
               />
-              <TouchableOpacity style={styles.searchButton} onPress={searchUsers}>
-                <Ionicons name="search" size={20} color="#FFF" />
-              </TouchableOpacity>
             </View>
-            
+
             {searchLoading ? (
-              <ActivityIndicator size="large" color="#0A84FF" style={{marginTop: 20}} />
+              <ActivityIndicator size="large" color="#0A84FF" style={{ marginTop: 20 }} />
             ) : (
               <FlatList
                 data={searchResults}
                 keyExtractor={(item) => item.id}
                 renderItem={({ item }) => (
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     style={styles.userItem}
                     onPress={() => sharePostWithUser(item.id, item.username, item.profileImageUrl)}
                   >
-                    <Image 
-                      source={item.profileImageUrl ? { uri: item.profileImageUrl } : require('@/assets/images/profile-icon.png')} 
-                      style={styles.userItemImage} 
+                    <Image
+                      source={item.profileImageUrl ? { uri: item.profileImageUrl } : require('@/assets/images/profile-icon.png')}
+                      style={styles.userItemImage}
                     />
                     <Text style={styles.userItemText}>{item.username}</Text>
                   </TouchableOpacity>
@@ -702,7 +712,7 @@ export default function ViewPost() {
               />
             )}
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
@@ -1123,11 +1133,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     paddingVertical: 10,
     marginRight: 10,
-  },
-  searchButton: {
-    backgroundColor: '#0A84FF',
-    padding: 10,
-    borderRadius: 10,
   },
   userItem: {
     flexDirection: 'row',
