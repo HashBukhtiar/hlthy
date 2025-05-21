@@ -1,10 +1,10 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
     View, Text, FlatList, TouchableOpacity, Image, StyleSheet, ActivityIndicator, TextInput, Alert, TouchableHighlight, RefreshControl
 } from 'react-native';
 import { useAuth } from '@/context/AuthContext';
 import { db } from '@/firebaseConfig';
-import { collection, getDocs, doc, updateDoc, getDoc, Timestamp, query, where, setDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, updateDoc, getDoc, Timestamp, query, where, limit, setDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
@@ -275,7 +275,8 @@ export default function DMs() {
             const q = query(
                 usersRef,
                 where('username', '>=', searchText.toLowerCase()),
-                where('username', '<=', searchText.toLowerCase() + '\uf8ff')
+                where('username', '<=', searchText.toLowerCase() + '\uf8ff'),
+                limit(10)
             );
 
             const querySnapshot = await getDocs(q);
@@ -297,6 +298,15 @@ export default function DMs() {
             setSearchLoading(false);
         }
     }, [searchText, currentUser]);
+
+    useEffect(() => {
+        // Debounce the search function
+        const delayDebounceFn = setTimeout(() => {
+            searchUsers();
+        }, 500);
+
+        return () => clearTimeout(delayDebounceFn);
+    }, [searchText, searchUsers]);
 
     const startConversation = useCallback(async (selectedUserId: string, selectedUsername: string, selectedProfileImage?: string) => {
         if (!currentUser || selectedUserId === currentUser.uid) return;
