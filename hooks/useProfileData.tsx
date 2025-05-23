@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { collection, query, orderBy, getDocs, deleteDoc, doc, getDoc, addDoc, updateDoc, increment, where, setDoc } from 'firebase/firestore';
+import { collection, query, orderBy, getDocs, deleteDoc, doc, getDoc, addDoc, updateDoc, increment, where, setDoc, runTransaction, serverTimestamp } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import { db, storage } from '@/firebaseConfig';
 import { useAuth } from '@/context/AuthContext';
@@ -17,18 +17,28 @@ export interface GroupedMilestones {
   [monthYear: string]: Milestone[];
 }
 
+interface WorkoutItemData {
+  id: string;
+  title: string;
+  creatorId: string;
+  creatorUsername: string;
+  coverImageUrl?: string | null;
+}
+
 export function useProfileData(userId = null) {
   const { currentUser } = useAuth();
-  const profileId = userId || currentUser?.uid;
+  const profileIdToFetch = userId || currentUser?.uid;
 
   const [loading, setLoading] = useState(true);
-  const [profileData, setProfileData] = useState(null);
-  const [posts, setPosts] = useState([]);
+  const [profileData, setProfileData] = useState<any | null>(null);
+  const [posts, setPosts] = useState<any[]>([]);
   const [groupedMilestones, setGroupedMilestones] = useState<GroupedMilestones>({});
-  const [workouts, setWorkouts] = useState([]);
-  const [followers, setFollowers] = useState([]);
-  const [following, setFollowing] = useState([]);
-  const [error, setError] = useState(null);
+  const [workouts, setWorkouts] = useState<any[]>([]);
+  const [followers, setFollowers] = useState<any[]>([]);
+  const [following, setFollowing] = useState<any[]>([]);
+  const [error, setError] = useState<Error | null>(null);
+  const [isFollowingStatus, setIsFollowingStatus] = useState(false);
+  const [followActionLoading, setFollowActionLoading] = useState(false);
 
   const groupAndSortMilestones = (milestonesToSort: Milestone[]): GroupedMilestones => {
     // Sort milestones first
@@ -76,68 +86,63 @@ export function useProfileData(userId = null) {
     }, {});
 };
 
-  // Possibly redundant function, might remove later
-  const refreshProfileData = async () => {
+  // This is the primary function called by useEffect
+  const fetchProfileData = async () => {
+    if (!profileIdToFetch) {
+      setLoading(false);
+      setError(new Error("No profile ID available to fetch data."));
+      console.log("No profileIdToFetch, returning early from fetchProfileData");
+      return;
+    }
+    console.log(`Fetching profile data for ID (fetchProfileData): ${profileIdToFetch}`);
+    setLoading(true);
+    setError(null);
+
     try {
-      setLoading(true);
-      setError(null);
+      let userData: any | null = null; // Use specific type
+      let userPosts: any[] = [];
+      let userMilestonesRaw: Milestone[] = [];
+      let userWorkouts: any[] = [];
+      let userFollowers: any[] = [];
+      let userFollowingData: any[] = []; // Renamed to avoid conflict with state
 
-      console.log("Starting profile data refresh for user:", currentUser?.uid);
-
-      if (!currentUser) {
-        console.error("No current user found");
-        throw new Error("User not authenticated");
-      }
-
-      // Initialize empty data containers for graceful degradation
-      let userData = {};
-      let userPosts = [];
-      let userMilestones = [];
-      let userWorkouts = [];
-      let userFollowers = [];
-      let userFollowing = [];
-
-      // 1. Fetch basic user profile data
+      // 1. Fetch user profile
       try {
-        const userRef = doc(db, "users", currentUser.uid);
-        const userDoc = await getDoc(userRef);
-
+        const userDoc = await getDoc(doc(db, "users", profileIdToFetch));
         if (userDoc.exists()) {
-          userData = userDoc.data();
-          console.log("Retrieved basic profile data");
+          userData = { id: userDoc.id, ...userDoc.data() }; // Include ID in profileData
+          console.log("User profile data retrieved for:", profileIdToFetch, userData);
         } else {
-          console.error("User document does not exist");
+          console.log("User profile not found for:", profileIdToFetch);
+          throw new Error("User profile not found.");
         }
       } catch (profileError) {
         console.error("Error fetching user profile:", profileError);
-        // Continue with other data
+        setError(profileError as Error);
+        setLoading(false);
+        return;
       }
 
-      // 2. Fetch user posts with proper error handling
+      // 2. Fetch user posts
       try {
         const postsQuery = query(
           collection(db, "posts"),
-          where("authorId", "==", currentUser.uid),
+          where("authorId", "==", profileIdToFetch),
           orderBy("createdAt", "desc")
         );
-
-        const postSnap = await getDocs(postsQuery);
-        userPosts = postSnap.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
-        console.log(`Retrieved ${userPosts.length} user posts`);
+        const postsSnapshot = await getDocs(postsQuery);
+        userPosts = postsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        console.log(`Retrieved ${userPosts.length} user posts for:`, profileIdToFetch);
       } catch (postsError) {
         console.error("Error fetching posts:", postsError);
       }
 
-      // 3. Extract milestones from posts that have isMilestone flag
+      // 3. Extract and format milestones from posts
       try {
-        userMilestones = userPosts
+        userMilestonesRaw = userPosts
           .filter(post => post.isMilestone && post.milestoneDetails)
           .map(post => {
-            // Format milestone data for UI
-            let milestone: Milestone = { // Explicit type annotation
+            let milestone: Milestone = {
               id: post.id,
               postId: post.id,
               date: post.createdAt,
@@ -154,230 +159,219 @@ export function useProfileData(userId = null) {
               milestone.exercise = post.milestoneDetails.type === 'weightLoss' ? 'Weight Loss' : 'Weight Gain';
               milestone.weight = `${post.milestoneDetails.newWeight || 0} ${post.milestoneDetails.newWeightUnit || ''}`;
             }
-
             return milestone;
           });
-        console.log("User Milestones (raw):", userMilestones);
-        console.log(`Extracted ${userMilestones.length} milestones from posts`);
+        console.log(`Extracted ${userMilestonesRaw.length} raw milestones from posts for:`, profileIdToFetch);
       } catch (milestoneError) {
         console.error("Error processing milestones:", milestoneError);
-        // Continue with other data
       }
 
       // 4. Fetch user workouts
       try {
         const workoutsQuery = query(
           collection(db, "workouts"),
-          where("userId", "==", currentUser.uid),
+          // Ensure this field name 'creatorId' matches your Firestore structure for workouts
+          where("creatorId", "==", profileIdToFetch), 
           orderBy("createdAt", "desc")
         );
-
-        const workoutSnap = await getDocs(workoutsQuery);
-        userWorkouts = workoutSnap.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-          date: doc.data().date || doc.data().createdAt || new Date()
-        }));
-        console.log(`Retrieved ${userWorkouts.length} workouts`);
+        const workoutsSnapshot = await getDocs(workoutsQuery);
+        userWorkouts = workoutsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        console.log(`Retrieved ${userWorkouts.length} workouts for:`, profileIdToFetch);
       } catch (workoutsError) {
         console.error("Error fetching workouts:", workoutsError);
       }
 
       // 5. Fetch followers
       try {
-        const followersQuery = query(collection(db, "users", currentUser.uid, "followers"));
+        const followersQuery = query(collection(db, "users", profileIdToFetch, "followers"));
         const followersSnap = await getDocs(followersQuery);
-        userFollowers = followersSnap.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
-        console.log(`Retrieved ${userFollowers.length} followers`);
+        // The documents in this subcollection represent the users who are followers.
+        // Their IDs are the UIDs of the followers.
+        userFollowers = followersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })); // doc.data() might be empty or contain timestamp
+        console.log(`Retrieved ${userFollowers.length} followers for:`, profileIdToFetch);
       } catch (followersError) {
         console.error("Error fetching followers:", followersError);
       }
 
       // 6. Fetch following
       try {
-        const followingQuery = query(collection(db, "users", currentUser.uid, "following"));
+        const followingQuery = query(collection(db, "users", profileIdToFetch, "following"));
         const followingSnap = await getDocs(followingQuery);
-        userFollowing = followingSnap.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
-        console.log(`Retrieved ${userFollowing.length} following`);
+        // The documents in this subcollection represent the users whom profileIdToFetch is following.
+        // Their IDs are the UIDs of the users being followed.
+        userFollowingData = followingSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })); // doc.data() might be empty or contain timestamp
+        console.log(`Retrieved ${userFollowingData.length} following for:`, profileIdToFetch);
       } catch (followingError) {
         console.error("Error fetching following:", followingError);
-        // Continue with other data
+      }
+
+      // Fetch follow status if not own profile
+      if (currentUser && profileIdToFetch !== currentUser.uid) {
+        try {
+          const followDoc = await getDoc(doc(db, "users", profileIdToFetch, "followers", currentUser.uid));
+          setIsFollowingStatus(followDoc.exists());
+        } catch (followStatusError) {
+          console.error("Error checking follow status:", followStatusError);
+        }
+      }
+
+      try {
+        const followingQuery = query(collection(db, "users", profileIdToFetch, "following"));
+        const followingSnap = await getDocs(followingQuery);
+        userFollowingData = followingSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        console.log(`Retrieved ${userFollowingData.length} following for:`, profileIdToFetch);
+      } catch (followingError) {
+        console.error("Error fetching following:", followingError);
+      }
+      
+      // Fetch follow status if not own profile and currentUser is available
+      if (currentUser && profileIdToFetch !== currentUser.uid) {
+        try {
+          const followDoc = await getDoc(doc(db, "users", profileIdToFetch, "followers", currentUser.uid));
+          setIsFollowingStatus(followDoc.exists());
+          console.log(`Follow status for ${profileIdToFetch} by ${currentUser.uid}: ${followDoc.exists()}`);
+        } catch (followStatusError) {
+          console.error("Error checking follow status:", followStatusError);
+        }
+      } else if (profileIdToFetch === currentUser?.uid) {
+        setIsFollowingStatus(false);
       }
 
       // --- Group the extracted milestones ---
-      const finalGroupedMilestones = groupAndSortMilestones(userMilestones);
-      console.log("Final Grouped Milestones (from refresh):", finalGroupedMilestones);
+      const finalGroupedMilestones = groupAndSortMilestones(userMilestonesRaw);
+      console.log("Final Grouped Milestones for:", profileIdToFetch, finalGroupedMilestones);
 
-      // Update all state variables with fetched data
       setProfileData(userData);
       setPosts(userPosts);
       setGroupedMilestones(finalGroupedMilestones);
       setWorkouts(userWorkouts);
       setFollowers(userFollowers);
-      setFollowing(userFollowing);
+      setFollowing(userFollowingData);
 
-      console.log("Profile data refresh complete");
-    } catch (err) {
-      console.error("Error fetching profile data:", err);
-      if (err.code) console.error("Firebase error code:", err.code);
-      setError(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // This is the primary function called by useEffect
-  const fetchProfileData = async () => {
-    if (!profileId) {
-        setLoading(false);
-        setError(new Error("No profile ID provided."));
-        return;
-    }
-    console.log(`Fetching profile data for ID: ${profileId}`);
-    setLoading(true);
-    setError(null); // Reset error on new fetch
-
-    try {
-      let userData = null;
-      let userPosts = [];
-      let userMilestonesRaw = []; // Temporary array for raw milestones
-      let userWorkouts = [];
-      let userFollowers = [];
-      let userFollowing = [];
-
-      // 1. Fetch user profile
-      try {
-        const userDoc = await getDoc(doc(db, "users", profileId));
-        if (userDoc.exists()) {
-          userData = userDoc.data();
-          console.log("User profile data retrieved");
-        } else {
-          console.log("User profile not found");
-          throw new Error("User profile not found.");
-        }
-      } catch (profileError) {
-        console.error("Error fetching user profile:", profileError);
-        setError(profileError);
-        setLoading(false);
-        return; // Stop if profile fetch fails
-      }
-
-      // 2. Fetch user posts
-      try {
-        const postsQuery = query(
-          collection(db, "posts"),
-          where("authorId", "==", profileId),
-          orderBy("createdAt", "desc")
-        );
-        const postsSnapshot = await getDocs(postsQuery);
-        userPosts = postsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        console.log(`Retrieved ${userPosts.length} user posts`);
-      } catch (postsError) {
-        console.error("Error fetching posts:", postsError);
-        // Continue, but log the error
-      }
-
-      // 3. Extract and format milestones from posts
-      try {
-        userMilestonesRaw = userPosts
-          .filter(post => post.isMilestone && post.milestoneDetails)
-          .map(post => {
-            let milestone: Milestone = {
-              id: post.id, // Use post ID as milestone ID for consistency
-              postId: post.id,
-              date: post.createdAt, // Use post creation date
-              exercise: '',
-              reps: 0,
-              weight: ''
-            };
-
-            if (post.milestoneDetails.type === 'PR') {
-              milestone.exercise = post.milestoneDetails.exercise || 'Unknown Exercise';
-              milestone.reps = post.milestoneDetails.reps || 0;
-              milestone.weight = `${post.milestoneDetails.value || 0} ${post.milestoneDetails.weightUnit || ''}`;
-            } else if (post.milestoneDetails.type === 'weightLoss' || post.milestoneDetails.type === 'weightGain') {
-              milestone.exercise = post.milestoneDetails.type === 'weightLoss' ? 'Weight Loss' : 'Weight Gain';
-              milestone.weight = `${post.milestoneDetails.newWeight || 0} ${post.milestoneDetails.newWeightUnit || ''}`;
-            }
-            // Add more types if needed
-
-            return milestone;
-          });
-        console.log(`Extracted ${userMilestonesRaw.length} raw milestones from posts`);
-      } catch (milestoneError) {
-        console.error("Error processing milestones:", milestoneError);
-        // Continue
-      }
-
-      // 4. Fetch user workouts
-      try {
-        const workoutsQuery = query(
-          collection(db, "workouts"),
-          where("creatorId", "==", profileId), // Ensure field name is correct ('creatorId' or 'userId')
-          orderBy("createdAt", "desc")
-        );
-        const workoutsSnapshot = await getDocs(workoutsQuery);
-        userWorkouts = workoutsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        console.log(`Retrieved ${userWorkouts.length} workouts`);
-      } catch (workoutsError) {
-        console.error("Error fetching workouts:", workoutsError);
-        // Continue
-      }
-
-      // 5. Fetch followers
-      try {
-        const followersQuery = query(collection(db, "users", profileId, "followers"));
-        const followersSnap = await getDocs(followersQuery);
-        userFollowers = followersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        console.log(`Retrieved ${userFollowers.length} followers`);
-      } catch (followersError) {
-        console.error("Error fetching followers:", followersError);
-        // Continue
-      }
-
-      // 6. Fetch following
-      try {
-        const followingQuery = query(collection(db, "users", profileId, "following"));
-        const followingSnap = await getDocs(followingQuery);
-        userFollowing = followingSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        console.log(`Retrieved ${userFollowing.length} following`);
-      } catch (followingError) {
-        console.error("Error fetching following:", followingError);
-        // Continue
-      }
-
-      // --- Group the extracted milestones ---
-      const finalGroupedMilestones = groupAndSortMilestones(userMilestonesRaw);
-      console.log("Final Grouped Milestones:", finalGroupedMilestones);
-
-      // Update all state variables together AFTER all data is fetched/processed
-      setProfileData(userData);
-      setPosts(userPosts);
-      setGroupedMilestones(finalGroupedMilestones); // Set the grouped milestones
-      setWorkouts(userWorkouts);
-      setFollowers(userFollowers);
-      setFollowing(userFollowing);
-
-      console.log("Profile data refresh complete");
+      console.log("Profile data refresh complete for:", profileIdToFetch);
 
     } catch (err) {
       console.error("Error in fetchProfileData:", err);
-      setError(err);
+      setError(err as Error);
     } finally {
       setLoading(false);
-      console.log("Loading set to false");
+      console.log("Loading set to false for:", profileIdToFetch);
     }
   };
 
+  const followUser = async (targetUserId: string) => {
+    if (!currentUser || !currentUser.uid || followActionLoading) {
+      console.error("Current user not found or action in progress for follow operation");
+      return;
+    }
+    const currentUserId = currentUser.uid;
+    if (currentUserId === targetUserId) {
+      console.error("Cannot follow yourself");
+      return;
+    }
+    setFollowActionLoading(true);
+
+    const targetUserFollowersRef = doc(db, "users", targetUserId, "followers", currentUserId);
+    const currentUserFollowingRef = doc(db, "users", currentUserId, "following", targetUserId);
+    const targetUserDocRef = doc(db, "users", targetUserId);
+    const currentUserDocRef = doc(db, "users", currentUserId);
+
+    try {
+      await runTransaction(db, async (transaction) => {
+        const targetUserSnap = await transaction.get(targetUserDocRef);
+        const currentUserSnap = await transaction.get(currentUserDocRef);
+
+        if (!targetUserSnap.exists() || !currentUserSnap.exists()) {
+          throw new Error("User document not found for follow operation.");
+        }
+
+        transaction.set(targetUserFollowersRef, { followedAt: serverTimestamp() });
+        transaction.set(currentUserFollowingRef, { followingSince: serverTimestamp() });
+        transaction.update(targetUserDocRef, { followerCount: increment(1) });
+        transaction.update(currentUserDocRef, { followingCount: increment(1) });
+      });
+
+      setIsFollowingStatus(true);
+      // Optimistically update local state for the viewed profile's follower count
+      setProfileData(prev => prev ? { ...prev, followerCount: (prev.followerCount || 0) + 1 } : null);
+      // Add current user to local followers list for immediate UI update
+      setFollowers(prev => [...prev, { id: currentUserId, username: currentUser.displayName || 'You' }]);
+
+
+      console.log("Successfully followed user:", targetUserId);
+    } catch (error) {
+      console.error("Error following user:", error);
+      // Revert optimistic UI update if needed or show error
+    } finally {
+      setFollowActionLoading(false);
+    }
+  };
+
+  const unfollowUser = async (targetUserId: string) => {
+    if (!currentUser || !currentUser.uid || followActionLoading) {
+      console.error("Current user not found or action in progress for unfollow operation");
+      return;
+    }
+    const currentUserId = currentUser.uid;
+    if (currentUserId === targetUserId) {
+      console.error("Cannot unfollow yourself");
+      return;
+    }
+    setFollowActionLoading(true);
+
+    const targetUserFollowersRef = doc(db, "users", targetUserId, "followers", currentUserId);
+    const currentUserFollowingRef = doc(db, "users", currentUserId, "following", targetUserId);
+    const targetUserDocRef = doc(db, "users", targetUserId);
+    const currentUserDocRef = doc(db, "users", currentUserId);
+
+    try {
+      await runTransaction(db, async (transaction) => {
+        const targetUserSnap = await transaction.get(targetUserDocRef);
+        const currentUserSnap = await transaction.get(currentUserDocRef);
+
+        if (!targetUserSnap.exists() || !currentUserSnap.exists()) {
+          throw new Error("User document not found for unfollow operation.");
+        }
+        
+        // Ensure followerCount and followingCount do not go below 0
+        const currentFollowerCount = targetUserSnap.data()?.followerCount || 0;
+        const currentFollowingCount = currentUserSnap.data()?.followingCount || 0;
+
+        transaction.delete(targetUserFollowersRef);
+        transaction.delete(currentUserFollowingRef);
+        transaction.update(targetUserDocRef, { followerCount: increment(currentFollowerCount > 0 ? -1 : 0) });
+        transaction.update(currentUserDocRef, { followingCount: increment(currentFollowingCount > 0 ? -1 : 0) });
+      });
+
+      setIsFollowingStatus(false);
+      // Optimistically update local state for the viewed profile's follower count
+      setProfileData(prev => prev ? { ...prev, followerCount: Math.max(0, (prev.followerCount || 0) - 1) } : null);
+      // Remove current user from local followers list
+      setFollowers(prev => prev.filter(follower => follower.id !== currentUserId));
+
+      console.log("Successfully unfollowed user:", targetUserId);
+    } catch (error) {
+      console.error("Error unfollowing user:", error);
+    } finally {
+      setFollowActionLoading(false);
+    }
+  };
+
+  const refreshProfileData = async () => {
+    console.log("Manual refresh triggered for profile ID:", profileIdToFetch);
+    await fetchProfileData();
+  };
+
   useEffect(() => {
-    fetchProfileData();
-  }, [profileId]); // Re-fetch if profileId changes
+    console.log("useEffect in useProfileData triggered. profileIdToFetch:", profileIdToFetch);
+    if (profileIdToFetch) { // Only fetch if profileIdToFetch is available
+      fetchProfileData();
+    } else {
+      // Handle case where profileIdToFetch is not yet available (e.g., currentUser not loaded)
+      setLoading(false); 
+      console.log("profileIdToFetch is null/undefined in useEffect, not fetching.");
+    }
+  }, [profileIdToFetch, currentUser?.uid]);
 
   return {
     loading,
@@ -388,6 +382,11 @@ export function useProfileData(userId = null) {
     followers,
     following,
     error,
-    refreshProfileData
+    refreshProfileData,
+    isFollowingStatus,
+    followUser, 
+    unfollowUser,
+    followActionLoading,
+    viewedProfileId: profileIdToFetch
   };
 }

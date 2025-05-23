@@ -8,12 +8,19 @@ import {
   ScrollView, 
   Image,
   Alert,
-  Switch
+  Switch,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import globalStyles from '@/styles/globalStyles';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import { useAuth } from '@/context/AuthContext';
+import { db, storage } from '@/firebaseConfig';
+import { addDoc, collection, serverTimestamp, doc, updateDoc, increment } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 interface WorkoutExercise {
   id: string;
@@ -31,6 +38,7 @@ interface WorkoutSegment {
 
 export default function CreateWorkout() {
   const router = useRouter();
+  const { currentUser } = useAuth();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [coverImage, setCoverImage] = useState<string | null>(null);
@@ -38,10 +46,12 @@ export default function CreateWorkout() {
     {
       id: Date.now().toString(),
       name: 'Warm Up',
-      length: '15 mins',
+      length: '15',
       exercises: []
     }
   ]);
+  const [isPublic, setIsPublic] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
 
   const scrollViewRef = useRef<ScrollView>(null);
 
@@ -89,7 +99,7 @@ export default function CreateWorkout() {
     const newSegment = {
       id: Date.now().toString(),
       name: 'New Segment',
-      length: '30 mins',
+      length: '30',
       exercises: []
     };
     
@@ -128,7 +138,7 @@ export default function CreateWorkout() {
       if (segment.id === segmentId) {
         return {
           ...segment,
-          [field]: value
+          [field]: field === 'length' ? value.replace(/[^0-9]/g, '') : value
         };
       }
       return segment;
@@ -160,52 +170,110 @@ export default function CreateWorkout() {
     setSegments(segments.filter(segment => segment.id !== segmentId));
   };
 
-  const saveWorkout = () => {
-    // Validate required fields
+  const saveWorkout = async () => {
+    if (!currentUser) {
+      Alert.alert('Error', 'You must be logged in to create a workout.');
+      return;
+    }
     if (!title.trim()) {
       Alert.alert('Missing Information', 'Please add a title for your workout.');
       return;
     }
-
-    // Check if at least one segment has exercises
-    const hasExercises = segments.some(segment => segment.exercises.length > 0);
+    const hasExercises = segments.some(segment => segment.exercises.length > 0 && segment.exercises.some(ex => ex.name.trim() !== ''));
     if (!hasExercises) {
-      Alert.alert('Missing Information', 'Please add at least one exercise to your workout.');
+      Alert.alert('Missing Information', 'Please add at least one exercise with a name to your workout.');
       return;
     }
 
-    // Here we would save the workout to the database
-    // For now, we'll just navigate back
-    Alert.alert(
-      'Workout Created',
-      'Your workout has been created successfully!',
-      [
-        { 
-          text: 'OK', 
-          onPress: () => router.back() 
-        }
-      ]
-    );
+    setIsSaving(true);
+    let coverImageUrl = '';
+
+    try {
+      // 1. Upload cover image if selected
+      if (coverImage) {
+        const response = await fetch(coverImage);
+        const blob = await response.blob();
+        const imageName = `workoutCovers/${currentUser.uid}/${Date.now()}-${title.replace(/\s+/g, '_')}.jpg`;
+        const storageRef = ref(storage, imageName);
+        await uploadBytes(storageRef, blob);
+        coverImageUrl = await getDownloadURL(storageRef);
+      }
+
+      // 2. Prepare workout data
+      const workoutData = {
+        creatorId: currentUser.uid,
+        creatorUsername: currentUser.username || currentUser.displayName || 'Anonymous',
+        title: title.trim(),
+        description: description.trim(),
+        coverImageUrl: coverImageUrl || null,
+        segments: segments.map(segment => ({ // Ensure segments and exercises have necessary data
+          id: segment.id,
+          name: segment.name.trim(),
+          length: segment.length.trim(),
+          exercises: segment.exercises.map(ex => ({
+            id: ex.id,
+            name: ex.name.trim(),
+            sets: ex.sets.trim(),
+            reps: ex.reps.trim(),
+          })).filter(ex => ex.name.trim() !== '') // Filter out empty exercises
+        })).filter(seg => seg.exercises.length > 0 || seg.name.trim() !== ''), // Filter out segments with no name and no exercises
+        createdAt: serverTimestamp(),
+        isPublic: isPublic,
+        savedCount: 0,
+        tags: [], // Placeholder for future tag functionality
+        // Add any other fields as per your DBDESIGN.md for workouts
+      };
+
+      // 3. Save workout to Firestore
+      const workoutDocRef = await addDoc(collection(db, 'workouts'), workoutData);
+      console.log('Workout saved with ID: ', workoutDocRef.id);
+
+      // 4. Update user's workout count (denormalization)
+      const userDocRef = doc(db, 'users', currentUser.uid);
+      await updateDoc(userDocRef, {
+        'stats.workoutCount': increment(1)
+      });
+      // If 'stats' or 'workoutCount' might not exist, we might need a transaction or set with merge:true
+      // For simplicity, increment assumes the path exists or can be created by Firestore.
+
+      Alert.alert(
+        'Workout Created',
+        'Your workout has been created successfully!',
+        [{ text: 'OK', onPress: () => router.back() }]
+      );
+
+    } catch (error) {
+      console.error('Error saving workout: ', error);
+      Alert.alert('Error', 'Could not save workout. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
     <View style={globalStyles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
+        <TouchableOpacity onPress={() => router.back()} disabled={isSaving}>
           <Ionicons name="arrow-back" size={24} color="white" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Create Workout</Text>
-        <TouchableOpacity onPress={saveWorkout}>
-          <View style={styles.saveButton}>
-            <Text style={styles.saveButtonText}>Save</Text>
+        <TouchableOpacity onPress={saveWorkout} disabled={isSaving}>
+          <View style={[styles.saveButton, isSaving && styles.saveButtonDisabled]}>
+            {isSaving ? (
+              <ActivityIndicator size="small" color="white" />
+            ) : (
+              <Text style={styles.saveButtonText}>Save</Text>
+            )}
           </View>
         </TouchableOpacity>
       </View>
 
       <ScrollView 
         style={styles.scrollView}
+        contentContainerStyle={{ paddingBottom: 200 }}
         ref={scrollViewRef}
         showsVerticalScrollIndicator={false}
+        keyboardDismissMode='on-drag'
       >
         {/* Cover Image */}
         <TouchableOpacity style={styles.imageContainer} onPress={pickImage}>
@@ -246,14 +314,30 @@ export default function CreateWorkout() {
           />
         </View>
 
-        {/* Segments */}
+        {/* Public/Private Switch */}
+        <View style={styles.inputContainer}>
+          <Text style={styles.inputLabel}>Visibility</Text>
+          <View style={styles.switchContainer}>
+            <Text style={styles.switchLabel}>{isPublic ? 'Public' : 'Private'}</Text>
+            <Switch
+              trackColor={{ false: "#3e3e3e", true: "#ff2d55" }}
+              thumbColor={isPublic ? "#f4f3f4" : "#f4f3f4"}
+              ios_backgroundColor="#3e3e3e"
+              onValueChange={setIsPublic}
+              value={isPublic}
+              disabled={isSaving}
+            />
+          </View>
+        </View>
+
         {segments.map((segment, segmentIndex) => (
           <View key={segment.id} style={styles.segmentContainer}>
+            {/* ... Segment Header (Name, Length, Remove Segment) ... */}
             <View style={styles.segmentHeader}>
               <View style={styles.segmentTitleContainer}>
                 <Text style={styles.segmentLabel}>Segment {segmentIndex + 1}</Text>
-                <TouchableOpacity onPress={() => removeSegment(segment.id)}>
-                  <Ionicons name="trash-outline" size={20} color="#ff6b6b" />
+                <TouchableOpacity onPress={() => !isSaving && removeSegment(segment.id)} disabled={isSaving}>
+                  <Ionicons name="trash-outline" size={20} color={isSaving ? "#666" : "#ff6b6b"} />
                 </TouchableOpacity>
               </View>
               
@@ -266,23 +350,26 @@ export default function CreateWorkout() {
                     onChangeText={(value) => updateSegment(segment.id, 'name', value)}
                     placeholder="e.g., Warm Up"
                     placeholderTextColor="#666"
+                    editable={!isSaving}
                   />
                 </View>
                 
                 <View style={styles.segmentInputContainer}>
-                  <Text style={styles.segmentInputLabel}>Length</Text>
+                  <Text style={styles.segmentInputLabel}>Length (minutes)</Text>
                   <TextInput
                     style={styles.segmentInput}
                     value={segment.length}
                     onChangeText={(value) => updateSegment(segment.id, 'length', value)}
-                    placeholder="e.g., 30 mins"
+                    placeholder="e.g., 15"
                     placeholderTextColor="#666"
+                    editable={!isSaving}
+                    keyboardType="number-pad"
                   />
                 </View>
               </View>
             </View>
 
-            {/* Exercises in this segment */}
+          {/* Exercises in this segment */}
             <View style={styles.exercisesContainer}>
               {segment.exercises.map((exercise, exerciseIndex) => (
                 <View key={exercise.id} style={styles.exerciseItem}>
@@ -297,8 +384,8 @@ export default function CreateWorkout() {
                       onChangeText={(value) => updateExercise(segment.id, exercise.id, 'name', value)}
                       placeholder="Exercise name"
                       placeholderTextColor="#666"
+                      editable={!isSaving}
                     />
-                    
                     <View style={styles.exerciseDetailsContainer}>
                       <TextInput
                         style={styles.exerciseDetailInput}
@@ -307,6 +394,7 @@ export default function CreateWorkout() {
                         placeholder="Sets"
                         placeholderTextColor="#666"
                         keyboardType="number-pad"
+                        editable={!isSaving}
                       />
                       <Text style={styles.exerciseDetailSeparator}>×</Text>
                       <TextInput
@@ -316,22 +404,25 @@ export default function CreateWorkout() {
                         placeholder="Reps"
                         placeholderTextColor="#666"
                         keyboardType="number-pad"
+                        editable={!isSaving}
                       />
                     </View>
                   </View>
                   
                   <TouchableOpacity 
                     style={styles.removeExerciseButton}
-                    onPress={() => removeExercise(segment.id, exercise.id)}
+                    onPress={() => !isSaving && removeExercise(segment.id, exercise.id)}
+                    disabled={isSaving}
                   >
-                    <Ionicons name="close-circle" size={20} color="#ff6b6b" />
+                    <Ionicons name="close-circle" size={20} color={isSaving ? "#666" :"#ff6b6b"} />
                   </TouchableOpacity>
                 </View>
               ))}
               
               <TouchableOpacity 
-                style={styles.addExerciseButton}
-                onPress={() => addExercise(segment.id)}
+                style={[styles.addExerciseButton, isSaving && styles.disabledButton]}
+                onPress={() => !isSaving && addExercise(segment.id)}
+                disabled={isSaving}
               >
                 <Ionicons name="add-circle-outline" size={18} color="white" />
                 <Text style={styles.addExerciseText}>Add Exercise</Text>
@@ -340,10 +431,10 @@ export default function CreateWorkout() {
           </View>
         ))}
 
-        {/* Add Segment Button */}
         <TouchableOpacity 
-          style={styles.addSegmentButton}
-          onPress={addSegment}
+          style={[styles.addSegmentButton, isSaving && styles.disabledButton]}
+          onPress={() => !isSaving && addSegment()}
+          disabled={isSaving}
         >
           <Ionicons name="add-circle-outline" size={20} color="white" />
           <Text style={styles.addSegmentText}>Add Segment</Text>
@@ -382,7 +473,7 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
-    backgroundColor: 'black',
+    backgroundColor: 'black'
   },
   imageContainer: {
     width: '80%',
@@ -548,5 +639,24 @@ const styles = StyleSheet.create({
   },
   bottomSpace: {
     height: 100,
-  }
+  },
+  saveButtonDisabled: {
+    backgroundColor: '#8c1a32',
+  },
+  disabledButton: {
+    opacity: 0.5,
+  },
+  switchContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#222',
+    borderRadius: 10,
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+  },
+  switchLabel: {
+    color: 'white',
+    fontSize: 16,
+  },
 });

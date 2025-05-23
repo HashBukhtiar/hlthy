@@ -1,10 +1,11 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, Image, StyleSheet, Dimensions, FlatList, TouchableOpacity, SafeAreaView, Animated, ActivityIndicator, RefreshControl, Modal } from 'react-native';
-import { useRouter, useFocusEffect } from 'expo-router';
-import { postImage } from '@/assets/images';
-import { useProfileData, GroupedMilestones, Milestone } from '@/hooks/useProfileData'; // Import interfaces if needed
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { View, ScrollView, Text, Image, StyleSheet, Dimensions, FlatList, TouchableOpacity, SafeAreaView, Animated, ActivityIndicator, RefreshControl, Modal } from 'react-native';
+import { useRouter } from 'expo-router';
+import { useProfileData, GroupedMilestones, Milestone } from '@/hooks/useProfileData';
 import { useAuth } from '@/context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
+import { formatCount } from '@/logic/formattingFunctions';
+import { BOTTOM_BAR_HEIGHT } from '@/styles/globalStyles';
 
 // Import archetype icons
 const archetypeIcons = {
@@ -31,14 +32,19 @@ interface Workout {
   favorites: number;
 }
 
+interface ProfileScreenProps {
+  userId?: string;
+}
+
 enum TabType {
   POSTS = 'POSTS',
   MILESTONES = 'MILESTONES',
   WORKOUTS = 'WORKOUTS'
 }
 
-const Profile = () => {
-  const { currentUser, userProfile, refreshUserProfile } = useAuth();
+const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
+  const { currentUser, userProfile: currentUserProfile, refreshUserProfile } = useAuth();
+  
   const {
     loading,
     profileData,
@@ -48,8 +54,17 @@ const Profile = () => {
     followers,
     following,
     error,
-    refreshProfileData
-  } = useProfileData();
+    refreshProfileData,
+    isFollowingStatus,
+    followUser,
+    unfollowUser,
+    followActionLoading,
+    viewedProfileId,
+    createdWorkouts,
+    savedWorkouts,
+    loadingWorkouts,
+  } = useProfileData(routeUserId);
+
   const [refreshing, setRefreshing] = useState(false);
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabType>(TabType.POSTS);
@@ -60,26 +75,29 @@ const Profile = () => {
   const [tooltipVisible, setTooltipVisible] = useState(false);
   const [tooltipText, setTooltipText] = useState('');
 
-  // Transform scroll position to indicator position
+  const isOwnProfile = !routeUserId || routeUserId === currentUser?.uid;
+  const displayProfileData = isOwnProfile ? (profileData || currentUserProfile) : profileData;
+
   const indicatorPosition = tabIndicator.interpolate({
     inputRange: [0, screenWidth, screenWidth * 2],
     outputRange: [0, tabWidth, tabWidth * 2],
     extrapolate: 'clamp'
   });
 
-  const onRefresh = async () => {
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      await refreshUserProfile();
+      if (isOwnProfile) {
+        await refreshUserProfile();
+      }
       await refreshProfileData();
     } catch (error) {
       console.error("Error refreshing profile:", error);
     } finally {
       setRefreshing(false);
     }
-  };
+  }, [isOwnProfile, refreshUserProfile, refreshProfileData]); 
 
-  // Scroll to specific tab when tab button is clicked
   const scrollToTab = (tabType: TabType) => {
     setActiveTab(tabType);
     let index = 0;
@@ -93,152 +111,91 @@ const Profile = () => {
     });
   };
 
-  // Handler for FlatList scroll
   const handleScroll = Animated.event(
     [{ nativeEvent: { contentOffset: { x: tabIndicator } } }],
     { useNativeDriver: false }
   );
 
-  // Handler for FlatList scroll end
   const handleScrollEnd = (e: any) => {
     const contentOffsetX = e.nativeEvent.contentOffset.x;
     const index = Math.round(contentOffsetX / screenWidth);
-    // Map index to the appropriate tab type
     if (index === 0) setActiveTab(TabType.POSTS);
     else if (index === 1) setActiveTab(TabType.MILESTONES);
     else if (index === 2) setActiveTab(TabType.WORKOUTS);
   };
 
-  const groupMilestonesByMonth = (milestones: Milestone[]): GroupedMilestones => {
-    return milestones.reduce((groups: GroupedMilestones, milestone) => {
-      // Handle potentially missing date
-      if (!milestone.date) {
-        const unknownGroup = 'Unknown Date';
-        if (!groups[unknownGroup]) {
-          groups[unknownGroup] = [];
-        }
-        groups[unknownGroup].push(milestone);
-        return groups;
-      }
-      
-      try {
-        // Convert Firebase timestamp to Date if needed
-        const dateObj = milestone.date.toDate ? milestone.date.toDate() : new Date(milestone.date);
-        const adjustedDate = new Date(dateObj);
-        adjustedDate.setDate(adjustedDate.getDate() + 1);
-        const monthYear = adjustedDate.toLocaleString('default', { month: 'long', year: 'numeric' });
-        
-        if (!groups[monthYear]) {
-          groups[monthYear] = [];
-        }
-        groups[monthYear].push(milestone);
-      } catch (error) {
-        console.log("Error processing milestone date:", error);
-        // Add to 'Unknown Date' group if there's an error
-        const unknownGroup = 'Unknown Date';
-        if (!groups[unknownGroup]) {
-          groups[unknownGroup] = [];
-        }
-        groups[unknownGroup].push(milestone);
-      }
-      
-      return groups;
-    }, {});
-  };
-
-  // Function to handle settings press
   const handleSettingsPress = () => {
     console.log(`Settings clicked`);
     router.push('/settings');
   };
 
-  // Function to handle image click
-  const handleImagePress = (post: any) => {
+  const handleImagePress = useCallback((post: any) => {
     console.log(`Image clicked - Post ID: ${post.id}`);
-    
-    // Navigate to view post with the actual Firebase document ID
     router.push({
       pathname: '/view-post/[id]',
       params: { id: post.id }
     });
-  };
+  }, [router]);
 
-  // Function to handle milestone click
-  const handleMilestonePress = (postId: string) => {
+  const handleMilestonePress = useCallback((postId: string) => {
     console.log(`Milestone clicked, navigating to Post ID=${postId}`);
-    // Navigate to the post view, not a dedicated milestone view unless you have one
      router.push({
-       pathname: '/view-post/[id]',
+       pathname: '/view-post/[id]', 
        params: { id: postId }
      });
-    router.push(`/view-milestone/${postId}`); // Assuming postId is the relevant ID
-  };
+  }, [router]);
 
-  // Function to handle workout click
-  const handleWorkoutPress = (workoutId: number) => {
+  const handleWorkoutPress = useCallback((workoutId: number) => {
     console.log(`Workout clicked, navigating to Workout ID=${workoutId}`);
     router.push({
       pathname: '/view-workout/[id]',
       params: { id: workoutId.toString() }
     });
-  };
+  }, [router]);
 
-  const sortedWorkouts = [...workouts].sort((a, b) => b.date.getTime() - a.date.getTime());
-
-  const formatDate = (date: Date | null | undefined): string => {
-    if (!date) return 'No date';
-    
-    // Check if it's a Firestore timestamp (has toDate method)
-    if (date.toDate && typeof date.toDate === 'function') {
-      try {
-        return date.toDate().toLocaleString('default', { month: 'long', day: 'numeric', year: 'numeric' });
-      } catch (error) {
-        console.log("Error formatting Firestore timestamp:", error);
-        return 'Invalid date';
-      }
-    }
-    
-    // Regular Date object
-    try {
-      return new Date(date).toLocaleString('default', { month: 'long', day: 'numeric', year: 'numeric' });
-    } catch (error) {
-      console.log("Error formatting date:", error);
-      return 'Invalid date';
-    }
-  };
-
-  if (loading) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'black' }}>
-        <ActivityIndicator size="large" color="white" />
-      </View>
-    );
-  }
-  
-  if (error) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.profileHeader}>
-          <Image
-            source={{ uri: userProfile?.profileImageUrl || 'https://thumbs.dreamstime.com/b/creative-illustration-default-avatar-profile-placeholder-isolated-background-art-design-grey-photo-blank-template-mockup-144855718.jpg' }}
-            style={styles.profileImage}
-          />
-          <Text style={styles.profileName}>{userProfile?.displayName || 'User'}</Text>
-          <Text style={styles.profileBio}>Error loading complete profile data</Text>
-          
-          <TouchableOpacity 
-            style={styles.retryButton} 
-            onPress={onRefresh}
-          >
-            <Text style={styles.retryText}>Retry</Text>
-          </TouchableOpacity>
+  const renderWorkoutListItem = (item: any, index: number) => ( 
+    <TouchableOpacity 
+        key={item.id || index} 
+        style={styles.workoutItem} 
+        onPress={() => router.push(`/view-workout/${item.id}`)}
+    >
+        <Image 
+            source={item.coverImageUrl ? { uri: item.coverImageUrl } : require('@/assets/images/default_workout_cover.png')} 
+            style={styles.workoutItemImage} 
+        />
+        <View style={styles.workoutItemTextContainer}>
+            <Text style={styles.workoutItemTitle} numberOfLines={1}>{item.title}</Text>
+            <Text style={styles.workoutItemCreator} numberOfLines={1}>by {item.creatorUsername}</Text>
         </View>
-      </SafeAreaView>
-    );
-  }
+    </TouchableOpacity>
+  );
 
-  // Render Posts Tab Content
-  const renderPostsContent = () => (
+  const renderWorkoutsTab = () => {
+    if (loadingWorkouts && createdWorkouts.length === 0 && savedWorkouts.length === 0) {
+      return <ActivityIndicator style={{ marginTop: 20 }} size="large" color="white"/>;
+    }
+
+    return (
+      <ScrollView style={styles.tabContentContainer}>
+        <Text style={styles.tabSectionHeader}>Created Workouts ({createdWorkouts.length})</Text>
+        {createdWorkouts.length > 0 ? (
+          createdWorkouts.map(renderWorkoutListItem)
+        ) : (
+          <Text style={styles.emptyTabText}>No workouts created yet.</Text>
+        )}
+
+        <Text style={styles.tabSectionHeader}>Saved Workouts ({savedWorkouts.length})</Text>
+        {savedWorkouts.length > 0 ? (
+          savedWorkouts.map(renderWorkoutListItem)
+        ) : (
+          <Text style={styles.emptyTabText}>No workouts saved yet.</Text>
+        )}
+        <View style={{ height: 20 }} />
+      </ScrollView>
+    );
+  };
+
+  const renderPostsContent = useCallback(() => (
     <FlatList
       key="posts-grid"
       data={posts}
@@ -263,36 +220,31 @@ const Profile = () => {
         />
       }
     />
-  );
+  ), [posts, refreshing, handleImagePress, onRefresh]);
 
-  // Render Milestones Tab Content
-  const renderMilestonesContent = () => {
+  const renderMilestonesContent = useCallback(() => {
     const monthKeys = Object.keys(groupedMilestones).sort((a, b) => {
-        // Sort month keys chronologically (most recent first)
         try {
-            // Attempt to parse dates for sorting
-            const dateA = new Date(`01 ${a}`); // e.g., "01 May 2024"
-            const dateB = new Date(`01 ${b}`); // e.g., "01 June 2024"
+            const dateA = new Date(`01 ${a}`);
+            const dateB = new Date(`01 ${b}`);
             return dateB.getTime() - dateA.getTime();
-        } catch (e) {
-            console.error("Error parsing month keys for sorting:", e);
-            return 0; // Fallback to original order if parsing fails
-        }
+        } catch (e) { return 0; }
     });
 
-    // Early return if no milestones after grouping
     if (monthKeys.length === 0) {
       return (
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20, minHeight: 200 }}>
           <Text style={{ color: 'gray', textAlign: 'center' }}>No milestones yet. Add a post with a milestone to see it here.</Text>
+           <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#FFFFFF"
+            colors={["#FFFFFF"]}
+            progressBackgroundColor="#212121"
+          />
         </View>
       );
     }
-
-    console.log("Rendering Milestones - Month Keys:", monthKeys);
-    console.log("Rendering Milestones - Grouped Data:", groupedMilestones);
-
-
     return (
       <FlatList
         key="milestones-list"
@@ -302,15 +254,14 @@ const Profile = () => {
             <Text style={styles.monthHeader}>{month}</Text>
             {groupedMilestones[month].map((item) => (
               <TouchableOpacity
-                key={item.id} // Use milestone's unique ID (which is the post ID)
-                onPress={() => handleMilestonePress(item.postId)} // Pass postId (string)
+                key={item.id}
+                onPress={() => handleMilestonePress(item.postId)}
                 style={styles.milestoneItem}
               >
-                {/* Display milestone details */}
                 <View style={styles.milestoneDetail}>
                   <Text style={styles.milestoneExercise}>{item.exercise || 'Milestone'}</Text>
                 </View>
-                {item.reps !== undefined && item.reps > 0 && ( // Conditionally render reps if available
+                {item.reps !== undefined && item.reps > 0 && (
                    <View style={styles.milestoneDetail}>
                      <Text style={styles.milestoneNumber}>{item.reps}</Text>
                      <Text style={styles.milestoneDescriptor}>Reps</Text>
@@ -318,19 +269,13 @@ const Profile = () => {
                 )}
                 <View style={styles.milestoneDetail}>
                   <Text style={styles.milestoneNumber}>{item.weight || ''}</Text>
-                  {/* Conditionally render descriptor based on content */}
                   {item.weight && <Text style={styles.milestoneDescriptor}>Weight</Text>}
                 </View>
               </TouchableOpacity>
             ))}
           </View>
         )}
-        keyExtractor={(item) => item} // Key is the month string
-        ListEmptyComponent={ // This might be redundant now with the check above
-          <Text style={{ color: 'gray', textAlign: 'center', padding: 30 }}>
-            No milestones yet
-          </Text>
-        }
+        keyExtractor={(item) => item}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -342,115 +287,85 @@ const Profile = () => {
         }
       />
     );
-  };
+  }, [groupedMilestones, refreshing, handleMilestonePress, onRefresh]);
   
-  // Render Workouts Tab Content
-  const renderWorkoutsContent = () => {
-    // Early return if no workouts
+  const renderWorkoutsContent = useCallback(() => {
+    if (loadingWorkouts && (!workouts || workouts.length === 0)) { 
+        return (
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20, minHeight: 200 }}>
+            <ActivityIndicator size="large" color="white" />
+          </View>
+        );
+    }
     if (!workouts || workouts.length === 0) {
       return (
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
-          <Text style={{ color: 'gray', textAlign: 'center' }}>No workouts yet. Create a workout to see it here.</Text>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20, minHeight: 200 }}>
+          <Text style={{ color: 'gray', textAlign: 'center' }}>No workouts yet. Create or save a workout to see it here.</Text>
+           <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#FFFFFF"
+            colors={["#FFFFFF"]}
+            progressBackgroundColor="#212121"
+          />
         </View>
       );
     }
-  
-    // Convert Firestore timestamps to Date objects and sort workouts
-    const sortedWorkouts = [...workouts].sort((a, b) => {
+    // Sort workouts by creation date, newest first
+    const sortedWorkoutsData = [...workouts].sort((a, b) => {
       try {
-        // Safely handle a.date being undefined or missing seconds
-        let dateA;
-        if (!a.date) {
-          dateA = new Date(0); // Default to epoch start if no date
-        } else if (a.date instanceof Date) {
-          dateA = a.date;
-        } else if (a.date.seconds) {
-          dateA = new Date(a.date.seconds * 1000);
-        } else {
-          dateA = new Date(a.date);
-        }
-    
-        // Safely handle b.date being undefined or missing seconds
-        let dateB;
-        if (!b.date) {
-          dateB = new Date(0); // Default to epoch start if no date
-        } else if (b.date instanceof Date) {
-          dateB = b.date;
-        } else if (b.date.seconds) {
-          dateB = new Date(b.date.seconds * 1000);
-        } else {
-          dateB = new Date(b.date);
-        }
-    
+        // Assuming createdAt can be a Firestore Timestamp or a string/number date
+        const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0);
+        const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0);
         return dateB.getTime() - dateA.getTime();
-      } catch (error) {
-        console.error("Error sorting workout dates:", error, { a, b });
-        return 0; // Keep original order on error
-      }
+      } catch (error) { return 0; }
     });
-  
+
     return (
       <FlatList
-        key="workouts-grid"
-        data={sortedWorkouts}
+        key="workouts-list-single-column"
+        data={sortedWorkoutsData}
         renderItem={({ item }) => {
-          // Safely handle the date with comprehensive error checking
-          let formattedDate = "No date available";
-          
+          let formattedDate = "Date N/A";
           try {
-            if (item.date) {
-              // Get a proper date object first
-              let workoutDate;
-              
-              if (item.date instanceof Date) {
-                workoutDate = item.date;
-              } else if (item.date.toDate && typeof item.date.toDate === 'function') {
-                // Firestore timestamp
-                workoutDate = item.date.toDate();
-              } else if (item.date.seconds) {
-                // Old Firestore timestamp format
-                workoutDate = new Date(item.date.seconds * 1000);
-              } else {
-                // Try regular conversion
-                workoutDate = new Date(item.date);
-              }
-              
-              formattedDate = workoutDate.toLocaleString('default', { 
-                month: 'long', 
-                day: 'numeric', 
-                year: 'numeric' 
+            if (item.createdAt) {
+              const workoutDate = item.createdAt?.toDate ? item.createdAt.toDate() : new Date(item.createdAt);
+              formattedDate = workoutDate.toLocaleDateString('en-US', { 
+                year: 'numeric', 
+                month: 'short', 
+                day: 'numeric' 
               });
             }
-          } catch (error) {
-            console.log("Error formatting workout date:", error, item.date);
-            formattedDate = "Invalid date";
+          } catch (error) { formattedDate = "Invalid Date"; }
+          
+          if (!item.isPublic && !isOwnProfile) {
+            return null;
           }
-              
+
           return (
             <TouchableOpacity 
               key={item.id} 
               onPress={() => handleWorkoutPress(item.id)} 
-              style={styles.workoutItem}
+              style={styles.workoutListItemRowStyle}
             >
-              <View style={styles.workoutDetail}>
-                <Text style={styles.workoutName}>{item.name || 'Unnamed Workout'}</Text>
-                <Text style={styles.workoutDate}>{formattedDate}</Text>
-                <Text style={styles.workoutFavorites}>
-                  {item.favorites || 0} Favorites
-                </Text>
+              <Image 
+                source={item.coverImageUrl ? { uri: item.coverImageUrl } : require('@/assets/images/default_workout_cover.png')} 
+                style={styles.workoutListItemImageStyle} 
+              />
+              <View style={styles.workoutListItemTextContainerStyle}>
+                <Text style={styles.workoutListItemTitleStyle} numberOfLines={2}>{item.title || 'Unnamed Workout'}</Text>
+                <Text style={styles.workoutListItemMetaStyle}>{formattedDate}</Text>
+                <Text style={styles.workoutListItemMetaStyle}>{item.savedCount || 0} saves</Text>
               </View>
+              {item.isPublic !== true && isOwnProfile && (
+                <Ionicons name="lock-closed" size={24} color="#888" />
+              )}
             </TouchableOpacity>
           );
         }}
         keyExtractor={(item) => item.id.toString()}
-        numColumns={3}
-        contentContainerStyle={styles.workoutsList}
+        contentContainerStyle={styles.workoutsListSingleColumn} 
         showsVerticalScrollIndicator={false}
-        ListEmptyComponent={
-          <Text style={{ color: 'gray', textAlign: 'center', padding: 30 }}>
-            No workouts yet
-          </Text>
-        }
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -462,37 +377,28 @@ const Profile = () => {
         }
       />
     );
-  };
+  }, [workouts, refreshing, handleWorkoutPress, onRefresh, loadingWorkouts]);
 
-  // Data for the swipeable tabs
-  const tabScenes = [
-    { key: 'posts', component: renderPostsContent() },
-    { key: 'milestones', component: renderMilestonesContent() },
-    { key: 'workouts', component: renderWorkoutsContent() }
-  ];
+  const postsTabComponent = useMemo(() => renderPostsContent(), [renderPostsContent]);
+  const milestonesTabComponent = useMemo(() => renderMilestonesContent(), [renderMilestonesContent]);
+  const workoutsTabComponent = useMemo(() => renderWorkoutsContent(), [renderWorkoutsContent]);
 
-  // Render active tab content
-  const renderTabContent = () => {
-    switch (activeTab) {
-      case TabType.POSTS:
-        return renderPostsContent();
-      case TabType.MILESTONES:
-        return renderMilestonesContent();
-      case TabType.WORKOUTS:
-        return renderWorkoutsContent();
-      default:
-        return renderPostsContent();
-    }
-  };
+  const tabScenes = useMemo(() => [
+    { key: 'posts', component: postsTabComponent },
+    { key: 'milestones', component: milestonesTabComponent },
+    { key: 'workouts', component: workoutsTabComponent },
+  ], [postsTabComponent, milestonesTabComponent, workoutsTabComponent]);
 
-  // Custom Tab Bar
+  // Custom Tab Bar - Not a hook, so its definition order is more flexible but good to keep with related logic
   const renderCustomTabBar = () => (
     <View style={styles.tabBar}>
       <TouchableOpacity 
         style={styles.tabButton}
         onPress={() => scrollToTab(TabType.POSTS)}
       >
-        <Text style={[styles.tabButtonText, activeTab === TabType.POSTS && styles.activeTabButtonText]}>POSTS</Text>
+        <Text style={[styles.tabButtonText, activeTab === TabType.POSTS && styles.activeTabButtonText]}>
+          POSTS {posts ? `(${formatCount(posts.length)})` : '(0)'}
+        </Text>
       </TouchableOpacity>
       <TouchableOpacity 
         style={styles.tabButton}
@@ -510,77 +416,175 @@ const Profile = () => {
     </View>
   );
 
+  const prevLoading = useRef(loading);
+
+  useEffect(() => { 
+    if (prevLoading.current === true && loading === false) {
+      if (flatListRef.current) {
+        let targetIndex = 0;
+        if (activeTab === TabType.MILESTONES) {
+          targetIndex = 1;
+        } else if (activeTab === TabType.WORKOUTS) {
+          targetIndex = 2;
+        }
+        setTimeout(() => {
+          flatListRef.current?.scrollToOffset({
+            offset: targetIndex * screenWidth,
+            animated: false, 
+          });
+        }, 0); 
+      }
+    }
+    prevLoading.current = loading;
+  }, [loading, activeTab, screenWidth]);
+
+
+  // Early returns for loading and error states
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'black' }}>
+        <ActivityIndicator size="large" color="white" />
+      </View>
+    );
+  }
+  
+  if (error) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.profileHeader}>
+          <Image
+            source={{ uri: currentUserProfile?.profileImageUrl || 'https://thumbs.dreamstime.com/b/creative-illustration-default-avatar-profile-placeholder-isolated-background-art-design-grey-photo-blank-template-mockup-144855718.jpg' }}
+            style={styles.profileImage}
+          />
+          <Text style={styles.profileName}>{currentUserProfile?.displayName || 'User'}</Text>
+          <Text style={styles.profileBio}>Error loading complete profile data</Text>
+          
+          <TouchableOpacity 
+            style={styles.retryButton} 
+            onPress={onRefresh}
+          >
+            <Text style={styles.retryText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Main return statement for the component
   return (
     <SafeAreaView style={styles.container}>
       {/* Profile Header */}
       <View style={styles.profileHeader}>
-        <TouchableOpacity
-          style={{ position: 'absolute', top: 20, right: 20 }}
-          onPress={() => handleSettingsPress()}
-        >
-          <Text style={{ color: 'white', backgroundColor: '#212121', padding: 5, borderRadius: 5 }}>Settings</Text>
-        </TouchableOpacity>
+        {/* Settings Button (Own Profile) */}
+        {isOwnProfile && (
+          <TouchableOpacity
+            style={styles.settingsButton}
+            onPress={handleSettingsPress}
+          >
+            <Ionicons name="settings-outline" size={24} color="white" />
+          </TouchableOpacity>
+        )}
+        {/* Back Button (Other's Profile) */}
+        {!isOwnProfile && router.canGoBack() && (
+           <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => router.back()}
+          >
+            <Ionicons name="arrow-back" size={28} color="white" />
+          </TouchableOpacity>
+        )}
+
+        {/* Follow/Unfollow Button (Other's Profile) */}
+        {!isOwnProfile && displayProfileData && (
+          <TouchableOpacity
+            style={[
+              styles.followButton,
+              isFollowingStatus ? styles.unfollowButtonActive : styles.followButtonActive,
+              followActionLoading && styles.followButtonDisabled
+            ]}
+            onPress={() => {
+              if (followActionLoading) return;
+              if (isFollowingStatus) {
+                unfollowUser(displayProfileData.id);
+              } else {
+                followUser(displayProfileData.id);
+              }
+            }}
+            disabled={followActionLoading}
+          >
+            {followActionLoading ? (
+              <ActivityIndicator size="small" color="white" />
+            ) : (
+              <Text style={styles.followButtonText}>
+                {isFollowingStatus ? 'Unfollow' : 'Follow'}
+              </Text>
+            )}
+          </TouchableOpacity>
+        )}
+
         <Image
-          source={{ uri: profileData?.profileImageUrl || 'https://thumbs.dreamstime.com/b/creative-illustration-default-avatar-profile-placeholder-isolated-background-art-design-grey-photo-blank-template-mockup-144855718.jpg' }}
+          source={{ uri: displayProfileData?.profileImageUrl || 'https://thumbs.dreamstime.com/b/creative-illustration-default-avatar-profile-placeholder-isolated-background-art-design-grey-photo-blank-template-mockup-144855718.jpg' }}
           style={styles.profileImage}
         />
-        <Text style={styles.profileName}>{profileData?.displayName || 'User'}</Text>
-        <Text style={styles.profileUsername}>@{profileData?.username || 'username'}</Text>
-        <Text style={styles.profileBio}>{profileData?.bio || 'No bio yet'}</Text>
+        <Text style={styles.profileName}>{displayProfileData?.displayName || 'User'}</Text>
+        <Text style={styles.profileUsername}>@{displayProfileData?.username || 'username'}</Text>
+        <Text style={styles.profileBio}>{displayProfileData?.bio || 'No bio yet'}</Text>
 
         <View style={styles.statsContainer}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.statItem}
             onPress={() => {
-              setTooltipText(archetypeDescriptions[profileData?.archetype?.toLowerCase() || 'generalist']);
-              setTooltipVisible(true);
+              if (displayProfileData?.archetype) {
+                setTooltipText(archetypeDescriptions[displayProfileData.archetype.toLowerCase() || 'generalist']);
+                setTooltipVisible(true);
+              }
             }}
+            disabled={!displayProfileData?.archetype}
           >
             <Image
-              source={archetypeIcons[profileData?.archetype?.toLowerCase() || 'generalist']}
+              source={archetypeIcons[displayProfileData?.archetype?.toLowerCase() || 'generalist']}
               style={styles.archetypeIcon}
             />
             <Text style={styles.statLabel}>Archetype</Text>
           </TouchableOpacity>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.statItem}
-            onPress={() => router.push(`/followers/${currentUser.uid}`)}
+            onPress={() => router.push(`/followers/${viewedProfileId || currentUser?.uid}`)}
           >
-            <Text style={styles.statNumber}>{followers.length}</Text>
+            <Text style={styles.statNumber}>{profileData?.followerCount !== undefined ? profileData.followerCount : followers.length}</Text>
             <Text style={styles.statLabel}>Followers</Text>
           </TouchableOpacity>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.statItem}
-            onPress={() => router.push(`/following/${currentUser.uid}`)}
+            onPress={() => router.push(`/following/${viewedProfileId || currentUser?.uid}`)}
           >
-            <Text style={styles.statNumber}>{following.length}</Text>
+            <Text style={styles.statNumber}>{profileData?.followingCount !== undefined ? profileData.followingCount : following.length}</Text>
             <Text style={styles.statLabel}>Following</Text>
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* Tooltip Modal */}
       <Modal
         transparent={true}
         visible={tooltipVisible}
         animationType="fade"
         onRequestClose={() => setTooltipVisible(false)}
       >
-        <TouchableOpacity 
-          style={styles.tooltipContainer} 
-          activeOpacity={1} 
+        <TouchableOpacity
+          style={styles.tooltipContainer}
+          activeOpacity={1}
           onPress={() => setTooltipVisible(false)}
         >
           <View style={styles.tooltip}>
             <View style={styles.tooltipHeader}>
               <Image
-                source={archetypeIcons[profileData?.archetype?.toLowerCase() || 'generalist']}
+                source={archetypeIcons[displayProfileData?.archetype?.toLowerCase() || 'generalist']}
                 style={styles.tooltipIcon}
               />
               <Text style={styles.tooltipTitle}>
-                {profileData?.archetype?.split(' ').map(word => 
+                {displayProfileData?.archetype?.split(' ').map(word =>
                   word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
-                ).join(' ') || 'Generalist'} {/* title case */}
+                ).join(' ') || 'Generalist'}
               </Text>
             </View>
             <View style={styles.tooltipDivider} />
@@ -595,14 +599,12 @@ const Profile = () => {
         </TouchableOpacity>
       </Modal>
 
-      {/* Custom Tab Bar */}
       {renderCustomTabBar()}
 
-      {/* Swipeable Tab Content */}
       <View style={styles.tabContent}>
         <FlatList
           ref={flatListRef}
-          data={tabScenes}
+          data={tabScenes} // tabScenes is defined above
           horizontal
           pagingEnabled
           showsHorizontalScrollIndicator={false}
@@ -625,6 +627,24 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: 'black',
+  },
+  tabContentContainer: {
+    paddingHorizontal: 10,
+  },
+  tabSectionHeader: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginTop: 20,
+    marginBottom: 10,
+    paddingHorizontal: 5,
+  },
+  emptyTabText: {
+    color: 'grey',
+    textAlign: 'center',
+    marginTop: 10,
+    marginBottom: 20,
+    fontSize: 14,
   },
   profileHeader: {
     alignItems: 'center',
@@ -700,6 +720,7 @@ const styles = StyleSheet.create({
   tabContent: {
     flex: 1,
     backgroundColor: 'black',
+    marginBottom: BOTTOM_BAR_HEIGHT
   },
   postsContainer: {
     padding: 0,
@@ -751,43 +772,72 @@ const styles = StyleSheet.create({
     backgroundColor: 'black',
     marginTop: 10
   },
-  workoutItem: {
-    overflow: 'hidden',
-    width: Dimensions.get('window').width / 3 - 15,
-    height: Dimensions.get('window').width / 3 - 15,
-    borderRadius: 15,
-    backgroundColor: 'grey',
-    margin: 5,
-    justifyContent: 'flex-end',
-  },
-  workoutDetail: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(50, 50, 50, 0.5)',
-    paddingVertical: 10,
-    paddingHorizontal: 5,
-  },
-  workoutName: {
-    fontWeight: 'bold',
-    color: 'white',
-    fontSize: 12,
-    marginBottom: 3,
-  },
-  workoutDate: {
-    color: '#D0D0D0',
-    fontSize: 10,
-  },
-  workoutFavorites: {
-    color: '#D0D0D0',
-    fontSize: 10,
-  },
   workoutsList: {
     padding: 10,
   },
-  tabContentContainer: {
+  workoutItem: {
+    flexDirection: 'row',
+    backgroundColor: '#222',
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 10,
+    alignItems: 'center',
+  },
+  workoutItemImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+    marginRight: 10,
+    backgroundColor: '#333',
+  },
+  workoutItemTextContainer: {
+    flex: 1,
+  },
+  workoutItemTitle: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  workoutItemCreator: {
+    color: '#aaa',
+    fontSize: 12,
+    marginTop: 2,
+  },
+  workoutsListSingleColumn: {
+    paddingVertical: 10,
+    paddingHorizontal: 5,
+  },
+  workoutListItemRowStyle: {
+    flexDirection: 'row',
+    backgroundColor: '#1C1C1E',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+    alignItems: 'center',
+    marginHorizontal: 10,
+    justifyContent: 'space-between', 
+  },
+  workoutListItemImageStyle: {
+    width: 70, 
+    height: 70,
+    borderRadius: 6,
+    marginRight: 12,
+    backgroundColor: '#333', 
+  },
+  workoutListItemTextContainerStyle: {
     flex: 1,
     justifyContent: 'center',
-    alignItems: 'center',
+  },
+  workoutListItemTitleStyle: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  workoutListItemMetaStyle: {
+    color: '#AEAEB2',
+    fontSize: 13,
+    marginBottom: 2,
   },
   archetypeContainer: {
     backgroundColor: '#212121',
@@ -801,15 +851,9 @@ const styles = StyleSheet.create({
     fontSize: 12,
     textAlign: 'center',
   },
-  archetypeText: {
-    color: 'white',
-    fontSize: 14,
-    fontWeight: 'bold',
-    textAlign: 'center',
-  },
   archetypeIcon: {
-    width: 18,
-    height: 18,
+    width: 24,
+    height: 24,
     marginBottom: 5,
   },
   tooltipContainer: {
@@ -863,6 +907,63 @@ const styles = StyleSheet.create({
   tooltipButtonText: {
     color: 'white',
     fontSize: 14,
+  },
+  settingsButton: {
+    position: 'absolute',
+    top: 15,
+    right: 15,
+    zIndex: 1,
+    padding: 8,
+  },
+  backButton: {
+    position: 'absolute',
+    top: 15,
+    left: 15,
+    zIndex: 1,
+    padding: 8,
+  },
+  followButton: {
+    position: 'absolute',
+    top: 15,
+    right: 15,
+    zIndex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 15,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  followButtonActive: {
+    backgroundColor: '#007AFF',
+    borderColor: '#007AFF',
+  },
+  unfollowButtonActive: {
+    backgroundColor: 'transparent',
+    borderColor: '#555',
+  },
+  followButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  followButtonDisabled: {
+    opacity: 0.7,
+  },
+  archetypeText: { 
+    color: 'white',
+    fontSize: 13, 
+    fontWeight: '600',
+  },
+  retryButton: {
+    backgroundColor: '#007AFF',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    marginTop: 15,
+  },
+  retryText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });
 
