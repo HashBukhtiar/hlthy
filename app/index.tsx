@@ -5,7 +5,7 @@ import { auth } from '@/firebaseConfig';
 import { onAuthStateChanged } from 'firebase/auth';
 
 // Backdoor to bypass login. must be false in production
-const BYPASS_AUTH = false;
+const BYPASS_AUTH = true;
 
 export default function Index() {
   const [isLoading, setIsLoading] = useState(true);

@@ -13,17 +13,17 @@ import {
     Platform,
     StyleSheet,
     Modal,
-    ActivityIndicator
+    ActivityIndicator,
+    SafeAreaView
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import globalStyles from '@/styles/globalStyles';
 import * as ImagePicker from 'expo-image-picker';
 import { Dropdown } from 'react-native-element-dropdown';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { postImage } from '@/assets/images';
 import { usePostsData } from '@/hooks/usePostsData';
 import { useAuth } from '@/context/AuthContext';
-import { serverTimestamp } from 'firebase/firestore';
 
 interface DropdownItem {
     label: string;
@@ -42,7 +42,7 @@ export default function Post() {
     const [imageDimensions, setImageDimensions] = useState({ width: 0, height: 0 });
 
     const [openPrivacy, setOpenPrivacy] = useState(false);
-    const [valuePrivacy, setValuePrivacy] = useState<string | null>(null);
+    const [valuePrivacy, setValuePrivacy] = useState<string | null>('public');
     const [itemsPrivacy] = useState<DropdownItem[]>([
         { label: 'Public', value: 'public' },
         { label: 'Private', value: 'private' }
@@ -60,14 +60,14 @@ export default function Post() {
 
     const [exerciseSearch, setExerciseSearch] = useState('');
     const [amount, setAmount] = useState('');
-    const [weightUnit, setWeightUnit] = useState<string | null>(null);
+    const [weightUnit, setWeightUnit] = useState<string | null>('lbs');
     const [itemsWeightUnit] = useState<DropdownItem[]>([
         { label: 'lbs', value: 'lbs' },
         { label: 'kg', value: 'kg' }
     ]);
     const [reps, setReps] = useState('');
     const [newWeight, setNewWeight] = useState('');
-    const [newWeightUnit, setNewWeightUnit] = useState<string | null>(null);
+    const [newWeightUnit, setNewWeightUnit] = useState<string | null>('lbs');
     const [itemsNewWeightUnit] = useState<DropdownItem[]>([
         { label: 'lbs', value: 'lbs' },
         { label: 'kg', value: 'kg' }
@@ -79,11 +79,23 @@ export default function Post() {
         'Deadlift',
         'Overhead Press',
         'Pull Up',
+        'Leg Press',
+        'Bicep Curl',
+        'Tricep Extension',
+        'Lat Pulldown',
+        'Shoulder Press',
+        'Romanian Deadlift',
+        'Hip Thrust',
+        '400m Run',
+        '5K Run',
+        '10K Run',
+        'Mile Run'
     ]);
     const [filteredExercises, setFilteredExercises] = useState<string[]>([]);
 
     const [selectedWorkout, setSelectedWorkout] = useState<any>(null);
     const [workoutModalVisible, setWorkoutModalVisible] = useState(false);
+    const [imageMenuVisible, setImageMenuVisible] = useState(false);
 
     const [availableWorkouts] = useState([
         {
@@ -131,6 +143,7 @@ export default function Post() {
             const { width, height } = result.assets[0];
             setImageUri(uri);
             setImageDimensions({ width, height });
+            setImageMenuVisible(false);
         }
     };
 
@@ -153,6 +166,7 @@ export default function Post() {
             const { width, height } = result.assets[0];
             setImageUri(uri);
             setImageDimensions({ width, height });
+            setImageMenuVisible(false);
         }
     };
     
@@ -181,607 +195,619 @@ export default function Post() {
         setSelectedWorkout(null);
     };
 
-    {formError ? (
-        <View style={postStyles.errorContainer}>
-          <Text style={postStyles.errorText}>{formError}</Text>
-        </View>
-      ) : null}
-
-    const renderPostScroll = () => {
-        return (
-            <ScrollView contentContainerStyle={postStyles.postPageScroll}>
-                <View style={postStyles.photoOptionsView}>
-                    <TouchableOpacity style={postStyles.cameraButton} onPress={openCamera}>
-                        <Text style={postStyles.postButtonText}>Open Camera</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={postStyles.cameraRollButton} onPress={openImageLibrary}>
-                        <Image 
-                            source={postImage}
-                            style={{ 
-                                width: 55, 
-                                height: 55, 
-                                resizeMode: 'cover',
-                                borderRadius: 27.5 
-                            }}
-                        />
-                    </TouchableOpacity>
-                </View>
-                {imageUri && (
-                    <View style={postStyles.imagePreview}>
-                        <Image 
-                            source={{ uri: imageUri }} 
-                            style={{ 
-                                width: Dimensions.get('window').width - 20, 
-                                height: (Dimensions.get('window').width - 20) / aspectRatio, 
-                                backgroundColor: 'white', 
-                                resizeMode: 'contain' 
-                            }}
-                        />
-                    </View>
-                )}
-                <TextInput
-                    style={postStyles.captionInput}
-                    placeholder="Share your progress..."
-                    placeholderTextColor="#4f4f4f"
-                    value={caption}
-                    onChangeText={setCaption}
-                    multiline={true}
-                    numberOfLines={4}
-                    textAlignVertical="top"
-                    keyboardType="default"
-                />
-                <View style={postStyles.attachWorkoutSection}>
-                    <Text style={postStyles.sectionTitle}>Attach Workout</Text>
-                    
-                    {selectedWorkout ? (
-                        <View style={postStyles.selectedWorkoutContainer}>
-                            <TouchableOpacity 
-                                style={postStyles.attachedWorkoutContent}
-                                onPress={() => router.push(`/view-workout/${selectedWorkout.id}`)}
-                            >
-                                <View style={postStyles.attachedWorkoutInfo}>
-                                    <View style={postStyles.workoutIconContainer}>
-                                        <Ionicons name="barbell" size={18} color="#FFF" />
-                                    </View>
-                                    <View>
-                                        <Text style={postStyles.attachedWorkoutTitle}>
-                                            {selectedWorkout.title}
-                                        </Text>
-                                        <Text style={postStyles.attachedWorkoutDetails}>
-                                            by {selectedWorkout.creatorName} • {selectedWorkout.segments} segments • {selectedWorkout.length}
-                                        </Text>
-                                    </View>
-                                </View>
-                                <TouchableOpacity onPress={removeWorkout}>
-                                    <Ionicons name="close-circle" size={24} color="#FF3B30" />
-                                </TouchableOpacity>
-                            </TouchableOpacity>
-                        </View>
-                    ) : (
-                        <TouchableOpacity 
-                            style={postStyles.attachWorkoutButton}
-                            onPress={() => setWorkoutModalVisible(true)}
-                        >
-                            <Ionicons name="barbell-outline" size={20} color="#FFF" />
-                            <Text style={postStyles.attachButtonText}>Select a workout</Text>
-                        </TouchableOpacity>
-                    )}
-                </View>
-                <View style={globalStyles.horizontalLine}></View>
-                <View style={postStyles.privacyContainer}>
-                    <Text style={postStyles.privacyText}>Privacy</Text>
-                    <Dropdown
-                        data={itemsPrivacy}
-                        labelField="label"
-                        valueField="value"
-                        placeholder="Select"
-                        value={valuePrivacy}
-                        onChange={item => setValuePrivacy(item.value)}
-                        style={postStyles.dropdownStyle}
-                        containerStyle={postStyles.dropdownContainerStyle}
-                    />
-                </View>
-                <View style={postStyles.milestoneContainer}>
-                    <Text style={postStyles.milestoneText}>Milestone</Text>
-                    <Switch
-                        value={milestoneSwitchValue}
-                        onValueChange={(newValue) => {
-                            setMilestoneSwitchValue(newValue);
-                        }}
-                        style={postStyles.milestoneSwitch}
-                        trackColor={{ false: '#ff7d7d', true: '#a600bf' }}
-                        thumbColor={milestoneSwitchValue ? '#f4f3f4' : '#f4f3f4'}
-                    />
-                </View>
-                {milestoneSwitchValue && renderPostMilestone()}
-            </ScrollView>
-        );
-    };
-
-    const renderPostMilestone = () => {
-        return (
-            <View>
-                <View style={globalStyles.horizontalLine}></View>
-                <View style={postStyles.milestoneTypeContainer}>
-                    <Text style={postStyles.privacyText}>Type</Text>
-                    <Dropdown
-                        data={itemsMilestone}
-                        labelField="label"
-                        valueField="value"
-                        placeholder="Select"
-                        value={valueMilestone}
-                        onChange={item => setValueMilestone(item.value)}
-                        style={postStyles.dropdownStyle}
-                        containerStyle={postStyles.dropdownContainerStyle}
-                    />
-                </View>
-                {valueMilestone === 'PR' && (
-                    <View style={postStyles.prFieldsContainer}>
-                        <TextInput
-                            style={postStyles.exerciseSearch}
-                            placeholder="Search for your exercise..."
-                            value={exerciseSearch}
-                            onChangeText={handleExerciseSearch}
-                        />
-                        {filteredExercises.length > 0 && (
-                            <View style={postStyles.suggestionsContainer}>
-                                {filteredExercises.map((exercise, index) => (
-                                    <TouchableOpacity
-                                        key={index}
-                                        onPress={() => {
-                                            setExerciseSearch(exercise);
-                                            setFilteredExercises([]);
-                                        }}
-                                        style={postStyles.suggestionItem}
-                                    >
-                                        <Text>{exercise}</Text>
-                                    </TouchableOpacity>
-                                ))}
-                            </View>
-                        )}
-                        <View style={postStyles.inputRow}>
-                            <Text style={postStyles.inputLabel}>Amount</Text>
-                            <TextInput
-                                style={postStyles.numberInput}
-                                placeholder="0"
-                                keyboardType="numeric"
-                                value={amount}
-                                onChangeText={setAmount}
-                            />
-                            <Dropdown
-                                data={itemsWeightUnit}
-                                labelField="label"
-                                valueField="value"
-                                placeholder="Units"
-                                value={weightUnit}
-                                onChange={item => setWeightUnit(item.value)}
-                                style={postStyles.unitDropdown}
-                                containerStyle={postStyles.unitDropdownContainer}
-                            />
-                        </View>
-                        <View style={postStyles.inputRow}>
-                            <Text style={postStyles.inputLabel}>Reps</Text>
-                            <TextInput
-                                style={postStyles.numberInput}
-                                placeholder="0"
-                                keyboardType="numeric"
-                                value={reps}
-                                onChangeText={setReps}
-                            />
-                        </View>
-                    </View>
-                )}
-                {(valueMilestone === 'weightLoss' || valueMilestone === 'weightGain') && (
-                    <View style={postStyles.weightFieldsContainer}>
-                        <Text style={postStyles.inputLabel}>New Weight</Text>
-                        <View style={postStyles.weightInputRow}>
-                            <TextInput
-                                style={postStyles.numberInput}
-                                placeholder="0"
-                                keyboardType="numeric"
-                                value={newWeight}
-                                onChangeText={setNewWeight}
-                            />
-                            <Dropdown
-                                data={itemsNewWeightUnit}
-                                labelField="label"
-                                valueField="value"
-                                placeholder="Unit"
-                                value={newWeightUnit}
-                                onChange={item => setNewWeightUnit(item.value)}
-                                style={postStyles.unitDropdown}
-                                containerStyle={postStyles.unitDropdownContainer}
-                            />
-                        </View>
-                    </View>
-                )}
-            </View>
-        );
-    }
-
     const handleSubmitPost = async () => {
         try {
-          if (!imageUri && !caption.trim() && !milestoneSwitchValue) {
-            setFormError("Please add an image, caption, or milestone");
-            return;
-          }
-          
-          setIsSubmitting(true);
-          setFormError(null);
-          
-          // Prepare milestone details if enabled
-          let milestoneDetails = null;
-          if (milestoneSwitchValue && valueMilestone) {
-            if (valueMilestone === 'PR') {
-              if (!exerciseSearch.trim() || !amount || !weightUnit || !reps) {
-                setFormError("Please complete all milestone fields");
-                setIsSubmitting(false);
+            if (!imageUri && !caption.trim() && !milestoneSwitchValue) {
+                setFormError("Please add an image, caption, or milestone");
                 return;
-              }
-              milestoneDetails = {
-                type: valueMilestone,
-                exercise: exerciseSearch,
-                value: amount,
-                weightUnit,
-                reps: parseInt(reps)
-              };
-            } else if (valueMilestone === 'weightLoss' || valueMilestone === 'weightGain') {
-              if (!newWeight || !newWeightUnit) {
-                setFormError("Please enter your new weight");
-                setIsSubmitting(false);
-                return;
-              }
-              milestoneDetails = {
-                type: valueMilestone,
-                newWeight,
-                newWeightUnit
-              };
             }
-          }
-          
-          const postData = {
-            caption: caption.trim(),
-            imageUri,
-            isMilestone: milestoneSwitchValue && !!valueMilestone,
-            milestoneDetails,
-            visibility: valuePrivacy || 'public',
-            workoutId: selectedWorkout?.id
-          };
-          
-          const postId = await addPost(postData);
-          console.log("Successfully created post with ID:", postId);
-          Alert.alert('Success', 'Your post has been created!', [
-            { text: 'OK', onPress: () => {
-                console.log("Navigating back to home after post creation");
-                router.push('/');
-            }}
-        ]);
+            
+            setIsSubmitting(true);
+            setFormError(null);
+            
+            // Prepare milestone details if enabled
+            let milestoneDetails = null;
+            if (milestoneSwitchValue && valueMilestone) {
+                if (valueMilestone === 'PR') {
+                    if (!exerciseSearch.trim() || !amount || !weightUnit || !reps) {
+                        setFormError("Please complete all milestone fields");
+                        setIsSubmitting(false);
+                        return;
+                    }
+                    milestoneDetails = {
+                        type: valueMilestone,
+                        exercise: exerciseSearch,
+                        value: amount,
+                        weightUnit,
+                        reps: parseInt(reps)
+                    };
+                } else if (valueMilestone === 'weightLoss' || valueMilestone === 'weightGain') {
+                    if (!newWeight || !newWeightUnit) {
+                        setFormError("Please enter your new weight");
+                        setIsSubmitting(false);
+                        return;
+                    }
+                    milestoneDetails = {
+                        type: valueMilestone,
+                        newWeight,
+                        newWeightUnit
+                    };
+                }
+            }
+            
+            const postData = {
+                caption: caption.trim(),
+                imageUri,
+                isMilestone: milestoneSwitchValue && !!valueMilestone,
+                milestoneDetails,
+                visibility: valuePrivacy || 'public',
+                workoutId: selectedWorkout?.id
+            };
+            
+            const postId = await addPost(postData);
+            console.log("Successfully created post with ID:", postId);
+            Alert.alert('Success', 'Your post has been created!', [
+                { text: 'OK', onPress: () => {
+                    console.log("Navigating back to home after post creation");
+                    router.push('/');
+                }}
+            ]);
         } catch (error) {
-          console.error('Error creating post:', error);
-          setFormError('Failed to create post. Please try again.');
+            console.error('Error creating post:', error);
+            setFormError('Failed to create post. Please try again.');
         } finally {
-          setIsSubmitting(false);
+            setIsSubmitting(false);
         }
     };
 
-
     return (
-        <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            style={{ flex: 1 }}
-        >
-            <View style={postStyles.postPage}>
-                <View style={postStyles.header}>
-                    <TouchableOpacity style={postStyles.button} onPress={() => {
-                            router.back();
-                        }}>
-                        <Text style={postStyles.buttonText} >Back</Text>
-                    </TouchableOpacity>
-                    <Text style={postStyles.postTitle}>Create Post</Text>
-                    <TouchableOpacity 
-                        style={[postStyles.button, isSubmitting && postStyles.disabledButton]} 
-                        onPress={handleSubmitPost}
-                        disabled={isSubmitting}
-                        >
-                        {isSubmitting ? (
-                            <ActivityIndicator size="small" color="#FFF" />
-                        ) : (
-                            <Text style={postStyles.buttonText}>Post</Text>
-                        )}
-                        </TouchableOpacity>
-                </View>
-                {renderPostScroll()}
-            </View>
-
-            <Modal
-                animationType="slide"
-                transparent={true}
-                visible={workoutModalVisible}
-                onRequestClose={() => setWorkoutModalVisible(false)}
+        <SafeAreaView style={postStyles.container}>
+            <KeyboardAvoidingView
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                style={{ flex: 1 }}
             >
-                <View style={postStyles.modalContainer}>
-                    <View style={postStyles.modalContent}>
-                        <View style={postStyles.modalHeader}>
-                            <Text style={postStyles.modalTitle}>Select Workout</Text>
-                            <TouchableOpacity 
-                                onPress={() => setWorkoutModalVisible(false)}
-                                style={postStyles.closeButton}
-                            >
-                                <Ionicons name="close" size={24} color="#FFF" />
-                            </TouchableOpacity>
+                <View style={postStyles.postPage}>
+                    {/* Header */}
+                    <View style={postStyles.header}>
+                        <TouchableOpacity 
+                            style={postStyles.backButton} 
+                            onPress={() => router.back()}
+                        >
+                            <Ionicons name="arrow-back" size={24} color="#FFF" />
+                        </TouchableOpacity>
+                        <Text style={postStyles.postTitle}>Create Post</Text>
+                        <TouchableOpacity 
+                            style={[postStyles.postButton, isSubmitting && postStyles.disabledButton]} 
+                            onPress={handleSubmitPost}
+                            disabled={isSubmitting}
+                        >
+                            {isSubmitting ? (
+                                <ActivityIndicator size="small" color="#FFF" />
+                            ) : (
+                                <Text style={postStyles.postButtonText}>Post</Text>
+                            )}
+                        </TouchableOpacity>
+                    </View>
+
+                    {/* Error message if present */}
+                    {formError ? (
+                        <View style={postStyles.errorContainer}>
+                            <Text style={postStyles.errorText}>{formError}</Text>
+                        </View>
+                    ) : null}
+
+                    <ScrollView 
+                        style={postStyles.scrollView}
+                        contentContainerStyle={postStyles.scrollContent}
+                        showsVerticalScrollIndicator={false}
+                    >
+                        {/* Image picker section */}
+                        <View style={postStyles.imageSection}>
+                            {imageUri ? (
+                                <View style={postStyles.selectedImageContainer}>
+                                    <Image 
+                                        source={{ uri: imageUri }} 
+                                        style={postStyles.selectedImage}
+                                    />
+                                    <TouchableOpacity 
+                                        style={postStyles.changeImageButton}
+                                        onPress={() => setImageMenuVisible(true)}
+                                    >
+                                        <Feather name="edit-2" size={16} color="#FFF" />
+                                    </TouchableOpacity>
+                                </View>
+                            ) : (
+                                <TouchableOpacity 
+                                    style={postStyles.addImageButton}
+                                    onPress={() => setImageMenuVisible(true)}
+                                >
+                                    <Ionicons name="camera-outline" size={36} color="#FFF" />
+                                    <Text style={postStyles.addImageText}>Add Photo</Text>
+                                </TouchableOpacity>
+                            )}
                         </View>
 
-                        <ScrollView style={postStyles.workoutList}>
-                            {availableWorkouts.map((workout) => (
+                        {/* Caption section */}
+                        <View style={postStyles.captionContainer}>
+                            <TextInput
+                                style={postStyles.captionInput}
+                                placeholder="Write a caption..."
+                                placeholderTextColor="#999"
+                                value={caption}
+                                onChangeText={setCaption}
+                                multiline={true}
+                                maxLength={2200}
+                                textAlignVertical="top"
+                            />
+                        </View>
+
+                        {/* Workout attachment section */}
+                        <View style={postStyles.sectionContainer}>
+                            <View style={postStyles.sectionHeader}>
+                                <Ionicons name="barbell-outline" size={22} color="#FFF" />
+                                <Text style={postStyles.sectionTitle}>Workout</Text>
+                            </View>
+                            
+                            {selectedWorkout ? (
+                                <View style={postStyles.selectedWorkoutContainer}>
+                                    <TouchableOpacity 
+                                        style={postStyles.attachedWorkoutContent}
+                                        onPress={() => router.push(`/view-workout/${selectedWorkout.id}`)}
+                                    >
+                                        <Image 
+                                            source={{ uri: selectedWorkout.thumbnail }}
+                                            style={postStyles.workoutThumbnail}
+                                        />
+                                        <View style={postStyles.attachedWorkoutInfo}>
+                                            <Text style={postStyles.attachedWorkoutTitle}>
+                                                {selectedWorkout.title}
+                                            </Text>
+                                            <Text style={postStyles.attachedWorkoutDetails}>
+                                                by {selectedWorkout.creatorName} • {selectedWorkout.segments} segments • {selectedWorkout.length}
+                                            </Text>
+                                        </View>
+                                        <TouchableOpacity 
+                                            onPress={removeWorkout}
+                                            style={postStyles.removeWorkoutButton}
+                                        >
+                                            <Ionicons name="close-circle" size={22} color="#ff6b6b" />
+                                        </TouchableOpacity>
+                                    </TouchableOpacity>
+                                </View>
+                            ) : (
                                 <TouchableOpacity 
-                                    key={workout.id}
-                                    style={postStyles.workoutItem}
-                                    onPress={() => selectWorkout(workout)}
+                                    style={postStyles.attachWorkoutButton}
+                                    onPress={() => setWorkoutModalVisible(true)}
                                 >
-                                    <Image 
-                                        source={{ uri: workout.thumbnail }}
-                                        style={postStyles.workoutThumbnail}
-                                    />
-                                    <View style={postStyles.workoutItemInfo}>
-                                        <Text style={postStyles.workoutItemTitle}>{workout.title}</Text>
-                                        <Text style={postStyles.workoutItemCreator}>{workout.creatorName}</Text>
-                                        <Text style={postStyles.workoutItemDetails}>
-                                            {workout.segments} segments • {workout.length}
-                                        </Text>
-                                    </View>
-                                    <Ionicons name="chevron-forward" size={20} color="#999" />
+                                    <Text style={postStyles.attachButtonText}>Select a workout</Text>
+                                    <Ionicons name="add-circle" size={20} color="#5e72e4" />
                                 </TouchableOpacity>
-                            ))}
-                        </ScrollView>
-                    </View>
+                            )}
+                        </View>
+
+                        {/* Milestone section */}
+                        <View style={postStyles.sectionContainer}>
+                            <View style={postStyles.sectionHeader}>
+                                <MaterialCommunityIcons name="trophy-outline" size={22} color="#FFF" />
+                                <Text style={postStyles.sectionTitle}>Milestone</Text>
+                                <Switch
+                                    value={milestoneSwitchValue}
+                                    onValueChange={setMilestoneSwitchValue}
+                                    trackColor={{ false: '#3f3f3f', true: '#5e72e4' }}
+                                    thumbColor={milestoneSwitchValue ? '#FFF' : '#f4f3f4'}
+                                    style={postStyles.milestoneSwitch}
+                                />
+                            </View>
+                            
+                            {milestoneSwitchValue && (
+                                <View style={postStyles.milestoneContent}>
+                                    <View style={postStyles.milestoneTypeContainer}>
+                                        <Text style={postStyles.milestoneLabel}>Type</Text>
+                                        <Dropdown
+                                            data={itemsMilestone}
+                                            labelField="label"
+                                            valueField="value"
+                                            placeholder="Select type"
+                                            value={valueMilestone}
+                                            onChange={item => setValueMilestone(item.value)}
+                                            style={postStyles.dropdown}
+                                            containerStyle={postStyles.dropdownContainer}
+                                            placeholderStyle={postStyles.dropdownPlaceholder}
+                                            selectedTextStyle={postStyles.dropdownSelectedText}
+                                            renderLeftIcon={() => (
+                                                <MaterialCommunityIcons name="trophy" size={20} color="#5e72e4" style={{marginRight: 10}} />
+                                            )}
+                                        />
+                                    </View>
+                                    
+                                    {valueMilestone === 'PR' && (
+                                        <View style={postStyles.prContainer}>
+                                            <View style={postStyles.inputGroup}>
+                                                <Text style={postStyles.inputLabel}>Exercise</Text>
+                                                <TextInput
+                                                    style={postStyles.exerciseInput}
+                                                    placeholder="Search for exercise..."
+                                                    placeholderTextColor="#999"
+                                                    value={exerciseSearch}
+                                                    onChangeText={handleExerciseSearch}
+                                                />
+                                                {filteredExercises.length > 0 && (
+                                                    <View style={postStyles.suggestionsContainer}>
+                                                        <ScrollView 
+                                                            style={postStyles.suggestionsList}
+                                                            nestedScrollEnabled={true}
+                                                        >
+                                                            {filteredExercises.map((exercise, index) => (
+                                                                <TouchableOpacity
+                                                                    key={index}
+                                                                    onPress={() => {
+                                                                        setExerciseSearch(exercise);
+                                                                        setFilteredExercises([]);
+                                                                    }}
+                                                                    style={postStyles.suggestionItem}
+                                                                >
+                                                                    <Text style={postStyles.suggestionText}>{exercise}</Text>
+                                                                </TouchableOpacity>
+                                                            ))}
+                                                        </ScrollView>
+                                                    </View>
+                                                )}
+                                            </View>
+                                            
+                                            <View style={postStyles.inputRow}>
+                                                <View style={postStyles.weightInput}>
+                                                    <Text style={postStyles.inputLabel}>Weight</Text>
+                                                    <View style={postStyles.weightInputGroup}>
+                                                        <TextInput
+                                                            style={postStyles.numberInput}
+                                                            placeholder="0"
+                                                            placeholderTextColor="#999"
+                                                            keyboardType="numeric"
+                                                            value={amount}
+                                                            onChangeText={setAmount}
+                                                        />
+                                                        <Dropdown
+                                                            data={itemsWeightUnit}
+                                                            labelField="label"
+                                                            valueField="value"
+                                                            placeholder="Unit"
+                                                            value={weightUnit}
+                                                            onChange={item => setWeightUnit(item.value)}
+                                                            style={postStyles.unitDropdown}
+                                                            containerStyle={postStyles.unitDropdownContainer}
+                                                            placeholderStyle={postStyles.dropdownPlaceholder}
+                                                            selectedTextStyle={postStyles.dropdownSelectedText}
+                                                        />
+                                                    </View>
+                                                </View>
+                                                
+                                                <View style={postStyles.repsInput}>
+                                                    <Text style={postStyles.inputLabel}>Reps</Text>
+                                                    <TextInput
+                                                        style={postStyles.numberInput}
+                                                        placeholder="0"
+                                                        placeholderTextColor="#999"
+                                                        keyboardType="numeric"
+                                                        value={reps}
+                                                        onChangeText={setReps}
+                                                    />
+                                                </View>
+                                            </View>
+                                        </View>
+                                    )}
+                                    
+                                    {(valueMilestone === 'weightLoss' || valueMilestone === 'weightGain') && (
+                                        <View style={postStyles.weightMilestoneContainer}>
+                                            <Text style={postStyles.inputLabel}>New Weight</Text>
+                                            <View style={postStyles.weightInputGroup}>
+                                                <TextInput
+                                                    style={postStyles.numberInput}
+                                                    placeholder="0"
+                                                    placeholderTextColor="#999"
+                                                    keyboardType="numeric"
+                                                    value={newWeight}
+                                                    onChangeText={setNewWeight}
+                                                />
+                                                <Dropdown
+                                                    data={itemsNewWeightUnit}
+                                                    labelField="label"
+                                                    valueField="value"
+                                                    placeholder="Unit"
+                                                    value={newWeightUnit}
+                                                    onChange={item => setNewWeightUnit(item.value)}
+                                                    style={postStyles.unitDropdown}
+                                                    containerStyle={postStyles.unitDropdownContainer}
+                                                    placeholderStyle={postStyles.dropdownPlaceholder}
+                                                    selectedTextStyle={postStyles.dropdownSelectedText}
+                                                />
+                                            </View>
+                                        </View>
+                                    )}
+                                </View>
+                            )}
+                        </View>
+
+                        {/* Privacy options */}
+                        <View style={postStyles.privacyContainer}>
+                            <View style={postStyles.privacyHeader}>
+                                <Ionicons name="lock-closed-outline" size={20} color="#FFF" />
+                                <Text style={postStyles.privacyTitle}>Privacy</Text>
+                            </View>
+                            <Dropdown
+                                data={itemsPrivacy}
+                                labelField="label"
+                                valueField="value"
+                                placeholder="Select"
+                                value={valuePrivacy}
+                                onChange={item => setValuePrivacy(item.value)}
+                                style={postStyles.privacyDropdown}
+                                containerStyle={postStyles.privacyDropdownContainer}
+                                placeholderStyle={postStyles.dropdownPlaceholder}
+                                selectedTextStyle={postStyles.dropdownSelectedText}
+                            />
+                        </View>
+                    </ScrollView>
                 </View>
-            </Modal>
-        </KeyboardAvoidingView>
+
+                {/* Image picker modal */}
+                <Modal
+                    animationType="slide"
+                    transparent={true}
+                    visible={imageMenuVisible}
+                    onRequestClose={() => setImageMenuVisible(false)}
+                >
+                    <TouchableOpacity 
+                        style={postStyles.modalOverlay}
+                        activeOpacity={1}
+                        onPress={() => setImageMenuVisible(false)}
+                    >
+                        <View style={postStyles.imageModalContent}>
+                            <Text style={postStyles.imageModalTitle}>Add Photo</Text>
+                            
+                            <TouchableOpacity 
+                                style={postStyles.imageModalOption}
+                                onPress={openCamera}
+                            >
+                                <Ionicons name="camera-outline" size={24} color="#5e72e4" />
+                                <Text style={postStyles.imageModalOptionText}>Take a photo</Text>
+                            </TouchableOpacity>
+                            
+                            <TouchableOpacity 
+                                style={postStyles.imageModalOption}
+                                onPress={openImageLibrary}
+                            >
+                                <Ionicons name="images-outline" size={24} color="#5e72e4" />
+                                <Text style={postStyles.imageModalOptionText}>Choose from library</Text>
+                            </TouchableOpacity>
+                            
+                            <TouchableOpacity 
+                                style={postStyles.cancelButton}
+                                onPress={() => setImageMenuVisible(false)}
+                            >
+                                <Text style={postStyles.cancelButtonText}>Cancel</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </TouchableOpacity>
+                </Modal>
+
+                {/* Workout selection modal */}
+                <Modal
+                    animationType="slide"
+                    transparent={true}
+                    visible={workoutModalVisible}
+                    onRequestClose={() => setWorkoutModalVisible(false)}
+                >
+                    <View style={postStyles.modalContainer}>
+                        <View style={postStyles.modalContent}>
+                            <View style={postStyles.modalHeader}>
+                                <Text style={postStyles.modalTitle}>Select Workout</Text>
+                                <TouchableOpacity 
+                                    onPress={() => setWorkoutModalVisible(false)}
+                                    style={postStyles.closeButton}
+                                >
+                                    <Ionicons name="close" size={24} color="#FFF" />
+                                </TouchableOpacity>
+                            </View>
+
+                            <ScrollView 
+                                style={postStyles.workoutList}
+                                showsVerticalScrollIndicator={false}
+                            >
+                                {availableWorkouts.map((workout) => (
+                                    <TouchableOpacity 
+                                        key={workout.id}
+                                        style={postStyles.workoutItem}
+                                        onPress={() => selectWorkout(workout)}
+                                    >
+                                        <Image 
+                                            source={{ uri: workout.thumbnail }}
+                                            style={postStyles.workoutThumbnail}
+                                        />
+                                        <View style={postStyles.workoutItemInfo}>
+                                            <Text style={postStyles.workoutItemTitle}>{workout.title}</Text>
+                                            <Text style={postStyles.workoutItemCreator}>{workout.creatorName}</Text>
+                                            <Text style={postStyles.workoutItemDetails}>
+                                                {workout.segments} segments • {workout.length}
+                                            </Text>
+                                        </View>
+                                        <Ionicons name="chevron-forward" size={20} color="#999" />
+                                    </TouchableOpacity>
+                                ))}
+                            </ScrollView>
+                        </View>
+                    </View>
+                </Modal>
+            </KeyboardAvoidingView>
+        </SafeAreaView>
     );
 };
 
 const postStyles = StyleSheet.create({
+    container: {
+        flex: 1,
+        backgroundColor: '#000',
+    },
     postPage: {
         flex: 1,
-        backgroundColor: 'black'
+        backgroundColor: '#000',
     },
     header: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        padding: 10,
+        paddingHorizontal: 16,
+        paddingVertical: 12,
         borderBottomWidth: 1,
-        borderBottomColor: 'white'
+        borderBottomColor: '#222',
     },
-    button: {
-        padding: 10,
-    },
-    buttonText: {
-        color: 'white',
-        fontSize: 16,
+    backButton: {
+        padding: 8,
     },
     postTitle: {
-        fontSize: 34,
+        fontSize: 20,
         fontWeight: 'bold',
-        color: 'white',
+        color: '#FFF',
     },
-    postText: {
-        color: 'white',
-    },
-    postPageScroll: {
-        padding: 10,
-        borderBottomWidth: 1,
-        borderColor: 'white',
-        flexGrow: 1,
-    },
-    photoOptionsView: {
-        flexDirection: 'row'
-    },
-    cameraButton: {
-        backgroundColor: 'white',
-        borderRadius: 50,
-        fontWeight: 'bold',
-        paddingHorizontal: 20,
-        paddingVertical: 10,
-        width: '80%',
-        alignItems: 'center',
-        marginRight: 20
-    },
-    cameraRollButton: {
-        backgroundColor: 'white',
-        borderRadius: 30,
-        fontWeight: 'bold',
-        width: 60,
-        height: 60,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginRight: 10
+    postButton: {
+        backgroundColor: '#5e72e4',
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderRadius: 16,
     },
     postButtonText: {
-        fontSize: 30,
-        color: 'black'
+        color: '#FFF',
+        fontWeight: '600',
     },
-    imagePreview: {
-        marginTop: 20,
-        alignItems: 'center'
+    errorContainer: {
+        backgroundColor: 'rgba(255, 107, 107, 0.15)',
+        padding: 12,
+        margin: 12,
+        borderRadius: 8,
+        borderLeftWidth: 4,
+        borderLeftColor: '#ff6b6b',
+    },
+    errorText: {
+        color: '#ff6b6b',
+        fontSize: 14,
+    },
+    scrollView: {
+        flex: 1,
+    },
+    scrollContent: {
+        paddingBottom: 30,
+    },
+    
+    // Image section
+    imageSection: {
+        padding: 16,
+        alignItems: 'center',
+    },
+    addImageButton: {
+        width: Dimensions.get('window').width - 32,
+        height: 200,
+        backgroundColor: '#222',
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#444',
+        borderStyle: 'dashed',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    addImageText: {
+        color: '#FFF',
+        marginTop: 10,
+        fontSize: 16,
+    },
+    selectedImageContainer: {
+        position: 'relative',
+        borderRadius: 12,
+        overflow: 'hidden',
+        width: Dimensions.get('window').width - 32,
+    },
+    selectedImage: {
+        width: '100%',
+        height: 250,
+        resizeMode: 'cover',
+    },
+    changeImageButton: {
+        position: 'absolute',
+        bottom: 12,
+        right: 12,
+        backgroundColor: 'rgba(0,0,0,0.7)',
+        padding: 8,
+        borderRadius: 20,
+    },
+    
+    // Caption section
+    captionContainer: {
+        paddingHorizontal: 16,
+        marginBottom: 16,
     },
     captionInput: {
-        height: 100,
-        backgroundColor: '#ccc',
-        borderWidth: 1,
-        borderRadius: 20,
-        padding: 10,
-        marginTop: 16,
+        backgroundColor: '#111',
+        color: '#FFF',
+        padding: 16,
+        borderRadius: 12,
+        fontSize: 16,
+        minHeight: 120,
         textAlignVertical: 'top',
     },
-    privacyContainer: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginTop: 10,
-        zIndex: 5000
+    
+    // Common section styles
+    sectionContainer: {
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        marginBottom: 8,
+        borderTopWidth: 1,
+        borderTopColor: '#222',
     },
-    privacyText: {
-        fontSize: 20,
-        color: 'white',
-    },
-    dropdownStyle: {
-        backgroundColor: '#fafafa',
-        borderColor: '#ccc',
-        borderWidth: 1,
-        borderRadius: 30,
-        width: 150,
-        paddingHorizontal: 10,
-        paddingVertical: 5,
-    },
-    dropdownContainerStyle: {
-        backgroundColor: '#fff',
-        borderColor: '#ccc',
-        borderWidth: 1,
-        borderRadius: 30,
-        padding: 10,
-        width: 150,
-    },
-    milestoneContainer: {
+    sectionHeader: {
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'space-between',
-        marginVertical: 10,
-        zIndex: 1
-    },
-    milestoneText: {
-        fontSize: 20,
-        color: 'white'
-    },
-    milestoneSwitch: {
-        transform: [{ scaleX: 1.2 }, { scaleY: 1.2 }],
-        marginRight: 5
-    },
-    milestoneTypeContainer: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginTop: 10,
-        zIndex: 5000
-    },
-    prFieldsContainer: {
-        marginTop: 10,
-    },
-    exerciseSearch: {
-        height: 40,
-        borderColor: '#ccc',
-        borderWidth: 1,
-        borderRadius: 20,
-        paddingHorizontal: 10,
-        marginBottom: 5,
-        backgroundColor: '#fff',
-        fontSize: 18
-    },
-    suggestionsContainer: {
-        backgroundColor: '#fff',
-        borderColor: '#ccc',
-        borderWidth: 1,
-        borderRadius: 10,
-        maxHeight: 100,
-        marginBottom: 10,
-    },
-    suggestionItem: {
-        padding: 10,
-        borderBottomWidth: 1,
-        borderBottomColor: '#eee',
-    },
-    inputRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 15,
-    },
-    inputLabel: {
-        flex: 1,
-        fontSize: 20,
-        color: 'white',
-    },
-    numberInput: {
-        flex: 0.5,
-        height: 40,
-        borderColor: '#ccc',
-        borderWidth: 1,
-        borderRadius: 10,
-        paddingHorizontal: 10,
-        backgroundColor: '#fff',
-        textAlign: 'right',
-        fontSize: 16
-    },
-    unitDropdown: {
-        flex: 0.35,
-        marginLeft: 10,
-        backgroundColor: '#fff',
-        borderRadius: 10,
-        padding: 3,
-        paddingLeft: 10
-    },
-    unitDropdownContainer: {
-        backgroundColor: '#fff',
-        borderWidth: 1,
-        borderRadius: 10,
-    },
-    weightFieldsContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginTop: 10,
-    },
-    weightInputRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        flex: 1,
-        marginLeft: 0,
-        justifyContent: 'flex-end'
-    },
-    attachWorkoutSection: {
-        marginTop: 20,
-        marginBottom: 15,
+        marginBottom: 12,
     },
     sectionTitle: {
-        fontSize: 20,
-        color: 'white',
-        marginBottom: 10,
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#FFF',
+        marginLeft: 8,
     },
+    
+    // Workout selection
     attachWorkoutButton: {
         flexDirection: 'row',
+        justifyContent: 'space-between',
         alignItems: 'center',
-        backgroundColor: '#333',
+        padding: 14,
+        backgroundColor: '#111',
         borderRadius: 10,
-        padding: 15,
         borderWidth: 1,
-        borderColor: '#555',
-        borderStyle: 'dashed',
+        borderColor: '#333',
     },
     attachButtonText: {
         color: '#FFF',
-        marginLeft: 10,
-        fontSize: 16,
+        fontSize: 15,
     },
     selectedWorkoutContainer: {
         backgroundColor: '#111',
-        borderRadius: 12,
+        borderRadius: 10,
         overflow: 'hidden',
-        borderColor: '#222',
         borderWidth: 1,
+        borderColor: '#333',
     },
     attachedWorkoutContent: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
         padding: 12,
+        alignItems: 'center',
+    },
+    workoutThumbnail: {
+        width: 50,
+        height: 50,
+        borderRadius: 6,
     },
     attachedWorkoutInfo: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    workoutIconContainer: {
-        marginRight: 12,
-        backgroundColor: '#333',
-        padding: 8,
-        borderRadius: 18,
+        flex: 1,
+        marginLeft: 12,
     },
     attachedWorkoutTitle: {
         color: '#FFF',
@@ -791,15 +817,229 @@ const postStyles = StyleSheet.create({
     attachedWorkoutDetails: {
         color: '#999',
         fontSize: 13,
-        marginTop: 2,
+        marginTop: 3,
     },
+    removeWorkoutButton: {
+        padding: 4,
+    },
+    
+    // Milestone section
+    milestoneSwitch: {
+        marginLeft: 'auto',
+    },
+    milestoneContent: {
+        backgroundColor: '#111',
+        padding: 16,
+        borderRadius: 10,
+        borderWidth: 1,
+        borderColor: '#333',
+    },
+    milestoneTypeContainer: {
+        marginBottom: 16,
+    },
+    milestoneLabel: {
+        fontSize: 16,
+        color: '#FFF',
+        marginBottom: 8,
+    },
+    
+    // Dropdown styles
+    dropdown: {
+        backgroundColor: '#222',
+        borderRadius: 8,
+        padding: 10,
+        borderWidth: 1,
+        borderColor: '#444',
+    },
+    dropdownContainer: {
+        backgroundColor: '#333',
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: '#444',
+    },
+    dropdownPlaceholder: {
+        color: '#999',
+    },
+    dropdownSelectedText: {
+        color: '#FFF',
+    },
+    
+    // PR specific styles
+    prContainer: {
+        marginTop: 8,
+    },
+    inputGroup: {
+        marginBottom: 16,
+    },
+    inputLabel: {
+        fontSize: 16,
+        color: '#FFF',
+        marginBottom: 8,
+    },
+    exerciseInput: {
+        backgroundColor: '#222',
+        color: '#FFF',
+        padding: 12,
+        borderRadius: 8,
+        fontSize: 15,
+        borderWidth: 1,
+        borderColor: '#444',
+    },
+    suggestionsContainer: {
+        backgroundColor: '#222',
+        borderWidth: 1,
+        borderColor: '#444',
+        borderRadius: 8,
+        marginTop: 4,
+        maxHeight: 150,
+    },
+    suggestionsList: {
+        padding: 4,
+    },
+    suggestionItem: {
+        paddingVertical: 10,
+        paddingHorizontal: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: '#333',
+    },
+    suggestionText: {
+        color: '#FFF',
+        fontSize: 14,
+    },
+    inputRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+    },
+    weightInput: {
+        flex: 1,
+        marginRight: 12,
+    },
+    repsInput: {
+        flex: 1,
+    },
+    weightInputGroup: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    numberInput: {
+        backgroundColor: '#222',
+        color: '#FFF',
+        padding: 12,
+        borderRadius: 8,
+        fontSize: 15,
+        flex: 1,
+        borderWidth: 1,
+        borderColor: '#444',
+    },
+    unitDropdown: {
+        backgroundColor: '#222',
+        borderRadius: 8,
+        padding: 6,
+        borderWidth: 1,
+        borderColor: '#444',
+        width: 70,
+        marginLeft: 8,
+    },
+    unitDropdownContainer: {
+        backgroundColor: '#333',
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: '#444',
+    },
+    
+    // Weight milestone styles
+    weightMilestoneContainer: {
+        marginTop: 8,
+    },
+    
+    // Privacy section
+    privacyContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingVertical: 16,
+        borderTopWidth: 1,
+        borderTopColor: '#222',
+    },
+    privacyHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    privacyTitle: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#FFF',
+        marginLeft: 8,
+    },
+    privacyDropdown: {
+        backgroundColor: '#222',
+        borderRadius: 8,
+        padding: 8,
+        width: 120,
+        borderWidth: 1,
+        borderColor: '#444',
+    },
+    privacyDropdownContainer: {
+        backgroundColor: '#333',
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: '#444',
+    },
+    
+    // Image modal
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.7)',
+        justifyContent: 'flex-end',
+    },
+    imageModalContent: {
+        backgroundColor: '#111',
+        borderTopLeftRadius: 16,
+        borderTopRightRadius: 16,
+        padding: 20,
+    },
+    imageModalTitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#FFF',
+        marginBottom: 20,
+        textAlign: 'center',
+    },
+    imageModalOption: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 16,
+        backgroundColor: '#222',
+        marginBottom: 12,
+        borderRadius: 12,
+    },
+    imageModalOptionText: {
+        color: '#FFF',
+        fontSize: 16,
+        marginLeft: 12,
+    },
+    cancelButton: {
+        padding: 16,
+        borderRadius: 12,
+        backgroundColor: '#333',
+        alignItems: 'center',
+        marginTop: 8,
+    },
+    cancelButtonText: {
+        color: '#ff6b6b',
+        fontSize: 16,
+        fontWeight: '600',
+    },
+    
+    // Workout modal
     modalContainer: {
         flex: 1,
         justifyContent: 'flex-end',
         backgroundColor: 'rgba(0,0,0,0.7)',
     },
     modalContent: {
-        backgroundColor: '#000',
+        backgroundColor: '#111',
         borderTopLeftRadius: 20,
         borderTopRightRadius: 20,
         paddingTop: 20,
@@ -813,12 +1053,12 @@ const postStyles = StyleSheet.create({
         paddingHorizontal: 20,
         paddingBottom: 15,
         borderBottomWidth: 1,
-        borderBottomColor: '#222',
+        borderBottomColor: '#333',
     },
     modalTitle: {
         color: '#FFF',
         fontWeight: 'bold',
-        fontSize: 20,
+        fontSize: 18,
     },
     closeButton: {
         padding: 5,
@@ -831,16 +1071,11 @@ const postStyles = StyleSheet.create({
         alignItems: 'center',
         paddingVertical: 15,
         borderBottomWidth: 1,
-        borderBottomColor: '#222',
-    },
-    workoutThumbnail: {
-        width: 60,
-        height: 60,
-        borderRadius: 8,
-        marginRight: 15,
+        borderBottomColor: '#333',
     },
     workoutItemInfo: {
         flex: 1,
+        marginLeft: 15,
     },
     workoutItemTitle: {
         color: '#FFF',
@@ -856,19 +1091,7 @@ const postStyles = StyleSheet.create({
         fontSize: 12,
         marginTop: 2,
     },
-    errorContainer: {
-        backgroundColor: 'rgba(255, 59, 48, 0.1)',
-        padding: 10,
-        marginVertical: 10,
-        borderRadius: 5,
-        borderWidth: 1,
-        borderColor: '#FF3B30',
-    },
-        errorText: {
-        color: '#FF3B30',
-        textAlign: 'center',
-    },
-        disabledButton: {
+    disabledButton: {
         opacity: 0.5,
     }
 });
