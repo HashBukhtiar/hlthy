@@ -506,8 +506,8 @@ export default function ViewMilestone() {
               style={styles.actionIcon}
             />
             <Text style={styles.actionButtonText}>
-              {milestone.isLiked ? 'Liked' : 'Like'} 
-              {milestone.stats.likes > 0 && ` (${milestone.stats.likes})`}
+              Like
+              {milestone.stats.likes > 0 && <Text style={styles.likeCountText}> ({milestone.stats.likes})</Text>}
             </Text>
           </TouchableOpacity>
           
@@ -733,6 +733,11 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontWeight: 'bold',
     fontSize: 16,
+  },
+  likeCountText: {
+    color: '#999',
+    fontSize: 14,
+    fontWeight: '400',
   },
   emptyContainer: {
     flex: 1,
