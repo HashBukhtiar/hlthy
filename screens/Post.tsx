@@ -933,7 +933,7 @@ const postStyles = StyleSheet.create({
         marginBottom: 16,
     },
     captionInput: {
-        backgroundColor: '#111',
+        backgroundColor: '#222',
         color: '#FFF',
         padding: 16,
         borderRadius: 12,
