@@ -28,6 +28,8 @@ import { useAuth } from '@/context/AuthContext';
 interface DropdownItem {
     label: string;
     value: string;
+    icon?: string;
+    description?: string;
 }
 
 export default function Post() {
@@ -37,20 +39,37 @@ export default function Post() {
     const [formError, setFormError] = useState<string | null>(null);
 
     const router = useRouter();
+    
+    // Post type selection (regular post or milestone)
+    const [postMode, setPostMode] = useState<'regular' | 'milestone'>('regular');
+
+    // Common fields
     const [caption, setCaption] = useState('');
     const [imageUri, setImageUri] = useState<string | null>(null);
     const [imageDimensions, setImageDimensions] = useState({ width: 0, height: 0 });
-
-    const [openPrivacy, setOpenPrivacy] = useState(false);
-    const [valuePrivacy, setValuePrivacy] = useState<string | null>('public');
-    const [itemsPrivacy] = useState<DropdownItem[]>([
-        { label: 'Public', value: 'public' },
-        { label: 'Private', value: 'private' }
+    const [valueVisibility, setValueVisibility] = useState<string | null>('public');
+    const [itemsVisibility] = useState<DropdownItem[]>([
+        { 
+            label: 'Public', 
+            value: 'public',
+            icon: 'earth',
+            description: 'Anyone can see this post'
+        },
+        { 
+            label: 'Followers Only', 
+            value: 'followers',
+            icon: 'people',
+            description: 'Only your followers can see this post'
+        },
+        { 
+            label: 'Private', 
+            value: 'private',
+            icon: 'lock-closed',
+            description: 'Only you can see this post'
+        }
     ]);
-
-    const [milestoneSwitchValue, setMilestoneSwitchValue] = useState(false);
-
-    const [openMilestone, setOpenMilestone] = useState(false);
+    
+    // Milestone specific fields
     const [valueMilestone, setValueMilestone] = useState<string | null>(null);
     const [itemsMilestone] = useState<DropdownItem[]>([
         { label: 'PR', value: 'PR' },
@@ -93,9 +112,11 @@ export default function Post() {
     ]);
     const [filteredExercises, setFilteredExercises] = useState<string[]>([]);
 
+    // Workout attachment
     const [selectedWorkout, setSelectedWorkout] = useState<any>(null);
     const [workoutModalVisible, setWorkoutModalVisible] = useState(false);
     const [imageMenuVisible, setImageMenuVisible] = useState(false);
+    const [visibilityModalVisible, setVisibilityModalVisible] = useState(false);
 
     const [availableWorkouts] = useState([
         {
@@ -195,25 +216,62 @@ export default function Post() {
         setSelectedWorkout(null);
     };
 
+    const resetForm = () => {
+        setCaption('');
+        setImageUri(null);
+        setSelectedWorkout(null);
+        setValueMilestone(null);
+        setExerciseSearch('');
+        setAmount('');
+        setReps('');
+        setNewWeight('');
+        setFormError(null);
+    };
+
+    const renderVisibilityItem = (item: DropdownItem) => (
+        <View style={postStyles.visibilityItem}>
+            <View style={postStyles.visibilityItemLeft}>
+                <Ionicons name={item.icon as any} size={20} color="#FFF" style={postStyles.visibilityIcon} />
+                <Text style={postStyles.visibilityLabel}>{item.label}</Text>
+            </View>
+            <Text style={postStyles.visibilityDescription}>{item.description}</Text>
+        </View>
+    );
+
     const handleSubmitPost = async () => {
         try {
-            if (!imageUri && !caption.trim() && !milestoneSwitchValue) {
-                setFormError("Please add an image, caption, or milestone");
-                return;
+            // Validation based on post mode
+            if (postMode === 'regular') {
+                if (!imageUri && !caption.trim()) {
+                    setFormError("Please add an image or a caption");
+                    return;
+                }
+            } else if (postMode === 'milestone') {
+                if (!valueMilestone) {
+                    setFormError("Please select a milestone type");
+                    return;
+                }
+                
+                if (valueMilestone === 'PR') {
+                    if (!exerciseSearch.trim() || !amount || !weightUnit || !reps) {
+                        setFormError("Please complete all milestone fields");
+                        return;
+                    }
+                } else if (valueMilestone === 'weightLoss' || valueMilestone === 'weightGain') {
+                    if (!newWeight || !newWeightUnit) {
+                        setFormError("Please enter your new weight");
+                        return;
+                    }
+                }
             }
             
             setIsSubmitting(true);
             setFormError(null);
             
-            // Prepare milestone details if enabled
+            // Prepare milestone details
             let milestoneDetails = null;
-            if (milestoneSwitchValue && valueMilestone) {
+            if (postMode === 'milestone' && valueMilestone) {
                 if (valueMilestone === 'PR') {
-                    if (!exerciseSearch.trim() || !amount || !weightUnit || !reps) {
-                        setFormError("Please complete all milestone fields");
-                        setIsSubmitting(false);
-                        return;
-                    }
                     milestoneDetails = {
                         type: valueMilestone,
                         exercise: exerciseSearch,
@@ -222,11 +280,6 @@ export default function Post() {
                         reps: parseInt(reps)
                     };
                 } else if (valueMilestone === 'weightLoss' || valueMilestone === 'weightGain') {
-                    if (!newWeight || !newWeightUnit) {
-                        setFormError("Please enter your new weight");
-                        setIsSubmitting(false);
-                        return;
-                    }
                     milestoneDetails = {
                         type: valueMilestone,
                         newWeight,
@@ -238,9 +291,9 @@ export default function Post() {
             const postData = {
                 caption: caption.trim(),
                 imageUri,
-                isMilestone: milestoneSwitchValue && !!valueMilestone,
+                isMilestone: postMode === 'milestone',
                 milestoneDetails,
-                visibility: valuePrivacy || 'public',
+                visibility: valueVisibility || 'public',
                 workoutId: selectedWorkout?.id
             };
             
@@ -269,13 +322,42 @@ export default function Post() {
                 <View style={postStyles.postPage}>
                     {/* Header */}
                     <View style={postStyles.header}>
-                        <TouchableOpacity 
-                            style={postStyles.backButton} 
-                            onPress={() => router.back()}
-                        >
-                            <Ionicons name="arrow-back" size={24} color="#FFF" />
-                        </TouchableOpacity>
-                        <Text style={postStyles.postTitle}>Create Post</Text>
+                        <View style={postStyles.postTypeSegmentedControl}>
+                            <TouchableOpacity 
+                                style={[
+                                    postStyles.segmentButton, 
+                                    postMode === 'regular' && postStyles.activeSegment
+                                ]}
+                                onPress={() => setPostMode('regular')}
+                            >
+                                <Ionicons 
+                                    name="images-outline" 
+                                    size={20} 
+                                    color={postMode === 'regular' ? "#FFF" : "#999"}
+                                />
+                                <Text style={[
+                                    postStyles.segmentText,
+                                    postMode === 'regular' && postStyles.activeSegmentText
+                                ]}>Post</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity 
+                                style={[
+                                    postStyles.segmentButton,
+                                    postMode === 'milestone' && postStyles.activeSegment
+                                ]}
+                                onPress={() => setPostMode('milestone')}
+                            >
+                                <MaterialCommunityIcons 
+                                    name="trophy-outline" 
+                                    size={20} 
+                                    color={postMode === 'milestone' ? "#FFF" : "#999"}
+                                />
+                                <Text style={[
+                                    postStyles.segmentText,
+                                    postMode === 'milestone' && postStyles.activeSegmentText
+                                ]}>Milestone</Text>
+                            </TouchableOpacity>
+                        </View>
                         <TouchableOpacity 
                             style={[postStyles.postButton, isSubmitting && postStyles.disabledButton]} 
                             onPress={handleSubmitPost}
@@ -301,7 +383,7 @@ export default function Post() {
                         contentContainerStyle={postStyles.scrollContent}
                         showsVerticalScrollIndicator={false}
                     >
-                        {/* Image picker section */}
+                        {/* Image picker section - always visible */}
                         <View style={postStyles.imageSection}>
                             {imageUri ? (
                                 <View style={postStyles.selectedImageContainer}>
@@ -327,7 +409,7 @@ export default function Post() {
                             )}
                         </View>
 
-                        {/* Caption section */}
+                        {/* Caption section - always visible */}
                         <View style={postStyles.captionContainer}>
                             <TextInput
                                 style={postStyles.captionInput}
@@ -341,65 +423,14 @@ export default function Post() {
                             />
                         </View>
 
-                        {/* Workout attachment section */}
-                        <View style={postStyles.sectionContainer}>
-                            <View style={postStyles.sectionHeader}>
-                                <Ionicons name="barbell-outline" size={22} color="#FFF" />
-                                <Text style={postStyles.sectionTitle}>Workout</Text>
-                            </View>
-                            
-                            {selectedWorkout ? (
-                                <View style={postStyles.selectedWorkoutContainer}>
-                                    <TouchableOpacity 
-                                        style={postStyles.attachedWorkoutContent}
-                                        onPress={() => router.push(`/view-workout/${selectedWorkout.id}`)}
-                                    >
-                                        <Image 
-                                            source={{ uri: selectedWorkout.thumbnail }}
-                                            style={postStyles.workoutThumbnail}
-                                        />
-                                        <View style={postStyles.attachedWorkoutInfo}>
-                                            <Text style={postStyles.attachedWorkoutTitle}>
-                                                {selectedWorkout.title}
-                                            </Text>
-                                            <Text style={postStyles.attachedWorkoutDetails}>
-                                                by {selectedWorkout.creatorName} • {selectedWorkout.segments} segments • {selectedWorkout.length}
-                                            </Text>
-                                        </View>
-                                        <TouchableOpacity 
-                                            onPress={removeWorkout}
-                                            style={postStyles.removeWorkoutButton}
-                                        >
-                                            <Ionicons name="close-circle" size={22} color="#ff6b6b" />
-                                        </TouchableOpacity>
-                                    </TouchableOpacity>
+                        {/* Milestone section - only visible in milestone mode */}
+                        {postMode === 'milestone' && (
+                            <View style={postStyles.sectionContainer}>
+                                <View style={postStyles.sectionHeader}>
+                                    <MaterialCommunityIcons name="trophy" size={22} color="#5e72e4" />
+                                    <Text style={postStyles.sectionTitle}>Milestone Details</Text>
                                 </View>
-                            ) : (
-                                <TouchableOpacity 
-                                    style={postStyles.attachWorkoutButton}
-                                    onPress={() => setWorkoutModalVisible(true)}
-                                >
-                                    <Text style={postStyles.attachButtonText}>Select a workout</Text>
-                                    <Ionicons name="add-circle" size={20} color="#5e72e4" />
-                                </TouchableOpacity>
-                            )}
-                        </View>
-
-                        {/* Milestone section */}
-                        <View style={postStyles.sectionContainer}>
-                            <View style={postStyles.sectionHeader}>
-                                <MaterialCommunityIcons name="trophy-outline" size={22} color="#FFF" />
-                                <Text style={postStyles.sectionTitle}>Milestone</Text>
-                                <Switch
-                                    value={milestoneSwitchValue}
-                                    onValueChange={setMilestoneSwitchValue}
-                                    trackColor={{ false: '#3f3f3f', true: '#5e72e4' }}
-                                    thumbColor={milestoneSwitchValue ? '#FFF' : '#f4f3f4'}
-                                    style={postStyles.milestoneSwitch}
-                                />
-                            </View>
-                            
-                            {milestoneSwitchValue && (
+                                
                                 <View style={postStyles.milestoneContent}>
                                     <View style={postStyles.milestoneTypeContainer}>
                                         <Text style={postStyles.milestoneLabel}>Type</Text>
@@ -407,7 +438,7 @@ export default function Post() {
                                             data={itemsMilestone}
                                             labelField="label"
                                             valueField="value"
-                                            placeholder="Select type"
+                                            placeholder="Select milestone type"
                                             value={valueMilestone}
                                             onChange={item => setValueMilestone(item.value)}
                                             style={postStyles.dropdown}
@@ -524,27 +555,75 @@ export default function Post() {
                                         </View>
                                     )}
                                 </View>
+                            </View>
+                        )}
+
+                        {/* Workout attachment section - always available */}
+                        <View style={postStyles.sectionContainer}>
+                            <View style={postStyles.sectionHeader}>
+                                <Ionicons name="barbell-outline" size={22} color="#FFF" />
+                                <Text style={postStyles.sectionTitle}>Workout</Text>
+                            </View>
+                            
+                            {selectedWorkout ? (
+                                <View style={postStyles.selectedWorkoutContainer}>
+                                    <TouchableOpacity 
+                                        style={postStyles.attachedWorkoutContent}
+                                        onPress={() => router.push(`/view-workout/${selectedWorkout.id}`)}
+                                    >
+                                        <Image 
+                                            source={{ uri: selectedWorkout.thumbnail }}
+                                            style={postStyles.workoutThumbnail}
+                                        />
+                                        <View style={postStyles.attachedWorkoutInfo}>
+                                            <Text style={postStyles.attachedWorkoutTitle}>
+                                                {selectedWorkout.title}
+                                            </Text>
+                                            <Text style={postStyles.attachedWorkoutDetails}>
+                                                by {selectedWorkout.creatorName} • {selectedWorkout.segments} segments • {selectedWorkout.length}
+                                            </Text>
+                                        </View>
+                                        <TouchableOpacity 
+                                            onPress={removeWorkout}
+                                            style={postStyles.removeWorkoutButton}
+                                        >
+                                            <Ionicons name="close-circle" size={22} color="#ff6b6b" />
+                                        </TouchableOpacity>
+                                    </TouchableOpacity>
+                                </View>
+                            ) : (
+                                <TouchableOpacity 
+                                    style={postStyles.attachWorkoutButton}
+                                    onPress={() => setWorkoutModalVisible(true)}
+                                >
+                                    <Text style={postStyles.attachButtonText}>Select a workout</Text>
+                                    <Ionicons name="add-circle" size={20} color="#5e72e4" />
+                                </TouchableOpacity>
                             )}
                         </View>
 
-                        {/* Privacy options */}
-                        <View style={postStyles.privacyContainer}>
-                            <View style={postStyles.privacyHeader}>
-                                <Ionicons name="lock-closed-outline" size={20} color="#FFF" />
-                                <Text style={postStyles.privacyTitle}>Privacy</Text>
+                        {/* Visibility options */}
+                        <View style={postStyles.visibilityContainer}>
+                            <View style={postStyles.visibilityHeader}>
+                                <Ionicons name="eye-outline" size={20} color="#FFF" />
+                                <Text style={postStyles.visibilityTitle}>Visibility</Text>
                             </View>
-                            <Dropdown
-                                data={itemsPrivacy}
-                                labelField="label"
-                                valueField="value"
-                                placeholder="Select"
-                                value={valuePrivacy}
-                                onChange={item => setValuePrivacy(item.value)}
-                                style={postStyles.privacyDropdown}
-                                containerStyle={postStyles.privacyDropdownContainer}
-                                placeholderStyle={postStyles.dropdownPlaceholder}
-                                selectedTextStyle={postStyles.dropdownSelectedText}
-                            />
+                            <TouchableOpacity 
+                                style={postStyles.visibilitySelector}
+                                onPress={() => setVisibilityModalVisible(true)}
+                            >
+                                <View style={postStyles.selectedVisibility}>
+                                    <Ionicons 
+                                        name={itemsVisibility.find(item => item.value === valueVisibility)?.icon as any || 'earth'} 
+                                        size={18} 
+                                        color="#FFF" 
+                                    />
+                                    <Text style={postStyles.selectedVisibilityText}>
+                                        {itemsVisibility.find(item => item.value === valueVisibility)?.label || 'Public'}
+                                    </Text>
+                                </View>
+                                <Ionicons name="chevron-down" size={18} color="#999" />
+                            </TouchableOpacity>
                         </View>
                     </ScrollView>
                 </View>
@@ -637,6 +716,56 @@ export default function Post() {
                         </View>
                     </View>
                 </Modal>
+
+                {/* Visibility selection modal */}
+                <Modal
+                    animationType="slide"
+                    transparent={true}
+                    visible={visibilityModalVisible}
+                    onRequestClose={() => setVisibilityModalVisible(false)}
+                >
+                    <TouchableOpacity 
+                        style={postStyles.modalOverlay}
+                        activeOpacity={1}
+                        onPress={() => setVisibilityModalVisible(false)}
+                    >
+                        <View style={postStyles.visibilityModalContent}>
+                            <Text style={postStyles.visibilityModalTitle}>Post Visibility</Text>
+                            
+                            {itemsVisibility.map((item) => (
+                                <TouchableOpacity 
+                                    key={item.value}
+                                    style={[
+                                        postStyles.visibilityModalOption,
+                                        valueVisibility === item.value && postStyles.selectedVisibilityOption
+                                    ]}
+                                    onPress={() => {
+                                        setValueVisibility(item.value);
+                                        setVisibilityModalVisible(false);
+                                    }}
+                                >
+                                    <View style={postStyles.visibilityOptionHeader}>
+                                        <Ionicons name={item.icon as any} size={22} color={valueVisibility === item.value ? "#5e72e4" : "#FFF"} />
+                                        <Text style={[
+                                            postStyles.visibilityOptionLabel,
+                                            valueVisibility === item.value && postStyles.selectedVisibilityOptionText
+                                        ]}>
+                                            {item.label}
+                                        </Text>
+                                    </View>
+                                    <Text style={postStyles.visibilityOptionDescription}>{item.description}</Text>
+                                </TouchableOpacity>
+                            ))}
+                            
+                            <TouchableOpacity 
+                                style={postStyles.cancelButton}
+                                onPress={() => setVisibilityModalVisible(false)}
+                            >
+                                <Text style={postStyles.cancelButtonText}>Close</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </TouchableOpacity>
+                </Modal>
             </KeyboardAvoidingView>
         </SafeAreaView>
     );
@@ -660,8 +789,28 @@ const postStyles = StyleSheet.create({
         borderBottomWidth: 1,
         borderBottomColor: '#222',
     },
-    backButton: {
-        padding: 8,
+    postTypeSegmentedControl: {
+        flexDirection: 'row',
+        backgroundColor: '#111',
+        borderRadius: 20,
+        overflow: 'hidden',
+    },
+    segmentButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 8,
+        paddingHorizontal: 16,
+    },
+    activeSegment: {
+        backgroundColor: '#5e72e4',
+    },
+    segmentText: {
+        color: '#999',
+        marginLeft: 6,
+        fontWeight: '500',
+    },
+    activeSegmentText: {
+        color: '#FFF',
     },
     postTitle: {
         fontSize: 20,
@@ -824,9 +973,6 @@ const postStyles = StyleSheet.create({
     },
     
     // Milestone section
-    milestoneSwitch: {
-        marginLeft: 'auto',
-    },
     milestoneContent: {
         backgroundColor: '#111',
         padding: 16,
@@ -1093,5 +1239,113 @@ const postStyles = StyleSheet.create({
     },
     disabledButton: {
         opacity: 0.5,
-    }
+    },
+    
+    // Visibility section
+    visibilityContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingVertical: 16,
+        borderTopWidth: 1,
+        borderTopColor: '#222',
+    },
+    visibilityHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    visibilityTitle: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#FFF',
+        marginLeft: 8,
+    },
+    visibilitySelector: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#222',
+        borderRadius: 8,
+        padding: 10,
+        paddingHorizontal: 12,
+        borderWidth: 1,
+        borderColor: '#444',
+    },
+    selectedVisibility: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginRight: 8,
+    },
+    selectedVisibilityText: {
+        color: '#FFF',
+        marginLeft: 6,
+        fontSize: 14,
+    },
+    
+    // Visibility modal styles
+    visibilityModalContent: {
+        backgroundColor: '#111',
+        borderTopLeftRadius: 16,
+        borderTopRightRadius: 16,
+        padding: 20,
+    },
+    visibilityModalTitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#FFF',
+        marginBottom: 20,
+        textAlign: 'center',
+    },
+    visibilityModalOption: {
+        padding: 16,
+        backgroundColor: '#222',
+        marginBottom: 12,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#333',
+    },
+    selectedVisibilityOption: {
+        borderColor: '#5e72e4',
+        backgroundColor: 'rgba(94, 114, 228, 0.1)',
+    },
+    visibilityOptionHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 6,
+    },
+    visibilityOptionLabel: {
+        color: '#FFF',
+        fontSize: 16,
+        fontWeight: '600',
+        marginLeft: 10,
+    },
+    selectedVisibilityOptionText: {
+        color: '#5e72e4',
+    },
+    visibilityOptionDescription: {
+        color: '#999',
+        fontSize: 14,
+        marginLeft: 32,
+    },
+    visibilityItem: {
+        padding: 12,
+        flexDirection: 'column',
+    },
+    visibilityItemLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 4,
+    },
+    visibilityIcon: {
+        marginRight: 8,
+    },
+    visibilityLabel: {
+        color: '#FFF',
+        fontSize: 16,
+    },
+    visibilityDescription: {
+        color: '#999',
+        fontSize: 12,
+        paddingLeft: 28,
+    },
 });
