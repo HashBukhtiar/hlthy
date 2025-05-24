@@ -327,42 +327,7 @@ export default function Post() {
                 <View style={postStyles.postPage}>
                     {/* Header */}
                     <View style={postStyles.header}>
-                        <View style={postStyles.postTypeSegmentedControl}>
-                            <TouchableOpacity 
-                                style={[
-                                    postStyles.segmentButton, 
-                                    postMode === 'regular' && postStyles.activeSegment
-                                ]}
-                                onPress={() => setPostMode('regular')}
-                            >
-                                <Ionicons 
-                                    name="images-outline" 
-                                    size={20} 
-                                    color={postMode === 'regular' ? "#FFF" : "#999"}
-                                />
-                                <Text style={[
-                                    postStyles.segmentText,
-                                    postMode === 'regular' && postStyles.activeSegmentText
-                                ]}>Post</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity 
-                                style={[
-                                    postStyles.segmentButton,
-                                    postMode === 'milestone' && postStyles.activeSegment
-                                ]}
-                                onPress={() => setPostMode('milestone')}
-                            >
-                                <MaterialCommunityIcons 
-                                    name="trophy-outline" 
-                                    size={20} 
-                                    color={postMode === 'milestone' ? "#FFF" : "#999"}
-                                />
-                                <Text style={[
-                                    postStyles.segmentText,
-                                    postMode === 'milestone' && postStyles.activeSegmentText
-                                ]}>Milestone</Text>
-                            </TouchableOpacity>
-                        </View>
+                        <Text style={postStyles.headerTitle}>New Post</Text>
                         <TouchableOpacity 
                             style={[postStyles.postButton, isSubmitting && postStyles.disabledButton]} 
                             onPress={handleSubmitPost}
@@ -373,6 +338,59 @@ export default function Post() {
                             ) : (
                                 <Text style={postStyles.postButtonText}>Post</Text>
                             )}
+                        </TouchableOpacity>
+                    </View>
+
+                    {/* Post Type Selector */}
+                    <View style={postStyles.postTypeContainer}>
+                        <TouchableOpacity
+                            style={[
+                                postStyles.postTypeOption,
+                                postMode === 'regular' ? postStyles.activePostTypeOption : null
+                            ]}
+                            onPress={() => setPostMode('regular')}
+                        >
+                            <View style={[
+                                postStyles.postTypeIconContainer,
+                                postMode === 'regular' ? postStyles.activePostTypeIconContainer : null
+                            ]}>
+                                <Ionicons 
+                                    name="images" 
+                                    size={22} 
+                                    color={postMode === 'regular' ? '#FFF' : '#777'} 
+                                />
+                            </View>
+                            <Text style={[
+                                postStyles.postTypeText,
+                                postMode === 'regular' ? postStyles.activePostTypeText : null
+                            ]}>
+                                Regular Post
+                            </Text>
+                        </TouchableOpacity>
+                        
+                        <TouchableOpacity
+                            style={[
+                                postStyles.postTypeOption,
+                                postMode === 'milestone' ? postStyles.activePostTypeOption : null
+                            ]}
+                            onPress={() => setPostMode('milestone')}
+                        >
+                            <View style={[
+                                postStyles.postTypeIconContainer,
+                                postMode === 'milestone' ? postStyles.activePostTypeIconContainer : null
+                            ]}>
+                                <MaterialCommunityIcons 
+                                    name="trophy" 
+                                    size={22} 
+                                    color={postMode === 'milestone' ? '#FFF' : '#777'} 
+                                />
+                            </View>
+                            <Text style={[
+                                postStyles.postTypeText,
+                                postMode === 'milestone' ? postStyles.activePostTypeText : null
+                            ]}>
+                                Milestone
+                            </Text>
                         </TouchableOpacity>
                     </View>
 
@@ -794,30 +812,7 @@ const postStyles = StyleSheet.create({
         borderBottomWidth: 1,
         borderBottomColor: '#222',
     },
-    postTypeSegmentedControl: {
-        flexDirection: 'row',
-        backgroundColor: '#111',
-        borderRadius: 20,
-        overflow: 'hidden',
-    },
-    segmentButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: 8,
-        paddingHorizontal: 16,
-    },
-    activeSegment: {
-        backgroundColor: SECONDARY_COLOR,
-    },
-    segmentText: {
-        color: '#999',
-        marginLeft: 6,
-        fontWeight: '500',
-    },
-    activeSegmentText: {
-        color: '#FFF',
-    },
-    postTitle: {
+    headerTitle: {
         fontSize: 20,
         fontWeight: 'bold',
         color: '#FFF',
@@ -829,6 +824,48 @@ const postStyles = StyleSheet.create({
         borderRadius: 16,
     },
     postButtonText: {
+        color: '#FFF',
+        fontWeight: '600',
+    },
+    
+    // Post Type Selector
+    postTypeContainer: {
+        flexDirection: 'row',
+        paddingVertical: 12,
+        paddingHorizontal: 16,
+        justifyContent: 'space-around',
+        borderBottomWidth: 1,
+        borderBottomColor: '#222',
+        backgroundColor: '#0A0A0A',
+    },
+    postTypeOption: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 12,
+        width: '48%',
+        borderRadius: 12,
+    },
+    activePostTypeOption: {
+        backgroundColor: '#181818',
+    },
+    postTypeIconContainer: {
+        width: 48,
+        height: 48,
+        borderRadius: 24,
+        backgroundColor: '#181818',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 8,
+    },
+    activePostTypeIconContainer: {
+        backgroundColor: SECONDARY_COLOR,
+    },
+    postTypeText: {
+        color: '#777',
+        fontSize: 14,
+        fontWeight: '500',
+    },
+    activePostTypeText: {
         color: '#FFF',
         fontWeight: '600',
     },
