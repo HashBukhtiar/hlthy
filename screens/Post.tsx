@@ -25,6 +25,11 @@ import { postImage } from '@/assets/images';
 import { usePostsData } from '@/hooks/usePostsData';
 import { useAuth } from '@/context/AuthContext';
 
+// Secondary color and its variations
+const SECONDARY_COLOR = '#ff2d55';
+const SECONDARY_COLOR_LIGHT = 'rgba(255, 45, 85, 0.1)';
+const SECONDARY_COLOR_MEDIUM = 'rgba(255, 45, 85, 0.5)';
+
 interface DropdownItem {
     label: string;
     value: string;
@@ -427,7 +432,7 @@ export default function Post() {
                         {postMode === 'milestone' && (
                             <View style={postStyles.sectionContainer}>
                                 <View style={postStyles.sectionHeader}>
-                                    <MaterialCommunityIcons name="trophy" size={22} color="#5e72e4" />
+                                    <MaterialCommunityIcons name="trophy" size={22} color={SECONDARY_COLOR} />
                                     <Text style={postStyles.sectionTitle}>Milestone Details</Text>
                                 </View>
                                 
@@ -446,7 +451,7 @@ export default function Post() {
                                             placeholderStyle={postStyles.dropdownPlaceholder}
                                             selectedTextStyle={postStyles.dropdownSelectedText}
                                             renderLeftIcon={() => (
-                                                <MaterialCommunityIcons name="trophy" size={20} color="#5e72e4" style={{marginRight: 10}} />
+                                                <MaterialCommunityIcons name="trophy" size={20} color={SECONDARY_COLOR} style={{marginRight: 10}} />
                                             )}
                                         />
                                     </View>
@@ -587,7 +592,7 @@ export default function Post() {
                                             onPress={removeWorkout}
                                             style={postStyles.removeWorkoutButton}
                                         >
-                                            <Ionicons name="close-circle" size={22} color="#ff6b6b" />
+                                            <Ionicons name="close-circle" size={22} color={SECONDARY_COLOR} />
                                         </TouchableOpacity>
                                     </TouchableOpacity>
                                 </View>
@@ -597,7 +602,7 @@ export default function Post() {
                                     onPress={() => setWorkoutModalVisible(true)}
                                 >
                                     <Text style={postStyles.attachButtonText}>Select a workout</Text>
-                                    <Ionicons name="add-circle" size={20} color="#5e72e4" />
+                                    <Ionicons name="add-circle" size={20} color={SECONDARY_COLOR} />
                                 </TouchableOpacity>
                             )}
                         </View>
@@ -647,7 +652,7 @@ export default function Post() {
                                 style={postStyles.imageModalOption}
                                 onPress={openCamera}
                             >
-                                <Ionicons name="camera-outline" size={24} color="#5e72e4" />
+                                <Ionicons name="camera-outline" size={24} color={SECONDARY_COLOR} />
                                 <Text style={postStyles.imageModalOptionText}>Take a photo</Text>
                             </TouchableOpacity>
                             
@@ -655,7 +660,7 @@ export default function Post() {
                                 style={postStyles.imageModalOption}
                                 onPress={openImageLibrary}
                             >
-                                <Ionicons name="images-outline" size={24} color="#5e72e4" />
+                                <Ionicons name="images-outline" size={24} color={SECONDARY_COLOR} />
                                 <Text style={postStyles.imageModalOptionText}>Choose from library</Text>
                             </TouchableOpacity>
                             
@@ -745,7 +750,7 @@ export default function Post() {
                                     }}
                                 >
                                     <View style={postStyles.visibilityOptionHeader}>
-                                        <Ionicons name={item.icon as any} size={22} color={valueVisibility === item.value ? "#5e72e4" : "#FFF"} />
+                                        <Ionicons name={item.icon as any} size={22} color={valueVisibility === item.value ? SECONDARY_COLOR : "#FFF"} />
                                         <Text style={[
                                             postStyles.visibilityOptionLabel,
                                             valueVisibility === item.value && postStyles.selectedVisibilityOptionText
@@ -802,7 +807,7 @@ const postStyles = StyleSheet.create({
         paddingHorizontal: 16,
     },
     activeSegment: {
-        backgroundColor: '#5e72e4',
+        backgroundColor: SECONDARY_COLOR,
     },
     segmentText: {
         color: '#999',
@@ -818,7 +823,7 @@ const postStyles = StyleSheet.create({
         color: '#FFF',
     },
     postButton: {
-        backgroundColor: '#5e72e4',
+        backgroundColor: SECONDARY_COLOR,
         paddingHorizontal: 16,
         paddingVertical: 8,
         borderRadius: 16,
@@ -828,15 +833,15 @@ const postStyles = StyleSheet.create({
         fontWeight: '600',
     },
     errorContainer: {
-        backgroundColor: 'rgba(255, 107, 107, 0.15)',
+        backgroundColor: SECONDARY_COLOR_LIGHT,
         padding: 12,
         margin: 12,
         borderRadius: 8,
         borderLeftWidth: 4,
-        borderLeftColor: '#ff6b6b',
+        borderLeftColor: SECONDARY_COLOR,
     },
     errorText: {
-        color: '#ff6b6b',
+        color: SECONDARY_COLOR,
         fontSize: 14,
     },
     scrollView: {
@@ -854,10 +859,10 @@ const postStyles = StyleSheet.create({
     addImageButton: {
         width: Dimensions.get('window').width - 32,
         height: 200,
-        backgroundColor: '#222',
+        backgroundColor: '#181818',
         borderRadius: 12,
         borderWidth: 1,
-        borderColor: '#444',
+        borderColor: '#333',
         borderStyle: 'dashed',
         justifyContent: 'center',
         alignItems: 'center',
@@ -976,9 +981,9 @@ const postStyles = StyleSheet.create({
     milestoneContent: {
         backgroundColor: '#111',
         padding: 16,
-        borderRadius: 10,
+        borderRadius: 12,
         borderWidth: 1,
-        borderColor: '#333',
+        borderColor: '#222',
     },
     milestoneTypeContainer: {
         marginBottom: 16,
@@ -987,18 +992,19 @@ const postStyles = StyleSheet.create({
         fontSize: 16,
         color: '#FFF',
         marginBottom: 8,
+        fontWeight: '500',
     },
     
     // Dropdown styles
     dropdown: {
         backgroundColor: '#222',
         borderRadius: 8,
-        padding: 10,
+        padding: 12,
         borderWidth: 1,
         borderColor: '#444',
     },
     dropdownContainer: {
-        backgroundColor: '#333',
+        backgroundColor: '#282828',
         borderRadius: 8,
         borderWidth: 1,
         borderColor: '#444',
@@ -1021,6 +1027,7 @@ const postStyles = StyleSheet.create({
         fontSize: 16,
         color: '#FFF',
         marginBottom: 8,
+        fontWeight: '500',
     },
     exerciseInput: {
         backgroundColor: '#222',
@@ -1029,7 +1036,7 @@ const postStyles = StyleSheet.create({
         borderRadius: 8,
         fontSize: 15,
         borderWidth: 1,
-        borderColor: '#444',
+        borderColor: '#333',
     },
     suggestionsContainer: {
         backgroundColor: '#222',
@@ -1075,22 +1082,22 @@ const postStyles = StyleSheet.create({
         fontSize: 15,
         flex: 1,
         borderWidth: 1,
-        borderColor: '#444',
+        borderColor: '#333',
     },
     unitDropdown: {
         backgroundColor: '#222',
         borderRadius: 8,
         padding: 6,
         borderWidth: 1,
-        borderColor: '#444',
+        borderColor: '#333',
         width: 70,
         marginLeft: 8,
     },
     unitDropdownContainer: {
-        backgroundColor: '#333',
+        backgroundColor: '#282828',
         borderRadius: 8,
         borderWidth: 1,
-        borderColor: '#444',
+        borderColor: '#333',
     },
     
     // Weight milestone styles
@@ -1098,8 +1105,8 @@ const postStyles = StyleSheet.create({
         marginTop: 8,
     },
     
-    // Privacy section
-    privacyContainer: {
+    // Visibility section
+    visibilityContainer: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
@@ -1108,45 +1115,51 @@ const postStyles = StyleSheet.create({
         borderTopWidth: 1,
         borderTopColor: '#222',
     },
-    privacyHeader: {
+    visibilityHeader: {
         flexDirection: 'row',
         alignItems: 'center',
     },
-    privacyTitle: {
+    visibilityTitle: {
         fontSize: 16,
         fontWeight: '600',
         color: '#FFF',
         marginLeft: 8,
     },
-    privacyDropdown: {
-        backgroundColor: '#222',
+    visibilitySelector: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#111',
         borderRadius: 8,
-        padding: 8,
-        width: 120,
+        padding: 10,
+        paddingHorizontal: 12,
         borderWidth: 1,
-        borderColor: '#444',
+        borderColor: '#333',
     },
-    privacyDropdownContainer: {
-        backgroundColor: '#333',
-        borderRadius: 8,
-        borderWidth: 1,
-        borderColor: '#444',
+    selectedVisibility: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginRight: 8,
+    },
+    selectedVisibilityText: {
+        color: '#FFF',
+        marginLeft: 6,
+        fontSize: 14,
     },
     
     // Image modal
     modalOverlay: {
         flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.7)',
+        backgroundColor: 'rgba(0,0,0,0.8)',
         justifyContent: 'flex-end',
     },
     imageModalContent: {
         backgroundColor: '#111',
-        borderTopLeftRadius: 16,
-        borderTopRightRadius: 16,
-        padding: 20,
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
+        padding: 24,
     },
     imageModalTitle: {
-        fontSize: 18,
+        fontSize: 20,
         fontWeight: 'bold',
         color: '#FFF',
         marginBottom: 20,
@@ -1156,24 +1169,27 @@ const postStyles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         padding: 16,
-        backgroundColor: '#222',
+        backgroundColor: '#1D1D1D',
         marginBottom: 12,
         borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#333',
     },
     imageModalOptionText: {
         color: '#FFF',
         fontSize: 16,
         marginLeft: 12,
+        fontWeight: '500',
     },
     cancelButton: {
         padding: 16,
         borderRadius: 12,
-        backgroundColor: '#333',
+        backgroundColor: '#222',
         alignItems: 'center',
         marginTop: 8,
     },
     cancelButtonText: {
-        color: '#ff6b6b',
+        color: SECONDARY_COLOR,
         fontSize: 16,
         fontWeight: '600',
     },
@@ -1182,13 +1198,13 @@ const postStyles = StyleSheet.create({
     modalContainer: {
         flex: 1,
         justifyContent: 'flex-end',
-        backgroundColor: 'rgba(0,0,0,0.7)',
+        backgroundColor: 'rgba(0,0,0,0.8)',
     },
     modalContent: {
         backgroundColor: '#111',
-        borderTopLeftRadius: 20,
-        borderTopRightRadius: 20,
-        paddingTop: 20,
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
+        paddingTop: 24,
         paddingBottom: 30,
         maxHeight: '80%',
     },
@@ -1204,7 +1220,7 @@ const postStyles = StyleSheet.create({
     modalTitle: {
         color: '#FFF',
         fontWeight: 'bold',
-        fontSize: 18,
+        fontSize: 20,
     },
     closeButton: {
         padding: 5,
@@ -1241,56 +1257,15 @@ const postStyles = StyleSheet.create({
         opacity: 0.5,
     },
     
-    // Visibility section
-    visibilityContainer: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingHorizontal: 16,
-        paddingVertical: 16,
-        borderTopWidth: 1,
-        borderTopColor: '#222',
-    },
-    visibilityHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    visibilityTitle: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: '#FFF',
-        marginLeft: 8,
-    },
-    visibilitySelector: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#222',
-        borderRadius: 8,
-        padding: 10,
-        paddingHorizontal: 12,
-        borderWidth: 1,
-        borderColor: '#444',
-    },
-    selectedVisibility: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginRight: 8,
-    },
-    selectedVisibilityText: {
-        color: '#FFF',
-        marginLeft: 6,
-        fontSize: 14,
-    },
-    
     // Visibility modal styles
     visibilityModalContent: {
         backgroundColor: '#111',
-        borderTopLeftRadius: 16,
-        borderTopRightRadius: 16,
-        padding: 20,
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
+        padding: 24,
     },
     visibilityModalTitle: {
-        fontSize: 18,
+        fontSize: 20,
         fontWeight: 'bold',
         color: '#FFF',
         marginBottom: 20,
@@ -1298,15 +1273,15 @@ const postStyles = StyleSheet.create({
     },
     visibilityModalOption: {
         padding: 16,
-        backgroundColor: '#222',
+        backgroundColor: '#1D1D1D',
         marginBottom: 12,
         borderRadius: 12,
         borderWidth: 1,
         borderColor: '#333',
     },
     selectedVisibilityOption: {
-        borderColor: '#5e72e4',
-        backgroundColor: 'rgba(94, 114, 228, 0.1)',
+        borderColor: SECONDARY_COLOR,
+        backgroundColor: SECONDARY_COLOR_LIGHT,
     },
     visibilityOptionHeader: {
         flexDirection: 'row',
@@ -1320,7 +1295,7 @@ const postStyles = StyleSheet.create({
         marginLeft: 10,
     },
     selectedVisibilityOptionText: {
-        color: '#5e72e4',
+        color: SECONDARY_COLOR,
     },
     visibilityOptionDescription: {
         color: '#999',
