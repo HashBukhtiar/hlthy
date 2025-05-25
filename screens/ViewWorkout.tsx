@@ -1,122 +1,511 @@
-import React from 'react';
-import { ScrollView, View, Text, TouchableOpacity, Image, StyleSheet } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
+import React, { useState, useEffect } from 'react';
+import { ScrollView, View, Text, TouchableOpacity, Image, StyleSheet, ActivityIndicator, Alert, Modal, TextInput, FlatList, KeyboardAvoidingView, Platform } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import globalStyles from '@/styles/globalStyles';
+import { Ionicons } from '@expo/vector-icons';
+import { db } from '@/firebaseConfig'; 
+import { doc, addDoc, serverTimestamp, getDoc, Timestamp, updateDoc, increment, setDoc, deleteDoc, collection, query, where, orderBy, getDocs, limit } from 'firebase/firestore';
+import { useAuth } from '@/context/AuthContext'; 
 
+// Interface for individual exercise within a segment
 interface WorkoutExercise {
+  id: string; 
   name: string;
+  sets: string;
   reps: string;
 }
 
+// Interface for a segment of the workout
 interface WorkoutSegment {
+  id: string; 
   name: string;
   length: string;
-  workouts: WorkoutExercise[];
+  exercises: WorkoutExercise[];
 }
 
+// Interface for the full workout data fetched from Firestore
 interface WorkoutData {
+  id: string; 
   title: string;
-  creatorName: string;
-  workoutLength: string;
+  creatorId: string;
+  creatorUsername: string;
+  coverImageUrl?: string | null;
+  workoutLength?: string; 
   segments: WorkoutSegment[];
   description: string;
+  isPublic: boolean;
+  savedCount: number;
+  createdAt: Timestamp;
+  tags?: string[];
 }
 
 export default function ViewWorkout() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const workoutId = params.id as string;
+  const { currentUser } = useAuth();
 
-  // Mock API result - In a real app, you would fetch this data based on workoutId
-  const workoutData: WorkoutData = {
-    title: "Impossible Leg Day",
-    creatorName: "John Doe",
-    workoutLength: "2 segments • 1h 30min",
-    segments: [
-      {
-        name: "Warm Up",
-        length: "30 mins",
-        workouts: [
-          { name: "Bulgarian Split Squats", reps: "3x12" },
-          { name: "Deadlift", reps: "3x5" },
-          { name: "Leg Press", reps: "3x10" },
-        ],
-      },
-      {
-        name: "Main Workout",
-        length: "1h",
-        workouts: [
-          { name: "Squats", reps: "2x10" },
-          { name: "Lunges", reps: "2x10" },
-          { name: "Calf Raises", reps: "2x15" },
-          { name: "Leg Extensions", reps: "2x12"},
-          { name: "Leg Curls", reps: "2x12"}
-        ],
-      },
-    ],
-    description: "This is a killer leg day workout that will leave you sore for days. Make sure to stretch and warm up properly before starting this workout."
+  const [workoutData, setWorkoutData] = useState<WorkoutData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isFavorited, setIsFavorited] = useState(false);
+  const [favoriteLoading, setFavoriteLoading] = useState(false);
+  const [shareModalVisible, setShareModalVisible] = useState(false);
+  const [searchText, setSearchText] = useState('');
+  const [searchResults, setSearchResults] = useState<{ id: string; username: string; profileImageUrl?: string }[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+
+  const handleSearchUsers = async (text: string) => {
+    setSearchText(text);
+    if (!text.trim()) {
+      setSearchResults([]);
+      return;
+    }
+    try {
+      setSearchLoading(true);
+      const lowerText = text.toLowerCase();
+      const q = query(
+        collection(db, 'users'),
+        where('username', '>=', lowerText),
+        where('username', '<=', lowerText + '\uf8ff'),
+        orderBy('username'),
+        limit(10)
+      );
+      const querySnapshot = await getDocs(q);
+      const results: any[] = [];
+      querySnapshot.forEach(docSnap => {
+        const userData = docSnap.data();
+        results.push({
+          id: docSnap.id,
+          username: userData.username,
+          profileImageUrl: userData.profileImageUrl,
+        });
+      });
+      setSearchResults(results);
+    } catch (error) {
+      console.error("Error searching users:", error);
+    } finally {
+      setSearchLoading(false);
+    }
   };
 
+  // Helper function to generate conversation ID
+  const generateConversationId = (userId1: string, userId2: string): string => {
+    const sortedIds = [userId1, userId2].sort();
+    return `${sortedIds[0]}_${sortedIds[1]}`;
+  };
+
+  useEffect(() => {
+    const fetchWorkout = async () => {
+      if (!workoutId) {
+        setError("Workout ID is missing.");
+        setLoading(false);
+        return;
+      }
+      try {
+        setLoading(true);
+        setError(null); 
+        setWorkoutData(null); 
+        const workoutDocRef = doc(db, 'workouts', workoutId);
+        const workoutDocSnap = await getDoc(workoutDocRef);
+
+        if (workoutDocSnap.exists()) {
+          const data = workoutDocSnap.data() as Omit<WorkoutData, 'id'>;
+          const fullWorkoutData = { id: workoutDocSnap.id, ...data };
+          setWorkoutData(fullWorkoutData);
+          if (currentUser) {
+            const favoriteDocRef = doc(db, `users/${currentUser.uid}/savedWorkouts`, workoutId);
+            const favoriteDocSnap = await getDoc(favoriteDocRef);
+            setIsFavorited(favoriteDocSnap.exists());
+          }
+        } else {
+          setError("Workout not found.");
+        }
+      } catch (err: any) {
+        console.error("Error fetching workout:", err);
+        setError("Failed to load workout data.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchWorkout();
+  }, [workoutId, currentUser]);
+
+  const handleToggleFavorite = async () => {
+    if (!currentUser || !workoutData) return;
+    setFavoriteLoading(true);
+
+    const workoutDocRef = doc(db, 'workouts', workoutId);
+    const userFavoriteDocRef = doc(db, `users/${currentUser.uid}/savedWorkouts`, workoutId);
+
+    try {
+      if (isFavorited) {
+        // Unfavorite
+        await deleteDoc(userFavoriteDocRef);
+        await updateDoc(workoutDocRef, {
+          savedCount: increment(-1)
+        });
+        setIsFavorited(false);
+        setWorkoutData(prev => prev ? { ...prev, savedCount: prev.savedCount - 1 } : null);
+      } else {
+        // Favorite
+        await setDoc(userFavoriteDocRef, {
+          workoutId: workoutId,
+          title: workoutData.title,
+          coverImageUrl: workoutData.coverImageUrl || null,
+          creatorUsername: workoutData.creatorUsername,
+          savedAt: Timestamp.now()
+        });
+        await updateDoc(workoutDocRef, {
+          savedCount: increment(1)
+        });
+        setIsFavorited(true);
+        setWorkoutData(prev => prev ? { ...prev, savedCount: prev.savedCount + 1 } : null);
+      }
+    } catch (err) {
+      console.error("Error toggling favorite:", err);
+      Alert.alert("Error", "Could not update favorite status.");
+    } finally {
+      setFavoriteLoading(false);
+    }
+  };
+  
+  const parseDuration = (durationStr: string): number => {
+    if (!durationStr || typeof durationStr !== 'string') return 0;
+    
+    const minutes = parseInt(durationStr, 10);
+    return isNaN(minutes) ? 0 : minutes;
+  };
+
+  const formatTotalDuration = (totalMinutes: number): string => {
+    return `${totalMinutes} minutes`;
+  };
+  
+  const calculateTotalLength = (segments: WorkoutSegment[]): string => {
+    if (!segments || segments.length === 0) return "N/A";
+    let totalMinutes = 0;
+    segments.forEach(segment => {
+      totalMinutes += parseDuration(segment.length);
+    });
+    return formatTotalDuration(totalMinutes);
+  };
+
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.centered]}>
+        <ActivityIndicator size="large" color="#ff2d55" />
+        <Text style={{ color: 'grey', marginTop: 10 }}>Loading Workout...</Text>
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={[styles.container, styles.centered]}>
+        <Text style={styles.errorText}>{error}</Text>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButtonOnError}>
+          <Text style={styles.backButtonText}>Go Back</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  if (!workoutData) {
+    return (
+      <View style={[styles.container, styles.centered]}>
+        <Text style={styles.errorText}>Workout data is not available.</Text>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButtonOnError}>
+          <Text style={styles.backButtonText}>Go Back</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+  
+  const displayWorkoutLength = calculateTotalLength(workoutData.segments);
+
+  const shareWorkoutWithUser = async (userId: string, username: string, profileImageUrl?: string) => {
+    if (!currentUser || !workoutData) return;
+    try {
+      const conversationId = generateConversationId(currentUser.uid, userId);
+      const conversationRef = doc(db, 'conversations', conversationId);
+      const conversationSnap = await getDoc(conversationRef);
+
+      // Create conversation if needed
+      if (!conversationSnap.exists()) {
+        await setDoc(conversationRef, {
+          participants: [currentUser.uid, userId],
+          lastMessageAt: serverTimestamp(),
+          lastMessageText: `${currentUser.displayName || 'User'} shared a workout`,
+          participantUsernames: {
+            [currentUser.uid]: currentUser.displayName || currentUser.email || 'Current User',
+            [userId]: username || 'User',
+          },
+          participantProfileImages: {
+            [currentUser.uid]: currentUser.photoURL || '',
+            [userId]: profileImageUrl || '',
+          },
+        });
+        await setDoc(doc(db, `users/${currentUser.uid}/conversations`, conversationId), {
+          otherParticipantId: userId,
+          otherParticipantUsername: username || 'User',
+          otherParticipantProfileImage: profileImageUrl || '',
+        });
+        await setDoc(doc(db, `users/${userId}/conversations`, conversationId), {
+          otherParticipantId: currentUser.uid,
+          otherParticipantUsername: currentUser.displayName || currentUser.email || 'Current User',
+          otherParticipantProfileImage: currentUser.photoURL || '',
+        });
+      }
+
+      // Add a message with the shared workout
+      await addDoc(collection(db, "conversations", conversationId, "messages"), {
+        senderId: currentUser.uid,
+        text: workoutData.description
+          ? `Shared a workout: "${workoutData.description.substring(0, 50)}${workoutData.description.length > 50 ? '...' : ''}"`
+          : 'Shared a workout',
+        createdAt: serverTimestamp(),
+        sharedWorkout: {
+          id: workoutData.id,
+          title: workoutData.title,
+          coverImageUrl: workoutData.coverImageUrl || null,
+          creatorUsername: workoutData.creatorUsername,
+        },
+      });
+
+      // Update conversation metadata
+      await updateDoc(conversationRef, {
+        lastMessageAt: serverTimestamp(),
+        lastMessageText: 'Shared a workout',
+      });
+
+      // Update user conversation docs
+      await updateDoc(doc(db, `users/${currentUser.uid}/conversations`, conversationId), {
+        lastMessageAt: serverTimestamp(),
+        lastMessageText: 'Shared a workout',
+      });
+      const conversationData = (await getDoc(conversationRef)).data();
+      const otherUserId = conversationData?.participants?.find((uid: string) => uid !== currentUser.uid);
+      if (otherUserId) {
+        await updateDoc(doc(db, `users/${otherUserId}/conversations`, conversationId), {
+          lastMessageAt: serverTimestamp(),
+          lastMessageText: 'Shared a workout',
+        });
+      }
+      setShareModalVisible(false);
+      Alert.alert("Success", "Workout shared successfully.");
+    } catch (error) {
+      console.error("Error sharing workout:", error);
+      Alert.alert("Error", "Failed to share workout.");
+    }
+  };
+
+  const handleShareWorkout = () => {
+    setShareModalVisible(true);
+  };
+  
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color="white" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>View Workout</Text>
-        <TouchableOpacity>
-          <View style={styles.menuButton}>
-            <Ionicons name="ellipsis-horizontal" size={20} color="white" />
-          </View>
-        </TouchableOpacity>
+        <Text style={styles.headerTitle} numberOfLines={1} ellipsizeMode="tail">
+          {workoutData.title}
+        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          {currentUser && workoutData.creatorId === currentUser.uid && (
+            <>
+              <TouchableOpacity onPress={() => router.push(`/edit-workout/${workoutId}`)} style={styles.menuButton}>
+                <Ionicons name="pencil" size={20} color="white" />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => {
+                Alert.alert(
+                  "Delete Workout",
+                  "Are you sure you want to delete this workout?",
+                  [
+                    {
+                      text: "Cancel",
+                      style: "cancel"
+                    },
+                    {
+                      text: "Delete",
+                      style: "destructive",
+                      onPress: async () => {
+                        try {
+                          const workoutDocRef = doc(db, 'workouts', workoutId);
+                          await deleteDoc(workoutDocRef);
+                          router.back();
+                        } catch (error) {
+                          console.error("Error deleting workout:", error);
+                          Alert.alert("Error", "Failed to delete workout.");
+                        }
+                      },
+                    }
+                  ]
+                );
+              }} style={styles.menuButton}>
+                <Ionicons name="trash" size={20} color="white" />
+              </TouchableOpacity>
+            </>
+          )}
+          <TouchableOpacity onPress={handleToggleFavorite} disabled={favoriteLoading || !currentUser}>
+            <View style={styles.menuButton}>
+              {favoriteLoading ? (
+                <ActivityIndicator size="small" color="white" />
+              ) : (
+                <Ionicons
+                  name={isFavorited ? "bookmark" : "bookmark-outline"}
+                  size={20}
+                  color="white"
+                />
+              )}
+            </View>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleShareWorkout} disabled={!currentUser}>
+            <View style={styles.menuButton}>
+              <Ionicons
+                name="paper-plane-outline"
+                size={20}
+                color="white"
+              />
+            </View>
+          </TouchableOpacity>
+        </View>
       </View>
       
-      <Image
-        source={{ uri: 'https://thecamerastore.com/cdn/shop/articles/GINAYEOLANDSCAPE-1_800x.jpg?v=1687296669' }}
-        style={styles.workoutImage}
-      />
+      <View style={styles.imageContainer}>
+        <Image
+          source={workoutData.coverImageUrl ? { uri: workoutData.coverImageUrl } : require('@/assets/images/default_workout_cover.png')}
+          style={styles.workoutImage}
+          resizeMode="cover" 
+        />
+      </View>
       
-      <Text style={styles.workoutTitle}>{workoutData.title}</Text>
-      <Text style={styles.creatorName}>{workoutData.creatorName}</Text>
-      <Text style={styles.workoutLength}>{workoutData.workoutLength}</Text>
+      <View style={styles.workoutInfoContainer}>
+        <Text style={styles.workoutTitle}>{workoutData.title}</Text>
+        <TouchableOpacity onPress={() => router.push(`/profile/${workoutData.creatorId}`)}>
+          <Text style={[styles.creatorName, styles.clickableText]}>{workoutData.creatorUsername}</Text>
+        </TouchableOpacity>
+        <Text style={styles.workoutLength}>{displayWorkoutLength} • {workoutData.savedCount} saves</Text>
+      </View>
 
-      {workoutData.segments.map((segment, segmentIndex) => (
-        <View key={segmentIndex} style={{ marginTop: segmentIndex === 0 ? 30 : 10 }}>
-          <View style={styles.segmentHeader}>
-            <Text style={styles.segmentName}>{segment.name}</Text>
-            <View style={styles.segmentInfo}>
-              <Text style={styles.segmentDetails}>{segment.workouts.length} exercises • {segment.length}</Text>
-            </View>
+      {workoutData.description && (
+        <View style={styles.descriptionContainer}>
+          <Text style={styles.descriptionTitle}>Description</Text>
+          <View style={styles.descriptionCard}>
+            <Text style={styles.descriptionText}>{workoutData.description}</Text>
           </View>
-          
-          <View style={styles.segmentCard}>
-            {segment.workouts.map((workout, index) => (
-              <View key={index}>
-                <View style={styles.workoutRow}>
-                  <View style={styles.workoutInfo}>
+        </View>
+      )}
+
+      <View style={styles.segmentsContainer}>
+        {workoutData.segments.map((segment, segmentIndex) => (
+          <View key={segment.id || segmentIndex} style={[styles.segmentWrapper, segmentIndex === 0 ? styles.firstSegmentWrapper : null]}>
+            <View style={styles.segmentHeader}>
+              <Text style={styles.segmentName}>{segment.name}</Text>
+              <View style={styles.segmentInfo}>
+                <Text style={styles.segmentDetails}>{segment.exercises.length} exercises • {segment.length}</Text>
+              </View>
+            </View>
+            
+            <View style={styles.segmentCard}>
+              {segment.exercises.map((exercise, index) => (
+                <View key={exercise.id || index} style={styles.exerciseContainer}>
+                  <View style={styles.workoutRow}>
                     <View style={styles.workoutNumberCircle}>
                       <Text style={styles.workoutNumber}>{index + 1}</Text>
                     </View>
-                    <Text style={styles.workoutName}>{workout.name}</Text>
-                    <Text style={styles.workoutReps}>({workout.reps})</Text>
+                    <View style={styles.exerciseDetails}>
+                      <Text style={styles.workoutName}>{exercise.name}</Text>
+                      <Text style={styles.workoutReps}>{exercise.sets} sets × {exercise.reps} reps</Text>
+                    </View>
                   </View>
-                  <TouchableOpacity>
-                    <Ionicons name="ellipsis-horizontal" size={18} color="white" />
-                  </TouchableOpacity>
+                  {index < segment.exercises.length - 1 && <View style={styles.divider} />}
                 </View>
-                {index < segment.workouts.length - 1 && <View style={styles.divider} />}
-              </View>
-            ))}
+              ))}
+            </View>
           </View>
-        </View>
-      ))}
-
-      <Text style={styles.descriptionTitle}>Description</Text>
-      <View style={styles.descriptionCard}>
-        <Text style={styles.descriptionText}>{workoutData.description}</Text>
+        ))}
       </View>
+      <View style={styles.bottomPadding} />
+      <Modal
+        transparent={true}
+        visible={shareModalVisible}
+        animationType="slide"
+        onRequestClose={() => setShareModalVisible(false)}
+      >
+        <KeyboardAvoidingView
+          style={styles.shareModalContainer}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 100}
+        >
+          <View style={styles.shareModalContent}>
+            {/* Header with "Share to" and X button */}
+            <View style={styles.shareModalHeader}>
+              <Text style={styles.shareModalTitle}>Share to</Text>
+              <TouchableOpacity onPress={() => setShareModalVisible(false)}>
+                <Ionicons name="close" size={24} color="#FFF" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Search container */}
+            <View style={styles.searchContainer}>
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search users..."
+                placeholderTextColor="#888"
+                value={searchText}
+                onChangeText={handleSearchUsers}
+                onSubmitEditing={handleSearchUsers}
+                autoCapitalize="none"
+              />
+            </View>
+
+            {/* Loading or list of users */}
+            {searchLoading ? (
+              <ActivityIndicator
+                size="large"
+                color="#0A84FF"
+                style={{ marginTop: 20 }}
+              />
+            ) : (
+              <FlatList
+                data={searchResults}
+                keyExtractor={(item) => item.id}
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    style={styles.userItem}
+                    onPress={() =>
+                      shareWorkoutWithUser(
+                        item.id,
+                        item.username,
+                        item.profileImageUrl
+                      )
+                    }
+                  >
+                    <Image
+                      source={
+                        item.profileImageUrl
+                          ? { uri: item.profileImageUrl }
+                          : require('@/assets/images/profile-icon.png')
+                      }
+                      style={styles.userItemImage}
+                    />
+                    <Text style={styles.userItemText}>{item.username}</Text>
+                  </TouchableOpacity>
+                )}
+                ListEmptyComponent={
+                  <Text style={styles.emptyResultsText}>
+                    {searchText
+                      ? "No users found"
+                      : "Search for users to share with"}
+                  </Text>
+                }
+              />
+            )}
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </ScrollView>
   );
 }
@@ -124,146 +513,281 @@ export default function ViewWorkout() {
 const styles = StyleSheet.create({
   container: { 
     flex: 1, 
-    backgroundColor: 'black' 
+    backgroundColor: 'black',
+  },
+  centered: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  errorText: {
+    color: 'red',
+    fontSize: 18,
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  backButtonOnError: {
+    backgroundColor: '#333',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 5,
+  },
+  backButtonText: {
+    color: 'white',
+    fontSize: 16,
   },
   header: { 
     flexDirection: 'row', 
     alignItems: 'center', 
-    paddingTop: 70, 
-    paddingLeft: 25, 
-    marginTop: -40, 
+    paddingTop: 10,
+    paddingBottom: 10,
+    paddingHorizontal: 15, 
     justifyContent: 'space-between', 
-    paddingRight: 25 
+    backgroundColor: 'black',
+    borderBottomWidth: 1,
+    borderBottomColor: '#222',
   },
   headerTitle: { 
     color: 'white', 
-    fontSize: 30, 
-    marginLeft: -100, 
-    fontWeight: 'bold' 
+    fontSize: 20,
+    fontWeight: 'bold',
+    flex: 1, 
+    textAlign: 'center', 
+    marginHorizontal: 10, 
   },
   menuButton: { 
-    backgroundColor: '#303030', 
     borderRadius: 15, 
-    width: 30, 
-    height: 30, 
+    width: 35,
+    height: 35, 
     justifyContent: 'center', 
     alignItems: 'center' 
   },
+  imageContainer: {
+    alignItems: 'center',
+    marginTop: 20,
+    paddingHorizontal: 15,
+  },
   workoutImage: { 
-    width: '50%', 
-    aspectRatio: 1, 
-    borderRadius: 15, 
-    alignSelf: 'center', 
-    marginTop: 50 
+    width: '60%',
+    height: undefined,
+    aspectRatio: 1,
+    borderRadius: 20,
+    borderWidth: 0.5,
+    borderColor: '#444',
+  },
+  workoutInfoContainer: {
+    alignItems: 'center',
+    paddingHorizontal: 15,
+    marginTop: 15,
+    marginBottom: 10,
   },
   workoutTitle: { 
     color: '#ffffff', 
-    fontSize: 28, 
+    fontSize: 24,
     fontWeight: 'bold', 
-    alignSelf: 'center', 
-    marginTop: 20 
+    textAlign: 'center',
   },
   creatorName: { 
-    color: '#b7b7b7', 
-    fontSize: 20, 
-    alignSelf: 'center', 
-    marginTop: 5 
+    color: '#ff2d55',
+    fontSize: 16,
+    marginTop: 5,
+    textAlign: 'center',
   },
   workoutLength: { 
-    color: '#666666', 
+    color: '#888888',
     fontSize: 14, 
-    alignSelf: 'center', 
-    marginTop: 7 
+    marginTop: 7,
+    textAlign: 'center',
+    marginBottom: 10,
+  },
+  segmentsContainer: {
+    marginTop: 25,
+  },
+  segmentWrapper: {
+    marginBottom: 25,
+    marginHorizontal: 20,
+  },
+  firstSegmentWrapper: {
+    marginTop: 5,
   },
   segmentHeader: { 
     flexDirection: 'row', 
     justifyContent: 'space-between', 
-    paddingHorizontal: 30 
+    alignItems: 'center',
+    marginBottom: 10,
+    paddingHorizontal: 5,
   },
   segmentName: { 
     color: '#ffffff', 
-    fontSize: 22, 
-    fontWeight: 'bold' 
+    fontSize: 19,
+    fontWeight: 'bold',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   segmentInfo: { 
-    alignSelf: 'flex-start', 
-    marginTop: 10 
+    backgroundColor: 'rgba(80, 80, 80, 0.2)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
   },
   segmentDetails: { 
-    color: '#666666', 
-    fontSize: 14 
+    color: '#b0b0b0',
+    fontSize: 14,
+    fontWeight: '500',
   },
   segmentCard: { 
-    backgroundColor: '#303030', 
-    borderRadius: 20, 
-    marginTop: 14, 
-    margin: 20, 
-    padding: 20 
+    backgroundColor: '#1e1e1e',
+    borderRadius: 18,
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    borderWidth: 1,
+    borderColor: '#2a2a2a',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  exerciseContainer: {
+    marginBottom: 4,
   },
   workoutRow: { 
     flexDirection: 'row', 
-    justifyContent: 'space-between', 
     alignItems: 'center', 
-    marginVertical: 6 
-  },
-  workoutInfo: { 
-    flexDirection: 'row', 
-    alignItems: 'center' 
+    paddingVertical: 12,
   },
   workoutNumberCircle: { 
-    width: 25, 
-    height: 25, 
-    borderRadius: 12, 
-    backgroundColor: '#909090', 
+    width: 36, 
+    height: 36, 
+    borderRadius: 18, 
+    backgroundColor: '#ff2d55', 
     justifyContent: 'center', 
     alignItems: 'center', 
-    marginLeft: -5,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
+    marginRight: 15,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
   },
   workoutNumber: { 
-    fontSize: 15, 
-    color: 'black', 
+    fontSize: 16, 
+    color: '#ffffff', 
     fontWeight: 'bold' 
   },
+  exerciseDetails: {
+    flex: 1,
+  },
   workoutName: { 
-    color: '#f3f3f3', 
+    color: '#ffffff', 
     fontWeight: 'bold', 
-    fontSize: 18, 
-    marginLeft: 10 
+    fontSize: 17,
+    marginBottom: 4,
   },
   workoutReps: { 
     color: '#b7b7b7', 
-    fontWeight: 'bold', 
-    fontSize: 13, 
-    marginLeft: 10 
+    fontSize: 14,
   },
   divider: { 
     height: 1, 
-    backgroundColor: '#707070', 
-    marginVertical: 5 
+    backgroundColor: '#2a2a2a', 
+    marginVertical: 6
+  },
+  descriptionContainer: {
+    marginTop: 10,
+    marginHorizontal: 20,
   },
   descriptionTitle: { 
-    color: '#c0c0c0', 
-    fontSize: 18, 
-    fontWeight: 'bold', 
-    marginTop: 10, 
-    marginLeft: 30
+    color: '#ffffff', 
+    fontSize: 19, 
+    fontWeight: 'bold',
+    marginBottom: 10,
+    marginLeft: 5,
   },
   descriptionCard: { 
-    backgroundColor: '#202020', 
-    borderRadius: 20, 
-    marginTop: 14, 
-    margin: 20, 
-    padding: 20 
+    backgroundColor: 'transparent', 
+    borderRadius: 18, 
+    paddingHorizontal: 5,
+    borderWidth: 0,
+    borderColor: 'transparent',
+    shadowColor: 'transparent',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    elevation: 0,
   },
   descriptionText: { 
-    color: '#b7b7b7', 
-    fontSize: 16 
+    color: '#d0d0d0', 
+    fontSize: 16,
+    lineHeight: 24,
+    fontWeight: '400', 
+  },
+  bottomPadding: {
+    height: 80,
+  },
+  clickableText: {
+    textDecorationLine: 'underline',
+  },
+  shareModalContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'flex-end',
+  },
+  shareModalContent: {
+    backgroundColor: '#121212',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingHorizontal: 15,
+    paddingTop: 15,
+    paddingBottom: 30,
+    maxHeight: '80%',
+  },
+  shareModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingBottom: 15,
+    borderBottomColor: '#333',
+    borderBottomWidth: 1,
+  },
+  shareModalTitle: {
+    color: '#FFF',
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    marginVertical: 15,
+    alignItems: 'center',
+  },
+  searchInput: {
+    flex: 1,
+    backgroundColor: '#333',
+    color: '#FFF',
+    borderRadius: 10,
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    marginRight: 10,
+  },
+  userItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomColor: '#333',
+    borderBottomWidth: 1,
+  },
+  userItemImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 15,
+  },
+  userItemText: {
+    color: '#FFF',
+    fontSize: 16,
+  },
+  emptyResultsText: {
+    color: '#888',
+    textAlign: 'center',
+    marginTop: 20,
   },
 });

@@ -1,12 +1,12 @@
 import React from 'react';
 import { StyleSheet, SafeAreaView } from 'react-native';
-import AI from '@/screens/AI';
+import DMs from '@/screens/DMs';
 import BottomButtons from '@/components/BottomButtons';
 
-export default function AIScreen() {
+export default function DMsScreen() {
   return (
     <SafeAreaView style={styles.container}>
-      <AI />
+      <DMs />
       <BottomButtons />
     </SafeAreaView>
   );

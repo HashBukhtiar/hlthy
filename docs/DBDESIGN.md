@@ -123,20 +123,60 @@ This document outlines the proposed Firestore database structure for the Hlthy s
     *   `tags`: Array<String>
     *   `savedCount`: Number (Denormalized)
 
-### 7. `aiChats` (Optional: If storing AI chat history)
+### 7. `directMessages` (DM System)
+*   **Path:** `/conversations/{conversationId}`
+    *   **Document ID:** Auto-generated (`conversationId`). Consider using a combination of user IDs (e.g., `userId1_userId2` sorted alphabetically) to simplify querying for existing conversations between two users.
+    *   **Purpose:** Stores metadata about each conversation.
+    *   **Fields:**
+        *   `participants`: Array<String> (Array of `userId`s participating in the conversation).
+        *   `lastMessageAt`: Timestamp (Indexed for sorting conversation lists).
+        *   `lastMessageText`: String (Snippet of the last message for preview in conversation lists).
+        *   `participantUsernames`: Map<String, String> (Key: `userId`, Value: `username` - Denormalized for easy display).
+        *   `participantProfileImages`: Map<String, String> (Key: `userId`, Value: `profileImageUrl` - Denormalized).md
+        *   `isPinnedAI`: Boolean (True if this is the pinned AI chat, only one conversation should have this set to true).
+*   **Path:** `/conversations/{conversationId}/messages/{messageId}`
+    *   **Document ID:** Auto-generated (`messageId`).
+    *   **Purpose:** Stores individual messages within a conversation.
+    *   **Fields:**
+        *   `senderId`: String (`userId` of the sender).
+        *   `text`: String (Message content).
+        *   `createdAt`: Timestamp (Indexed for ordering messages within a conversation).
+        *   `isRead`: Boolean (Default: false, set to true when the recipient views the message).
+*   **Path:** `/users/{userId}/conversations/{conversationId}`
+    *   *Document ID:* `conversationId`
+    *   *Purpose:*  Links users to their active conversations.  This allows efficient querying of a user's conversation list.
+    *   *Fields:*
+        *   `lastRead`: Timestamp (Timestamp of the last message read by the user in this conversation. Used for unread indicators).
+        *   `otherParticipantId`: String (The `userId` of the other participant in the conversation.  Helpful for displaying the other user's info in the conversation list).
+        *   `otherParticipantUsername`: String (Denormalized username of the other participant).
+        *   `otherParticipantProfileImage`: String (Denormalized profile image of the other participant).
 
-*   **Path:** `/aiChats/{chatId}`
-*   **Document ID:** Auto-generated (`chatId`) or `userId`.
-*   **Purpose:** Stores conversation history with the AI trainer.
-*   **Fields:**
-    *   `userId`: String
-    *   `createdAt`: Timestamp
-    *   `lastMessageAt`: Timestamp
-*   **Subcollection:**
-    *   **`messages`**: `/aiChats/{chatId}/messages/{messageId}`
-        *   *Doc ID:* Auto-generated
-        *   *Fields:* `{ sender: String ('user'/'ai'), text: String, timestamp: Timestamp }`
+**Cloud Functions for DM System:**
 
----
+1.  **`onMessageCreate`:**
+    *   Triggered when a new message is added to `/conversations/{conversationId}/messages`.
+    *   Updates the `lastMessageAt` and `lastMessageText` fields in the `/conversations/{conversationId}` document.
+    *   Updates the `lastRead` field in the `/users/{userId}/conversations/{conversationId}` document for the *sender* (to the current timestamp) and sets it to a default value (e.g., the timestamp of the conversation creation) for the *recipient*.
+    *   Sends push notifications to the recipient (if enabled).
+2.  **`onConversationCreate`:**
+    *   Triggered when a new conversation is created in `/conversations`.
+    *   Creates documents in the `/users/{userId}/conversations/{conversationId}` subcollection for each participant, linking them to the conversation.
+3.  **`onConversationDelete`:**
+    *   Triggered when a conversation is deleted in `/conversations`.
+    *   Deletes the corresponding documents in the `/users/{userId}/conversations/{conversationId}` subcollection for each participant.
+4.  **`onUserFollow`:** (Optional, but recommended)
+    *   Triggered when a user follows another user.
+    *   Could pre-create a DM thread between the two users (if desired).
+
+**Security Rules for DM System:**
+
+*   **`conversations` Collection:**
+    *   Only allow read access to users who are listed in the `participants` array.
+    *   Only allow create access if the user creating the conversation is one of the participants.
+*   **`messages` Subcollection:**
+    *   Only allow read access to users who are listed in the `participants` array of the parent `conversation` document.
+    *   Only allow create access if the user creating the message is one of the participants in the parent `conversation` document.
+*   **`userConversations` Collection:**
+    *   Only allow read and write access to the user owning the document (i.e., the `userId` in the path).
 
 **Note:** This design relies heavily on **Firebase Cloud Functions** to maintain data consistency (denormalized counts, feed fan-out, activity log creation) and perform secure operations (like username availability checks). Implementing these functions is crucial for the design to work effectively and securely.

@@ -23,6 +23,7 @@ export interface Post {
     newWeight?: string;
     newWeightUnit?: string;
   };
+  workoutId?: string; 
   reactionCount: number;
   commentCount: number;
   visibility: 'public' | 'followers';

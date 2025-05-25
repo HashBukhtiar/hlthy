@@ -24,8 +24,8 @@ function BottomButtons() {
     
     if (pathname === '/' || pathname.includes('/(tabs)')) {
       position = 0; // Home
-    } else if (pathname.includes('/ai')) {
-      position = 1; // AI
+    } else if (pathname.includes('/dms')) {
+      position = 1; // DMs
     } else if (pathname.includes('/post')) {
       position = 2; // Post
     } else if (pathname.includes('/workouts') || pathname.includes('/view-workout')) {
@@ -49,7 +49,7 @@ function BottomButtons() {
   // Helper to determine if a route is active
   const isActive = useCallback((route: string) => {
     if (route === 'home' && (pathname === '/' || pathname.includes('/(tabs)') || pathname.includes('/pulse') || pathname.includes('/explore') || pathname.includes('/view-milestone'))) return true;
-    if (route === 'ai' && pathname.includes('/ai')) return true;
+    if (route === 'dms' && pathname.includes('/dms')) return true;
     if (route === 'post' && pathname.includes('/post')) return true;
     if (route === 'workouts' && (pathname.includes('/workouts') || pathname.includes('/view-workout'))) return true;
     if (route === 'profile' && pathname.includes('/profile')) return true;
@@ -61,8 +61,8 @@ function BottomButtons() {
     router.push('/');
   }, [router]);
 
-  const navigateAI = useCallback(() => {
-    router.push('/ai');
+  const navigateDMs = useCallback(() => {
+    router.push('/dms');
   }, [router]);
 
   const navigatePost = useCallback(() => {
@@ -109,13 +109,13 @@ function BottomButtons() {
       
       <TouchableOpacity 
         style={styles.navButton} 
-        onPress={navigateAI}
+        onPress={navigateDMs}
         activeOpacity={0.7}
       >
         <Ionicons 
           name="chatbubbles" 
           size={28} 
-          color={isActive('ai') ? "white" : "grey"} 
+          color={isActive('dms') ? "white" : "grey"} 
         />
       </TouchableOpacity>
       
