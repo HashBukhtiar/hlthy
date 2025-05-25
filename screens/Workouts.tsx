@@ -249,14 +249,33 @@ export default function Workouts() {
                 setSearchQuery('');
             }}
         >
-            <Image 
-                source={item.coverImageUrl ? { uri: item.coverImageUrl } : require('@/assets/images/default_workout_cover.png')}
-                style={StyleSheet.absoluteFill}
-            />
-            <BlurView intensity={25} tint="dark" style={blurStyle}>
-                <Text style={styles.workoutNameText} numberOfLines={1}>{item.title}</Text>
-                <Text style={styles.workoutAuthorText} numberOfLines={1}>by {item.creatorUsername}</Text>
-            </BlurView>
+            {item.coverImageUrl ? (
+                // If there is a cover image, use it with absoluteFill style and add blur
+                <>
+                    <Image 
+                        source={{ uri: item.coverImageUrl }}
+                        style={[StyleSheet.absoluteFill, { backgroundColor: '#333', resizeMode: 'cover' }]}
+                    />
+                    <BlurView intensity={25} tint="dark" style={blurStyle}>
+                        <Text style={styles.workoutNameText} numberOfLines={1}>{item.title}</Text>
+                        <Text style={styles.workoutAuthorText} numberOfLines={1}>by {item.creatorUsername}</Text>
+                    </BlurView>
+                </>
+            ) : (
+                // If no cover image, show the icon without blur but still with text overlay
+                <>
+                    <View style={[StyleSheet.absoluteFill, { backgroundColor: '#222', justifyContent: 'center', alignItems: 'center' }]}>
+                        <Image 
+                            source={require('@/assets/images/icon.png')}
+                            style={{ width: '90%', height: '90%', resizeMode: 'contain' }}
+                        />
+                    </View>
+                    <View style={[blurStyle]}>
+                        <Text style={styles.workoutNameText} numberOfLines={1}>{item.title}</Text>
+                        <Text style={styles.workoutAuthorText} numberOfLines={1}>by {item.creatorUsername}</Text>
+                    </View>
+                </>
+            )}
         </TouchableOpacity>
     );
 
@@ -269,8 +288,8 @@ export default function Workouts() {
                 setSearchQuery('');
             }}
         >
-            <Image
-                source={item.coverImageUrl ? { uri: item.coverImageUrl } : require('@/assets/images/default_workout_cover.png')}
+            <Image 
+                source={item.coverImageUrl ? { uri: item.coverImageUrl } : require('@/assets/images/icon.png')}
                 style={styles.searchResultImage}
             />
             <View style={styles.searchResultTextContainer}>
@@ -387,9 +406,9 @@ export default function Workouts() {
                                             setSearchQuery('');
                                         }}
                                     >
-                                        <Image
-                                            source={item.coverImageUrl ? { uri: item.coverImageUrl } : require('@/assets/images/default_workout_cover.png')}
-                                            style={styles.trendingColumnItemImage}
+                                        <Image 
+                                            source={item.coverImageUrl ? { uri: item.coverImageUrl } : require('@/assets/images/icon.png')}
+                                            style={styles.searchResultImage}
                                         />
                                         <View style={styles.trendingColumnItemTextContainer}>
                                             <Text style={styles.trendingColumnItemTitle} numberOfLines={1}>{item.title}</Text>
