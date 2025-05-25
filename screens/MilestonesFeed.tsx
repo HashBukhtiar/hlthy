@@ -275,7 +275,7 @@ export default function MilestonesFeed() {
 
   const renderMilestoneCard = (item: Milestone) => {
     // Determine the styling based on milestone status
-    let CardWrapper = View;
+    let CardWrapper: any = View;
     let wrapperStyle = styles.milestoneCard;
     let innerContent = null;
     
@@ -486,8 +486,12 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   gradientBorder: {
-    padding: 2, // This padding creates the space for the gradient border
+    padding: 2,
     borderRadius: 12,
+    backgroundColor: '#1A1A1A',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#333',
   },
   gradientInnerContainer: {
     backgroundColor: '#1A1A1A',
@@ -504,6 +508,8 @@ const styles = StyleSheet.create({
     // borderColor: '#FF5E69',
     borderColor: 'rgba(255, 94, 105, 0.75)',
     borderWidth: 2,
+    backgroundColor: '#1A1A1A',
+    overflow: 'hidden',
   },
   pinnedInnerContainer: {
     backgroundColor: '#1A1A1A',
@@ -521,7 +527,7 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 25,
-    overflow: 'hidden', // Add overflow hidden to ensure image stays in circle
+    overflow: 'hidden', 
     marginRight: 12,
   },
   milestoneIcon: {
