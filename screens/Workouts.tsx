@@ -233,7 +233,7 @@ export default function Workouts() {
                 />
                 {searchQuery ? (
                     <TouchableOpacity onPress={() => setSearchQuery('')}>
-                        <Icon name="times-circle" size={20} color="grey" />
+                        <Ionicons name="close-circle" size={20} color="grey" />
                     </TouchableOpacity>
                 ) : null}
             </View>
@@ -333,7 +333,7 @@ export default function Workouts() {
         );
     }
     
-    function renderFollowingWorkouts() {
+    function renderFollowingWorkouts() { 
         if (!currentUser) {
             return <Text style={styles.placeholderText}>Login to see workouts from people you follow.</Text>;
         }
