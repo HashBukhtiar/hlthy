@@ -36,7 +36,19 @@ interface FirestoreMessageData {
   sharedMilestone?: {
     id: string;
     type: string;
-    details: any;
+    details: {
+      exercise?: string;
+      value?: number;
+      weightUnit?: string;
+      reps?: number;
+      previousValue?: number;
+      improvement?: string;
+      newWeight?: number;
+      newWeightUnit?: string;
+      previousWeight?: number;
+      totalLoss?: number;
+      percentageLoss?: string;
+    };
     username: string;
   };
   sharedWorkout?: {
@@ -61,7 +73,19 @@ interface Message {
   sharedMilestone?: {
     id: string;
     type: string;
-    details: any;
+    details: {
+      exercise?: string;
+      value?: number;
+      weightUnit?: string;
+      reps?: number;
+      previousValue?: number;
+      improvement?: string;
+      newWeight?: number;
+      newWeightUnit?: string;
+      previousWeight?: number;
+      totalLoss?: number;
+      percentageLoss?: string;
+    };
     username: string;
   };
   sharedWorkout?: {
@@ -323,10 +347,24 @@ export default function ChatScreen() {
 
         // Update user conversation refs
         const userConvRef1 = doc(db, `users/${currentUser.uid}/conversations`, conversationId);
-        await updateDoc(userConvRef1, {
-          lastMessageAt: serverTimestamp(),
-          lastMessageText: textToSend,
-        });
+        const userConvSnap1 = await getDoc(userConvRef1);
+
+        if (!userConvSnap1.exists()) {
+          // Recreate the user's conversation reference
+          const otherUserData = conversationData?.participants?.find(uid => uid !== currentUser.uid);
+          await setDoc(userConvRef1, {
+            otherParticipantId: otherUserData,
+            otherParticipantUsername: conversationData?.participantUsernames[otherUserData],
+            otherParticipantProfileImage: conversationData?.participantProfileImages[otherUserData] || '',
+            lastMessageAt: serverTimestamp(),
+            lastMessageText: textToSend,
+          });
+        } else {
+          await updateDoc(userConvRef1, {
+            lastMessageAt: serverTimestamp(),
+            lastMessageText: textToSend,
+          });
+        }
 
         // Get the other user's ID and update their reference too
         const conversationData = (await getDoc(conversationRef)).data();
@@ -492,7 +530,9 @@ export default function ChatScreen() {
     if (item.sharedMilestone) {
       return (
         <TouchableOpacity
-          style={[item.user === 'user' ? { alignSelf: 'flex-end' } : { alignSelf: 'flex-start' }]}
+          style={[
+            item.user === 'user' ? { alignSelf: 'flex-end' } : { alignSelf: 'flex-start' }
+          ]}
           onLongPress={() => handleLongPress(item)}
           delayLongPress={500}
         >
@@ -501,24 +541,56 @@ export default function ChatScreen() {
             onPress={() => router.push(`/view-milestone/${item.sharedMilestone?.id}`)}
           >
             <View style={styles.sharedMilestoneHeader}>
-              <Ionicons name="share-social-outline" size={16} color="#FFF" style={{ marginRight: 5 }} />
+              <Ionicons 
+                name="trophy-outline" 
+                size={16} 
+                color="#FFF" 
+                style={{ marginRight: 5 }} 
+              />
               <Text style={styles.sharedMilestoneHeaderText}>
-                Shared Milestone by {item.sharedMilestone.username}
+                Milestone by {item.sharedMilestone.username}
               </Text>
             </View>
-            <View style={styles.sharedMilestoneContent}>
-              <View style={styles.milestoneIconContainer}>
-                {item.sharedMilestone.type === 'PR' ? (
-                  <Ionicons name="barbell-outline" size={18} color="#FFF" />
-                ) : (
-                  <Ionicons name="fitness-outline" size={18} color="#FFF" />
-                )}
+
+            {item.sharedMilestone.type === 'PR' ? (
+              <View style={styles.sharedMilestoneContent}>
+                <Text style={styles.sharedMilestoneType}>
+                  {item.sharedMilestone.details.exercise}
+                </Text>
+                <View style={styles.milestoneStatsRow}>
+                  <Text style={styles.milestoneValue}>
+                    {item.sharedMilestone.details.value}{item.sharedMilestone.details.weightUnit}
+                    {item.sharedMilestone.details.reps > 1 ? ` × ${item.sharedMilestone.details.reps}` : ''}
+                  </Text>
+                  <Text style={styles.milestonePrevious}>
+                    from {item.sharedMilestone.details.previousValue}
+                    {item.sharedMilestone.details.weightUnit}
+                  </Text>
+                  <Text style={styles.milestoneImprovement}>
+                    ↑ {item.sharedMilestone.details.improvement}
+                  </Text>
+                </View>
               </View>
-              <Text style={styles.sharedMilestoneType}>
-                {item.sharedMilestone.type === 'PR' ? 'Personal Record' : 
-                item.sharedMilestone.type === 'weightLoss' ? 'Weight Loss' : 'Weight Gain'}
-              </Text>
-            </View>
+            ) : (
+              <View style={styles.weightMilestoneContent}>
+                <Text style={styles.sharedMilestoneType}>
+                  {item.sharedMilestone.type === 'weightLoss' ? 'Weight Loss' : 'Weight Gain'}
+                </Text>
+                <Text style={styles.weightChangeValue}>
+                  {item.sharedMilestone.type === 'weightLoss' ? '↓' : '↑'} {
+                    item.sharedMilestone.details.totalLoss
+                  } {item.sharedMilestone.details.newWeightUnit}
+                </Text>
+                <Text style={styles.weightChangeDetails}>
+                  {item.sharedMilestone.details.previousWeight} → {item.sharedMilestone.details.newWeight} {
+                    item.sharedMilestone.details.newWeightUnit
+                  }
+                </Text>
+                <Text style={styles.milestoneImprovement}>
+                  {item.sharedMilestone.details.percentageLoss} change
+                </Text>
+              </View>
+            )}
           </TouchableOpacity>
         </TouchableOpacity>
       );
@@ -850,12 +922,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   sharedMilestoneContainer: {
-    marginTop: 10,
+    marginVertical: 5,
     borderRadius: 12,
     backgroundColor: 'rgba(20, 60, 100, 0.8)',
     borderWidth: 2,
     borderColor: '#0bb',
     overflow: 'hidden',
+    width: 280,
   },
   sharedMilestoneHeader: {
     flexDirection: 'row',
@@ -871,22 +944,46 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   sharedMilestoneContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 15,
-  },
-  milestoneIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#333',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 10,
+    padding: 12,
   },
   sharedMilestoneType: {
     color: '#FFF',
+    fontSize: 16,
     fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  milestoneStatsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  milestoneValue: {
+    color: '#4CD964',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginRight: 8,
+  },
+  milestonePrevious: {
+    color: '#999',
+    fontSize: 14,
+  },
+  milestoneImprovement: {
+    color: '#4CD964',
+    fontSize: 14,
+    fontWeight: '500',
+    marginLeft: 'auto',
+  },
+  weightMilestoneContent: {
+    padding: 12,
+  },
+  weightChangeValue: {
+    color: '#4CD964',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  weightChangeDetails: {
+    color: '#999',
     fontSize: 14,
   },
   sharedWorkoutContainer: {

@@ -55,33 +55,30 @@ const ChatItem = ({
             "Delete Conversation",
             `Are you sure you want to delete this conversation with ${username}?`,
             [
-                {
-                    text: "Cancel",
-                    style: "cancel"
-                },
-                {
-                    text: "Delete",
-                    onPress: async () => {
-                        try {
-                            if (!currentUser) return;
-                            
-                            // CHANGE: Don't delete the conversation document itself, just remove 
-                            // the current user's reference to it
-                            
-                            // Delete only the user-specific conversation data
-                            const userConvRef = doc(db, `users/${currentUser.uid}/conversations`, conversationId);
-                            await deleteDoc(userConvRef);
+            {
+                text: "Cancel",
+                style: "cancel"
+            },
+            {
+                text: "Delete",
+                onPress: async () => {
+                try {
+                    if (!currentUser) return;
 
-                            // Update the conversations state to remove the deleted conversation
-                            setConversations(prevConversations => 
-                                prevConversations.filter(conv => conv.id !== conversationId)
-                            );
-                        } catch (error) {
-                            console.error("Error deleting conversation: ", error);
-                        }
-                    },
-                    style: 'destructive',
+                    // Delete only the user-specific conversation data
+                    const userConvRef = doc(db, `users/${currentUser.uid}/conversations`, conversationId);
+                    await deleteDoc(userConvRef);
+
+                    // Update the conversations state to remove the deleted conversation
+                    setConversations(prevConversations =>
+                    prevConversations.filter(conv => conv.id !== conversationId)
+                    );
+                } catch (error) {
+                    console.error("Error deleting conversation: ", error);
                 }
+                },
+                style: 'destructive',
+            }
             ],
             { cancelable: false }
         );
