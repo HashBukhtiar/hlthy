@@ -10,6 +10,7 @@ import {
     StyleSheet,
     Modal,
     ActivityIndicator,
+    ScrollView
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Dropdown } from 'react-native-element-dropdown';
@@ -1134,7 +1135,141 @@ const postComponentStyles = StyleSheet.create({
         fontSize: 12,
         paddingLeft: 28,
     },
+
+    // Milestone attachment
+    milestoneIconContainer: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: 'rgba(255, 45, 85, 0.2)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 12,
+    },
+    milestoneDetailsContainer: {
+        flex: 1,
+    },
 });
 
-// Create a ScrollView that is exported
-export const ScrollView = require('react-native').ScrollView;
+// Milestone attachment component
+export const MilestoneAttachment = ({
+    selectedMilestone,
+    setMilestoneModalVisible,
+    removeMilestone
+}: {
+    selectedMilestone: any;
+    setMilestoneModalVisible: (visible: boolean) => void;
+    removeMilestone: () => void;
+}) => {
+    const router = useRouter();
+    
+    return (
+        <View style={postComponentStyles.sectionContainer}>
+            <View style={postComponentStyles.sectionHeader}>
+                <MaterialCommunityIcons name="trophy" size={22} color="#FFF" />
+                <Text style={postComponentStyles.sectionTitle}>Milestone</Text>
+            </View>
+            
+            {selectedMilestone ? (
+                <View style={postComponentStyles.selectedWorkoutContainer}>
+                    <View style={postComponentStyles.attachedWorkoutContent}>
+                        <View style={postComponentStyles.milestoneIconContainer}>
+                            {selectedMilestone.type === 'PR' ? (
+                                <Ionicons name="flame" size={22} color={SECONDARY_COLOR} />
+                            ) : (
+                                <Ionicons name="fitness-outline" size={22} color={SECONDARY_COLOR} />
+                            )}
+                        </View>
+                        <View style={postComponentStyles.attachedWorkoutInfo}>
+                            <Text style={postComponentStyles.attachedWorkoutTitle}>
+                                {selectedMilestone.title}
+                            </Text>
+                            <Text style={postComponentStyles.attachedWorkoutDetails}>
+                                {selectedMilestone.details}
+                            </Text>
+                        </View>
+                        <TouchableOpacity 
+                            onPress={removeMilestone}
+                            style={postComponentStyles.removeWorkoutButton}
+                        >
+                            <Ionicons name="close-circle" size={22} color={SECONDARY_COLOR} />
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            ) : (
+                <TouchableOpacity 
+                    style={postComponentStyles.attachWorkoutButton}
+                    onPress={() => setMilestoneModalVisible(true)}
+                >
+                    <Text style={postComponentStyles.attachButtonText}>Add a milestone</Text>
+                    <Ionicons name="add-circle" size={20} color={SECONDARY_COLOR} />
+                </TouchableOpacity>
+            )}
+        </View>
+    );
+};
+
+// Milestone selection modal
+export const MilestoneSelectionModal = ({
+    milestoneModalVisible,
+    setMilestoneModalVisible,
+    selectMilestone,
+    availableMilestones
+}: {
+    milestoneModalVisible: boolean;
+    setMilestoneModalVisible: (visible: boolean) => void;
+    selectMilestone: (milestone: any) => void;
+    availableMilestones: any[];
+}) => (
+    <Modal
+        animationType="slide"
+        transparent={true}
+        visible={milestoneModalVisible}
+        onRequestClose={() => setMilestoneModalVisible(false)}
+    >
+        <View style={postComponentStyles.modalContainer}>
+            <View style={postComponentStyles.modalContent}>
+                <View style={postComponentStyles.modalHeader}>
+                    <Text style={postComponentStyles.modalTitle}>Select Milestone</Text>
+                    <TouchableOpacity 
+                        onPress={() => setMilestoneModalVisible(false)}
+                        style={postComponentStyles.closeButton}
+                    >
+                        <Ionicons name="close" size={24} color="#FFF" />
+                    </TouchableOpacity>
+                </View>
+
+                <ScrollView 
+                    style={postComponentStyles.workoutList}
+                    showsVerticalScrollIndicator={false}
+                >
+                    {availableMilestones.map((milestone) => (
+                        <TouchableOpacity 
+                            key={milestone.id}
+                            style={postComponentStyles.workoutItem}
+                            onPress={() => selectMilestone(milestone)}
+                        >
+                            <View style={postComponentStyles.milestoneIconContainer}>
+                                {milestone.type === 'PR' ? (
+                                    <Ionicons name="flame" size={22} color={SECONDARY_COLOR} />
+                                ) : milestone.type === 'weightLoss' ? (
+                                    <Ionicons name="trending-down" size={22} color={SECONDARY_COLOR} />
+                                ) : (
+                                    <Ionicons name="trending-up" size={22} color={SECONDARY_COLOR} />
+                                )}
+                            </View>
+                            <View style={postComponentStyles.workoutItemInfo}>
+                                <Text style={postComponentStyles.workoutItemTitle}>{milestone.title}</Text>
+                                <Text style={postComponentStyles.workoutItemCreator}>{milestone.date}</Text>
+                                <Text style={postComponentStyles.workoutItemDetails}>
+                                    {milestone.details}
+                                </Text>
+                            </View>
+                            <Ionicons name="chevron-forward" size={20} color="#999" />
+                        </TouchableOpacity>
+                    ))}
+                </ScrollView>
+            </View>
+        </View>
+    </Modal>
+);
