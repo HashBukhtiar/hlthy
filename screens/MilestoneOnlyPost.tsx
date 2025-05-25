@@ -23,8 +23,6 @@ import {
     SECONDARY_COLOR_LIGHT,
     PostHeader,
     ErrorMessage,
-    WorkoutAttachment,
-    WorkoutSelectionModal,
     VisibilitySelector,
     VisibilityModal,
     visibilityItems,
@@ -84,38 +82,6 @@ export default function MilestoneOnlyPost({ onBack }: MilestoneOnlyPostProps) {
     ]);
     const [filteredExercises, setFilteredExercises] = useState<string[]>([]);
     
-    // Workout attachment
-    const [selectedWorkout, setSelectedWorkout] = useState<any>(null);
-    const [workoutModalVisible, setWorkoutModalVisible] = useState(false);
-    
-    // Sample workout data
-    const [availableWorkouts] = useState([
-        {
-            id: '123',
-            title: 'Impossible Leg Day',
-            thumbnail: 'https://thecamerastore.com/cdn/shop/articles/GINAYEOLANDSCAPE-1_800x.jpg?v=1687296669',
-            length: '1h 30min',
-            segments: 2,
-            creatorName: 'John Doe'
-        },
-        {
-            id: '456',
-            title: 'Morning HIIT',
-            thumbnail: 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80',
-            length: '45min',
-            segments: 3,
-            creatorName: 'Sarah Smith'
-        },
-        {
-            id: '789',
-            title: 'Full Body Power',
-            thumbnail: 'https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80',
-            length: '1h 15min',
-            segments: 4,
-            creatorName: 'Mike Johnson'
-        },
-    ]);
-
     const handleExerciseSearch = (text: string) => {
         setExerciseSearch(text);
         if (text) {
@@ -126,15 +92,6 @@ export default function MilestoneOnlyPost({ onBack }: MilestoneOnlyPostProps) {
         } else {
             setFilteredExercises([]);
         }
-    };
-
-    const selectWorkout = (workout: any) => {
-        setSelectedWorkout(workout);
-        setWorkoutModalVisible(false);
-    };
-
-    const removeWorkout = () => {
-        setSelectedWorkout(null);
     };
 
     const handleSubmitPost = async () => {
@@ -186,7 +143,6 @@ export default function MilestoneOnlyPost({ onBack }: MilestoneOnlyPostProps) {
                 isMilestone: true,
                 milestoneDetails,
                 visibility: valueVisibility || 'public',
-                workoutId: selectedWorkout?.id // Optional workout attachment
             };
             
             const postId = await addPost(postData);
@@ -318,13 +274,6 @@ export default function MilestoneOnlyPost({ onBack }: MilestoneOnlyPostProps) {
                             )}
                         </View>
 
-                        {/* Workout attachment section (optional) */}
-                        <WorkoutAttachment
-                            selectedWorkout={selectedWorkout}
-                            setWorkoutModalVisible={setWorkoutModalVisible}
-                            removeWorkout={removeWorkout}
-                        />
-
                         {/* Visibility options */}
                         <VisibilitySelector
                             valueVisibility={valueVisibility}
@@ -333,14 +282,6 @@ export default function MilestoneOnlyPost({ onBack }: MilestoneOnlyPostProps) {
                         />
                     </ScrollView>
                 </View>
-
-                {/* Workout selection modal */}
-                <WorkoutSelectionModal
-                    workoutModalVisible={workoutModalVisible}
-                    setWorkoutModalVisible={setWorkoutModalVisible}
-                    selectWorkout={selectWorkout}
-                    availableWorkouts={availableWorkouts}
-                />
 
                 {/* Visibility selection modal */}
                 <VisibilityModal
