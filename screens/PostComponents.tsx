@@ -278,7 +278,7 @@ export const WorkoutAttachment = ({
     return (
         <View style={postComponentStyles.sectionContainer}>
             <View style={postComponentStyles.sectionHeader}>
-                <Ionicons name="barbell-outline" size={22} color="#FFF" />
+                <Ionicons name="flame" size={22} color="#FFF" />
                 <Text style={postComponentStyles.sectionTitle}>Workout</Text>
             </View>
             

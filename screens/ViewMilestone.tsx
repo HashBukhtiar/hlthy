@@ -407,7 +407,7 @@ export default function ViewMilestone() {
                 <View style={styles.milestoneHeader}>
                   <View style={styles.milestoneIconContainer}>
                     {milestone.milestoneType === 'PR' ? (
-                      <Ionicons name="barbell-outline" size={32} color="#FFF" style={styles.milestoneIcon} />
+                      <Ionicons name="flame" size={32} color="#FFF" style={styles.milestoneIcon} />
                     ) : (
                       <Ionicons name="fitness-outline" size={32} color="#FFF" style={styles.milestoneIcon} />
                     )}
@@ -433,7 +433,7 @@ export default function ViewMilestone() {
                 <View style={styles.milestoneHeader}>
                   <View style={styles.milestoneIconContainer}>
                     {milestone.milestoneType === 'PR' ? (
-                      <Ionicons name="barbell-outline" size={32} color="#FFF" style={styles.milestoneIcon} />
+                      <Ionicons name="flame" size={32} color="#FFF" style={styles.milestoneIcon} />
                     ) : (
                       <Ionicons name="fitness-outline" size={32} color="#FFF" style={styles.milestoneIcon} />
                     )}
@@ -458,7 +458,7 @@ export default function ViewMilestone() {
               <View style={styles.milestoneHeader}>
                 <View style={styles.milestoneIconContainer}>
                   {milestone.milestoneType === 'PR' ? (
-                    <Ionicons name="barbell-outline" size={32} color="#FFF" style={styles.milestoneIcon} />
+                    <Ionicons name="flame" size={32} color="#FFF" style={styles.milestoneIcon} />
                   ) : (
                     <Ionicons name="fitness-outline" size={32} color="#FFF" style={styles.milestoneIcon} />
                   )}

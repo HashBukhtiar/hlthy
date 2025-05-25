@@ -483,7 +483,7 @@ useEffect(() => {
           >
             <View style={styles.attachedWorkoutContent}>
               <View style={styles.attachedWorkoutInfo}>
-                <Ionicons name="barbell-outline" size={18} color="#FFF" style={styles.workoutIcon} />
+                <Ionicons name="flame" size={18} color="#FFF" style={styles.workoutIcon} />
                 <View>
                   <Text style={styles.attachedWorkoutTitle}>
                     Workout
