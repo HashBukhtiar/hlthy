@@ -4,7 +4,10 @@ import {
     TouchableOpacity, 
     Text,
     StyleSheet,
-    SafeAreaView
+    SafeAreaView,
+    Animated,
+    PanResponder,
+    Dimensions
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import RegularPost from './RegularPost';
@@ -12,23 +15,106 @@ import MilestoneOnlyPost from './MilestoneOnlyPost';
 import MilestoneWithPost from './MilestoneWithPost';
 import { SECONDARY_COLOR } from './PostComponents';
 
+const { width } = Dimensions.get('window');
+
 export default function Post() {
     // Initial state is null, so we show the selection screen first
     const [postType, setPostType] = useState<'regular' | 'milestoneOnly' | 'milestoneWithPost' | null>(null);
+    
+    // Animation value for slide effect
+    const [slideAnim] = useState(new Animated.Value(0));
+    
+    // Pan responder for swipe gestures
+    const panResponder = PanResponder.create({
+        onStartShouldSetPanResponder: () => postType !== null,
+        onMoveShouldSetPanResponder: (_, gestureState) => {
+            return postType !== null && Math.abs(gestureState.dx) > 15;
+        },
+        onPanResponderMove: (_, gestureState) => {
+            // Only allow right swipe (negative dx) for back gesture
+            if (gestureState.dx < 0) return;
+            slideAnim.setValue(gestureState.dx);
+        },
+        onPanResponderRelease: (_, gestureState) => {
+            if (gestureState.dx > width * 0.25) {
+                // Swipe threshold met - go back
+                Animated.timing(slideAnim, {
+                    toValue: width,
+                    duration: 250,
+                    useNativeDriver: true
+                }).start(() => {
+                    slideAnim.setValue(0);
+                    setPostType(null);
+                });
+            } else {
+                // Swipe threshold not met - animate back to position
+                Animated.spring(slideAnim, {
+                    toValue: 0,
+                    useNativeDriver: true
+                }).start();
+            }
+        }
+    });
+
+    // Handle navigation to specific post type with animation
+    const navigateToPostType = (type: 'regular' | 'milestoneOnly' | 'milestoneWithPost') => {
+        // Start offscreen to the right
+        slideAnim.setValue(width);
+        
+        // Set the post type
+        setPostType(type);
+        
+        // Animate sliding in from right
+        Animated.timing(slideAnim, {
+            toValue: 0,
+            duration: 300,
+            useNativeDriver: true
+        }).start();
+    };
+
+    // Handle back button press
+    const handleGoBack = () => {
+        // Animate sliding out to right
+        Animated.timing(slideAnim, {
+            toValue: width,
+            duration: 300,
+            useNativeDriver: true
+        }).start(() => {
+            // Reset animation and set post type to null
+            slideAnim.setValue(0);
+            setPostType(null);
+        });
+    };
 
     // Render content based on selected post type
     const renderContent = () => {
-        switch (postType) {
-            case 'regular':
-                return <RegularPost />;
-            case 'milestoneOnly':
-                return <MilestoneOnlyPost />;
-            case 'milestoneWithPost':
-                return <MilestoneWithPost />;
-            default:
-                // If no post type selected, show selection screen
-                return renderSelectionScreen();
+        if (postType === null) {
+            return renderSelectionScreen();
         }
+        
+        const postScreen = (() => {
+            switch (postType) {
+                case 'regular':
+                    return <RegularPost onBack={handleGoBack} />;
+                case 'milestoneOnly':
+                    return <MilestoneOnlyPost onBack={handleGoBack} />;
+                case 'milestoneWithPost':
+                    return <MilestoneWithPost onBack={handleGoBack} />;
+            }
+        })();
+        
+        // Wrap with animated view for slide effect
+        return (
+            <Animated.View 
+                style={[
+                    styles.animatedContainer,
+                    { transform: [{ translateX: slideAnim }] }
+                ]}
+                {...panResponder.panHandlers}
+            >
+                {postScreen}
+            </Animated.View>
+        );
     };
 
     // Selection screen UI
@@ -41,7 +127,7 @@ export default function Post() {
                     {/* Regular Post Option */}
                     <TouchableOpacity
                         style={styles.postTypeCard}
-                        onPress={() => setPostType('regular')}
+                        onPress={() => navigateToPostType('regular')}
                     >
                         <View style={styles.postTypeIconContainer}>
                             <Ionicons name="images" size={32} color="#FFF" />
@@ -58,7 +144,7 @@ export default function Post() {
                     {/* Milestone Only Option */}
                     <TouchableOpacity
                         style={styles.postTypeCard}
-                        onPress={() => setPostType('milestoneOnly')}
+                        onPress={() => navigateToPostType('milestoneOnly')}
                     >
                         <View style={styles.postTypeIconContainer}>
                             <MaterialCommunityIcons name="trophy" size={32} color="#FFF" />
@@ -75,7 +161,7 @@ export default function Post() {
                     {/* Milestone with Post Option */}
                     <TouchableOpacity
                         style={styles.postTypeCard}
-                        onPress={() => setPostType('milestoneWithPost')}
+                        onPress={() => navigateToPostType('milestoneWithPost')}
                     >
                         <View style={styles.postTypeIconContainer}>
                             <View style={styles.combinedIcon}>
@@ -103,6 +189,11 @@ export default function Post() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
+        backgroundColor: '#000',
+    },
+    animatedContainer: {
+        flex: 1,
+        width: '100%',
         backgroundColor: '#000',
     },
     postSelectionPage: {

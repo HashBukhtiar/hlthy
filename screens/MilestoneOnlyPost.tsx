@@ -8,7 +8,8 @@ import {
     Platform,
     StyleSheet,
     SafeAreaView,
-    TouchableOpacity
+    TouchableOpacity,
+    ActivityIndicator
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { usePostsData } from '@/hooks/usePostsData';
@@ -34,7 +35,11 @@ import {
     ScrollView
 } from './PostComponents';
 
-export default function MilestoneOnlyPost() {
+interface MilestoneOnlyPostProps {
+    onBack?: () => void;
+}
+
+export default function MilestoneOnlyPost({ onBack }: MilestoneOnlyPostProps) {
     const router = useRouter();
     const { addPost } = usePostsData();
     const { currentUser, userProfile } = useAuth();
@@ -207,12 +212,29 @@ export default function MilestoneOnlyPost() {
                 style={{ flex: 1 }}
             >
                 <View style={styles.postPage}>
-                    {/* Header */}
-                    <PostHeader 
-                        title="New Milestone" 
-                        isSubmitting={isSubmitting} 
-                        handleSubmitPost={handleSubmitPost}
-                    />
+                    {/* Header with back button */}
+                    <View style={styles.header}>
+                        {onBack && (
+                            <TouchableOpacity 
+                                style={styles.backButton}
+                                onPress={onBack}
+                            >
+                                <Ionicons name="chevron-back" size={24} color="#FFF" />
+                            </TouchableOpacity>
+                        )}
+                        <Text style={styles.headerTitle}>New Milestone</Text>
+                        <TouchableOpacity 
+                            style={[styles.postButton, isSubmitting && styles.disabledButton]} 
+                            onPress={handleSubmitPost}
+                            disabled={isSubmitting}
+                        >
+                            {isSubmitting ? (
+                                <ActivityIndicator size="small" color="#FFF" />
+                            ) : (
+                                <Text style={styles.postButtonText}>Post</Text>
+                            )}
+                        </TouchableOpacity>
+                    </View>
 
                     {/* Error message if present */}
                     <ErrorMessage error={formError} />
@@ -341,6 +363,37 @@ const styles = StyleSheet.create({
     postPage: {
         flex: 1,
         backgroundColor: '#000',
+    },
+    header: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+    },
+    headerTitle: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        color: '#FFF',
+        flex: 1,
+        textAlign: 'center',
+    },
+    backButton: {
+        padding: 5,
+        zIndex: 1,
+    },
+    postButton: {
+        backgroundColor: SECONDARY_COLOR,
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderRadius: 16,
+    },
+    postButtonText: {
+        color: '#FFF',
+        fontWeight: '600',
+    },
+    disabledButton: {
+        opacity: 0.5,
     },
     scrollView: {
         flex: 1,
