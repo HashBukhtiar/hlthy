@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { ScrollView, View, Text, TouchableOpacity, Image, StyleSheet, ActivityIndicator, Alert, Dimensions } from 'react-native';
+import { ScrollView, View, Text, TouchableOpacity, Image, StyleSheet, ActivityIndicator, Alert, Modal, TextInput, FlatList, KeyboardAvoidingView, Platform } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { db } from '@/firebaseConfig'; 
-import { doc, getDoc, Timestamp, updateDoc, increment, setDoc, deleteDoc } from 'firebase/firestore';
+import { doc, addDoc, serverTimestamp, getDoc, Timestamp, updateDoc, increment, setDoc, deleteDoc, collection, query, where, orderBy, getDocs, limit } from 'firebase/firestore';
 import { useAuth } from '@/context/AuthContext'; 
 
 // Interface for individual exercise within a segment
@@ -49,6 +49,50 @@ export default function ViewWorkout() {
   const [error, setError] = useState<string | null>(null);
   const [isFavorited, setIsFavorited] = useState(false);
   const [favoriteLoading, setFavoriteLoading] = useState(false);
+  const [shareModalVisible, setShareModalVisible] = useState(false);
+  const [searchText, setSearchText] = useState('');
+  const [searchResults, setSearchResults] = useState<{ id: string; username: string; profileImageUrl?: string }[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+
+  const handleSearchUsers = async (text: string) => {
+    setSearchText(text);
+    if (!text.trim()) {
+      setSearchResults([]);
+      return;
+    }
+    try {
+      setSearchLoading(true);
+      const lowerText = text.toLowerCase();
+      const q = query(
+        collection(db, 'users'),
+        where('username', '>=', lowerText),
+        where('username', '<=', lowerText + '\uf8ff'),
+        orderBy('username'),
+        limit(10)
+      );
+      const querySnapshot = await getDocs(q);
+      const results: any[] = [];
+      querySnapshot.forEach(docSnap => {
+        const userData = docSnap.data();
+        results.push({
+          id: docSnap.id,
+          username: userData.username,
+          profileImageUrl: userData.profileImageUrl,
+        });
+      });
+      setSearchResults(results);
+    } catch (error) {
+      console.error("Error searching users:", error);
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
+  // Helper function to generate conversation ID
+  const generateConversationId = (userId1: string, userId2: string): string => {
+    const sortedIds = [userId1, userId2].sort();
+    return `${sortedIds[0]}_${sortedIds[1]}`;
+  };
 
   useEffect(() => {
     const fetchWorkout = async () => {
@@ -178,6 +222,86 @@ export default function ViewWorkout() {
   }
   
   const displayWorkoutLength = calculateTotalLength(workoutData.segments);
+
+  const shareWorkoutWithUser = async (userId: string, username: string, profileImageUrl?: string) => {
+    if (!currentUser || !workoutData) return;
+    try {
+      const conversationId = generateConversationId(currentUser.uid, userId);
+      const conversationRef = doc(db, 'conversations', conversationId);
+      const conversationSnap = await getDoc(conversationRef);
+
+      // Create conversation if needed
+      if (!conversationSnap.exists()) {
+        await setDoc(conversationRef, {
+          participants: [currentUser.uid, userId],
+          lastMessageAt: serverTimestamp(),
+          lastMessageText: `${currentUser.displayName || 'User'} shared a workout`,
+          participantUsernames: {
+            [currentUser.uid]: currentUser.displayName || currentUser.email || 'Current User',
+            [userId]: username || 'User',
+          },
+          participantProfileImages: {
+            [currentUser.uid]: currentUser.photoURL || '',
+            [userId]: profileImageUrl || '',
+          },
+        });
+        await setDoc(doc(db, `users/${currentUser.uid}/conversations`, conversationId), {
+          otherParticipantId: userId,
+          otherParticipantUsername: username || 'User',
+          otherParticipantProfileImage: profileImageUrl || '',
+        });
+        await setDoc(doc(db, `users/${userId}/conversations`, conversationId), {
+          otherParticipantId: currentUser.uid,
+          otherParticipantUsername: currentUser.displayName || currentUser.email || 'Current User',
+          otherParticipantProfileImage: currentUser.photoURL || '',
+        });
+      }
+
+      // Add a message with the shared workout
+      await addDoc(collection(db, "conversations", conversationId, "messages"), {
+        senderId: currentUser.uid,
+        text: workoutData.description
+          ? `Shared a workout: "${workoutData.description.substring(0, 50)}${workoutData.description.length > 50 ? '...' : ''}"`
+          : 'Shared a workout',
+        createdAt: serverTimestamp(),
+        sharedWorkout: {
+          id: workoutData.id,
+          title: workoutData.title,
+          coverImageUrl: workoutData.coverImageUrl || null,
+          creatorUsername: workoutData.creatorUsername,
+        },
+      });
+
+      // Update conversation metadata
+      await updateDoc(conversationRef, {
+        lastMessageAt: serverTimestamp(),
+        lastMessageText: 'Shared a workout',
+      });
+
+      // Update user conversation docs
+      await updateDoc(doc(db, `users/${currentUser.uid}/conversations`, conversationId), {
+        lastMessageAt: serverTimestamp(),
+        lastMessageText: 'Shared a workout',
+      });
+      const conversationData = (await getDoc(conversationRef)).data();
+      const otherUserId = conversationData?.participants?.find((uid: string) => uid !== currentUser.uid);
+      if (otherUserId) {
+        await updateDoc(doc(db, `users/${otherUserId}/conversations`, conversationId), {
+          lastMessageAt: serverTimestamp(),
+          lastMessageText: 'Shared a workout',
+        });
+      }
+      setShareModalVisible(false);
+      Alert.alert("Success", "Workout shared successfully.");
+    } catch (error) {
+      console.error("Error sharing workout:", error);
+      Alert.alert("Error", "Failed to share workout.");
+    }
+  };
+
+  const handleShareWorkout = () => {
+    setShareModalVisible(true);
+  };
   
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
@@ -235,6 +359,15 @@ export default function ViewWorkout() {
                   color="white"
                 />
               )}
+            </View>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleShareWorkout} disabled={!currentUser}>
+            <View style={styles.menuButton}>
+              <Ionicons
+                name="paper-plane-outline"
+                size={20}
+                color="white"
+              />
             </View>
           </TouchableOpacity>
         </View>
@@ -295,6 +428,84 @@ export default function ViewWorkout() {
         ))}
       </View>
       <View style={styles.bottomPadding} />
+      <Modal
+        transparent={true}
+        visible={shareModalVisible}
+        animationType="slide"
+        onRequestClose={() => setShareModalVisible(false)}
+      >
+        <KeyboardAvoidingView
+          style={styles.shareModalContainer}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 100}
+        >
+          <View style={styles.shareModalContent}>
+            {/* Header with "Share to" and X button */}
+            <View style={styles.shareModalHeader}>
+              <Text style={styles.shareModalTitle}>Share to</Text>
+              <TouchableOpacity onPress={() => setShareModalVisible(false)}>
+                <Ionicons name="close" size={24} color="#FFF" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Search container */}
+            <View style={styles.searchContainer}>
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search users..."
+                placeholderTextColor="#888"
+                value={searchText}
+                onChangeText={handleSearchUsers}
+                onSubmitEditing={handleSearchUsers}
+                autoCapitalize="none"
+              />
+            </View>
+
+            {/* Loading or list of users */}
+            {searchLoading ? (
+              <ActivityIndicator
+                size="large"
+                color="#0A84FF"
+                style={{ marginTop: 20 }}
+              />
+            ) : (
+              <FlatList
+                data={searchResults}
+                keyExtractor={(item) => item.id}
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    style={styles.userItem}
+                    onPress={() =>
+                      shareWorkoutWithUser(
+                        item.id,
+                        item.username,
+                        item.profileImageUrl
+                      )
+                    }
+                  >
+                    <Image
+                      source={
+                        item.profileImageUrl
+                          ? { uri: item.profileImageUrl }
+                          : require('@/assets/images/profile-icon.png')
+                      }
+                      style={styles.userItemImage}
+                    />
+                    <Text style={styles.userItemText}>{item.username}</Text>
+                  </TouchableOpacity>
+                )}
+                ListEmptyComponent={
+                  <Text style={styles.emptyResultsText}>
+                    {searchText
+                      ? "No users found"
+                      : "Search for users to share with"}
+                  </Text>
+                }
+              />
+            )}
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </ScrollView>
   );
 }
@@ -512,5 +723,71 @@ const styles = StyleSheet.create({
   },
   bottomPadding: {
     height: 80,
+  },
+  clickableText: {
+    textDecorationLine: 'underline',
+  },
+  shareModalContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'flex-end',
+  },
+  shareModalContent: {
+    backgroundColor: '#121212',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingHorizontal: 15,
+    paddingTop: 15,
+    paddingBottom: 30,
+    maxHeight: '80%',
+  },
+  shareModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingBottom: 15,
+    borderBottomColor: '#333',
+    borderBottomWidth: 1,
+  },
+  shareModalTitle: {
+    color: '#FFF',
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    marginVertical: 15,
+    alignItems: 'center',
+  },
+  searchInput: {
+    flex: 1,
+    backgroundColor: '#333',
+    color: '#FFF',
+    borderRadius: 10,
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    marginRight: 10,
+  },
+  userItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomColor: '#333',
+    borderBottomWidth: 1,
+  },
+  userItemImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 15,
+  },
+  userItemText: {
+    color: '#FFF',
+    fontSize: 16,
+  },
+  emptyResultsText: {
+    color: '#888',
+    textAlign: 'center',
+    marginTop: 20,
   },
 });
