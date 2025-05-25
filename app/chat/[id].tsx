@@ -33,6 +33,12 @@ interface FirestoreMessageData {
     caption: string;
     authorUsername: string;
   };
+  sharedMilestone?: {
+    id: string;
+    type: string;
+    details: any;
+    username: string;
+  };
   sharedWorkout?: {
     id: string;
     title: string;
@@ -51,6 +57,12 @@ interface Message {
     imageUrl: string | null;
     caption: string;
     authorUsername: string;
+  };
+  sharedMilestone?: {
+    id: string;
+    type: string;
+    details: any;
+    username: string;
   };
   sharedWorkout?: {
     id: string;
@@ -477,6 +489,41 @@ export default function ChatScreen() {
       );
     }
 
+    if (item.sharedMilestone) {
+      return (
+        <TouchableOpacity
+          style={[item.user === 'user' ? { alignSelf: 'flex-end' } : { alignSelf: 'flex-start' }]}
+          onLongPress={() => handleLongPress(item)}
+          delayLongPress={500}
+        >
+          <TouchableOpacity
+            style={styles.sharedMilestoneContainer}
+            onPress={() => router.push(`/view-milestone/${item.sharedMilestone?.id}`)}
+          >
+            <View style={styles.sharedMilestoneHeader}>
+              <Ionicons name="share-social-outline" size={16} color="#FFF" style={{ marginRight: 5 }} />
+              <Text style={styles.sharedMilestoneHeaderText}>
+                Shared Milestone by {item.sharedMilestone.username}
+              </Text>
+            </View>
+            <View style={styles.sharedMilestoneContent}>
+              <View style={styles.milestoneIconContainer}>
+                {item.sharedMilestone.type === 'PR' ? (
+                  <Ionicons name="barbell-outline" size={18} color="#FFF" />
+                ) : (
+                  <Ionicons name="fitness-outline" size={18} color="#FFF" />
+                )}
+              </View>
+              <Text style={styles.sharedMilestoneType}>
+                {item.sharedMilestone.type === 'PR' ? 'Personal Record' : 
+                item.sharedMilestone.type === 'weightLoss' ? 'Weight Loss' : 'Weight Gain'}
+              </Text>
+            </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      );
+    }
+
     if (item.sharedWorkout) {
       return (
         <TouchableOpacity
@@ -801,6 +848,46 @@ const styles = StyleSheet.create({
     color: 'white',
     fontWeight: 'bold',
     fontSize: 16,
+  },
+  sharedMilestoneContainer: {
+    marginTop: 10,
+    borderRadius: 12,
+    backgroundColor: 'rgba(20, 60, 100, 0.8)',
+    borderWidth: 2,
+    borderColor: '#0bb',
+    overflow: 'hidden',
+  },
+  sharedMilestoneHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#0bb',
+    backgroundColor: 'rgba(15, 45, 80, 0.9)',
+  },
+  sharedMilestoneHeaderText: {
+    color: '#FFF',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  sharedMilestoneContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 15,
+  },
+  milestoneIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#333',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  sharedMilestoneType: {
+    color: '#FFF',
+    fontWeight: 'bold',
+    fontSize: 14,
   },
   sharedWorkoutContainer: {
     marginTop: 10,

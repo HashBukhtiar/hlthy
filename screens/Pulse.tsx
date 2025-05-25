@@ -6,7 +6,6 @@ import {
     Image,
     TouchableOpacity,
     ScrollView,
-    Dimensions,
 } from 'react-native';
 import { profileIcon, postImage, backArrow } from '@/assets/images';
 import globalStyles from '@/styles/globalStyles';
@@ -27,7 +26,7 @@ interface Activity {
     username: string;
     action: string;
     time: string;
-    image: any; // Using 'any' for image source type
+    image: any; 
 }
 
 export default function Pulse() {
