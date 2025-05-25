@@ -8,7 +8,8 @@ import {
     StyleSheet,
     SafeAreaView,
     TouchableOpacity,
-    ActivityIndicator
+    ActivityIndicator,
+    ScrollView
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { usePostsData } from '@/hooks/usePostsData';
@@ -33,8 +34,7 @@ import {
     milestoneItems,
     weightUnitItems,
     PRFields,
-    WeightFields,
-    ScrollView
+    WeightFields
 } from './PostComponents';
 
 interface MilestoneWithPostProps {
@@ -44,7 +44,9 @@ interface MilestoneWithPostProps {
 export default function MilestoneWithPost({ onBack }: MilestoneWithPostProps) {
     const router = useRouter();
     const { addPost } = usePostsData();
-    const { currentUser, userProfile } = useAuth();
+    const auth = useAuth() as any;
+    const currentUser = auth?.currentUser;
+    const userProfile = auth?.userProfile;
     
     // Form state
     const [isSubmitting, setIsSubmitting] = useState(false);
