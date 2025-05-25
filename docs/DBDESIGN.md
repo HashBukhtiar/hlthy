@@ -124,26 +124,25 @@ This document outlines the proposed Firestore database structure for the Hlthy s
     *   `savedCount`: Number (Denormalized)
 
 ### 7. `directMessages` (DM System)
-
-*   **`conversations`**: `/conversations/{conversationId}`
-    *   *Document ID:* Auto-generated (`conversationId`).  Consider using a combination of user IDs (e.g., `userId1_userId2` sorted alphabetically) to simplify querying for existing conversations between two users.
-    *   *Purpose:* Stores metadata about each conversation.
-    *   *Fields:*
+*   **Path:** `/conversations/{conversationId}`
+    *   **Document ID:** Auto-generated (`conversationId`). Consider using a combination of user IDs (e.g., `userId1_userId2` sorted alphabetically) to simplify querying for existing conversations between two users.
+    *   **Purpose:** Stores metadata about each conversation.
+    *   **Fields:**
         *   `participants`: Array<String> (Array of `userId`s participating in the conversation).
         *   `lastMessageAt`: Timestamp (Indexed for sorting conversation lists).
         *   `lastMessageText`: String (Snippet of the last message for preview in conversation lists).
         *   `participantUsernames`: Map<String, String> (Key: `userId`, Value: `username` - Denormalized for easy display).
-        *   `participantProfileImages`: Map<String, String> (Key: `userId`, Value: `profileImageUrl` - Denormalized).
+        *   `participantProfileImages`: Map<String, String> (Key: `userId`, Value: `profileImageUrl` - Denormalized).md
         *   `isPinnedAI`: Boolean (True if this is the pinned AI chat, only one conversation should have this set to true).
-*   **`messages`**: `/conversations/{conversationId}/messages/{messageId}`
-    *   *Document ID:* Auto-generated (`messageId`).
-    *   *Purpose:* Stores individual messages within a conversation.
-    *   *Fields:*
+*   **Path:** `/conversations/{conversationId}/messages/{messageId}`
+    *   **Document ID:** Auto-generated (`messageId`).
+    *   **Purpose:** Stores individual messages within a conversation.
+    *   **Fields:**
         *   `senderId`: String (`userId` of the sender).
         *   `text`: String (Message content).
         *   `createdAt`: Timestamp (Indexed for ordering messages within a conversation).
         *   `isRead`: Boolean (Default: false, set to true when the recipient views the message).
-*   **`userConversations`**: `/users/{userId}/conversations/{conversationId}`
+*   **Path:** `/users/{userId}/conversations/{conversationId}`
     *   *Document ID:* `conversationId`
     *   *Purpose:*  Links users to their active conversations.  This allows efficient querying of a user's conversation list.
     *   *Fields:*
