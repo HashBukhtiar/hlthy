@@ -1273,3 +1273,130 @@ export const MilestoneSelectionModal = ({
         </View>
     </Modal>
 );
+
+// Post attachment component
+export const PostAttachment = ({
+    selectedPost,
+    setPostModalVisible,
+    removePost
+}: {
+    selectedPost: any;
+    setPostModalVisible: (visible: boolean) => void;
+    removePost: () => void;
+}) => {
+    const router = useRouter();
+    
+    return (
+        <View style={postComponentStyles.sectionContainer}>
+            <View style={postComponentStyles.sectionHeader}>
+                <Ionicons name="image" size={22} color="#FFF" />
+                <Text style={postComponentStyles.sectionTitle}>Attach Post</Text>
+            </View>
+            
+            {selectedPost ? (
+                <View style={postComponentStyles.selectedWorkoutContainer}>
+                    <View style={postComponentStyles.attachedWorkoutContent}>
+                        {selectedPost.imageUrl ? (
+                            <Image 
+                                source={{ uri: selectedPost.imageUrl }}
+                                style={postComponentStyles.workoutThumbnail}
+                            />
+                        ) : (
+                            <View style={[postComponentStyles.workoutThumbnail, {backgroundColor: '#333', justifyContent: 'center', alignItems: 'center'}]}>
+                                <Ionicons name="document-text" size={24} color="#666" />
+                            </View>
+                        )}
+                        <View style={postComponentStyles.attachedWorkoutInfo}>
+                            <Text style={postComponentStyles.attachedWorkoutTitle}>
+                                {selectedPost.caption ? (selectedPost.caption.length > 30 ? selectedPost.caption.substring(0, 30) + '...' : selectedPost.caption) : 'Post'}
+                            </Text>
+                            <Text style={postComponentStyles.attachedWorkoutDetails}>
+                                {selectedPost.date}
+                            </Text>
+                        </View>
+                        <TouchableOpacity 
+                            onPress={removePost}
+                            style={postComponentStyles.removeWorkoutButton}
+                        >
+                            <Ionicons name="close-circle" size={22} color={SECONDARY_COLOR} />
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            ) : (
+                <TouchableOpacity 
+                    style={postComponentStyles.attachWorkoutButton}
+                    onPress={() => setPostModalVisible(true)}
+                >
+                    <Text style={postComponentStyles.attachButtonText}>Select a post</Text>
+                    <Ionicons name="add-circle" size={20} color={SECONDARY_COLOR} />
+                </TouchableOpacity>
+            )}
+        </View>
+    );
+};
+
+// Post selection modal
+export const PostSelectionModal = ({
+    postModalVisible,
+    setPostModalVisible,
+    selectPost,
+    availablePosts
+}: {
+    postModalVisible: boolean;
+    setPostModalVisible: (visible: boolean) => void;
+    selectPost: (post: any) => void;
+    availablePosts: any[];
+}) => (
+    <Modal
+        animationType="slide"
+        transparent={true}
+        visible={postModalVisible}
+        onRequestClose={() => setPostModalVisible(false)}
+    >
+        <View style={postComponentStyles.modalContainer}>
+            <View style={postComponentStyles.modalContent}>
+                <View style={postComponentStyles.modalHeader}>
+                    <Text style={postComponentStyles.modalTitle}>Select Post</Text>
+                    <TouchableOpacity 
+                        onPress={() => setPostModalVisible(false)}
+                        style={postComponentStyles.closeButton}
+                    >
+                        <Ionicons name="close" size={24} color="#FFF" />
+                    </TouchableOpacity>
+                </View>
+
+                <ScrollView 
+                    style={postComponentStyles.workoutList}
+                    showsVerticalScrollIndicator={false}
+                >
+                    {availablePosts.map((post) => (
+                        <TouchableOpacity 
+                            key={post.id}
+                            style={postComponentStyles.workoutItem}
+                            onPress={() => selectPost(post)}
+                        >
+                            {post.imageUrl ? (
+                                <Image 
+                                    source={{ uri: post.imageUrl }}
+                                    style={postComponentStyles.workoutThumbnail}
+                                />
+                            ) : (
+                                <View style={[postComponentStyles.workoutThumbnail, {backgroundColor: '#333', justifyContent: 'center', alignItems: 'center'}]}>
+                                    <Ionicons name="document-text" size={24} color="#666" />
+                                </View>
+                            )}
+                            <View style={postComponentStyles.workoutItemInfo}>
+                                <Text style={postComponentStyles.workoutItemTitle}>{post.caption ? (post.caption.length > 30 ? post.caption.substring(0, 30) + '...' : post.caption) : 'Post'}</Text>
+                                <Text style={postComponentStyles.workoutItemCreator}>{post.date}</Text>
+                                <Text style={postComponentStyles.workoutItemDetails}>
+                                    {post.likes} likes • {post.comments} comments
+                                </Text>
+                            </View>
+                            <Ionicons name="chevron-forward" size={20} color="#999" />
+                        </TouchableOpacity>
+                    ))}
+                </ScrollView>
+            </View>
+        </View>
+    </Modal>
+);

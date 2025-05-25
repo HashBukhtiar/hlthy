@@ -30,7 +30,9 @@ import {
     milestoneItems,
     weightUnitItems,
     PRFields,
-    WeightFields
+    WeightFields,
+    PostAttachment,
+    PostSelectionModal
 } from './PostComponents';
 
 interface MilestoneOnlyPostProps {
@@ -63,6 +65,46 @@ export default function MilestoneOnlyPost({ onBack }: MilestoneOnlyPostProps) {
     const [newWeight, setNewWeight] = useState('');
     const [newWeightUnit, setNewWeightUnit] = useState<string | null>('lbs');
     
+    // Post attachment
+    const [selectedPost, setSelectedPost] = useState<any>(null);
+    const [postModalVisible, setPostModalVisible] = useState(false);
+    
+    // Sample user posts data
+    const [availablePosts] = useState([
+        {
+            id: 'p1',
+            caption: 'Great workout today! Feeling pumped.',
+            imageUrl: 'https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
+            date: 'May 24, 2025',
+            likes: 45,
+            comments: 12
+        },
+        {
+            id: 'p2',
+            caption: 'Sunday morning run with amazing views',
+            imageUrl: 'https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
+            date: 'May 23, 2025',
+            likes: 32,
+            comments: 8
+        },
+        {
+            id: 'p3',
+            caption: 'New workout gear has arrived!',
+            imageUrl: 'https://images.unsplash.com/photo-1556817411-31ae72fa3ea0?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
+            date: 'May 22, 2025',
+            likes: 28,
+            comments: 5
+        },
+        {
+            id: 'p4',
+            caption: 'Thoughts on my training plan?',
+            imageUrl: null,
+            date: 'May 20, 2025',
+            likes: 15,
+            comments: 23
+        }
+    ]);
+    
     // Exercises database
     const [allExercises] = useState<string[]>([ 
         'Bench Press',
@@ -82,6 +124,7 @@ export default function MilestoneOnlyPost({ onBack }: MilestoneOnlyPostProps) {
         '10K Run',
         'Mile Run'
     ]);
+    
     const [filteredExercises, setFilteredExercises] = useState<string[]>([]);
     
     const handleExerciseSearch = (text: string) => {
@@ -94,6 +137,15 @@ export default function MilestoneOnlyPost({ onBack }: MilestoneOnlyPostProps) {
         } else {
             setFilteredExercises([]);
         }
+    };
+    
+    const selectPost = (post: any) => {
+        setSelectedPost(post);
+        setPostModalVisible(false);
+    };
+
+    const removePost = () => {
+        setSelectedPost(null);
     };
 
     const handleSubmitPost = async () => {
@@ -276,6 +328,13 @@ export default function MilestoneOnlyPost({ onBack }: MilestoneOnlyPostProps) {
                             )}
                         </View>
 
+                        {/* Post attachment section */}
+                        <PostAttachment
+                            selectedPost={selectedPost}
+                            setPostModalVisible={setPostModalVisible}
+                            removePost={removePost}
+                        />
+
                         {/* Visibility options */}
                         <VisibilitySelector
                             valueVisibility={valueVisibility}
@@ -292,6 +351,14 @@ export default function MilestoneOnlyPost({ onBack }: MilestoneOnlyPostProps) {
                     valueVisibility={valueVisibility}
                     setValueVisibility={setValueVisibility}
                     itemsVisibility={visibilityItems}
+                />
+
+                {/* Post selection modal */}
+                <PostSelectionModal
+                    postModalVisible={postModalVisible}
+                    setPostModalVisible={setPostModalVisible}
+                    selectPost={selectPost}
+                    availablePosts={availablePosts}
                 />
             </KeyboardAvoidingView>
         </SafeAreaView>
