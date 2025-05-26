@@ -10,7 +10,7 @@ import {
 import { profileIcon, postImage, backArrow } from '@/assets/images';
 import globalStyles from '@/styles/globalStyles';
 import { useRouter } from 'expo-router';
-import Ionicons from 'react-native-vector-icons/Ionicons';
+import { Ionicons } from '@expo/vector-icons';
 
 // Helper function to display shortened string
 const displayShortenedString = (str: string, maxLength: number): string => {
