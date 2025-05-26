@@ -10,6 +10,7 @@ import {
 import { profileIcon, postImage, backArrow } from '@/assets/images';
 import globalStyles from '@/styles/globalStyles';
 import { useRouter } from 'expo-router';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 
 // Helper function to display shortened string
 const displayShortenedString = (str: string, maxLength: number): string => {
@@ -81,34 +82,34 @@ export default function Pulse() {
     function renderOtherActivity() {
         const activities: Activity[] = [
             {
-                username: '@username2',
-                action: 'has requested to follow you.',
-                time: '20s',
-                image: profileIcon
+                username: '@username3',
+                action: 'has liked your post.',
+                time: '2m',
+                image: postImage
             },
             {
                 username: '@username3',
-                action: 'has reacted to your post with 🔥.',
+                action: 'commented on your post: "Great post!"',
                 time: '2m',
                 image: postImage
             },
             {
                 username: '@username4',
-                action: 'has reacted to your post with 🔥.',
+                action: 'has liked your post.',
                 time: '2m',
                 image: postImage
             },
             {
                 username: '@username5',
-                action: 'has requested to follow you.',
-                time: '5m',
-                image: profileIcon
+                action: 'commented on your post: "Good work, keep it up!"',
+                time: '15m',
+                image: postImage
             },
             {
                 username: '@username6',
-                action: 'has requested to follow you.',
-                time: '6h',
-                image: profileIcon
+                action: 'saved your workout.',
+                time: '2h',
+                image: postImage
             },
         ];
 
@@ -148,11 +149,8 @@ export default function Pulse() {
         <View style={globalStyles.container}>
             <View>
                 <View style={{flexDirection:'row', alignItems:'center', marginLeft: 15}}>
-                    <TouchableOpacity onPress={() => {
-                            console.log("back arrow pressed");
-                            router.back();
-                            }}>
-                        <Image source={backArrow} style={globalStyles.backArrowIcon} />
+                    <TouchableOpacity onPress={() => router.back()}>
+                        <Ionicons name="chevron-back" size={32} color="white" />
                     </TouchableOpacity>
                     <Text style={[globalStyles.title, {marginLeft: 10}]}>Pulse</Text>
                 </View>
