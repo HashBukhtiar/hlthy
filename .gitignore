@@ -111,3 +111,6 @@ expo-env.d.ts
 # Builds
 android/
 ios/
+
+# Misc
+pulse.md
