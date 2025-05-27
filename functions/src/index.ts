@@ -1,10 +1,10 @@
-import {onInit} from "firebase-functions/v2";
-import {initializeDbAndAuth} from "./firebaseAdmin";
+import {onInit} from "firebase-functions/v2/core";
+import {initializeApp as initializeAdminApp} from "./firebaseAdmin";
 
-// Use onInit to initialize Firebase Admin SDK by calling the centralized initializer
-export const initializeadmin = onInit(async () => {
-  console.log("onInit: Triggering Firebase Admin SDK initialization via firebaseAdmin.ts...");
-  initializeDbAndAuth();
+export const initializeadminoninit = onInit(async () => {
+  console.log("index.ts: onInit triggered for admin app initialization.");
+  initializeAdminApp();
+  console.log("index.ts: Admin app initialization complete in onInit.");
 });
 
 export * from "./activityTriggers";

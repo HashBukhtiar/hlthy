@@ -1,16 +1,17 @@
 import {admin, getDb} from "./firebaseAdmin";
 import {onCall, HttpsError} from "firebase-functions/v2/https";
 
-/*
+// Useful for troubleshooting and debugging
 export const minimaltestfunction = onCall(
   {region: "northamerica-northeast2"},
   (request) => {
+    console.log("minimaltestfunction: Function triggered. Auth UID:", request.auth?.uid);
     const db = getDb();
     if (!db) {
-      console.error("Firestore db not initialized for minimaltestfunction.");
+      console.error("minimaltestfunction: Firestore db not initialized.");
       throw new HttpsError("internal", "Database not initialized.");
     }
-    console.log("minimaltestfunction called with data:", request.data);
+    console.log("minimaltestfunction: db instance obtained. Data:", request.data);
     return {
       success: true,
       message: "Minimal test function executed successfully!",
@@ -18,11 +19,11 @@ export const minimaltestfunction = onCall(
     };
   }
 );
-*/
 
 export const acceptfollowrequest = onCall(
   {region: "northamerica-northeast2"},
   async (request) => {
+    console.log("acceptfollowrequest: Function triggered:", JSON.stringify(request.data), "Auth UID:", request.auth?.uid);
     const db = getDb();
     if (!db) {
       console.error("Firestore db not initialized for acceptfollowrequest. This should not happen if onInit ran.");

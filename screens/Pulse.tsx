@@ -64,20 +64,21 @@ export default function Pulse() {
     const [loadingActivities, setLoadingActivities] = useState(true);
     const [loadingRequests, setLoadingRequests] = useState(true);
 
+    // useEffect for Follow Requests
     useEffect(() => {
         if (!currentUser) {
-            setLoading(false);
+            setLoadingRequests(false);
+            setFollowRequests([]);
             return;
         }
 
-        setLoading(true);
+        setLoadingRequests(true);
         const activityRef = collection(db, 'activity', currentUser.uid, 'userActivity');
         
-        // Query for pending follow requests
         const followRequestsQuery = query(
             activityRef,
             where('type', '==', 'follow_request'),
-            where('status', '==', 'pending'), // Only show pending requests
+            where('status', '==', 'pending'),
             orderBy('createdAt', 'desc')
         );
 
@@ -87,30 +88,58 @@ export default function Pulse() {
                 fetchedFollowRequests.push({ id: doc.id, ...doc.data() } as ActivityItem);
             });
             setFollowRequests(fetchedFollowRequests);
-            setLoading(false); // Set loading to false after first fetch
+            setLoadingRequests(false);
         }, (error) => {
             console.error("Error fetching follow requests: ", error);
-            setLoading(false);
+            setLoadingRequests(false);
         });
         
-        // Placeholder for fetching other activities (we'll implement this query later)
-        // const otherActivitiesQuery = query(
-        //     activityRef,
-        //     where('type', '!=', 'follow_request'), // Example: fetch everything else
-        //     orderBy('createdAt', 'desc')
-        // );
-        // const unsubscribeOtherActivities = onSnapshot(otherActivitiesQuery, (querySnapshot) => {
-        //     const fetchedOtherActivities: ActivityItem[] = [];
-        //     querySnapshot.forEach((doc) => {
-        //         fetchedOtherActivities.push({ id: doc.id, ...doc.data() } as ActivityItem);
-        //     });
-        //     setOtherActivities(fetchedOtherActivities);
-        // });
-
-
         return () => {
             unsubscribeFollowRequests();
-            // unsubscribeOtherActivities(); // Uncomment when implemented
+        };
+    }, [currentUser]);
+
+    // useEffect for Other Activities
+    useEffect(() => {
+        if (!currentUser) {
+            setLoadingActivities(false);
+            setOtherActivities([]); 
+            return;
+        }
+
+        setLoadingActivities(true);
+        const activityRef = collection(db, 'activity', currentUser.uid, 'userActivity');
+
+        // Query for activities that are NOT pending follow requests.
+        // You might want to be more specific based on your activity types.
+        // Example: where('type', 'in', ['new_follower', 'post_like', 'follow_accepted', ...])
+        // Or, if 'status' is reliably set for other types:
+        const otherActivitiesQuery = query(
+            activityRef,
+            where('status', '!=', 'pending'), // Excludes pending follow_requests
+            // Or, if you want to explicitly exclude 'follow_request' type that might not have 'pending' status for some reason:
+            // where('type', '!=', 'follow_request'),
+            orderBy('createdAt', 'desc')
+        );
+
+        const unsubscribeOtherActivities = onSnapshot(otherActivitiesQuery, (querySnapshot) => {
+            const fetchedOtherActivities: ActivityItem[] = [];
+            querySnapshot.forEach((doc) => {
+                // Additional client-side filter if the query isn't perfectly exclusive
+                if (doc.data().type === 'follow_request' && doc.data().status === 'pending') {
+                    return; 
+                }
+                fetchedOtherActivities.push({ id: doc.id, ...doc.data() } as ActivityItem);
+            });
+            setOtherActivities(fetchedOtherActivities);
+            setLoadingActivities(false);
+        }, (error) => {
+            console.error("Error fetching other activities: ", error);
+            setLoadingActivities(false);
+        });
+
+        return () => {
+            unsubscribeOtherActivities();
         };
     }, [currentUser]);
 
