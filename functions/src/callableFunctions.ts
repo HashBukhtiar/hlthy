@@ -1,6 +1,7 @@
 import {admin, getDb} from "./firebaseAdmin";
 import {onCall, HttpsError} from "firebase-functions/v2/https";
 
+/*
 export const minimaltestfunction = onCall(
   {region: "northamerica-northeast2"},
   (request) => {
@@ -17,6 +18,7 @@ export const minimaltestfunction = onCall(
     };
   }
 );
+*/
 
 export const acceptfollowrequest = onCall(
   {region: "northamerica-northeast2"},
@@ -106,6 +108,18 @@ export const acceptfollowrequest = onCall(
     };
     const newActivityForRequesterRef = db.collection("activity").doc(requestingUserId).collection("userActivity").doc();
     batch.set(newActivityForRequesterRef, acceptedActivityData);
+
+    const activityDocSnap = await activityRef.get();
+    console.log(`Activity doc ${activityId} exists: ${activityDocSnap.exists}`);
+
+    const pendingFollowerDocSnap = await pendingFollowerDocRef.get();
+    console.log(`Pending follower doc for ${requestingUserId} under ${targetUserId} exists: ${pendingFollowerDocSnap.exists}`);
+
+    const targetUserSnap = await targetUserRef.get();
+    console.log(`Target user doc ${targetUserId} exists: ${targetUserSnap.exists}`);
+
+    const requestingUserSnap = await requestingUserRef.get();
+    console.log(`Requesting user doc ${requestingUserId} exists: ${requestingUserSnap.exists}`);
 
     try {
       await batch.commit();

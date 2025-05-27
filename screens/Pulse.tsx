@@ -7,12 +7,13 @@ import {
     TouchableOpacity,
     ScrollView,
 } from 'react-native';
-import { profileIcon, postImage, backArrow } from '@/assets/images';
+import { profileIcon } from '@/assets/images';
 import globalStyles from '@/styles/globalStyles';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/context/AuthContext'; 
-import { db } from '@/firebaseConfig'; 
+import { db } from '@/firebaseConfig';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import { collection, query, where, orderBy, onSnapshot, Timestamp } from 'firebase/firestore'; 
 
 
@@ -55,10 +56,13 @@ export interface ActivityItem {
 export default function Pulse() {
     const router = useRouter();
     const { currentUser } = useAuth();
+    const functions = getFunctions();
 
     const [followRequests, setFollowRequests] = useState<ActivityItem[]>([]);
-    const [otherActivities, setOtherActivities] = useState<ActivityItem[]>([]); // We'll use this later
+    const [otherActivities, setOtherActivities] = useState<ActivityItem[]>([]);    
     const [loading, setLoading] = useState(true);
+    const [loadingActivities, setLoadingActivities] = useState(true);
+    const [loadingRequests, setLoadingRequests] = useState(true);
 
     useEffect(() => {
         if (!currentUser) {
@@ -161,13 +165,13 @@ export default function Pulse() {
                             </View>
                             <TouchableOpacity 
                                 style={activityStyles.acceptButton}
-                                onPress={() => handleAcceptFollowRequest(request.id, request.fromUserId)} // We'll define this next
+                                onPress={() => handleAcceptFollowRequest(request.id, request.fromUserId)}
                             >
                                 <Text style={{color: 'black', fontWeight: 'bold'}}>Accept</Text>
                             </TouchableOpacity>
                             <TouchableOpacity 
                                 style={activityStyles.ignoreButton}
-                                onPress={() => handleIgnoreFollowRequest(request.id, request.fromUserId)} // We'll define this next
+                                onPress={() => handleIgnoreFollowRequest(request.id, request.fromUserId)}
                             >
                                 <Text style={{color: 'white', fontWeight: 'bold'}}>Ignore</Text>
                             </TouchableOpacity>
@@ -178,56 +182,104 @@ export default function Pulse() {
         );
     }
 
+    const handleAcceptFollowRequest = async (activityId: string, requestingUserId: string) => {
+        if (!currentUser) {
+            console.error("No current user found to accept follow request.");
+            return;
+        }
+        console.log(`Attempting to accept follow request: activityId=${activityId}, requestingUserId=${requestingUserId}`);
+        try {
+            const acceptRequestFunction = httpsCallable(functions, 'acceptfollowrequest');
+            const result = await acceptRequestFunction({ activityId, requestingUserId });
+            console.log("Follow request accepted successfully:", result.data);
+            // Optionally, you can optimistically remove the request from the UI
+            // or rely on the onSnapshot listener to update the list.
+            // For simplicity, we'll rely on onSnapshot for now.
+        } catch (error) {
+            console.error("Error accepting follow request:", error);
+            // Handle error (e.g., show a message to the user)
+        }
+    };
+
+    const handleIgnoreFollowRequest = async (activityId: string, requestingUserId: string) => {
+        if (!currentUser) {
+            console.error("No current user found to ignore follow request.");
+            return;
+        }
+        console.log(`Attempting to ignore follow request: activityId=${activityId}, requestingUserId=${requestingUserId}`);
+        try {
+            const ignoreRequestFunction = httpsCallable(functions, 'ignorefollowrequest');
+            const result = await ignoreRequestFunction({ activityId, requestingUserId });
+            console.log("Follow request ignored successfully:", result.data);
+            // Optionally, optimistically remove or rely on onSnapshot.
+        } catch (error) {
+            console.error("Error ignoring follow request:", error);
+            // Handle error
+        }
+    };
 
     function renderOtherActivity() {
-        const activities: Activity[] = [
-            {
-                username: '@username3',
-                action: 'has liked your post.',
-                time: '2m',
-                image: postImage
-            },
-            {
-                username: '@username3',
-                action: 'commented on your post: "Great post!"',
-                time: '2m',
-                image: postImage
-            },
-            {
-                username: '@username4',
-                action: 'has liked your post.',
-                time: '2m',
-                image: postImage
-            },
-            {
-                username: '@username5',
-                action: 'commented on your post: "Good work, keep it up!"',
-                time: '15m',
-                image: postImage
-            },
-            {
-                username: '@username6',
-                action: 'saved your workout.',
-                time: '2h',
-                image: postImage
-            },
-        ];
+        if (loadingActivities && otherActivities.length === 0) {
+            return <Text style={{color: 'white', textAlign: 'center', marginTop: 10}}>Loading activities...</Text>;
+        }
+        // Condition to show "No other recent activity" only if follow requests might be present or have loaded
+        if (!loadingActivities && otherActivities.length === 0 && (followRequests.length > 0 || !loadingRequests)) {
+             return <Text style={{color: 'grey', textAlign: 'center', marginVertical: 20, marginLeft: 15}}>No other recent activity.</Text>;
+        }
+        // If both sections are empty and done loading, renderActivity will handle the overall "No activity yet"
+        if (!loadingActivities && otherActivities.length === 0 && followRequests.length === 0 && !loadingRequests) {
+            return null;
+        }
+
+        let maxUsernameLength = 15;
+        let maxCommentLength = 30;
+        let maxWorkoutTitleLength = 20;
 
         return (
             <View>
                 <Text style={[globalStyles.subtitle, {marginLeft: 15, marginVertical: 20, fontWeight: 'bold', fontSize: 30}]}>Other Activity</Text>
                 <View style={activityStyles.activityView}>
-                    {activities.map((activity, index) => (
-                        <TouchableOpacity key={index} onPress={() => {console.log("activity element pressed")}}>
-                            <View style={[activityStyles.activityElement, index !== activities.length - 1 && {borderBottomWidth: 1, borderBottomColor: 'grey'}]}>
-                                <View style={activityStyles.activityPostImage}>
-                                    <Image source={activity.image} style={activityStyles.activityImageStyle} />
-                                </View>
-                                <View style={{flex:1}}>
-                                    <Text style={activityStyles.activityDescription}>
-                                        <Text style={{fontWeight: 'bold'}}>{activity.username}</Text> {activity.action}<Text style={{color:'grey'}}> {activity.time}</Text>
-                                    </Text>
-                                </View>
+                    {otherActivities.map((activity, index) => (
+                        <TouchableOpacity 
+                            key={activity.id} 
+                            style={[activityStyles.activityElement, index !== otherActivities.length - 1 && {borderBottomWidth: 1, borderBottomColor: 'grey'}]}
+                            onPress={() => {
+                                if (activity.type === 'post_like' || activity.type === 'post_comment') {
+                                    if (activity.postId) router.push(`/view-post/${activity.postId}`);
+                                } else if (activity.type === 'workout_save') {
+                                    if (activity.workoutId) router.push(`/view-workout/${activity.workoutId}`);
+                                } else if (activity.type === 'new_follower' || activity.type === 'follow_accepted') {
+                                    // Navigate to the profile of the user who initiated the action
+                                    if (activity.fromUserId) router.push(`/profile/${activity.fromUserId}`);
+                                }
+                                // Potentially mark as read here: updateActivityAsRead(activity.id);
+                                console.log("Activity element pressed:", activity.type, activity.id);
+                            }}
+                        >
+                            <View style={activityStyles.activityPostImage}>
+                                <Image 
+                                    source={
+                                        // Prefer specific content image, then user image, then fallback
+                                        (activity.type === 'post_like' || activity.type === 'post_comment') && activity.postImageUrl ? { uri: activity.postImageUrl } :
+                                        // activity.type === 'workout_save' && activity.workoutCoverImageUrl ? { uri: activity.workoutCoverImageUrl } : // If you add workoutCoverImageUrl
+                                        activity.fromProfileImageUrl ? { uri: activity.fromProfileImageUrl } : 
+                                        profileIcon // Your fallback profile icon
+                                    } 
+                                    style={activityStyles.activityImageStyle} // Ensure this style handles both square and round images gracefully or use different styles
+                                />
+                            </View>
+                            <View style={{flex:1}}>
+                                <Text style={activityStyles.activityDescription} numberOfLines={3}>
+                                    <Text style={{fontWeight: 'bold'}}>@{displayShortenedString(activity.fromUsername || 'User', maxUsernameLength)}</Text>
+                                    {` `}
+                                    {activity.type === 'post_like' && 'liked your post.'}
+                                    {activity.type === 'post_comment' && `commented: "${displayShortenedString(activity.commentText || '', maxCommentLength)}"`}
+                                    {activity.type === 'workout_save' && `saved your workout: ${displayShortenedString(activity.workoutTitle || 'Workout', maxWorkoutTitleLength)}.`}
+                                    {activity.type === 'new_follower' && 'started following you.'}
+                                    {activity.type === 'follow_accepted' && 'accepted your follow request.'} 
+                                    {/* Add more specific text for other types if needed */}
+                                    <Text style={{color:'grey'}}> · {formatTimeAgo(activity.createdAt)}</Text>
+                                </Text>
                             </View>
                         </TouchableOpacity>
                     ))}
@@ -237,6 +289,13 @@ export default function Pulse() {
     }
 
     function renderActivity() {
+        if (loadingRequests && loadingActivities && followRequests.length === 0 && otherActivities.length === 0) {
+             return <Text style={{color: 'white', textAlign: 'center', marginTop: 50}}>Loading Pulse...</Text>;
+        }
+        // This condition means all loading is done, and both lists are empty.
+        if (!loadingRequests && !loadingActivities && followRequests.length === 0 && otherActivities.length === 0) {
+            return <Text style={{color: 'grey', textAlign: 'center', marginTop: 50, fontSize: 16}}>No activity yet.</Text>;
+        }
         return (
             <ScrollView>
                 {renderFollowRequests()}
