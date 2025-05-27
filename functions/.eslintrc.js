@@ -27,6 +27,7 @@ module.exports = {
     "quotes": ["error", "double"],
     "import/no-unresolved": 0,
     "indent": ["error", 2],
+    "linebreak-style": ["error", process.platform === "win32" ? "windows" : "unix"],
     "object-curly-spacing": ["error", "never"],
     "max-len": ["error", {"code": 130, "ignoreComments": true, "ignoreUrls": true}],
     "no-trailing-spaces": "error",
