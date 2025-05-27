@@ -56,6 +56,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
     error,
     refreshProfileData,
     isFollowingStatus,
+    isRequestPending,
     followUser,
     unfollowUser,
     followActionLoading,
@@ -499,13 +500,21 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
           <TouchableOpacity
             style={[
               styles.followButton,
-              isFollowingStatus ? styles.unfollowButtonActive : styles.followButtonActive,
+              isFollowingStatus 
+                ? styles.unfollowButtonActive 
+                : isRequestPending // Use the new state from useProfileData
+                  ? styles.requestedButtonActive // Add a new style for "Requested"
+                  : styles.followButtonActive,
               followActionLoading && styles.followButtonDisabled
             ]}
             onPress={() => {
               if (followActionLoading) return;
               if (isFollowingStatus) {
-                unfollowUser(displayProfileData.id);
+                unfollowUser(displayProfileData.id); // This will also cancel a request if isFollowingStatus is false but isRequestPending is true
+              } else if (isRequestPending) {
+                // Optionally, allow cancelling the request by pressing "Requested" again
+                // This would call unfollowUser which now handles cancelling pending requests
+                unfollowUser(displayProfileData.id); 
               } else {
                 followUser(displayProfileData.id);
               }
@@ -513,10 +522,14 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
             disabled={followActionLoading}
           >
             {followActionLoading ? (
-              <ActivityIndicator size="small" color="white" />
+              <ActivityIndicator size="small" color="#FFF" />
             ) : (
               <Text style={styles.followButtonText}>
-                {isFollowingStatus ? 'Unfollow' : 'Follow'}
+                {isFollowingStatus 
+                  ? "Unfollow" 
+                  : isRequestPending 
+                    ? "Requested" 
+                    : "Follow"}
               </Text>
             )}
           </TouchableOpacity>

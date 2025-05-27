@@ -37,6 +37,7 @@ export function useProfileData(userId = null) {
   const [followers, setFollowers] = useState<any[]>([]);
   const [following, setFollowing] = useState<any[]>([]);
   const [error, setError] = useState<Error | null>(null);
+  const [isRequestPending, setIsRequestPending] = useState(false);
   const [isFollowingStatus, setIsFollowingStatus] = useState(false);
   const [followActionLoading, setFollowActionLoading] = useState(false);
 
@@ -210,9 +211,19 @@ export function useProfileData(userId = null) {
         try {
           const followDoc = await getDoc(doc(db, "users", profileIdToFetch, "followers", currentUser.uid));
           setIsFollowingStatus(followDoc.exists());
+          if (!followDoc.exists()) { // Only check for pending if not already following
+            const pendingRequestDoc = await getDoc(doc(db, "users", profileIdToFetch, "pendingFollowers", currentUser.uid));
+            setIsRequestPending(pendingRequestDoc.exists());
+          } else {
+            setIsRequestPending(false); // Not pending if already following
+          }
+          console.log(`Follow status for ${profileIdToFetch} by ${currentUser.uid}: ${followDoc.exists()}, Pending: ${isRequestPending}`);
         } catch (followStatusError) {
-          console.error("Error checking follow status:", followStatusError);
+          console.error("Error checking follow/pending status:", followStatusError);
         }
+      } else if (profileIdToFetch === currentUser?.uid) {
+        setIsFollowingStatus(false);
+        setIsRequestPending(false);
       }
 
       try {
@@ -266,42 +277,42 @@ export function useProfileData(userId = null) {
     }
     const currentUserId = currentUser.uid;
     if (currentUserId === targetUserId) {
-      console.error("Cannot follow yourself");
+      console.error("Cannot send follow request to yourself");
       return;
     }
     setFollowActionLoading(true);
 
-    const targetUserFollowersRef = doc(db, "users", targetUserId, "followers", currentUserId);
-    const currentUserFollowingRef = doc(db, "users", currentUserId, "following", targetUserId);
-    const targetUserDocRef = doc(db, "users", targetUserId);
-    const currentUserDocRef = doc(db, "users", currentUserId);
+    // Path for the pending follow request
+    const pendingFollowerRef = doc(db, "users", targetUserId, "pendingFollowers", currentUserId);
 
     try {
-      await runTransaction(db, async (transaction) => {
-        const targetUserSnap = await transaction.get(targetUserDocRef);
-        const currentUserSnap = await transaction.get(currentUserDocRef);
+      // Check if already following or request already pending to prevent duplicate writes
+      const isAlreadyFollowing = isFollowingStatus; // Use existing state
+      const isAlreadyPending = isRequestPending; // Use new state
 
-        if (!targetUserSnap.exists() || !currentUserSnap.exists()) {
-          throw new Error("User document not found for follow operation.");
-        }
+      if (isAlreadyFollowing) {
+        console.log("Already following this user.");
+        setFollowActionLoading(false);
+        return;
+      }
+      if (isAlreadyPending) {
+        console.log("Follow request already pending for this user.");
+        setFollowActionLoading(false);
+        return;
+      }
 
-        transaction.set(targetUserFollowersRef, { followedAt: serverTimestamp() });
-        transaction.set(currentUserFollowingRef, { followingSince: serverTimestamp() });
-        transaction.update(targetUserDocRef, { followerCount: increment(1) });
-        transaction.update(currentUserDocRef, { followingCount: increment(1) });
+      await setDoc(pendingFollowerRef, {
+        requestedAt: serverTimestamp(),
+        // You can add other relevant info here if needed by the target user,
+        // like currentUserId's username, profileImageUrl, though the cloud function
+        // for activity creation already fetches this.
       });
 
-      setIsFollowingStatus(true);
-      // Optimistically update local state for the viewed profile's follower count
-      setProfileData(prev => prev ? { ...prev, followerCount: (prev.followerCount || 0) + 1 } : null);
-      // Add current user to local followers list for immediate UI update
-      setFollowers(prev => [...prev, { id: currentUserId, username: currentUser.displayName || 'You' }]);
-
-
-      console.log("Successfully followed user:", targetUserId);
+      setIsRequestPending(true); // Update UI to show "Requested"
+      console.log("Follow request sent to user:", targetUserId);
     } catch (error) {
-      console.error("Error following user:", error);
-      // Revert optimistic UI update if needed or show error
+      console.error("Error sending follow request:", error);
+      // Potentially revert setIsRequestPending(false) if needed, or show error
     } finally {
       setFollowActionLoading(false);
     }
@@ -323,35 +334,50 @@ export function useProfileData(userId = null) {
     const currentUserFollowingRef = doc(db, "users", currentUserId, "following", targetUserId);
     const targetUserDocRef = doc(db, "users", targetUserId);
     const currentUserDocRef = doc(db, "users", currentUserId);
+    
+    // Also consider deleting a pending request if unfollow is hit while request is pending
+    const pendingFollowerRef = doc(db, "users", targetUserId, "pendingFollowers", currentUserId);
+
 
     try {
-      await runTransaction(db, async (transaction) => {
-        const targetUserSnap = await transaction.get(targetUserDocRef);
-        const currentUserSnap = await transaction.get(currentUserDocRef);
+      // Check if a request is pending and delete it if "Unfollow" (or "Cancel Request") is pressed
+      const pendingRequestSnap = await getDoc(pendingFollowerRef);
+      if (pendingRequestSnap.exists()) {
+        await deleteDoc(pendingFollowerRef);
+        setIsRequestPending(false);
+        console.log("Cancelled follow request to user:", targetUserId);
+      } else {
+        // If not pending, proceed with normal unfollow transaction
+        await runTransaction(db, async (transaction) => {
+          const targetUserSnap = await transaction.get(targetUserDocRef);
+          const currentUserSnap = await transaction.get(currentUserDocRef);
 
-        if (!targetUserSnap.exists() || !currentUserSnap.exists()) {
-          throw new Error("User document not found for unfollow operation.");
-        }
-        
-        // Ensure followerCount and followingCount do not go below 0
-        const currentFollowerCount = targetUserSnap.data()?.followerCount || 0;
-        const currentFollowingCount = currentUserSnap.data()?.followingCount || 0;
+          if (!targetUserSnap.exists() || !currentUserSnap.exists()) {
+            // If user docs don't exist, but follow relationship docs might, still try to delete them.
+            // This case should ideally not happen if data is consistent.
+            console.warn("User document not found for unfollow operation, but attempting to clean up follow docs.");
+          }
+          
+          // Ensure followerCount and followingCount do not go below 0
+          const currentFollowerCount = targetUserSnap.data()?.followerCount || 0;
+          const currentFollowingCount = currentUserSnap.data()?.followingCount || 0;
 
-        transaction.delete(targetUserFollowersRef);
-        transaction.delete(currentUserFollowingRef);
-        transaction.update(targetUserDocRef, { followerCount: increment(currentFollowerCount > 0 ? -1 : 0) });
-        transaction.update(currentUserDocRef, { followingCount: increment(currentFollowingCount > 0 ? -1 : 0) });
-      });
-
-      setIsFollowingStatus(false);
-      // Optimistically update local state for the viewed profile's follower count
-      setProfileData(prev => prev ? { ...prev, followerCount: Math.max(0, (prev.followerCount || 0) - 1) } : null);
-      // Remove current user from local followers list
-      setFollowers(prev => prev.filter(follower => follower.id !== currentUserId));
-
-      console.log("Successfully unfollowed user:", targetUserId);
+          transaction.delete(targetUserFollowersRef);
+          transaction.delete(currentUserFollowingRef);
+          if (targetUserSnap.exists()) {
+            transaction.update(targetUserDocRef, { followerCount: increment(currentFollowerCount > 0 ? -1 : 0) });
+          }
+          if (currentUserSnap.exists()) {
+            transaction.update(currentUserDocRef, { followingCount: increment(currentFollowingCount > 0 ? -1 : 0) });
+          }
+        });
+        setIsFollowingStatus(false);
+        setProfileData(prev => prev ? { ...prev, followerCount: Math.max(0, (prev.followerCount || 0) - 1) } : null);
+        setFollowers(prev => prev.filter(follower => follower.id !== currentUserId));
+        console.log("Successfully unfollowed user:", targetUserId);
+      }
     } catch (error) {
-      console.error("Error unfollowing user:", error);
+      console.error("Error in unfollow/cancel request operation:", error);
     } finally {
       setFollowActionLoading(false);
     }
@@ -384,6 +410,7 @@ export function useProfileData(userId = null) {
     error,
     refreshProfileData,
     isFollowingStatus,
+    isRequestPending,
     followUser, 
     unfollowUser,
     followActionLoading,
