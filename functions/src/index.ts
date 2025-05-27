@@ -248,3 +248,156 @@ export const ignorefollowrequest = onCall(
     }
   }
 );
+
+export const createactivityonpostlike = onDocumentCreated(
+  {
+    document: "posts/{postId}/reactions/{userId}",
+    region: "northamerica-northeast2",
+  },
+  async (event) => {
+    const snapshot = event.data;
+    if (!snapshot) return;
+
+    const {postId, userId: reactingUserId} = event.params;
+    const reactionData = snapshot.data();
+
+    // Assuming reactionType 'like' is what we care about for this activity
+    if (reactionData.type !== "like") {
+      console.log(`Reaction type ${reactionData.type} on post ${postId}, not creating 'like' activity.`);
+      return;
+    }
+
+    try {
+      const postDoc = await db.collection("posts").doc(postId).get();
+      if (!postDoc.exists) {
+        console.error(`Post ${postId} not found.`);
+        return;
+      }
+      const postData = postDoc.data();
+      const postAuthorId = postData?.authorId;
+
+      if (postAuthorId === reactingUserId) {
+        console.log("User liked their own post, no activity created.");
+        return;
+      }
+
+      const reactingUserDoc = await db.collection("users").doc(reactingUserId).get();
+      const reactingUserData = reactingUserDoc.data();
+
+      const activityData = {
+        type: "post_like",
+        fromUserId: reactingUserId,
+        fromUsername: reactingUserData?.username || "Someone",
+        fromProfileImageUrl: reactingUserData?.profileImageUrl || "",
+        postId: postId,
+        postImageUrl: postData?.imageUrl || postData?.thumbnailUrl || "",
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        isRead: false,
+      };
+
+      await db.collection("activity").doc(postAuthorId).collection("userActivity").add(activityData);
+      console.log(`'post_like' activity created for ${postAuthorId} from ${reactingUserId} for post ${postId}`);
+    } catch (error) {
+      console.error("Error creating 'post_like' activity:", error);
+    }
+  }
+);
+/*
+// Activity on Post Comment
+export const createactivityonpostcomment = onDocumentCreated(
+  "posts/{postId}/comments/{commentId}",
+  async (event) => {
+    const snapshot = event.data;
+    if (!snapshot) return;
+
+    const {postId, commentId} = event.params;
+    const commentData = snapshot.data();
+    const commentAuthorId = commentData.userId;
+
+    try {
+      const postDoc = await db.collection("posts").doc(postId).get();
+      if (!postDoc.exists) {
+        console.error(`Post ${postId} not found.`);
+        return;
+      }
+      const postData = postDoc.data();
+      const postAuthorId = postData?.authorId;
+
+      if (postAuthorId === commentAuthorId) {
+        console.log("User commented on their own post, no activity created.");
+        return;
+      }
+
+      const commentAuthorDoc = await db.collection("users").doc(commentAuthorId).get();
+      const commentAuthorData = commentAuthorDoc.data();
+
+      const activityData = {
+        type: "post_comment",
+        fromUserId: commentAuthorId,
+        fromUsername: commentAuthorData?.username || "Someone",
+        fromProfileImageUrl: commentAuthorData?.profileImageUrl || "",
+        postId: postId,
+        postImageUrl: postData?.imageUrl || postData?.thumbnailUrl || "",
+        commentId: commentId,
+        commentText: commentData.text || "",
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        isRead: false,
+      };
+
+      await db.collection("activity").doc(postAuthorId).collection("userActivity").add(activityData);
+      console.log(`'post_comment' activity created for ${postAuthorId} from ${commentAuthorId} for post ${postId}`);
+    } catch (error) {
+      console.error("Error creating 'post_comment' activity:", error);
+    }
+  }
+);
+
+// Activity on Workout Save
+export const createactivityonworkoutsave = onDocumentCreated(
+  "users/{saverUserId}/savedWorkouts/{workoutId}",
+  async (event) => {
+    const snapshot = event.data;
+    if (!snapshot) return;
+
+    const {saverUserId, workoutId} = event.params;
+    // const savedWorkoutData = snapshot.data();
+
+    try {
+      // Fetch the workout to get its creatorId and title
+      const workoutDoc = await db.collection("workouts").doc(workoutId).get();
+      if (!workoutDoc.exists) {
+        console.error(`Workout ${workoutId} not found.`);
+        return;
+      }
+      const workoutData = workoutDoc.data();
+      const workoutCreatorId = workoutData?.creatorId;
+      const workoutTitle = workoutData?.title || "a workout";
+
+      if (workoutCreatorId === saverUserId) {
+        console.log("User saved their own workout, no activity created.");
+        return; // Don't notify for self-saves
+      }
+
+      const saverUserDoc = await db.collection("users").doc(saverUserId).get();
+      const saverUserData = saverUserDoc.data();
+
+      const activityData = {
+        type: "workout_save",
+        fromUserId: saverUserId,
+        fromUsername: saverUserData?.username || "Someone",
+        fromProfileImageUrl: saverUserData?.profileImageUrl || "",
+        workoutId: workoutId,
+        workoutTitle: workoutTitle,
+        // workoutCoverImageUrl: workoutData?.coverImageUrl || "", // Optional
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        isRead: false,
+      };
+
+      await db.collection("activity").doc(workoutCreatorId).collection("userActivity").add(activityData);
+      console.log(`'workout_save' activity created for ${workoutCreatorId} from ${saverUserId} for workout ${workoutId}`);
+    } catch (error) {
+      console.error("Error creating 'workout_save' activity:", error);
+    }
+  }
+);
+*/
