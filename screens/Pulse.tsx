@@ -279,7 +279,7 @@ export default function Pulse() {
                                 } else if (activity.type === 'workout_save') {
                                     if (activity.workoutId) router.push({ pathname: "/view-workout/[id]", params: { id: activity.workoutId } });
                                 } else if (activity.type === 'new_follower' || activity.type === 'follow_accepted') {
-                                    if (activity.fromUserId) router.push({ pathname: "/profile/[id]", params: { id: activity.fromUserId } });
+                                    if (activity.fromUserId) router.push({ pathname: "/profile/[userId]", params: { userId: activity.fromUserId } });
                                 }
                                 // Potentially mark as read here: updateActivityAsRead(activity.id);
                                 console.log("Activity element pressed:", activity.type, activity.id);
@@ -333,7 +333,7 @@ export default function Pulse() {
             return <Text style={{color: 'grey', textAlign: 'center', marginTop: 50, fontSize: 16}}>No activity yet.</Text>;
         }
         return (
-            <ScrollView>
+            <ScrollView contentContainerStyle={activityStyles.scrollViewContentContainer}>
                 {renderFollowRequests()}
                 {renderOtherActivity()}
             </ScrollView>
@@ -420,5 +420,8 @@ const activityStyles = StyleSheet.create({
         borderColor: 'grey',
         height: 30,
         marginLeft: 5
+    },
+    scrollViewContentContainer: {
+        paddingBottom: 70,
     },
 });
