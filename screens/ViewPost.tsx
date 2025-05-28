@@ -292,6 +292,17 @@ useEffect(() => {
     }
   };
   
+  const navigateToLikers = () => {
+    if (!post || !post.id) {
+      console.warn("Cannot navigate to likers: post or post.id is missing.");
+      return;
+    }
+    router.push({
+      pathname: "/post-likers/[id]",
+      params: { id: post.id },
+    });
+  };
+
   const navigateToWorkout = (workoutId: string) => {
     router.push(`/view-workout/${workoutId}`);
   };
@@ -390,7 +401,9 @@ useEffect(() => {
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.likes}>{post.reactionCount || 0} likes</Text>
+        <TouchableOpacity onPress={navigateToLikers}>
+          <Text style={styles.likes}>{post.reactionCount || 0} likes</Text>
+        </TouchableOpacity>
 
         <View style={styles.captionContainer}>
           <Text style={styles.caption}>{post.caption}</Text>
@@ -673,6 +686,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     marginBottom: 5,
     color: '#FFF',
+    paddingVertical: 5,
   },
   captionContainer: {
     flexDirection: 'row',

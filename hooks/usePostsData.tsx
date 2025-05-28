@@ -96,19 +96,17 @@ export function usePostsData() {
       
       const postsData: Post[] = [];
       
-      for (const doc of querySnapshot.docs) {
-        const post = { id: doc.id, ...doc.data() } as Post;
+      for (const docSnapshot of querySnapshot.docs) {
+        const post = { id: docSnapshot.id, ...docSnapshot.data() } as Post;
         
-        // Check if current user has liked this post
         if (currentUser) {
           try {
-            const reactionRef = collection(db, "posts", doc.id, "reactions");
-            const reactionQuery = query(reactionRef, where("__name__", "==", currentUser.uid));
-            const reactionSnapshot = await getDocs(reactionQuery);
-
-            post.isLiked = !reactionSnapshot.empty;
+            // Check if current user has liked this post by checking the 'likers' subcollection
+            const likeRef = doc(db, "posts", docSnapshot.id, "likers", currentUser.uid);
+            const likeDoc = await getDoc(likeRef);
+            post.isLiked = likeDoc.exists();
           } catch (err) {
-            console.log("Error checking reaction status:", err);
+            console.log("Error checking like status in fetchPosts:", err);
             post.isLiked = false;
           }
         }
@@ -119,7 +117,7 @@ export function usePostsData() {
       setPosts(postsData);
     } catch (err) {
       console.error("Error fetching posts:", err);
-      setError(err);
+      setError(err as Error);
     } finally {
       setLoading(false);
     }
@@ -163,15 +161,14 @@ export function usePostsData() {
       console.log("Post found:", postDoc.data());
       const post = { id: postDoc.id, ...postDoc.data() } as Post;
 
-      // Check if user has liked this post
       if (currentUser) {
         try {
-          // Use postId here instead of doc.id
-          const reactionRef = doc(db, "posts", postId, "reactions", currentUser.uid);
-          const reactionDoc = await getDoc(reactionRef);
-          post.isLiked = reactionDoc.exists();
+          // Check if current user has liked this post by checking the 'likers' subcollection
+          const likeRef = doc(db, "posts", postId, "likers", currentUser.uid);
+          const likeSnap = await getDoc(likeRef);
+          post.isLiked = likeSnap.exists();
         } catch (err) {
-          console.log("Error checking reaction status:", err);
+          console.log("Error checking like status in getPostById:", err);
           post.isLiked = false;
         }
       }
@@ -294,10 +291,10 @@ export function usePostsData() {
 
   // Add like to a post
   const likePost = async (postId: string) => {
-    if (!currentUser) throw new Error("User not authenticated");
+    if (!currentUser || !userProfile) throw new Error("User not authenticated");
     const postRef = doc(db, "posts", postId);
-    const likeRef = doc(db, "posts", postId, "likes", currentUser.uid);
-    const activityCollectionRef = collection(db, "activity"); // General activity collection
+    // Use 'likers' subcollection, document ID is the userId
+    const likerRef = doc(db, "posts", postId, "likers", currentUser.uid); 
 
     try {
       const postDoc = await getDoc(postRef);
@@ -305,33 +302,38 @@ export function usePostsData() {
       const postData = postDoc.data() as Post;
 
       await runTransaction(db, async (transaction) => {
-        transaction.set(likeRef, {
-          userId: currentUser.uid,
-          username: userProfile?.username || currentUser.email, // Fallback to email if no username
-          createdAt: serverTimestamp(),
+        // Add a document to the 'likers' subcollection
+        transaction.set(likerRef, {
+          userId: currentUser.uid, // Redundant as it's the doc ID, but can be useful
+          username: userProfile.username,
+          profileImageUrl: userProfile.profileImageUrl || null,
+          likedAt: serverTimestamp(), // Crucial for ordering in PostLikersScreen
         });
+
+        // Increment reactionCount and add to likedBy array on the main post document
         transaction.update(postRef, {
           reactionCount: increment(1),
-          likedBy: arrayUnion(currentUser.uid)
+          // likedBy: arrayUnion(currentUser.uid) // Keep if you use this for quick checks elsewhere
         });
 
         // Create activity item for the post author (if not self-like)
         if (postData.authorId !== currentUser.uid) {
           const authorActivityColRef = collection(db, 'activity', postData.authorId, 'userActivity');
-          const newActivityRef = doc(authorActivityColRef); // Auto-generate ID
+          const newActivityRef = doc(authorActivityColRef); 
           transaction.set(newActivityRef, {
             type: 'post_like',
             actorId: currentUser.uid,
-            actorUsername: userProfile?.username || currentUser.displayName || "Someone",
-            actorProfileImageUrl: userProfile?.profileImageUrl || currentUser.photoURL,
+            actorUsername: userProfile.username,
+            actorProfileImageUrl: userProfile.profileImageUrl || undefined,
             postId: postId,
-            postImageUrl: postData.imageUrl?.startsWith("http") ? postData.imageUrl : undefined, // Only if it's a valid URL
+            postImageUrl: postData.imageUrl?.startsWith("http") ? postData.imageUrl : undefined,
             postCaption: postData.caption ? postData.caption.substring(0, 50) + (postData.caption.length > 50 ? "..." : "") : undefined,
             createdAt: serverTimestamp(),
-            status: 'unread', // Or just rely on timestamp for sorting
+            status: 'unread', 
           } as Omit<ActivityItem, 'id'>);
         }
       });
+      console.log(`User ${currentUser.uid} liked post ${postId}`);
     } catch (error) {
       console.error("Error liking post: ", error);
       throw error;
@@ -342,7 +344,8 @@ export function usePostsData() {
   const unlikePost = async (postId: string) => {
     if (!currentUser) throw new Error("User not authenticated");
     const postRef = doc(db, "posts", postId);
-    const likeRef = doc(db, "posts", postId, "likes", currentUser.uid);
+    // Use 'likers' subcollection
+    const likerRef = doc(db, "posts", postId, "likers", currentUser.uid);
 
     try {
       const postDoc = await getDoc(postRef);
@@ -350,37 +353,21 @@ export function usePostsData() {
       const postData = postDoc.data() as Post;
 
       await runTransaction(db, async (transaction) => {
-        transaction.delete(likeRef);
+        // Delete the document from the 'likers' subcollection
+        transaction.delete(likerRef);
+
+        // Decrement reactionCount and remove from likedBy array on the main post document
         transaction.update(postRef, {
           reactionCount: increment(-1),
-          likedBy: arrayRemove(currentUser.uid)
+          // likedBy: arrayRemove(currentUser.uid) // Keep if you use this
         });
 
-        // Delete the corresponding activity item
-        if (postData.authorId !== currentUser.uid) {
-          const authorActivityColRef = collection(db, 'activity', postData.authorId, 'userActivity');
-          const q = query(
-            authorActivityColRef,
-            where('type', '==', 'post_like'),
-            where('postId', '==', postId),
-            where('actorId', '==', currentUser.uid),
-            limit(1)
-          );
-          const activitySnapshot = await getDocs(q); // Execute query outside transaction read phase if needed, but for deletion it's tricky
-                                                    // For simplicity, this query might be slow inside a transaction.
-                                                    // A better approach for deletion might be to store the activity ID when created.
-                                                    // For now, let's assume this query is acceptable or we fetch activity docs separately.
-
-          // To safely delete within a transaction, you'd typically read the docs to delete *before* the transaction
-          // or ensure the query is very specific and efficient.
-          // For this example, we'll proceed, but be mindful of transaction read/write limits.
-          // A more robust way: query outside, then pass doc refs to transaction.delete.
-        }
+        // Note: Deleting the specific activity item requires querying for it first.
+        // This can be complex within a transaction due to read-after-write limitations
+        // or query constraints. For simplicity, we'll do this in a separate batch after the transaction.
       });
 
-      // Perform deletion of activity item outside the main transaction if query inside is an issue
-      // This part is tricky because you need to ensure atomicity or handle potential inconsistencies.
-      // A simpler, though not perfectly atomic, way for now:
+      // Delete the corresponding activity item for the post author
       if (postData.authorId !== currentUser.uid) {
         const authorActivityColRef = collection(db, 'activity', postData.authorId, 'userActivity');
         const q = query(
@@ -388,16 +375,20 @@ export function usePostsData() {
           where('type', '==', 'post_like'),
           where('postId', '==', postId),
           where('actorId', '==', currentUser.uid),
-          limit(1)
+          limit(1) // Assuming only one such activity item per like
         );
+        
         const activitySnapshot = await getDocs(q);
-        const batch = writeBatch(db);
-        activitySnapshot.forEach(activityDoc => {
-          batch.delete(activityDoc.ref);
-        });
-        await batch.commit();
+        if (!activitySnapshot.empty) {
+          const batch = writeBatch(db);
+          activitySnapshot.forEach(activityDoc => {
+            batch.delete(activityDoc.ref);
+          });
+          await batch.commit();
+          console.log(`Deleted like activity for post ${postId} by user ${currentUser.uid}`);
+        }
       }
-
+      console.log(`User ${currentUser.uid} unliked post ${postId}`);
     } catch (error) {
       console.error("Error unliking post: ", error);
       throw error;
@@ -464,7 +455,12 @@ export function usePostsData() {
   };
 
   useEffect(() => {
-    fetchPosts();
+    if (currentUser?.uid) {
+        fetchPosts();
+    } else {
+        setPosts([]);
+        setLoading(false);
+    }
   }, [currentUser?.uid]);
 
   return {
