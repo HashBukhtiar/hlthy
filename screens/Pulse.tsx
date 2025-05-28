@@ -251,11 +251,9 @@ export default function Pulse() {
         if (loadingActivities && otherActivities.length === 0) {
             return <Text style={{color: 'white', textAlign: 'center', marginTop: 10}}>Loading activities...</Text>;
         }
-        // Condition to show "No other recent activity" only if follow requests might be present or have loaded
         if (!loadingActivities && otherActivities.length === 0 && (followRequests.length > 0 || !loadingRequests)) {
              return <Text style={{color: 'grey', textAlign: 'center', marginVertical: 20, marginLeft: 15}}>No other recent activity.</Text>;
         }
-        // If both sections are empty and done loading, renderActivity will handle the overall "No activity yet"
         if (!loadingActivities && otherActivities.length === 0 && followRequests.length === 0 && !loadingRequests) {
             return null;
         }
@@ -273,13 +271,15 @@ export default function Pulse() {
                             key={activity.id} 
                             style={[activityStyles.activityElement, index !== otherActivities.length - 1 && {borderBottomWidth: 1, borderBottomColor: 'grey'}]}
                             onPress={() => {
+                                // Navigation logic remains the same:
+                                // For likes/comments, navigate to the post.
+                                // For follows, navigate to the user profile.
                                 if (activity.type === 'post_like' || activity.type === 'post_comment') {
-                                    if (activity.postId) router.push(`/view-post/${activity.postId}`);
+                                    if (activity.postId) router.push({ pathname: "/view-post/[id]", params: { id: activity.postId } });
                                 } else if (activity.type === 'workout_save') {
-                                    if (activity.workoutId) router.push(`/view-workout/${activity.workoutId}`);
+                                    if (activity.workoutId) router.push({ pathname: "/view-workout/[id]", params: { id: activity.workoutId } });
                                 } else if (activity.type === 'new_follower' || activity.type === 'follow_accepted') {
-                                    // Navigate to the profile of the user who initiated the action
-                                    if (activity.fromUserId) router.push(`/profile/${activity.fromUserId}`);
+                                    if (activity.fromUserId) router.push({ pathname: "/profile/[id]", params: { id: activity.fromUserId } });
                                 }
                                 // Potentially mark as read here: updateActivityAsRead(activity.id);
                                 console.log("Activity element pressed:", activity.type, activity.id);
@@ -288,17 +288,25 @@ export default function Pulse() {
                             <View style={activityStyles.activityPostImage}>
                                 <Image 
                                     source={
-                                        // Prefer specific content image, then user image, then fallback
-                                        (activity.type === 'post_like' || activity.type === 'post_comment') && activity.postImageUrl ? { uri: activity.postImageUrl } :
-                                        // activity.type === 'workout_save' && activity.workoutCoverImageUrl ? { uri: activity.workoutCoverImageUrl } : // If you add workoutCoverImageUrl
-                                        activity.fromProfileImageUrl ? { uri: activity.fromProfileImageUrl } : 
-                                        profileIcon // Your fallback profile icon
+                                        // For post_like and post_comment, prioritize the ACTOR'S profile image.
+                                        // Fallback to post image only if actor image is missing, or remove fallback if not desired.
+                                        (activity.type === 'post_like' || activity.type === 'post_comment') 
+                                            ? (activity.fromProfileImageUrl ? { uri: activity.fromProfileImageUrl } : profileIcon) // Actor's image first
+                                            // : (activity.type === 'post_like' || activity.type === 'post_comment') && activity.postImageUrl ? { uri: activity.postImageUrl } // Original fallback to post image
+                                        : activity.fromProfileImageUrl ? { uri: activity.fromProfileImageUrl } // For other types like 'new_follower', 'follow_accepted'
+                                        : profileIcon // Your global fallback profile icon
                                     } 
-                                    style={activityStyles.activityImageStyle} // Ensure this style handles both square and round images gracefully or use different styles
+                                    style={
+                                        // Use a round style for user profile pictures, potentially a square one for post images if you differentiate
+                                        (activity.type === 'post_like' || activity.type === 'post_comment' || activity.type === 'new_follower' || activity.type === 'follow_accepted')
+                                            ? activityStyles.activityUserImageStyle // Assuming this is round
+                                            : activityStyles.activityContentImageStyle // Assuming this could be square for post/workout images
+                                    }
                                 />
                             </View>
                             <View style={{flex:1}}>
                                 <Text style={activityStyles.activityDescription} numberOfLines={3}>
+                                    {/* Username display is already correct, using fromUsername */}
                                     <Text style={{fontWeight: 'bold'}}>@{displayShortenedString(activity.fromUsername || 'User', maxUsernameLength)}</Text>
                                     {` `}
                                     {activity.type === 'post_like' && 'liked your post.'}
@@ -306,7 +314,6 @@ export default function Pulse() {
                                     {activity.type === 'workout_save' && `saved your workout: ${displayShortenedString(activity.workoutTitle || 'Workout', maxWorkoutTitleLength)}.`}
                                     {activity.type === 'new_follower' && 'started following you.'}
                                     {activity.type === 'follow_accepted' && 'accepted your follow request.'} 
-                                    {/* Add more specific text for other types if needed */}
                                     <Text style={{color:'grey'}}> · {formatTimeAgo(activity.createdAt)}</Text>
                                 </Text>
                             </View>
@@ -374,9 +381,17 @@ const activityStyles = StyleSheet.create({
     activityImageStyle: {
         width: 50, 
         height: 50, 
+        borderRadius: 25,        
+    },
+    activityUserImageStyle: {
+        width: 50,
+        height: 50,
         borderRadius: 25,
-        borderWidth: 2,
-        borderColor: 'white',
+    },
+    activityContentImageStyle: {
+        width: 50,
+        height: 50,
+        borderRadius: 8,
     },
     activityDescription: {
         color: 'white',

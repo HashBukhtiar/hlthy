@@ -67,19 +67,17 @@ export interface Comment {
 export interface ActivityItem {
   id: string;
   type: 'follow_request' | 'follow_accepted' | 'new_follower' | 'post_like' | 'post_comment' | 'workout_save' | 'milestone_achieved';
-  actorId: string;
-  actorUsername: string;
-  actorProfileImageUrl?: string;
+  fromUserId: string;
+  fromUsername: string;
+  fromProfileImageUrl?: string;
   postId?: string;
   postImageUrl?: string;
   postCaption?: string;
   commentId?: string;
-  commentText?: string; 
-  targetUserId?: string;
+  commentText?: string;
   status?: 'pending' | 'accepted' | 'ignored' | 'read' | 'unread'; 
   createdAt: Timestamp; 
 }
-
 export function usePostsData() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
@@ -293,7 +291,6 @@ export function usePostsData() {
   const likePost = async (postId: string) => {
     if (!currentUser || !userProfile) throw new Error("User not authenticated");
     const postRef = doc(db, "posts", postId);
-    // Use 'likers' subcollection, document ID is the userId
     const likerRef = doc(db, "posts", postId, "likers", currentUser.uid); 
 
     try {
@@ -302,29 +299,25 @@ export function usePostsData() {
       const postData = postDoc.data() as Post;
 
       await runTransaction(db, async (transaction) => {
-        // Add a document to the 'likers' subcollection
         transaction.set(likerRef, {
-          userId: currentUser.uid, // Redundant as it's the doc ID, but can be useful
+          userId: currentUser.uid,
           username: userProfile.username,
           profileImageUrl: userProfile.profileImageUrl || null,
-          likedAt: serverTimestamp(), // Crucial for ordering in PostLikersScreen
+          likedAt: serverTimestamp(),
         });
 
-        // Increment reactionCount and add to likedBy array on the main post document
         transaction.update(postRef, {
           reactionCount: increment(1),
-          // likedBy: arrayUnion(currentUser.uid) // Keep if you use this for quick checks elsewhere
         });
 
-        // Create activity item for the post author (if not self-like)
         if (postData.authorId !== currentUser.uid) {
           const authorActivityColRef = collection(db, 'activity', postData.authorId, 'userActivity');
           const newActivityRef = doc(authorActivityColRef); 
           transaction.set(newActivityRef, {
             type: 'post_like',
-            actorId: currentUser.uid,
-            actorUsername: userProfile.username,
-            actorProfileImageUrl: userProfile.profileImageUrl || undefined,
+            fromUserId: currentUser.uid,
+            fromUsername: userProfile.username,
+            fromProfileImageUrl: userProfile.profileImageUrl || undefined,
             postId: postId,
             postImageUrl: postData.imageUrl?.startsWith("http") ? postData.imageUrl : undefined,
             postCaption: postData.caption ? postData.caption.substring(0, 50) + (postData.caption.length > 50 ? "..." : "") : undefined,
@@ -397,7 +390,7 @@ export function usePostsData() {
 
   // Add comment to a post
   const addComment = async (postId: string, text: string): Promise<Comment> => {
-    if (!currentUser) throw new Error("User not authenticated");
+    if (!currentUser || !userProfile) throw new Error("User not authenticated");
     if (!text.trim()) throw new Error("Comment text cannot be empty");
 
     const postRef = doc(db, "posts", postId);
@@ -408,16 +401,16 @@ export function usePostsData() {
       if (!postDoc.exists()) throw new Error("Post not found");
       const postData = postDoc.data() as Post;
 
-      const newCommentRef = doc(commentsCollectionRef); // Auto-generate ID for the new comment
+      const newCommentRef = doc(commentsCollectionRef);
 
-      const newCommentData: Omit<Comment, 'id'> = {
+      const newCommentData: Omit<Comment, 'id' | 'likedBy'> = {
         text: text.trim(),
         authorId: currentUser.uid,
         authorUsername: userProfile?.username || currentUser.displayName || "Anonymous",
         authorProfileImageUrl: userProfile?.profileImageUrl || currentUser.photoURL,
-        createdAt: serverTimestamp() as Timestamp, // Cast for type consistency
+        createdAt: serverTimestamp() as Timestamp,
         likes: 0,
-        likedBy: [],
+        // likedBy: [], // Initialize if needed, or handle separately
       };
 
       await runTransaction(db, async (transaction) => {
@@ -426,15 +419,14 @@ export function usePostsData() {
           commentCount: increment(1)
         });
 
-        // Create activity item for the post author (if not self-comment)
         if (postData.authorId !== currentUser.uid) {
           const authorActivityColRef = collection(db, 'activity', postData.authorId, 'userActivity');
-          const newActivityRef = doc(authorActivityColRef); // Auto-generate ID
+          const newActivityRef = doc(authorActivityColRef);
           transaction.set(newActivityRef, {
             type: 'post_comment',
-            actorId: currentUser.uid,
-            actorUsername: userProfile?.username || currentUser.displayName || "Someone",
-            actorProfileImageUrl: userProfile?.profileImageUrl || currentUser.photoURL,
+            fromUserId: currentUser.uid,
+            fromUsername: userProfile?.username || currentUser.displayName || "Someone",
+            fromProfileImageUrl: userProfile?.profileImageUrl || currentUser.photoURL,
             postId: postId,
             postImageUrl: postData.imageUrl?.startsWith("http") ? postData.imageUrl : undefined,
             postCaption: postData.caption ? postData.caption.substring(0, 50) + (postData.caption.length > 50 ? "..." : "") : undefined,
@@ -446,7 +438,14 @@ export function usePostsData() {
         }
       });
       
-      return { id: newCommentRef.id, ...newCommentData, createdAt: Timestamp.now() }; // Return with a client-side timestamp for immediate UI update
+      // For immediate UI update, create a client-side timestamp
+      const clientTimestamp = Timestamp.now();
+      return { 
+        id: newCommentRef.id, 
+        ...newCommentData, 
+        createdAt: clientTimestamp, 
+        // likedBy: [] // Ensure all fields of Comment are returned
+      } as Comment;
 
     } catch (error) {
       console.error("Error adding comment: ", error);
