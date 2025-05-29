@@ -100,25 +100,21 @@ export default function Pulse() {
         const activityRef = collection(db, 'activity', currentUser.uid, 'userActivity');
 
         // Query for activities that are NOT pending follow requests.
-        // You might want to be more specific based on your activity types.
-        // Example: where('type', 'in', ['new_follower', 'post_like', 'follow_accepted', ...])
-        // Or, if 'status' is reliably set for other types:
         const otherActivitiesQuery = query(
             activityRef,
-            where('status', '!=', 'pending'), // Excludes pending follow_requests
-            // Or, if you want to explicitly exclude 'follow_request' type that might not have 'pending' status for some reason:
-            // where('type', '!=', 'follow_request'),
+            where('status', '!=', 'pending'),
             orderBy('createdAt', 'desc')
         );
 
         const unsubscribeOtherActivities = onSnapshot(otherActivitiesQuery, (querySnapshot) => {
             const fetchedOtherActivities: ActivityItem[] = [];
             querySnapshot.forEach((doc) => {
-                // Additional client-side filter if the query isn't perfectly exclusive
-                if (doc.data().type === 'follow_request' && doc.data().status === 'pending') {
-                    return; 
+                const activityData = doc.data();
+                if (activityData.type === 'follow_request') {
+                    return;
                 }
-                fetchedOtherActivities.push({ id: doc.id, ...doc.data() } as ActivityItem);
+
+                fetchedOtherActivities.push({ id: doc.id, ...activityData } as ActivityItem);
             });
             setOtherActivities(fetchedOtherActivities);
             setLoadingActivities(false);
@@ -150,13 +146,14 @@ export default function Pulse() {
     };
 
     function renderFollowRequests() {
-        if (loading && followRequests.length === 0) {
-            // return <ActivityIndicator size="small" color="#FFF" style={{ marginTop: 20 }} />; // Or some placeholder
-            return <Text style={{color: 'white', textAlign: 'center', marginTop: 10}}>Loading requests...</Text>;
+        if (loadingRequests) { 
+            if (followRequests.length === 0) {
+                return <Text style={{color: 'white', textAlign: 'center', marginTop: 10}}>Loading requests...</Text>;
+            }
         }
 
-        if (!loading && followRequests.length === 0) {
-            return <Text style={{color: 'grey', textAlign: 'center', marginVertical: 20, marginLeft: 15}}>No new follow requests.</Text>;
+        if (followRequests.length === 0) {
+            return null; 
         }
         
         let maxUsernameLength = 12;
@@ -166,7 +163,6 @@ export default function Pulse() {
                 <Text style={[globalStyles.subtitle, {marginLeft: 15, marginVertical: 20, fontWeight: 'bold', fontSize: 30}]}>Follow Requests</Text>
                 <View style={activityStyles.activityView}>
                     {followRequests.map((request, index) => (
-                        // The outer TouchableOpacity might not be needed if actions are only on buttons
                         <View key={request.id} style={[activityStyles.activityElement, index !== followRequests.length - 1 && {borderBottomWidth: 1, borderBottomColor: 'grey'}]}>
                             <View style={activityStyles.activityPostImage}>
                                 <Image 
@@ -283,7 +279,7 @@ export default function Pulse() {
 
         return (
             <View>
-                <Text style={[globalStyles.subtitle, {marginLeft: 15, marginVertical: 20, fontWeight: 'bold', fontSize: 30}]}>Other Activity</Text>
+                <Text style={[globalStyles.subtitle, {marginLeft: 15, marginVertical: 20, fontWeight: 'bold', fontSize: 30}]}>Activity</Text>
                 <View style={activityStyles.activityView}>
                     {otherActivities.map((activity, index) => (
                         <TouchableOpacity 
