@@ -13,7 +13,7 @@ import globalStyles from '@/styles/globalStyles';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/context/AuthContext'; 
-import { db } from '@/firebaseConfig';
+import { db, app } from '@/firebaseConfig';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { collection, query, where, orderBy, onSnapshot, Timestamp } from 'firebase/firestore'; 
 
@@ -43,7 +43,7 @@ export interface ActivityItem {
 export default function Pulse() {
     const router = useRouter();
     const { currentUser } = useAuth();
-    const functions = getFunctions();
+    const functions = getFunctions(app, 'northamerica-northeast2');
 
     const [followRequests, setFollowRequests] = useState<ActivityItem[]>([]);
     const [otherActivities, setOtherActivities] = useState<ActivityItem[]>([]);    
@@ -51,6 +51,7 @@ export default function Pulse() {
     const [loadingActivities, setLoadingActivities] = useState(true);
     const [loadingRequests, setLoadingRequests] = useState(true);
     const [processingRequestId, setProcessingRequestId] = useState<string | null>(null);
+    const acceptRequestFunction = httpsCallable(functions, 'acceptfollowrequest');
 
     // useEffect for Follow Requests
     useEffect(() => {
@@ -211,19 +212,33 @@ export default function Pulse() {
 
     const handleAcceptFollowRequest = async (activityId: string, requestingUserId: string) => {
         if (!currentUser) {
-            console.error("No current user found to accept follow request.");
+            console.error("Pulse.tsx: No current user found to accept follow request.");
             return;
         }
         setProcessingRequestId(activityId);
-        console.log(`Attempting to accept follow request: activityId=${activityId}, requestingUserId=${requestingUserId}`);
+        console.log(`Pulse.tsx: Attempting to accept follow request. activityId=${activityId}, requestingUserId=${requestingUserId}`);
+        
+        if (!functions) { 
+            console.error("Pulse.tsx: Firebase Functions instance is not initialized (this shouldn't happen if getFunctions was called correctly)!");
+            setProcessingRequestId(null);
+            return;
+        }
+        console.log("Pulse.tsx: Firebase Functions instance seems okay (region specified).");
+
         try {
-            const acceptRequestFunction = httpsCallable(functions, 'acceptfollowrequest');
-            const result = await acceptRequestFunction({ activityId, requestingUserId });
-            console.log("Follow request accepted successfully:", result.data);
+            // 'acceptfollowrequest' is already defined using httpsCallable at the component level in your full file,
+            // so you might not need to redefine it here if `acceptRequestFunction` is already available.
+            // If `acceptRequestFunction` is defined outside this handler (as seen in your full file):
+            // const result = await acceptRequestFunction({ activityId, requestingUserId }); 
+            // If defining it locally:
+            const callableFunc = httpsCallable(functions, 'acceptfollowrequest');
+            console.log("Pulse.tsx: Calling 'acceptfollowrequest' cloud function...");
+            const result = await callableFunc({ activityId, requestingUserId });
+            console.log("Pulse.tsx: Follow request accepted successfully by cloud function:", result.data);
         } catch (error: any) {
-            console.error("Error accepting follow request (raw):", error);
+            console.error("Pulse.tsx: Error accepting follow request (raw):", error);
             if (error.code && error.message) {
-                console.error("Error accepting follow request (Firebase): Code:", error.code, "Message:", error.message, "Details:", error.details);
+                console.error("Pulse.tsx: Error accepting follow request (Firebase): Code:", error.code, "Message:", error.message, "Details:", error.details);
             }
         } finally {
             setProcessingRequestId(null);
