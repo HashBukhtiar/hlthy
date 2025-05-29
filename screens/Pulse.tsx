@@ -50,7 +50,7 @@ export default function Pulse() {
     const [loading, setLoading] = useState(true);
     const [loadingActivities, setLoadingActivities] = useState(true);
     const [loadingRequests, setLoadingRequests] = useState(true);
-    const [processingRequestId, setProcessingRequestId] = useState<string | null>(null);
+    const [processingRequestInfo, setProcessingRequestInfo] = useState<{ id: string, action: 'accept' | 'ignore' } | null>(null); // New state
     const acceptRequestFunction = httpsCallable(functions, 'acceptfollowrequest');
 
     // useEffect for Follow Requests
@@ -180,9 +180,9 @@ export default function Pulse() {
                             <TouchableOpacity 
                                 style={activityStyles.acceptButton}
                                 onPress={() => handleAcceptFollowRequest(request.id, request.fromUserId)}
-                                disabled={processingRequestId === request.id}
+                                disabled={processingRequestInfo?.id === request.id} // Disable if any action on this item is processing
                             >
-                                {processingRequestId === request.id ? (
+                                {processingRequestInfo?.id === request.id && processingRequestInfo?.action === 'accept' ? (
                                     <ActivityIndicator size="small" color="black" />
                                 ) : (
                                     <Text style={{color: 'black', fontWeight: 'bold'}}>Accept</Text>
@@ -191,9 +191,9 @@ export default function Pulse() {
                             <TouchableOpacity 
                                 style={activityStyles.ignoreButton}
                                 onPress={() => handleIgnoreFollowRequest(request.id, request.fromUserId)}
-                                disabled={processingRequestId === request.id}
+                                disabled={processingRequestInfo?.id === request.id} // Disable if any action on this item is processing
                             >
-                                {processingRequestId === request.id ? (
+                                {processingRequestInfo?.id === request.id && processingRequestInfo?.action === 'ignore' ? (
                                     <ActivityIndicator size="small" color="white" />
                                 ) : (
                                     <Text style={{color: 'white', fontWeight: 'bold'}}>Ignore</Text>
@@ -211,22 +211,17 @@ export default function Pulse() {
             console.error("Pulse.tsx: No current user found to accept follow request.");
             return;
         }
-        setProcessingRequestId(activityId);
+        setProcessingRequestInfo({ id: activityId, action: 'accept' }); // New
         console.log(`Pulse.tsx: Attempting to accept follow request. activityId=${activityId}, requestingUserId=${requestingUserId}`);
         
         if (!functions) { 
             console.error("Pulse.tsx: Firebase Functions instance is not initialized (this shouldn't happen if getFunctions was called correctly)!");
-            setProcessingRequestId(null);
+            setProcessingRequestInfo(null); // New
             return;
         }
         console.log("Pulse.tsx: Firebase Functions instance seems okay (region specified).");
 
         try {
-            // 'acceptfollowrequest' is already defined using httpsCallable at the component level in your full file,
-            // so you might not need to redefine it here if `acceptRequestFunction` is already available.
-            // If `acceptRequestFunction` is defined outside this handler (as seen in your full file):
-            // const result = await acceptRequestFunction({ activityId, requestingUserId }); 
-            // If defining it locally:
             const callableFunc = httpsCallable(functions, 'acceptfollowrequest');
             console.log("Pulse.tsx: Calling 'acceptfollowrequest' cloud function...");
             const result = await callableFunc({ activityId, requestingUserId });
@@ -237,7 +232,7 @@ export default function Pulse() {
                 console.error("Pulse.tsx: Error accepting follow request (Firebase): Code:", error.code, "Message:", error.message, "Details:", error.details);
             }
         } finally {
-            setProcessingRequestId(null);
+            setProcessingRequestInfo(null);
         }
     };
 
@@ -246,7 +241,7 @@ export default function Pulse() {
             console.error("No current user found to ignore follow request.");
             return;
         }
-        setProcessingRequestId(activityId);
+        setProcessingRequestInfo({ id: activityId, action: 'ignore' });
         console.log(`Attempting to ignore follow request: activityId=${activityId}, requestingUserId=${requestingUserId}`);
         try {
             const ignoreRequestFunction = httpsCallable(functions, 'ignorefollowrequest');
@@ -258,7 +253,7 @@ export default function Pulse() {
                 console.error("Error ignoring follow request (Firebase): Code:", error.code, "Message:", error.message, "Details:", error.details);
             }
         } finally {
-            setProcessingRequestId(null);
+            setProcessingRequestInfo(null);
         }
     };
 
@@ -467,12 +462,8 @@ const activityStyles = StyleSheet.create({
     },
     activityDescription: {
         color: 'white',
-        // alignItems: 'center', // This might not be needed here if text is aligned by parent
-        // width: '100%', // This might be too restrictive, let flexbox handle width
         fontSize: 16,
-        flexShrink: 1, // Good for allowing text to shrink if needed
-        // Add lineHeight if you want to control spacing between lines of text
-        // lineHeight: 20, 
+        flexShrink: 1,
     },
     activityUsernameText: {
         color: 'white',

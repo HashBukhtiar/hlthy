@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { collection, query, orderBy, getDocs, deleteDoc, getCountFromServer, doc, getDoc, increment, where, setDoc, runTransaction, serverTimestamp } from 'firebase/firestore';
-import { db } from '@/firebaseConfig';
+import { db, app } from '@/firebaseConfig';
 import { useAuth } from '@/context/AuthContext';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 
 export interface Milestone {
   id: string;
@@ -27,6 +28,7 @@ interface WorkoutItemData {
 export function useProfileData(userId = null) {
   const { currentUser } = useAuth();
   const profileIdToFetch = userId || currentUser?.uid;
+  const functions = getFunctions(app, 'northamerica-northeast2');
 
   const [loading, setLoading] = useState(true);
   const [profileData, setProfileData] = useState<any | null>(null);
@@ -344,7 +346,10 @@ export function useProfileData(userId = null) {
       // Check if a request is pending and delete it if "Unfollow" (or "Cancel Request") is pressed
       const pendingRequestSnap = await getDoc(pendingFollowerRef);
       if (pendingRequestSnap.exists()) {
-        await deleteDoc(pendingFollowerRef);
+        // This means the current user had sent a request to targetUserId, and is now cancelling it.
+        console.log("Cancelling sent follow request to user:", targetUserId);
+        const cancelRequestFunction = httpsCallable(functions, 'cancelSentFollowRequest');
+        await cancelRequestFunction({ targetUserId: targetUserId });
         setIsRequestPending(false);
         console.log("Cancelled follow request to user:", targetUserId);
       } else {

@@ -197,3 +197,84 @@ export const ignorefollowrequest = onCall(
     }
   }
 );
+
+export const cancelSentFollowRequest = onCall(
+  {region: "northamerica-northeast2"},
+  async (request) => {
+    const db = getDb();
+    if (!db) {
+      console.error("cancelSentFollowRequest: Firestore db not initialized.");
+      throw new HttpsError("internal", "Database not initialized. Please try again.");
+    }
+
+    if (!request.auth) {
+      throw new HttpsError(
+        "unauthenticated",
+        "The function must be called while authenticated."
+      );
+    }
+
+    const currentUserId = request.auth.uid;
+    const {targetUserId} = request.data;
+
+    if (!targetUserId || typeof targetUserId !== "string") {
+      throw new HttpsError(
+        "invalid-argument",
+        "The function must be called with a valid 'targetUserId'."
+      );
+    }
+
+    console.log(`cancelSentFollowRequest: User ${currentUserId} is cancelling request to ${targetUserId}`);
+
+    const batch = db.batch();
+
+    // 1. Delete the pending follower document from the target user's collection
+    const pendingFollowerRef = db
+      .collection("users")
+      .doc(targetUserId)
+      .collection("pendingFollowers")
+      .doc(currentUserId);
+    batch.delete(pendingFollowerRef);
+
+    // 2. Find and update the corresponding activity item in targetUserId's activity feed
+    // This activity item was created for targetUserId, indicating a request from currentUserId.
+    // We need to find it to change its status so Pulse.tsx (listening for 'pending' status) removes it.
+    const activityQuery = db
+      .collection("activity")
+      .doc(targetUserId)
+      .collection("userActivity")
+      .where("type", "==", "follow_request")
+      .where("fromUserId", "==", currentUserId)
+      .where("status", "==", "pending");
+
+    try {
+      const activitySnapshot = await activityQuery.get();
+
+      if (!activitySnapshot.empty) {
+        activitySnapshot.forEach((doc) => {
+          console.log(`CSFR: Found activity ${doc.id} to update for target ${targetUserId} from sender ${currentUserId}`);
+          batch.update(doc.ref, {status: "cancelled", isRead: true});
+        });
+      } else {
+        console.log(
+          `CSFR: No 'pending' follow_request activity found for target ${targetUserId} from sender ${currentUserId} to update.`
+        );
+      }
+
+      await batch.commit();
+      console.log(
+        `cancelSentFollowRequest: Follow request from ${currentUserId} to ${targetUserId} cancelled and activity status updated.`
+      );
+      return {success: true, message: "Follow request cancelled successfully."};
+    } catch (error) {
+      console.error("Error cancelling sent follow request:", error);
+      // If batch.commit() fails, the HttpsError will be thrown.
+      // If query fails, it will also be caught here.
+      throw new HttpsError(
+        "internal",
+        "Failed to cancel follow request.",
+        error
+      );
+    }
+  }
+);
