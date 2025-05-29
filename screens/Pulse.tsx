@@ -146,16 +146,16 @@ export default function Pulse() {
     };
 
     function renderFollowRequests() {
-        if (loadingRequests) { 
+        if (loadingRequests) {
             if (followRequests.length === 0) {
                 return <Text style={{color: 'white', textAlign: 'center', marginTop: 10}}>Loading requests...</Text>;
             }
         }
 
         if (followRequests.length === 0) {
-            return null; 
+            return null;
         }
-        
+
         let maxUsernameLength = 12;
 
         return (
@@ -163,24 +163,42 @@ export default function Pulse() {
                 <Text style={[globalStyles.subtitle, {marginLeft: 15, marginVertical: 20, fontWeight: 'bold', fontSize: 30}]}>Follow Requests</Text>
                 <View style={activityStyles.activityView}>
                     {followRequests.map((request, index) => (
-                        <View key={request.id} style={[activityStyles.activityElement, index !== followRequests.length - 1 && {borderBottomWidth: 1, borderBottomColor: 'grey'}]}>
+                        // The main row item is now a TouchableOpacity for navigation
+                        <TouchableOpacity
+                            key={request.id}
+                            style={[activityStyles.activityElement, index !== followRequests.length - 1 && {borderBottomWidth: 1, borderBottomColor: 'grey'}]}
+                            onPress={() => {
+                                // Navigate to profile when the row (excluding buttons) is pressed
+                                if (request.fromUserId) router.push({ pathname: "/profile/[userId]", params: { userId: request.fromUserId } });
+                                console.log("Follow request: Row pressed, navigating to user:", request.fromUserId);
+                            }}
+                            activeOpacity={0.6} // Optional: to give feedback on press
+                        >
+                            {/* Profile Image View - no longer individually touchable for navigation */}
                             <View style={activityStyles.activityPostImage}>
-                                <Image 
-                                    source={request.fromProfileImageUrl ? { uri: request.fromProfileImageUrl } : profileIcon} 
-                                    style={activityStyles.activityImageStyle} 
+                                <Image
+                                    source={request.fromProfileImageUrl ? { uri: request.fromProfileImageUrl } : profileIcon}
+                                    style={activityStyles.activityImageStyle}
                                 />
                             </View>
+
+                            {/* Text content View */}
                             <View style={{flex:1, marginRight: 5}}>
                                 <Text style={activityStyles.activityDescription} numberOfLines={2}>
-                                    <Text style={{fontWeight: 'bold'}}>@{displayShortenedString(request.fromUsername, maxUsernameLength)}</Text>
+                                    {/* Username Text - no longer individually touchable for navigation */}
+                                    <Text style={activityStyles.activityUsernameText}>
+                                        @{displayShortenedString(request.fromUsername, maxUsernameLength)}
+                                    </Text>
                                     <Text> wants to follow you.</Text>
                                     <Text style={{color:'grey'}}> · {formatTimeAgo(request.createdAt)}</Text>
                                 </Text>
                             </View>
-                            <TouchableOpacity 
+
+                            {/* Accept Button - remains a separate TouchableOpacity */}
+                            <TouchableOpacity
                                 style={activityStyles.acceptButton}
                                 onPress={() => handleAcceptFollowRequest(request.id, request.fromUserId)}
-                                disabled={processingRequestInfo?.id === request.id} // Disable if any action on this item is processing
+                                disabled={processingRequestInfo?.id === request.id}
                             >
                                 {processingRequestInfo?.id === request.id && processingRequestInfo?.action === 'accept' ? (
                                     <ActivityIndicator size="small" color="black" />
@@ -188,10 +206,12 @@ export default function Pulse() {
                                     <Text style={{color: 'black', fontWeight: 'bold'}}>Accept</Text>
                                 )}
                             </TouchableOpacity>
-                            <TouchableOpacity 
+
+                            {/* Ignore Button - remains a separate TouchableOpacity */}
+                            <TouchableOpacity
                                 style={activityStyles.ignoreButton}
                                 onPress={() => handleIgnoreFollowRequest(request.id, request.fromUserId)}
-                                disabled={processingRequestInfo?.id === request.id} // Disable if any action on this item is processing
+                                disabled={processingRequestInfo?.id === request.id}
                             >
                                 {processingRequestInfo?.id === request.id && processingRequestInfo?.action === 'ignore' ? (
                                     <ActivityIndicator size="small" color="white" />
@@ -199,7 +219,7 @@ export default function Pulse() {
                                     <Text style={{color: 'white', fontWeight: 'bold'}}>Ignore</Text>
                                 )}
                             </TouchableOpacity>
-                        </View>
+                        </TouchableOpacity>
                     ))}
                 </View>
             </View>
