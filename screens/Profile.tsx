@@ -617,7 +617,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
       <View style={styles.tabContent}>
         <FlatList
           ref={flatListRef}
-          data={tabScenes} // tabScenes is defined above
+          data={tabScenes}
           horizontal
           pagingEnabled
           showsHorizontalScrollIndicator={false}

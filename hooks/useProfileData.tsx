@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
-import { collection, query, orderBy, getDocs, deleteDoc, doc, getDoc, addDoc, updateDoc, increment, where, setDoc, runTransaction, serverTimestamp } from 'firebase/firestore';
-import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
-import { db, storage } from '@/firebaseConfig';
+import { collection, query, orderBy, getDocs, deleteDoc, getCountFromServer, doc, getDoc, increment, where, setDoc, runTransaction, serverTimestamp } from 'firebase/firestore';
+import { db } from '@/firebaseConfig';
 import { useAuth } from '@/context/AuthContext';
 
 export interface Milestone {
@@ -40,6 +39,8 @@ export function useProfileData(userId = null) {
   const [isRequestPending, setIsRequestPending] = useState(false);
   const [isFollowingStatus, setIsFollowingStatus] = useState(false);
   const [followActionLoading, setFollowActionLoading] = useState(false);
+  const [activePostCount, setActivePostCount] = useState<number | null>(null);
+
 
   const groupAndSortMilestones = (milestonesToSort: Milestone[]): GroupedMilestones => {
     // Sort milestones first

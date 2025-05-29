@@ -266,10 +266,14 @@ export default function Pulse() {
         if (loadingActivities && otherActivities.length === 0) {
             return <Text style={{color: 'white', textAlign: 'center', marginTop: 10}}>Loading activities...</Text>;
         }
-        if (!loadingActivities && otherActivities.length === 0 && (followRequests.length > 0 || !loadingRequests)) {
+        // Adjusted condition: Show "No other recent activity" only if there are follow requests OR if follow requests are done loading and empty.
+        if (!loadingActivities && otherActivities.length === 0 && (followRequests.length > 0 || (!loadingRequests && followRequests.length === 0))) {
              return <Text style={{color: 'grey', textAlign: 'center', marginVertical: 20, marginLeft: 15}}>No other recent activity.</Text>;
         }
-        if (!loadingActivities && otherActivities.length === 0 && followRequests.length === 0 && !loadingRequests) {
+        // This condition is for when everything is loaded and both lists are empty.
+        // It's handled by renderActivity, so this specific check might be redundant here if renderActivity has a global empty state.
+        // For safety, keeping a local null return if otherActivities is truly empty and not loading.
+        if (!loadingActivities && otherActivities.length === 0) {
             return null;
         }
 
@@ -282,56 +286,101 @@ export default function Pulse() {
                 <Text style={[globalStyles.subtitle, {marginLeft: 15, marginVertical: 20, fontWeight: 'bold', fontSize: 30}]}>Activity</Text>
                 <View style={activityStyles.activityView}>
                     {otherActivities.map((activity, index) => (
-                        <TouchableOpacity 
-                            key={activity.id} 
+                        <TouchableOpacity
+                            key={activity.id}
                             style={[activityStyles.activityElement, index !== otherActivities.length - 1 && {borderBottomWidth: 1, borderBottomColor: 'grey'}]}
                             onPress={() => {
-                                // Navigation logic remains the same:
-                                // For likes/comments, navigate to the post.
-                                // For follows, navigate to the user profile.
+                                // General row click navigation (fallback or for non-specific parts of the row)
                                 if (activity.type === 'post_like' || activity.type === 'post_comment') {
                                     if (activity.postId) router.push({ pathname: "/view-post/[id]", params: { id: activity.postId } });
                                 } else if (activity.type === 'workout_save') {
                                     if (activity.workoutId) router.push({ pathname: "/view-workout/[id]", params: { id: activity.workoutId } });
                                 } else if (activity.type === 'new_follower' || activity.type === 'follow_accepted') {
+                                    // For these types, the whole row click can also go to profile,
+                                    // but specific clicks on image/name are handled below.
                                     if (activity.fromUserId) router.push({ pathname: "/profile/[userId]", params: { userId: activity.fromUserId } });
                                 }
-                                // Potentially mark as read here: updateActivityAsRead(activity.id);
-                                console.log("Activity element pressed:", activity.type, activity.id);
+                                console.log("Activity element (outer) pressed:", activity.type, activity.id);
                             }}
+                            // activeOpacity={0.7} // Optional: to give feedback on press
                         >
-                            <View style={activityStyles.activityPostImage}>
-                                <Image 
+                            <TouchableOpacity
+                                onPress={() => {
+                                    if (activity.fromUserId) router.push({ pathname: "/profile/[userId]", params: { userId: activity.fromUserId } });
+                                    console.log("Profile image pressed, navigating to user:", activity.fromUserId);
+                                }}
+                                style={activityStyles.activityPostImage} // Ensure this style allows touch
+                            >
+                                <Image
                                     source={
-                                        // For post_like and post_comment, prioritize the ACTOR'S profile image.
-                                        // Fallback to post image only if actor image is missing, or remove fallback if not desired.
-                                        (activity.type === 'post_like' || activity.type === 'post_comment') 
-                                            ? (activity.fromProfileImageUrl ? { uri: activity.fromProfileImageUrl } : profileIcon) // Actor's image first
-                                            // : (activity.type === 'post_like' || activity.type === 'post_comment') && activity.postImageUrl ? { uri: activity.postImageUrl } // Original fallback to post image
-                                        : activity.fromProfileImageUrl ? { uri: activity.fromProfileImageUrl } // For other types like 'new_follower', 'follow_accepted'
-                                        : profileIcon // Your global fallback profile icon
-                                    } 
+                                        (activity.type === 'post_like' || activity.type === 'post_comment')
+                                            ? (activity.fromProfileImageUrl ? { uri: activity.fromProfileImageUrl } : profileIcon)
+                                        : activity.fromProfileImageUrl ? { uri: activity.fromProfileImageUrl }
+                                        : profileIcon
+                                    }
                                     style={
-                                        // Use a round style for user profile pictures, potentially a square one for post images if you differentiate
                                         (activity.type === 'post_like' || activity.type === 'post_comment' || activity.type === 'new_follower' || activity.type === 'follow_accepted')
-                                            ? activityStyles.activityUserImageStyle // Assuming this is round
-                                            : activityStyles.activityContentImageStyle // Assuming this could be square for post/workout images
+                                            ? activityStyles.activityUserImageStyle
+                                            : activityStyles.activityContentImageStyle
                                     }
                                 />
-                            </View>
+                            </TouchableOpacity>
                             <View style={{flex:1}}>
                                 <Text style={activityStyles.activityDescription} numberOfLines={3}>
-                                    {/* Username display is already correct, using fromUsername */}
-                                    <Text style={{fontWeight: 'bold'}}>@{displayShortenedString(activity.fromUsername || 'User', maxUsernameLength)}</Text>
+                                    <Text
+                                        style={activityStyles.activityUsernameText}
+                                        onPress={() => {
+                                            if (activity.fromUserId) router.push({ pathname: "/profile/[userId]", params: { userId: activity.fromUserId } });
+                                            console.log("Username pressed, navigating to user:", activity.fromUserId);
+                                        }}
+                                    >
+                                        @{displayShortenedString(activity.fromUsername || 'User', maxUsernameLength)}
+                                    </Text>
                                     {` `}
                                     {activity.type === 'post_like' && 'liked your post.'}
                                     {activity.type === 'post_comment' && `commented: "${displayShortenedString(activity.commentText || '', maxCommentLength)}"`}
-                                    {activity.type === 'workout_save' && `saved your workout: ${displayShortenedString(activity.workoutTitle || 'Workout', maxWorkoutTitleLength)}.`}
+                                    {activity.type === 'workout_save' && (
+                                        <>
+                                            {'saved your workout: '}
+                                            <TouchableOpacity onPress={() => {
+                                                if (activity.workoutId) router.push({ pathname: "/view-workout/[id]", params: { id: activity.workoutId } });
+                                            }}>
+                                                <Text style={{textDecorationLine: 'underline'}}>{displayShortenedString(activity.workoutTitle || 'Workout', maxWorkoutTitleLength)}</Text>
+                                            </TouchableOpacity>
+                                            {'.'}
+                                        </>
+                                    )}
                                     {activity.type === 'new_follower' && 'started following you.'}
-                                    {activity.type === 'follow_accepted' && 'accepted your follow request.'} 
+                                    {activity.type === 'follow_accepted' && 'accepted your follow request.'}
                                     <Text style={{color:'grey'}}> · {formatTimeAgo(activity.createdAt)}</Text>
                                 </Text>
                             </View>
+                            {(activity.type === 'post_like' || activity.type === 'post_comment') && activity.postImageUrl && (
+                                <TouchableOpacity
+                                    onPress={() => {
+                                        if (activity.postId) router.push({ pathname: "/view-post/[id]", params: { id: activity.postId } });
+                                    }}
+                                    style={activityStyles.activityContentPreviewImageContainer}
+                                >
+                                    <Image
+                                        source={{ uri: activity.postImageUrl }}
+                                        style={activityStyles.activityContentPreviewImageStyle}
+                                    />
+                                </TouchableOpacity>
+                            )}
+                            {activity.type === 'workout_save' && activity.postImageUrl && ( // Assuming postImageUrl might be used for workout image
+                                <TouchableOpacity
+                                    onPress={() => {
+                                        if (activity.workoutId) router.push({ pathname: "/view-workout/[id]", params: { id: activity.workoutId } });
+                                    }}
+                                    style={activityStyles.activityContentPreviewImageContainer}
+                                >
+                                    <Image
+                                        source={{ uri: activity.postImageUrl }} // Or a specific workoutImageUrl if available
+                                        style={activityStyles.activityContentPreviewImageStyle}
+                                    />
+                                </TouchableOpacity>
+                            )}
                         </TouchableOpacity>
                     ))}
                 </View>
@@ -408,12 +457,27 @@ const activityStyles = StyleSheet.create({
         height: 50,
         borderRadius: 8,
     },
+    activityContentPreviewImageContainer: {
+        marginLeft: 10,
+    },
+    activityContentPreviewImageStyle: {
+        width: 45,
+        height: 45,
+        borderRadius: 5,
+    },
     activityDescription: {
         color: 'white',
-        alignItems: 'center',
-        width: '100%',
+        // alignItems: 'center', // This might not be needed here if text is aligned by parent
+        // width: '100%', // This might be too restrictive, let flexbox handle width
         fontSize: 16,
-        flexShrink: 1,
+        flexShrink: 1, // Good for allowing text to shrink if needed
+        // Add lineHeight if you want to control spacing between lines of text
+        // lineHeight: 20, 
+    },
+    activityUsernameText: {
+        color: 'white',
+        fontWeight: 'bold',
+        fontSize: 16,
     },
     acceptButton: {
         paddingHorizontal: 8,
