@@ -7,6 +7,7 @@ export const createactivityonfollowrequest = onDocumentCreated(
     region: "northamerica-northeast2",
   },
   async (event) => {
+    console.log(`CAOFR triggered for target: ${event.params.targetUserId}, from: ${event.params.requestingUserId}`);
     const db = getDb();
     const snapshot = event.data;
     if (!snapshot) {
@@ -17,7 +18,7 @@ export const createactivityonfollowrequest = onDocumentCreated(
     const {targetUserId, requestingUserId} = event.params;
 
     if (targetUserId === requestingUserId) {
-      console.log("User cannot request to follow themselves.");
+      console.log("User cannot request to follow themselves. Skipping activity creation.");
       return;
     }
 
@@ -28,7 +29,7 @@ export const createactivityonfollowrequest = onDocumentCreated(
         .get();
       if (!requestingUserDoc.exists) {
         console.error(
-          `Requesting user ${requestingUserId} not found for follow request.`
+          `Requesting user ${requestingUserId} not found for follow request. Cannot create activity.`
         );
         return;
       }
@@ -44,6 +45,8 @@ export const createactivityonfollowrequest = onDocumentCreated(
         status: "pending",
       };
 
+      console.log(`Attempting to write activity data for ${targetUserId}:`, JSON.stringify(activityData));
+
       await db
         .collection("activity")
         .doc(targetUserId)
@@ -51,11 +54,11 @@ export const createactivityonfollowrequest = onDocumentCreated(
         .add(activityData);
 
       console.log(
-        `Follow request activity created for ${targetUserId} from ${requestingUserId}`
+        `Follow request activity created in /activity/${targetUserId}/userActivity for ${targetUserId} from ${requestingUserId}`
       );
     } catch (error) {
       console.error(
-        "Error creating follow request activity:",
+        "Error in createactivityonfollowrequest:",
         error
       );
     }

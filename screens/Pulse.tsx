@@ -6,6 +6,7 @@ import {
     Image,
     TouchableOpacity,
     ScrollView,
+    ActivityIndicator
 } from 'react-native';
 import { profileIcon } from '@/assets/images';
 import globalStyles from '@/styles/globalStyles';
@@ -22,20 +23,6 @@ const displayShortenedString = (str: string, maxLength: number): string => {
     if (str.length <= maxLength) return str;
     return str.substring(0, maxLength) + '...';
 };
-
-/*
-interface FollowRequest {
-    username: string;
-    time: string;
-}
-
-interface Activity {
-    username: string;
-    action: string;
-    time: string;
-    image: any; 
-}
-*/
 
 export interface ActivityItem {
   id: string; 
@@ -63,6 +50,7 @@ export default function Pulse() {
     const [loading, setLoading] = useState(true);
     const [loadingActivities, setLoadingActivities] = useState(true);
     const [loadingRequests, setLoadingRequests] = useState(true);
+    const [processingRequestId, setProcessingRequestId] = useState<string | null>(null);
 
     // useEffect for Follow Requests
     useEffect(() => {
@@ -195,14 +183,24 @@ export default function Pulse() {
                             <TouchableOpacity 
                                 style={activityStyles.acceptButton}
                                 onPress={() => handleAcceptFollowRequest(request.id, request.fromUserId)}
+                                disabled={processingRequestId === request.id}
                             >
-                                <Text style={{color: 'black', fontWeight: 'bold'}}>Accept</Text>
+                                {processingRequestId === request.id ? (
+                                    <ActivityIndicator size="small" color="black" />
+                                ) : (
+                                    <Text style={{color: 'black', fontWeight: 'bold'}}>Accept</Text>
+                                )}
                             </TouchableOpacity>
                             <TouchableOpacity 
                                 style={activityStyles.ignoreButton}
                                 onPress={() => handleIgnoreFollowRequest(request.id, request.fromUserId)}
+                                disabled={processingRequestId === request.id}
                             >
-                                <Text style={{color: 'white', fontWeight: 'bold'}}>Ignore</Text>
+                                {processingRequestId === request.id ? (
+                                    <ActivityIndicator size="small" color="white" />
+                                ) : (
+                                    <Text style={{color: 'white', fontWeight: 'bold'}}>Ignore</Text>
+                                )}
                             </TouchableOpacity>
                         </View>
                     ))}
@@ -216,17 +214,19 @@ export default function Pulse() {
             console.error("No current user found to accept follow request.");
             return;
         }
+        setProcessingRequestId(activityId);
         console.log(`Attempting to accept follow request: activityId=${activityId}, requestingUserId=${requestingUserId}`);
         try {
             const acceptRequestFunction = httpsCallable(functions, 'acceptfollowrequest');
             const result = await acceptRequestFunction({ activityId, requestingUserId });
             console.log("Follow request accepted successfully:", result.data);
-            // Optionally, you can optimistically remove the request from the UI
-            // or rely on the onSnapshot listener to update the list.
-            // For simplicity, we'll rely on onSnapshot for now.
-        } catch (error) {
-            console.error("Error accepting follow request:", error);
-            // Handle error (e.g., show a message to the user)
+        } catch (error: any) {
+            console.error("Error accepting follow request (raw):", error);
+            if (error.code && error.message) {
+                console.error("Error accepting follow request (Firebase): Code:", error.code, "Message:", error.message, "Details:", error.details);
+            }
+        } finally {
+            setProcessingRequestId(null);
         }
     };
 
@@ -235,15 +235,19 @@ export default function Pulse() {
             console.error("No current user found to ignore follow request.");
             return;
         }
+        setProcessingRequestId(activityId);
         console.log(`Attempting to ignore follow request: activityId=${activityId}, requestingUserId=${requestingUserId}`);
         try {
             const ignoreRequestFunction = httpsCallable(functions, 'ignorefollowrequest');
             const result = await ignoreRequestFunction({ activityId, requestingUserId });
             console.log("Follow request ignored successfully:", result.data);
-            // Optionally, optimistically remove or rely on onSnapshot.
-        } catch (error) {
-            console.error("Error ignoring follow request:", error);
-            // Handle error
+        } catch (error: any) {
+            console.error("Error ignoring follow request (raw):", error);
+            if (error.code && error.message) {
+                console.error("Error ignoring follow request (Firebase): Code:", error.code, "Message:", error.message, "Details:", error.details);
+            }
+        } finally {
+            setProcessingRequestId(null);
         }
     };
 

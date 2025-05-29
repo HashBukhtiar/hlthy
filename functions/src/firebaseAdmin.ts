@@ -1,29 +1,48 @@
 import * as admin from "firebase-admin";
+import {getFirestore} from "firebase-admin/firestore";
+import {getAuth as getAdminAuth} from "firebase-admin/auth";
 
-let dbInstance: admin.firestore.Firestore;
-let authInstance: admin.auth.Auth;
+// Initialize Firebase Admin SDK only if it hasn't been initialized yet.
+if (admin.apps.length === 0) {
+  admin.initializeApp();
+  console.log("firebaseAdmin.ts: Firebase Admin SDK initialized.");
+} else {
+  console.log("firebaseAdmin.ts: Firebase Admin SDK already initialized.");
+}
+
+let db: admin.firestore.Firestore;
+let auth: admin.auth.Auth;
 
 export function initializeDbAndAuth() {
-  if (!admin.apps.length) {
-    admin.initializeApp();
+  // This function can now primarily be for logging or specific setup
+  // if the core initialization is handled above.
+  // Or, it can ensure db and auth are set.
+  if (!db) {
+    db = getFirestore();
+    console.log("firebaseAdmin.ts: Firestore instance obtained in initializeDbAndAuth.");
   }
-  dbInstance = admin.firestore();
-  authInstance = admin.auth();
-  console.log("Firebase Admin SDK initialized and instances set by initializeDbAndAuth.");
+  if (!auth) {
+    auth = getAdminAuth();
+    console.log("firebaseAdmin.ts: Auth instance obtained in initializeDbAndAuth.");
+  }
 }
 
 export function getDb(): admin.firestore.Firestore {
-  if (!dbInstance) {
-    throw new Error("Firestore 'db' has not been initialized. Ensure onInit completed.");
+  if (!db) {
+    // Fallback initialization if not already done
+    console.warn("firebaseAdmin.ts: Firestore instance was not pre-initialized. Initializing now in getDb().");
+    db = getFirestore();
   }
-  return dbInstance;
+  return db;
 }
 
 export function getAuth(): admin.auth.Auth {
-  if (!authInstance) {
-    throw new Error("Firebase Auth 'auth' has not been initialized. Ensure onInit completed.");
+  if (!auth) {
+    // Fallback initialization if not already done
+    console.warn("firebaseAdmin.ts: Auth instance was not pre-initialized. Initializing now in getAuth().");
+    auth = getAdminAuth();
   }
-  return authInstance;
+  return auth;
 }
 
 export {admin};
