@@ -349,25 +349,20 @@ export function usePostsData() {
         // Delete the document from the 'likers' subcollection
         transaction.delete(likerRef);
 
-        // Decrement reactionCount and remove from likedBy array on the main post document
+        // Decrement reactionCount on the main post document
         transaction.update(postRef, {
           reactionCount: increment(-1),
-          // likedBy: arrayRemove(currentUser.uid) // Keep if you use this
         });
-
-        // Note: Deleting the specific activity item requires querying for it first.
-        // This can be complex within a transaction due to read-after-write limitations
-        // or query constraints. For simplicity, we'll do this in a separate batch after the transaction.
       });
 
-      // Delete the corresponding activity item for the post author
+      // Delete the corresponding 'post_like' activity item for the post author
       if (postData.authorId !== currentUser.uid) {
         const authorActivityColRef = collection(db, 'activity', postData.authorId, 'userActivity');
         const q = query(
           authorActivityColRef,
           where('type', '==', 'post_like'),
           where('postId', '==', postId),
-          where('actorId', '==', currentUser.uid),
+          where('fromUserId', '==', currentUser.uid), // Corrected field: fromUserId
           limit(1) // Assuming only one such activity item per like
         );
         
@@ -378,7 +373,9 @@ export function usePostsData() {
             batch.delete(activityDoc.ref);
           });
           await batch.commit();
-          console.log(`Deleted like activity for post ${postId} by user ${currentUser.uid}`);
+          console.log(`Deleted 'post_like' activity for post ${postId} by user ${currentUser.uid} from author ${postData.authorId}'s feed.`);
+        } else {
+          console.log(`No 'post_like' activity found to delete for post ${postId} by user ${currentUser.uid} in author ${postData.authorId}'s feed.`);
         }
       }
       console.log(`User ${currentUser.uid} unliked post ${postId}`);
@@ -407,7 +404,7 @@ export function usePostsData() {
         text: text.trim(),
         authorId: currentUser.uid,
         authorUsername: userProfile?.username || currentUser.displayName || "Anonymous",
-        authorProfileImageUrl: userProfile?.profileImageUrl || currentUser.photoURL,
+        authorProfileImageUrl: userProfile?.profileImageUrl || currentUser.photoURL || null,
         createdAt: serverTimestamp() as Timestamp,
         likes: 0,
         // likedBy: [], // Initialize if needed, or handle separately
@@ -426,7 +423,7 @@ export function usePostsData() {
             type: 'post_comment',
             fromUserId: currentUser.uid,
             fromUsername: userProfile?.username || currentUser.displayName || "Someone",
-            fromProfileImageUrl: userProfile?.profileImageUrl || currentUser.photoURL,
+            fromProfileImageUrl: userProfile?.profileImageUrl || currentUser.photoURL || null,
             postId: postId,
             postImageUrl: postData.imageUrl?.startsWith("http") ? postData.imageUrl : undefined,
             postCaption: postData.caption ? postData.caption.substring(0, 50) + (postData.caption.length > 50 ? "..." : "") : undefined,
