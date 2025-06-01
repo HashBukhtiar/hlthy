@@ -1,0 +1,240 @@
+import { Alert } from 'react-native';
+import { db } from '@/firebaseConfig';
+import { 
+  doc, 
+  getDoc, 
+  setDoc, 
+  updateDoc, 
+  addDoc, 
+  collection, 
+  serverTimestamp 
+} from 'firebase/firestore';
+
+export interface UserInfo {
+  uid: string;
+  displayName?: string | null;
+  email?: string | null;
+  photoURL?: string | null;
+}
+
+// Helper function to generate conversation ID
+export const generateConversationId = (userId1: string, userId2: string): string => {
+  const sortedIds = [userId1, userId2].sort();
+  return `${sortedIds[0]}_${sortedIds[1]}`;
+};
+
+// Handles creating/updating the conversation
+export const prepareConversation = async (
+  currentUser: UserInfo,
+  recipientId: string, 
+  recipientUsername: string, 
+  recipientProfileImageUrl?: string
+) => {
+  const conversationId = generateConversationId(currentUser.uid, recipientId);
+  const conversationRef = doc(db, 'conversations', conversationId);
+  const conversationSnap = await getDoc(conversationRef);
+
+  // Create conversation if it doesn't exist
+  if (!conversationSnap.exists()) {
+    await setDoc(conversationRef, {
+      participants: [currentUser.uid, recipientId],
+      lastMessageAt: serverTimestamp(),
+      lastMessageText: `${currentUser.displayName || 'User'} shared content`,
+      participantUsernames: {
+        [currentUser.uid]: currentUser.displayName || currentUser.email || 'Current User',
+        [recipientId]: recipientUsername || 'User',
+      },
+      participantProfileImages: {
+        [currentUser.uid]: currentUser.photoURL || '',
+        [recipientId]: recipientProfileImageUrl || '',
+      },
+    });
+
+    // Create user-specific conversation entries
+    await setDoc(doc(db, `users/${currentUser.uid}/conversations`, conversationId), {
+      otherParticipantId: recipientId,
+      otherParticipantUsername: recipientUsername || 'User',
+      otherParticipantProfileImage: recipientProfileImageUrl || '',
+    });
+    
+    await setDoc(doc(db, `users/${recipientId}/conversations`, conversationId), {
+      otherParticipantId: currentUser.uid,
+      otherParticipantUsername: currentUser.displayName || currentUser.email || 'Current User',
+      otherParticipantProfileImage: currentUser.photoURL || '',
+    });
+  }
+
+  return { conversationId, conversationRef };
+};
+
+// Update both users' conversation metadata
+export const updateConversationMetadata = async (
+  conversationId: string,
+  currentUserId: string,
+  messageText: string
+) => {
+  const conversationRef = doc(db, 'conversations', conversationId);
+  
+  // Update main conversation document
+  await updateDoc(conversationRef, {
+    lastMessageAt: serverTimestamp(),
+    lastMessageText: messageText,
+  });
+
+  // Update current user's conversation reference
+  await updateDoc(doc(db, `users/${currentUserId}/conversations`, conversationId), {
+    lastMessageAt: serverTimestamp(),
+    lastMessageText: messageText,
+  });
+
+  // Get the other participant ID and update their reference
+  const conversationData = (await getDoc(conversationRef)).data();
+  const otherUserId = conversationData?.participants?.find((uid: string) => uid !== currentUserId);
+  
+  if (otherUserId) {
+    await updateDoc(doc(db, `users/${otherUserId}/conversations`, conversationId), {
+      lastMessageAt: serverTimestamp(),
+      lastMessageText: messageText,
+    });
+  }
+};
+
+// Share a workout
+export const shareWorkout = async (
+  currentUser: UserInfo,
+  recipientId: string,
+  recipientUsername: string,
+  recipientProfileImageUrl: string | undefined,
+  workout: {
+    id: string;
+    title: string;
+    coverImageUrl: string | null;
+    creatorUsername: string;
+    description?: string;
+  }
+) => {
+  try {
+    const { conversationId, conversationRef } = await prepareConversation(
+      currentUser, 
+      recipientId, 
+      recipientUsername, 
+      recipientProfileImageUrl
+    );
+
+    // Add message with shared workout
+    await addDoc(collection(db, "conversations", conversationId, "messages"), {
+      senderId: currentUser.uid,
+      text: workout.description
+        ? `Shared a workout: "${workout.description.substring(0, 50)}${workout.description.length > 50 ? '...' : ''}"`
+        : 'Shared a workout',
+      createdAt: serverTimestamp(),
+      sharedWorkout: {
+        id: workout.id,
+        title: workout.title,
+        coverImageUrl: workout.coverImageUrl || null,
+        creatorUsername: workout.creatorUsername,
+      },
+    });
+
+    // Update conversation metadata
+    await updateConversationMetadata(conversationId, currentUser.uid, 'Shared a workout');
+    
+    return { success: true };
+  } catch (error) {
+    console.error("Error sharing workout:", error);
+    throw error;
+  }
+};
+
+// Share a milestone
+export const shareMilestone = async (
+  currentUser: UserInfo,
+  recipientId: string,
+  recipientUsername: string,
+  recipientProfileImageUrl: string | undefined,
+  milestone: {
+    id: string;
+    milestoneType: string;
+    details: any;
+    username?: string;
+  }
+) => {
+  try {
+    const { conversationId, conversationRef } = await prepareConversation(
+      currentUser, 
+      recipientId, 
+      recipientUsername, 
+      recipientProfileImageUrl
+    );
+
+    // Add message with shared milestone
+    await addDoc(collection(db, "conversations", conversationId, "messages"), {
+      senderId: currentUser.uid,
+      text: `Shared a milestone: ${
+        milestone.milestoneType === 'PR' ? 'Personal Record' : 
+        milestone.milestoneType === 'weightLoss' ? 'Weight Loss' : 'Weight Gain'
+      }`,
+      createdAt: serverTimestamp(),
+      sharedMilestone: {
+        id: milestone.id,
+        type: milestone.milestoneType,
+        details: milestone.details,
+        username: milestone.username || currentUser.displayName,
+      }
+    });
+
+    // Update conversation metadata
+    await updateConversationMetadata(conversationId, currentUser.uid, 'Shared a milestone');
+    
+    return { success: true };
+  } catch (error) {
+    console.error("Error sharing milestone:", error);
+    throw error;
+  }
+};
+
+// Share a post
+export const sharePost = async (
+  currentUser: UserInfo,
+  recipientId: string,
+  recipientUsername: string,
+  recipientProfileImageUrl: string | undefined,
+  post: {
+    id: string;
+    caption?: string;
+    imageUrl?: string | null;
+    authorUsername?: string;
+  }
+) => {
+  try {
+    const { conversationId, conversationRef } = await prepareConversation(
+      currentUser, 
+      recipientId, 
+      recipientUsername, 
+      recipientProfileImageUrl
+    );
+
+    // Add a message with the shared post
+    await addDoc(collection(db, "conversations", conversationId, "messages"), {
+      senderId: currentUser.uid,
+      text: post.caption 
+        ? `Shared a post: "${post.caption.substring(0, 50)}${post.caption.length > 50 ? '...' : ''}"`
+        : 'Shared a post',
+      createdAt: serverTimestamp(),
+      sharedPost: {
+        id: post.id,
+        imageUrl: post.imageUrl || null,
+        caption: post.caption || '',
+        authorUsername: post.authorUsername || currentUser.displayName || '',
+      }
+    });
+
+    // Update conversation metadata
+    await updateConversationMetadata(conversationId, currentUser.uid, 'Shared a post');
+    
+    return { success: true };
+  } catch (error) {
+    console.error("Error sharing post:", error);
+    throw error;
+  }
+};

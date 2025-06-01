@@ -1,5 +1,26 @@
 import { useState, useEffect } from 'react';
-import { collection, query, orderBy, getDocs, deleteDoc, doc, getDoc, setDoc, addDoc, updateDoc, increment, where } from 'firebase/firestore';
+import {
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+  arrayUnion,
+  arrayRemove,
+  collection,
+  addDoc,
+  serverTimestamp,
+  query,
+  where,
+  getDocs,
+  writeBatch,
+  deleteDoc,
+  orderBy,
+  limit,
+  startAfter,
+  increment,
+  runTransaction,
+  Timestamp
+} from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import { db, storage } from '@/firebaseConfig';
 import { useAuth } from '@/context/AuthContext';
@@ -43,6 +64,20 @@ export interface Comment {
   liked?: boolean;
 }
 
+export interface ActivityItem {
+  id: string;
+  type: 'follow_request' | 'follow_accepted' | 'new_follower' | 'post_like' | 'post_comment' | 'workout_save' | 'milestone_achieved';
+  fromUserId: string;
+  fromUsername: string;
+  fromProfileImageUrl?: string;
+  postId?: string;
+  postImageUrl?: string;
+  postCaption?: string;
+  commentId?: string;
+  commentText?: string;
+  status?: 'pending' | 'accepted' | 'ignored' | 'read' | 'unread'; 
+  createdAt: Timestamp; 
+}
 export function usePostsData() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,19 +94,17 @@ export function usePostsData() {
       
       const postsData: Post[] = [];
       
-      for (const doc of querySnapshot.docs) {
-        const post = { id: doc.id, ...doc.data() } as Post;
+      for (const docSnapshot of querySnapshot.docs) {
+        const post = { id: docSnapshot.id, ...docSnapshot.data() } as Post;
         
-        // Check if current user has liked this post
         if (currentUser) {
           try {
-            const reactionRef = collection(db, "posts", doc.id, "reactions");
-            const reactionQuery = query(reactionRef, where("__name__", "==", currentUser.uid));
-            const reactionSnapshot = await getDocs(reactionQuery);
-
-            post.isLiked = !reactionSnapshot.empty;
+            // Check if current user has liked this post by checking the 'likers' subcollection
+            const likeRef = doc(db, "posts", docSnapshot.id, "likers", currentUser.uid);
+            const likeDoc = await getDoc(likeRef);
+            post.isLiked = likeDoc.exists();
           } catch (err) {
-            console.log("Error checking reaction status:", err);
+            console.log("Error checking like status in fetchPosts:", err);
             post.isLiked = false;
           }
         }
@@ -82,7 +115,7 @@ export function usePostsData() {
       setPosts(postsData);
     } catch (err) {
       console.error("Error fetching posts:", err);
-      setError(err);
+      setError(err as Error);
     } finally {
       setLoading(false);
     }
@@ -126,15 +159,14 @@ export function usePostsData() {
       console.log("Post found:", postDoc.data());
       const post = { id: postDoc.id, ...postDoc.data() } as Post;
 
-      // Check if user has liked this post
       if (currentUser) {
         try {
-          // Use postId here instead of doc.id
-          const reactionRef = doc(db, "posts", postId, "reactions", currentUser.uid);
-          const reactionDoc = await getDoc(reactionRef);
-          post.isLiked = reactionDoc.exists();
+          // Check if current user has liked this post by checking the 'likers' subcollection
+          const likeRef = doc(db, "posts", postId, "likers", currentUser.uid);
+          const likeSnap = await getDoc(likeRef);
+          post.isLiked = likeSnap.exists();
         } catch (err) {
-          console.log("Error checking reaction status:", err);
+          console.log("Error checking like status in getPostById:", err);
           post.isLiked = false;
         }
       }
@@ -257,103 +289,174 @@ export function usePostsData() {
 
   // Add like to a post
   const likePost = async (postId: string) => {
-    if (!currentUser) {
-      throw new Error("User not authenticated");
-    }
-    
+    if (!currentUser || !userProfile) throw new Error("User not authenticated");
+    const postRef = doc(db, "posts", postId);
+    const likerRef = doc(db, "posts", postId, "likers", currentUser.uid); 
+
     try {
-      // Add reaction document
-      const reactionRef = doc(db, "posts", postId, "reactions", currentUser.uid);
-      await setDoc(reactionRef, {
-        reactionType: "like",
-        reactedAt: new Date()
+      const postDoc = await getDoc(postRef);
+      if (!postDoc.exists()) throw new Error("Post not found");
+      const postData = postDoc.data() as Post;
+
+      await runTransaction(db, async (transaction) => {
+        transaction.set(likerRef, {
+          userId: currentUser.uid,
+          username: userProfile.username,
+          profileImageUrl: userProfile.profileImageUrl || null,
+          likedAt: serverTimestamp(),
+        });
+
+        transaction.update(postRef, {
+          reactionCount: increment(1),
+        });
+
+        if (postData.authorId !== currentUser.uid) {
+          const authorActivityColRef = collection(db, 'activity', postData.authorId, 'userActivity');
+          const newActivityRef = doc(authorActivityColRef); 
+          transaction.set(newActivityRef, {
+            type: 'post_like',
+            fromUserId: currentUser.uid,
+            fromUsername: userProfile.username,
+            fromProfileImageUrl: userProfile.profileImageUrl || currentUser.photoURL || null,
+            postId: postId,
+            postImageUrl: postData.imageUrl?.startsWith("http") ? postData.imageUrl : undefined,
+            postCaption: postData.caption ? postData.caption.substring(0, 50) + (postData.caption.length > 50 ? "..." : "") : undefined,
+            createdAt: serverTimestamp(),
+            status: 'unread', 
+          } as Omit<ActivityItem, 'id'>);
+        }
       });
-      
-      // Increment reaction count
-      await updateDoc(doc(db, "posts", postId), {
-        reactionCount: increment(1)
-      });
-      
-      // Update local state
-      setPosts(posts.map(post => 
-        post.id === postId 
-          ? { ...post, isLiked: true, reactionCount: post.reactionCount + 1 } 
-          : post
-      ));
-    } catch (err) {
-      console.error("Error liking post:", err);
-      throw err;
+      console.log(`User ${currentUser.uid} liked post ${postId}`);
+    } catch (error) {
+      console.error("Error liking post: ", error);
+      throw error;
     }
   };
 
   // Remove like from a post
   const unlikePost = async (postId: string) => {
-    if (!currentUser) {
-      throw new Error("User not authenticated");
-    }
-    
+    if (!currentUser) throw new Error("User not authenticated");
+    const postRef = doc(db, "posts", postId);
+    // Use 'likers' subcollection
+    const likerRef = doc(db, "posts", postId, "likers", currentUser.uid);
+
     try {
-      // Remove reaction document
-      const reactionRef = doc(db, "posts", postId, "reactions", currentUser.uid);
-      await deleteDoc(reactionRef);
-      
-      // Decrement reaction count
-      await updateDoc(doc(db, "posts", postId), {
-        reactionCount: increment(-1)
+      const postDoc = await getDoc(postRef);
+      if (!postDoc.exists()) throw new Error("Post not found");
+      const postData = postDoc.data() as Post;
+
+      await runTransaction(db, async (transaction) => {
+        // Delete the document from the 'likers' subcollection
+        transaction.delete(likerRef);
+
+        // Decrement reactionCount on the main post document
+        transaction.update(postRef, {
+          reactionCount: increment(-1),
+        });
       });
-      
-      // Update local state
-      setPosts(posts.map(post => 
-        post.id === postId 
-          ? { ...post, isLiked: false, reactionCount: post.reactionCount - 1 } 
-          : post
-      ));
-    } catch (err) {
-      console.error("Error unliking post:", err);
-      throw err;
+
+      // Delete the corresponding 'post_like' activity item for the post author
+      if (postData.authorId !== currentUser.uid) {
+        const authorActivityColRef = collection(db, 'activity', postData.authorId, 'userActivity');
+        const q = query(
+          authorActivityColRef,
+          where('type', '==', 'post_like'),
+          where('postId', '==', postId),
+          where('fromUserId', '==', currentUser.uid), // Corrected field: fromUserId
+          limit(1) // Assuming only one such activity item per like
+        );
+        
+        const activitySnapshot = await getDocs(q);
+        if (!activitySnapshot.empty) {
+          const batch = writeBatch(db);
+          activitySnapshot.forEach(activityDoc => {
+            batch.delete(activityDoc.ref);
+          });
+          await batch.commit();
+          console.log(`Deleted 'post_like' activity for post ${postId} by user ${currentUser.uid} from author ${postData.authorId}'s feed.`);
+        } else {
+          console.log(`No 'post_like' activity found to delete for post ${postId} by user ${currentUser.uid} in author ${postData.authorId}'s feed.`);
+        }
+      }
+      console.log(`User ${currentUser.uid} unliked post ${postId}`);
+    } catch (error) {
+      console.error("Error unliking post: ", error);
+      throw error;
     }
   };
 
   // Add comment to a post
-  const addComment = async (postId: string, text: string) => {
-    if (!currentUser || !userProfile) {
-      throw new Error("User not authenticated");
-    }
-    
+  const addComment = async (postId: string, text: string): Promise<Comment> => {
+    if (!currentUser || !userProfile) throw new Error("User not authenticated");
+    if (!text.trim()) throw new Error("Comment text cannot be empty");
+
+    const postRef = doc(db, "posts", postId);
+    const commentsCollectionRef = collection(db, "posts", postId, "comments");
+
     try {
-      // Add comment document
-      const commentRef = await addDoc(collection(db, "posts", postId, "comments"), {
+      const postDoc = await getDoc(postRef);
+      if (!postDoc.exists()) throw new Error("Post not found");
+      const postData = postDoc.data() as Post;
+
+      const newCommentRef = doc(commentsCollectionRef);
+
+      const newCommentData: Omit<Comment, 'id' | 'likedBy'> = {
+        text: text.trim(),
         authorId: currentUser.uid,
-        authorUsername: userProfile.username,
-        authorProfileImageUrl: userProfile.profileImageUrl || "",
-        text: text,
-        createdAt: new Date()
-      });
-      
-      // Increment comment count
-      await updateDoc(doc(db, "posts", postId), {
-        commentCount: increment(1)
-      });
-      
-      // Return the new comment
-      return {
-        id: commentRef.id,
-        authorId: currentUser.uid,
-        authorUsername: userProfile.username,
-        authorProfileImageUrl: userProfile.profileImageUrl || "",
-        text: text,
-        createdAt: new Date(),
+        authorUsername: userProfile?.username || currentUser.displayName || "Anonymous",
+        authorProfileImageUrl: userProfile?.profileImageUrl || currentUser.photoURL || null,
+        createdAt: serverTimestamp() as Timestamp,
         likes: 0,
-        liked: false
+        // likedBy: [], // Initialize if needed, or handle separately
       };
-    } catch (err) {
-      console.error("Error adding comment:", err);
-      throw err;
+
+      await runTransaction(db, async (transaction) => {
+        transaction.set(newCommentRef, newCommentData);
+        transaction.update(postRef, {
+          commentCount: increment(1)
+        });
+
+        if (postData.authorId !== currentUser.uid) {
+          const authorActivityColRef = collection(db, 'activity', postData.authorId, 'userActivity');
+          const newActivityRef = doc(authorActivityColRef);
+          transaction.set(newActivityRef, {
+            type: 'post_comment',
+            fromUserId: currentUser.uid,
+            fromUsername: userProfile?.username || currentUser.displayName || "Someone",
+            fromProfileImageUrl: userProfile?.profileImageUrl || currentUser.photoURL || null,
+            postId: postId,
+            postImageUrl: postData.imageUrl?.startsWith("http") ? postData.imageUrl : undefined,
+            postCaption: postData.caption ? postData.caption.substring(0, 50) + (postData.caption.length > 50 ? "..." : "") : undefined,
+            commentId: newCommentRef.id,
+            commentText: text.trim().substring(0, 50) + (text.trim().length > 50 ? "..." : ""),
+            createdAt: serverTimestamp(),
+            status: 'unread',
+          } as Omit<ActivityItem, 'id'>);
+        }
+      });
+      
+      // For immediate UI update, create a client-side timestamp
+      const clientTimestamp = Timestamp.now();
+      return { 
+        id: newCommentRef.id, 
+        ...newCommentData, 
+        createdAt: clientTimestamp, 
+        // likedBy: [] // Ensure all fields of Comment are returned
+      } as Comment;
+
+    } catch (error) {
+      console.error("Error adding comment: ", error);
+      throw error;
     }
   };
 
   useEffect(() => {
-    fetchPosts();
+    if (currentUser?.uid) {
+        fetchPosts();
+    } else {
+        setPosts([]);
+        setLoading(false);
+    }
   }, [currentUser?.uid]);
 
   return {

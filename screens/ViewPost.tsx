@@ -3,6 +3,8 @@ import { StyleSheet, Text, View, Image, ScrollView, TouchableOpacity, KeyboardAv
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import ShareModal from '@/components/ShareModal';
+import { sharePost } from '@/services/ShareService';
 import { usePostsData, Post, Comment } from '@/hooks/usePostsData';
 import { useAuth } from '@/context/AuthContext';
 import { collection } from 'firebase/firestore';
@@ -64,8 +66,14 @@ export default function ViewPost() {
   }, [postId]);
 
   const handleSharePost = () => {
+    if (!currentUser) {
+      Alert.alert("Please log in", "You need to be logged in to share posts.");
+      return;
+    }
+    
     setShareModalVisible(true);
   };
+
 
   const searchUsers = async () => {
     if (!searchText.trim()) {
@@ -114,80 +122,19 @@ useEffect(() => {
     if (!currentUser || !post) return;
     
     try {
-      // Check if a conversation already exists between the two users
-      const conversationId = generateConversationId(currentUser.uid, userId);
-      const conversationRef = doc(db, 'conversations', conversationId);
-      const conversationSnap = await getDoc(conversationRef);
-
-      // Create conversation if it doesn't exist
-      if (!conversationSnap.exists()) {
-        // Create a new conversation document
-        const newConversationData = {
-          participants: [currentUser.uid, userId],
-          lastMessageAt: serverTimestamp(),
-          lastMessageText: `${currentUser.displayName || 'User'} shared a post`,
-          participantUsernames: {
-            [currentUser.uid]: currentUser.displayName || currentUser.email || 'Current User',
-            [userId]: username || 'User',
-          },
-          participantProfileImages: {
-            [currentUser.uid]: currentUser.photoURL || '',
-            [userId]: profileImageUrl || '',
-          },
-        };
-
-        await setDoc(conversationRef, newConversationData);
-        
-        // Create user-specific conversation entries
-        const userConvDocRef1 = doc(db, `users/${currentUser.uid}/conversations`, conversationId);
-        await setDoc(userConvDocRef1, {
-          otherParticipantId: userId,
-          otherParticipantUsername: username || 'User',
-          otherParticipantProfileImage: profileImageUrl || '',
-        });
-
-        const userConvDocRef2 = doc(db, `users/${userId}/conversations`, conversationId);
-        await setDoc(userConvDocRef2, {
-          otherParticipantId: currentUser.uid,
-          otherParticipantUsername: currentUser.displayName || currentUser.email || 'Current User',
-          otherParticipantProfileImage: currentUser.photoURL || '',
-        });
-      }
-
-      // Add a message with the shared post
-      const messagesRef = collection(db, "conversations", conversationId, "messages");
-      await addDoc(messagesRef, {
-        senderId: currentUser.uid,
-        text: post.caption ? `Shared a post: "${post.caption.substring(0, 50)}${post.caption.length > 50 ? '...' : ''}"` : 'Shared a post',
-        createdAt: serverTimestamp(),
-        sharedPost: {
+      await sharePost(
+        currentUser,
+        userId,
+        username,
+        profileImageUrl,
+        {
           id: post.id,
-          imageUrl: post.imageUrl || null,
-          caption: post.caption || '',
-          authorUsername: post.authorUsername || '',
+          caption: post.caption,
+          imageUrl: post.imageUrl,
+          authorUsername: post.authorUsername
         }
-      });
-
-      // Update conversation metadata
-      await updateDoc(conversationRef, {
-        lastMessageAt: serverTimestamp(),
-        lastMessageText: 'Shared a post',
-      });
-
-      // Update user-specific conversation data
-      const userConvRef1 = doc(db, `users/${currentUser.uid}/conversations`, conversationId);
-      await updateDoc(userConvRef1, {
-        lastMessageAt: serverTimestamp(),
-        lastMessageText: 'Shared a post',
-      });
-
-      const userConvRef2 = doc(db, `users/${userId}/conversations`, conversationId);
-      await updateDoc(userConvRef2, {
-        lastMessageAt: serverTimestamp(),
-        lastMessageText: 'Shared a post',
-      });
-
-      // Close modal and show confirmation
+      );
+      
       setShareModalVisible(false);
       Alert.alert("Success", "Post shared successfully");
     } catch (error) {
@@ -345,6 +292,17 @@ useEffect(() => {
     }
   };
   
+  const navigateToLikers = () => {
+    if (!post || !post.id) {
+      console.warn("Cannot navigate to likers: post or post.id is missing.");
+      return;
+    }
+    router.push({
+      pathname: "/post-likers/[id]",
+      params: { id: post.id },
+    });
+  };
+
   const navigateToWorkout = (workoutId: string) => {
     router.push(`/view-workout/${workoutId}`);
   };
@@ -443,7 +401,9 @@ useEffect(() => {
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.likes}>{post.reactionCount || 0} likes</Text>
+        <TouchableOpacity onPress={navigateToLikers}>
+          <Text style={styles.likes}>{post.reactionCount || 0} likes</Text>
+        </TouchableOpacity>
 
         <View style={styles.captionContainer}>
           <Text style={styles.caption}>{post.caption}</Text>
@@ -655,65 +615,11 @@ useEffect(() => {
       </Modal>
 
       {/* Share Post Modal */}
-      <Modal
-        transparent={true}
+      <ShareModal
         visible={shareModalVisible}
-        animationType="slide"
-        onRequestClose={() => setShareModalVisible(false)}
-      >
-        <KeyboardAvoidingView
-          style={styles.shareModalContainer}
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 100} // Adjust as needed
-        >
-          <View style={styles.shareModalContent}>
-            <View style={styles.shareModalHeader}>
-              <Text style={styles.shareModalTitle}>Share to</Text>
-              <TouchableOpacity onPress={() => setShareModalVisible(false)}>
-                <Ionicons name="close" size={24} color="#FFF" />
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.searchContainer}>
-              <TextInput
-                style={styles.searchInput}
-                placeholder="Search users..."
-                placeholderTextColor="#888"
-                value={searchText}
-                onChangeText={setSearchText}
-                onSubmitEditing={searchUsers}
-                autoCapitalize="none"
-              />
-            </View>
-
-            {searchLoading ? (
-              <ActivityIndicator size="large" color="#0A84FF" style={{ marginTop: 20 }} />
-            ) : (
-              <FlatList
-                data={searchResults}
-                keyExtractor={(item) => item.id}
-                renderItem={({ item }) => (
-                  <TouchableOpacity
-                    style={styles.userItem}
-                    onPress={() => sharePostWithUser(item.id, item.username, item.profileImageUrl)}
-                  >
-                    <Image
-                      source={item.profileImageUrl ? { uri: item.profileImageUrl } : require('@/assets/images/profile-icon.png')}
-                      style={styles.userItemImage}
-                    />
-                    <Text style={styles.userItemText}>{item.username}</Text>
-                  </TouchableOpacity>
-                )}
-                ListEmptyComponent={
-                  <Text style={styles.emptyResultsText}>
-                    {searchText ? "No users found" : "Search for users to share with"}
-                  </Text>
-                }
-              />
-            )}
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
+        onClose={() => setShareModalVisible(false)}
+        onShareWith={sharePostWithUser}
+      />
     </View>
   );
 }
@@ -780,6 +686,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     marginBottom: 5,
     color: '#FFF',
+    paddingVertical: 5,
   },
   captionContainer: {
     flexDirection: 'row',

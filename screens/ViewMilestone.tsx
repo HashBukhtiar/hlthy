@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, Image, TouchableOpacity, ScrollView, ActivityIndicator, Share } from 'react-native';
+import { StyleSheet, Text, View, Image, TouchableOpacity, Alert, ScrollView, ActivityIndicator, Share } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import ShareModal from '@/components/ShareModal';
+import { shareMilestone } from '@/services/ShareService';
+import { useAuth } from '@/context/AuthContext';
 
 // Define interfaces for milestone data
 export interface MilestoneStats {
@@ -44,6 +47,8 @@ export interface Milestone {
 }
 
 export default function ViewMilestone() {
+  const { currentUser } = useAuth();
+  const [shareModalVisible, setShareModalVisible] = useState(false);
   const { id } = useLocalSearchParams();
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -241,6 +246,15 @@ export default function ViewMilestone() {
   };
   
   const handleShare = async () => {
+    if (!currentUser) {
+      Alert.alert("Please log in", "You need to be logged in to share milestones.");
+      return;
+    }
+    
+    setShareModalVisible(true);
+
+    // implement this later
+    /*
     try {
       const result = await Share.share({
         message: `Check out this amazing milestone from ${milestone.username} on Hlthy!`,
@@ -249,7 +263,34 @@ export default function ViewMilestone() {
     } catch (error) {
       console.error('Error sharing milestone:', error);
     }
+      */
   };
+
+  const shareMilestoneWithUser = async (userId: string, username: string, profileImageUrl?: string) => {
+    if (!currentUser || !milestone) return;
+    
+    try {
+      await shareMilestone(
+        currentUser,
+        userId,
+        username,
+        profileImageUrl,
+        {
+          id: milestone.id,
+          milestoneType: milestone.milestoneType,
+          details: milestone.details,
+          username: milestone.username,
+        }
+      );
+      
+      setShareModalVisible(false);
+      Alert.alert("Success", "Milestone shared successfully");
+    } catch (error) {
+      console.error("Error sharing milestone:", error);
+      Alert.alert("Error", "Failed to share milestone. Please try again.");
+    }
+  };
+
 
   const formatTimeAgo = (date) => {
     if (!date) return 'Just now';
@@ -520,6 +561,11 @@ export default function ViewMilestone() {
           </TouchableOpacity>
         </View>
       </ScrollView>
+      <ShareModal
+        visible={shareModalVisible}
+        onClose={() => setShareModalVisible(false)}
+        onShareWith={shareMilestoneWithUser}
+      />
     </View>
   );
 }
