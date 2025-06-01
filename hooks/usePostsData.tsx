@@ -317,7 +317,7 @@ export function usePostsData() {
             type: 'post_like',
             fromUserId: currentUser.uid,
             fromUsername: userProfile.username,
-            fromProfileImageUrl: userProfile.profileImageUrl || undefined,
+            fromProfileImageUrl: userProfile.profileImageUrl || currentUser.photoURL || null,
             postId: postId,
             postImageUrl: postData.imageUrl?.startsWith("http") ? postData.imageUrl : undefined,
             postCaption: postData.caption ? postData.caption.substring(0, 50) + (postData.caption.length > 50 ? "..." : "") : undefined,
