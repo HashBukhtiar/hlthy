@@ -51,6 +51,9 @@ export default function ViewPost() {
   const [replyingToCommentId, setReplyingToCommentId] = useState<string | null>(null);
   const [replyText, setReplyText] = useState('');
   const [loadingReplies, setLoadingReplies] = useState<Record<string, boolean>>({});
+
+  const [selectedCommentForAction, setSelectedCommentForAction] = useState<Comment | null>(null);
+  const [commentActionModalVisible, setCommentActionModalVisible] = useState(false);
   
   // Fetch post and comments
   useEffect(() => {
@@ -391,6 +394,54 @@ useEffect(() => {
     }
   };
 
+  const handleLongPressComment = (comment: Comment) => {
+    setSelectedCommentForAction(comment);
+    setCommentActionModalVisible(true);
+  };
+
+  const handleEditComment = () => {
+    if (!selectedCommentForAction) return;
+    // Placeholder for edit functionality
+    console.log("Edit comment:", selectedCommentForAction.id);
+    Alert.alert("Edit Comment", `Editing comment: "${selectedCommentForAction.text.substring(0,30)}..."`);
+    setCommentActionModalVisible(false);
+    setSelectedCommentForAction(null);
+  };
+
+  const handleDeleteComment = () => {
+    if (!selectedCommentForAction) return;
+    // Placeholder for delete functionality
+    console.log("Delete comment:", selectedCommentForAction.id);
+    Alert.alert(
+      "Delete Comment",
+      "Are you sure you want to delete this comment?",
+      [
+        { text: "Cancel", style: "cancel", onPress: () => {} },
+        { text: "Delete", style: "destructive", onPress: () => {
+          // Actual deletion logic will go here
+          // For now, just simulate by removing from local state (this is not persistent)
+          setComments(prevComments => prevComments.filter(c => c.id !== selectedCommentForAction.id));
+          // Update post's comment count if post is available
+          if (post) {
+            setPost(prevPost => prevPost ? {...prevPost, commentCount: Math.max(0, (prevPost.commentCount || 0) - 1)} : null);
+          }
+          Alert.alert("Comment Deleted", "The comment has been removed (locally).");
+        }}
+      ]
+    );
+    setCommentActionModalVisible(false);
+    setSelectedCommentForAction(null);
+  };
+
+  const handleReportComment = () => {
+    if (!selectedCommentForAction) return;
+    // Placeholder for report functionality
+    console.log("Report comment:", selectedCommentForAction.id);
+    Alert.alert("Report Comment", `Reporting comment by ${selectedCommentForAction.authorUsername}.`);
+    setCommentActionModalVisible(false);
+    setSelectedCommentForAction(null);
+  };
+
   const handleSort = (type: string) => {
     setSortType(type);
     setSortModalVisible(false);
@@ -669,42 +720,46 @@ useEffect(() => {
           
           {comments.map(comment => (
             <View key={comment.id}>
-              <View style={styles.commentItem}>
-                <View style={styles.commentLeftSection}>
-                  <Image source={{ uri: comment.authorProfileImageUrl || 'https://via.placeholder.com/150' }} style={styles.commentProfilePic} />
-                  <View style={styles.commentContent}>
-                    <View style={styles.commentHeader}>
-                      <Text style={styles.commentUsername}>{comment.authorUsername}</Text>
-                      <Text style={styles.commentTimestamp}>{formatDate(comment.createdAt)}</Text>
-                    </View>
-                    <Text style={styles.commentText}>{comment.text}</Text>
-                    <View style={styles.commentActions}>
-                      <TouchableOpacity onPress={() => handleToggleReplyInput(comment.id)} style={styles.replyButton}>
-                        <Text style={styles.replyButtonText}>Reply</Text>
-                      </TouchableOpacity>
+              <TouchableOpacity 
+                onLongPress={() => handleLongPressComment(comment)}
+                delayLongPress={500}
+              >
+                <View style={styles.commentItem}>
+                  <View style={styles.commentLeftSection}>
+                    <Image source={{ uri: comment.authorProfileImageUrl || 'https://via.placeholder.com/150' }} style={styles.commentProfilePic} />
+                    <View style={styles.commentContent}>
+                      <View style={styles.commentHeader}>
+                        <Text style={styles.commentUsername}>{comment.authorUsername}</Text>
+                        <Text style={styles.commentTimestamp}>{formatDate(comment.createdAt)}</Text>
+                      </View>
+                      <Text style={styles.commentText}>{comment.text}</Text>
+                      <View style={styles.commentActions}>
+                        <TouchableOpacity onPress={() => handleToggleReplyInput(comment.id)} style={styles.replyButton}>
+                          <Text style={styles.replyButtonText}>Reply</Text>
+                        </TouchableOpacity>
+                      </View>
                     </View>
                   </View>
+                  <View style={styles.commentLikeContainer}>
+                    <TouchableOpacity 
+                      style={styles.commentLikeButton}
+                      onPress={() => handleCommentLike(comment.id)}
+                    >
+                      <Ionicons 
+                        name={comment.isLiked ? "heart" : "heart-outline"} 
+                        size={14} 
+                        color={comment.isLiked ? "#FF3B30" : "#999"}
+                      />
+                    </TouchableOpacity>
+                    <Text style={[
+                      styles.commentLikeCount,
+                      comment.isLiked && styles.commentLikedCount
+                    ]}>
+                      {comment.likes || 0}
+                    </Text>
+                  </View>
                 </View>
-                <View style={styles.commentLikeContainer}>
-                  <TouchableOpacity 
-                    style={styles.commentLikeButton}
-                    onPress={() => handleCommentLike(comment.id)}
-                  >
-                    <Ionicons 
-                      name={comment.isLiked ? "heart" : "heart-outline"} 
-                      size={14} 
-                      color={comment.isLiked ? "#FF3B30" : "#999"}
-                    />
-                  </TouchableOpacity>
-                  <Text style={[
-                    styles.commentLikeCount,
-                    comment.isLiked && styles.commentLikedCount
-                  ]}>
-                    {comment.likes || 0}
-                  </Text>
-                </View>
-              </View>
-
+              </TouchableOpacity>
               {/* Reply Input Area */}
               {replyingToCommentId === comment.id && (
                 <View style={styles.replyInputContainer}>
@@ -883,6 +938,66 @@ useEffect(() => {
         onClose={() => setShareModalVisible(false)}
         onShareWith={sharePostWithUser}
       />
+      {/* Comment Action Modal */}
+      {selectedCommentForAction && (
+        <Modal
+          animationType="slide"
+          transparent={true}
+          visible={commentActionModalVisible}
+          onRequestClose={() => {
+            setCommentActionModalVisible(false);
+            setSelectedCommentForAction(null);
+          }}
+        >
+          <TouchableOpacity 
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => {
+              setCommentActionModalVisible(false);
+              setSelectedCommentForAction(null);
+            }}
+          >
+            <View style={styles.commentActionModalView}>
+              {selectedCommentForAction.authorId === currentUser?.uid ? (
+                <>
+                  <TouchableOpacity
+                    style={styles.commentActionItem}
+                    onPress={handleEditComment}
+                  >
+                    <Ionicons name="create-outline" size={22} color="#FFF" style={styles.commentActionIcon} />
+                    <Text style={styles.commentActionText}>Edit Comment</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.commentActionItem}
+                    onPress={handleDeleteComment}
+                  >
+                    <Ionicons name="trash-outline" size={22} color="#FF3B30" style={styles.commentActionIcon} />
+                    <Text style={[styles.commentActionText, { color: '#FF3B30' }]}>Delete Comment</Text>
+                  </TouchableOpacity>
+                </>
+              ) : (
+                <TouchableOpacity
+                  style={styles.commentActionItem}
+                  onPress={handleReportComment}
+                >
+                  <Ionicons name="flag-outline" size={22} color="#FF9500" style={styles.commentActionIcon} />
+                  <Text style={[styles.commentActionText, { color: '#FF9500' }]}>Report Comment</Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity
+                style={[styles.commentActionItem, { borderBottomWidth: 0 }]}
+                onPress={() => {
+                  setCommentActionModalVisible(false);
+                  setSelectedCommentForAction(null);
+                }}
+              >
+                <Ionicons name="close-circle-outline" size={22} color="#999" style={styles.commentActionIcon} />
+                <Text style={[styles.commentActionText, { color: '#999' }]}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </Modal>
+      )}
     </View>
   );
 }
@@ -1391,5 +1506,35 @@ const styles = StyleSheet.create({
     color: '#888',
     textAlign: 'center',
     marginTop: 20,
+  },
+  commentActionModalView: {
+    backgroundColor: '#1C1C1E',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingTop: 10,
+    paddingBottom: Platform.OS === 'ios' ? 30 : 20,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: -2
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  commentActionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 18,
+    paddingHorizontal: 20,
+    borderBottomColor: '#3A3A3C',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  commentActionIcon: {
+    marginRight: 15,
+  },
+  commentActionText: {
+    color: '#FFF',
+    fontSize: 17,
   },
 });
