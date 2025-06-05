@@ -454,21 +454,53 @@ useEffect(() => {
     );
   }
   
-  const formatDate = (timestamp) => {
-    if (!timestamp) return 'Just now';
+  const formatDate = (timestamp: any): string => {
+    if (!timestamp) return 'Unknown date'; 
     
     try {
       const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
       const now = new Date();
-      const diffInSeconds = Math.floor((now - date) / 1000);
+      const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+      let relativeTimeString: string;
+
+      const secondsInMinute = 60;
+      const secondsInHour = secondsInMinute * 60;
+      const secondsInDay = secondsInHour * 24;
+      const secondsInMonth = secondsInDay * 30;
+      const secondsInYear = secondsInDay * 365;
+
+      if (diffInSeconds < 0) {
+        relativeTimeString = 'Just now';
+      } else if (diffInSeconds < secondsInMinute) {
+        relativeTimeString = 'Just now';
+      } else if (diffInSeconds < secondsInHour) {
+        relativeTimeString = `${Math.floor(diffInSeconds / secondsInMinute)}min ago`;
+      } else if (diffInSeconds < secondsInDay) {
+        relativeTimeString = `${Math.floor(diffInSeconds / secondsInHour)}h ago`;
+      } else if (diffInSeconds < secondsInMonth) {
+        relativeTimeString = `${Math.floor(diffInSeconds / secondsInDay)}d ago`;
+      } else if (diffInSeconds < secondsInYear) {
+        relativeTimeString = `${Math.floor(diffInSeconds / secondsInMonth)}m ago`;
+      } else {
+        relativeTimeString = `${Math.floor(diffInSeconds / secondsInYear)}y ago`;
+      }
+
+      const dateOptions: Intl.DateTimeFormatOptions = {
+        month: 'short',
+        day: 'numeric',
+      };
+
+      if (date.getFullYear() !== now.getFullYear()) {
+        dateOptions.year = 'numeric';
+      }
       
-      if (diffInSeconds < 60) return 'Just now';
-      if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
-      if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
-      if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}d ago`;
-      
-      return date.toLocaleDateString();
+      const absoluteDateString = date.toLocaleDateString(undefined, dateOptions);
+
+      return `${absoluteDateString} (${relativeTimeString})`;
+
     } catch (e) {
+      console.error("Error formatting date:", e);
       return 'Unknown date';
     }
   };
