@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import ShareModal from '@/components/ShareModal';
 import { sharePost } from '@/services/ShareService';
-import { usePostsData, Post, Comment } from '@/hooks/usePostsData';
+import { usePostsData, Post, Comment, Reply } from '@/hooks/usePostsData';
 import { useAuth } from '@/context/AuthContext';
 import { collection } from 'firebase/firestore';
 import { db } from '@/firebaseConfig';
@@ -17,7 +17,20 @@ export default function ViewPost() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { currentUser, userProfile } = useAuth();
-  const { getPostById, getPostComments, likePost, unlikePost, addComment, deletePost } = usePostsData();  
+  const { 
+    getPostById, 
+    getPostComments, 
+    likePost, 
+    unlikePost, 
+    addComment, 
+    deletePost,
+    likeComment,
+    unlikeComment,
+    addReplyToComment,
+    getCommentReplies,
+    likeReply,
+    unlikeReply
+  } = usePostsData();  
   const postId = params.id ? String(params.id) : '';
   
   const [post, setPost] = useState<Post | null>(null);
@@ -27,12 +40,17 @@ export default function ViewPost() {
   const [sortModalVisible, setSortModalVisible] = useState(false);
   const [sortType, setSortType] = useState('Recency');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmittingReply, setIsSubmittingReply] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
   const [shareModalVisible, setShareModalVisible] = useState(false);
   const [searchText, setSearchText] = useState('');
   const [searchResults, setSearchResults] = useState<{id: string, username: string, profileImageUrl?: string}[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
+
+  const [replyingToCommentId, setReplyingToCommentId] = useState<string | null>(null);
+  const [replyText, setReplyText] = useState('');
+  const [loadingReplies, setLoadingReplies] = useState<Record<string, boolean>>({});
   
   // Fetch post and comments
   useEffect(() => {
@@ -183,16 +201,13 @@ useEffect(() => {
     
     try {
       setIsSubmitting(true);
-      
-      // Add comment to Firebase
       const newComment = await addComment(post.id, commentText.trim());
-      
-      // Update local state
-      setComments([newComment, ...comments]);
+      setComments([{ ...newComment, replies: [] }, ...comments]);
       setCommentText('');
-      setPost({...post, commentCount: post.commentCount + 1});
+      setPost(prevPost => prevPost ? {...prevPost, commentCount: (prevPost.commentCount || 0) + 1} : null);
     } catch (error) {
       console.error("Error adding comment:", error);
+      Alert.alert("Error", "Could not add comment. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -255,20 +270,127 @@ useEffect(() => {
   };
   
   const handleCommentLike = async (commentId: string) => {
-    // TODO: Implement comment like functionality with Firebase
-    setComments(comments.map(item => {
-      if (item.id === commentId) {
-        const newLikedState = !item.liked;
-        return {
-          ...item,
-          liked: newLikedState,
-          likes: newLikedState ? item.likes + 1 : item.likes - 1
-        };
+    if (!post || !currentUser) return;
+
+    const commentIndex = comments.findIndex(c => c.id === commentId);
+    if (commentIndex === -1) return;
+
+    const originalComments = [...comments];
+    const comment = comments[commentIndex];
+    const currentlyLiked = comment.isLiked;
+
+    const updatedComments = [...comments];
+    updatedComments[commentIndex] = {
+      ...comment,
+      isLiked: !currentlyLiked,
+      likes: currentlyLiked ? (comment.likes || 0) - 1 : (comment.likes || 0) + 1,
+    };
+    setComments(updatedComments);
+
+    try {
+      if (currentlyLiked) {
+        await unlikeComment(post.id, commentId);
+      } else {
+        await likeComment(post.id, commentId);
       }
-      return item;
-    }));
+    } catch (error) {
+      console.error("Error toggling comment like:", error);
+      setComments(originalComments);
+      Alert.alert("Error", "Could not update like status. Please try again.");
+    }
   };
   
+  const handleToggleReplyInput = (commentId: string | null) => {
+    if (replyingToCommentId === commentId) {
+      setReplyingToCommentId(null);
+      setReplyText('');
+    } else {
+      setReplyingToCommentId(commentId);
+      setReplyText('');
+    }
+  };
+
+  const handleLoadReplies = async (commentId: string) => {
+    if (!post) return;
+    setLoadingReplies(prev => ({ ...prev, [commentId]: true }));
+    try {
+      const fetchedReplies = await getCommentReplies(post.id, commentId);
+      setComments(prevComments => prevComments.map(c => 
+        c.id === commentId ? { ...c, replies: fetchedReplies } : c
+      ));
+    } catch (error) {
+      console.error("Error loading replies:", error);
+      Alert.alert("Error", "Could not load replies.");
+    } finally {
+      setLoadingReplies(prev => ({ ...prev, [commentId]: false }));
+    }
+  };
+
+  const handleAddReply = async (parentCommentId: string) => {
+    if (!post || !currentUser || !replyText.trim() || isSubmittingReply) return;
+
+    setIsSubmittingReply(true);
+    try {
+      const newReply = await addReplyToComment(post.id, parentCommentId, replyText.trim());
+      setComments(prevComments => prevComments.map(c => {
+        if (c.id === parentCommentId) {
+          return {
+            ...c,
+            replies: [newReply, ...(c.replies || [])],
+            replyCount: (c.replyCount || 0) + 1,
+          };
+        }
+        return c;
+      }));
+      setReplyText('');
+      setReplyingToCommentId(null);
+    } catch (error) {
+      console.error("Error adding reply:", error);
+      Alert.alert("Error", "Could not add reply. Please try again.");
+    } finally {
+      setIsSubmittingReply(false);
+    }
+  };
+
+  const handleReplyLike = async (commentId: string, replyId: string) => {
+    if (!post || !currentUser) return;
+
+    const commentIndex = comments.findIndex(c => c.id === commentId);
+    if (commentIndex === -1) return;
+
+    const originalComments = [...comments];
+    const comment = comments[commentIndex];
+    const replyIndex = comment.replies?.findIndex(r => r.id === replyId);
+
+    if (replyIndex === undefined || replyIndex === -1 || !comment.replies) return;
+
+    const reply = comment.replies[replyIndex];
+    const currentlyLiked = reply.isLiked;
+
+    // Optimistic UI Update
+    const updatedReplies = [...comment.replies];
+    updatedReplies[replyIndex] = {
+      ...reply,
+      isLiked: !currentlyLiked,
+      likes: currentlyLiked ? (reply.likes || 0) - 1 : (reply.likes || 0) + 1,
+    };
+    const updatedComments = [...comments];
+    updatedComments[commentIndex] = { ...comment, replies: updatedReplies };
+    setComments(updatedComments);
+
+    try {
+      if (currentlyLiked) {
+        await unlikeReply(post.id, commentId, replyId);
+      } else {
+        await likeReply(post.id, commentId, replyId);
+      }
+    } catch (error) {
+      console.error("Error toggling reply like:", error);
+      setComments(originalComments);
+      Alert.alert("Error", "Could not update reply like status.");
+    }
+  };
+
   const handleSort = (type: string) => {
     setSortType(type);
     setSortModalVisible(false);
@@ -350,6 +472,40 @@ useEffect(() => {
       return 'Unknown date';
     }
   };
+
+  const renderReplyItem = (reply: Reply, commentId: string) => (
+    <View key={reply.id} style={styles.replyItem}>
+      <View style={styles.commentLeftSection}>
+        <Image source={{ uri: reply.authorProfileImageUrl || 'https://via.placeholder.com/150' }} style={styles.replyProfilePic} />
+        <View style={styles.commentContent}>
+          <View style={styles.commentHeader}>
+            <Text style={styles.commentUsername}>{reply.authorUsername}</Text>
+            <Text style={styles.commentTimestamp}>{formatDate(reply.createdAt)}</Text>
+          </View>
+          <Text style={styles.commentText}>{reply.text}</Text>
+          {/* Reply Actions (e.g., like for reply) can go here */}
+        </View>
+      </View>
+      <View style={styles.commentLikeContainer}>
+        <TouchableOpacity 
+          style={styles.commentLikeButton}
+          onPress={() => handleReplyLike(commentId, reply.id)}
+        >
+          <Ionicons 
+            name={reply.isLiked ? "heart" : "heart-outline"} 
+            size={14} 
+            color={reply.isLiked ? "#FF3B30" : "#999"}
+          />
+        </TouchableOpacity>
+        <Text style={[
+          styles.commentLikeCount,
+          reply.isLiked && styles.commentLikedCount
+        ]}>
+          {reply.likes || 0}
+        </Text>
+      </View>
+    </View>
+  );
 
   return (
     <View style={[styles.container, { paddingTop: insets.top, backgroundColor: '#000' }]}>
@@ -458,7 +614,7 @@ useEffect(() => {
           </TouchableOpacity>
         )}
 
-        <View style={styles.commentsSection}>
+                <View style={styles.commentsSection}>
           <View style={styles.commentsHeaderContainer}>
             <View style={styles.commentsHeaderLeft}>
               <Text style={styles.commentsHeader}>Comments</Text>
@@ -480,35 +636,110 @@ useEffect(() => {
           )}
           
           {comments.map(comment => (
-            <View key={comment.id} style={styles.commentItem}>
-              <View style={styles.commentLeftSection}>
-                <Image source={{ uri: comment.authorProfileImageUrl || 'https://via.placeholder.com/150' }} style={styles.commentProfilePic} />
-                <View style={styles.commentContent}>
-                  <View style={styles.commentHeader}>
-                    <Text style={styles.commentUsername}>{comment.authorUsername}</Text>
-                    <Text style={styles.commentTimestamp}>{formatDate(comment.createdAt)}</Text>
+            <View key={comment.id}>
+              <View style={styles.commentItem}>
+                <View style={styles.commentLeftSection}>
+                  <Image source={{ uri: comment.authorProfileImageUrl || 'https://via.placeholder.com/150' }} style={styles.commentProfilePic} />
+                  <View style={styles.commentContent}>
+                    <View style={styles.commentHeader}>
+                      <Text style={styles.commentUsername}>{comment.authorUsername}</Text>
+                      <Text style={styles.commentTimestamp}>{formatDate(comment.createdAt)}</Text>
+                    </View>
+                    <Text style={styles.commentText}>{comment.text}</Text>
+                    <View style={styles.commentActions}>
+                      <TouchableOpacity onPress={() => handleToggleReplyInput(comment.id)} style={styles.replyButton}>
+                        <Text style={styles.replyButtonText}>Reply</Text>
+                      </TouchableOpacity>
+                    </View>
                   </View>
-                  <Text style={styles.commentText}>{comment.text}</Text>
+                </View>
+                <View style={styles.commentLikeContainer}>
+                  <TouchableOpacity 
+                    style={styles.commentLikeButton}
+                    onPress={() => handleCommentLike(comment.id)}
+                  >
+                    <Ionicons 
+                      name={comment.isLiked ? "heart" : "heart-outline"} 
+                      size={14} 
+                      color={comment.isLiked ? "#FF3B30" : "#999"}
+                    />
+                  </TouchableOpacity>
+                  <Text style={[
+                    styles.commentLikeCount,
+                    comment.isLiked && styles.commentLikedCount
+                  ]}>
+                    {comment.likes || 0}
+                  </Text>
                 </View>
               </View>
-              <View style={styles.commentLikeContainer}>
-                <TouchableOpacity 
-                  style={styles.commentLikeButton}
-                  onPress={() => handleCommentLike(comment.id)}
-                >
-                  <Ionicons 
-                    name={comment.liked ? "heart" : "heart-outline"} 
-                    size={14} 
-                    color={comment.liked ? "#FF3B30" : "#999"}
+
+              {/* Reply Input Area */}
+              {replyingToCommentId === comment.id && (
+                <View style={styles.replyInputContainer}>
+                  <Image 
+                    source={{ uri: userProfile?.profileImageUrl || 'https://via.placeholder.com/150' }} 
+                    style={styles.replyInputProfilePic} 
                   />
+                  <TextInput
+                    style={styles.replyInput}
+                    placeholder={`Replying to ${comment.authorUsername}...`}
+                    placeholderTextColor="#666"
+                    value={replyText}
+                    onChangeText={setReplyText}
+                    autoFocus={true}
+                  />
+                  <TouchableOpacity 
+                    style={[
+                      styles.postReplyButton, 
+                      (replyText.trim() === '' || isSubmittingReply) && styles.disabledButton
+                    ]}
+                    onPress={() => handleAddReply(comment.id)}
+                    disabled={replyText.trim() === '' || isSubmittingReply}
+                  >
+                    {isSubmittingReply ? (
+                      <ActivityIndicator size="small" color="#0A84FF" />
+                    ) : (
+                      <Text style={[
+                        styles.postButtonText, 
+                        replyText.trim() === '' && styles.disabledButtonText
+                      ]}>
+                        Post
+                      </Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              {/* Display Replies */}
+              {(comment.replyCount || 0) > 0 && !comment.replies?.length && !loadingReplies[comment.id] && (
+                <TouchableOpacity 
+                  style={styles.viewRepliesButton} 
+                  onPress={() => handleLoadReplies(comment.id)}
+                >
+                  <Text style={styles.viewRepliesText}>
+                    View {comment.replyCount} {comment.replyCount === 1 ? 'reply' : 'replies'}
+                  </Text>
                 </TouchableOpacity>
-                <Text style={[
-                  styles.commentLikeCount,
-                  comment.liked && styles.commentLikedCount
-                ]}>
-                  {comment.likes || 0}
-                </Text>
-              </View>
+              )}
+              {loadingReplies[comment.id] && (
+                <ActivityIndicator size="small" color="#0A84FF" style={{alignSelf: 'flex-start', marginLeft: 50, marginVertical: 5}}/>
+              )}
+
+              {comment.replies && comment.replies.length > 0 && (
+                <View style={styles.repliesContainer}>
+                  {comment.replies.map(reply => renderReplyItem(reply, comment.id))}
+                  {(comment.replyCount || 0) > comment.replies.length && !loadingReplies[comment.id] && (
+                     <TouchableOpacity 
+                        style={styles.viewRepliesButton} 
+                        onPress={() => handleLoadReplies(comment.id)} // Could be "load more" in future
+                      >
+                        <Text style={styles.viewRepliesText}>
+                          View more replies
+                        </Text>
+                      </TouchableOpacity>
+                  )}
+                </View>
+              )}
             </View>
           ))}
         </View>
@@ -851,6 +1082,18 @@ const styles = StyleSheet.create({
     color: '#FFF',
     marginVertical: 4,
   },
+  commentActions: {
+    flexDirection: 'row',
+    marginTop: 5,
+  },
+  replyButton: {
+    // Style for the reply button under a comment
+  },
+  replyButtonText: {
+    color: '#999',
+    fontSize: 12,
+    fontWeight: '500',
+  },
   commentLikeContainer: {
     alignItems: 'center',
     paddingLeft: 5,
@@ -866,6 +1109,60 @@ const styles = StyleSheet.create({
   },
   commentLikedCount: {
     color: '#FF3B30',
+  },
+  replyInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    marginLeft: 40, // Indent reply input
+    backgroundColor: '#080808', // Slightly different background
+    borderRadius: 18,
+    marginBottom: 10,
+  },
+  replyInputProfilePic: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    marginRight: 8,
+  },
+  replyInput: {
+    flex: 1,
+    height: 30,
+    fontSize: 13,
+    color: '#FFF',
+  },
+  postReplyButton: {
+    marginLeft: 8,
+    paddingHorizontal: 10,
+  },
+  repliesContainer: {
+    marginLeft: 40, // Indent replies
+    marginTop: 10,
+    borderLeftColor: '#333',
+    borderLeftWidth: 1,
+    paddingLeft: 10,
+  },
+  replyItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 15,
+  },
+  replyProfilePic: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    marginRight: 8,
+    alignSelf: 'flex-start',
+  },
+  viewRepliesButton: {
+    marginLeft: 50,
+    marginVertical: 8,
+  },
+  viewRepliesText: {
+    color: '#0A84FF',
+    fontSize: 13,
+    fontWeight: '500',
   },
   commentInputContainer: {
     flexDirection: 'row',
