@@ -110,12 +110,14 @@ export default function ChatScreen() {
   const [profileImageUrl, setProfileImageUrl] = useState<string | null>(null);
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [otherParticipantId, setOtherParticipantId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!currentUser || !conversationId) return;
     if (conversationId === 'ai_conversation') {
       setChatTitle('hlthy AI');
       setProfileImageUrl(Image.resolveAssetSource(require('@/assets/images/icon.png')).uri);
+      setOtherParticipantId(null);
       setMessages([{
         id: 'ai_welcome',
         text: 'Hello! How can I help you today?',
@@ -182,12 +184,12 @@ export default function ChatScreen() {
             const participantUsernames = data?.participantUsernames;
             const participantProfileImages = data?.participantProfileImages;
             if (participantUsernames) {
-              // Get the other participant's username and profile image
               const otherUserId = Object.keys(participantUsernames).find(
                 (uid) => uid !== currentUser.uid
               );
               if (otherUserId) {
                 setChatTitle(participantUsernames[otherUserId] || 'Chat');
+                setOtherParticipantId(otherUserId);
                 
                 // Try to get the profile image from participantProfileImages
                 let profileImg = null;
@@ -221,10 +223,12 @@ export default function ChatScreen() {
               } else {
                 setChatTitle('Chat');
                 setProfileImageUrl(null);
+                setOtherParticipantId(null);
               }
             } else {
               setChatTitle('Chat');
               setProfileImageUrl(null);
+              setOtherParticipantId(null);
             }
           }
         })
@@ -232,6 +236,7 @@ export default function ChatScreen() {
           console.error("Error fetching conversation data:", error);
           setChatTitle('Chat');
           setProfileImageUrl(null);
+          setOtherParticipantId(null);
         });
 
       return () => unsubscribe();
@@ -485,6 +490,12 @@ export default function ChatScreen() {
     }
   };
 
+  const navigateToUserProfile = () => {
+    if (conversationId !== 'ai_conversation' && otherParticipantId) {
+      router.push(`/profile/${otherParticipantId}`);
+    }
+  };
+
   const renderMessage: ListRenderItem<Message> = ({ item }) => {
     // Render date header
     if (item.type === 'dateHeader') {
@@ -656,12 +667,20 @@ export default function ChatScreen() {
             <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
               <Ionicons name="arrow-back" size={24} color="white" />
             </TouchableOpacity>
-            {profileImageUrl ? (
-              <Image source={{ uri: profileImageUrl }} style={styles.profilePic} />
-            ) : (
-              <Image source={require('@/assets/images/profile-icon.png')} style={styles.profilePic} /> // Default profile icon
-            )}
-            <Text style={styles.headerText}>{chatTitle}</Text>
+            <TouchableOpacity
+              style={styles.headerUserInfoContainer}
+              onPress={navigateToUserProfile}
+              disabled={conversationId === 'ai_conversation' || !otherParticipantId}
+            >
+              {profileImageUrl ? (
+                <Image source={{ uri: profileImageUrl }} style={styles.profilePic} />
+              ) : (
+                <Image source={require('@/assets/images/profile-icon.png')} style={styles.profilePic} />
+              )}
+              <Text style={styles.headerText} numberOfLines={1} ellipsizeMode="tail">
+                {chatTitle}
+              </Text>
+            </TouchableOpacity>
           </View>
         </SafeAreaView>
 
@@ -756,10 +775,17 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 18,
     fontWeight: 'bold',
-    marginLeft: 10,
+    flexShrink: 1,
   },
   backButton: {
-    padding: 10,
+    padding: 5,
+    marginRight: 5,
+  },
+  headerUserInfoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    paddingVertical: 5,
   },
   profilePic: { 
     width: 30,
