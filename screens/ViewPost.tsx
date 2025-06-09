@@ -9,7 +9,7 @@ import { usePostsData, Post, Comment, Reply } from '@/hooks/usePostsData';
 import { useAuth } from '@/context/AuthContext';
 import { collection } from 'firebase/firestore';
 import { db } from '@/firebaseConfig';
-import { query, where, limit, getDocs, doc, setDoc, getDoc, addDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
+import { query, where, limit, getDocs } from 'firebase/firestore';
 
 export default function ViewPost() {
   const [menuVisible, setMenuVisible] = useState(false);
@@ -591,414 +591,426 @@ useEffect(() => {
   );
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top, backgroundColor: '#000' }]}>
-      <ScrollView 
-        showsVerticalScrollIndicator={false}
-        style={styles.scrollView}
-      >
-        <View style={styles.header}>
-          <View style={styles.userInfoContainer}>
-            <Image source={{ uri: post.authorProfileImageUrl || 'https://via.placeholder.com/150' }} style={styles.profilePic} />
-            <View>
-              <Text style={styles.username}>{post.authorUsername}</Text>
-              <Text style={styles.location}>{formatDate(post.createdAt)}</Text>
+    <KeyboardAvoidingView 
+      style={{ flex: 1, backgroundColor: '#000' }}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      // You might need to add keyboardVerticalOffset if you have a custom fixed header
+      // that's not accounted for by `insets.top`.
+      // Example: keyboardVerticalOffset={Platform.OS === "ios" ? YOUR_HEADER_HEIGHT : 0}
+    >
+      <View style={[styles.container, { paddingTop: insets.top }]}>
+        <ScrollView 
+          showsVerticalScrollIndicator={false}
+          style={styles.scrollView}
+        >
+          <View style={styles.header}>
+            <View style={styles.userInfoContainer}>
+              <Image source={{ uri: post.authorProfileImageUrl || 'https://via.placeholder.com/150' }} style={styles.profilePic} />
+              <View>
+                <Text style={styles.username}>{post.authorUsername}</Text>
+                <Text style={styles.location}>{formatDate(post.createdAt)}</Text>
+              </View>
             </View>
+            {post.authorId === currentUser?.uid && (
+              <TouchableOpacity style={styles.moreButton} onPress={() => setMenuVisible(true)}>
+                <Ionicons name="ellipsis-horizontal" size={20} color="#FFF" />
+              </TouchableOpacity>
+            )}
           </View>
-          {post.authorId === currentUser?.uid && (
-            <TouchableOpacity style={styles.moreButton} onPress={() => setMenuVisible(true)}>
-              <Ionicons name="ellipsis-horizontal" size={20} color="#FFF" />
-            </TouchableOpacity>
+
+          {post.imageUrl && (
+            <Image source={{ uri: post.imageUrl }} style={styles.postImage} />
           )}
-        </View>
 
-        {post.imageUrl && (
-          <Image source={{ uri: post.imageUrl }} style={styles.postImage} />
-        )}
-
-        <View style={styles.actionButtons}>
-          <View style={styles.leftActions}>
-            <TouchableOpacity style={styles.actionButton} onPress={handleLike}>
+          <View style={styles.actionButtons}>
+            <View style={styles.leftActions}>
+              <TouchableOpacity style={styles.actionButton} onPress={handleLike}>
+                <Ionicons 
+                  name={post.isLiked ? "heart" : "heart-outline"} 
+                  size={28} 
+                  color={post.isLiked ? "#FF3B30" : "#FFF"} 
+                />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.actionButton}>
+                <Ionicons name="chatbubble-outline" size={26} color="#FFF" />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.actionButton} onPress={handleSharePost}>
+                <Ionicons name="paper-plane-outline" size={26} color="#FFF" />
+              </TouchableOpacity>
+            </View>
+            <TouchableOpacity style={styles.actionButton} onPress={handleBookmark}>
               <Ionicons 
-                name={post.isLiked ? "heart" : "heart-outline"} 
-                size={28} 
-                color={post.isLiked ? "#FF3B30" : "#FFF"} 
+                name={post.isBookmarked ? "bookmark" : "bookmark-outline"} 
+                size={26} 
+                color="#FFF" 
               />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.actionButton}>
-              <Ionicons name="chatbubble-outline" size={26} color="#FFF" />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.actionButton} onPress={handleSharePost}>
-              <Ionicons name="paper-plane-outline" size={26} color="#FFF" />
-            </TouchableOpacity>
           </View>
-          <TouchableOpacity style={styles.actionButton} onPress={handleBookmark}>
-            <Ionicons 
-              name={post.isBookmarked ? "bookmark" : "bookmark-outline"} 
-              size={26} 
-              color="#FFF" 
-            />
+
+          <TouchableOpacity onPress={navigateToLikers}>
+            <Text style={styles.likes}>{post.reactionCount || 0} likes</Text>
           </TouchableOpacity>
-        </View>
 
-        <TouchableOpacity onPress={navigateToLikers}>
-          <Text style={styles.likes}>{post.reactionCount || 0} likes</Text>
-        </TouchableOpacity>
+          <View style={styles.captionContainer}>
+            <Text style={styles.caption}>{post.caption}</Text>
+          </View>
 
-        <View style={styles.captionContainer}>
-          <Text style={styles.caption}>{post.caption}</Text>
-        </View>
+          <Text style={styles.timestamp}>{formatDate(post.createdAt)}</Text>
 
-        <Text style={styles.timestamp}>{formatDate(post.createdAt)}</Text>
-
-        {post.isMilestone && post.milestoneDetails && (
-          <TouchableOpacity 
-            style={styles.attachedMilestoneContainer}
-          >
-            <View style={styles.attachedMilestoneContent}>
-              <View style={styles.attachedMilestoneInfo}>
-                <Ionicons name="trophy-outline" size={18} color="#FFF" style={styles.milestoneIcon} />
-                <View>
-                  <Text style={styles.attachedMilestoneTitle}>
-                    {post.milestoneDetails.type === 'PR' ? 'Personal Record' : 
-                     post.milestoneDetails.type === 'weightLoss' ? 'Weight Loss' : 'Weight Gain'}
-                  </Text>
-                  <Text style={styles.attachedMilestoneDetails}>
-                    {post.milestoneDetails.type === 'PR' ? 
-                      `${post.milestoneDetails.exercise}: ${post.milestoneDetails.value} ${post.milestoneDetails.weightUnit} × ${post.milestoneDetails.reps} reps` : 
-                      `New weight: ${post.milestoneDetails.newWeight} ${post.milestoneDetails.newWeightUnit}`
-                    }
-                  </Text>
-                </View>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color="#999" />
-            </View>
-          </TouchableOpacity>
-        )}
-
-        {post.workoutId && (
-          <TouchableOpacity 
-            style={styles.attachedWorkoutContainer}
-            onPress={() => navigateToWorkout(post.workoutId)}
-          >
-            <View style={styles.attachedWorkoutContent}>
-              <View style={styles.attachedWorkoutInfo}>
-                <Ionicons name="barbell-outline" size={18} color="#FFF" style={styles.workoutIcon} />
-                <View>
-                  <Text style={styles.attachedWorkoutTitle}>
-                    Workout
-                  </Text>
-                  <Text style={styles.attachedWorkoutDetails}>
-                    View attached workout details
-                  </Text>
-                </View>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color="#999" />
-            </View>
-          </TouchableOpacity>
-        )}
-
-                <View style={styles.commentsSection}>
-          <View style={styles.commentsHeaderContainer}>
-            <View style={styles.commentsHeaderLeft}>
-              <Text style={styles.commentsHeader}>Comments</Text>
-              <Text style={styles.commentCount}>{post.commentCount || 0}</Text>
-            </View>
+          {post.isMilestone && post.milestoneDetails && (
             <TouchableOpacity 
-              style={styles.sortButton}
-              onPress={() => setSortModalVisible(true)}
+              style={styles.attachedMilestoneContainer}
             >
-              <Text style={styles.sortButtonText}>{sortType}</Text>
-              <Ionicons name="chevron-down" size={14} color="#999" />
-            </TouchableOpacity>
-          </View>
-          
-          {comments.length === 0 && (
-            <Text style={{ color: '#999', textAlign: 'center', marginTop: 20, marginBottom: 20 }}>
-              No comments yet. Be the first to comment!
-            </Text>
-          )}
-          
-          {comments.map(comment => (
-            <View key={comment.id}>
-              <TouchableOpacity 
-                onLongPress={() => handleLongPressComment(comment)}
-                delayLongPress={500}
-              >
-                <View style={styles.commentItem}>
-                  <View style={styles.commentLeftSection}>
-                    <Image source={{ uri: comment.authorProfileImageUrl || 'https://via.placeholder.com/150' }} style={styles.commentProfilePic} />
-                    <View style={styles.commentContent}>
-                      <View style={styles.commentHeader}>
-                        <Text style={styles.commentUsername}>{comment.authorUsername}</Text>
-                        <Text style={styles.commentTimestamp}>{formatDate(comment.createdAt)}</Text>
-                      </View>
-                      <Text style={styles.commentText}>{comment.text}</Text>
-                      <View style={styles.commentActions}>
-                        <TouchableOpacity onPress={() => handleToggleReplyInput(comment.id)} style={styles.replyButton}>
-                          <Text style={styles.replyButtonText}>Reply</Text>
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                  </View>
-                  <View style={styles.commentLikeContainer}>
-                    <TouchableOpacity 
-                      style={styles.commentLikeButton}
-                      onPress={() => handleCommentLike(comment.id)}
-                    >
-                      <Ionicons 
-                        name={comment.isLiked ? "heart" : "heart-outline"} 
-                        size={14} 
-                        color={comment.isLiked ? "#FF3B30" : "#999"}
-                      />
-                    </TouchableOpacity>
-                    <Text style={[
-                      styles.commentLikeCount,
-                      comment.isLiked && styles.commentLikedCount
-                    ]}>
-                      {comment.likes || 0}
+              <View style={styles.attachedMilestoneContent}>
+                <View style={styles.attachedMilestoneInfo}>
+                  <Ionicons name="trophy-outline" size={18} color="#FFF" style={styles.milestoneIcon} />
+                  <View>
+                    <Text style={styles.attachedMilestoneTitle}>
+                      {post.milestoneDetails.type === 'PR' ? 'Personal Record' : 
+                      post.milestoneDetails.type === 'weightLoss' ? 'Weight Loss' : 'Weight Gain'}
+                    </Text>
+                    <Text style={styles.attachedMilestoneDetails}>
+                      {post.milestoneDetails.type === 'PR' ? 
+                        `${post.milestoneDetails.exercise}: ${post.milestoneDetails.value} ${post.milestoneDetails.weightUnit} × ${post.milestoneDetails.reps} reps` : 
+                        `New weight: ${post.milestoneDetails.newWeight} ${post.milestoneDetails.newWeightUnit}`
+                      }
                     </Text>
                   </View>
                 </View>
-              </TouchableOpacity>
-              {/* Reply Input Area */}
-              {replyingToCommentId === comment.id && (
-                <View style={styles.replyInputContainer}>
-                  <Image 
-                    source={{ uri: userProfile?.profileImageUrl || 'https://via.placeholder.com/150' }} 
-                    style={styles.replyInputProfilePic} 
-                  />
-                  <TextInput
-                    style={styles.replyInput}
-                    placeholder={`Replying to ${comment.authorUsername}...`}
-                    placeholderTextColor="#666"
-                    value={replyText}
-                    onChangeText={setReplyText}
-                    autoFocus={true}
-                  />
-                  <TouchableOpacity 
-                    style={[
-                      styles.postReplyButton, 
-                      (replyText.trim() === '' || isSubmittingReply) && styles.disabledButton
-                    ]}
-                    onPress={() => handleAddReply(comment.id)}
-                    disabled={replyText.trim() === '' || isSubmittingReply}
-                  >
-                    {isSubmittingReply ? (
-                      <ActivityIndicator size="small" color="#0A84FF" />
-                    ) : (
-                      <Text style={[
-                        styles.postButtonText, 
-                        replyText.trim() === '' && styles.disabledButtonText
-                      ]}>
-                        Post
-                      </Text>
-                    )}
-                  </TouchableOpacity>
-                </View>
-              )}
-
-              {/* Display Replies */}
-              {(comment.replyCount || 0) > 0 && !comment.replies?.length && !loadingReplies[comment.id] && (
-                <TouchableOpacity 
-                  style={styles.viewRepliesButton} 
-                  onPress={() => handleLoadReplies(comment.id)}
-                >
-                  <Text style={styles.viewRepliesText}>
-                    View {comment.replyCount} {comment.replyCount === 1 ? 'reply' : 'replies'}
-                  </Text>
-                </TouchableOpacity>
-              )}
-              {loadingReplies[comment.id] && (
-                <ActivityIndicator size="small" color="#0A84FF" style={{alignSelf: 'flex-start', marginLeft: 50, marginVertical: 5}}/>
-              )}
-
-              {comment.replies && comment.replies.length > 0 && (
-                <View style={styles.repliesContainer}>
-                  {comment.replies.map(reply => renderReplyItem(reply, comment.id))}
-                  {(comment.replyCount || 0) > comment.replies.length && !loadingReplies[comment.id] && (
-                     <TouchableOpacity 
-                        style={styles.viewRepliesButton} 
-                        onPress={() => handleLoadReplies(comment.id)} // Could be "load more" in future
-                      >
-                        <Text style={styles.viewRepliesText}>
-                          View more replies
-                        </Text>
-                      </TouchableOpacity>
-                  )}
-                </View>
-              )}
-            </View>
-          ))}
-        </View>
-      </ScrollView>
-
-      <View style={[styles.commentInputContainer, { paddingBottom: Math.max(insets.bottom, 10) }]}>
-        <Image 
-          source={{ uri: userProfile?.profileImageUrl || 'https://via.placeholder.com/150' }} 
-          style={styles.commentInputProfilePic} 
-        />
-        <TextInput
-          style={styles.commentInput}
-          placeholder="Add a comment..."
-          placeholderTextColor="#666"
-          value={commentText}
-          onChangeText={setCommentText}
-        />
-        <TouchableOpacity 
-          style={[
-            styles.postButton, 
-            (commentText.trim() === '' || isSubmitting) && styles.disabledButton
-          ]}
-          onPress={handleAddComment}
-          disabled={commentText.trim() === '' || isSubmitting}
-        >
-          {isSubmitting ? (
-            <ActivityIndicator size="small" color="#0A84FF" />
-          ) : (
-            <Text style={[
-              styles.postButtonText, 
-              commentText.trim() === '' && styles.disabledButtonText
-            ]}>
-              Post
-            </Text>
+                <Ionicons name="chevron-forward" size={20} color="#999" />
+              </View>
+            </TouchableOpacity>
           )}
-        </TouchableOpacity>
-      </View>
 
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={sortModalVisible}
-        onRequestClose={() => setSortModalVisible(false)}
-      >
-        <TouchableOpacity 
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => setSortModalVisible(false)}
-        >
-          <View style={styles.modalView}>
-            <Text style={styles.modalTitle}>Sort Comments By</Text>
-            {['Recency', 'Popularity', 'Relevance'].map((type) => (
-              <TouchableOpacity
-                key={type}
-                style={[
-                  styles.sortOption,
-                  sortType === type && styles.selectedSortOption
-                ]}
-                onPress={() => handleSort(type)}
+          {post.workoutId && (
+            <TouchableOpacity 
+              style={styles.attachedWorkoutContainer}
+              onPress={() => navigateToWorkout(post.workoutId)}
+            >
+              <View style={styles.attachedWorkoutContent}>
+                <View style={styles.attachedWorkoutInfo}>
+                  <Ionicons name="barbell-outline" size={18} color="#FFF" style={styles.workoutIcon} />
+                  <View>
+                    <Text style={styles.attachedWorkoutTitle}>
+                      Workout
+                    </Text>
+                    <Text style={styles.attachedWorkoutDetails}>
+                      View attached workout details
+                    </Text>
+                  </View>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="#999" />
+              </View>
+            </TouchableOpacity>
+          )}
+
+                  <View style={styles.commentsSection}>
+            <View style={styles.commentsHeaderContainer}>
+              <View style={styles.commentsHeaderLeft}>
+                <Text style={styles.commentsHeader}>Comments</Text>
+                <Text style={styles.commentCount}>{post.commentCount || 0}</Text>
+              </View>
+              <TouchableOpacity 
+                style={styles.sortButton}
+                onPress={() => setSortModalVisible(true)}
               >
-                <Text style={[
-                  styles.sortOptionText,
-                  sortType === type && styles.selectedSortOptionText
-                ]}>
-                  {type}
-                </Text>
-                {sortType === type && (
-                  <Ionicons name="checkmark" size={18} color="#0A84FF" />
-                )}
+                <Text style={styles.sortButtonText}>{sortType}</Text>
+                <Ionicons name="chevron-down" size={14} color="#999" />
               </TouchableOpacity>
+            </View>
+            
+            {comments.length === 0 && (
+              <Text style={{ color: '#999', textAlign: 'center', marginTop: 20, marginBottom: 20 }}>
+                No comments yet. Be the first to comment!
+              </Text>
+            )}
+            
+            {comments.map(comment => (
+              <View key={comment.id}>
+                <TouchableOpacity 
+                  onLongPress={() => handleLongPressComment(comment)}
+                  delayLongPress={500}
+                >
+                  <View style={styles.commentItem}>
+                    <View style={styles.commentLeftSection}>
+                      <Image source={{ uri: comment.authorProfileImageUrl || 'https://via.placeholder.com/150' }} style={styles.commentProfilePic} />
+                      <View style={styles.commentContent}>
+                        <View style={styles.commentHeader}>
+                          <Text style={styles.commentUsername}>{comment.authorUsername}</Text>
+                          <Text style={styles.commentTimestamp}>{formatDate(comment.createdAt)}</Text>
+                        </View>
+                        <Text style={styles.commentText}>{comment.text}</Text>
+                        <View style={styles.commentActions}>
+                          <TouchableOpacity onPress={() => handleToggleReplyInput(comment.id)} style={styles.replyButton}>
+                            <Text style={styles.replyButtonText}>Reply</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.commentLikeContainer}>
+                      <TouchableOpacity 
+                        style={styles.commentLikeButton}
+                        onPress={() => handleCommentLike(comment.id)}
+                      >
+                        <Ionicons 
+                          name={comment.isLiked ? "heart" : "heart-outline"} 
+                          size={14} 
+                          color={comment.isLiked ? "#FF3B30" : "#999"}
+                        />
+                      </TouchableOpacity>
+                      <Text style={[
+                        styles.commentLikeCount,
+                        comment.isLiked && styles.commentLikedCount
+                      ]}>
+                        {comment.likes || 0}
+                      </Text>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+                {/* Reply Input Area */}
+                {replyingToCommentId === comment.id && (
+                  <View style={styles.replyInputContainer}>
+                    <Image 
+                      source={{ uri: userProfile?.profileImageUrl || 'https://via.placeholder.com/150' }} 
+                      style={styles.replyInputProfilePic} 
+                    />
+                    <TextInput
+                      style={styles.replyInput}
+                      placeholder={`Replying to ${comment.authorUsername}...`}
+                      placeholderTextColor="#666"
+                      value={replyText}
+                      onChangeText={setReplyText}
+                      autoFocus={true}
+                      autoCorrect={true}
+                      spellCheck={true}
+                    />
+                    <TouchableOpacity 
+                      style={[
+                        styles.postReplyButton, 
+                        (replyText.trim() === '' || isSubmittingReply) && styles.disabledButton
+                      ]}
+                      onPress={() => handleAddReply(comment.id)}
+                      disabled={replyText.trim() === '' || isSubmittingReply}
+                    >
+                      {isSubmittingReply ? (
+                        <ActivityIndicator size="small" color="#0A84FF" />
+                      ) : (
+                        <Text style={[
+                          styles.postButtonText, 
+                          replyText.trim() === '' && styles.disabledButtonText
+                        ]}>
+                          Post
+                        </Text>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+                {/* Display Replies */}
+                {(comment.replyCount || 0) > 0 && !comment.replies?.length && !loadingReplies[comment.id] && (
+                  <TouchableOpacity 
+                    style={styles.viewRepliesButton} 
+                    onPress={() => handleLoadReplies(comment.id)}
+                  >
+                    <Text style={styles.viewRepliesText}>
+                      View {comment.replyCount} {comment.replyCount === 1 ? 'reply' : 'replies'}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+                {loadingReplies[comment.id] && (
+                  <ActivityIndicator size="small" color="#0A84FF" style={{alignSelf: 'flex-start', marginLeft: 50, marginVertical: 5}}/>
+                )}
+
+                {comment.replies && comment.replies.length > 0 && (
+                  <View style={styles.repliesContainer}>
+                    {comment.replies.map(reply => renderReplyItem(reply, comment.id))}
+                    {(comment.replyCount || 0) > comment.replies.length && !loadingReplies[comment.id] && (
+                      <TouchableOpacity 
+                          style={styles.viewRepliesButton} 
+                          onPress={() => handleLoadReplies(comment.id)} // Could be "load more" in future
+                        >
+                          <Text style={styles.viewRepliesText}>
+                            View more replies
+                          </Text>
+                        </TouchableOpacity>
+                    )}
+                  </View>
+                )}
+              </View>
             ))}
           </View>
-        </TouchableOpacity>
-      </Modal>
+        </ScrollView>
 
-      <Modal
-        transparent={true}
-        visible={menuVisible}
-        animationType="fade"
-        onRequestClose={() => setMenuVisible(false)}
-      >
-        <TouchableOpacity 
-          style={styles.modalOverlay} 
-          activeOpacity={1} 
-          onPress={() => setMenuVisible(false)}
-        >
-          <View style={styles.menuModalContent}>
-            <TouchableOpacity 
-              style={styles.menuItem}
-              onPress={handleDeletePost}
-            >
-              <Ionicons name="trash-outline" size={20} color="#FF3B30" />
-              <Text style={[styles.menuItemText, { color: '#FF3B30' }]}>Delete Post</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={styles.menuItem}
-              onPress={() => setMenuVisible(false)}
-            >
-              <Text style={styles.menuItemText}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        </TouchableOpacity>
-      </Modal>
+        <View style={[styles.commentInputContainer, { paddingBottom: Math.max(insets.bottom, 10) }]}>
+          <Image 
+            source={{ uri: userProfile?.profileImageUrl || 'https://via.placeholder.com/150' }} 
+            style={styles.commentInputProfilePic} 
+          />
+          <TextInput
+            style={styles.commentInput}
+            placeholder="Add a comment..."
+            placeholderTextColor="#666"
+            value={commentText}
+            onChangeText={setCommentText}
+            autoCorrect={true}
+            spellCheck={true}
+          />
+          <TouchableOpacity 
+            style={[
+              styles.postButton, 
+              (commentText.trim() === '' || isSubmitting) && styles.disabledButton
+            ]}
+            onPress={handleAddComment}
+            disabled={commentText.trim() === '' || isSubmitting}
+          >
+            {isSubmitting ? (
+              <ActivityIndicator size="small" color="#0A84FF" />
+            ) : (
+              <Text style={[
+                styles.postButtonText, 
+                commentText.trim() === '' && styles.disabledButtonText
+              ]}>
+                Post
+              </Text>
+            )}
+          </TouchableOpacity>
+        </View>
 
-      {/* Share Post Modal */}
-      <ShareModal
-        visible={shareModalVisible}
-        onClose={() => setShareModalVisible(false)}
-        onShareWith={sharePostWithUser}
-      />
-      {/* Comment Action Modal */}
-      {selectedCommentForAction && (
         <Modal
           animationType="slide"
           transparent={true}
-          visible={commentActionModalVisible}
-          onRequestClose={() => {
-            setCommentActionModalVisible(false);
-            setSelectedCommentForAction(null);
-          }}
+          visible={sortModalVisible}
+          onRequestClose={() => setSortModalVisible(false)}
         >
           <TouchableOpacity 
             style={styles.modalOverlay}
             activeOpacity={1}
-            onPress={() => {
-              setCommentActionModalVisible(false);
-              setSelectedCommentForAction(null);
-            }}
+            onPress={() => setSortModalVisible(false)}
           >
-            <View style={styles.commentActionModalView}>
-              {selectedCommentForAction.authorId === currentUser?.uid ? (
-                <>
-                  <TouchableOpacity
-                    style={styles.commentActionItem}
-                    onPress={handleEditComment}
-                  >
-                    <Ionicons name="create-outline" size={22} color="#FFF" style={styles.commentActionIcon} />
-                    <Text style={styles.commentActionText}>Edit Comment</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.commentActionItem}
-                    onPress={handleDeleteComment}
-                  >
-                    <Ionicons name="trash-outline" size={22} color="#FF3B30" style={styles.commentActionIcon} />
-                    <Text style={[styles.commentActionText, { color: '#FF3B30' }]}>Delete Comment</Text>
-                  </TouchableOpacity>
-                </>
-              ) : (
+            <View style={styles.modalView}>
+              <Text style={styles.modalTitle}>Sort Comments By</Text>
+              {['Recency', 'Popularity', 'Relevance'].map((type) => (
                 <TouchableOpacity
-                  style={styles.commentActionItem}
-                  onPress={handleReportComment}
+                  key={type}
+                  style={[
+                    styles.sortOption,
+                    sortType === type && styles.selectedSortOption
+                  ]}
+                  onPress={() => handleSort(type)}
                 >
-                  <Ionicons name="flag-outline" size={22} color="#FF9500" style={styles.commentActionIcon} />
-                  <Text style={[styles.commentActionText, { color: '#FF9500' }]}>Report Comment</Text>
+                  <Text style={[
+                    styles.sortOptionText,
+                    sortType === type && styles.selectedSortOptionText
+                  ]}>
+                    {type}
+                  </Text>
+                  {sortType === type && (
+                    <Ionicons name="checkmark" size={18} color="#0A84FF" />
+                  )}
                 </TouchableOpacity>
-              )}
-              <TouchableOpacity
-                style={[styles.commentActionItem, { borderBottomWidth: 0 }]}
-                onPress={() => {
-                  setCommentActionModalVisible(false);
-                  setSelectedCommentForAction(null);
-                }}
+              ))}
+            </View>
+          </TouchableOpacity>
+        </Modal>
+
+        <Modal
+          transparent={true}
+          visible={menuVisible}
+          animationType="fade"
+          onRequestClose={() => setMenuVisible(false)}
+        >
+          <TouchableOpacity 
+            style={styles.modalOverlay} 
+            activeOpacity={1} 
+            onPress={() => setMenuVisible(false)}
+          >
+            <View style={styles.menuModalContent}>
+              <TouchableOpacity 
+                style={styles.menuItem}
+                onPress={handleDeletePost}
               >
-                <Ionicons name="close-circle-outline" size={22} color="#999" style={styles.commentActionIcon} />
-                <Text style={[styles.commentActionText, { color: '#999' }]}>Cancel</Text>
+                <Ionicons name="trash-outline" size={20} color="#FF3B30" />
+                <Text style={[styles.menuItemText, { color: '#FF3B30' }]}>Delete Post</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={styles.menuItem}
+                onPress={() => setMenuVisible(false)}
+              >
+                <Text style={styles.menuItemText}>Cancel</Text>
               </TouchableOpacity>
             </View>
           </TouchableOpacity>
         </Modal>
-      )}
-    </View>
+
+        {/* Share Post Modal */}
+        <ShareModal
+          visible={shareModalVisible}
+          onClose={() => setShareModalVisible(false)}
+          onShareWith={sharePostWithUser}
+        />
+        {/* Comment Action Modal */}
+        {selectedCommentForAction && (
+          <Modal
+            animationType="slide"
+            transparent={true}
+            visible={commentActionModalVisible}
+            onRequestClose={() => {
+              setCommentActionModalVisible(false);
+              setSelectedCommentForAction(null);
+            }}
+          >
+            <TouchableOpacity 
+              style={styles.modalOverlay}
+              activeOpacity={1}
+              onPress={() => {
+                setCommentActionModalVisible(false);
+                setSelectedCommentForAction(null);
+              }}
+            >
+              <View style={styles.commentActionModalView}>
+                {selectedCommentForAction.authorId === currentUser?.uid ? (
+                  <>
+                    <TouchableOpacity
+                      style={styles.commentActionItem}
+                      onPress={handleEditComment}
+                    >
+                      <Ionicons name="create-outline" size={22} color="#FFF" style={styles.commentActionIcon} />
+                      <Text style={styles.commentActionText}>Edit Comment</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.commentActionItem}
+                      onPress={handleDeleteComment}
+                    >
+                      <Ionicons name="trash-outline" size={22} color="#FF3B30" style={styles.commentActionIcon} />
+                      <Text style={[styles.commentActionText, { color: '#FF3B30' }]}>Delete Comment</Text>
+                    </TouchableOpacity>
+                  </>
+                ) : (
+                  <TouchableOpacity
+                    style={styles.commentActionItem}
+                    onPress={handleReportComment}
+                  >
+                    <Ionicons name="flag-outline" size={22} color="#FF9500" style={styles.commentActionIcon} />
+                    <Text style={[styles.commentActionText, { color: '#FF9500' }]}>Report Comment</Text>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity
+                  style={[styles.commentActionItem, { borderBottomWidth: 0 }]}
+                  onPress={() => {
+                    setCommentActionModalVisible(false);
+                    setSelectedCommentForAction(null);
+                  }}
+                >
+                  <Ionicons name="close-circle-outline" size={22} color="#999" style={styles.commentActionIcon} />
+                  <Text style={[styles.commentActionText, { color: '#999' }]}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
+            </TouchableOpacity>
+          </Modal>
+        )}
+      </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -1262,8 +1274,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 15,
     paddingVertical: 8,
-    marginLeft: 40, // Indent reply input
-    backgroundColor: '#080808', // Slightly different background
+    marginLeft: 40,
+    backgroundColor: '#080808',
     borderRadius: 18,
     marginBottom: 10,
   },
@@ -1284,7 +1296,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
   },
   repliesContainer: {
-    marginLeft: 40, // Indent replies
+    marginLeft: 40,
     marginTop: 10,
     borderLeftColor: '#333',
     borderLeftWidth: 1,
