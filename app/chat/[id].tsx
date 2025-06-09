@@ -739,6 +739,9 @@ export default function ChatScreen() {
             onChangeText={setInput}
             placeholder="Type your message..."
             placeholderTextColor="#888"
+            autoCorrect={true}
+            spellCheck={true}
+            autoCapitalize="sentences"
           />
           <TouchableOpacity style={styles.sendButton} onPress={handleSend}>
             <Ionicons name="send" size={24} color="white" />

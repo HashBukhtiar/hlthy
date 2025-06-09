@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
-    View, Text, FlatList, TouchableOpacity, Image, StyleSheet, ActivityIndicator, TextInput, Alert, TouchableHighlight, RefreshControl
+    View, Text, FlatList, TouchableOpacity, Image, StyleSheet, ActivityIndicator, TextInput, Alert, TouchableHighlight, RefreshControl, KeyboardAvoidingView, Platform
 } from 'react-native';
 import { useAuth } from '@/context/AuthContext';
 import { db } from '@/firebaseConfig';
@@ -438,24 +438,33 @@ export default function DMs() {
                 </TouchableOpacity>
             </View>
             {isSearching ? (
-                <View style={styles.searchContainer}>
-                    <TextInput
-                        ref={searchInputRef}
-                        style={styles.searchInput}
-                        placeholder="Search for users..."
-                        placeholderTextColor="#888"
-                        value={searchText}
-                        onChangeText={setSearchText}
-                        onSubmitEditing={searchUsers}
-                    />
-                    <TouchableOpacity style={styles.cancelButton} onPress={() => {
-                        setIsSearching(false);
-                        setSearchText('');
-                        setSearchResults([]);
-                    }}>
-                        <Text style={styles.cancelButtonText}>Cancel</Text>
-                    </TouchableOpacity>
-                </View>
+                <KeyboardAvoidingView 
+                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                    keyboardVerticalOffset={60}
+                >
+                    <View style={styles.searchContainer}>
+                        <TextInput
+                            ref={searchInputRef}
+                            style={styles.searchInput}
+                            placeholder="Search for users..."
+                            placeholderTextColor="#888"
+                            value={searchText}
+                            onChangeText={setSearchText}
+                            onSubmitEditing={searchUsers}
+                            autoCorrect={false}
+                            autoCapitalize="none"
+                            autoComplete="off"
+                            spellCheck={false}
+                        />
+                        <TouchableOpacity style={styles.cancelButton} onPress={() => {
+                            setIsSearching(false);
+                            setSearchText('');
+                            setSearchResults([]);
+                        }}>
+                            <Text style={styles.cancelButtonText}>Cancel</Text>
+                        </TouchableOpacity>
+                    </View>
+                </KeyboardAvoidingView>
             ) : null}
             {loading ? (
                 <View style={styles.centered}><ActivityIndicator size="large" color="#fff" /></View>
