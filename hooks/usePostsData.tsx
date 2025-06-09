@@ -2,8 +2,6 @@ import { useState, useEffect } from 'react';
 import {
   doc,
   getDoc,
-  setDoc,
-  updateDoc,
   arrayUnion,
   arrayRemove,
   collection,
@@ -16,12 +14,11 @@ import {
   deleteDoc,
   orderBy,
   limit,
-  startAfter,
   increment,
   runTransaction,
   Timestamp
 } from 'firebase/firestore';
-import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
+import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import { db, storage } from '@/firebaseConfig';
 import { useAuth } from '@/context/AuthContext';
 
