@@ -358,20 +358,25 @@ function addDateHeaders(msgs: Message[]): Message[] {
     return out;
   }
 
+  const dateOptions: Intl.DateTimeFormatOptions = {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  };
+
   let currentDayMessages: Message[] = [];
-  let currentDayStr: string | null = msgs[0].createdAt 
-    ? msgs[0].createdAt.toLocaleDateString() 
+  let currentDayStr: string | null = msgs[0].createdAt
+    ? msgs[0].createdAt.toLocaleDateString(undefined, dateOptions)
     : null;
 
   for (let i = 0; i < msgs.length; i++) {
     const msg = msgs[i];
-    const msgDayStr = msg.createdAt ? msg.createdAt.toLocaleDateString() : null;
+    const msgDayStr = msg.createdAt ? msg.createdAt.toLocaleDateString(undefined, dateOptions) : null;
 
     if (msgDayStr !== currentDayStr) {
       if (currentDayMessages.length > 0) {
         out.push(...currentDayMessages);
       }
-      // Add the header for that previous day (currentDayStr)
       if (currentDayStr) {
         out.push({
           id: `date-${currentDayStr}`,
@@ -381,7 +386,6 @@ function addDateHeaders(msgs: Message[]): Message[] {
           createdAt: currentDayMessages.length > 0 ? currentDayMessages[currentDayMessages.length-1].createdAt : undefined // Optional: use last msg date of group
         });
       }
-      // Reset for the new day
       currentDayMessages = [];
       currentDayStr = msgDayStr;
     }
@@ -407,6 +411,7 @@ function addDateHeaders(msgs: Message[]): Message[] {
       createdAt: currentDayMessages.length > 0 ? currentDayMessages[currentDayMessages.length-1].createdAt : undefined
     });
   }
+  
   return out;
 }
 
