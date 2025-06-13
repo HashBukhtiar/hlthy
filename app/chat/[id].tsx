@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -17,7 +17,24 @@ import {
   Modal,
 } from 'react-native';
 import { db } from '@/firebaseConfig';
-import { doc, getDoc, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, Timestamp, updateDoc, deleteDoc, getDocs, setDoc, limit } from 'firebase/firestore';
+import { 
+  doc, 
+  getDoc,
+  startAfter, 
+  collection, 
+  addDoc, 
+  query, 
+  orderBy, 
+  onSnapshot, 
+  serverTimestamp, 
+  Timestamp, 
+  updateDoc, 
+  deleteDoc, 
+  getDocs, 
+  setDoc, 
+  limit,
+  QueryDocumentSnapshot,
+} from 'firebase/firestore';
 import { useAuth } from '@/context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -100,439 +117,62 @@ interface Message {
   type?: 'message' | 'dateHeader';
 }
 
-export default function ChatScreen() {
-  const router = useRouter();
-  const { id } = useLocalSearchParams<{ id: string }>();
-  const conversationId = id as string;
-  const { currentUser } = useAuth();
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState<string>('');
-  const [loading, setLoading] = useState(true);
-  const flatListRef = useRef<FlatList | null>(null);
-  const [chatTitle, setChatTitle] = useState<string>('');
-  const [profileImageUrl, setProfileImageUrl] = useState<string | null>(null);
-  const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
-  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
-  const [otherParticipantId, setOtherParticipantId] = useState<string | null>(null);
+async function convertFirestoreDoc(
+  docSnap: QueryDocumentSnapshot,
+  myUid: string
+): Promise<Message> {
+  const data = docSnap.data() as FirestoreMessageData;
+  const messageDate = data.createdAt?.toDate();
 
-  useEffect(() => {
-    if (!currentUser || !conversationId) return;
-
-    const setupConversation = async () => {
-      if (conversationId === 'ai_conversation') {
-        setChatTitle('hlthy AI');
-        setProfileImageUrl(Image.resolveAssetSource(require('@/assets/images/icon.png')).uri);
-        setOtherParticipantId(null);
-        setMessages([{
-          id: 'ai_welcome',
-          text: 'Hello! How can I help you today?',
-          user: 'ai',
-          createdAt: new Date(),
-        }]);
-        setLoading(false);
-      } else {
-        // Mark conversation as read for non-AI conversations
-        try {
-          const userConvRef = doc(db, `users/${currentUser.uid}/conversations`, conversationId);
-          const userConvSnap = await getDoc(userConvRef);
-          if (userConvSnap.exists()) {
-            await updateDoc(userConvRef, {
-              lastRead: serverTimestamp()
-            });
-          } else {
-            console.log(`User conversation document users/${currentUser.uid}/conversations/${conversationId} does not exist. Cannot mark as read.`);
-          }
-        } catch (error) {
-          console.error("Error marking conversation as read: ", error);
-        }
-
-        setLoading(true);
-        const messagesRef = collection(db, "conversations", conversationId, "messages");
-        const q = query(messagesRef, orderBy("createdAt", "asc"));
-
-        const unsubscribeMessages = onSnapshot(q, async (querySnapshot) => {
-          const processedMessages: Message[] = [];
-          let currentDate: string | null = null;
-
-          const messagePromises = querySnapshot.docs.map(async (docSnapshot) => {
-            const data = docSnapshot.data() as FirestoreMessageData;
-            const messageDate = data.createdAt?.toDate();
-
-            let resolvedSharedPost = data.sharedPost ? { ...data.sharedPost, isAvailable: true } : undefined;
-            if (data.sharedPost) {
-              try {
-                const postRef = doc(db, 'posts', data.sharedPost.id);
-                const postSnap = await getDoc(postRef);
-                resolvedSharedPost = { ...data.sharedPost, isAvailable: postSnap.exists() };
-              } catch (e) {
-                console.error("Error checking post availability:", e);
-                resolvedSharedPost = { ...data.sharedPost, isAvailable: false };
-              }
-            }
-
-            let resolvedSharedWorkout = data.sharedWorkout ? { ...data.sharedWorkout, isAvailable: true } : undefined;
-            if (data.sharedWorkout) {
-              try {
-                const workoutRef = doc(db, 'workouts', data.sharedWorkout.id);
-                const workoutSnap = await getDoc(workoutRef);
-                resolvedSharedWorkout = { ...data.sharedWorkout, isAvailable: workoutSnap.exists() };
-              } catch (e) {
-                console.error("Error checking workout availability:", e);
-                resolvedSharedWorkout = { ...data.sharedWorkout, isAvailable: false };
-              }
-            }
-            
-            return {
-              id: docSnapshot.id,
-              originalData: data,
-              messageDate,
-              resolvedSharedPost,
-              resolvedSharedWorkout,
-            };
-          });
-
-          const tempMessages = await Promise.all(messagePromises);
-
-          for (const tempMsg of tempMessages) {
-            const { id, originalData, messageDate, resolvedSharedPost, resolvedSharedWorkout } = tempMsg;
-
-            if (messageDate) {
-              const formattedDate = messageDate.toLocaleDateString('en-US', {
-                month: 'long',
-                day: 'numeric',
-                year: 'numeric'
-              });
-              if (formattedDate !== currentDate) {
-                currentDate = formattedDate;
-                processedMessages.push({
-                  id: `date-${messageDate.getTime()}`,
-                  text: formattedDate,
-                  user: 'other', 
-                  type: 'dateHeader'
-                });
-              }
-            }
-            
-            const message: Message = {
-              id: id,
-              text: originalData.text,
-              user: originalData.senderId === currentUser.uid ? 'user' : 'other',
-              createdAt: messageDate,
-              sharedPost: resolvedSharedPost,
-              sharedMilestone: originalData.sharedMilestone,
-              sharedWorkout: resolvedSharedWorkout,
-              type: 'message'
-            };
-            processedMessages.push(message);
-          }
-          
-          setMessages(processedMessages);
-          setLoading(false);
-        });
-
-        const conversationRef = doc(db, "conversations", conversationId);
-        const unsubscribeConversation = onSnapshot(conversationRef, (docSnapshot) => {
-          if (docSnapshot.exists()) {
-            const data = docSnapshot.data();
-            const participantUsernames = data?.participantUsernames;
-            const participantProfileImages = data?.participantProfileImages;
-            if (participantUsernames) {
-              const otherUserId = Object.keys(participantUsernames).find(
-                (uid) => uid !== currentUser.uid
-              );
-              if (otherUserId) {
-                setChatTitle(participantUsernames[otherUserId] || 'Chat');
-                setOtherParticipantId(otherUserId);
-                
-                let profileImg = null;
-                if (participantProfileImages && participantProfileImages[otherUserId]) {
-                  profileImg = participantProfileImages[otherUserId];
-                }
-                
-                if (!profileImg || profileImg === '') {
-                  const userRef = doc(db, 'users', otherUserId);
-                  getDoc(userRef).then(userDoc => {
-                    if (userDoc.exists() && userDoc.data().profileImageUrl) {
-                      setProfileImageUrl(userDoc.data().profileImageUrl);
-                      if (participantProfileImages) {
-                        participantProfileImages[otherUserId] = userDoc.data().profileImageUrl;
-                        updateDoc(conversationRef, {
-                          participantProfileImages: participantProfileImages
-                        }).catch(e => console.log("Error updating profile image in conversation:", e));
-                      }
-                    }
-                  }).catch(err => console.error("Error fetching user data:", err));
-                } else {
-                  setProfileImageUrl(profileImg);
-                }
-              } else {
-                setChatTitle('Chat'); setProfileImageUrl(null); setOtherParticipantId(null);
-              }
-            } else {
-              setChatTitle('Chat'); setProfileImageUrl(null); setOtherParticipantId(null);
-            }
-          } else {
-             // Conversation doc might not exist if it was deleted from the main collection
-             // but the user still has a reference in their users/{uid}/conversations subcollection.
-             console.warn(`Conversation document conversations/${conversationId} does not exist.`);
-             setChatTitle('Chat Deleted');
-             setProfileImageUrl(null);
-             setOtherParticipantId(null);
-             setMessages([]);
-          }
-        });
-        
-        return () => {
-          unsubscribeMessages();
-          unsubscribeConversation();
-        };
-      }
-    };
-
-    setupConversation();
-
-  }, [currentUser, conversationId]);
-
-  useEffect(() => {
-    if (messages.length > 0 && !loading && flatListRef.current) {
-      setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: false });
-      }, 200);
-    }
-  }, [messages, loading]);
-
-  const handleSend = async () => {
-    Keyboard.dismiss();
-    if (!input.trim() || !currentUser || !conversationId) return;
-
-    const textToSend = input.trim();
-
-    const newMessage: Message = {
-      id: Date.now().toString(),
-      text: textToSend,
-      user: 'user', 
-      createdAt: new Date(),
-    };
-
-    setInput('');
-    setMessages(previousMessages => [...previousMessages, newMessage]);
-
-    if (conversationId === 'ai_conversation') {
-      // AI conversation handling
-      try {
-        const aiResponse = await sendMessage(textToSend);
-        const aiMessage: Message = {
-          id: Date.now().toString(), 
-          text: aiResponse,
-          user: 'ai',
-          createdAt: new Date(),
-        };
-        setMessages(prevMessages => [...prevMessages, aiMessage]);
-      } catch (error) {
-        console.error('Error sending message to AI:', error);
-      }
-    } else {
-      try {
-        const conversationRef = doc(db, "conversations", conversationId);
-        const conversationSnap = await getDoc(conversationRef);
-        
-        if (!conversationSnap.exists()) {
-          console.log("Conversation document not found, recreating...");
-          const userConvRef = doc(db, `users/${currentUser.uid}/conversations`, conversationId);
-          const userConvSnap = await getDoc(userConvRef);
-          
-          if (userConvSnap.exists()) {
-            const userData = userConvSnap.data();
-            const otherUserId = userData.otherParticipantId;
-            
-            if (otherUserId) {
-              const otherUserRef = doc(db, 'users', otherUserId);
-              const otherUserSnap = await getDoc(otherUserRef);
-              let otherUsername = userData.otherParticipantUsername || 'User';
-              let otherProfileImg = userData.otherParticipantProfileImage || '';
-              if (otherUserSnap.exists()) {
-                const otherUserData = otherUserSnap.data();
-                if (otherUserData.username) otherUsername = otherUserData.username;
-                if (otherUserData.profileImageUrl) otherProfileImg = otherUserData.profileImageUrl;
-              }
-              
-              await setDoc(conversationRef, {
-                participants: [currentUser.uid, otherUserId],
-                lastMessageAt: serverTimestamp(),
-                lastMessageText: textToSend,
-                lastMessageSenderId: currentUser.uid, // Set sender of the first message
-                participantUsernames: {
-                  [currentUser.uid]: currentUser.displayName || currentUser.email || 'User',
-                  [otherUserId]: otherUsername,
-                },
-                participantProfileImages: {
-                  [currentUser.uid]: currentUser.photoURL || '',
-                  [otherUserId]: otherProfileImg,
-                },
-              });
-            } else { throw new Error("Could not find other participant ID"); }
-          } else { throw new Error("User conversation reference not found"); }
-        }
-        
-        const messagesRef = collection(db, "conversations", conversationId, "messages");
-        await addDoc(messagesRef, {
-          text: textToSend,
-          createdAt: serverTimestamp(),
-          senderId: currentUser.uid,
-        });
-
-        await updateDoc(conversationRef, {
-          lastMessageAt: serverTimestamp(),
-          lastMessageText: textToSend,
-          lastMessageSenderId: currentUser.uid, // Update sender of the last message
-        });
-
-        // Update user conversation refs (userConvRef1 for current user)
-        const userConvRef1 = doc(db, `users/${currentUser.uid}/conversations`, conversationId);
-        const userConvSnap1 = await getDoc(userConvRef1);
-        const conversationDataForUserRef = (await getDoc(conversationRef)).data(); // Re-fetch to ensure data consistency
-
-        if (!userConvSnap1.exists()) {
-          const otherParticipantForUserRef = conversationDataForUserRef?.participants?.find((uid: string) => uid !== currentUser.uid);
-          if (otherParticipantForUserRef) {
-            await setDoc(userConvRef1, {
-              otherParticipantId: otherParticipantForUserRef,
-              otherParticipantUsername: conversationDataForUserRef?.participantUsernames?.[otherParticipantForUserRef] || 'User',
-              otherParticipantProfileImage: conversationDataForUserRef?.participantProfileImages?.[otherParticipantForUserRef] || '',
-              lastMessageAt: serverTimestamp(), // Use serverTimestamp for consistency
-              lastMessageText: textToSend,
-              // lastRead: serverTimestamp() // Current user just sent, so it's "read" by them
-            });
-          }
-        } else {
-          await updateDoc(userConvRef1, {
-            lastMessageAt: serverTimestamp(),
-            lastMessageText: textToSend,
-            // lastRead: serverTimestamp() // Current user just sent, so it's "read" by them
-          });
-        }
-
-        // Update other user's conversation reference (userConvRef2)
-        const otherUserId = conversationDataForUserRef?.participants?.find((uid: string) => uid !== currentUser.uid);
-        if (otherUserId) {
-          const userConvRef2 = doc(db, `users/${otherUserId}/conversations`, conversationId);
-          const userConvSnap2 = await getDoc(userConvRef2);
-          const currentUserDataForOtherUserRef = (await getDoc(doc(db, 'users', currentUser.uid))).data();
-
-          if (!userConvSnap2.exists()) {
-             if (currentUserDataForOtherUserRef) {
-                await setDoc(userConvRef2, {
-                    otherParticipantId: currentUser.uid,
-                    otherParticipantUsername: currentUserDataForOtherUserRef?.username || currentUser.displayName || 'User',
-                    otherParticipantProfileImage: currentUserDataForOtherUserRef?.profileImageUrl || currentUser.photoURL || '',
-                    lastMessageAt: serverTimestamp(),
-                    lastMessageText: textToSend,
-                });
-             }
-          } else {
-            await updateDoc(userConvRef2, {
-              lastMessageAt: serverTimestamp(),
-              lastMessageText: textToSend,
-            });
-          }
-        }
-      } catch (error) {
-        console.error('Error sending message to Firestore:', error);
-        Alert.alert(
-          "Error", 
-          "Failed to send message. Please try again or restart the conversation."
-        );
-      }
-    }
-  };
-
-  const handleDeleteMessage = async () => {
-    if (!selectedMessage || !currentUser || !conversationId || conversationId === 'ai_conversation' || selectedMessage.user !== 'user') {
-      setDeleteModalVisible(false);
-      setSelectedMessage(null);
-      return;
-    }
-    
+  let resolvedSharedPost = data.sharedPost
+    ? { ...data.sharedPost, isAvailable: true }
+    : undefined;
+  if (data.sharedPost) {
     try {
-      const messageRef = doc(db, "conversations", conversationId, "messages", selectedMessage.id);
-      await deleteDoc(messageRef);
-      
-      setDeleteModalVisible(false);
-      setSelectedMessage(null);
-      
-      const messagesQuery = query(
-        collection(db, "conversations", conversationId, "messages"),
-        orderBy("createdAt", "desc"),
-        limit(1) // We only need the new last message
-      );
-      const messagesSnapshot = await getDocs(messagesQuery);
-      
-      const conversationRef = doc(db, "conversations", conversationId);
-      let newLastMessageText = "Message deleted";
-      let newLastMessageSenderId = null; // Or keep previous if no messages left? For now, null.
-      let newLastMessageAt: any = serverTimestamp(); // Default to now if no messages left
-
-      if (!messagesSnapshot.empty) {
-        const lastMessageData = messagesSnapshot.docs[0].data() as FirestoreMessageData;
-        newLastMessageText = lastMessageData.text || "Message deleted";
-        newLastMessageSenderId = lastMessageData.senderId;
-        newLastMessageAt = lastMessageData.createdAt; // Use actual timestamp of the new last message
-      } else {
-        // No messages left, perhaps clear or set to a specific state
-        newLastMessageText = ""; // Or "No messages yet"
-        // newLastMessageSenderId remains null
-        // newLastMessageAt can be serverTimestamp() or null depending on desired behavior
-      }
-        
-      await updateDoc(conversationRef, {
-        lastMessageText: newLastMessageText,
-        lastMessageSenderId: newLastMessageSenderId, // Update sender ID
-        lastMessageAt: newLastMessageAt // Update timestamp
-      });
-        
-      const userConvRef1 = doc(db, `users/${currentUser.uid}/conversations`, conversationId);
-      await updateDoc(userConvRef1, {
-        lastMessageText: newLastMessageText,
-        lastMessageAt: newLastMessageAt
-      });
-        
-      const conversationSnap = await getDoc(conversationRef);
-      const conversationData = conversationSnap.data();
-      const otherUserId = conversationData?.participants?.find((uid: string) => uid !== currentUser.uid);
-        
-      if (otherUserId) {
-        const userConvRef2 = doc(db, `users/${otherUserId}/conversations`, conversationId);
-        // Ensure the other user's ref exists before trying to update
-        const otherUserConvSnap = await getDoc(userConvRef2);
-        if (otherUserConvSnap.exists()) {
-            await updateDoc(userConvRef2, {
-                lastMessageText: newLastMessageText,
-                lastMessageAt: newLastMessageAt
-            });
-        }
-      }
-    } catch (error) {
-      console.error("Error deleting message:", error);
-      Alert.alert("Error", "Failed to delete message. Please try again.");
+      const postRef = doc(db, "posts", data.sharedPost.id);
+      const postSnap = await getDoc(postRef);
+      resolvedSharedPost = {
+        ...data.sharedPost,
+        isAvailable: postSnap.exists(),
+      };
+    } catch {
+      resolvedSharedPost = { ...data.sharedPost, isAvailable: false };
     }
-  };
+  }
 
-  const handleLongPress = (message: Message) => {
-    // Only allow deleting your own messages
-    if (message.user === 'user' && message.type !== 'dateHeader') {
-      setSelectedMessage(message);
-      setDeleteModalVisible(true);
+  let resolvedSharedWorkout = data.sharedWorkout
+    ? { ...data.sharedWorkout, isAvailable: true }
+    : undefined;
+  if (data.sharedWorkout) {
+    try {
+      const workoutRef = doc(db, "workouts", data.sharedWorkout.id);
+      const workoutSnap = await getDoc(workoutRef);
+      resolvedSharedWorkout = {
+        ...data.sharedWorkout,
+        isAvailable: workoutSnap.exists(),
+      };
+    } catch {
+      resolvedSharedWorkout = { ...data.sharedWorkout, isAvailable: false };
     }
-  };
+  }
 
-  const navigateToUserProfile = () => {
-    if (conversationId !== 'ai_conversation' && otherParticipantId) {
-      router.push(`/profile/${otherParticipantId}`);
-    }
+  return {
+    id: docSnap.id,
+    text: data.text,
+    user: data.senderId === myUid ? "user" : "other",
+    createdAt: messageDate,
+    sharedPost: resolvedSharedPost,
+    sharedMilestone: data.sharedMilestone
+      ? { ...data.sharedMilestone, isAvailable: true }
+      : undefined,
+    sharedWorkout: resolvedSharedWorkout,
+    type: "message",
   };
+}
 
-  const renderMessage: ListRenderItem<Message> = ({ item }) => {
-    // Render date header
+const MessageItem = React.memo<{ item: Message; onLongPress: (m: Message) => void }>(
+  ({ item, onLongPress }) => {
+    const router = useRouter();
     if (item.type === 'dateHeader') {
       return (
         <View style={styles.dateHeaderContainer}>
@@ -540,33 +180,21 @@ export default function ChatScreen() {
         </View>
       );
     }
-
     if (item.sharedPost) {
       if (item.sharedPost.isAvailable === false) {
         return (
-          <View 
-            style={[
-              styles.messageBubble,
-              item.user === 'user' ? styles.currentUserMessage : styles.otherUserMessage,
-              styles.unavailableItemBubble
-            ]}
-            >
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <View style={[styles.messageBubble, item.user === 'user' ? styles.currentUserMessage : styles.otherUserMessage, styles.unavailableItemBubble]}>
               <Ionicons name="share-social-outline" size={16} color="#FFF" style={{ marginRight: 5 }} />
-              <Text style={item.user === 'user' ? styles.currentUserText : styles.otherUserText}>
-                Post unavailable
-              </Text>
+              <Text style={ item.user === 'user' ? styles.currentUserText : styles.otherUserText }>Post unavailable</Text>
             </View>
-          </View>
         );
       }
-      // Original shared post rendering
       return (
         <TouchableOpacity 
           style={[
             item.user === 'user' ? { alignSelf: 'flex-end' } : { alignSelf: 'flex-start' }
           ]}
-          onLongPress={() => handleLongPress(item)}
+          onLongPress={() => onLongPress(item)}
           delayLongPress={500}
         >
           <TouchableOpacity 
@@ -598,7 +226,7 @@ export default function ChatScreen() {
           style={[
             item.user === 'user' ? { alignSelf: 'flex-end' } : { alignSelf: 'flex-start' }
           ]}
-          onLongPress={() => handleLongPress(item)}
+          onLongPress={() => onLongPress(item)}
           delayLongPress={500}
         >
           <TouchableOpacity
@@ -664,27 +292,16 @@ export default function ChatScreen() {
     if (item.sharedWorkout) {
       if (item.sharedWorkout.isAvailable === false) {
         return (
-          <View 
-            style={[
-              styles.messageBubble,
-              item.user === 'user' ? styles.currentUserMessage : styles.otherUserMessage,
-              styles.unavailableItemBubble
-            ]}
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <View style={[styles.messageBubble, item.user === 'user' ? styles.currentUserMessage : styles.otherUserMessage, styles.unavailableItemBubble]}>
               <Ionicons name="share-social-outline" size={16} color="#FFF" style={{ marginRight: 5 }} />
-              <Text style={item.user === 'user' ? styles.currentUserText : styles.otherUserText}>
-                Workout unavailable
-              </Text>
+              <Text style={ item.user === 'user' ? styles.currentUserText : styles.otherUserText }>Workout unavailable</Text>
             </View>
-          </View>
         );
       }
-
       return (
         <TouchableOpacity
           style={[item.user === 'user' ? { alignSelf: 'flex-end' } : { alignSelf: 'flex-start' }]}
-          onLongPress={() => handleLongPress(item)}
+          onLongPress={() => onLongPress(item)}
           delayLongPress={500}
         >
           <TouchableOpacity
@@ -709,24 +326,368 @@ export default function ChatScreen() {
         </TouchableOpacity>
       );
     }
-    
-    // Render regular message
+
     return (
-      <TouchableOpacity 
+      <TouchableOpacity
         style={[
           styles.messageBubble,
-          item.user === 'user' ? styles.currentUserMessage : item.user === 'other' ? styles.otherUserMessage : styles.aiMessage,
+          item.user === 'user'
+            ? styles.currentUserMessage
+            : item.user === 'other'
+            ? styles.otherUserMessage
+            : styles.aiMessage,
         ]}
-        onLongPress={() => handleLongPress(item)}
-        delayLongPress={500} 
+        onLongPress={() => onLongPress(item)}
+        delayLongPress={500}
         activeOpacity={0.7}
       >
-        <Text style={item.user === 'user' ? styles.currentUserText : item.user === 'other' ? styles.otherUserText : styles.aiText}>
+        <Text
+          style={
+            item.user === 'user'
+              ? styles.currentUserText
+              : item.user === 'other'
+              ? styles.otherUserText
+              : styles.aiText
+          }
+        >
           {item.text}
         </Text>
       </TouchableOpacity>
     );
+  },
+  (prev, next) => {
+    // only re‐render if the id or availability flags changed
+    return (
+      prev.item.id === next.item.id &&
+      prev.item.text === next.item.text &&
+      prev.item.sharedPost?.isAvailable === next.item.sharedPost?.isAvailable &&
+      prev.item.sharedMilestone?.isAvailable === next.item.sharedMilestone?.isAvailable &&
+      prev.item.sharedWorkout?.isAvailable === next.item.sharedWorkout?.isAvailable
+    );
+  }
+);
+
+export default function ChatScreen() {
+  const router = useRouter();
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const conversationId = id as string;
+  const { currentUser } = useAuth();
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState<string>('');
+  const [loading, setLoading] = useState(true);
+  const flatListRef = useRef<FlatList | null>(null);
+  const [chatTitle, setChatTitle] = useState<string>('');
+  const [profileImageUrl, setProfileImageUrl] = useState<string | null>(null);
+  const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [otherParticipantId, setOtherParticipantId] = useState<string | null>(null);
+  
+  const BATCH_SIZE = 20; // number of messages to fetch at a time
+  const [lastVisible, setLastVisible] = useState<any>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  useEffect(() => {
+    if (!currentUser || !conversationId) return;
+    const messagesRef = collection(db, "conversations", conversationId, "messages");
+
+    const initialQ = query(
+      messagesRef,
+      orderBy("createdAt", "desc"),
+      limit(BATCH_SIZE)
+    );
+
+    const unsubscribe = onSnapshot(initialQ, async snapshot => {
+      const docs = snapshot.docs;
+      if (docs.length) {
+        setLastVisible(docs[docs.length - 1]);
+        const page = await Promise.all(docs.map(d => convertFirestoreDoc(d, currentUser.uid)));
+        setMessages(page);
+      } else {
+        setMessages([]);
+      }
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [currentUser, conversationId]);
+
+  const fetchMore = useCallback(async () => {
+    if (loadingMore || !lastVisible) return;
+    setLoadingMore(true);
+
+    const messagesRef = collection(db, "conversations", conversationId, "messages");
+    const nextQ = query(
+      messagesRef,
+      orderBy("createdAt", "desc"),
+      startAfter(lastVisible),
+      limit(BATCH_SIZE)
+    );
+
+    const snap = await getDocs(nextQ);
+    if (!snap.empty) {
+      const docs = snap.docs;
+      setLastVisible(docs[docs.length - 1]);
+
+      const more = await Promise.all(docs.map(d => convertFirestoreDoc(d, currentUser.uid)));
+      setMessages(prev => [...prev, ...more]);
+    }
+
+    setLoadingMore(false);
+  }, [lastVisible, loadingMore, conversationId, currentUser]); 
+
+  const initialScrollRef = useRef(true);
+
+  useEffect(() => {
+    if (!loading && initialScrollRef.current) {
+      // on first load only
+      flatListRef.current?.scrollToEnd({ animated: false });
+      initialScrollRef.current = false;
+    }
+  }, [loading]);
+
+  useEffect(() => {
+  if (!currentUser || conversationId === 'ai_conversation') return;
+  const convRef = doc(db, "conversations", conversationId);
+  getDoc(convRef).then(snap => {
+    if (!snap.exists()) return;
+    const data = snap.data() as any;
+    const otherId = data.participants.find((uid: string) => uid !== currentUser.uid);
+    if (!otherId) return;
+    setOtherParticipantId(otherId);
+    setChatTitle(data.participantUsernames[otherId]);
+    setProfileImageUrl(data.participantProfileImages[otherId]);
+  });
+}, [currentUser, conversationId]);
+
+
+  const handleSend = async () => {
+    Keyboard.dismiss();
+    if (!input.trim() || !currentUser || !conversationId) return;
+
+    const textToSend = input.trim();
+
+    const newMessage: Message = {
+      id: Date.now().toString(),
+      text: textToSend,
+      user: 'user', 
+      createdAt: new Date(),
+    };
+
+    setInput('');
+    setMessages(previousMessages => [...previousMessages, newMessage]);
+
+    if (conversationId === 'ai_conversation') {
+      // AI conversation handling
+      try {
+        const aiResponse = await sendMessage(textToSend);
+        const aiMessage: Message = {
+          id: Date.now().toString(), 
+          text: aiResponse,
+          user: 'ai',
+          createdAt: new Date(),
+        };
+        setMessages(prevMessages => [...prevMessages, aiMessage]);
+      } catch (error) {
+        console.error('Error sending message to AI:', error);
+      }
+    } else {
+      try {
+        const conversationRef = doc(db, "conversations", conversationId);
+        const conversationSnap = await getDoc(conversationRef);
+        
+        if (!conversationSnap.exists()) {
+          console.log("Conversation document not found, recreating...");
+          const userConvRef = doc(db, `users/${currentUser.uid}/conversations`, conversationId);
+          const userConvSnap = await getDoc(userConvRef);
+          
+          if (userConvSnap.exists()) {
+            const userData = userConvSnap.data();
+            const otherUserId = userData.otherParticipantId;
+            
+            if (otherUserId) {
+              const otherUserRef = doc(db, 'users', otherUserId);
+              const otherUserSnap = await getDoc(otherUserRef);
+              let otherUsername = userData.otherParticipantUsername || 'User';
+              let otherProfileImg = userData.otherParticipantProfileImage || '';
+              if (otherUserSnap.exists()) {
+                const otherUserData = otherUserSnap.data();
+                if (otherUserData.username) otherUsername = otherUserData.username;
+                if (otherUserData.profileImageUrl) otherProfileImg = otherUserData.profileImageUrl;
+              }
+              
+              await setDoc(conversationRef, {
+                participants: [currentUser.uid, otherUserId],
+                lastMessageAt: serverTimestamp(),
+                lastMessageText: textToSend,
+                lastMessageSenderId: currentUser.uid,
+                participantUsernames: {
+                  [currentUser.uid]: currentUser.displayName || currentUser.email || 'User',
+                  [otherUserId]: otherUsername,
+                },
+                participantProfileImages: {
+                  [currentUser.uid]: currentUser.photoURL || '',
+                  [otherUserId]: otherProfileImg,
+                },
+              });
+            } else { throw new Error("Could not find other participant ID"); }
+          } else { throw new Error("User conversation reference not found"); }
+        }
+        
+        const messagesRef = collection(db, "conversations", conversationId, "messages");
+        await addDoc(messagesRef, {
+          text: textToSend,
+          createdAt: serverTimestamp(),
+          senderId: currentUser.uid,
+        });
+
+        await updateDoc(conversationRef, {
+          lastMessageAt: serverTimestamp(),
+          lastMessageText: textToSend,
+          lastMessageSenderId: currentUser.uid,
+        });
+
+        // Update user conversation refs (userConvRef1 for current user)
+        const userConvRef1 = doc(db, `users/${currentUser.uid}/conversations`, conversationId);
+        const userConvSnap1 = await getDoc(userConvRef1);
+        const conversationDataForUserRef = (await getDoc(conversationRef)).data(); // Re-fetch to ensure data consistency
+
+        if (!userConvSnap1.exists()) {
+          const otherParticipantForUserRef = conversationDataForUserRef?.participants?.find((uid: string) => uid !== currentUser.uid);
+          if (otherParticipantForUserRef) {
+            await setDoc(userConvRef1, {
+              otherParticipantId: otherParticipantForUserRef,
+              otherParticipantUsername: conversationDataForUserRef?.participantUsernames?.[otherParticipantForUserRef] || 'User',
+              otherParticipantProfileImage: conversationDataForUserRef?.participantProfileImages?.[otherParticipantForUserRef] || '',
+              lastMessageAt: serverTimestamp(),
+              lastMessageText: textToSend,
+            });
+          }
+        } else {
+          await updateDoc(userConvRef1, {
+            lastMessageAt: serverTimestamp(),
+            lastMessageText: textToSend,
+          });
+        }
+
+        // Update other user's conversation reference (userConvRef2)
+        const otherUserId = conversationDataForUserRef?.participants?.find((uid: string) => uid !== currentUser.uid);
+        if (otherUserId) {
+          const userConvRef2 = doc(db, `users/${otherUserId}/conversations`, conversationId);
+          const userConvSnap2 = await getDoc(userConvRef2);
+          const currentUserDataForOtherUserRef = (await getDoc(doc(db, 'users', currentUser.uid))).data();
+
+          if (!userConvSnap2.exists()) {
+             if (currentUserDataForOtherUserRef) {
+                await setDoc(userConvRef2, {
+                    otherParticipantId: currentUser.uid,
+                    otherParticipantUsername: currentUserDataForOtherUserRef?.username || currentUser.displayName || 'User',
+                    otherParticipantProfileImage: currentUserDataForOtherUserRef?.profileImageUrl || currentUser.photoURL || '',
+                    lastMessageAt: serverTimestamp(),
+                    lastMessageText: textToSend,
+                });
+             }
+          } else {
+            await updateDoc(userConvRef2, {
+              lastMessageAt: serverTimestamp(),
+              lastMessageText: textToSend,
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Error sending message to Firestore:', error);
+        Alert.alert(
+          "Error", 
+          "Failed to send message. Please try again or restart the conversation."
+        );
+      }
+    }
   };
+
+  const handleDeleteMessage = async () => {
+    if (!selectedMessage || !currentUser || !conversationId || conversationId === 'ai_conversation' || selectedMessage.user !== 'user') {
+      setDeleteModalVisible(false);
+      setSelectedMessage(null);
+      return;
+    }
+    
+    try {
+      const messageRef = doc(db, "conversations", conversationId, "messages", selectedMessage.id);
+      await deleteDoc(messageRef);
+      
+      setDeleteModalVisible(false);
+      setSelectedMessage(null);
+      
+      const messagesQuery = query(
+        collection(db, "conversations", conversationId, "messages"),
+        orderBy("createdAt", "desc"),
+        limit(1) // We only need the new last message
+      );
+      const messagesSnapshot = await getDocs(messagesQuery);
+      
+      const conversationRef = doc(db, "conversations", conversationId);
+      let newLastMessageText = "Message deleted";
+      let newLastMessageSenderId = null;
+      let newLastMessageAt: any = serverTimestamp();
+
+      if (!messagesSnapshot.empty) {
+        const lastMessageData = messagesSnapshot.docs[0].data() as FirestoreMessageData;
+        newLastMessageText = lastMessageData.text || "Message deleted";
+        newLastMessageSenderId = lastMessageData.senderId;
+        newLastMessageAt = lastMessageData.createdAt;
+      } else {
+        newLastMessageText = "";
+      }
+        
+      await updateDoc(conversationRef, {
+        lastMessageText: newLastMessageText,
+        lastMessageSenderId: newLastMessageSenderId,
+        lastMessageAt: newLastMessageAt
+      });
+        
+      const userConvRef1 = doc(db, `users/${currentUser.uid}/conversations`, conversationId);
+      await updateDoc(userConvRef1, {
+        lastMessageText: newLastMessageText,
+        lastMessageAt: newLastMessageAt
+      });
+        
+      const conversationSnap = await getDoc(conversationRef);
+      const conversationData = conversationSnap.data();
+      const otherUserId = conversationData?.participants?.find((uid: string) => uid !== currentUser.uid);
+        
+      if (otherUserId) {
+        const userConvRef2 = doc(db, `users/${otherUserId}/conversations`, conversationId);
+        // Ensure the other user's ref exists before trying to update
+        const otherUserConvSnap = await getDoc(userConvRef2);
+        if (otherUserConvSnap.exists()) {
+            await updateDoc(userConvRef2, {
+                lastMessageText: newLastMessageText,
+                lastMessageAt: newLastMessageAt
+            });
+        }
+      }
+    } catch (error) {
+      console.error("Error deleting message:", error);
+      Alert.alert("Error", "Failed to delete message. Please try again.");
+    }
+  };
+
+  const handleLongPress = useCallback((msg: Message) => {
+    if (msg.user === 'user' && msg.type !== 'dateHeader') {
+      setSelectedMessage(msg);
+      setDeleteModalVisible(true);
+    }
+  }, []);
+
+  const navigateToUserProfile = () => {
+    if (conversationId !== 'ai_conversation' && otherParticipantId) {
+      router.push(`/profile/${otherParticipantId}`);
+    }
+  };
+
+  const renderMessage = useCallback<ListRenderItem<Message>>(
+    ({ item }) => <MessageItem item={item} onLongPress={handleLongPress} />,
+    [handleLongPress]
+  );
 
   return (
     <KeyboardAvoidingView
@@ -765,12 +726,30 @@ export default function ChatScreen() {
           <FlatList
             ref={flatListRef}
             data={messages}
-            keyExtractor={(item) => item.id}
+            keyExtractor={i => i.id}
             renderItem={renderMessage}
-            style={{ flex: 1 }}
+
+            initialNumToRender={BATCH_SIZE}
+            maxToRenderPerBatch={BATCH_SIZE}
+            windowSize={5}
+            removeClippedSubviews={true}
+
+            inverted
+            onEndReached={fetchMore}
+            onEndReachedThreshold={0.1}
+
+            ListFooterComponent={
+              loadingMore
+                ? <ActivityIndicator size="small" color="#fff" />
+                : null
+            }
+
             contentContainerStyle={styles.messagesContainer}
-            onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: false })}
-            onLayout={() => flatListRef.current?.scrollToEnd({ animated: false })}
+            getItemLayout={(_, index) => ({
+              length: 60,
+              offset: 60 * index,
+              index,
+            })}
           />
         )}
 
@@ -904,6 +883,8 @@ const styles = StyleSheet.create({
   },
   unavailableItemBubble: {
     backgroundColor: '#3A3A3A',
+    flexDirection: 'row',
+    alignItems: 'center'
   },
   inputContainer: {
     flexDirection: 'row',
