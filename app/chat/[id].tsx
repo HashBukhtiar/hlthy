@@ -439,8 +439,7 @@ export default function ChatScreen() {
 
   useEffect(() => {
     if (!loading && initialScrollRef.current) {
-      // on first load only
-      flatListRef.current?.scrollToEnd({ animated: false });
+      flatListRef.current?.scrollToOffset({ offset: 0, animated: false });
       initialScrollRef.current = false;
     }
   }, [loading]);
