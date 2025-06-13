@@ -354,24 +354,59 @@ const MessageItem = React.memo<{ item: Message; onLongPress: (m: Message) => voi
 
 function addDateHeaders(msgs: Message[]): Message[] {
   const out: Message[] = [];
-  let lastDate: string | null = null;
-
-  for (const msg of msgs) {
-    if (msg.createdAt) {
-      const day = msg.createdAt.toLocaleDateString();
-      if (day !== lastDate) {
-        out.push({
-          id: `date-${day}`,
-          text: day,
-          type: 'dateHeader',
-          user: 'other',
-        });
-        lastDate = day;
-      }
-    }
-    out.push(msg);
+  if (!msgs || msgs.length === 0) {
+    return out;
   }
 
+  let currentDayMessages: Message[] = [];
+  let currentDayStr: string | null = msgs[0].createdAt 
+    ? msgs[0].createdAt.toLocaleDateString() 
+    : null;
+
+  for (let i = 0; i < msgs.length; i++) {
+    const msg = msgs[i];
+    const msgDayStr = msg.createdAt ? msg.createdAt.toLocaleDateString() : null;
+
+    if (msgDayStr !== currentDayStr) {
+      if (currentDayMessages.length > 0) {
+        out.push(...currentDayMessages);
+      }
+      // Add the header for that previous day (currentDayStr)
+      if (currentDayStr) {
+        out.push({
+          id: `date-${currentDayStr}`,
+          text: currentDayStr,
+          type: 'dateHeader',
+          user: 'other',
+          createdAt: currentDayMessages.length > 0 ? currentDayMessages[currentDayMessages.length-1].createdAt : undefined // Optional: use last msg date of group
+        });
+      }
+      // Reset for the new day
+      currentDayMessages = [];
+      currentDayStr = msgDayStr;
+    }
+
+    // Add current message to its day's collection, if it has a date
+    if (msgDayStr) {
+      currentDayMessages.push(msg);
+    } else {
+      out.push(msg);
+    }
+  }
+
+  // After the loop, add any remaining messages and their header
+  if (currentDayMessages.length > 0) {
+    out.push(...currentDayMessages);
+  }
+  if (currentDayStr && currentDayMessages.length > 0) {
+    out.push({
+      id: `date-${currentDayStr}`,
+      text: currentDayStr,
+      type: 'dateHeader',
+      user: 'other',
+      createdAt: currentDayMessages.length > 0 ? currentDayMessages[currentDayMessages.length-1].createdAt : undefined
+    });
+  }
   return out;
 }
 
