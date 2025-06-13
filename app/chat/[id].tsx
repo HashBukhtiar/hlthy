@@ -17,7 +17,7 @@ import {
   Modal,
 } from 'react-native';
 import { db } from '@/firebaseConfig';
-import { doc, getDoc, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, Timestamp, updateDoc, deleteDoc, getDocs, setDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, Timestamp, updateDoc, deleteDoc, getDocs, setDoc, limit } from 'firebase/firestore';
 import { useAuth } from '@/context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -69,6 +69,7 @@ interface Message {
     imageUrl: string | null;
     caption: string;
     authorUsername: string;
+    isAvailable?: boolean;
   };
   sharedMilestone?: {
     id: string;
@@ -87,12 +88,14 @@ interface Message {
       percentageLoss?: string;
     };
     username: string;
+    isAvailable?: boolean;
   };
   sharedWorkout?: {
     id: string;
     title: string;
     coverImageUrl?: string;
     creatorUsername: string;
+    isAvailable?: boolean;
   };
   type?: 'message' | 'dateHeader';
 }
@@ -147,14 +150,52 @@ export default function ChatScreen() {
         const messagesRef = collection(db, "conversations", conversationId, "messages");
         const q = query(messagesRef, orderBy("createdAt", "asc"));
 
-        const unsubscribeMessages = onSnapshot(q, (querySnapshot) => {
-          const fetchedMessages: Message[] = [];
+        const unsubscribeMessages = onSnapshot(q, async (querySnapshot) => {
+          const processedMessages: Message[] = [];
           let currentDate: string | null = null;
-          
-          querySnapshot.forEach((doc) => {
-            const data = doc.data() as FirestoreMessageData;
+
+          const messagePromises = querySnapshot.docs.map(async (docSnapshot) => {
+            const data = docSnapshot.data() as FirestoreMessageData;
             const messageDate = data.createdAt?.toDate();
+
+            let resolvedSharedPost = data.sharedPost ? { ...data.sharedPost, isAvailable: true } : undefined;
+            if (data.sharedPost) {
+              try {
+                const postRef = doc(db, 'posts', data.sharedPost.id);
+                const postSnap = await getDoc(postRef);
+                resolvedSharedPost = { ...data.sharedPost, isAvailable: postSnap.exists() };
+              } catch (e) {
+                console.error("Error checking post availability:", e);
+                resolvedSharedPost = { ...data.sharedPost, isAvailable: false };
+              }
+            }
+
+            let resolvedSharedWorkout = data.sharedWorkout ? { ...data.sharedWorkout, isAvailable: true } : undefined;
+            if (data.sharedWorkout) {
+              try {
+                const workoutRef = doc(db, 'workouts', data.sharedWorkout.id);
+                const workoutSnap = await getDoc(workoutRef);
+                resolvedSharedWorkout = { ...data.sharedWorkout, isAvailable: workoutSnap.exists() };
+              } catch (e) {
+                console.error("Error checking workout availability:", e);
+                resolvedSharedWorkout = { ...data.sharedWorkout, isAvailable: false };
+              }
+            }
             
+            return {
+              id: docSnapshot.id,
+              originalData: data,
+              messageDate,
+              resolvedSharedPost,
+              resolvedSharedWorkout,
+            };
+          });
+
+          const tempMessages = await Promise.all(messagePromises);
+
+          for (const tempMsg of tempMessages) {
+            const { id, originalData, messageDate, resolvedSharedPost, resolvedSharedWorkout } = tempMsg;
+
             if (messageDate) {
               const formattedDate = messageDate.toLocaleDateString('en-US', {
                 month: 'long',
@@ -163,7 +204,7 @@ export default function ChatScreen() {
               });
               if (formattedDate !== currentDate) {
                 currentDate = formattedDate;
-                fetchedMessages.push({
+                processedMessages.push({
                   id: `date-${messageDate.getTime()}`,
                   text: formattedDate,
                   user: 'other', 
@@ -173,18 +214,19 @@ export default function ChatScreen() {
             }
             
             const message: Message = {
-              id: doc.id,
-              text: data.text,
-              user: data.senderId === currentUser.uid ? 'user' : 'other',
+              id: id,
+              text: originalData.text,
+              user: originalData.senderId === currentUser.uid ? 'user' : 'other',
               createdAt: messageDate,
-              sharedPost: data.sharedPost,
-              sharedWorkout: data.sharedWorkout,
+              sharedPost: resolvedSharedPost,
+              sharedMilestone: originalData.sharedMilestone,
+              sharedWorkout: resolvedSharedWorkout,
               type: 'message'
             };
-            fetchedMessages.push(message);
-          });
+            processedMessages.push(message);
+          }
           
-          setMessages(fetchedMessages);
+          setMessages(processedMessages);
           setLoading(false);
         });
 
@@ -500,13 +542,32 @@ export default function ChatScreen() {
     }
 
     if (item.sharedPost) {
+      if (item.sharedPost.isAvailable === false) {
+        return (
+          <View 
+            style={[
+              styles.messageBubble,
+              item.user === 'user' ? styles.currentUserMessage : styles.otherUserMessage,
+              styles.unavailableItemBubble
+            ]}
+            >
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Ionicons name="share-social-outline" size={16} color="#FFF" style={{ marginRight: 5 }} />
+              <Text style={item.user === 'user' ? styles.currentUserText : styles.otherUserText}>
+                Post unavailable
+              </Text>
+            </View>
+          </View>
+        );
+      }
+      // Original shared post rendering
       return (
         <TouchableOpacity 
           style={[
             item.user === 'user' ? { alignSelf: 'flex-end' } : { alignSelf: 'flex-start' }
           ]}
           onLongPress={() => handleLongPress(item)}
-          delayLongPress={500} // Set delay for long press
+          delayLongPress={500}
         >
           <TouchableOpacity 
             style={styles.sharedPostContainer}
@@ -601,6 +662,22 @@ export default function ChatScreen() {
     }
 
     if (item.sharedWorkout) {
+      if (item.sharedWorkout.isAvailable === false) {
+        return (
+          <View 
+            style={[
+              styles.messageBubble,
+              item.user === 'user' ? styles.currentUserMessage : styles.otherUserMessage,
+              styles.unavailableItemBubble
+            ]}
+          >
+            <Text style={item.user === 'user' ? styles.currentUserText : styles.otherUserText}>
+              Workout unavailable
+            </Text>
+          </View>
+        );
+      }
+
       return (
         <TouchableOpacity
           style={[item.user === 'user' ? { alignSelf: 'flex-end' } : { alignSelf: 'flex-start' }]}
@@ -821,6 +898,9 @@ const styles = StyleSheet.create({
   },
   aiText: {
     color: 'white',
+  },
+  unavailableItemBubble: {
+    backgroundColor: '#3A3A3A',
   },
   inputContainer: {
     flexDirection: 'row',
