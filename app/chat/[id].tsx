@@ -433,9 +433,17 @@ export default function ChatScreen() {
   const BATCH_SIZE = 20; // number of messages to fetch at a time
   const [lastVisible, setLastVisible] = useState<any>(null);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMoreMessages, setHasMoreMessages] = useState(true);
 
   useEffect(() => {
-    if (!currentUser || !conversationId) return;
+    if (!currentUser || !conversationId) {
+      setLoading(false); 
+      setHasMoreMessages(false);
+      return;
+    }
+    // setLoading(true); // Handled by the effect above or initial state
+    // setHasMoreMessages(true); // Reset when conversationId changes
+
     const messagesRef = collection(db, "conversations", conversationId, "messages");
 
     const initialQ = query(
@@ -446,21 +454,44 @@ export default function ChatScreen() {
 
     const unsubscribe = onSnapshot(initialQ, async snapshot => {
       const docs = snapshot.docs;
-      if (docs.length) {
+      if (docs.length > 0) {
         setLastVisible(docs[docs.length - 1]);
         const page = await Promise.all(docs.map(d => convertFirestoreDoc(d, currentUser.uid)));
         setMessages(page);
+        if (docs.length < BATCH_SIZE) {
+          setHasMoreMessages(false);
+        } else {
+          setHasMoreMessages(true);
+        }
       } else {
         setMessages([]);
+        setHasMoreMessages(false);
       }
       setLoading(false);
+    }, (error) => {
+      console.error("Error fetching initial messages:", error);
+      setLoading(false);
+      setHasMoreMessages(false);
     });
 
     return () => unsubscribe();
   }, [currentUser, conversationId]);
 
   const fetchMore = useCallback(async () => {
-    if (loadingMore || !lastVisible) return;
+    console.log("Attempting to fetch more messages...");
+    if (loadingMore || !lastVisible || !hasMoreMessages || !currentUser || !conversationId) { 
+      if (!hasMoreMessages) {
+        console.log("Fetch more skipped: No more messages to load.");
+      }
+      if (loadingMore) {
+        console.log("Fetch more skipped: Already loading more.");
+      }
+      if (!lastVisible) {
+        console.log("Fetch more skipped: lastVisible is null.");
+      }
+      return;
+    }
+    console.log("Proceeding to fetch more messages from Firestore."); 
     setLoadingMore(true);
 
     const messagesRef = collection(db, "conversations", conversationId, "messages");
@@ -471,17 +502,27 @@ export default function ChatScreen() {
       limit(BATCH_SIZE)
     );
 
-    const snap = await getDocs(nextQ);
-    if (!snap.empty) {
-      const docs = snap.docs;
-      setLastVisible(docs[docs.length - 1]);
+    try {
+      const snap = await getDocs(nextQ);
+      if (!snap.empty) {
+        const docs = snap.docs;
+        setLastVisible(docs[docs.length - 1]);
 
-      const more = await Promise.all(docs.map(d => convertFirestoreDoc(d, currentUser.uid)));
-      setMessages(prev => [...prev, ...more]);
+        const more = await Promise.all(docs.map(d => convertFirestoreDoc(d, currentUser.uid)));
+        setMessages(prev => [...prev, ...more]);
+        if (docs.length < BATCH_SIZE) {
+          setHasMoreMessages(false);
+        }
+      } else {
+        setHasMoreMessages(false);
+      }
+    } catch (error) {
+      console.error("Error fetching more messages:", error);
+      // Optionally setHasMoreMessages(false) here or handle error appropriately
+    } finally {
+      setLoadingMore(false);
     }
-
-    setLoadingMore(false);
-  }, [lastVisible, loadingMore, conversationId, currentUser]); 
+  }, [lastVisible, loadingMore, conversationId, currentUser, hasMoreMessages]);
 
   const initialScrollRef = useRef(true);
 
@@ -792,11 +833,6 @@ export default function ChatScreen() {
             }
 
             contentContainerStyle={styles.messagesContainer}
-            getItemLayout={(_, index) => ({
-              length: 60,
-              offset: 60 * index,
-              index,
-            })}
           />
         )}
 
