@@ -671,9 +671,12 @@ export default function ChatScreen() {
               styles.unavailableItemBubble
             ]}
           >
-            <Text style={item.user === 'user' ? styles.currentUserText : styles.otherUserText}>
-              Workout unavailable
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Ionicons name="share-social-outline" size={16} color="#FFF" style={{ marginRight: 5 }} />
+              <Text style={item.user === 'user' ? styles.currentUserText : styles.otherUserText}>
+                Workout unavailable
+              </Text>
+            </View>
           </View>
         );
       }
