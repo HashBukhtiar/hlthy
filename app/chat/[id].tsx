@@ -170,6 +170,7 @@ async function convertFirestoreDoc(
   };
 }
 
+
 const MessageItem = React.memo<{ item: Message; onLongPress: (m: Message) => void }>(
   ({ item, onLongPress }) => {
     const router = useRouter();
@@ -190,32 +191,30 @@ const MessageItem = React.memo<{ item: Message; onLongPress: (m: Message) => voi
         );
       }
       return (
-        <TouchableOpacity 
+        <TouchableOpacity
           style={[
+            styles.sharedPostContainer,
             item.user === 'user' ? { alignSelf: 'flex-end' } : { alignSelf: 'flex-start' }
           ]}
+          onPress={() => item.sharedPost?.id && router.push(`/view-post/${item.sharedPost.id}`)}
           onLongPress={() => onLongPress(item)}
           delayLongPress={500}
+          activeOpacity={0.8}
         >
-          <TouchableOpacity 
-            style={styles.sharedPostContainer}
-            onPress={() => router.push(`/view-post/${item.sharedPost?.id}`)}
-          >
-            <View style={styles.sharedPostHeader}>
-              <Ionicons name="share-social-outline" size={16} color="#FFF" style={{marginRight: 5}} />
-              <Text style={styles.sharedPostHeaderText}>Shared Post by {item.sharedPost.authorUsername}</Text>
-            </View>
-            
-            {item.sharedPost.imageUrl && (
-              <Image 
-                source={{uri: item.sharedPost.imageUrl}} 
-                style={styles.sharedPostImage} 
-                resizeMode="cover"
-              />
-            )}
-            
-            {item.sharedPost.caption ? <Text style={styles.sharedPostCaption} numberOfLines={2}>{item.sharedPost.caption}</Text> : null}
-          </TouchableOpacity>
+          <View style={styles.sharedPostHeader}>
+            <Ionicons name="share-social-outline" size={16} color="#FFF" style={{ marginRight: 5 }} />
+            <Text style={styles.sharedPostHeaderText}>
+              Shared Post by {item.sharedPost.authorUsername}
+            </Text>
+          </View>
+          {item.sharedPost.imageUrl && (
+            <Image source={{ uri: item.sharedPost.imageUrl }} style={styles.sharedPostImage} />
+          )}
+          {item.sharedPost.caption && (
+            <Text style={styles.sharedPostCaption} numberOfLines={2}>
+              {item.sharedPost.caption}
+            </Text>
+          )}
         </TouchableOpacity>
       );
     }
@@ -224,67 +223,56 @@ const MessageItem = React.memo<{ item: Message; onLongPress: (m: Message) => voi
       return (
         <TouchableOpacity
           style={[
+            styles.sharedMilestoneContainer,
             item.user === 'user' ? { alignSelf: 'flex-end' } : { alignSelf: 'flex-start' }
           ]}
+          onPress={() => item.sharedMilestone?.id && router.push(`/view-milestone/${item.sharedMilestone.id}`)}
           onLongPress={() => onLongPress(item)}
           delayLongPress={500}
+          activeOpacity={0.8}
         >
-          <TouchableOpacity
-            style={styles.sharedMilestoneContainer}
-            onPress={() => router.push(`/view-milestone/${item.sharedMilestone?.id}`)}
-          >
-            <View style={styles.sharedMilestoneHeader}>
-              <Ionicons 
-                name="trophy-outline" 
-                size={16} 
-                color="#FFF" 
-                style={{ marginRight: 5 }} 
-              />
-              <Text style={styles.sharedMilestoneHeaderText}>
-                Milestone by {item.sharedMilestone.username}
+          <View style={styles.sharedMilestoneHeader}>
+            <Ionicons name="trophy-outline" size={16} color="#FFF" style={{ marginRight: 5 }} />
+            <Text style={styles.sharedMilestoneHeaderText}>
+              Milestone by {item.sharedMilestone.username}
+            </Text>
+          </View>
+          {item.sharedMilestone.type === 'PR' ? (
+            <View style={styles.sharedMilestoneContent}>
+              <Text style={styles.sharedMilestoneType}>
+                {item.sharedMilestone.details.exercise}
               </Text>
-            </View>
-
-            {item.sharedMilestone.type === 'PR' ? (
-              <View style={styles.sharedMilestoneContent}>
-                <Text style={styles.sharedMilestoneType}>
-                  {item.sharedMilestone.details.exercise}
+              <View style={styles.milestoneStatsRow}>
+                <Text style={styles.milestoneValue}>
+                  {item.sharedMilestone.details.value}{item.sharedMilestone.details.weightUnit}
+                  {item.sharedMilestone.details.reps > 1 && ` × ${item.sharedMilestone.details.reps}`}
                 </Text>
-                <View style={styles.milestoneStatsRow}>
-                  <Text style={styles.milestoneValue}>
-                    {item.sharedMilestone.details.value}{item.sharedMilestone.details.weightUnit}
-                    {item.sharedMilestone.details.reps > 1 ? ` × ${item.sharedMilestone.details.reps}` : ''}
-                  </Text>
-                  <Text style={styles.milestonePrevious}>
-                    from {item.sharedMilestone.details.previousValue}
-                    {item.sharedMilestone.details.weightUnit}
-                  </Text>
-                  <Text style={styles.milestoneImprovement}>
-                    ↑ {item.sharedMilestone.details.improvement}
-                  </Text>
-                </View>
-              </View>
-            ) : (
-              <View style={styles.weightMilestoneContent}>
-                <Text style={styles.sharedMilestoneType}>
-                  {item.sharedMilestone.type === 'weightLoss' ? 'Weight Loss' : 'Weight Gain'}
-                </Text>
-                <Text style={styles.weightChangeValue}>
-                  {item.sharedMilestone.type === 'weightLoss' ? '↓' : '↑'} {
-                    item.sharedMilestone.details.totalLoss
-                  } {item.sharedMilestone.details.newWeightUnit}
-                </Text>
-                <Text style={styles.weightChangeDetails}>
-                  {item.sharedMilestone.details.previousWeight} → {item.sharedMilestone.details.newWeight} {
-                    item.sharedMilestone.details.newWeightUnit
-                  }
+                <Text style={styles.milestonePrevious}>
+                  from {item.sharedMilestone.details.previousValue}{item.sharedMilestone.details.weightUnit}
                 </Text>
                 <Text style={styles.milestoneImprovement}>
-                  {item.sharedMilestone.details.percentageLoss} change
+                  ↑ {item.sharedMilestone.details.improvement}
                 </Text>
               </View>
-            )}
-          </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={styles.weightMilestoneContent}>
+              <Text style={styles.sharedMilestoneType}>
+                {item.sharedMilestone.type === 'weightLoss' ? 'Weight Loss' : 'Weight Gain'}
+              </Text>
+              <Text style={styles.weightChangeValue}>
+                {item.sharedMilestone.type === 'weightLoss' ? '↓' : '↑'} 
+                {item.sharedMilestone.details.totalLoss} {item.sharedMilestone.details.newWeightUnit}
+              </Text>
+              <Text style={styles.weightChangeDetails}>
+                {item.sharedMilestone.details.previousWeight} → {item.sharedMilestone.details.newWeight}
+                {item.sharedMilestone.details.newWeightUnit}
+              </Text>
+              <Text style={styles.milestoneImprovement}>
+                {item.sharedMilestone.details.percentageLoss} change
+              </Text>
+            </View>
+          )}
         </TouchableOpacity>
       );
     }
@@ -300,29 +288,27 @@ const MessageItem = React.memo<{ item: Message; onLongPress: (m: Message) => voi
       }
       return (
         <TouchableOpacity
-          style={[item.user === 'user' ? { alignSelf: 'flex-end' } : { alignSelf: 'flex-start' }]}
+          style={[
+            styles.sharedWorkoutContainer,
+            item.user === 'user' ? { alignSelf: 'flex-end' } : { alignSelf: 'flex-start' }
+          ]}
+          onPress={() => item.sharedWorkout?.id && router.push(`/view-workout/${item.sharedWorkout.id}`)}
           onLongPress={() => onLongPress(item)}
           delayLongPress={500}
+          activeOpacity={0.8}
         >
-          <TouchableOpacity
-            style={styles.sharedWorkoutContainer}
-            onPress={() => router.push(`/view-workout/${item.sharedWorkout?.id}`)}
-          >
-            <View style={styles.sharedWorkoutHeader}>
-              <Ionicons name="share-social-outline" size={16} color="#FFF" style={{ marginRight: 5 }} />
-              <Text style={styles.sharedWorkoutHeaderText}>Shared Workout by {item.sharedWorkout.creatorUsername}</Text>
-            </View>
-            {item.sharedWorkout.coverImageUrl && (
-              <Image
-                source={{ uri: item.sharedWorkout.coverImageUrl }}
-                style={styles.sharedWorkoutImage}
-                resizeMode="cover"
-              />
-            )}
-            <Text style={styles.sharedWorkoutTitle} numberOfLines={2}>
-              {item.sharedWorkout.title}
+          <View style={styles.sharedWorkoutHeader}>
+            <Ionicons name="share-social-outline" size={16} color="#FFF" style={{ marginRight: 5 }} />
+            <Text style={styles.sharedWorkoutHeaderText}>
+              Shared Workout by {item.sharedWorkout.creatorUsername}
             </Text>
-          </TouchableOpacity>
+          </View>
+          {item.sharedWorkout.coverImageUrl && (
+            <Image source={{ uri: item.sharedWorkout.coverImageUrl }} style={styles.sharedWorkoutImage} />
+          )}
+          <Text style={styles.sharedWorkoutTitle} numberOfLines={2}>
+            {item.sharedWorkout.title}
+          </Text>
         </TouchableOpacity>
       );
     }
@@ -356,7 +342,6 @@ const MessageItem = React.memo<{ item: Message; onLongPress: (m: Message) => voi
     );
   },
   (prev, next) => {
-    // only re‐render if the id or availability flags changed
     return (
       prev.item.id === next.item.id &&
       prev.item.text === next.item.text &&
@@ -366,6 +351,29 @@ const MessageItem = React.memo<{ item: Message; onLongPress: (m: Message) => voi
     );
   }
 );
+
+function addDateHeaders(msgs: Message[]): Message[] {
+  const out: Message[] = [];
+  let lastDate: string | null = null;
+
+  for (const msg of msgs) {
+    if (msg.createdAt) {
+      const day = msg.createdAt.toLocaleDateString();
+      if (day !== lastDate) {
+        out.push({
+          id: `date-${day}`,
+          text: day,
+          type: 'dateHeader',
+          user: 'other',
+        });
+        lastDate = day;
+      }
+    }
+    out.push(msg);
+  }
+
+  return out;
+}
 
 export default function ChatScreen() {
   const router = useRouter();
@@ -724,7 +732,7 @@ export default function ChatScreen() {
         ) : (
           <FlatList
             ref={flatListRef}
-            data={messages}
+            data={addDateHeaders(messages)}
             keyExtractor={i => i.id}
             renderItem={renderMessage}
 
@@ -919,6 +927,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(30, 30, 30, 0.8)',
     borderWidth: 1,
     borderColor: '#333',
+    width: 200,
   },
   sharedPostHeader: {
     flexDirection: 'row',
@@ -1078,6 +1087,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#b00',
     overflow: 'hidden',
+    width: 200,
   },
   sharedWorkoutHeader: {
     flexDirection: 'row',
