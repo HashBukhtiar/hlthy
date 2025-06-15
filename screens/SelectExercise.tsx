@@ -9,7 +9,7 @@ import {
   TextInput
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { exercises, categories, Exercise } from '../data/exercises';
+import { exercises, categories, muscleGroups, Exercise } from '../data/exercises';
 import { SECONDARY_COLOR } from './PostComponents';
 
 interface SelectExerciseProps {
@@ -106,6 +106,7 @@ export default function SelectExercise({ onSelectExercise, onBack }: SelectExerc
 
       {/* Category filters */}
       <View style={styles.filtersContainer}>
+        <Text style={styles.filterHeading}>Categories</Text>
         <FlatList
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -129,6 +130,42 @@ export default function SelectExercise({ onSelectExercise, onBack }: SelectExerc
                 style={[
                   styles.filterChipText,
                   selectedCategory === item && styles.filterChipTextSelected
+                ]}
+              >
+                {item.charAt(0).toUpperCase() + item.slice(1)}
+              </Text>
+            </TouchableOpacity>
+          )}
+          contentContainerStyle={styles.filtersRow}
+        />
+      </View>
+
+      {/* Muscle Group filters */}
+      <View style={styles.filtersContainer}>
+        <Text style={styles.filterHeading}>Muscle Groups</Text>
+        <FlatList
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          data={muscleGroups}
+          keyExtractor={(item) => item}
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              style={[
+                styles.filterChip,
+                selectedMuscleGroup === item && styles.filterChipSelected
+              ]}
+              onPress={() => {
+                if (selectedMuscleGroup === item) {
+                  setSelectedMuscleGroup(null);
+                } else {
+                  setSelectedMuscleGroup(item);
+                }
+              }}
+            >
+              <Text 
+                style={[
+                  styles.filterChipText,
+                  selectedMuscleGroup === item && styles.filterChipTextSelected
                 ]}
               >
                 {item.charAt(0).toUpperCase() + item.slice(1)}
@@ -176,6 +213,13 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#222',
   },
+  filterHeading: {
+    color: '#AAA',
+    fontSize: 14,
+    fontWeight: '500',
+    marginLeft: 12,
+    marginBottom: 4,
+  },
   backButton: {
     marginRight: 16,
   },
@@ -207,7 +251,7 @@ const styles = StyleSheet.create({
   },
   filtersContainer: {
     paddingHorizontal: 8,
-    marginBottom: 8,
+    marginBottom: 4,
   },
   filtersRow: {
     paddingHorizontal: 8,
