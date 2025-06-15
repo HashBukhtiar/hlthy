@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { ScrollView, View, Text, TouchableOpacity, Image, StyleSheet, ActivityIndicator, Alert, Modal, TextInput, FlatList, KeyboardAvoidingView, Platform } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import ShareModal from '@/components/ShareModal';
+import { shareWorkout } from '@/services/ShareService';
 import { Ionicons } from '@expo/vector-icons';
 import { db } from '@/firebaseConfig'; 
 import { doc, addDoc, serverTimestamp, getDoc, Timestamp, updateDoc, increment, setDoc, deleteDoc, collection, query, where, orderBy, getDocs, limit } from 'firebase/firestore';
@@ -225,72 +227,22 @@ export default function ViewWorkout() {
 
   const shareWorkoutWithUser = async (userId: string, username: string, profileImageUrl?: string) => {
     if (!currentUser || !workoutData) return;
+    
     try {
-      const conversationId = generateConversationId(currentUser.uid, userId);
-      const conversationRef = doc(db, 'conversations', conversationId);
-      const conversationSnap = await getDoc(conversationRef);
-
-      // Create conversation if needed
-      if (!conversationSnap.exists()) {
-        await setDoc(conversationRef, {
-          participants: [currentUser.uid, userId],
-          lastMessageAt: serverTimestamp(),
-          lastMessageText: `${currentUser.displayName || 'User'} shared a workout`,
-          participantUsernames: {
-            [currentUser.uid]: currentUser.displayName || currentUser.email || 'Current User',
-            [userId]: username || 'User',
-          },
-          participantProfileImages: {
-            [currentUser.uid]: currentUser.photoURL || '',
-            [userId]: profileImageUrl || '',
-          },
-        });
-        await setDoc(doc(db, `users/${currentUser.uid}/conversations`, conversationId), {
-          otherParticipantId: userId,
-          otherParticipantUsername: username || 'User',
-          otherParticipantProfileImage: profileImageUrl || '',
-        });
-        await setDoc(doc(db, `users/${userId}/conversations`, conversationId), {
-          otherParticipantId: currentUser.uid,
-          otherParticipantUsername: currentUser.displayName || currentUser.email || 'Current User',
-          otherParticipantProfileImage: currentUser.photoURL || '',
-        });
-      }
-
-      // Add a message with the shared workout
-      await addDoc(collection(db, "conversations", conversationId, "messages"), {
-        senderId: currentUser.uid,
-        text: workoutData.description
-          ? `Shared a workout: "${workoutData.description.substring(0, 50)}${workoutData.description.length > 50 ? '...' : ''}"`
-          : 'Shared a workout',
-        createdAt: serverTimestamp(),
-        sharedWorkout: {
+      await shareWorkout(
+        currentUser,
+        userId,
+        username,
+        profileImageUrl,
+        {
           id: workoutData.id,
           title: workoutData.title,
           coverImageUrl: workoutData.coverImageUrl || null,
           creatorUsername: workoutData.creatorUsername,
-        },
-      });
-
-      // Update conversation metadata
-      await updateDoc(conversationRef, {
-        lastMessageAt: serverTimestamp(),
-        lastMessageText: 'Shared a workout',
-      });
-
-      // Update user conversation docs
-      await updateDoc(doc(db, `users/${currentUser.uid}/conversations`, conversationId), {
-        lastMessageAt: serverTimestamp(),
-        lastMessageText: 'Shared a workout',
-      });
-      const conversationData = (await getDoc(conversationRef)).data();
-      const otherUserId = conversationData?.participants?.find((uid: string) => uid !== currentUser.uid);
-      if (otherUserId) {
-        await updateDoc(doc(db, `users/${otherUserId}/conversations`, conversationId), {
-          lastMessageAt: serverTimestamp(),
-          lastMessageText: 'Shared a workout',
-        });
-      }
+          description: workoutData.description
+        }
+      );
+      
       setShareModalVisible(false);
       Alert.alert("Success", "Workout shared successfully.");
     } catch (error) {
@@ -300,6 +252,11 @@ export default function ViewWorkout() {
   };
 
   const handleShareWorkout = () => {
+    if (!currentUser) {
+      Alert.alert("Please log in", "You need to be logged in to share workouts.");
+      return;
+    }
+    
     setShareModalVisible(true);
   };
   
@@ -428,84 +385,11 @@ export default function ViewWorkout() {
         ))}
       </View>
       <View style={styles.bottomPadding} />
-      <Modal
-        transparent={true}
+      <ShareModal
         visible={shareModalVisible}
-        animationType="slide"
-        onRequestClose={() => setShareModalVisible(false)}
-      >
-        <KeyboardAvoidingView
-          style={styles.shareModalContainer}
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 100}
-        >
-          <View style={styles.shareModalContent}>
-            {/* Header with "Share to" and X button */}
-            <View style={styles.shareModalHeader}>
-              <Text style={styles.shareModalTitle}>Share to</Text>
-              <TouchableOpacity onPress={() => setShareModalVisible(false)}>
-                <Ionicons name="close" size={24} color="#FFF" />
-              </TouchableOpacity>
-            </View>
-
-            {/* Search container */}
-            <View style={styles.searchContainer}>
-              <TextInput
-                style={styles.searchInput}
-                placeholder="Search users..."
-                placeholderTextColor="#888"
-                value={searchText}
-                onChangeText={handleSearchUsers}
-                onSubmitEditing={handleSearchUsers}
-                autoCapitalize="none"
-              />
-            </View>
-
-            {/* Loading or list of users */}
-            {searchLoading ? (
-              <ActivityIndicator
-                size="large"
-                color="#0A84FF"
-                style={{ marginTop: 20 }}
-              />
-            ) : (
-              <FlatList
-                data={searchResults}
-                keyExtractor={(item) => item.id}
-                renderItem={({ item }) => (
-                  <TouchableOpacity
-                    style={styles.userItem}
-                    onPress={() =>
-                      shareWorkoutWithUser(
-                        item.id,
-                        item.username,
-                        item.profileImageUrl
-                      )
-                    }
-                  >
-                    <Image
-                      source={
-                        item.profileImageUrl
-                          ? { uri: item.profileImageUrl }
-                          : require('@/assets/images/profile-icon.png')
-                      }
-                      style={styles.userItemImage}
-                    />
-                    <Text style={styles.userItemText}>{item.username}</Text>
-                  </TouchableOpacity>
-                )}
-                ListEmptyComponent={
-                  <Text style={styles.emptyResultsText}>
-                    {searchText
-                      ? "No users found"
-                      : "Search for users to share with"}
-                  </Text>
-                }
-              />
-            )}
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
+        onClose={() => setShareModalVisible(false)}
+        onShareWith={shareWorkoutWithUser}
+      />
     </ScrollView>
   );
 }

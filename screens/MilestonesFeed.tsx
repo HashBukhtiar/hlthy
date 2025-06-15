@@ -1,16 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { 
   StyleSheet, 
   Text, 
   View, 
   Image, 
   TouchableOpacity, 
-  FlatList, 
-  Share 
+  FlatList,
+  Alert
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import ShareModal from '@/components/ShareModal';
+import { shareMilestone } from '@/services/ShareService';
+import { useAuth } from '@/context/AuthContext';
 
 // Define interfaces for milestone data
 export interface MilestoneStats {
@@ -51,6 +54,9 @@ export interface Milestone {
 
 export default function MilestonesFeed() {
   const router = useRouter();
+  const { currentUser } = useAuth();
+  const [shareModalVisible, setShareModalVisible] = useState(false);
+  const milestoneToShare = useRef<Milestone | null>(null);
   const [milestones, setMilestones] = useState<Milestone[]>([
     {
       id: 'm1',
@@ -176,6 +182,15 @@ export default function MilestonesFeed() {
   };
 
   const handleShare = async (milestone: Milestone) => {
+    if (!currentUser) {
+      Alert.alert("Please log in", "You need to be logged in to share milestones.");
+      return;
+    }
+    
+    milestoneToShare.current = milestone;
+    setShareModalVisible(true);
+    // implement later
+    /*
     try {
       await Share.share({
         message: `Check out this amazing milestone on Hlthy!`,
@@ -183,6 +198,33 @@ export default function MilestonesFeed() {
       });
     } catch (error) {
       console.error('Error sharing milestone:', error);
+    }
+    */
+  };
+
+  const handleShareWithUser = async (userId: string, username: string, profileImageUrl?: string) => {
+    if (!currentUser || !milestoneToShare.current) return;
+    
+    try {
+      await shareMilestone(
+        currentUser,
+        userId,
+        username,
+        profileImageUrl,
+        {
+          id: milestoneToShare.current.id,
+          milestoneType: milestoneToShare.current.milestoneType,
+          details: milestoneToShare.current.details,
+          username: milestoneToShare.current.fullName,
+        }
+      );
+      
+      // Close modal and show confirmation
+      setShareModalVisible(false);
+      Alert.alert("Success", "Milestone shared successfully");
+    } catch (error) {
+      console.error("Error sharing milestone:", error);
+      Alert.alert("Error", "Failed to share milestone. Please try again.");
     }
   };
 
@@ -275,7 +317,7 @@ export default function MilestonesFeed() {
 
   const renderMilestoneCard = (item: Milestone) => {
     // Determine the styling based on milestone status
-    let CardWrapper = View;
+    let CardWrapper: any = View;
     let wrapperStyle = styles.milestoneCard;
     let innerContent = null;
     
@@ -416,17 +458,25 @@ export default function MilestonesFeed() {
   }
   
   return (
-    <FlatList
-      data={milestones}
-      keyExtractor={(item) => item.id}
-      showsVerticalScrollIndicator={false}
-      contentContainerStyle={styles.milestonesContainer}
-      renderItem={({item}) => (
-        <View style={styles.milestoneContainer}>
-          {renderMilestoneCard(item)}
-        </View>
-      )}
-    />
+    <View>
+      <FlatList
+        data={milestones}
+        keyExtractor={(item) => item.id}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.milestonesContainer}
+        renderItem={({item}) => (
+          <View style={styles.milestoneContainer}>
+            {renderMilestoneCard(item)}
+          </View>
+        )}
+      />
+      
+      <ShareModal 
+        visible={shareModalVisible}
+        onClose={() => setShareModalVisible(false)}
+        onShareWith={handleShareWithUser}
+      />
+    </View>
   );
 }
 
@@ -486,8 +536,12 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   gradientBorder: {
-    padding: 2, // This padding creates the space for the gradient border
+    padding: 2,
     borderRadius: 12,
+    backgroundColor: '#1A1A1A',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#333',
   },
   gradientInnerContainer: {
     backgroundColor: '#1A1A1A',
@@ -504,6 +558,8 @@ const styles = StyleSheet.create({
     // borderColor: '#FF5E69',
     borderColor: 'rgba(255, 94, 105, 0.75)',
     borderWidth: 2,
+    backgroundColor: '#1A1A1A',
+    overflow: 'hidden',
   },
   pinnedInnerContainer: {
     backgroundColor: '#1A1A1A',
@@ -521,7 +577,7 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 25,
-    overflow: 'hidden', // Add overflow hidden to ensure image stays in circle
+    overflow: 'hidden', 
     marginRight: 12,
   },
   milestoneIcon: {
