@@ -818,7 +818,7 @@ const styles = StyleSheet.create({
   },
   workoutIcon: {
     marginRight: 12,
-    backgroundColor: '#333',
+    backgroundColor: '#ff2d55',
     padding: 8,
     borderRadius: 18,
   },
@@ -854,7 +854,7 @@ const styles = StyleSheet.create({
   },
   milestoneIcon: {
     marginRight: 12,
-    backgroundColor: '#333',
+    backgroundColor: '#ff2d55',
     padding: 8,
     borderRadius: 18,
   },
