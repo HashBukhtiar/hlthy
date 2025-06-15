@@ -77,38 +77,6 @@ export default function SelectExercise({ onSelectExercise, onBack }: SelectExerc
     </TouchableOpacity>
   );
 
-  // Render category filter chips
-  const renderCategoryFilters = () => (
-    <View style={styles.filtersRow}>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-        {categories.map((category) => (
-          <TouchableOpacity
-            key={category}
-            style={[
-              styles.filterChip,
-              selectedCategory === category && styles.filterChipSelected
-            ]}
-            onPress={() => {
-              if (selectedCategory === category) {
-                setSelectedCategory(null);
-              } else {
-                setSelectedCategory(category);
-              }
-            }}
-          >
-            <Text 
-              style={[
-                styles.filterChipText,
-                selectedCategory === category && styles.filterChipTextSelected
-              ]}
-            >
-              {category.charAt(0).toUpperCase() + category.slice(1)}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-    </View>
-  );
 
   // Main render
   return (
