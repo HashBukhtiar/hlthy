@@ -657,6 +657,28 @@ useEffect(() => {
 
           <Text style={styles.timestamp}>{formatDate(post.createdAt)}</Text>
 
+          {post.workoutId && (
+            <TouchableOpacity 
+              style={styles.attachedWorkoutContainer}
+              onPress={() => navigateToWorkout(post.workoutId)}
+            >
+              <View style={styles.attachedWorkoutContent}>
+                <View style={styles.attachedWorkoutInfo}>
+                  <Ionicons name="flame" size={18} color="#FFF" style={styles.workoutIcon} />
+                  <View>
+                    <Text style={styles.attachedWorkoutTitle}>
+                      Workout
+                    </Text>
+                    <Text style={styles.attachedWorkoutDetails}>
+                      View attached workout details
+                    </Text>
+                  </View>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="#999" />
+              </View>
+            </TouchableOpacity>
+          )}
+
           {post.isMilestone && post.milestoneDetails && (
             <TouchableOpacity 
               style={styles.attachedMilestoneContainer}
@@ -682,29 +704,7 @@ useEffect(() => {
             </TouchableOpacity>
           )}
 
-          {post.workoutId && (
-            <TouchableOpacity 
-              style={styles.attachedWorkoutContainer}
-              onPress={() => navigateToWorkout(post.workoutId)}
-            >
-              <View style={styles.attachedWorkoutContent}>
-                <View style={styles.attachedWorkoutInfo}>
-                  <Ionicons name="barbell-outline" size={18} color="#FFF" style={styles.workoutIcon} />
-                  <View>
-                    <Text style={styles.attachedWorkoutTitle}>
-                      Workout
-                    </Text>
-                    <Text style={styles.attachedWorkoutDetails}>
-                      View attached workout details
-                    </Text>
-                  </View>
-                </View>
-                <Ionicons name="chevron-forward" size={20} color="#999" />
-              </View>
-            </TouchableOpacity>
-          )}
-
-                  <View style={styles.commentsSection}>
+          <View style={styles.commentsSection}>
             <View style={styles.commentsHeaderContainer}>
               <View style={styles.commentsHeaderLeft}>
                 <Text style={styles.commentsHeader}>Comments</Text>
@@ -1115,7 +1115,7 @@ const styles = StyleSheet.create({
   },
   workoutIcon: {
     marginRight: 12,
-    backgroundColor: '#333',
+    backgroundColor: '#ff2d55',
     padding: 8,
     borderRadius: 18,
   },
@@ -1151,7 +1151,7 @@ const styles = StyleSheet.create({
   },
   milestoneIcon: {
     marginRight: 12,
-    backgroundColor: '#333',
+    backgroundColor: '#ff2d55',
     padding: 8,
     borderRadius: 18,
   },

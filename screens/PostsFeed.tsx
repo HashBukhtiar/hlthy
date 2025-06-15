@@ -222,7 +222,7 @@ export default function PostsFeed() {
         >
           <View style={styles.attachedItemContent}>
             <View style={styles.attachedItemInfo}>
-              <Ionicons name="barbell-outline" size={18} color="#FFF" style={styles.attachedItemIcon} />
+              <Ionicons name="flame" size={18} color="#FFF" style={styles.attachedItemIcon} />
               <View>
                 <Text style={styles.attachedItemTitle}>
                   {item.attachedWorkout.title}

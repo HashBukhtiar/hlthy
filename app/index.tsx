@@ -2,20 +2,31 @@ import { Redirect } from 'expo-router';
 import { useState, useEffect } from 'react';
 import { View, ActivityIndicator } from 'react-native';
 import { auth } from '@/firebaseConfig';
-import { onAuthStateChanged } from 'firebase/auth';
+import { onAuthStateChanged, signInWithEmailAndPassword } from 'firebase/auth';
 
 // Backdoor to bypass login. must be false in production
 const BYPASS_AUTH = false;
+const DEV_EMAIL = 'dev2@gmail.com';
+const DEV_PASSWORD = 'dev1232';
 
 export default function Index() {
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
-    // If bypass is enabled, set authenticated to true immediately
+    // If bypass is enabled, automatically login with dev credentials
     if (BYPASS_AUTH) {
-      setIsAuthenticated(true);
-      setIsLoading(false);
+      signInWithEmailAndPassword(auth, DEV_EMAIL, DEV_PASSWORD)
+        .then(() => {
+          setIsAuthenticated(true);
+          setIsLoading(false);
+        })
+        .catch((error) => {
+          console.error('Auto-login failed:', error.message);
+          // Even if auto-login fails, we'll still consider bypass active
+          setIsAuthenticated(true);
+          setIsLoading(false);
+        });
       return;
     }
 
