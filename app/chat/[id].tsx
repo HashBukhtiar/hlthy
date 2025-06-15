@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -17,7 +17,24 @@ import {
   Modal,
 } from 'react-native';
 import { db } from '@/firebaseConfig';
-import { doc, getDoc, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, Timestamp, updateDoc, deleteDoc, getDocs, setDoc } from 'firebase/firestore';
+import { 
+  doc, 
+  getDoc,
+  startAfter, 
+  collection, 
+  addDoc, 
+  query, 
+  orderBy, 
+  onSnapshot, 
+  serverTimestamp, 
+  Timestamp, 
+  updateDoc, 
+  deleteDoc, 
+  getDocs, 
+  setDoc, 
+  limit,
+  QueryDocumentSnapshot,
+} from 'firebase/firestore';
 import { useAuth } from '@/context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -32,6 +49,24 @@ interface FirestoreMessageData {
     imageUrl: string | null;
     caption: string;
     authorUsername: string;
+  };
+  sharedMilestone?: {
+    id: string;
+    type: string;
+    details: {
+      exercise?: string;
+      value?: number;
+      weightUnit?: string;
+      reps?: number;
+      previousValue?: number;
+      improvement?: string;
+      newWeight?: number;
+      newWeightUnit?: string;
+      previousWeight?: number;
+      totalLoss?: number;
+      percentageLoss?: string;
+    };
+    username: string;
   };
   sharedWorkout?: {
     id: string;
@@ -51,14 +86,333 @@ interface Message {
     imageUrl: string | null;
     caption: string;
     authorUsername: string;
+    isAvailable?: boolean;
+  };
+  sharedMilestone?: {
+    id: string;
+    type: string;
+    details: {
+      exercise?: string;
+      value?: number;
+      weightUnit?: string;
+      reps?: number;
+      previousValue?: number;
+      improvement?: string;
+      newWeight?: number;
+      newWeightUnit?: string;
+      previousWeight?: number;
+      totalLoss?: number;
+      percentageLoss?: string;
+    };
+    username: string;
+    isAvailable?: boolean;
   };
   sharedWorkout?: {
     id: string;
     title: string;
     coverImageUrl?: string;
     creatorUsername: string;
+    isAvailable?: boolean;
   };
   type?: 'message' | 'dateHeader';
+}
+
+async function convertFirestoreDoc(
+  docSnap: QueryDocumentSnapshot,
+  myUid: string
+): Promise<Message> {
+  const data = docSnap.data() as FirestoreMessageData;
+  const messageDate = data.createdAt?.toDate();
+
+  let resolvedSharedPost = data.sharedPost
+    ? { ...data.sharedPost, isAvailable: true }
+    : undefined;
+  if (data.sharedPost) {
+    try {
+      const postRef = doc(db, "posts", data.sharedPost.id);
+      const postSnap = await getDoc(postRef);
+      resolvedSharedPost = {
+        ...data.sharedPost,
+        isAvailable: postSnap.exists(),
+      };
+    } catch {
+      resolvedSharedPost = { ...data.sharedPost, isAvailable: false };
+    }
+  }
+
+  let resolvedSharedWorkout = data.sharedWorkout
+    ? { ...data.sharedWorkout, isAvailable: true }
+    : undefined;
+  if (data.sharedWorkout) {
+    try {
+      const workoutRef = doc(db, "workouts", data.sharedWorkout.id);
+      const workoutSnap = await getDoc(workoutRef);
+      resolvedSharedWorkout = {
+        ...data.sharedWorkout,
+        isAvailable: workoutSnap.exists(),
+      };
+    } catch {
+      resolvedSharedWorkout = { ...data.sharedWorkout, isAvailable: false };
+    }
+  }
+
+  return {
+    id: docSnap.id,
+    text: data.text,
+    user: data.senderId === myUid ? "user" : "other",
+    createdAt: messageDate,
+    sharedPost: resolvedSharedPost,
+    sharedMilestone: data.sharedMilestone
+      ? { ...data.sharedMilestone, isAvailable: true }
+      : undefined,
+    sharedWorkout: resolvedSharedWorkout,
+    type: "message",
+  };
+}
+
+
+const MessageItem = React.memo<{ item: Message; onLongPress: (m: Message) => void }>(
+  ({ item, onLongPress }) => {
+    const router = useRouter();
+    if (item.type === 'dateHeader') {
+      return (
+        <View style={styles.dateHeaderContainer}>
+          <Text style={styles.dateHeaderText}>{item.text}</Text>
+        </View>
+      );
+    }
+    if (item.sharedPost) {
+      if (item.sharedPost.isAvailable === false) {
+        return (
+            <View style={[styles.messageBubble, item.user === 'user' ? styles.currentUserMessage : styles.otherUserMessage, styles.unavailableItemBubble]}>
+              <Ionicons name="share-social-outline" size={16} color="#FFF" style={{ marginRight: 5 }} />
+              <Text style={ item.user === 'user' ? styles.currentUserText : styles.otherUserText }>Post unavailable</Text>
+            </View>
+        );
+      }
+      return (
+        <TouchableOpacity
+          style={[
+            styles.sharedPostContainer,
+            item.user === 'user' ? { alignSelf: 'flex-end' } : { alignSelf: 'flex-start' }
+          ]}
+          onPress={() => item.sharedPost?.id && router.push(`/view-post/${item.sharedPost.id}`)}
+          onLongPress={() => onLongPress(item)}
+          delayLongPress={500}
+          activeOpacity={0.8}
+        >
+          <View style={styles.sharedPostHeader}>
+            <Ionicons name="share-social-outline" size={16} color="#FFF" style={{ marginRight: 5 }} />
+            <Text style={styles.sharedPostHeaderText}>
+              Shared Post by {item.sharedPost.authorUsername}
+            </Text>
+          </View>
+          {item.sharedPost.imageUrl && (
+            <Image source={{ uri: item.sharedPost.imageUrl }} style={styles.sharedPostImage} />
+          )}
+          {item.sharedPost.caption && (
+            <Text style={styles.sharedPostCaption} numberOfLines={2}>
+              {item.sharedPost.caption}
+            </Text>
+          )}
+        </TouchableOpacity>
+      );
+    }
+
+    if (item.sharedMilestone) {
+      return (
+        <TouchableOpacity
+          style={[
+            styles.sharedMilestoneContainer,
+            item.user === 'user' ? { alignSelf: 'flex-end' } : { alignSelf: 'flex-start' }
+          ]}
+          onPress={() => item.sharedMilestone?.id && router.push(`/view-milestone/${item.sharedMilestone.id}`)}
+          onLongPress={() => onLongPress(item)}
+          delayLongPress={500}
+          activeOpacity={0.8}
+        >
+          <View style={styles.sharedMilestoneHeader}>
+            <Ionicons name="trophy-outline" size={16} color="#FFF" style={{ marginRight: 5 }} />
+            <Text style={styles.sharedMilestoneHeaderText}>
+              Milestone by {item.sharedMilestone.username}
+            </Text>
+          </View>
+          {item.sharedMilestone.type === 'PR' ? (
+            <View style={styles.sharedMilestoneContent}>
+              <Text style={styles.sharedMilestoneType}>
+                {item.sharedMilestone.details.exercise}
+              </Text>
+              <View style={styles.milestoneStatsRow}>
+                <Text style={styles.milestoneValue}>
+                  {item.sharedMilestone.details.value}{item.sharedMilestone.details.weightUnit}
+                  {item.sharedMilestone.details.reps > 1 && ` × ${item.sharedMilestone.details.reps}`}
+                </Text>
+                <Text style={styles.milestonePrevious}>
+                  from {item.sharedMilestone.details.previousValue}{item.sharedMilestone.details.weightUnit}
+                </Text>
+                <Text style={styles.milestoneImprovement}>
+                  ↑ {item.sharedMilestone.details.improvement}
+                </Text>
+              </View>
+            </View>
+          ) : (
+            <View style={styles.weightMilestoneContent}>
+              <Text style={styles.sharedMilestoneType}>
+                {item.sharedMilestone.type === 'weightLoss' ? 'Weight Loss' : 'Weight Gain'}
+              </Text>
+              <Text style={styles.weightChangeValue}>
+                {item.sharedMilestone.type === 'weightLoss' ? '↓' : '↑'} 
+                {item.sharedMilestone.details.totalLoss} {item.sharedMilestone.details.newWeightUnit}
+              </Text>
+              <Text style={styles.weightChangeDetails}>
+                {item.sharedMilestone.details.previousWeight} → {item.sharedMilestone.details.newWeight}
+                {item.sharedMilestone.details.newWeightUnit}
+              </Text>
+              <Text style={styles.milestoneImprovement}>
+                {item.sharedMilestone.details.percentageLoss} change
+              </Text>
+            </View>
+          )}
+        </TouchableOpacity>
+      );
+    }
+
+    if (item.sharedWorkout) {
+      if (item.sharedWorkout.isAvailable === false) {
+        return (
+            <View style={[styles.messageBubble, item.user === 'user' ? styles.currentUserMessage : styles.otherUserMessage, styles.unavailableItemBubble]}>
+              <Ionicons name="share-social-outline" size={16} color="#FFF" style={{ marginRight: 5 }} />
+              <Text style={ item.user === 'user' ? styles.currentUserText : styles.otherUserText }>Workout unavailable</Text>
+            </View>
+        );
+      }
+      return (
+        <TouchableOpacity
+          style={[
+            styles.sharedWorkoutContainer,
+            item.user === 'user' ? { alignSelf: 'flex-end' } : { alignSelf: 'flex-start' }
+          ]}
+          onPress={() => item.sharedWorkout?.id && router.push(`/view-workout/${item.sharedWorkout.id}`)}
+          onLongPress={() => onLongPress(item)}
+          delayLongPress={500}
+          activeOpacity={0.8}
+        >
+          <View style={styles.sharedWorkoutHeader}>
+            <Ionicons name="share-social-outline" size={16} color="#FFF" style={{ marginRight: 5 }} />
+            <Text style={styles.sharedWorkoutHeaderText}>
+              Shared Workout by {item.sharedWorkout.creatorUsername}
+            </Text>
+          </View>
+          {item.sharedWorkout.coverImageUrl && (
+            <Image source={{ uri: item.sharedWorkout.coverImageUrl }} style={styles.sharedWorkoutImage} />
+          )}
+          <Text style={styles.sharedWorkoutTitle} numberOfLines={2}>
+            {item.sharedWorkout.title}
+          </Text>
+        </TouchableOpacity>
+      );
+    }
+
+    return (
+      <TouchableOpacity
+        style={[
+          styles.messageBubble,
+          item.user === 'user'
+            ? styles.currentUserMessage
+            : item.user === 'other'
+            ? styles.otherUserMessage
+            : styles.aiMessage,
+        ]}
+        onLongPress={() => onLongPress(item)}
+        delayLongPress={500}
+        activeOpacity={0.7}
+      >
+        <Text
+          style={
+            item.user === 'user'
+              ? styles.currentUserText
+              : item.user === 'other'
+              ? styles.otherUserText
+              : styles.aiText
+          }
+        >
+          {item.text}
+        </Text>
+      </TouchableOpacity>
+    );
+  },
+  (prev, next) => {
+    return (
+      prev.item.id === next.item.id &&
+      prev.item.text === next.item.text &&
+      prev.item.sharedPost?.isAvailable === next.item.sharedPost?.isAvailable &&
+      prev.item.sharedMilestone?.isAvailable === next.item.sharedMilestone?.isAvailable &&
+      prev.item.sharedWorkout?.isAvailable === next.item.sharedWorkout?.isAvailable
+    );
+  }
+);
+
+function addDateHeaders(msgs: Message[]): Message[] {
+  const out: Message[] = [];
+  if (!msgs || msgs.length === 0) {
+    return out;
+  }
+
+  const dateOptions: Intl.DateTimeFormatOptions = {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  };
+
+  let currentDayMessages: Message[] = [];
+  let currentDayStr: string | null = msgs[0].createdAt
+    ? msgs[0].createdAt.toLocaleDateString(undefined, dateOptions)
+    : null;
+
+  for (let i = 0; i < msgs.length; i++) {
+    const msg = msgs[i];
+    const msgDayStr = msg.createdAt ? msg.createdAt.toLocaleDateString(undefined, dateOptions) : null;
+
+    if (msgDayStr !== currentDayStr) {
+      if (currentDayMessages.length > 0) {
+        out.push(...currentDayMessages);
+      }
+      if (currentDayStr) {
+        out.push({
+          id: `date-${currentDayStr}`,
+          text: currentDayStr,
+          type: 'dateHeader',
+          user: 'other',
+          createdAt: currentDayMessages.length > 0 ? currentDayMessages[currentDayMessages.length-1].createdAt : undefined // Optional: use last msg date of group
+        });
+      }
+      currentDayMessages = [];
+      currentDayStr = msgDayStr;
+    }
+
+    // Add current message to its day's collection, if it has a date
+    if (msgDayStr) {
+      currentDayMessages.push(msg);
+    } else {
+      out.push(msg);
+    }
+  }
+
+  // After the loop, add any remaining messages and their header
+  if (currentDayMessages.length > 0) {
+    out.push(...currentDayMessages);
+  }
+  if (currentDayStr && currentDayMessages.length > 0) {
+    out.push({
+      id: `date-${currentDayStr}`,
+      text: currentDayStr,
+      type: 'dateHeader',
+      user: 'other',
+      createdAt: currentDayMessages.length > 0 ? currentDayMessages[currentDayMessages.length-1].createdAt : undefined
+    });
+  }
+  
+  return out;
 }
 
 export default function ChatScreen() {
@@ -74,141 +428,125 @@ export default function ChatScreen() {
   const [profileImageUrl, setProfileImageUrl] = useState<string | null>(null);
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [otherParticipantId, setOtherParticipantId] = useState<string | null>(null);
+  
+  const BATCH_SIZE = 20; // number of messages to fetch at a time
+  const [lastVisible, setLastVisible] = useState<any>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMoreMessages, setHasMoreMessages] = useState(true);
 
   useEffect(() => {
-    if (!currentUser || !conversationId) return;
-    if (conversationId === 'ai_conversation') {
-      setChatTitle('hlthy AI');
-      setProfileImageUrl(Image.resolveAssetSource(require('@/assets/images/icon.png')).uri);
-      setMessages([{
-        id: 'ai_welcome',
-        text: 'Hello! How can I help you today?',
-        user: 'ai',
-        createdAt: new Date(),
-      }]);
-      setLoading(false);
-    } else {
-      // Fetch messages from Firestore for other conversations
-      setLoading(true);
-      const messagesRef = collection(db, "conversations", conversationId, "messages");
-      const q = query(messagesRef, orderBy("createdAt", "asc"));
-
-      const unsubscribe = onSnapshot(q, (querySnapshot) => {
-        const fetchedMessages: Message[] = [];
-        let currentDate: string | null = null;
-        
-        querySnapshot.forEach((doc) => {
-          const data = doc.data() as FirestoreMessageData;
-          const messageDate = data.createdAt?.toDate();
-          
-          if (messageDate) {
-            // Format the date as "Month Date Year"
-            const formattedDate = messageDate.toLocaleDateString('en-US', {
-              month: 'long',
-              day: 'numeric',
-              year: 'numeric'
-            });
-            
-            // If this is a new date, add a date header
-            if (formattedDate !== currentDate) {
-              currentDate = formattedDate;
-              fetchedMessages.push({
-                id: `date-${messageDate.getTime()}`,
-                text: formattedDate,
-                user: 'other', 
-                type: 'dateHeader'
-              });
-            }
-          }
-          
-          const message: Message = {
-            id: doc.id,
-            text: data.text,
-            user: data.senderId === currentUser.uid ? 'user' : 'other',
-            createdAt: messageDate,
-            sharedPost: data.sharedPost,
-            sharedWorkout: data.sharedWorkout,
-            type: 'message'
-          };
-          fetchedMessages.push(message);
-        });
-        
-        setMessages(fetchedMessages);
-        setLoading(false);
-      });
-
-      // Fetch the chat title and profile image from Firestore
-      const conversationRef = doc(db, "conversations", conversationId);
-      getDoc(conversationRef)
-        .then((docSnapshot) => {
-          if (docSnapshot.exists()) {
-            const data = docSnapshot.data();
-            const participantUsernames = data?.participantUsernames;
-            const participantProfileImages = data?.participantProfileImages;
-            if (participantUsernames) {
-              // Get the other participant's username and profile image
-              const otherUserId = Object.keys(participantUsernames).find(
-                (uid) => uid !== currentUser.uid
-              );
-              if (otherUserId) {
-                setChatTitle(participantUsernames[otherUserId] || 'Chat');
-                
-                // Try to get the profile image from participantProfileImages
-                let profileImg = null;
-                if (participantProfileImages && participantProfileImages[otherUserId]) {
-                  profileImg = participantProfileImages[otherUserId];
-                }
-                
-                // If still null, try to fetch the user's profile directly
-                if (!profileImg || profileImg === '') {
-                  const userRef = doc(db, 'users', otherUserId);
-                  getDoc(userRef).then(userDoc => {
-                    if (userDoc.exists() && userDoc.data().profileImageUrl) {
-                      setProfileImageUrl(userDoc.data().profileImageUrl);
-                      
-                      // Update the conversation with the correct image
-                      try {
-                        if (participantProfileImages) {
-                          participantProfileImages[otherUserId] = userDoc.data().profileImageUrl;
-                          updateDoc(conversationRef, {
-                            participantProfileImages: participantProfileImages
-                          });
-                        }
-                      } catch (e) {
-                        console.log("Error updating profile image in conversation:", e);
-                      }
-                    }
-                  }).catch(err => console.error("Error fetching user data:", err));
-                } else {
-                  setProfileImageUrl(profileImg);
-                }
-              } else {
-                setChatTitle('Chat');
-                setProfileImageUrl(null);
-              }
-            } else {
-              setChatTitle('Chat');
-              setProfileImageUrl(null);
-            }
-          }
-        })
-        .catch((error) => {
-          console.error("Error fetching conversation data:", error);
-          setChatTitle('Chat');
-          setProfileImageUrl(null);
-        });
-
-      return () => unsubscribe();
+    if (!currentUser || !conversationId) {
+      setLoading(false); 
+      setHasMoreMessages(false);
+      return;
     }
+    // setLoading(true); // Handled by the effect above or initial state
+    // setHasMoreMessages(true); // Reset when conversationId changes
+
+    const messagesRef = collection(db, "conversations", conversationId, "messages");
+
+    const initialQ = query(
+      messagesRef,
+      orderBy("createdAt", "desc"),
+      limit(BATCH_SIZE)
+    );
+
+    const unsubscribe = onSnapshot(initialQ, async snapshot => {
+      const docs = snapshot.docs;
+      if (docs.length > 0) {
+        setLastVisible(docs[docs.length - 1]);
+        const page = await Promise.all(docs.map(d => convertFirestoreDoc(d, currentUser.uid)));
+        setMessages(page);
+        if (docs.length < BATCH_SIZE) {
+          setHasMoreMessages(false);
+        } else {
+          setHasMoreMessages(true);
+        }
+      } else {
+        setMessages([]);
+        setHasMoreMessages(false);
+      }
+      setLoading(false);
+    }, (error) => {
+      console.error("Error fetching initial messages:", error);
+      setLoading(false);
+      setHasMoreMessages(false);
+    });
+
+    return () => unsubscribe();
   }, [currentUser, conversationId]);
 
-  useEffect(() => {
-    if (messages.length > 0 && !loading && flatListRef.current) {
-      setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: false });
-      }, 200);
+  const fetchMore = useCallback(async () => {
+    console.log("Attempting to fetch more messages...");
+    if (loadingMore || !lastVisible || !hasMoreMessages || !currentUser || !conversationId) { 
+      if (!hasMoreMessages) {
+        console.log("Fetch more skipped: No more messages to load.");
+      }
+      if (loadingMore) {
+        console.log("Fetch more skipped: Already loading more.");
+      }
+      if (!lastVisible) {
+        console.log("Fetch more skipped: lastVisible is null.");
+      }
+      return;
     }
-  }, [messages, loading]);
+    console.log("Proceeding to fetch more messages from Firestore."); 
+    setLoadingMore(true);
+
+    const messagesRef = collection(db, "conversations", conversationId, "messages");
+    const nextQ = query(
+      messagesRef,
+      orderBy("createdAt", "desc"),
+      startAfter(lastVisible),
+      limit(BATCH_SIZE)
+    );
+
+    try {
+      const snap = await getDocs(nextQ);
+      if (!snap.empty) {
+        const docs = snap.docs;
+        setLastVisible(docs[docs.length - 1]);
+
+        const more = await Promise.all(docs.map(d => convertFirestoreDoc(d, currentUser.uid)));
+        setMessages(prev => [...prev, ...more]);
+        if (docs.length < BATCH_SIZE) {
+          setHasMoreMessages(false);
+        }
+      } else {
+        setHasMoreMessages(false);
+      }
+    } catch (error) {
+      console.error("Error fetching more messages:", error);
+      // Optionally setHasMoreMessages(false) here or handle error appropriately
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [lastVisible, loadingMore, conversationId, currentUser, hasMoreMessages]);
+
+  const initialScrollRef = useRef(true);
+
+  useEffect(() => {
+    if (!loading && initialScrollRef.current) {
+      flatListRef.current?.scrollToOffset({ offset: 0, animated: false });
+      initialScrollRef.current = false;
+    }
+  }, [loading]);
+
+  useEffect(() => {
+  if (!currentUser || conversationId === 'ai_conversation') return;
+  const convRef = doc(db, "conversations", conversationId);
+  getDoc(convRef).then(snap => {
+    if (!snap.exists()) return;
+    const data = snap.data() as any;
+    const otherId = data.participants.find((uid: string) => uid !== currentUser.uid);
+    if (!otherId) return;
+    setOtherParticipantId(otherId);
+    setChatTitle(data.participantUsernames[otherId]);
+    setProfileImageUrl(data.participantProfileImages[otherId]);
+  });
+}, [currentUser, conversationId]);
+
 
   const handleSend = async () => {
     Keyboard.dismiss();
@@ -224,7 +562,6 @@ export default function ChatScreen() {
     };
 
     setInput('');
-
     setMessages(previousMessages => [...previousMessages, newMessage]);
 
     if (conversationId === 'ai_conversation') {
@@ -246,11 +583,8 @@ export default function ChatScreen() {
         const conversationRef = doc(db, "conversations", conversationId);
         const conversationSnap = await getDoc(conversationRef);
         
-        // If conversation doesn't exist, recreate it
         if (!conversationSnap.exists()) {
           console.log("Conversation document not found, recreating...");
-          
-          // Check if we have a reference to this conversation
           const userConvRef = doc(db, `users/${currentUser.uid}/conversations`, conversationId);
           const userConvSnap = await getDoc(userConvRef);
           
@@ -259,25 +593,21 @@ export default function ChatScreen() {
             const otherUserId = userData.otherParticipantId;
             
             if (otherUserId) {
-              // Get the other user's data to ensure we have their current profile info
               const otherUserRef = doc(db, 'users', otherUserId);
               const otherUserSnap = await getDoc(otherUserRef);
-              
               let otherUsername = userData.otherParticipantUsername || 'User';
               let otherProfileImg = userData.otherParticipantProfileImage || '';
-              
-              // If we can get the other user's current data, use that
               if (otherUserSnap.exists()) {
                 const otherUserData = otherUserSnap.data();
                 if (otherUserData.username) otherUsername = otherUserData.username;
                 if (otherUserData.profileImageUrl) otherProfileImg = otherUserData.profileImageUrl;
               }
               
-              // Recreate the conversation document
               await setDoc(conversationRef, {
                 participants: [currentUser.uid, otherUserId],
                 lastMessageAt: serverTimestamp(),
                 lastMessageText: textToSend,
+                lastMessageSenderId: currentUser.uid,
                 participantUsernames: {
                   [currentUser.uid]: currentUser.displayName || currentUser.email || 'User',
                   [otherUserId]: otherUsername,
@@ -287,15 +617,10 @@ export default function ChatScreen() {
                   [otherUserId]: otherProfileImg,
                 },
               });
-            } else {
-              throw new Error("Could not find other participant ID");
-            }
-          } else {
-            throw new Error("User conversation reference not found");
-          }
+            } else { throw new Error("Could not find other participant ID"); }
+          } else { throw new Error("User conversation reference not found"); }
         }
         
-        // Proceed with adding the message
         const messagesRef = collection(db, "conversations", conversationId, "messages");
         await addDoc(messagesRef, {
           text: textToSend,
@@ -303,54 +628,57 @@ export default function ChatScreen() {
           senderId: currentUser.uid,
         });
 
-        // Update conversation metadata
         await updateDoc(conversationRef, {
           lastMessageAt: serverTimestamp(),
           lastMessageText: textToSend,
+          lastMessageSenderId: currentUser.uid,
         });
 
-        // Update user conversation refs
+        // Update user conversation refs (userConvRef1 for current user)
         const userConvRef1 = doc(db, `users/${currentUser.uid}/conversations`, conversationId);
-        await updateDoc(userConvRef1, {
-          lastMessageAt: serverTimestamp(),
-          lastMessageText: textToSend,
-        });
+        const userConvSnap1 = await getDoc(userConvRef1);
+        const conversationDataForUserRef = (await getDoc(conversationRef)).data(); // Re-fetch to ensure data consistency
 
-        // Get the other user's ID and update their reference too
-        const conversationData = (await getDoc(conversationRef)).data();
-        const otherUserId = conversationData?.participants?.find((uid) => uid !== currentUser.uid);
+        if (!userConvSnap1.exists()) {
+          const otherParticipantForUserRef = conversationDataForUserRef?.participants?.find((uid: string) => uid !== currentUser.uid);
+          if (otherParticipantForUserRef) {
+            await setDoc(userConvRef1, {
+              otherParticipantId: otherParticipantForUserRef,
+              otherParticipantUsername: conversationDataForUserRef?.participantUsernames?.[otherParticipantForUserRef] || 'User',
+              otherParticipantProfileImage: conversationDataForUserRef?.participantProfileImages?.[otherParticipantForUserRef] || '',
+              lastMessageAt: serverTimestamp(),
+              lastMessageText: textToSend,
+            });
+          }
+        } else {
+          await updateDoc(userConvRef1, {
+            lastMessageAt: serverTimestamp(),
+            lastMessageText: textToSend,
+          });
+        }
 
+        // Update other user's conversation reference (userConvRef2)
+        const otherUserId = conversationDataForUserRef?.participants?.find((uid: string) => uid !== currentUser.uid);
         if (otherUserId) {
           const userConvRef2 = doc(db, `users/${otherUserId}/conversations`, conversationId);
-          
-          // Check if the other user's conversation reference exists
           const userConvSnap2 = await getDoc(userConvRef2);
-          
-          if (userConvSnap2.exists()) {
-            // If it exists, update it
+          const currentUserDataForOtherUserRef = (await getDoc(doc(db, 'users', currentUser.uid))).data();
+
+          if (!userConvSnap2.exists()) {
+             if (currentUserDataForOtherUserRef) {
+                await setDoc(userConvRef2, {
+                    otherParticipantId: currentUser.uid,
+                    otherParticipantUsername: currentUserDataForOtherUserRef?.username || currentUser.displayName || 'User',
+                    otherParticipantProfileImage: currentUserDataForOtherUserRef?.profileImageUrl || currentUser.photoURL || '',
+                    lastMessageAt: serverTimestamp(),
+                    lastMessageText: textToSend,
+                });
+             }
+          } else {
             await updateDoc(userConvRef2, {
               lastMessageAt: serverTimestamp(),
               lastMessageText: textToSend,
             });
-          } else {
-            // If it doesn't exist, create it
-            // Get current user's data
-            const currentUserRef = doc(db, 'users', currentUser.uid);
-            const currentUserSnap = await getDoc(currentUserRef);
-            
-            if (currentUserSnap.exists()) {
-              const currentUserData = currentUserSnap.data();
-              
-              await setDoc(userConvRef2, {
-                otherParticipantId: currentUser.uid,
-                otherParticipantUsername: currentUserData?.username || currentUser.displayName || currentUser.email || 'User',
-                otherParticipantProfileImage: currentUserData?.profileURL || '',
-                lastMessageAt: serverTimestamp(),
-                lastMessageText: textToSend,
-              });
-            } else {
-              console.log("Could not find current user's data to recreate other user's conv ref");
-            }
           }
         }
       } catch (error) {
@@ -364,61 +692,65 @@ export default function ChatScreen() {
   };
 
   const handleDeleteMessage = async () => {
-    if (!selectedMessage || !currentUser || !conversationId || conversationId === 'ai_conversation') {
+    if (!selectedMessage || !currentUser || !conversationId || conversationId === 'ai_conversation' || selectedMessage.user !== 'user') {
       setDeleteModalVisible(false);
       setSelectedMessage(null);
       return;
     }
     
     try {
-      // Only allow deleting your own messages
-      if (selectedMessage.user !== 'user') {
-        Alert.alert("Cannot Delete", "You can only delete your own messages.");
-        setDeleteModalVisible(false);
-        setSelectedMessage(null);
-        return;
-      }
-      
-      // Delete the message from Firestore
       const messageRef = doc(db, "conversations", conversationId, "messages", selectedMessage.id);
       await deleteDoc(messageRef);
       
-      // Close modal and clear selection
       setDeleteModalVisible(false);
       setSelectedMessage(null);
       
-      // If we just deleted the last message, update the conversation metadata
       const messagesQuery = query(
         collection(db, "conversations", conversationId, "messages"),
-        orderBy("createdAt", "desc")
+        orderBy("createdAt", "desc"),
+        limit(1) // We only need the new last message
       );
       const messagesSnapshot = await getDocs(messagesQuery);
       
+      const conversationRef = doc(db, "conversations", conversationId);
+      let newLastMessageText = "Message deleted";
+      let newLastMessageSenderId = null;
+      let newLastMessageAt: any = serverTimestamp();
+
       if (!messagesSnapshot.empty) {
-        const lastMessage = messagesSnapshot.docs[0].data() as FirestoreMessageData;
+        const lastMessageData = messagesSnapshot.docs[0].data() as FirestoreMessageData;
+        newLastMessageText = lastMessageData.text || "Message deleted";
+        newLastMessageSenderId = lastMessageData.senderId;
+        newLastMessageAt = lastMessageData.createdAt;
+      } else {
+        newLastMessageText = "";
+      }
         
-        // Update lastMessageText in conversations/{conversationId}
-        const conversationRef = doc(db, "conversations", conversationId);
-        await updateDoc(conversationRef, {
-          lastMessageText: lastMessage.text || "Message deleted",
-        });
+      await updateDoc(conversationRef, {
+        lastMessageText: newLastMessageText,
+        lastMessageSenderId: newLastMessageSenderId,
+        lastMessageAt: newLastMessageAt
+      });
         
-        // Update lastMessageText in both users' conversation references
-        const userConvRef1 = doc(db, `users/${currentUser.uid}/conversations`, conversationId);
-        await updateDoc(userConvRef1, {
-          lastMessageText: lastMessage.text || "Message deleted",
-        });
+      const userConvRef1 = doc(db, `users/${currentUser.uid}/conversations`, conversationId);
+      await updateDoc(userConvRef1, {
+        lastMessageText: newLastMessageText,
+        lastMessageAt: newLastMessageAt
+      });
         
-        // Get the other user's ID and update their conversation reference too
-        const conversationSnap = await getDoc(conversationRef);
-        const conversationData = conversationSnap.data();
-        const otherUserId = conversationData?.participants?.find((uid: string) => uid !== currentUser.uid);
+      const conversationSnap = await getDoc(conversationRef);
+      const conversationData = conversationSnap.data();
+      const otherUserId = conversationData?.participants?.find((uid: string) => uid !== currentUser.uid);
         
-        if (otherUserId) {
-          const userConvRef2 = doc(db, `users/${otherUserId}/conversations`, conversationId);
-          await updateDoc(userConvRef2, {
-            lastMessageText: lastMessage.text || "Message deleted",
-          });
+      if (otherUserId) {
+        const userConvRef2 = doc(db, `users/${otherUserId}/conversations`, conversationId);
+        // Ensure the other user's ref exists before trying to update
+        const otherUserConvSnap = await getDoc(userConvRef2);
+        if (otherUserConvSnap.exists()) {
+            await updateDoc(userConvRef2, {
+                lastMessageText: newLastMessageText,
+                lastMessageAt: newLastMessageAt
+            });
         }
       }
     } catch (error) {
@@ -427,103 +759,23 @@ export default function ChatScreen() {
     }
   };
 
-  const handleLongPress = (message: Message) => {
-    // Only allow deleting your own messages
-    if (message.user === 'user' && message.type !== 'dateHeader') {
-      setSelectedMessage(message);
+  const handleLongPress = useCallback((msg: Message) => {
+    if (msg.user === 'user' && msg.type !== 'dateHeader') {
+      setSelectedMessage(msg);
       setDeleteModalVisible(true);
     }
+  }, []);
+
+  const navigateToUserProfile = () => {
+    if (conversationId !== 'ai_conversation' && otherParticipantId) {
+      router.push(`/profile/${otherParticipantId}`);
+    }
   };
 
-  const renderMessage: ListRenderItem<Message> = ({ item }) => {
-    // Render date header
-    if (item.type === 'dateHeader') {
-      return (
-        <View style={styles.dateHeaderContainer}>
-          <Text style={styles.dateHeaderText}>{item.text}</Text>
-        </View>
-      );
-    }
-
-    if (item.sharedPost) {
-      return (
-        <TouchableOpacity 
-          style={[
-            item.user === 'user' ? { alignSelf: 'flex-end' } : { alignSelf: 'flex-start' }
-          ]}
-          onLongPress={() => handleLongPress(item)}
-          delayLongPress={500} // Set delay for long press
-        >
-          <TouchableOpacity 
-            style={styles.sharedPostContainer}
-            onPress={() => router.push(`/view-post/${item.sharedPost?.id}`)}
-          >
-            <View style={styles.sharedPostHeader}>
-              <Ionicons name="share-social-outline" size={16} color="#FFF" style={{marginRight: 5}} />
-              <Text style={styles.sharedPostHeaderText}>Shared Post by {item.sharedPost.authorUsername}</Text>
-            </View>
-            
-            {item.sharedPost.imageUrl && (
-              <Image 
-                source={{uri: item.sharedPost.imageUrl}} 
-                style={styles.sharedPostImage} 
-                resizeMode="cover"
-              />
-            )}
-            
-            {item.sharedPost.caption ? <Text style={styles.sharedPostCaption} numberOfLines={2}>{item.sharedPost.caption}</Text> : null}
-          </TouchableOpacity>
-        </TouchableOpacity>
-      );
-    }
-
-    if (item.sharedWorkout) {
-      return (
-        <TouchableOpacity
-          style={[item.user === 'user' ? { alignSelf: 'flex-end' } : { alignSelf: 'flex-start' }]}
-          onLongPress={() => handleLongPress(item)}
-          delayLongPress={500}
-        >
-          <TouchableOpacity
-            style={styles.sharedWorkoutContainer}
-            onPress={() => router.push(`/view-workout/${item.sharedWorkout?.id}`)}
-          >
-            <View style={styles.sharedWorkoutHeader}>
-              <Ionicons name="share-social-outline" size={16} color="#FFF" style={{ marginRight: 5 }} />
-              <Text style={styles.sharedWorkoutHeaderText}>Shared Workout by {item.sharedWorkout.creatorUsername}</Text>
-            </View>
-            {item.sharedWorkout.coverImageUrl && (
-              <Image
-                source={{ uri: item.sharedWorkout.coverImageUrl }}
-                style={styles.sharedWorkoutImage}
-                resizeMode="cover"
-              />
-            )}
-            <Text style={styles.sharedWorkoutTitle} numberOfLines={2}>
-              {item.sharedWorkout.title}
-            </Text>
-          </TouchableOpacity>
-        </TouchableOpacity>
-      );
-    }
-    
-    // Render regular message
-    return (
-      <TouchableOpacity 
-        style={[
-          styles.messageBubble,
-          item.user === 'user' ? styles.currentUserMessage : item.user === 'other' ? styles.otherUserMessage : styles.aiMessage,
-        ]}
-        onLongPress={() => handleLongPress(item)}
-        delayLongPress={500} 
-        activeOpacity={0.7}
-      >
-        <Text style={item.user === 'user' ? styles.currentUserText : item.user === 'other' ? styles.otherUserText : styles.aiText}>
-          {item.text}
-        </Text>
-      </TouchableOpacity>
-    );
-  };
+  const renderMessage = useCallback<ListRenderItem<Message>>(
+    ({ item }) => <MessageItem item={item} onLongPress={handleLongPress} />,
+    [handleLongPress]
+  );
 
   return (
     <KeyboardAvoidingView
@@ -537,12 +789,20 @@ export default function ChatScreen() {
             <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
               <Ionicons name="arrow-back" size={24} color="white" />
             </TouchableOpacity>
-            {profileImageUrl ? (
-              <Image source={{ uri: profileImageUrl }} style={styles.profilePic} />
-            ) : (
-              <Image source={require('@/assets/images/profile-icon.png')} style={styles.profilePic} /> // Default profile icon
-            )}
-            <Text style={styles.headerText}>{chatTitle}</Text>
+            <TouchableOpacity
+              style={styles.headerUserInfoContainer}
+              onPress={navigateToUserProfile}
+              disabled={conversationId === 'ai_conversation' || !otherParticipantId}
+            >
+              {profileImageUrl ? (
+                <Image source={{ uri: profileImageUrl }} style={styles.profilePic} />
+              ) : (
+                <Image source={require('@/assets/images/profile-icon.png')} style={styles.profilePic} />
+              )}
+              <Text style={styles.headerText} numberOfLines={1} ellipsizeMode="tail">
+                {chatTitle}
+              </Text>
+            </TouchableOpacity>
           </View>
         </SafeAreaView>
 
@@ -553,13 +813,26 @@ export default function ChatScreen() {
         ) : (
           <FlatList
             ref={flatListRef}
-            data={messages}
-            keyExtractor={(item) => item.id}
+            data={addDateHeaders(messages)}
+            keyExtractor={i => i.id}
             renderItem={renderMessage}
-            style={{ flex: 1 }}
+
+            initialNumToRender={BATCH_SIZE}
+            maxToRenderPerBatch={BATCH_SIZE}
+            windowSize={5}
+            removeClippedSubviews={true}
+
+            inverted
+            onEndReached={fetchMore}
+            onEndReachedThreshold={0.1}
+
+            ListFooterComponent={
+              loadingMore
+                ? <ActivityIndicator size="small" color="#fff" />
+                : null
+            }
+
             contentContainerStyle={styles.messagesContainer}
-            onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: false })}
-            onLayout={() => flatListRef.current?.scrollToEnd({ animated: false })}
           />
         )}
 
@@ -608,6 +881,9 @@ export default function ChatScreen() {
             onChangeText={setInput}
             placeholder="Type your message..."
             placeholderTextColor="#888"
+            autoCorrect={true}
+            spellCheck={true}
+            autoCapitalize="sentences"
           />
           <TouchableOpacity style={styles.sendButton} onPress={handleSend}>
             <Ionicons name="send" size={24} color="white" />
@@ -637,10 +913,17 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 18,
     fontWeight: 'bold',
-    marginLeft: 10,
+    flexShrink: 1,
   },
   backButton: {
-    padding: 10,
+    padding: 5,
+    marginRight: 5,
+  },
+  headerUserInfoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    paddingVertical: 5,
   },
   profilePic: { 
     width: 30,
@@ -681,6 +964,11 @@ const styles = StyleSheet.create({
   aiText: {
     color: 'white',
   },
+  unavailableItemBubble: {
+    backgroundColor: '#3A3A3A',
+    flexDirection: 'row',
+    alignItems: 'center'
+  },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -715,6 +1003,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(30, 30, 30, 0.8)',
     borderWidth: 1,
     borderColor: '#333',
+    width: 200,
   },
   sharedPostHeader: {
     flexDirection: 'row',
@@ -802,6 +1091,71 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 16,
   },
+  sharedMilestoneContainer: {
+    marginVertical: 5,
+    borderRadius: 12,
+    backgroundColor: 'rgba(20, 60, 100, 0.8)',
+    borderWidth: 2,
+    borderColor: '#0bb',
+    overflow: 'hidden',
+    width: 280,
+  },
+  sharedMilestoneHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#0bb',
+    backgroundColor: 'rgba(15, 45, 80, 0.9)',
+  },
+  sharedMilestoneHeaderText: {
+    color: '#FFF',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  sharedMilestoneContent: {
+    padding: 12,
+  },
+  sharedMilestoneType: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  milestoneStatsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  milestoneValue: {
+    color: '#4CD964',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginRight: 8,
+  },
+  milestonePrevious: {
+    color: '#999',
+    fontSize: 14,
+  },
+  milestoneImprovement: {
+    color: '#4CD964',
+    fontSize: 14,
+    fontWeight: '500',
+    marginLeft: 'auto',
+  },
+  weightMilestoneContent: {
+    padding: 12,
+  },
+  weightChangeValue: {
+    color: '#4CD964',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  weightChangeDetails: {
+    color: '#999',
+    fontSize: 14,
+  },
   sharedWorkoutContainer: {
     marginTop: 10,
     borderRadius: 12,
@@ -809,6 +1163,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#b00',
     overflow: 'hidden',
+    width: 200,
   },
   sharedWorkoutHeader: {
     flexDirection: 'row',
