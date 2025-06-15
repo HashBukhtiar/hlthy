@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
-    View, Text, FlatList, TouchableOpacity, Image, StyleSheet, ActivityIndicator, TextInput, Alert, TouchableHighlight, RefreshControl
+    View, Text, FlatList, TouchableOpacity, Image, StyleSheet, ActivityIndicator, TextInput, Alert, TouchableHighlight, RefreshControl, KeyboardAvoidingView, Platform
 } from 'react-native';
 import { useAuth } from '@/context/AuthContext';
 import { db } from '@/firebaseConfig';
@@ -22,6 +22,7 @@ interface ConversationMetadata {
     participants?: string[];
     lastMessageAt?: Timestamp;
     lastMessageText?: string;
+    lastMessageSenderId?: string;
     participantUsernames?: { [key: string]: string };
     participantProfileImages?: { [key: string]: string };
     isPinnedAI?: boolean;
@@ -30,6 +31,7 @@ interface ConversationMetadata {
 interface CombinedConversationItem extends UserConversationData, ConversationMetadata {
     id: string;
     isPinnedAI?: boolean;
+    isUnread?: boolean;
 }
 
 interface UserData {
@@ -99,7 +101,7 @@ const ChatItem = ({
             onPress={navigateToChat}
             onLongPress={handleLongPress}
             delayLongPress={500}
-            underlayColor="#222" // Dark color shows when pressed
+            underlayColor="#222"
             onShowUnderlay={() => setIsPressed(true)}
             onHideUnderlay={() => setIsPressed(false)}
         >
@@ -115,8 +117,19 @@ const ChatItem = ({
                     style={styles.profilePic}
                 />
                 <View style={styles.textContainer}>
-                    <Text style={styles.username}>{item.isPinnedAI ? "hlthy AI" : item.otherParticipantUsername || "Chat"}</Text>
-                    <Text style={styles.lastMessage} numberOfLines={1}>{item.lastMessageText || "No messages yet"}</Text>
+                    <View style={styles.usernameContainer}>
+                        {item.isUnread && !item.isPinnedAI && <View style={styles.unreadDot} />}
+                        <Text style={styles.username}>{item.isPinnedAI ? "hlthy AI" : item.otherParticipantUsername || "Chat"}</Text>
+                    </View>
+                    <Text 
+                        style={[
+                            styles.lastMessage, 
+                            item.isUnread && !item.isPinnedAI && styles.unreadLastMessage
+                        ]} 
+                        numberOfLines={1}
+                    >
+                        {item.lastMessageText || "No messages yet"}
+                    </Text>
                 </View>
                 {item.lastMessageAt && <Text style={styles.time}>{item.lastMessageAt.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>}
             </View>
@@ -163,6 +176,16 @@ export default function DMs() {
                 if (conversationMetaSnap.exists()) {
                     const conversationMetaData = conversationMetaSnap.data() as ConversationMetadata;
                     
+                    // Determine if the conversation is unread
+                    const isUnread = conversationMetaData.lastMessageAt &&
+                                    userConvData.otherParticipantId &&
+                                    !conversationMetaData.isPinnedAI &&
+                                    conversationMetaData.lastMessageSenderId !== currentUser.uid &&
+                                    (
+                                        !userConvData.lastRead || 
+                                        (userConvData.lastRead && conversationMetaData.lastMessageAt.toMillis() > userConvData.lastRead.toMillis())
+                                    );
+
                     // Get the other participant's ID
                     const otherParticipantId = userConvData.otherParticipantId;
                     
@@ -223,6 +246,7 @@ export default function DMs() {
                         id: conversationId,
                         ...userConvData,
                         ...conversationMetaData,
+                        isUnread,
                     };
                 }
                 return null;
@@ -232,14 +256,25 @@ export default function DMs() {
             const fetchedConversations = (await Promise.all(combinedDataPromises))
                 .filter(conv => conv !== null) as CombinedConversationItem[];
 
-            // Create AI conversation object
+            // Sort conversations: unread first, then by lastMessageAt
+            fetchedConversations.sort((a, b) => {
+                if (a.isUnread && !b.isUnread) return -1;
+                if (!a.isUnread && b.isUnread) return 1;
+                if (a.lastMessageAt && b.lastMessageAt) {
+                    return b.lastMessageAt.toMillis() - a.lastMessageAt.toMillis();
+                }
+                if (a.lastMessageAt) return -1;
+                if (b.lastMessageAt) return 1;
+                return 0;
+            });
+            
             const aiConversation: CombinedConversationItem = {
                 id: 'ai_conversation',
                 isPinnedAI: true,
                 lastMessageText: 'Ask me anything!',
+                // isUnread will be undefined/false by default
             };
 
-            // Prepend AI conversation to the list
             setConversations([aiConversation, ...fetchedConversations]);
         } catch (error) {
             console.error("Error fetching conversations: ", error);
@@ -403,24 +438,33 @@ export default function DMs() {
                 </TouchableOpacity>
             </View>
             {isSearching ? (
-                <View style={styles.searchContainer}>
-                    <TextInput
-                        ref={searchInputRef}
-                        style={styles.searchInput}
-                        placeholder="Search for users..."
-                        placeholderTextColor="#888"
-                        value={searchText}
-                        onChangeText={setSearchText}
-                        onSubmitEditing={searchUsers}
-                    />
-                    <TouchableOpacity style={styles.cancelButton} onPress={() => {
-                        setIsSearching(false);
-                        setSearchText('');
-                        setSearchResults([]);
-                    }}>
-                        <Text style={styles.cancelButtonText}>Cancel</Text>
-                    </TouchableOpacity>
-                </View>
+                <KeyboardAvoidingView 
+                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                    keyboardVerticalOffset={60}
+                >
+                    <View style={styles.searchContainer}>
+                        <TextInput
+                            ref={searchInputRef}
+                            style={styles.searchInput}
+                            placeholder="Search for users..."
+                            placeholderTextColor="#888"
+                            value={searchText}
+                            onChangeText={setSearchText}
+                            onSubmitEditing={searchUsers}
+                            autoCorrect={false}
+                            autoCapitalize="none"
+                            autoComplete="off"
+                            spellCheck={false}
+                        />
+                        <TouchableOpacity style={styles.cancelButton} onPress={() => {
+                            setIsSearching(false);
+                            setSearchText('');
+                            setSearchResults([]);
+                        }}>
+                            <Text style={styles.cancelButtonText}>Cancel</Text>
+                        </TouchableOpacity>
+                    </View>
+                </KeyboardAvoidingView>
             ) : null}
             {loading ? (
                 <View style={styles.centered}><ActivityIndicator size="large" color="#fff" /></View>
@@ -502,12 +546,25 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         color: 'white',
         fontSize: 16
-
+    },
+    usernameContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    unreadDot: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+        backgroundColor: '#007AFF',
+        marginRight: 6,
     },
     lastMessage: {
         color: 'gray',
         fontSize: 14
-
+    },
+    unreadLastMessage: {
+        color: 'white',
+        fontWeight: 'bold',
     },
     time: {
         fontSize: 12,
