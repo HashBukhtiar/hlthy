@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -6,9 +6,7 @@ import {
   SafeAreaView,
   TouchableOpacity,
   FlatList,
-  TextInput,
-  ActivityIndicator,
-  ScrollView
+  TextInput
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { exercises, categories, Exercise } from '../data/exercises';
