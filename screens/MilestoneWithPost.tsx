@@ -93,36 +93,8 @@ export default function MilestoneWithPost({ onBack }: MilestoneWithPostProps) {
     const [prFadeAnim] = useState(new Animated.Value(0));
     
     // Workout attachment
-    const [selectedWorkout, setSelectedWorkout] = useState<any>(null);
+    const [selectedWorkout, setSelectedWorkout] = useState<any>(null); // Consider typing this
     const [workoutModalVisible, setWorkoutModalVisible] = useState(false);
-    
-    // Sample workout data
-    const [availableWorkouts] = useState([
-        {
-            id: '123',
-            title: 'Impossible Leg Day',
-            thumbnail: 'https://thecamerastore.com/cdn/shop/articles/GINAYEOLANDSCAPE-1_800x.jpg?v=1687296669',
-            length: '1h 30min',
-            segments: 2,
-            creatorName: 'John Doe'
-        },
-        {
-            id: '456',
-            title: 'Morning HIIT',
-            thumbnail: 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80',
-            length: '45min',
-            segments: 3,
-            creatorName: 'Sarah Smith'
-        },
-        {
-            id: '789',
-            title: 'Full Body Power',
-            thumbnail: 'https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80',
-            length: '1h 15min',
-            segments: 4,
-            creatorName: 'Mike Johnson'
-        },
-    ]);
 
     // Fetch the previous PR for the selected exercise (using fake data for now)
     const fetchPreviousPR = async (exercise: Exercise) => {
@@ -984,7 +956,6 @@ export default function MilestoneWithPost({ onBack }: MilestoneWithPostProps) {
                     workoutModalVisible={workoutModalVisible}
                     setWorkoutModalVisible={setWorkoutModalVisible}
                     selectWorkout={selectWorkout}
-                    availableWorkouts={availableWorkouts}
                 />
 
                 {/* Visibility selection modal */}

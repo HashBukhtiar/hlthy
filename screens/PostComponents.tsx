@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
     View, 
     TouchableOpacity, 
@@ -10,17 +10,35 @@ import {
     StyleSheet,
     Modal,
     ActivityIndicator,
-    ScrollView
+    ScrollView,
+    FlatList
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Dropdown } from 'react-native-element-dropdown';
 import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useAuth } from '@/context/AuthContext';
+import { db } from '@/firebaseConfig';
+import { collection, doc, getDoc, getDocs, query, where, orderBy } from 'firebase/firestore';
 
 // Secondary color and its variations
 export const SECONDARY_COLOR = '#ff2d55';
 export const SECONDARY_COLOR_LIGHT = 'rgba(255, 45, 85, 0.1)';
 export const SECONDARY_COLOR_MEDIUM = 'rgba(255, 45, 85, 0.5)';
+
+interface WorkoutItemData {
+  id: string;
+  title: string;
+  creatorId?: string;
+  creatorUsername?: string;
+  coverImageUrl?: string | null;
+}
+
+export interface WorkoutSelectionModalProps {
+  workoutModalVisible: boolean;
+  setWorkoutModalVisible: (visible: boolean) => void;
+  selectWorkout: (workout: WorkoutItemData) => void;
+}
 
 // Common dropdown item interface
 export interface DropdownItem {
@@ -323,64 +341,171 @@ export const WorkoutAttachment = ({
 };
 
 // Workout selection modal
-export const WorkoutSelectionModal = ({
-    workoutModalVisible,
-    setWorkoutModalVisible,
-    selectWorkout,
-    availableWorkouts
-}: {
-    workoutModalVisible: boolean;
-    setWorkoutModalVisible: (visible: boolean) => void;
-    selectWorkout: (workout: any) => void;
-    availableWorkouts: any[];
-}) => (
-    <Modal
-        animationType="slide"
-        transparent={true}
-        visible={workoutModalVisible}
-        onRequestClose={() => setWorkoutModalVisible(false)}
-    >
-        <View style={postComponentStyles.modalContainer}>
-            <View style={postComponentStyles.modalContent}>
-                <View style={postComponentStyles.modalHeader}>
-                    <Text style={postComponentStyles.modalTitle}>Select Workout</Text>
-                    <TouchableOpacity 
-                        onPress={() => setWorkoutModalVisible(false)}
-                        style={postComponentStyles.closeButton}
-                    >
-                        <Ionicons name="close" size={24} color="#FFF" />
-                    </TouchableOpacity>
-                </View>
+export const WorkoutSelectionModal: React.FC<WorkoutSelectionModalProps> = ({
+  workoutModalVisible,
+  setWorkoutModalVisible,
+  selectWorkout,
+}) => {
+  const { currentUser } = useAuth();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [allUserWorkouts, setAllUserWorkouts] = useState<WorkoutItemData[]>([]);
+  const [filteredWorkouts, setFilteredWorkouts] = useState<WorkoutItemData[]>([]);
+  const [loading, setLoading] = useState(false);
 
-                <ScrollView 
-                    style={postComponentStyles.workoutList}
-                    showsVerticalScrollIndicator={false}
-                >
-                    {availableWorkouts.map((workout) => (
-                        <TouchableOpacity 
-                            key={workout.id}
-                            style={postComponentStyles.workoutItem}
-                            onPress={() => selectWorkout(workout)}
-                        >
-                            <Image 
-                                source={{ uri: workout.thumbnail }}
-                                style={postComponentStyles.workoutThumbnail}
-                            />
-                            <View style={postComponentStyles.workoutItemInfo}>
-                                <Text style={postComponentStyles.workoutItemTitle}>{workout.title}</Text>
-                                <Text style={postComponentStyles.workoutItemCreator}>{workout.creatorName}</Text>
-                                <Text style={postComponentStyles.workoutItemDetails}>
-                                    {workout.segments} segments • {workout.length}
-                                </Text>
-                            </View>
-                            <Ionicons name="chevron-forward" size={20} color="#999" />
-                        </TouchableOpacity>
-                    ))}
-                </ScrollView>
-            </View>
+  const fetchUserWorkouts = useCallback(async () => {
+    if (!currentUser) return;
+    setLoading(true);
+    try {
+      const fetchedWorkoutsMap = new Map<string, WorkoutItemData>();
+
+      // Fetch created workouts
+      const createdQuery = query(
+        collection(db, 'workouts'),
+        where('creatorId', '==', currentUser.uid),
+        orderBy('createdAt', 'desc')
+      );
+      const createdSnapshot = await getDocs(createdQuery);
+      createdSnapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        fetchedWorkoutsMap.set(docSnap.id, {
+          id: docSnap.id,
+          title: data.title,
+          creatorId: data.creatorId,
+          creatorUsername: data.creatorUsername,
+          coverImageUrl: data.coverImageUrl,
+        });
+      });
+
+      // Fetch saved (favorited) workout IDs
+      const savedWorkoutsRef = collection(db, `users/${currentUser.uid}/savedWorkouts`);
+      const savedSnapshot = await getDocs(savedWorkoutsRef);
+      const savedWorkoutIds = savedSnapshot.docs.map(doc => doc.id);
+
+      // Fetch details for saved workouts
+      for (const id of savedWorkoutIds) {
+        if (!fetchedWorkoutsMap.has(id)) { // Avoid re-fetching if user saved their own workout
+          const workoutDocRef = doc(db, 'workouts', id);
+          const workoutDocSnap = await getDoc(workoutDocRef);
+          if (workoutDocSnap.exists()) {
+            const data = workoutDocSnap.data();
+            fetchedWorkoutsMap.set(id, {
+              id: id,
+              title: data.title,
+              creatorId: data.creatorId,
+              creatorUsername: data.creatorUsername,
+              coverImageUrl: data.coverImageUrl,
+            });
+          }
+        }
+      }
+      
+      const combinedWorkouts = Array.from(fetchedWorkoutsMap.values());
+      // You might want to sort them here, e.g., by title or with saved ones first
+      // For example, to sort by title:
+      // combinedWorkouts.sort((a, b) => a.title.localeCompare(b.title));
+      setAllUserWorkouts(combinedWorkouts);
+      setFilteredWorkouts(combinedWorkouts);
+
+    } catch (error) {
+      console.error("Error fetching user workouts:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, [currentUser]);
+
+  useEffect(() => {
+    if (workoutModalVisible && currentUser) {
+      fetchUserWorkouts();
+    }
+  }, [workoutModalVisible, currentUser, fetchUserWorkouts]);
+
+  useEffect(() => {
+    if (!searchQuery) {
+      setFilteredWorkouts(allUserWorkouts);
+      return;
+    }
+    const lowerCaseQuery = searchQuery.toLowerCase();
+    const filtered = allUserWorkouts.filter(
+      (workout) =>
+        workout.title.toLowerCase().includes(lowerCaseQuery) ||
+        (workout.creatorUsername && workout.creatorUsername.toLowerCase().includes(lowerCaseQuery))
+    );
+    setFilteredWorkouts(filtered);
+  }, [searchQuery, allUserWorkouts]);
+
+
+  const renderWorkoutItem = ({ item }: { item: WorkoutItemData }) => (
+    <TouchableOpacity
+      style={postComponentStyles.workoutItem}
+      onPress={() => {
+        selectWorkout(item);
+        setSearchQuery(''); 
+      }}
+    >
+      <Image
+        source={item.coverImageUrl ? { uri: item.coverImageUrl } : require('@/assets/images/icon.png')} 
+        style={postComponentStyles.workoutThumbnailLarge} // Use a potentially larger thumbnail style
+      />
+      <View style={postComponentStyles.workoutItemInfo}>
+        <Text style={postComponentStyles.workoutItemTitle} numberOfLines={1}>{item.title}</Text>
+        {item.creatorUsername && <Text style={postComponentStyles.workoutItemCreator} numberOfLines={1}>by {item.creatorUsername}</Text>}
+      </View>
+    </TouchableOpacity>
+  );
+
+  return (
+    <Modal
+      animationType="slide"
+      transparent={true}
+      visible={workoutModalVisible}
+      onRequestClose={() => {
+        setWorkoutModalVisible(false);
+        setSearchQuery(''); 
+      }}
+    >
+      <View style={postComponentStyles.modalView}> 
+        {/* This modalView centers its child */}
+        <View style={postComponentStyles.centeredModalContent}> 
+          {/* Use the new style here */}
+          <View style={postComponentStyles.modalHeader}>
+            <Text style={postComponentStyles.modalTitle}>Select Workout</Text>
+            <TouchableOpacity
+              onPress={() => {
+                setWorkoutModalVisible(false);
+                setSearchQuery(''); 
+              }}
+              style={postComponentStyles.closeButton}
+            >
+              <Ionicons name="close" size={24} color="#FFF" />
+            </TouchableOpacity>
+          </View>
+
+          <TextInput
+            style={postComponentStyles.searchInputWide} 
+            placeholder="Search your workouts..."
+            placeholderTextColor="#888"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+
+          {loading ? (
+            <ActivityIndicator size="large" color={SECONDARY_COLOR} style={{ marginVertical: 20 }}/>
+          ) : filteredWorkouts.length === 0 ? (
+            <Text style={postComponentStyles.noWorkoutsText}>No workouts found.</Text>
+          ) : (
+            <FlatList
+              data={filteredWorkouts}
+              renderItem={renderWorkoutItem}
+              keyExtractor={(item) => item.id}
+              style={postComponentStyles.workoutListWide} 
+              showsVerticalScrollIndicator={false}
+            />
+          )}
         </View>
+      </View>
     </Modal>
-);
+  );
+};
 
 // Visibility selector component
 export const VisibilitySelector = ({
@@ -1010,6 +1135,44 @@ const postComponentStyles = StyleSheet.create({
     },
 
     // Workout modal
+    workoutListWide: {
+    },
+
+    workoutItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 15,
+        paddingHorizontal: 20,
+        borderBottomWidth: 1,
+        borderBottomColor: '#333',
+    },
+    workoutThumbnailLarge: {
+        width: 60,
+        height: 60,
+        borderRadius: 8,
+        backgroundColor: '#3A3A3C',
+    },
+    workoutItemInfo: {
+        flex: 1,
+        marginLeft: 15, 
+    },
+    workoutItemTitle: {
+        color: '#FFF',
+        fontWeight: '600',
+        fontSize: 16,
+    },
+    workoutItemCreator: {
+        color: '#999',
+        fontSize: 14,
+    },
+    noWorkoutsText: {
+        color: '#888',
+        textAlign: 'center',
+        marginVertical: 20,
+        fontSize: 16,
+        paddingHorizontal: 20,
+    },
+
     modalContainer: {
         flex: 1,
         justifyContent: 'flex-end',
@@ -1028,9 +1191,8 @@ const postComponentStyles = StyleSheet.create({
         justifyContent: 'space-between',
         alignItems: 'center',
         paddingHorizontal: 20,
-        paddingBottom: 15,
-        borderBottomWidth: 1,
-        borderBottomColor: '#333',
+        paddingTop: 20,
+        paddingBottom: 15,        
     },
     modalTitle: {
         color: '#FFF',
@@ -1040,33 +1202,46 @@ const postComponentStyles = StyleSheet.create({
     closeButton: {
         padding: 5,
     },
+    searchInputWide: {
+        backgroundColor: '#2C2C2E',
+        color: '#FFF',
+        borderRadius: 10,
+        paddingHorizontal: 15,
+        paddingVertical: 12,
+        fontSize: 16,
+        marginHorizontal: 20,
+        marginBottom: 15,
+    },
     workoutList: {
         paddingHorizontal: 20,
-    },
-    workoutItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: 15,
-        borderBottomWidth: 1,
-        borderBottomColor: '#333',
-    },
-    workoutItemInfo: {
-        flex: 1,
-        marginLeft: 15,
-    },
-    workoutItemTitle: {
-        color: '#FFF',
-        fontWeight: '600',
-        fontSize: 16,
-    },
-    workoutItemCreator: {
-        color: '#999',
-        fontSize: 14,
     },
     workoutItemDetails: {
         color: '#777',
         fontSize: 12,
         marginTop: 2,
+    },
+    modalView: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    },
+    centeredModalContent: {
+        width: '95%',
+        maxHeight: '85%',
+        backgroundColor: '#1C1C1E',
+        borderRadius: 15,
+        padding: 0,
+        overflow: 'hidden',
+    },
+    searchInput: {
+        backgroundColor: '#2C2C2E',
+        color: '#FFF',
+        borderRadius: 10,
+        paddingHorizontal: 15,
+        paddingVertical: 10,
+        fontSize: 16,
+        marginBottom: 15,
     },
 
     // Visibility modal styles

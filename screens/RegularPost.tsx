@@ -106,34 +106,6 @@ export default function RegularPost({ onBack }: RegularPostProps) {
         'Mile Run'
     ]);
     const [filteredExercises, setFilteredExercises] = useState<string[]>([]);
-    
-    // Sample workout data
-    const [availableWorkouts] = useState([
-        {
-            id: '123',
-            title: 'Impossible Leg Day',
-            thumbnail: 'https://thecamerastore.com/cdn/shop/articles/GINAYEOLANDSCAPE-1_800x.jpg?v=1687296669',
-            length: '1h 30min',
-            segments: 2,
-            creatorName: 'John Doe'
-        },
-        {
-            id: '456',
-            title: 'Morning HIIT',
-            thumbnail: 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80',
-            length: '45min',
-            segments: 3,
-            creatorName: 'Sarah Smith'
-        },
-        {
-            id: '789',
-            title: 'Full Body Power',
-            thumbnail: 'https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80',
-            length: '1h 15min',
-            segments: 4,
-            creatorName: 'Mike Johnson'
-        },
-    ]);
 
     // Sample user milestone data
     const [availableMilestones] = useState([
@@ -170,7 +142,8 @@ export default function RegularPost({ onBack }: RegularPostProps) {
         }
     ]);
 
-    const selectWorkout = (workout: any) => {
+
+    const selectWorkout = (workout: any) => { // Consider typing workout to WorkoutItemData
         setSelectedWorkout(workout);
         setWorkoutModalVisible(false);
     };
@@ -323,7 +296,6 @@ export default function RegularPost({ onBack }: RegularPostProps) {
                     workoutModalVisible={workoutModalVisible}
                     setWorkoutModalVisible={setWorkoutModalVisible}
                     selectWorkout={selectWorkout}
-                    availableWorkouts={availableWorkouts}
                 />
 
                 {/* Visibility selection modal */}
