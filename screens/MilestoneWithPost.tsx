@@ -483,9 +483,22 @@ export default function MilestoneWithPost({ onBack }: MilestoneWithPostProps) {
         }
         
         const metricType = selectedExercise.metricType;
-        const achievementData: any = {
+        // Ensure this matches the ClientMilestoneDetails interface in usePostsData.tsx
+        const achievementData: { 
+            type: 'PR' | 'weightLoss' | 'weightGain';
+            exerciseName?: string;
+            exerciseId?: string;
+            value?: number | string | null;
+            reps?: number | null;
+            duration?: number | null;
+            level?: string | null;
+            newWeight?: number | string | null;
+            previousWeight?: number | string | null;
+            weightUnit?: string | null;
+            achievedAt?: string | null;
+        } = {
             type: 'PR',
-            exercise: selectedExercise.name,
+            exerciseName: selectedExercise.name,
             exerciseId: selectedExercise.id,
         };
         
@@ -495,8 +508,9 @@ export default function MilestoneWithPost({ onBack }: MilestoneWithPostProps) {
                     setFormError("Please enter both weight and reps");
                     return null;
                 }
-                achievementData.weight = parseFloat(weight);
+                achievementData.value = parseFloat(weight);
                 achievementData.reps = parseInt(reps);
+                achievementData.weightUnit = 'lbs';
                 break;
                 
             case 'bodyweight_reps':
@@ -505,6 +519,7 @@ export default function MilestoneWithPost({ onBack }: MilestoneWithPostProps) {
                     return null;
                 }
                 achievementData.reps = parseInt(reps);
+                
                 break;
                 
             case 'duration':
@@ -512,12 +527,12 @@ export default function MilestoneWithPost({ onBack }: MilestoneWithPostProps) {
                     setFormError("Please enter a duration");
                     return null;
                 }
-                // Convert to total seconds
                 const totalSeconds = 
                     (parseInt(hours || '0') * 3600) + 
                     (parseInt(minutes || '0') * 60) + 
                     parseInt(seconds || '0');
                 achievementData.duration = totalSeconds;
+                achievementData.value = totalSeconds;
                 break;
                 
             case 'distance':
@@ -525,7 +540,8 @@ export default function MilestoneWithPost({ onBack }: MilestoneWithPostProps) {
                     setFormError("Please enter a distance");
                     return null;
                 }
-                achievementData.distance = parseFloat(distance);
+                achievementData.value = parseFloat(distance);
+                achievementData.weightUnit = 'miles';
                 break;
                 
             case 'distance_time':
@@ -537,13 +553,13 @@ export default function MilestoneWithPost({ onBack }: MilestoneWithPostProps) {
                     setFormError("Please enter a time");
                     return null;
                 }
-                // Convert to total seconds
                 const timeSeconds = 
                     (parseInt(hours || '0') * 3600) + 
                     (parseInt(minutes || '0') * 60) + 
                     parseInt(seconds || '0');
-                achievementData.distance = parseFloat(distance);
+                achievementData.value = parseFloat(distance);
                 achievementData.duration = timeSeconds;
+                achievementData.weightUnit = 'miles';
                 break;
                 
             case 'duration_level':
@@ -555,20 +571,19 @@ export default function MilestoneWithPost({ onBack }: MilestoneWithPostProps) {
                     setFormError("Please enter a difficulty level");
                     return null;
                 }
-                // Convert to total seconds
                 const durationSeconds = 
                     (parseInt(hours || '0') * 3600) + 
                     (parseInt(minutes || '0') * 60) + 
                     parseInt(seconds || '0');
                 achievementData.duration = durationSeconds;
-                achievementData.level = parseInt(level);
+                achievementData.level = level;
+                achievementData.value = durationSeconds;
                 break;
                 
             default:
                 setFormError("Unsupported exercise type");
                 return null;
-        }
-        
+        }       
         return achievementData;
     };
 
@@ -582,19 +597,27 @@ export default function MilestoneWithPost({ onBack }: MilestoneWithPostProps) {
             
             const achievementDetails = validateAndPrepareAchievementData();
             if (!achievementDetails) {
-                return; // Validation failed
+                return;
             }
             
             setIsSubmitting(true);
             setFormError(null);
             
-            const postData = {
+            // Ensure postData matches NewPostData interface from usePostsData
+            const postData: {
+                caption?: string;
+                imageUri?: string;
+                isMilestone: boolean;
+                milestoneDetails?: typeof achievementDetails;
+                visibility: 'public' | 'followers';
+                workoutId?: string | null;
+            } = {
                 caption: caption.trim(),
-                imageUri,
+                imageUri: imageUri ?? undefined,
                 isMilestone: true,
                 milestoneDetails: achievementDetails,
-                visibility: valueVisibility || 'public',
-                workoutId: selectedWorkout?.id
+                visibility: (valueVisibility as 'public' | 'followers') || 'public',
+                workoutId: selectedWorkout?.id || null
             };
             
             const postId = await addPost(postData);
