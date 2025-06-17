@@ -1,21 +1,22 @@
 {
   "compilerOptions": {
-    "module": "commonjs",
+    "module": "es2015",
     "noImplicitReturns": true,
-    "noUnusedLocals": true, 
+    "noUnusedLocals": true,
     "outDir": "lib",
     "sourceMap": true,
     "strict": true,
-    "target": "es2017", 
+    "target": "es2017",
     "esModuleInterop": true,
-    "resolveJsonModule": true 
+    "resolveJsonModule": true
   },
   "compileOnSave": true,
   "include": [
-    "src/**/*.ts" 
+    "src/**/*.ts"
   ],
   "exclude": [
     "node_modules",
-    "lib" 
-  ]
+    "lib"
+  ],
+  "extends": "expo/tsconfig.base"
 }
