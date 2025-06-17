@@ -32,6 +32,8 @@ interface WorkoutItemData {
   creatorId?: string;
   creatorUsername?: string;
   coverImageUrl?: string | null;
+  segments?: number;
+  length?: string;
 }
 
 export interface WorkoutSelectionModalProps {
@@ -320,9 +322,11 @@ export const WorkoutAttachment = ({
                                 {selectedWorkout.title}
                             </Text>
                             <Text style={postComponentStyles.attachedWorkoutDetails}>
-                                by {selectedWorkout.creatorUsername || "Unknown"}
-                                {selectedWorkout.segments ? ` • ${selectedWorkout.segments} segments` : ""}
-                                {selectedWorkout.length ? ` • ${selectedWorkout.length}` : ""}
+                                {[
+                                    selectedWorkout.creatorUsername ? `by ${selectedWorkout.creatorUsername}` : null,
+                                    typeof selectedWorkout.segments === "number" ? `${selectedWorkout.segments} segments` : null,
+                                    selectedWorkout.length ? selectedWorkout.length : null,
+                                ].filter(Boolean).join(" • ")}
                             </Text>
                         </View>
                         <TouchableOpacity 
@@ -345,6 +349,26 @@ export const WorkoutAttachment = ({
         </View>
     );
 };
+
+function sumSegmentLengths(segments: any[]): string {
+  if (!Array.isArray(segments)) return "";
+  let totalMinutes = 0;
+  for (const seg of segments) {
+    if (typeof seg.length === "string") {
+      const minMatch = seg.length.match(/(\d+)\s*min/);
+      const hrMatch = seg.length.match(/(\d+)\s*hr/);
+      let mins = minMatch ? parseInt(minMatch[1], 10) : 0;
+      let hrs = hrMatch ? parseInt(hrMatch[1], 10) : 0;
+      totalMinutes += hrs * 60 + mins;
+    }
+  }
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (hours > 0) {
+    return `${hours}h${minutes > 0 ? ` ${minutes}m` : ""}`;
+  }
+  return minutes > 0 ? `${minutes} min` : "";
+}
 
 // Workout selection modal
 export const WorkoutSelectionModal: React.FC<WorkoutSelectionModalProps> = ({
@@ -379,6 +403,8 @@ export const WorkoutSelectionModal: React.FC<WorkoutSelectionModalProps> = ({
           creatorId: data.creatorId,
           creatorUsername: data.creatorUsername,
           coverImageUrl: data.coverImageUrl,
+          segments: Array.isArray(data.segments) ? data.segments.length : data.segments || 0,
+          length: typeof data.length === "string" ? data.length : sumSegmentLengths(data.segments),
         });
       });
 
@@ -389,7 +415,7 @@ export const WorkoutSelectionModal: React.FC<WorkoutSelectionModalProps> = ({
 
       // Fetch details for saved workouts
       for (const id of savedWorkoutIds) {
-        if (!fetchedWorkoutsMap.has(id)) { // Avoid re-fetching if user saved their own workout
+        if (!fetchedWorkoutsMap.has(id)) {
           const workoutDocRef = doc(db, 'workouts', id);
           const workoutDocSnap = await getDoc(workoutDocRef);
           if (workoutDocSnap.exists()) {
@@ -400,6 +426,8 @@ export const WorkoutSelectionModal: React.FC<WorkoutSelectionModalProps> = ({
               creatorId: data.creatorId,
               creatorUsername: data.creatorUsername,
               coverImageUrl: data.coverImageUrl,
+              segments: Array.isArray(data.segments) ? data.segments.length : data.segments || 0,
+              length: typeof data.length === "string" ? data.length : sumSegmentLengths(data.segments),
             });
           }
         }
