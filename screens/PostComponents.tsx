@@ -308,7 +308,11 @@ export const WorkoutAttachment = ({
                         onPress={() => router.push(`/view-workout/${selectedWorkout.id}`)}
                     >
                         <Image 
-                            source={{ uri: selectedWorkout.thumbnail }}
+                            source={
+                                selectedWorkout.coverImageUrl
+                                    ? { uri: selectedWorkout.coverImageUrl }
+                                    : require('@/assets/images/icon.png')
+                            }
                             style={postComponentStyles.workoutThumbnail}
                         />
                         <View style={postComponentStyles.attachedWorkoutInfo}>
@@ -316,7 +320,9 @@ export const WorkoutAttachment = ({
                                 {selectedWorkout.title}
                             </Text>
                             <Text style={postComponentStyles.attachedWorkoutDetails}>
-                                by {selectedWorkout.creatorName} • {selectedWorkout.segments} segments • {selectedWorkout.length}
+                                by {selectedWorkout.creatorUsername || "Unknown"}
+                                {selectedWorkout.segments ? ` • ${selectedWorkout.segments} segments` : ""}
+                                {selectedWorkout.length ? ` • ${selectedWorkout.length}` : ""}
                             </Text>
                         </View>
                         <TouchableOpacity 
