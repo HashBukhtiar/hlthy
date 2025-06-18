@@ -22,6 +22,7 @@ export default function RootLayout() {
     'login',
     'chat',
     'forgot-password',
+    'view-milestone',
   ];
 
   // Check if we should hide the bottom bar based on current route
