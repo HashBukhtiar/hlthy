@@ -7,7 +7,7 @@ import { getFunctions, httpsCallable } from 'firebase/functions';
 export interface Milestone {
   id: string;
   postId: string;
-  exercise?: string;
+  exerciseName?: string;
   reps?: number;
   weight?: string;
   date?: any;
@@ -150,17 +150,17 @@ export function useProfileData(userId = null) {
               id: post.id,
               postId: post.id,
               date: post.createdAt,
-              exercise: '',
+              exerciseName: '',
               reps: 0,
               weight: ''
             };
 
             if (post.milestoneDetails.type === 'PR') {
-              milestone.exercise = post.milestoneDetails.exercise || 'Unknown Exercise';
+              milestone.exerciseName = post.milestoneDetails.exerciseName || 'Unknown Exercise';
               milestone.reps = post.milestoneDetails.reps || 0;
               milestone.weight = `${post.milestoneDetails.value || 0} ${post.milestoneDetails.weightUnit || ''}`;
             } else if (post.milestoneDetails.type === 'weightLoss' || post.milestoneDetails.type === 'weightGain') {
-              milestone.exercise = post.milestoneDetails.type === 'weightLoss' ? 'Weight Loss' : 'Weight Gain';
+              milestone.exerciseName = post.milestoneDetails.type === 'weightLoss' ? 'Weight Loss' : 'Weight Gain';
               milestone.weight = `${post.milestoneDetails.newWeight || 0} ${post.milestoneDetails.newWeightUnit || ''}`;
             }
             return milestone;

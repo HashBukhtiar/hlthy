@@ -92,7 +92,7 @@ interface Message {
     id: string;
     type: string;
     details: {
-      exercise?: string;
+      exerciseName?: string;
       value?: number;
       weightUnit?: string;
       reps?: number;
@@ -240,7 +240,7 @@ const MessageItem = React.memo<{ item: Message; onLongPress: (m: Message) => voi
           {item.sharedMilestone.type === 'PR' ? (
             <View style={styles.sharedMilestoneContent}>
               <Text style={styles.sharedMilestoneType}>
-                {item.sharedMilestone.details.exercise}
+                {item.sharedMilestone.details.exerciseName}
               </Text>
               <View style={styles.milestoneStatsRow}>
                 <Text style={styles.milestoneValue}>

@@ -21,7 +21,7 @@ export interface MilestoneStats {
 }
 
 export interface MilestoneDetails {
-  exercise?: string;
+  exerciseName?: string;
   value?: number;
   weightUnit?: string;
   reps?: number;
@@ -66,7 +66,7 @@ export default function MilestonesFeed() {
       createdAt: new Date(Date.now() - 8640000 * 2), // 2 days ago
       milestoneType: 'PR', 
       details: {
-        exercise: 'Bench Press',
+        exerciseName: 'Bench Press',
         value: 225,
         weightUnit: 'lbs',
         reps: 5,
@@ -91,7 +91,7 @@ export default function MilestonesFeed() {
       createdAt: new Date(Date.now() - 86400000), // 1 day ago
       milestoneType: 'PR',
       details: {
-        exercise: '10K Run',
+        exerciseName: '10K Run',
         value: 42.5,
         weightUnit: 'min',
         reps: 1,
@@ -234,7 +234,7 @@ export default function MilestonesFeed() {
         <View style={styles.detailsContainer}>
           <View style={styles.detailRow}>
             <Text style={styles.detailLabel}>Exercise:</Text>
-            <Text style={styles.detailValue}>{milestone.details.exercise}</Text>
+            <Text style={styles.detailValue}>{milestone.details.exerciseName}</Text>
           </View>
           
           <View style={styles.detailRow}>

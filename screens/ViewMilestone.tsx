@@ -16,7 +16,7 @@ export interface MilestoneStats {
 }
 
 export interface MilestoneDetails {
-  exercise?: string;
+  exerciseName?: string;
   value?: number;
   weightUnit?: string;
   reps?: number;
@@ -85,10 +85,10 @@ export default function ViewMilestone() {
             username: data.authorUsername,
             fullName: data.authorFullName || data.authorUsername,
             profileImageUrl: data.authorProfileImageUrl,
-            createdAt: data.createdAt.toDate(), // Convert Firestore Timestamp to JS Date
+            createdAt: data.createdAt.toDate(),
             milestoneType: data.milestoneDetails?.type,
             details: {
-              exercise: data.milestoneDetails?.exerciseName,
+              exerciseName: data.milestoneDetails?.exerciseName,
               value: data.milestoneDetails?.value,
               weightUnit: data.milestoneDetails?.weightUnit,
               reps: data.milestoneDetails?.reps,
@@ -230,7 +230,7 @@ export default function ViewMilestone() {
         <View style={styles.detailsContainer}>
           <View style={styles.detailRow}>
             <Text style={styles.detailLabel}>Exercise:</Text>
-            <Text style={styles.detailValue}>{milestone.details.exercise}</Text>
+            <Text style={styles.detailValue}>{milestone.details.exerciseName}</Text>
           </View>
           
           <View style={styles.detailRow}>

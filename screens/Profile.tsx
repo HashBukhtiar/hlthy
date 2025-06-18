@@ -42,6 +42,22 @@ enum TabType {
   WORKOUTS = 'WORKOUTS'
 }
 
+export interface MilestoneDetails {
+  exerciseName?: string;
+  value?: number;
+  weightUnit?: string;
+  reps?: number;
+  newWeight?: number;
+  newWeightUnit?: string;
+  previousWeight?: number;
+  previousWeightUnit?: string;
+  previousValue?: number;
+  previousReps?: number;
+  improvement?: string;
+  totalLoss?: number;
+  percentageLoss?: string;
+}
+
 const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
   const { currentUser, userProfile: currentUserProfile, refreshUserProfile } = useAuth();
   
@@ -84,6 +100,48 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
     outputRange: [0, tabWidth, tabWidth * 2],
     extrapolate: 'clamp'
   });
+
+  const renderMilestoneDetails = (milestone: { milestoneType: string, details: any }) => {
+    if (milestone.milestoneType === 'PR') {
+      return (
+        <View style={styles.detailsContainer}>
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>Exercise:</Text>
+            <Text style={styles.detailValue}>
+              {milestone.details.exerciseName && milestone.details.exerciseName !== "Unknown Exercise"
+                ? milestone.details.exerciseName
+                : "Personal Record"}
+            </Text>
+          </View>
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>New PR:</Text>
+            <Text style={styles.detailValue}>
+              <Text style={styles.highlightedValue}>{milestone.details.weight}</Text>
+              {milestone.details.reps && milestone.details.reps > 1 ? ` × ${milestone.details.reps} reps` : ''}
+            </Text>
+          </View>
+        </View>
+      );
+    } else if (milestone.milestoneType === 'weightLoss' || milestone.milestoneType === 'weightGain') {
+      return (
+        <View style={styles.detailsContainer}>
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>Type:</Text>
+            <Text style={styles.detailValue}>
+              {milestone.milestoneType === 'weightLoss' ? 'Weight Loss' : 'Weight Gain'}
+            </Text>
+          </View>
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>New Weight:</Text>
+            <Text style={styles.detailValue}>
+              <Text style={styles.highlightedValue}>{milestone.details.weight}</Text>
+            </Text>
+          </View>
+        </View>
+      );
+    }
+    return null;
+  };
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -224,12 +282,15 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
   ), [posts, refreshing, handleImagePress, onRefresh]);
 
   const renderMilestonesContent = useCallback(() => {
+    // Log the entire groupedMilestones object
+    console.log("groupedMilestones:", groupedMilestones);
+
     const monthKeys = Object.keys(groupedMilestones).sort((a, b) => {
-        try {
-            const dateA = new Date(`01 ${a}`);
-            const dateB = new Date(`01 ${b}`);
-            return dateB.getTime() - dateA.getTime();
-        } catch (e) { return 0; }
+      try {
+        const dateA = new Date(`01 ${a}`);
+        const dateB = new Date(`01 ${b}`);
+        return dateB.getTime() - dateA.getTime();
+      } catch (e) { return 0; }
     });
 
     if (monthKeys.length === 0) {
@@ -253,27 +314,42 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
         renderItem={({ item: month }) => (
           <View>
             <Text style={styles.monthHeader}>{month}</Text>
-            {groupedMilestones[month].map((item) => (
-              <TouchableOpacity
-                key={item.id}
-                onPress={() => handleMilestonePress(item.postId)}
-                style={styles.milestoneItem}
-              >
-                <View style={styles.milestoneDetail}>
-                  <Text style={styles.milestoneExercise}>{item.exercise || 'Milestone'}</Text>
-                </View>
-                {item.reps !== undefined && item.reps > 0 && (
-                   <View style={styles.milestoneDetail}>
-                     <Text style={styles.milestoneNumber}>{item.reps}</Text>
-                     <Text style={styles.milestoneDescriptor}>Reps</Text>
-                   </View>
-                )}
-                <View style={styles.milestoneDetail}>
-                  <Text style={styles.milestoneNumber}>{item.weight || ''}</Text>
-                  {item.weight && <Text style={styles.milestoneDescriptor}>Weight</Text>}
-                </View>
-              </TouchableOpacity>
-            ))}
+            {groupedMilestones[month].map((milestoneItem: any, idx: number) => {
+              if (idx === 0) {
+                console.log(`Sample milestoneItem for month ${month}:`, milestoneItem);
+              }
+
+              // Infer type
+              let milestoneType = "PR";
+              if (
+                milestoneItem.exerciseName &&
+                typeof milestoneItem.exerciseName === "string" &&
+                milestoneItem.exerciseName.toLowerCase().includes("weight loss")
+              ) {
+                milestoneType = "weightLoss";
+              } else if (
+                milestoneItem.exerciseName &&
+                typeof milestoneItem.exerciseName === "string" &&
+                milestoneItem.exerciseName.toLowerCase().includes("weight gain")
+              ) {
+                milestoneType = "weightGain";
+              }
+
+              const milestoneForDetails = {
+                milestoneType,
+                details: milestoneItem
+              };
+
+              return (
+                <TouchableOpacity
+                  key={milestoneItem.id}
+                  onPress={() => handleMilestonePress(milestoneItem.id)}
+                  style={styles.milestoneItemCard}
+                >
+                  {renderMilestoneDetails(milestoneForDetails)}
+                </TouchableOpacity>
+              );
+            })}
           </View>
         )}
         keyExtractor={(item) => item}
@@ -976,6 +1052,49 @@ const styles = StyleSheet.create({
   retryText: {
     color: 'white',
     fontSize: 16,
+    fontWeight: 'bold',
+  },
+  milestoneItemCard: {
+    backgroundColor: '#1c1c1e',
+    marginVertical: 5,
+    borderRadius: 10,
+    marginHorizontal: 'auto',
+    width: '95%',
+    alignSelf: 'center',
+    overflow: 'hidden',
+  },
+  detailsContainer: {
+    padding: 15,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  detailLabel: {
+    color: '#999',
+    fontSize: 14,
+  },
+  detailValue: {
+    color: '#FFF',
+    fontSize: 14,
+    fontWeight: '500',
+    textAlign: 'right',
+  },
+  highlightedValue: {
+    color: '#4CD964',
+    fontWeight: 'bold',
+  },
+  improvementValue: {
+    color: '#4CD964',
+    fontWeight: 'bold',
+  },
+  lossValue: {
+    color: '#4CD964',
+    fontWeight: 'bold',
+  },
+  gainValue: {
+    color: '#FF9500',
     fontWeight: 'bold',
   },
 });

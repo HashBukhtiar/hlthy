@@ -103,7 +103,7 @@ export default function ViewPost() {
     }
   
     if (details.type === 'PR') {
-      const exercise = details.exerciseName || details.exercise || 'Record';
+      const exercise = details.exerciseName || 'Record';
       let preview = `${exercise}: `;
   
       // weight_reps

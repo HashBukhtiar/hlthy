@@ -473,8 +473,7 @@ export default function MilestoneWithPost({ onBack }: MilestoneWithPostProps) {
             exerciseName: selectedExercise.name,
             exerciseId: selectedExercise.id,
         };
-        
-        switch (metricType) {
+            switch (metricType) {
             case 'weight_reps':
                 if (!weight || !reps) {
                     setFormError("Please enter both weight and reps");
