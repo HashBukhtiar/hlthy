@@ -199,7 +199,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
   const handleMilestonePress = useCallback((postId: string) => {
     console.log(`Milestone clicked, navigating to Post ID=${postId}`);
      router.push({
-       pathname: '/view-post/[id]', 
+       pathname: '/view-milestone/[id]', 
        params: { id: postId }
      });
   }, [router]);
