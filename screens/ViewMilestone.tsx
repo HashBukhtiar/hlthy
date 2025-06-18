@@ -7,6 +7,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import ShareModal from '@/components/ShareModal';
 import { shareMilestone } from '@/services/ShareService';
 import { useAuth } from '@/context/AuthContext';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '@/firebaseConfig';
 
 // Define interfaces for milestone data
 export interface MilestoneStats {
@@ -58,161 +60,76 @@ export default function ViewMilestone() {
   const [isTop5Percent, setIsTop5Percent] = useState(false);
 
   useEffect(() => {
-    const fetchData = async () => {
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      if (id === 'm1') {
-        const milestoneData: Milestone = {
-          id: 'm1',
-          userId: 'user1',
-          username: 'fitness_pro',
-          fullName: 'Alex Fitness',
-          profileImageUrl: 'https://randomuser.me/api/portraits/men/32.jpg',
-          createdAt: new Date(Date.now() - 8640000 * 2),
-          milestoneType: 'PR', 
-          details: {
-            exercise: 'Bench Press',
-            value: 225,
-            weightUnit: 'lbs',
-            reps: 5,
-            previousValue: 205,
-            previousReps: 5,
-            improvement: '9.7%'
-          },
-          stats: {
-            likes: 24
-          },
-          isLiked: false,
-          associatedPostId: 'post1',
-          postImageUrl: 'https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
-          pinned: true,
-          top5Percent: true
-        };
-        setMilestone(milestoneData);
-        setIsPinned(milestoneData.pinned);
-        setIsTop5Percent(milestoneData.top5Percent);
-      } else if (id === 'm2') {
-        const milestoneData: Milestone = {
-          id: 'm2',
-          userId: 'user2',
-          username: 'runner_girl',
-          fullName: 'Sarah Runner',
-          profileImageUrl: 'https://randomuser.me/api/portraits/women/44.jpg',
-          createdAt: new Date(Date.now() - 86400000),
-          milestoneType: 'PR',
-          details: {
-            exercise: '10K Run',
-            value: 42.5,
-            weightUnit: 'min',
-            reps: 1,
-            previousValue: 45.8,
-            previousReps: 1,
-            improvement: '7.2%'
-          },
-          stats: {
-            likes: 18
-          },
-          isLiked: true,
-          associatedPostId: 'post2',
-          pinned: false,
-          top5Percent: false
-        };
-        setMilestone(milestoneData);
-        setIsPinned(milestoneData.pinned);
-        setIsTop5Percent(milestoneData.top5Percent);
-      } else if (id === 'm3') {
-        const milestoneData: Milestone = {
-          id: 'm3',
-          userId: 'user3',
-          username: 'weightloss_journey',
-          fullName: 'Jamie Progress',
-          profileImageUrl: 'https://randomuser.me/api/portraits/women/68.jpg',
-          createdAt: new Date(Date.now() - 43200000),
-          milestoneType: 'weightLoss',
-          details: {
-            newWeight: 165,
-            newWeightUnit: 'lbs',
-            previousWeight: 180,
-            previousWeightUnit: 'lbs',
-            totalLoss: 15,
-            percentageLoss: '8.3%'
-          },
-          stats: {
-            likes: 35
-          },
-          isLiked: true,
-          associatedPostId: 'post3',
-          postImageUrl: 'https://images.unsplash.com/photo-1535743686920-55e4145369b9?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
-          pinned: true,
-          top5Percent: false
-        };
-        setMilestone(milestoneData);
-        setIsPinned(milestoneData.pinned);
-        setIsTop5Percent(milestoneData.top5Percent);
-      } else if (id === 'm4') {
-        const milestoneData: Milestone = {
-          id: 'm4',
-          userId: 'user7',
-          username: 'super_athlete',
-          fullName: 'Jamie Athlete',
-          profileImageUrl: 'https://randomuser.me/api/portraits/women/28.jpg',
-          createdAt: new Date(Date.now() - 120000),
-          milestoneType: 'PR',
-          details: {
-            exercise: 'Squat',
-            value: 315,
-            weightUnit: 'lbs',
-            reps: 3,
-            previousValue: 275,
-            previousReps: 3,
-            improvement: '14.5%'
-          },
-          stats: {
-            likes: 45
-          },
-          isLiked: false,
-          associatedPostId: 'post4',
-          pinned: true,
-          top5Percent: true
-        };
-        setMilestone(milestoneData);
-        setIsPinned(milestoneData.pinned);
-        setIsTop5Percent(milestoneData.top5Percent);
-      } else {
-        const milestoneData: Milestone = {
-          id: id as string || 'unknown',
-          userId: 'user1',
-          username: 'hlthy_user',
-          fullName: 'Hlthy User',
-          profileImageUrl: 'https://randomuser.me/api/portraits/men/1.jpg',
-          createdAt: new Date(Date.now() - 86400000),
-          milestoneType: 'PR',
-          details: {
-            exercise: 'Deadlift',
-            value: 315,
-            weightUnit: 'lbs',
-            reps: 3,
-            previousValue: 285,
-            previousReps: 3,
-            improvement: '10.5%'
-          },
-          stats: {
-            likes: 12
-          },
-          isLiked: false,
-          pinned: false,
-          top5Percent: false
-        };
-        setMilestone(milestoneData);
-        setIsPinned(milestoneData.pinned);
-        setIsTop5Percent(milestoneData.top5Percent);
+    const fetchMilestone = async () => {
+      if (!id) {
+        setLoading(false);
+        return;
       }
-      
-      setLoading(false);
+      setLoading(true);
+      try {
+        const milestoneRef = doc(db, 'posts', id as string);
+        const milestoneSnap = await getDoc(milestoneRef);
+
+        if (milestoneSnap.exists()) {
+          const data = milestoneSnap.data();
+          
+          if (!data.isMilestone) {
+            console.warn("Document is not a milestone:", id);
+            setMilestone(null);
+            return;
+          }
+
+          const milestoneData: Milestone = {
+            id: milestoneSnap.id,
+            userId: data.authorId,
+            username: data.authorUsername,
+            fullName: data.authorFullName || data.authorUsername,
+            profileImageUrl: data.authorProfileImageUrl,
+            createdAt: data.createdAt.toDate(), // Convert Firestore Timestamp to JS Date
+            milestoneType: data.milestoneDetails?.type,
+            details: {
+              exercise: data.milestoneDetails?.exerciseName,
+              value: data.milestoneDetails?.value,
+              weightUnit: data.milestoneDetails?.weightUnit,
+              reps: data.milestoneDetails?.reps,
+              newWeight: data.milestoneDetails?.newWeight,
+              newWeightUnit: data.milestoneDetails?.newWeightUnit,
+              previousWeight: data.milestoneDetails?.previousWeight,
+              previousWeightUnit: data.milestoneDetails?.previousWeightUnit,
+              previousValue: data.milestoneDetails?.previousValue,
+              previousReps: data.milestoneDetails?.previousReps,
+              improvement: data.milestoneDetails?.improvement,
+              totalLoss: data.milestoneDetails?.totalLoss,
+              percentageLoss: data.milestoneDetails?.percentageLoss,
+            },
+            stats: {
+              likes: data.likeCount || (Array.isArray(data.likes) ? data.likes.length : 0),
+            },
+            isLiked: currentUser ? (data.likes || []).includes(currentUser.uid) : false,
+            associatedPostId: milestoneSnap.id,
+            postImageUrl: data.imageUrl || null,
+            pinned: data.pinned || false,
+            top5Percent: data.top5Percent || false,
+          };
+          
+          setMilestone(milestoneData);
+          setIsPinned(milestoneData.pinned);
+          setIsTop5Percent(milestoneData.top5Percent);
+
+        } else {
+          console.log("No such milestone document!");
+          setMilestone(null);
+        }
+      } catch (error) {
+        console.error("Error fetching milestone:", error);
+        setMilestone(null);
+      } finally {
+        setLoading(false);
+      }
     };
-    
-    fetchData();
-  }, [id]);
+
+    fetchMilestone();
+  }, [id, currentUser]);
 
   const handleLike = () => {
     if (!milestone) return;
