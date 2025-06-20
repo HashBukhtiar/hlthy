@@ -19,6 +19,9 @@ import { useAuth } from '@/context/AuthContext';
 import { Ionicons, MaterialCommunityIcons, FontAwesome5, Feather } from '@expo/vector-icons';
 import SelectExercise from './SelectExercise';
 import { Exercise, MetricType } from '@/data/exercises';
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import { db } from '@/firebaseConfig';
+import { fetchPreviousPRService, PreviousPRData } from '@/services/milestoneService';
 
 // Import shared components
 import {
@@ -36,17 +39,6 @@ import {
 
 interface MilestoneWithPostProps {
     onBack?: () => void;
-}
-
-// Interface for previous PR data
-interface PreviousPRData {
-    weight?: number;
-    reps?: number;
-    distance?: number;
-    duration?: number;
-    level?: number;
-    date?: string;
-    isPR?: boolean;
 }
 
 export default function MilestoneWithPost({ onBack }: MilestoneWithPostProps) {
@@ -98,73 +90,23 @@ export default function MilestoneWithPost({ onBack }: MilestoneWithPostProps) {
 
     // Fetch the previous PR for the selected exercise (using fake data for now)
     const fetchPreviousPR = async (exercise: Exercise) => {
+        if (!currentUser) return;
+
         setLoadingPreviousPR(true);
-        
-        // Simulate API call delay
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        // Fake data based on exercise type
-        let prData: PreviousPRData | null = null;
-        
-        switch (exercise.metricType) {
-            case 'weight_reps':
-                prData = {
-                    weight: 225,
-                    reps: 5,
-                    date: 'May 28, 2025',
-                    isPR: true
-                };
-                break;
-            case 'bodyweight_reps':
-                prData = {
-                    reps: 12,
-                    date: 'May 15, 2025',
-                    isPR: true
-                };
-                break;
-            case 'duration':
-                prData = {
-                    duration: 3600, // 60 minutes in seconds
-                    date: 'May 30, 2025',
-                    isPR: true
-                };
-                break;
-            case 'distance':
-                prData = {
-                    distance: 6.2, // 10K
-                    date: 'May 25, 2025',
-                    isPR: true
-                };
-                break;
-            case 'distance_time':
-                prData = {
-                    distance: 13.1, // Half marathon
-                    duration: 7200, // 2 hours in seconds
-                    date: 'May 10, 2025',
-                    isPR: true
-                };
-                break;
-            case 'duration_level':
-                prData = {
-                    duration: 1800, // 30 minutes in seconds
-                    level: 8,
-                    date: 'June 1, 2025',
-                    isPR: true
-                };
-                break;
-            default:
-                prData = null;
-        }
-        
-        setPreviousPR(prData);
-        setLoadingPreviousPR(false);
-        
-        // Animate the PR card appearance
-        if (prData) {
+        setPreviousPR(null);
+
+        try {
+            const prData = await fetchPreviousPRService(currentUser.uid, exercise);
+            setPreviousPR(prData);
+        } catch (error) {
+            // The service already logs the error, but we can log here too if needed
+            console.error("Error in component while fetching previous PR:", error);
+            setPreviousPR(null);
+        } finally {
+            setLoadingPreviousPR(false);
             Animated.timing(prFadeAnim, {
                 toValue: 1,
                 duration: 400,
-                delay: 100,
                 useNativeDriver: true
             }).start();
         }
@@ -468,10 +410,16 @@ export default function MilestoneWithPost({ onBack }: MilestoneWithPostProps) {
             previousWeight?: number | string | null;
             weightUnit?: string | null;
             achievedAt?: string | null;
+            previousValue?: number | null;
+            previousReps?: number | null;
+            previousDuration?: number | null;
+            previousLevel?: number | null;
+            previousDistance?: number | null;
         } = {
             type: 'PR',
             exerciseName: selectedExercise.name,
             exerciseId: selectedExercise.id,
+            achievedAt: new Date().toISOString(),
         };
             switch (metricType) {
             case 'weight_reps':
@@ -554,7 +502,34 @@ export default function MilestoneWithPost({ onBack }: MilestoneWithPostProps) {
             default:
                 setFormError("Unsupported exercise type");
                 return null;
-        }       
+        } 
+        
+        if (previousPR) {
+            switch (metricType) {
+                case 'weight_reps':
+                    achievementData.previousValue = previousPR.weight;
+                    achievementData.previousReps = previousPR.reps;
+                    break;
+                case 'bodyweight_reps':
+                    achievementData.previousReps = previousPR.reps;
+                    break;
+                case 'duration':
+                    achievementData.previousDuration = previousPR.duration;
+                    break;
+                case 'distance':
+                    achievementData.previousDistance = previousPR.distance;
+                    break;
+                case 'distance_time':
+                    achievementData.previousDistance = previousPR.distance;
+                    achievementData.previousDuration = previousPR.duration;
+                    break;
+                case 'duration_level':
+                    achievementData.previousDuration = previousPR.duration;
+                    achievementData.previousLevel = previousPR.level;
+                    break;
+            }
+        }
+
         return achievementData;
     };
 

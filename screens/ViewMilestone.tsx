@@ -226,35 +226,57 @@ export default function ViewMilestone() {
     if (!milestone) return null;
     
     if (milestone.milestoneType === 'PR') {
+      const { details } = milestone;
+      let improvementText: string | null = null;
+
+      // Calculate improvement percentage based on volume if possible
+      if (details.value != null && details.reps != null && details.previousValue != null && details.previousReps != null) {
+        const currentVolume = details.value * details.reps;
+        const previousVolume = details.previousValue * details.previousReps;
+        if (previousVolume > 0) {
+          const percentageImprovement = ((currentVolume - previousVolume) / previousVolume) * 100;
+          if (percentageImprovement > 0) {
+            improvementText = `+${percentageImprovement.toFixed(1)}%`;
+          }
+        }
+      } else if (details.improvement) {
+        // Fallback to the improvement value from the database if it exists
+        improvementText = details.improvement;
+      }
+
       return (
         <View style={styles.detailsContainer}>
           <View style={styles.detailRow}>
             <Text style={styles.detailLabel}>Exercise:</Text>
-            <Text style={styles.detailValue}>{milestone.details.exerciseName}</Text>
+            <Text style={styles.detailValue}>{details.exerciseName}</Text>
           </View>
           
           <View style={styles.detailRow}>
             <Text style={styles.detailLabel}>New PR:</Text>
             <Text style={styles.detailValue}>
-              <Text style={styles.highlightedValue}>{milestone.details.value} {milestone.details.weightUnit}</Text>
-              {milestone.details.reps > 1 ? ` × ${milestone.details.reps} reps` : ''}
+              <Text style={styles.highlightedValue}>{details.value} {details.weightUnit}</Text>
+              {details.reps != null && details.reps > 0 ? ` × ${details.reps} reps` : ''}
             </Text>
           </View>
           
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Previous:</Text>
-            <Text style={styles.detailValue}>
-              {milestone.details.previousValue} {milestone.details.weightUnit}
-              {milestone.details.previousReps > 1 ? ` × ${milestone.details.previousReps} reps` : ''}
-            </Text>
-          </View>
+          {details.previousValue != null && (
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Previous:</Text>
+              <Text style={styles.detailValue}>
+                {details.previousValue} {details.weightUnit}
+                {details.previousReps != null && details.previousReps > 0 ? ` × ${details.previousReps} reps` : ''}
+              </Text>
+            </View>
+          )}
           
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Improvement:</Text>
-            <Text style={styles.detailValue}>
-              <Text style={styles.improvementValue}>{milestone.details.improvement}</Text>
-            </Text>
-          </View>
+          {improvementText && (
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Improvement:</Text>
+              <Text style={styles.detailValue}>
+                <Text style={styles.improvementValue}>{improvementText}</Text>
+              </Text>
+            </View>
+          )}
         </View>
       );
     } else if (milestone.milestoneType === 'weightLoss' || milestone.milestoneType === 'weightGain') {
