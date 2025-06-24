@@ -9,7 +9,7 @@ import {
   Alert
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import ShareModal from '@/components/ShareModal';
 import { shareMilestone } from '@/services/ShareService';
@@ -54,7 +54,8 @@ export interface Milestone {
 
 export default function MilestonesFeed() {
   const router = useRouter();
-  const { currentUser } = useAuth();
+  const auth = useAuth() as any;
+  const currentUser = auth?.currentUser;
   const [shareModalVisible, setShareModalVisible] = useState(false);
   const milestoneToShare = useRef<Milestone | null>(null);
   const [milestones, setMilestones] = useState<Milestone[]>([
@@ -232,35 +233,57 @@ export default function MilestonesFeed() {
     if (milestone.milestoneType === 'PR') {
       return (
         <View style={styles.detailsContainer}>
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Exercise:</Text>
-            <Text style={styles.detailValue}>{milestone.details.exercise}</Text>
+          <View style={styles.previousPRCard}>
+            <View style={styles.previousPRHeader}>
+              <MaterialCommunityIcons name="trophy-outline" size={18} color="#FF5E69" />
+              <Text style={styles.previousPRTitle}>Personal Record</Text>
+              <Text style={styles.previousPRDate}>{formatTimeAgo(milestone.createdAt)}</Text>
+            </View>
+            
+            <View style={styles.previousPRContent}>
+              {/* Current PR Value */}
+              <View style={styles.prMetricsRow}>
+                <View style={styles.prMetricGroup}>
+                  <Text style={styles.prMetricValue}>{milestone.details.value}</Text>
+                  <Text style={styles.prMetricLabel}>{milestone.details.weightUnit}</Text>
+                </View>
+                {milestone.details.reps && (
+                  <>
+                    <Text style={styles.prMetricSeparator}>×</Text>
+                    <View style={styles.prMetricGroup}>
+                      <Text style={styles.prMetricValue}>{milestone.details.reps}</Text>
+                      <Text style={styles.prMetricLabel}>reps</Text>
+                    </View>
+                  </>
+                )}
+              </View>
+            </View>
           </View>
           
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>New PR:</Text>
-            <Text style={styles.detailValue}>
-              <Text style={styles.highlightedValue}>{milestone.details.value} {milestone.details.weightUnit}</Text>
-              {milestone.details.reps && milestone.details.reps > 1 ? ` × ${milestone.details.reps} reps` : ''}
-            </Text>
-          </View>
-          
+          {/* Previous Best Value (outside the card) */}
           {milestone.details.previousValue && (
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Previous:</Text>
-              <Text style={styles.detailValue}>
-                {milestone.details.previousValue} {milestone.details.weightUnit}
-                {milestone.details.previousReps && milestone.details.previousReps > 1 ? ` × ${milestone.details.previousReps} reps` : ''}
-              </Text>
+            <View style={styles.outsidePreviousBestRow}>
+              <Text style={styles.previousBestLabel}>Previous Best:</Text>
+              <View style={styles.prMetricGroup}>
+                <Text style={styles.previousBestValue}>{milestone.details.previousValue}</Text>
+                <Text style={styles.previousBestUnit}>{milestone.details.weightUnit}</Text>
+              </View>
+              {milestone.details.previousReps && (
+                <>
+                  <Text style={styles.previousBestSeparator}>×</Text>
+                  <View style={styles.prMetricGroup}>
+                    <Text style={styles.previousBestValue}>{milestone.details.previousReps}</Text>
+                    <Text style={styles.previousBestUnit}>reps</Text>
+                  </View>
+                </>
+              )}
             </View>
           )}
           
+          {/* Improvement Badge (outside the card) */}
           {milestone.details.improvement && (
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Improvement:</Text>
-              <Text style={styles.detailValue}>
-                <Text style={styles.improvementValue}>{milestone.details.improvement}</Text>
-              </Text>
+            <View style={styles.outsideImprovementBadge}>
+              <Text style={styles.improvementText}>+{milestone.details.improvement}</Text>
             </View>
           )}
         </View>
@@ -270,41 +293,40 @@ export default function MilestonesFeed() {
       
       return (
         <View style={styles.detailsContainer}>
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Type:</Text>
-            <Text style={styles.detailValue}>
-              {isLoss ? 'Weight Loss' : 'Weight Gain'}
-            </Text>
+          <View style={styles.previousPRCard}>
+            <View style={styles.previousPRHeader}>
+              <Ionicons name="fitness-outline" size={18} color="#FF5E69" />
+              <Text style={styles.previousPRTitle}>{isLoss ? 'Weight Loss' : 'Weight Gain'}</Text>
+              <Text style={styles.previousPRDate}>{formatTimeAgo(milestone.createdAt)}</Text>
+            </View>
+            
+            <View style={styles.previousPRContent}>
+              {/* Current Weight */}
+              <View style={styles.prMetricsRow}>
+                <View style={styles.prMetricGroup}>
+                  <Text style={styles.prMetricValue}>{milestone.details.newWeight}</Text>
+                  <Text style={styles.prMetricLabel}>{milestone.details.newWeightUnit}</Text>
+                </View>
+              </View>
+            </View>
           </View>
           
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>New Weight:</Text>
-            <Text style={styles.detailValue}>
-              <Text style={styles.highlightedValue}>
-                {milestone.details.newWeight} {milestone.details.newWeightUnit}
-              </Text>
-            </Text>
-          </View>
-          
+          {/* Previous Weight (outside the card) */}
           {milestone.details.previousWeight && (
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Previous:</Text>
-              <Text style={styles.detailValue}>
-                {milestone.details.previousWeight} {milestone.details.previousWeightUnit}
-              </Text>
+            <View style={styles.outsidePreviousBestRow}>
+              <Text style={styles.previousBestLabel}>Previous Weight:</Text>
+              <View style={styles.prMetricGroup}>
+                <Text style={styles.previousBestValue}>{milestone.details.previousWeight}</Text>
+                <Text style={styles.previousBestUnit}>{milestone.details.previousWeightUnit}</Text>
+              </View>
             </View>
           )}
           
+          {/* Total Change Badge (outside the card) */}
           {milestone.details.totalLoss && (
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>
-                {isLoss ? 'Total Loss:' : 'Total Gain:'}
-              </Text>
-              <Text style={styles.detailValue}>
-                <Text style={isLoss ? styles.lossValue : styles.gainValue}>
-                  {isLoss ? '-' : '+'}{milestone.details.totalLoss} {milestone.details.newWeightUnit}
-                  {milestone.details.percentageLoss && ` (${milestone.details.percentageLoss})`}
-                </Text>
+            <View style={styles.outsideImprovementBadge}>
+              <Text style={styles.improvementText}>
+                {isLoss ? '-' : '+'}{milestone.details.totalLoss} {milestone.details.newWeightUnit} ({milestone.details.percentageLoss})
               </Text>
             </View>
           )}
@@ -620,9 +642,9 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     paddingVertical: 2,
     alignItems: 'center',
-  },
-  detailsContainer: {
+  },  detailsContainer: {
     padding: 15,
+    paddingTop: 0,
     paddingBottom: 8,
   },
   detailRow: {
@@ -728,5 +750,123 @@ const styles = StyleSheet.create({
     color: 'gray',
     fontSize: 16,
     fontWeight: 'bold',
+  },  // Previous Best widget styles
+  previousPRCard: {
+    backgroundColor: '#1A1A1A',
+    borderRadius: 12,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#333',
+    overflow: 'hidden',
+  },
+  previousPRHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#333',
+    backgroundColor: '#222',
+  },
+  previousPRTitle: {
+    color: '#FFF',
+    fontSize: 15,
+    fontWeight: '600',
+    marginLeft: 6,
+    flex: 1,
+  },
+  previousPRDate: {
+    color: '#999',
+    fontSize: 12,
+  },
+  previousPRContent: {
+    padding: 12,
+    paddingBottom: 6,
+  },
+  prMetricsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: 4,
+  },
+  prMetricsColumn: {
+    alignItems: 'center',
+  },
+  prMetricGroup: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+  },
+  prMetricValue: {
+    color: '#FFF',
+    fontSize: 22,
+    fontWeight: '700',
+  },
+  prMetricLabel: {
+    color: '#999',
+    fontSize: 14,
+    marginLeft: 4,
+  },
+  prMetricSeparator: {
+    color: '#FF5E69',
+    fontSize: 18,
+    marginHorizontal: 8,
+  },
+  previousBestRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 6,
+    marginBottom: 8,
+  },
+  previousBestLabel: {
+    color: '#777',
+    fontSize: 13,
+    marginRight: 6,
+  },
+  previousBestValue: {
+    color: '#777',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  previousBestUnit: {
+    color: '#777',
+    fontSize: 12,
+    marginLeft: 2,
+  },
+  previousBestSeparator: {
+    color: '#777',
+    fontSize: 14,
+    marginHorizontal: 6,
+  },
+  improvementBadge: {
+    backgroundColor: '#4CD964',
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+    alignSelf: 'center',
+    marginTop: 6,
+    marginBottom: 4,
+  },
+  improvementText: {
+    color: '#000',
+    fontWeight: '600',
+    fontSize: 13,
+  },
+  // Style for elements outside the PR card
+  outsidePreviousBestRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+    marginTop: 6,
+    marginBottom: 4,
+  },
+  outsideImprovementBadge: {
+    backgroundColor: '#4CD964',
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+    alignSelf: 'flex-end',
+    marginTop: 2,
+    marginBottom: 8,
+    marginRight: 4,
   },
 });
