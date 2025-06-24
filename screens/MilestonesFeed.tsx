@@ -262,32 +262,25 @@ export default function MilestonesFeed() {
             </View>
           </View>
           
-          {/* Previous Best and Improvement Badge centered on the same row */}
-          {(milestone.details.previousValue || milestone.details.improvement) && (
+          {/* Previous Best only, improvement badge removed */}
+          {milestone.details.previousValue && (
             <View style={styles.centeredRow}>
-              {milestone.details.previousValue && (
-                <View style={styles.previousBestRow}>
-                  <Text style={styles.previousBestLabel}>Previous Best:</Text>
-                  <View style={styles.prMetricGroup}>
-                    <Text style={styles.previousBestValue}>{milestone.details.previousValue}</Text>
-                    <Text style={styles.previousBestUnit}>{milestone.details.weightUnit}</Text>
-                  </View>
-                  {milestone.details.previousReps && (
-                    <>
-                      <Text style={styles.previousBestSeparator}>×</Text>
-                      <View style={styles.prMetricGroup}>
-                        <Text style={styles.previousBestValue}>{milestone.details.previousReps}</Text>
-                        <Text style={styles.previousBestUnit}>reps</Text>
-                      </View>
-                    </>
-                  )}
+              <View style={styles.previousBestRow}>
+                <Text style={styles.previousBestLabel}>Previous Best:</Text>
+                <View style={styles.prMetricGroup}>
+                  <Text style={styles.previousBestValue}>{milestone.details.previousValue}</Text>
+                  <Text style={styles.previousBestUnit}>{milestone.details.weightUnit}</Text>
                 </View>
-              )}
-              {milestone.details.improvement && (
-                <View style={styles.centeredImprovementBadge}>
-                  <Text style={styles.improvementText}>+{milestone.details.improvement}</Text>
-                </View>
-              )}
+                {milestone.details.previousReps && (
+                  <>
+                    <Text style={styles.previousBestSeparator}>×</Text>
+                    <View style={styles.prMetricGroup}>
+                      <Text style={styles.previousBestValue}>{milestone.details.previousReps}</Text>
+                      <Text style={styles.previousBestUnit}>reps</Text>
+                    </View>
+                  </>
+                )}
+              </View>
             </View>
           )}
         </View>
@@ -827,22 +820,22 @@ const styles = StyleSheet.create({
   },
   previousBestLabel: {
     color: '#777',
-    fontSize: 14,
+    fontSize: 12,
     marginRight: 6,
   },
   previousBestValue: {
     color: '#777',
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
   },
   previousBestUnit: {
     color: '#777',
-    fontSize: 14,
+    fontSize: 12,
     marginLeft: 2,
   },
   previousBestSeparator: {
     color: '#777',
-    fontSize: 14,
+    fontSize: 12,
     marginHorizontal: 6,
   },
   improvementBadge: {
