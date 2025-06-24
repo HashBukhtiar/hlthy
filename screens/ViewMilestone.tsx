@@ -864,8 +864,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   previousPRContent: {
-    padding: 16,
-    paddingBottom: 12,
+    padding: 14,
   },
   prMetricsRow: {
     flexDirection: 'row',
