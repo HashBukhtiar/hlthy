@@ -308,23 +308,16 @@ export default function MilestonesFeed() {
             </View>
           </View>
           
-          {/* Previous Weight (outside the card) */}
+          {/* Previous Weight centered, styled like PR previous best */}
           {milestone.details.previousWeight && (
-            <View style={styles.outsidePreviousBestRow}>
-              <Text style={styles.previousBestLabel}>Previous Weight:</Text>
-              <View style={styles.prMetricGroup}>
-                <Text style={styles.previousBestValue}>{milestone.details.previousWeight}</Text>
-                <Text style={styles.previousBestUnit}>{milestone.details.previousWeightUnit}</Text>
+            <View style={styles.centeredRow}>
+              <View style={styles.previousBestRow}>
+                <Text style={styles.previousBestLabel}>Previous Weight:</Text>
+                <View style={styles.prMetricGroup}>
+                  <Text style={styles.previousBestValue}>{milestone.details.previousWeight}</Text>
+                  <Text style={styles.previousBestUnit}>{milestone.details.previousWeightUnit}</Text>
+                </View>
               </View>
-            </View>
-          )}
-          
-          {/* Total Change Badge (outside the card) */}
-          {milestone.details.totalLoss && (
-            <View style={styles.outsideImprovementBadge}>
-              <Text style={styles.improvementText}>
-                {isLoss ? '-' : '+'}{milestone.details.totalLoss} {milestone.details.newWeightUnit} ({milestone.details.percentageLoss})
-              </Text>
             </View>
           )}
         </View>
