@@ -262,30 +262,32 @@ export default function MilestonesFeed() {
             </View>
           </View>
           
-          {/* Previous Best Value (centered) */}
-          {milestone.details.previousValue && (
+          {/* Previous Best and Improvement Badge centered on the same row */}
+          {(milestone.details.previousValue || milestone.details.improvement) && (
             <View style={styles.centeredRow}>
-              <Text style={styles.previousBestLabel}>Previous Best:</Text>
-              <View style={styles.prMetricGroup}>
-                <Text style={styles.previousBestValue}>{milestone.details.previousValue}</Text>
-                <Text style={styles.previousBestUnit}>{milestone.details.weightUnit}</Text>
-              </View>
-              {milestone.details.previousReps && (
-                <>
-                  <Text style={styles.previousBestSeparator}>×</Text>
+              {milestone.details.previousValue && (
+                <View style={styles.previousBestRow}>
+                  <Text style={styles.previousBestLabel}>Previous Best:</Text>
                   <View style={styles.prMetricGroup}>
-                    <Text style={styles.previousBestValue}>{milestone.details.previousReps}</Text>
-                    <Text style={styles.previousBestUnit}>reps</Text>
+                    <Text style={styles.previousBestValue}>{milestone.details.previousValue}</Text>
+                    <Text style={styles.previousBestUnit}>{milestone.details.weightUnit}</Text>
                   </View>
-                </>
+                  {milestone.details.previousReps && (
+                    <>
+                      <Text style={styles.previousBestSeparator}>×</Text>
+                      <View style={styles.prMetricGroup}>
+                        <Text style={styles.previousBestValue}>{milestone.details.previousReps}</Text>
+                        <Text style={styles.previousBestUnit}>reps</Text>
+                      </View>
+                    </>
+                  )}
+                </View>
               )}
-            </View>
-          )}
-          
-          {/* Improvement Badge */}
-          {milestone.details.improvement && (
-            <View style={styles.centeredImprovementBadge}>
-              <Text style={styles.improvementText}>+{milestone.details.improvement}</Text>
+              {milestone.details.improvement && (
+                <View style={styles.centeredImprovementBadge}>
+                  <Text style={styles.improvementText}>+{milestone.details.improvement}</Text>
+                </View>
+              )}
             </View>
           )}
         </View>
@@ -750,11 +752,11 @@ const styles = StyleSheet.create({
     color: 'gray',
     fontSize: 16,
     fontWeight: 'bold',
-  },  // Previous Best widget styles
+  },
   previousPRCard: {
     backgroundColor: '#1A1A1A',
     borderRadius: 12,
-    marginBottom: 10,
+    marginBottom: 4,
     borderWidth: 1,
     borderColor: '#333',
     overflow: 'hidden',
@@ -803,17 +805,17 @@ const styles = StyleSheet.create({
   },
   prMetricValue: {
     color: '#FFF',
-    fontSize: 22,
+    fontSize: 26,
     fontWeight: '700',
   },
   prMetricLabel: {
     color: '#999',
-    fontSize: 14,
+    fontSize: 16,
     marginLeft: 4,
   },
   prMetricSeparator: {
     color: '#FF5E69',
-    fontSize: 18,
+    fontSize: 20,
     marginHorizontal: 8,
   },
   previousBestRow: {
@@ -825,17 +827,17 @@ const styles = StyleSheet.create({
   },
   previousBestLabel: {
     color: '#777',
-    fontSize: 13,
+    fontSize: 14,
     marginRight: 6,
   },
   previousBestValue: {
     color: '#777',
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '600',
   },
   previousBestUnit: {
     color: '#777',
-    fontSize: 12,
+    fontSize: 14,
     marginLeft: 2,
   },
   previousBestSeparator: {
@@ -881,14 +883,23 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: 6,
     marginBottom: 4,
+    gap: 12,
   },
   centeredImprovementBadge: {
     backgroundColor: '#4CD964',
     paddingVertical: 4,
     paddingHorizontal: 10,
     borderRadius: 12,
-    alignSelf: 'center',
-    marginTop: 2,
-    marginBottom: 8,
+    marginLeft: 10,
+    marginTop: 0,
+    marginBottom: 0,
+  },
+  rowBetween: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 6,
+    marginBottom: 4,
+    gap: 8,
   },
 });
