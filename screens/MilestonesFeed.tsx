@@ -234,9 +234,11 @@ export default function MilestonesFeed() {
       return (
         <View style={styles.detailsContainer}>
           <View style={styles.previousPRCard}>
-            <View style={styles.previousPRHeader}>
+            <View style={styles.previousPRHeaderNoLine}>
               <MaterialCommunityIcons name="trophy-outline" size={18} color="#FF5E69" />
-              <Text style={styles.previousPRTitle}>Personal Record</Text>
+              <Text style={styles.previousPRTitle}>
+                {milestone.details.exercise || 'Personal Record'}
+                </Text>
               <Text style={styles.previousPRDate}>{formatTimeAgo(milestone.createdAt)}</Text>
             </View>
             
@@ -260,9 +262,9 @@ export default function MilestonesFeed() {
             </View>
           </View>
           
-          {/* Previous Best Value (outside the card) */}
+          {/* Previous Best Value (centered) */}
           {milestone.details.previousValue && (
-            <View style={styles.outsidePreviousBestRow}>
+            <View style={styles.centeredRow}>
               <Text style={styles.previousBestLabel}>Previous Best:</Text>
               <View style={styles.prMetricGroup}>
                 <Text style={styles.previousBestValue}>{milestone.details.previousValue}</Text>
@@ -280,9 +282,9 @@ export default function MilestonesFeed() {
             </View>
           )}
           
-          {/* Improvement Badge (outside the card) */}
+          {/* Improvement Badge */}
           {milestone.details.improvement && (
-            <View style={styles.outsideImprovementBadge}>
+            <View style={styles.centeredImprovementBadge}>
               <Text style={styles.improvementText}>+{milestone.details.improvement}</Text>
             </View>
           )}
@@ -592,8 +594,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#333',
   },
   milestoneIconContainer: {
     width: 50,
@@ -767,6 +767,12 @@ const styles = StyleSheet.create({
     borderBottomColor: '#333',
     backgroundColor: '#222',
   },
+  previousPRHeaderNoLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    backgroundColor: '#222',
+  },
   previousPRTitle: {
     color: '#FFF',
     fontSize: 15,
@@ -868,5 +874,21 @@ const styles = StyleSheet.create({
     marginTop: 2,
     marginBottom: 8,
     marginRight: 4,
+  },
+  centeredRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 6,
+    marginBottom: 4,
+  },
+  centeredImprovementBadge: {
+    backgroundColor: '#4CD964',
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+    alignSelf: 'center',
+    marginTop: 2,
+    marginBottom: 8,
   },
 });
