@@ -244,14 +244,14 @@ export default function ViewMilestone() {
           </View>
           
           {/* Previous Best Value (outside the card) */}
-          {milestone.details.previousValue && (
+          {milestone.details.previousValue != null && (
             <View style={styles.outsidePreviousBestRow}>
               <Text style={styles.previousBestLabel}>Previous Best:</Text>
               <View style={styles.prMetricGroup}>
                 <Text style={styles.previousBestValue}>{milestone.details.previousValue}</Text>
                 <Text style={styles.previousBestUnit}>{milestone.details.weightUnit}</Text>
               </View>
-              {milestone.details.previousReps && (
+              {milestone.details.previousReps != null && (
                 <>
                   <Text style={styles.previousBestSeparator}>×</Text>
                   <View style={styles.prMetricGroup}>
@@ -742,7 +742,6 @@ const styles = StyleSheet.create({
   scrollViewContent: {
     paddingBottom: 70,
   },
-  // Previous Best widget styles
   previousPRCard: {
     backgroundColor: '#1A1A1A',
     borderRadius: 12,
@@ -841,7 +840,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 14,
   },
-  // Style merged with first declaration
   outsidePreviousBestRow: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -3,7 +3,7 @@ import { View, ScrollView, Text, Image, StyleSheet, Dimensions, FlatList, Toucha
 import { useRouter } from 'expo-router';
 import { useProfileData, GroupedMilestones, Milestone } from '@/hooks/useProfileData';
 import { useAuth } from '@/context/AuthContext';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { formatCount } from '@/logic/formattingFunctions';
 import { BOTTOM_BAR_HEIGHT } from '@/styles/globalStyles';
 
@@ -101,42 +101,75 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
     extrapolate: 'clamp'
   });
 
+  const formatTimeAgo = (date: any) => {
+    if (!date) return 'Just now';
+    const dateObj = date.toDate ? date.toDate() : new Date(date);
+    
+    const seconds = Math.floor((new Date().getTime() - dateObj.getTime()) / 1000);
+    
+    if (seconds < 60) return `${seconds}s ago`;
+    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+    if (seconds < 604800) return `${Math.floor(seconds / 86400)}d ago`;
+    
+    return dateObj.toLocaleDateString();
+  };
+
   const renderMilestoneDetails = (milestone: { milestoneType: string, details: any }) => {
+    // Parse weight string like "275 lbs" into value and unit
+    const weightString = milestone.details.weight || '';
+    const weightParts = weightString.split(' ');
+    const weightValue = weightParts[0] || '';
+    const weightUnit = weightParts.length > 1 ? weightParts[1] : '';
+
     if (milestone.milestoneType === 'PR') {
       return (
-        <View style={styles.detailsContainer}>
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Exercise:</Text>
-            <Text style={styles.detailValue}>
-              {milestone.details.exerciseName && milestone.details.exerciseName !== "Unknown Exercise"
-                ? milestone.details.exerciseName
-                : "Personal Record"}
-            </Text>
-          </View>
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>New PR:</Text>
-            <Text style={styles.detailValue}>
-              <Text style={styles.highlightedValue}>{milestone.details.weight}</Text>
-              {milestone.details.reps && milestone.details.reps > 1 ? ` × ${milestone.details.reps} reps` : ''}
-            </Text>
-          </View>
+        <View style={styles.previousPRCard}>
+            <View style={styles.previousPRHeader}>
+              <MaterialCommunityIcons name="trophy-outline" size={18} color="#FF5E69" />
+              <Text style={styles.previousPRTitle}>
+                {milestone.details.exerciseName || 'Personal Record'}
+              </Text>
+              <Text style={styles.previousPRDate}>{formatTimeAgo(milestone.details.date)}</Text>
+            </View>
+            
+            <View style={styles.previousPRContent}>
+              <View style={styles.prMetricsRow}>
+                <View style={styles.prMetricGroup}>
+                  <Text style={styles.prMetricValue}>{weightValue}</Text>
+                  <Text style={styles.prMetricLabel}>{weightUnit}</Text>
+                </View>
+                {milestone.details.reps != null && (
+                  <>
+                    <Text style={styles.prMetricSeparator}>×</Text>
+                    <View style={styles.prMetricGroup}>
+                      <Text style={styles.prMetricValue}>{milestone.details.reps}</Text>
+                      <Text style={styles.prMetricLabel}>reps</Text>
+                    </View>
+                  </>
+                )}
+              </View>
+            </View>
         </View>
       );
     } else if (milestone.milestoneType === 'weightLoss' || milestone.milestoneType === 'weightGain') {
+      const isLoss = milestone.milestoneType === 'weightLoss';
       return (
-        <View style={styles.detailsContainer}>
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Type:</Text>
-            <Text style={styles.detailValue}>
-              {milestone.milestoneType === 'weightLoss' ? 'Weight Loss' : 'Weight Gain'}
-            </Text>
-          </View>
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>New Weight:</Text>
-            <Text style={styles.detailValue}>
-              <Text style={styles.highlightedValue}>{milestone.details.weight}</Text>
-            </Text>
-          </View>
+        <View style={styles.previousPRCard}>
+            <View style={styles.previousPRHeader}>
+              <Ionicons name="fitness-outline" size={18} color="#FF5E69" />
+              <Text style={styles.previousPRTitle}>{isLoss ? 'Weight Loss' : 'Weight Gain'}</Text>
+              <Text style={styles.previousPRDate}>{formatTimeAgo(milestone.details.date)}</Text>
+            </View>
+            
+            <View style={styles.previousPRContent}>
+              <View style={styles.prMetricsRow}>
+                <View style={styles.prMetricGroup}>
+                  <Text style={styles.prMetricValue}>{weightValue}</Text>
+                  <Text style={styles.prMetricLabel}>{weightUnit}</Text>
+                </View>
+              </View>
+            </View>
         </View>
       );
     }
@@ -296,7 +329,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
     if (monthKeys.length === 0) {
       return (
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20, minHeight: 200 }}>
-          <Text style={{ color: 'gray', textAlign: 'center' }}>No milestones yet. Add a post with a milestone to see it here.</Text>
+          <Text style={{ color: 'gray', textAlign: 'center' }}>No milestones yet. Add a milestone to see it here.</Text>
            <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
@@ -1053,6 +1086,60 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  previousPRCard: {
+    backgroundColor: '#1c1c1e',
+    borderRadius: 12,
+    marginVertical: 5,
+    marginHorizontal: 10,
+    overflow: 'hidden',
+  },
+  previousPRHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#333',
+    backgroundColor: '#222',
+  },
+  previousPRTitle: {
+    color: '#FFF',
+    fontSize: 15,
+    fontWeight: '600',
+    marginLeft: 8,
+    flex: 1,
+  },
+  previousPRDate: {
+    color: '#999',
+    fontSize: 12,
+  },
+  previousPRContent: {
+    padding: 14,
+  },
+  prMetricsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: 4,
+  },
+  prMetricGroup: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+  },
+  prMetricValue: {
+    color: '#FFF',
+    fontSize: 26,
+    fontWeight: '700',
+  },
+  prMetricLabel: {
+    color: '#999',
+    fontSize: 14,
+    marginLeft: 4,
+  },
+  prMetricSeparator: {
+    color: '#FF5E69',
+    fontSize: 20,
+    marginHorizontal: 8,
   },
   milestoneItemCard: {
     backgroundColor: '#1c1c1e',
