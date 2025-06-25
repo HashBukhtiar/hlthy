@@ -31,6 +31,8 @@ export const fetchPreviousPRService = async (userId: string, exercise: Exercise)
         const querySnapshot = await getDocs(q);
         const milestones = querySnapshot.docs.map(doc => doc.data().milestoneDetails);
 
+        console.log("Fetched milestone details from service:", milestones);
+
         if (milestones.length === 0) {
             return null;
         }
@@ -89,14 +91,35 @@ export const fetchPreviousPRService = async (userId: string, exercise: Exercise)
 
         if (bestPR) {
             const prData: PreviousPRData = {
-                weight: bestPR.value,
-                reps: bestPR.reps,
-                distance: bestPR.value,
-                duration: bestPR.duration,
-                level: bestPR.level,
-                date: bestPR.achievedAt ? new Date(bestPR.achievedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A',
+                date: bestPR.achievedAt ? bestPR.achievedAt.toDate().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A',
                 isPR: true,
             };
+
+            switch (exercise.metricType) {
+                case 'weight_reps':
+                    prData.weight = bestPR.value;
+                    prData.reps = bestPR.reps;
+                    break;
+                case 'bodyweight_reps':
+                    prData.reps = bestPR.reps;
+                    break;
+                case 'distance':
+                    prData.distance = bestPR.value;
+                    break;
+                case 'duration':
+                    prData.duration = bestPR.duration;
+                    break;
+                case 'distance_time':
+                    prData.distance = bestPR.value;
+                    prData.duration = bestPR.duration;
+                    break;
+                case 'duration_level':
+                    prData.duration = bestPR.duration;
+                    prData.level = bestPR.level;
+                    break;
+            }
+            
+            console.log("Returning Previous PR Data from service:", prData);
             return prData;
         }
 

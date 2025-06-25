@@ -389,179 +389,104 @@ export default function MilestoneWithPost({ onBack }: MilestoneWithPostProps) {
         );
     };
 
-    // Validate and prepare achievement data based on exercise type
-    const validateAndPrepareAchievementData = () => {
+    const handleSubmitPost = async () => {
+        // Validation for both post and achievement fields
+        if (!imageUri && !caption.trim()) {
+            setFormError("Please add an image or a caption for your post");
+            return;
+        }
         if (!selectedExercise) {
             setFormError("Please select an exercise first");
-            return null;
+            return;
         }
-        
-        const metricType = selectedExercise.metricType;
-        // Ensure this matches the ClientMilestoneDetails interface in usePostsData.tsx
-        const achievementData: { 
-            type: 'PR' | 'weightLoss' | 'weightGain';
-            exerciseName?: string;
-            exerciseId?: string;
-            value?: number | string | null;
-            reps?: number | null;
-            duration?: number | null;
-            level?: string | null;
-            newWeight?: number | string | null;
-            previousWeight?: number | string | null;
-            weightUnit?: string | null;
-            achievedAt?: string | null;
-            previousValue?: number | null;
-            previousReps?: number | null;
-            previousDuration?: number | null;
-            previousLevel?: number | null;
-            previousDistance?: number | null;
-        } = {
-            type: 'PR',
-            exerciseName: selectedExercise.name,
-            exerciseId: selectedExercise.id,
-            achievedAt: new Date().toISOString(),
-        };
-            switch (metricType) {
-            case 'weight_reps':
-                if (!weight || !reps) {
-                    setFormError("Please enter both weight and reps");
-                    return null;
-                }
-                achievementData.value = parseFloat(weight);
-                achievementData.reps = parseInt(reps);
-                achievementData.weightUnit = 'lbs';
-                break;
-                
-            case 'bodyweight_reps':
-                if (!reps) {
-                    setFormError("Please enter number of reps");
-                    return null;
-                }
-                achievementData.reps = parseInt(reps);
-                
-                break;
-                
-            case 'duration':
-                if (!hours && !minutes && !seconds) {
-                    setFormError("Please enter a duration");
-                    return null;
-                }
-                const totalSeconds = 
-                    (parseInt(hours || '0') * 3600) + 
-                    (parseInt(minutes || '0') * 60) + 
-                    parseInt(seconds || '0');
-                achievementData.duration = totalSeconds;
-                achievementData.value = totalSeconds;
-                break;
-                
-            case 'distance':
-                if (!distance) {
-                    setFormError("Please enter a distance");
-                    return null;
-                }
-                achievementData.value = parseFloat(distance);
-                achievementData.weightUnit = 'miles';
-                break;
-                
-            case 'distance_time':
-                if (!distance) {
-                    setFormError("Please enter a distance");
-                    return null;
-                }
-                if (!hours && !minutes && !seconds) {
-                    setFormError("Please enter a time");
-                    return null;
-                }
-                const timeSeconds = 
-                    (parseInt(hours || '0') * 3600) + 
-                    (parseInt(minutes || '0') * 60) + 
-                    parseInt(seconds || '0');
-                achievementData.value = parseFloat(distance);
-                achievementData.duration = timeSeconds;
-                achievementData.weightUnit = 'miles';
-                break;
-                
-            case 'duration_level':
-                if (!hours && !minutes && !seconds) {
-                    setFormError("Please enter a duration");
-                    return null;
-                }
-                if (!level) {
-                    setFormError("Please enter a difficulty level");
-                    return null;
-                }
-                const durationSeconds = 
-                    (parseInt(hours || '0') * 3600) + 
-                    (parseInt(minutes || '0') * 60) + 
-                    parseInt(seconds || '0');
-                achievementData.duration = durationSeconds;
-                achievementData.level = level;
-                achievementData.value = durationSeconds;
-                break;
-                
-            default:
-                setFormError("Unsupported exercise type");
-                return null;
-        } 
-        
-        if (previousPR) {
+
+        setIsSubmitting(true);
+        setFormError(null);
+
+        try {
+            const metricType = selectedExercise.metricType;
+            const milestoneDetails: any = {
+                type: 'PR',
+                exerciseName: selectedExercise.name,
+                exerciseId: selectedExercise.id,
+                achievedAt: new Date().toISOString(),
+                previousValue: null,
+                previousReps: null,
+                previousDuration: null,
+                previousLevel: null,
+                previousDistance: null,
+            };
+
+            // Validate and assign metric-specific values
             switch (metricType) {
                 case 'weight_reps':
-                    achievementData.previousValue = previousPR.weight;
-                    achievementData.previousReps = previousPR.reps;
+                    if (!weight || !reps) {
+                        throw new Error("Please enter both weight and reps");
+                    }
+                    milestoneDetails.value = parseFloat(weight);
+                    milestoneDetails.reps = parseInt(reps, 10);
+                    milestoneDetails.weightUnit = 'lbs';
+                    if (previousPR) {
+                        milestoneDetails.previousValue = previousPR.weight;
+                        milestoneDetails.previousReps = previousPR.reps;
+                    }
                     break;
                 case 'bodyweight_reps':
-                    achievementData.previousReps = previousPR.reps;
+                    if (!reps) {
+                        throw new Error("Please enter number of reps");
+                    }
+                    milestoneDetails.reps = parseInt(reps, 10);
+                    if (previousPR) {
+                        milestoneDetails.previousReps = previousPR.reps;
+                    }
                     break;
                 case 'duration':
-                    achievementData.previousDuration = previousPR.duration;
+                case 'duration_level':
+                    const durationSeconds = (parseInt(hours || '0') * 3600) + (parseInt(minutes || '0') * 60) + parseInt(seconds || '0');
+                    if (durationSeconds <= 0) {
+                        throw new Error("Please enter a valid duration");
+                    }
+                    milestoneDetails.duration = durationSeconds;
+                    milestoneDetails.value = durationSeconds;
+                    if (metricType === 'duration_level') {
+                        if (!level) {
+                            throw new Error("Please enter a difficulty level");
+                        }
+                        milestoneDetails.level = level;
+                    }
+                    if (previousPR) {
+                        milestoneDetails.previousDuration = previousPR.duration;
+                        milestoneDetails.previousLevel = previousPR.level;
+                    }
                     break;
                 case 'distance':
-                    achievementData.previousDistance = previousPR.distance;
-                    break;
                 case 'distance_time':
-                    achievementData.previousDistance = previousPR.distance;
-                    achievementData.previousDuration = previousPR.duration;
+                    if (!distance) {
+                        throw new Error("Please enter a distance");
+                    }
+                    milestoneDetails.value = parseFloat(distance);
+                    milestoneDetails.weightUnit = 'miles';
+                    if (metricType === 'distance_time') {
+                        const timeSeconds = (parseInt(hours || '0') * 3600) + (parseInt(minutes || '0') * 60) + parseInt(seconds || '0');
+                        if (timeSeconds <= 0) {
+                            throw new Error("Please enter a valid time for the distance");
+                        }
+                        milestoneDetails.duration = timeSeconds;
+                    }
+                    if (previousPR) {
+                        milestoneDetails.previousDistance = previousPR.distance;
+                        milestoneDetails.previousDuration = previousPR.duration;
+                    }
                     break;
-                case 'duration_level':
-                    achievementData.previousDuration = previousPR.duration;
-                    achievementData.previousLevel = previousPR.level;
-                    break;
+                default:
+                    throw new Error("Unsupported exercise type");
             }
-        }
 
-        return achievementData;
-    };
-
-    const handleSubmitPost = async () => {
-        try {
-            // Validation for both post and achievement fields
-            if (!imageUri && !caption.trim()) {
-                setFormError("Please add an image or a caption for your post");
-                return;
-            }
-            
-            const achievementDetails = validateAndPrepareAchievementData();
-            if (!achievementDetails) {
-                return;
-            }
-            
-            setIsSubmitting(true);
-            setFormError(null);
-            
-            // Ensure postData matches NewPostData interface from usePostsData
-            const postData: {
-                caption?: string;
-                imageUri?: string;
-                isMilestone: boolean;
-                milestoneDetails?: typeof achievementDetails;
-                visibility: 'public' | 'followers';
-                workoutId?: string | null;
-            } = {
+            const postData = {
                 caption: caption.trim(),
                 imageUri: imageUri ?? undefined,
                 isMilestone: true,
-                milestoneDetails: achievementDetails,
+                milestoneDetails: milestoneDetails,
                 visibility: (valueVisibility as 'public' | 'followers') || 'public',
                 workoutId: selectedWorkout?.id || null
             };
@@ -569,14 +494,12 @@ export default function MilestoneWithPost({ onBack }: MilestoneWithPostProps) {
             const postId = await addPost(postData);
             console.log("Successfully created achievement post with ID:", postId);
             Alert.alert('Success', 'Your achievement has been shared!', [
-                { text: 'OK', onPress: () => {
-                    console.log("Navigating back to home after achievement post creation");
-                    router.push('/');
-                }}
+                { text: 'OK', onPress: () => router.push('/') }
             ]);
-        } catch (error) {
+
+        } catch (error: any) {
             console.error('Error creating achievement post:', error);
-            setFormError('Failed to share achievement. Please try again.');
+            setFormError(error.message || 'Failed to share achievement. Please try again.');
         } finally {
             setIsSubmitting(false);
         }

@@ -299,6 +299,8 @@ export const createMilestonePost = onCall(
     const userId = request.auth.uid;
     const data = request.data;
 
+    console.log("createMilestonePost received milestoneDetails:", JSON.stringify(data.milestoneDetails, null, 2));
+
     // Basic validation
     if (!data.milestoneDetails || !data.milestoneDetails.type) {
       throw new HttpsError(
@@ -344,6 +346,10 @@ export const createMilestonePost = onCall(
         achievedAt: data.milestoneDetails.achievedAt ? admin.firestore.Timestamp.fromDate(new Date(data.milestoneDetails.achievedAt)) : admin.firestore.FieldValue.serverTimestamp(),
         improvementPercentage: data.milestoneDetails.improvementPercentage !== undefined ? data.milestoneDetails.improvementPercentage : null,
         previousValue: data.milestoneDetails.previousValue !== undefined ? data.milestoneDetails.previousValue : null,
+        previousReps: data.milestoneDetails.previousReps !== undefined ? data.milestoneDetails.previousReps : null,
+        previousDuration: data.milestoneDetails.previousDuration !== undefined ? data.milestoneDetails.previousDuration : null,
+        previousLevel: data.milestoneDetails.previousLevel !== undefined ? data.milestoneDetails.previousLevel : null,
+        previousDistance: data.milestoneDetails.previousDistance !== undefined ? data.milestoneDetails.previousDistance : null,
         totalLoss: data.milestoneDetails.totalLoss !== undefined ? data.milestoneDetails.totalLoss : null,
         totalGain: data.milestoneDetails.totalGain !== undefined ? data.milestoneDetails.totalGain : null,
       },
@@ -353,6 +359,8 @@ export const createMilestonePost = onCall(
       // Add any other fields your posts collection normally has
       // e.g., workoutId: data.workoutId || null,
     };
+
+    console.log("Final postPayload being saved: ", JSON.stringify(postPayload, null, 2));
 
     try {
       const docRef = await db.collection("posts").add(postPayload);

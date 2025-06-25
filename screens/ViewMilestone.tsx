@@ -211,6 +211,7 @@ export default function ViewMilestone() {
   };
 
   const renderMilestoneDetails = () => {
+    console.log("Milestone details:", milestone.details);
     if (!milestone) return null;
     
     if (milestone.milestoneType === 'PR') {
@@ -242,7 +243,6 @@ export default function ViewMilestone() {
               </View>
             </View>
           </View>
-          
           {/* Previous Best Value (outside the card) */}
           {milestone.details.previousValue != null && (
             <View style={styles.outsidePreviousBestRow}>
