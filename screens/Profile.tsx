@@ -112,7 +112,11 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
     if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
     if (seconds < 604800) return `${Math.floor(seconds / 86400)}d ago`;
     
-    return dateObj.toLocaleDateString();
+    return dateObj.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
   };
 
   const renderMilestoneDetails = (milestone: { milestoneType: string, details: any }) => {
