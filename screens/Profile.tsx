@@ -1094,8 +1094,6 @@ const styles = StyleSheet.create({
   previousPRCard: {
     backgroundColor: '#1c1c1e',
     borderRadius: 12,
-    marginVertical: 5,
-    marginHorizontal: 10,
     overflow: 'hidden',
   },
   previousPRHeader: {
