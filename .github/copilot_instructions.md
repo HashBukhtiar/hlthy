@@ -58,7 +58,7 @@ The goal is to **motivate people to move** by blending personal health goals wit
   - We have our own select exercise page where users can search for exercises for milestones and workouts.
 
 - **Workouts**
-  - In this page, users can browse other workouts from their following, favourited wokouts, trending workouts, or their own workouts.
+  - In this page, users can browse other workouts from their following, favourited workouts, trending workouts, or their own workouts.
   - Users can create their own workouts from this page.
 
 - **Profiles**
