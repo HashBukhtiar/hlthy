@@ -159,7 +159,7 @@ You are part of a lean, fast-moving dev team building a mobile-first app that co
 
 If you notice potential future issues, anti-patterns, inconsistencies, or risky architectural decisions — flag them clearly and explain why they may be problematic.
 
-While these guidelines define hlthy’s intended structure and design, you are encouraged to use your judgment and creativity. If a suggestion clearly improves usability, performance, or user experience — even if it slightly deviates from the rules — propose it along with a short explanation. Balance consistency with innovation.
+While the given prompt and these guidelines define hlthy’s intended structure and design, you are encouraged to use your judgment and creativity. If a suggestion clearly improves usability, performance, or user experience — even if it slightly deviates from the rules — propose it along with a short explanation. Balance consistency with innovation.
 
 _Last updated: 2025-06-25_
 
