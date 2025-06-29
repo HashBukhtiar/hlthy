@@ -77,10 +77,15 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
     unfollowUser,
     followActionLoading,
     viewedProfileId,
-    createdWorkouts,
     savedWorkouts,
     loadingWorkouts,
   } = useProfileData(routeUserId);
+
+  const displayablePosts = useMemo(() => {
+    if (!posts) return [];
+    // Filter out posts that are only milestones and have no image to display in the grid.
+    return posts.filter(post => !!post.imageUrl);
+  }, [posts]);
 
   const [refreshing, setRefreshing] = useState(false);
   const router = useRouter();
@@ -294,7 +299,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
   const renderPostsContent = useCallback(() => (
     <FlatList
       key="posts-grid"
-      data={posts}
+      data={displayablePosts}
       renderItem={({ item }) => (
         <TouchableOpacity onPress={() => handleImagePress(item)}>
           <Image source={{ uri: item.imageUrl }} style={styles.postImage} />
@@ -316,7 +321,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
         />
       }
     />
-  ), [posts, refreshing, handleImagePress, onRefresh]);
+  ), [displayablePosts, refreshing, handleImagePress, onRefresh]);
 
   const renderMilestonesContent = useCallback(() => {
     // Log the entire groupedMilestones object
@@ -511,7 +516,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
         onPress={() => scrollToTab(TabType.POSTS)}
       >
         <Text style={[styles.tabButtonText, activeTab === TabType.POSTS && styles.activeTabButtonText]}>
-          POSTS {posts ? `(${formatCount(posts.length)})` : '(0)'}
+          POSTS {displayablePosts ? `(${formatCount(displayablePosts.length)})` : '(0)'}
         </Text>
       </TouchableOpacity>
       <TouchableOpacity 
