@@ -14,6 +14,7 @@ import {
     FlatList
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { MediaType } from 'expo-image-picker';
 import { Dropdown } from 'react-native-element-dropdown';
 import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -135,7 +136,7 @@ export const useImagePicker = () => {
         }
 
         const result = await ImagePicker.launchCameraAsync({
-            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            mediaTypes: [MediaType.Image],
             allowsEditing: true,
             aspect: [4, 3],
             quality: 1,
@@ -158,7 +159,7 @@ export const useImagePicker = () => {
         }
 
         const result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            mediaTypes: [MediaType.Image],
             allowsEditing: true,
             aspect: [4, 3],
             quality: 1,
