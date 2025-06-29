@@ -17,6 +17,21 @@ export interface UserInfo {
   photoURL?: string | null;
 }
 
+// Helper function to sanitize undefined values from an object
+const sanitizeObject = (obj: any): any => {
+  if (obj === null || typeof obj !== 'object') {
+    return obj;
+  }
+  const newObj: { [key: string]: any } = {};
+  for (const key in obj) {
+    if (Object.prototype.hasOwnProperty.call(obj, key)) {
+      const value = obj[key];
+      newObj[key] = value === undefined ? null : value;
+    }
+  }
+  return newObj;
+};
+
 // Helper function to generate conversation ID
 export const generateConversationId = (userId1: string, userId2: string): string => {
   const sortedIds = [userId1, userId2].sort();
@@ -167,6 +182,9 @@ export const shareMilestone = async (
       recipientProfileImageUrl
     );
 
+    // Sanitize the details object to remove undefined values
+    const sanitizedDetails = sanitizeObject(milestone.details);
+
     // Add message with shared milestone
     await addDoc(collection(db, "conversations", conversationId, "messages"), {
       senderId: currentUser.uid,
@@ -178,7 +196,7 @@ export const shareMilestone = async (
       sharedMilestone: {
         id: milestone.id,
         type: milestone.milestoneType,
-        details: milestone.details,
+        details: sanitizedDetails, 
         username: milestone.username || currentUser.displayName,
       }
     });

@@ -104,6 +104,8 @@ export default function ShareModal({ visible, onClose, onShareWith }: ShareModal
                 handleSearchUsers(text);
               }}
               autoCapitalize="none"
+              autoCorrect={false}
+              spellCheck={false}
             />
           </View>
 
