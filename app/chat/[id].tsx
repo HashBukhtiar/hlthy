@@ -59,6 +59,7 @@ interface FirestoreMessageData {
       weightUnit?: string;
       reps?: number;
       previousValue?: number;
+      previousReps?: number;
       improvement?: string;
       newWeight?: number;
       newWeightUnit?: string;
@@ -97,6 +98,7 @@ interface Message {
       weightUnit?: string;
       reps?: number;
       previousValue?: number;
+      previousReps?: number;
       improvement?: string;
       newWeight?: number;
       newWeightUnit?: string;
@@ -245,14 +247,19 @@ const MessageItem = React.memo<{ item: Message; onLongPress: (m: Message) => voi
               <View style={styles.milestoneStatsRow}>
                 <Text style={styles.milestoneValue}>
                   {item.sharedMilestone.details.value}{item.sharedMilestone.details.weightUnit}
-                  {item.sharedMilestone.details.reps > 1 && ` × ${item.sharedMilestone.details.reps}`}
+                  {item.sharedMilestone.details.reps != null && item.sharedMilestone.details.reps > 1 && ` × ${item.sharedMilestone.details.reps}`}
                 </Text>
-                <Text style={styles.milestonePrevious}>
-                  from {item.sharedMilestone.details.previousValue}{item.sharedMilestone.details.weightUnit}
-                </Text>
-                <Text style={styles.milestoneImprovement}>
-                  ↑ {item.sharedMilestone.details.improvement}
-                </Text>
+                {item.sharedMilestone.details.previousValue != null && (
+                  <Text style={styles.milestonePrevious}>
+                    from {item.sharedMilestone.details.previousValue}{item.sharedMilestone.details.weightUnit}
+                    {item.sharedMilestone.details.previousReps != null && item.sharedMilestone.details.previousReps > 1 && ` × ${item.sharedMilestone.details.previousReps}`}
+                  </Text>
+                )}
+                {item.sharedMilestone.details.improvement && (
+                  <Text style={styles.milestoneImprovement}>
+                    ↑ {item.sharedMilestone.details.improvement}
+                  </Text>
+                )}
               </View>
             </View>
           ) : (
