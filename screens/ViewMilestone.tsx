@@ -9,6 +9,7 @@ import { shareMilestone } from '@/services/ShareService';
 import { useAuth } from '@/context/AuthContext';
 import { doc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '@/firebaseConfig';
+import { calculateImprovementPercentage } from '@/logic/milesonteUtils';
 
 // Define interfaces for milestone data
 export interface MilestoneStats {
@@ -334,11 +335,23 @@ export default function ViewMilestone() {
           )}
           
           {/* Improvement Badge (outside the card) */}
-          {milestone.details.improvement && (
-            <View style={styles.outsideImprovementBadge}>
-              <Text style={styles.improvementText}>+{milestone.details.improvement}</Text>
-            </View>
-          )}
+          {(() => {
+            const improvement = calculateImprovementPercentage(
+              milestone.details.value,
+              milestone.details.previousValue
+            );
+
+            if (improvement && improvement > 0) {
+              return (
+                <View style={styles.outsideImprovementBadge}>
+                  <Text style={styles.improvementText}>
+                    +{improvement}% Improvement
+                  </Text>
+                </View>
+              );
+            }
+            return null;
+          })()}
         </View>
       );
     } else if (milestone.milestoneType === 'weightLoss' || milestone.milestoneType === 'weightGain') {
@@ -379,7 +392,7 @@ export default function ViewMilestone() {
           {milestone.details.totalLoss && (
             <View style={styles.outsideImprovementBadge}>
               <Text style={styles.improvementText}>
-                {isLoss ? '-' : '+'}{milestone.details.totalLoss} {milestone.details.newWeightUnit} ({milestone.details.percentageLoss})
+                {isLoss ? '↓' : '↑'} {milestone.details.totalLoss} {milestone.details.newWeightUnit}
               </Text>
             </View>
           )}
@@ -927,7 +940,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   improvementText: {
-    color: '#000',
+    color: 'white',
     fontWeight: '600',
     fontSize: 14,
   },
