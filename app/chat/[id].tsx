@@ -143,6 +143,22 @@ async function convertFirestoreDoc(
     }
   }
 
+  let resolvedSharedMilestone = data.sharedMilestone
+    ? { ...data.sharedMilestone, isAvailable: true }
+    : undefined;
+  if (data.sharedMilestone) {
+    try {
+      const milestoneRef = doc(db, "posts", data.sharedMilestone.id);
+      const milestoneSnap = await getDoc(milestoneRef);
+      resolvedSharedMilestone = {
+        ...data.sharedMilestone,
+        isAvailable: milestoneSnap.exists(),
+      };
+    } catch {
+      resolvedSharedMilestone = { ...data.sharedMilestone, isAvailable: false };
+    }
+  }
+
   let resolvedSharedWorkout = data.sharedWorkout
     ? { ...data.sharedWorkout, isAvailable: true }
     : undefined;
@@ -165,9 +181,7 @@ async function convertFirestoreDoc(
     user: data.senderId === myUid ? "user" : "other",
     createdAt: messageDate,
     sharedPost: resolvedSharedPost,
-    sharedMilestone: data.sharedMilestone
-      ? { ...data.sharedMilestone, isAvailable: true }
-      : undefined,
+    sharedMilestone: resolvedSharedMilestone,
     sharedWorkout: resolvedSharedWorkout,
     type: "message",
   };
@@ -223,6 +237,14 @@ const MessageItem = React.memo<{ item: Message; onLongPress: (m: Message) => voi
     }
 
     if (item.sharedMilestone) {
+      if (item.sharedMilestone.isAvailable === false) {
+        return (
+          <View style={[styles.messageBubble, item.user === 'user' ? styles.currentUserMessage : styles.otherUserMessage, styles.unavailableItemBubble]}>
+            <Ionicons name="share-social-outline" size={16} color="#FFF" style={{ marginRight: 5 }} />
+            <Text style={ item.user === 'user' ? styles.currentUserText : styles.otherUserText }>Milestone unavailable</Text>
+          </View>
+        );
+      }
       return (
         <TouchableOpacity
           style={[
