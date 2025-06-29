@@ -7,7 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import ShareModal from '@/components/ShareModal';
 import { shareMilestone } from '@/services/ShareService';
 import { useAuth } from '@/context/AuthContext';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '@/firebaseConfig';
 
 // Define interfaces for milestone data
@@ -196,6 +196,76 @@ export default function ViewMilestone() {
     }
   };
 
+  const handleDelete = () => {
+    if (!milestone) return;
+
+    // Logic for a milestone that is also a post with an image
+    if (milestone.postImageUrl && milestone.associatedPostId) {
+      Alert.alert(
+        "Delete Options",
+        "This milestone has an associated post. How would you like to proceed?",
+        [
+          {
+            text: "Delete Milestone Only",
+            onPress: async () => {
+              try {
+                const postRef = doc(db, 'posts', milestone.id);
+                await updateDoc(postRef, {
+                  isMilestone: false,
+                  milestoneDetails: null,
+                });
+                Alert.alert("Success", "The milestone was removed, but the post remains.");
+                router.back();
+              } catch (error) {
+                console.error("Error removing milestone from post:", error);
+                Alert.alert("Error", "Could not remove the milestone from the post.");
+              }
+            },
+          },
+          {
+            text: "Delete Both Milestone & Post",
+            style: "destructive",
+            onPress: async () => {
+              try {
+                const postRef = doc(db, 'posts', milestone.id);
+                await deleteDoc(postRef);
+                Alert.alert("Success", "The milestone and post have been deleted.");
+                router.back();
+              } catch (error) {
+                console.error("Error deleting post and milestone:", error);
+                Alert.alert("Error", "Could not delete the milestone and post.");
+              }
+            },
+          },
+          { text: "Cancel", style: "cancel" },
+        ]
+      );
+    } else {
+      // Logic for a milestone-only post (no image)
+      Alert.alert(
+        "Delete Milestone",
+        "Are you sure you want to permanently delete this milestone?",
+        [
+          {
+            text: "Delete",
+            style: "destructive",
+            onPress: async () => {
+              try {
+                const postRef = doc(db, 'posts', milestone.id);
+                await deleteDoc(postRef);
+                Alert.alert("Success", "The milestone has been deleted.");
+                router.back();
+              } catch (error) {
+                console.error("Error deleting milestone:", error);
+                Alert.alert("Error", "Could not delete the milestone.");
+              }
+            },
+          },
+          { text: "Cancel", style: "cancel" },
+        ]
+      );
+    }
+  };
 
   const formatTimeAgo = (date: Date) => {
     if (!date) return 'Just now';
@@ -348,19 +418,32 @@ export default function ViewMilestone() {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={[styles.fixedHeader, { paddingTop: insets.top }]}>
-        <View style={styles.userSection}>
-          <TouchableOpacity 
-            style={styles.userInfoContainer}
-            onPress={() => navigateToProfile(milestone.userId)}
-          >
-            <Image source={{ uri: milestone.profileImageUrl }} style={styles.profilePic} />
-            <View>
-              <Text style={styles.fullName}>{milestone.fullName}</Text>
-              <Text style={styles.username}>@{milestone.username}</Text>
-            </View>
+        <TouchableOpacity 
+          style={styles.backButtonIcon}
+          onPress={() => router.back()}
+        >
+          <Ionicons name="chevron-back" size={28} color="#FFF" />
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={styles.userInfoContainer}
+          onPress={() => navigateToProfile(milestone.userId)}
+        >
+          <Image source={{ uri: milestone.profileImageUrl }} style={styles.profilePic} />
+          <View>
+            <Text style={styles.fullName}>{milestone.fullName}</Text>
+            <Text style={styles.username}>@{milestone.username}</Text>
+          </View>
+        </TouchableOpacity>
+        
+        {currentUser?.uid === milestone.userId ? (
+          <TouchableOpacity onPress={handleDelete} style={styles.moreButton}>
+            <Ionicons name="trash-outline" size={24} color="#FF5E69" />
           </TouchableOpacity>
-          <Text style={styles.timestamp}>{formatTimeAgo(milestone.createdAt)}</Text>
-        </View>
+        ) : (
+          // Add a placeholder view to maintain spacing when the delete button isn't shown
+          <View style={{ width: 34 }} /> 
+        )}
       </View>
 
       {/* Scrollable content */}
@@ -514,22 +597,30 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    backgroundColor: '#000',
+    backgroundColor: 'rgba(0,0,0,0.8)',
     zIndex: 1,
-    paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingHorizontal: 15,
+    paddingBottom: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  backButtonIcon: {
+    padding: 5,
+  },
+  moreButton: {
+    padding: 5,
   },
   headerSpacer: {
     height: 80,
   },
   userSection: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
   },
   userInfoContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
+    justifyContent: 'center',
   },
   profilePic: {
     width: 50,
