@@ -282,7 +282,6 @@ export default function ViewMilestone() {
   };
 
   const renderMilestoneDetails = () => {
-    console.log("Milestone details:", milestone.details);
     if (!milestone) return null;
     
     if (milestone.milestoneType === 'PR') {
