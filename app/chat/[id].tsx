@@ -39,6 +39,7 @@ import { useAuth } from '@/context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { sendMessage } from '@/ai/ai_chat';
+import { calculateImprovementPercentage } from '@/logic/milesonteUtils';
 
 interface FirestoreMessageData {
   senderId: string;
@@ -255,11 +256,20 @@ const MessageItem = React.memo<{ item: Message; onLongPress: (m: Message) => voi
                     {item.sharedMilestone.details.previousReps != null && item.sharedMilestone.details.previousReps > 1 && ` × ${item.sharedMilestone.details.previousReps}`}
                   </Text>
                 )}
-                {item.sharedMilestone.details.improvement && (
-                  <Text style={styles.milestoneImprovement}>
-                    ↑ {item.sharedMilestone.details.improvement}
-                  </Text>
-                )}
+                {(() => {
+                  const improvement = calculateImprovementPercentage(
+                    item.sharedMilestone.details.value,
+                    item.sharedMilestone.details.previousValue
+                  );
+                  if (improvement && improvement > 0) {
+                    return (
+                      <Text style={styles.milestoneImprovement}>
+                        ↑ {improvement}%
+                      </Text>
+                    );
+                  }
+                  return null;
+                })()}
               </View>
             </View>
           ) : (
