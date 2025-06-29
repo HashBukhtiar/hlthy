@@ -422,7 +422,7 @@ function addDateHeaders(msgs: Message[]): Message[] {
           text: currentDayStr,
           type: 'dateHeader',
           user: 'other',
-          createdAt: currentDayMessages.length > 0 ? currentDayMessages[currentDayMessages.length-1].createdAt : undefined // Optional: use last msg date of group
+          createdAt: currentDayMessages.length > 0 ? currentDayMessages[currentDayMessages.length-1].createdAt : undefined
         });
       }
       currentDayMessages = [];
