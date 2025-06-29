@@ -18,20 +18,13 @@ import { usePostsData } from '@/hooks/usePostsData';
 import { useAuth } from '@/context/AuthContext';
 import { Ionicons, MaterialCommunityIcons, FontAwesome5, Feather } from '@expo/vector-icons';
 import SelectExercise from './SelectExercise';
-import { Exercise, MetricType } from '@/data/exercises';
-import { collection, query, where, getDocs } from 'firebase/firestore';
-import { db } from '@/firebaseConfig';
+import { Exercise } from '@/data/exercises';
 import { fetchPreviousPRService, PreviousPRData } from '@/services/milestoneService';
 
 // Import shared components
 import {
     SECONDARY_COLOR,
     ErrorMessage,
-    VisibilitySelector,
-    VisibilityModal,
-    visibilityItems,
-    PostAttachment,
-    PostSelectionModal
 } from './PostComponents';
 
 interface MilestoneOnlyPostProps {
@@ -49,7 +42,6 @@ export default function MilestoneOnlyPost({ onBack }: MilestoneOnlyPostProps) {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [formError, setFormError] = useState<string | null>(null);
     const [valueVisibility, setValueVisibility] = useState<string | null>('public');
-    const [visibilityModalVisible, setVisibilityModalVisible] = useState(false);
     
     // Previous PR data
     const [previousPR, setPreviousPR] = useState<PreviousPRData | null>(null);
@@ -71,46 +63,6 @@ export default function MilestoneOnlyPost({ onBack }: MilestoneOnlyPostProps) {
     // Animation values for field transitions
     const [fadeAnim] = useState(new Animated.Value(0));
     const [prFadeAnim] = useState(new Animated.Value(0));
-    
-    // Post attachment
-    const [selectedPost, setSelectedPost] = useState<any>(null);
-    const [postModalVisible, setPostModalVisible] = useState(false);
-    
-    // Sample user posts data
-    const [availablePosts] = useState([
-        {
-            id: 'p1',
-            caption: 'Great workout today! Feeling pumped.',
-            imageUrl: 'https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
-            date: 'May 24, 2025',
-            likes: 45,
-            comments: 12
-        },
-        {
-            id: 'p2',
-            caption: 'Sunday morning run with amazing views',
-            imageUrl: 'https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
-            date: 'May 23, 2025',
-            likes: 32,
-            comments: 8
-        },
-        {
-            id: 'p3',
-            caption: 'New workout gear has arrived!',
-            imageUrl: 'https://images.unsplash.com/photo-1556817411-31ae72fa3ea0?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
-            date: 'May 22, 2025',
-            likes: 28,
-            comments: 5
-        },
-        {
-            id: 'p4',
-            caption: 'Thoughts on my training plan?',
-            imageUrl: null,
-            date: 'May 20, 2025',
-            likes: 15,
-            comments: 23
-        }
-    ]);
     
     // Fetch the previous PR for the selected exercise (using fake data for now)
     const fetchPreviousPR = async (exercise: Exercise) => {
@@ -260,15 +212,6 @@ export default function MilestoneOnlyPost({ onBack }: MilestoneOnlyPostProps) {
                 useNativeDriver: true
             })
         ]).start();
-    };
-    
-    const selectPost = (post: any) => {
-        setSelectedPost(post);
-        setPostModalVisible(false);
-    };
-
-    const removePost = () => {
-        setSelectedPost(null);
     };
 
     // Format duration in seconds to a human-readable string
@@ -840,39 +783,8 @@ export default function MilestoneOnlyPost({ onBack }: MilestoneOnlyPostProps) {
                                 {renderMetricFields()}
                             </View>
                         </View>
-
-                        {/* Post attachment section */}
-                        <PostAttachment
-                            selectedPost={selectedPost}
-                            setPostModalVisible={setPostModalVisible}
-                            removePost={removePost}
-                        />
-
-                        {/* Visibility options */}
-                        <VisibilitySelector
-                            valueVisibility={valueVisibility}
-                            setVisibilityModalVisible={setVisibilityModalVisible}
-                            itemsVisibility={visibilityItems}
-                        />
                     </ScrollView>
                 </View>
-
-                {/* Visibility selection modal */}
-                <VisibilityModal
-                    visibilityModalVisible={visibilityModalVisible}
-                    setVisibilityModalVisible={setVisibilityModalVisible}
-                    valueVisibility={valueVisibility}
-                    setValueVisibility={setValueVisibility}
-                    itemsVisibility={visibilityItems}
-                />
-
-                {/* Post selection modal */}
-                <PostSelectionModal
-                    postModalVisible={postModalVisible}
-                    setPostModalVisible={setPostModalVisible}
-                    selectPost={selectPost}
-                    availablePosts={availablePosts}
-                />
             </KeyboardAvoidingView>
         </SafeAreaView>
     );
