@@ -9,34 +9,25 @@ import {
     StyleSheet,
     SafeAreaView,
     ActivityIndicator,
-    Modal,
-    TextInput,
     ScrollView
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { usePostsData } from '@/hooks/usePostsData';
 import { useAuth } from '@/context/AuthContext';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 
 // Import shared components
 import {
     SECONDARY_COLOR,
     useImagePicker,
-    PostHeader,
     ErrorMessage,
     ImageSection,
     CaptionInput,
     WorkoutAttachment,
-    MilestoneAttachment,
-    MilestoneSelectionModal,
     WorkoutSelectionModal,
     VisibilitySelector,
     VisibilityModal,
     visibilityItems,
-    milestoneItems,
-    weightUnitItems,
-    PRFields,
-    WeightFields,
 } from './PostComponents';
 
 interface RegularPostProps {
@@ -70,108 +61,14 @@ export default function RegularPost({ onBack }: RegularPostProps) {
     const [selectedWorkout, setSelectedWorkout] = useState<any>(null);
     const [workoutModalVisible, setWorkoutModalVisible] = useState(false);
 
-    // Milestone attachment
-    const [selectedMilestone, setSelectedMilestone] = useState<any>(null);
-    const [milestoneModalVisible, setMilestoneModalVisible] = useState(false);
-    const [valueMilestone, setValueMilestone] = useState<string | null>(null);
-    const [milestoneDetailsModalVisible, setMilestoneDetailsModalVisible] = useState(false);
-    
-    // PR fields
-    const [exerciseSearch, setExerciseSearch] = useState('');
-    const [amount, setAmount] = useState('');
-    const [weightUnit, setWeightUnit] = useState<string | null>('lbs');
-    const [reps, setReps] = useState('');
-    
-    // Weight fields
-    const [newWeight, setNewWeight] = useState('');
-    const [newWeightUnit, setNewWeightUnit] = useState<string | null>('lbs');
-    
-    // Exercises database
-    const [allExercises] = useState<string[]>([ 
-        'Bench Press',
-        'Squat',
-        'Deadlift',
-        'Overhead Press',
-        'Pull Up',
-        'Leg Press',
-        'Bicep Curl',
-        'Tricep Extension',
-        'Lat Pulldown',
-        'Shoulder Press',
-        'Romanian Deadlift',
-        'Hip Thrust',
-        '400m Run',
-        '5K Run',
-        '10K Run',
-        'Mile Run'
-    ]);
-    const [filteredExercises, setFilteredExercises] = useState<string[]>([]);
 
-    // Sample user milestone data
-    const [availableMilestones] = useState([
-        {
-            id: 'm1',
-            type: 'PR',
-            title: 'Bench Press PR',
-            details: '225 lbs × 5 reps',
-            date: 'May 23, 2025',
-            improvement: '9.7%'
-        },
-        {
-            id: 'm2',
-            type: 'PR',
-            title: '10K Run PR',
-            details: '42.5 min',
-            date: 'May 24, 2025',
-            improvement: '7.2%'
-        },
-        {
-            id: 'm3',
-            type: 'weightLoss',
-            title: 'Weight Loss',
-            details: '15 lbs (8.3%)',
-            date: 'May 24, 2025'
-        },
-        {
-            id: 'm4',
-            type: 'PR',
-            title: 'Squat PR',
-            details: '315 lbs × 3 reps',
-            date: 'May 25, 2025',
-            improvement: '14.5%'
-        }
-    ]);
-
-
-    const selectWorkout = (workout: any) => { // Consider typing workout to WorkoutItemData
+    const selectWorkout = (workout: any) => { 
         setSelectedWorkout(workout);
         setWorkoutModalVisible(false);
     };
 
     const removeWorkout = () => {
         setSelectedWorkout(null);
-    };
-
-    const handleExerciseSearch = (text: string) => {
-        setExerciseSearch(text);
-        if (text) {
-            const filtered = allExercises.filter(exercise =>
-                exercise.toLowerCase().includes(text.toLowerCase())
-            );
-            setFilteredExercises(filtered);
-        } else {
-            setFilteredExercises([]);
-        }
-    };
-
-    const selectMilestone = (milestone: any) => {
-        setSelectedMilestone(milestone);
-        setMilestoneModalVisible(false);
-    };
-
-    const removeMilestone = () => {
-        setSelectedMilestone(null);
-        setValueMilestone(null);
     };
 
     const handleSubmitPost = async () => {
@@ -189,11 +86,7 @@ export default function RegularPost({ onBack }: RegularPostProps) {
                 caption: caption.trim(),
                 imageUri,
                 isMilestone: false,
-                milestoneDetails: selectedMilestone ? {
-                    type: selectedMilestone.type,
-                    title: selectedMilestone.title,
-                    details: selectedMilestone.details
-                } : null,
+                milestoneDetails: null,
                 visibility: valueVisibility || 'public',
                 workoutId: selectedWorkout?.id
             };
@@ -260,16 +153,9 @@ export default function RegularPost({ onBack }: RegularPostProps) {
                         />
 
                         {/* Caption section */}
-                        <CaptionInput
+                         <CaptionInput
                             caption={caption}
                             setCaption={setCaption}
-                        />
-
-                        {/* Milestone attachment section */}
-                        <MilestoneAttachment
-                            selectedMilestone={selectedMilestone}
-                            setMilestoneModalVisible={setMilestoneModalVisible}
-                            removeMilestone={removeMilestone}
                         />
 
                         {/* Workout attachment section */}
@@ -305,14 +191,6 @@ export default function RegularPost({ onBack }: RegularPostProps) {
                     valueVisibility={valueVisibility}
                     setValueVisibility={setValueVisibility}
                     itemsVisibility={visibilityItems}
-                />
-
-                {/* Milestone selection modal */}
-                <MilestoneSelectionModal
-                    milestoneModalVisible={milestoneModalVisible}
-                    setMilestoneModalVisible={setMilestoneModalVisible}
-                    selectMilestone={selectMilestone}
-                    availableMilestones={availableMilestones}
                 />
             </KeyboardAvoidingView>
         </SafeAreaView>
