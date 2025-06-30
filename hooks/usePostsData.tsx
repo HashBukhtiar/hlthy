@@ -6,7 +6,6 @@ import {
   arrayRemove,
   collection,
   addDoc,
-  serverTimestamp,
   query,
   where,
   getDocs,
@@ -16,11 +15,13 @@ import {
   limit,
   increment,
   runTransaction,
-  Timestamp
+  Timestamp,
+  serverTimestamp,
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
-import { db, storage } from '@/firebaseConfig';
+import { app, db, storage } from '@/firebaseConfig';
 import { useAuth } from '@/context/AuthContext';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 
 export interface Post {
   id: string;
@@ -29,24 +30,55 @@ export interface Post {
   authorProfileImageUrl: string;
   caption: string;
   imageUrl: string;
-  createdAt: any;
+  createdAt: Timestamp;
   exerciseTags?: string[];
   isMilestone: boolean;
   milestoneDetails?: {
     type: string;
-    exercise?: string;
-    value?: string;
+    exerciseName?: string;
+    exerciseId?: string;
+    value?: number | string;
     reps?: number;
+    duration?: number;
+    level?: string;
+    newWeight?: number | string;
+    previousWeight?: number | string;
     weightUnit?: string;
-    newWeight?: string;
-    newWeightUnit?: string;
+    achievedAt?: Timestamp;
+    previousValue?: number | string;
+    improvementPercentage?: number;
+    totalLoss?: number;
+    totalGain?: number;
   };
-  workoutId?: string; 
+  workoutId?: string;
   reactionCount: number;
   commentCount: number;
   visibility: 'public' | 'followers';
   isLiked?: boolean;
   isBookmarked?: boolean;
+}
+
+interface ClientMilestoneDetails {
+  type: 'PR' | 'weightLoss' | 'weightGain';
+  exerciseName?: string;
+  exerciseId?: string;
+  value?: number | string | null;
+  reps?: number | null;
+  duration?: number | null;
+  level?: string | null;
+  newWeight?: number | string | null;
+  previousWeight?: number | string | null;
+  weightUnit?: string | null;
+  achievedAt?: string | null;
+}
+
+interface NewPostData {
+  caption?: string;
+  imageUri?: string;
+  isMilestone: boolean;
+  milestoneDetails?: ClientMilestoneDetails;
+  visibility: 'public' | 'followers';
+  workoutId?: string | null;
 }
 
 export interface Comment {
@@ -55,7 +87,7 @@ export interface Comment {
   authorUsername: string;
   authorProfileImageUrl: string;
   text: string;
-  createdAt: any;
+  createdAt: Timestamp;
   likes: number;
   likedBy: string[];
   replyCount: number;
@@ -70,7 +102,7 @@ export interface Reply {
   authorUsername: string;
   authorProfileImageUrl: string;
   text: string;
-  createdAt: any;
+  createdAt: Timestamp;
   likes: number;
   likedBy: string[];
   replyToUserId: string;
@@ -100,6 +132,7 @@ export function usePostsData() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const { currentUser, userProfile } = useAuth();
+  const functionsInstance = getFunctions(app, 'northamerica-northeast2');
 
   // Fetch all public posts
   const fetchPosts = async () => {
@@ -141,7 +174,7 @@ export function usePostsData() {
 
   const uploadImage = async (imageUri: string): Promise<string> => {
     try {
-      const filename = `posts/${currentUser.uid}/${Date.now()}.jpg`;
+      const filename = `posts/${currentUser!.uid}/${Date.now()}.jpg`;
       const storageRef = ref(storage, filename);
       
       // Fetch the image and convert to blob
@@ -245,37 +278,65 @@ export function usePostsData() {
   };
 
   // Add a new post
-  const addPost = async (postData) => {
+  const addPost = async (postData: NewPostData): Promise<string> => {
     if (!currentUser || !userProfile) {
       throw new Error("User not authenticated");
     }
-    
+
     try {
-      // Validate required fields
-      if (!currentUser.uid || !userProfile.username) {
-        throw new Error("Missing user information for post");
+      let imageUrl = "";
+      if (postData.imageUri) {
+        imageUrl = await uploadImage(postData.imageUri);
       }
-      
-      // Create post document with validated data
-      const postRef = await addDoc(collection(db, "posts"), {
-        authorId: currentUser.uid,
-        authorUsername: userProfile.username || "Unknown user",
-        authorProfileImageUrl: userProfile.profileImageUrl || "",
-        caption: postData.caption || "",
-        imageUrl: postData.imageUri ? await uploadImage(postData.imageUri) : "",
-        createdAt: new Date(),
-        isMilestone: Boolean(postData.isMilestone),
-        milestoneDetails: postData.milestoneDetails || null,
-        reactionCount: 0,
-        commentCount: 0,
-        visibility: postData.visibility || "public",
-        workoutId: postData.workoutId || null
-      });
-      
-      console.log("Created post with ID:", postRef.id);
-      return postRef.id;
+
+      if (postData.isMilestone) {
+        if (!postData.milestoneDetails) {
+          throw new Error("Milestone details are required for a milestone post.");
+        }
+        const createMilestonePostFunction = httpsCallable(functionsInstance, 'createMilestonePost');
+        
+        const payload = {
+          authorUsername: userProfile.username || "User",
+          authorProfileImageUrl: userProfile.profileImageUrl || null,
+          caption: postData.caption || "",
+          imageUrl: imageUrl || null,
+          milestoneDetails: postData.milestoneDetails,
+          visibility: postData.visibility || "public",
+          workoutId: postData.workoutId || null,
+        };
+        
+        console.log("Calling createMilestonePost with payload:", payload);
+        const result = await createMilestonePostFunction(payload);
+        const resultData = result.data as { success: boolean, postId: string, error?: string };
+
+        if (!resultData.success || !resultData.postId) {
+          console.error("Cloud function 'createMilestonePost' failed:", resultData.error);
+          throw new Error(resultData.error || "Failed to create milestone post via cloud function.");
+        }
+        console.log("Milestone post created via Cloud Function with ID:", resultData.postId);
+        return resultData.postId;
+
+      } else {
+
+        const postRef = await addDoc(collection(db, "posts"), {
+          authorId: currentUser.uid,
+          authorUsername: userProfile.username || "Unknown user",
+          authorProfileImageUrl: userProfile.profileImageUrl || "",
+          caption: postData.caption || "",
+          imageUrl: imageUrl,
+          createdAt: serverTimestamp(),
+          isMilestone: false,
+          milestoneDetails: null,
+          reactionCount: 0,
+          commentCount: 0,
+          visibility: postData.visibility || "public",
+          workoutId: postData.workoutId || null
+        });
+        console.log("Regular post created directly with ID:", postRef.id);
+        return postRef.id;
+      }
     } catch (error) {
-      console.error("Error creating post:", error);
+      console.error("Error in addPost:", error);
       throw error;
     }
   };
@@ -784,7 +845,7 @@ export function usePostsData() {
 
   useEffect(() => {
     if (currentUser?.uid) {
-        fetchPosts();
+        fetchPosts(); // SHOULD fetchPosts() BE CALLED HERE??? COME BACK LATER
     } else {
         setPosts([]);
         setLoading(false);

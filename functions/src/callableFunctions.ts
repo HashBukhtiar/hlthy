@@ -278,3 +278,97 @@ export const cancelSentFollowRequest = onCall(
     }
   }
 );
+
+export const createMilestonePost = onCall(
+  {region: "northamerica-northeast2"},
+  async (request) => {
+    console.log("createMilestonePost: Function triggered. Auth UID:", request.auth?.uid, "Data:", JSON.stringify(request.data));
+    const db = getDb();
+    if (!db) {
+      console.error("createMilestonePost: Firestore db not initialized.");
+      throw new HttpsError("internal", "Database not initialized.");
+    }
+
+    if (!request.auth) {
+      throw new HttpsError(
+        "unauthenticated",
+        "The function must be called while authenticated."
+      );
+    }
+
+    const userId = request.auth.uid;
+    const data = request.data;
+
+    console.log("createMilestonePost received milestoneDetails:", JSON.stringify(data.milestoneDetails, null, 2));
+
+    // Basic validation
+    if (!data.milestoneDetails || !data.milestoneDetails.type) {
+      throw new HttpsError(
+        "invalid-argument",
+        "Missing milestoneDetails or milestoneDetails.type."
+      );
+    }
+    if (data.milestoneDetails.type === "PR" && (!data.milestoneDetails.exerciseName || !data.milestoneDetails.exerciseId)) {
+      throw new HttpsError(
+        "invalid-argument",
+        "PR milestones require exerciseName and exerciseId."
+      );
+    }
+    if ((data.milestoneDetails.type === "weightLoss" || data.milestoneDetails.type === "weightGain") && (data.milestoneDetails.newWeight === undefined || data.milestoneDetails.newWeight === null)) {
+      throw new HttpsError(
+        "invalid-argument",
+        "Weight milestones require newWeight."
+      );
+    }
+    if (!data.authorUsername) {
+      console.warn("createMilestonePost: authorUsername not provided in request data. This is recommended.");
+    }
+
+    const postPayload: { [key: string]: any } = {
+      authorId: userId,
+      authorUsername: data.authorUsername || "User",
+      authorProfileImageUrl: data.authorProfileImageUrl || null,
+      caption: data.caption || "",
+      imageUrl: data.imageUrl || null,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      isMilestone: true,
+      milestoneDetails: {
+        type: data.milestoneDetails.type,
+        exerciseName: data.milestoneDetails.exerciseName || null,
+        exerciseId: data.milestoneDetails.exerciseId || null,
+        value: data.milestoneDetails.value !== undefined ? data.milestoneDetails.value : null,
+        reps: data.milestoneDetails.reps !== undefined ? data.milestoneDetails.reps : null,
+        duration: data.milestoneDetails.duration !== undefined ? data.milestoneDetails.duration : null,
+        level: data.milestoneDetails.level !== undefined ? data.milestoneDetails.level : null,
+        newWeight: data.milestoneDetails.newWeight !== undefined ? data.milestoneDetails.newWeight : null,
+        previousWeight: data.milestoneDetails.previousWeight !== undefined ? data.milestoneDetails.previousWeight : null,
+        weightUnit: data.milestoneDetails.weightUnit || null,
+        achievedAt: data.milestoneDetails.achievedAt ? admin.firestore.Timestamp.fromDate(new Date(data.milestoneDetails.achievedAt)) : admin.firestore.FieldValue.serverTimestamp(),
+        improvementPercentage: data.milestoneDetails.improvementPercentage !== undefined ? data.milestoneDetails.improvementPercentage : null,
+        previousValue: data.milestoneDetails.previousValue !== undefined ? data.milestoneDetails.previousValue : null,
+        previousReps: data.milestoneDetails.previousReps !== undefined ? data.milestoneDetails.previousReps : null,
+        previousDuration: data.milestoneDetails.previousDuration !== undefined ? data.milestoneDetails.previousDuration : null,
+        previousLevel: data.milestoneDetails.previousLevel !== undefined ? data.milestoneDetails.previousLevel : null,
+        previousDistance: data.milestoneDetails.previousDistance !== undefined ? data.milestoneDetails.previousDistance : null,
+        totalLoss: data.milestoneDetails.totalLoss !== undefined ? data.milestoneDetails.totalLoss : null,
+        totalGain: data.milestoneDetails.totalGain !== undefined ? data.milestoneDetails.totalGain : null,
+      },
+      reactionCount: 0,
+      commentCount: 0,
+      visibility: data.visibility || "public",
+      // Add any other fields your posts collection normally has
+      // e.g., workoutId: data.workoutId || null,
+    };
+
+    console.log("Final postPayload being saved: ", JSON.stringify(postPayload, null, 2));
+
+    try {
+      const docRef = await db.collection("posts").add(postPayload);
+      console.log(`Milestone post created with ID: ${docRef.id} by user ${userId}`);
+      return {success: true, postId: docRef.id};
+    } catch (error) {
+      console.error("Error creating milestone post:", error);
+      throw new HttpsError("internal", "Failed to create milestone post.", error);
+    }
+  }
+);

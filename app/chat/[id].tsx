@@ -39,6 +39,7 @@ import { useAuth } from '@/context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { sendMessage } from '@/ai/ai_chat';
+import { calculateImprovementPercentage } from '@/logic/milesonteUtils';
 
 interface FirestoreMessageData {
   senderId: string;
@@ -59,6 +60,7 @@ interface FirestoreMessageData {
       weightUnit?: string;
       reps?: number;
       previousValue?: number;
+      previousReps?: number;
       improvement?: string;
       newWeight?: number;
       newWeightUnit?: string;
@@ -92,11 +94,12 @@ interface Message {
     id: string;
     type: string;
     details: {
-      exercise?: string;
+      exerciseName?: string;
       value?: number;
       weightUnit?: string;
       reps?: number;
       previousValue?: number;
+      previousReps?: number;
       improvement?: string;
       newWeight?: number;
       newWeightUnit?: string;
@@ -140,6 +143,22 @@ async function convertFirestoreDoc(
     }
   }
 
+  let resolvedSharedMilestone = data.sharedMilestone
+    ? { ...data.sharedMilestone, isAvailable: true }
+    : undefined;
+  if (data.sharedMilestone) {
+    try {
+      const milestoneRef = doc(db, "posts", data.sharedMilestone.id);
+      const milestoneSnap = await getDoc(milestoneRef);
+      resolvedSharedMilestone = {
+        ...data.sharedMilestone,
+        isAvailable: milestoneSnap.exists(),
+      };
+    } catch {
+      resolvedSharedMilestone = { ...data.sharedMilestone, isAvailable: false };
+    }
+  }
+
   let resolvedSharedWorkout = data.sharedWorkout
     ? { ...data.sharedWorkout, isAvailable: true }
     : undefined;
@@ -162,9 +181,7 @@ async function convertFirestoreDoc(
     user: data.senderId === myUid ? "user" : "other",
     createdAt: messageDate,
     sharedPost: resolvedSharedPost,
-    sharedMilestone: data.sharedMilestone
-      ? { ...data.sharedMilestone, isAvailable: true }
-      : undefined,
+    sharedMilestone: resolvedSharedMilestone,
     sharedWorkout: resolvedSharedWorkout,
     type: "message",
   };
@@ -220,6 +237,14 @@ const MessageItem = React.memo<{ item: Message; onLongPress: (m: Message) => voi
     }
 
     if (item.sharedMilestone) {
+      if (item.sharedMilestone.isAvailable === false) {
+        return (
+          <View style={[styles.messageBubble, item.user === 'user' ? styles.currentUserMessage : styles.otherUserMessage, styles.unavailableItemBubble]}>
+            <Ionicons name="share-social-outline" size={16} color="#FFF" style={{ marginRight: 5 }} />
+            <Text style={ item.user === 'user' ? styles.currentUserText : styles.otherUserText }>Milestone unavailable</Text>
+          </View>
+        );
+      }
       return (
         <TouchableOpacity
           style={[
@@ -240,19 +265,33 @@ const MessageItem = React.memo<{ item: Message; onLongPress: (m: Message) => voi
           {item.sharedMilestone.type === 'PR' ? (
             <View style={styles.sharedMilestoneContent}>
               <Text style={styles.sharedMilestoneType}>
-                {item.sharedMilestone.details.exercise}
+                {item.sharedMilestone.details.exerciseName}
               </Text>
               <View style={styles.milestoneStatsRow}>
                 <Text style={styles.milestoneValue}>
                   {item.sharedMilestone.details.value}{item.sharedMilestone.details.weightUnit}
-                  {item.sharedMilestone.details.reps > 1 && ` × ${item.sharedMilestone.details.reps}`}
+                  {item.sharedMilestone.details.reps != null && item.sharedMilestone.details.reps > 1 && ` × ${item.sharedMilestone.details.reps}`}
                 </Text>
-                <Text style={styles.milestonePrevious}>
-                  from {item.sharedMilestone.details.previousValue}{item.sharedMilestone.details.weightUnit}
-                </Text>
-                <Text style={styles.milestoneImprovement}>
-                  ↑ {item.sharedMilestone.details.improvement}
-                </Text>
+                {item.sharedMilestone.details.previousValue != null && (
+                  <Text style={styles.milestonePrevious}>
+                    from {item.sharedMilestone.details.previousValue}{item.sharedMilestone.details.weightUnit}
+                    {item.sharedMilestone.details.previousReps != null && item.sharedMilestone.details.previousReps > 1 && ` × ${item.sharedMilestone.details.previousReps}`}
+                  </Text>
+                )}
+                {(() => {
+                  const improvement = calculateImprovementPercentage(
+                    item.sharedMilestone.details.value,
+                    item.sharedMilestone.details.previousValue
+                  );
+                  if (improvement && improvement > 0) {
+                    return (
+                      <Text style={styles.milestoneImprovement}>
+                        ↑ {improvement}%
+                      </Text>
+                    );
+                  }
+                  return null;
+                })()}
               </View>
             </View>
           ) : (
@@ -383,7 +422,7 @@ function addDateHeaders(msgs: Message[]): Message[] {
           text: currentDayStr,
           type: 'dateHeader',
           user: 'other',
-          createdAt: currentDayMessages.length > 0 ? currentDayMessages[currentDayMessages.length-1].createdAt : undefined // Optional: use last msg date of group
+          createdAt: currentDayMessages.length > 0 ? currentDayMessages[currentDayMessages.length-1].createdAt : undefined
         });
       }
       currentDayMessages = [];

@@ -95,6 +95,48 @@ export default function ViewPost() {
     setShareModalVisible(true);
   };
 
+  const formatMilestonePreview = (details: any): string => {
+    if (!details) return '';
+  
+    if (details.type === 'weightLoss' || details.type === 'weightGain') {
+      return `New Weight: ${details.newWeight} ${details.newWeightUnit || 'lbs'}`;
+    }
+  
+    if (details.type === 'PR') {
+      const exercise = details.exerciseName || 'Record';
+      let preview = `${exercise}: `;
+  
+      // weight_reps
+      if (details.value && details.reps) {
+        return preview + `${details.value} ${details.weightUnit || 'lbs'} × ${details.reps} reps`;
+      }
+      // bodyweight_reps
+      if (details.reps) {
+        return preview + `${details.reps} reps`;
+      }
+      // duration, duration_level, distance_time
+      if (details.duration) {
+        const d = details.duration;
+        const h = Math.floor(d / 3600);
+        const m = Math.floor((d % 3600) / 60);
+        const s = d % 60;
+        const time = [h > 0 ? `${h}h` : '', m > 0 ? `${m}m` : '', (s > 0 || (!h && !m)) ? `${s}s` : ''].filter(Boolean).join(' ');
+  
+        if (details.value && details.weightUnit === 'miles') { // distance_time
+          return preview + `${details.value} ${details.weightUnit} in ${time}`;
+        }
+        return preview + time; // duration
+      }
+      // distance
+      if (details.value && details.weightUnit) {
+        return preview + `${details.value} ${details.weightUnit}`;
+      }
+      return exercise;
+    }
+  
+    return 'View Achievement';
+  };
+
 
   const searchUsers = async () => {
     if (!searchText.trim()) {
@@ -162,12 +204,6 @@ useEffect(() => {
       console.error("Error sharing post:", error);
       Alert.alert("Error", "Failed to share post. Please try again.");
     }
-  };
-
-  // Helper function to generate conversation ID
-  const generateConversationId = (userId1: string, userId2: string): string => {
-    const sortedIds = [userId1, userId2].sort();
-    return `${sortedIds[0]}_${sortedIds[1]}`;
   };
   
   const handleLike = async () => {
@@ -479,6 +515,10 @@ useEffect(() => {
   const navigateToWorkout = (workoutId: string) => {
     router.push(`/view-workout/${workoutId}`);
   };
+
+  const navigateToMilestone = (milestoneId: string) => {
+    router.push(`/view-milestone/${milestoneId}`);
+  };
   
   if (loading) {
     return (
@@ -682,20 +722,18 @@ useEffect(() => {
           {post.isMilestone && post.milestoneDetails && (
             <TouchableOpacity 
               style={styles.attachedMilestoneContainer}
+              onPress={() => navigateToMilestone(post.id)}
             >
               <View style={styles.attachedMilestoneContent}>
                 <View style={styles.attachedMilestoneInfo}>
                   <Ionicons name="trophy-outline" size={18} color="#FFF" style={styles.milestoneIcon} />
-                  <View>
+                  <View style={{ flex: 1 }}>
                     <Text style={styles.attachedMilestoneTitle}>
                       {post.milestoneDetails.type === 'PR' ? 'Personal Record' : 
-                      post.milestoneDetails.type === 'weightLoss' ? 'Weight Loss' : 'Weight Gain'}
+                       post.milestoneDetails.type === 'weightLoss' ? 'Weight Loss' : 'Weight Gain'}
                     </Text>
-                    <Text style={styles.attachedMilestoneDetails}>
-                      {post.milestoneDetails.type === 'PR' ? 
-                        `${post.milestoneDetails.exercise}: ${post.milestoneDetails.value} ${post.milestoneDetails.weightUnit} × ${post.milestoneDetails.reps} reps` : 
-                        `New weight: ${post.milestoneDetails.newWeight} ${post.milestoneDetails.newWeightUnit}`
-                      }
+                    <Text style={styles.attachedMilestoneDetails} numberOfLines={1}>
+                      {formatMilestonePreview(post.milestoneDetails)}
                     </Text>
                   </View>
                 </View>

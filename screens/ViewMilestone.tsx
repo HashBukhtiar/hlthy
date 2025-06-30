@@ -7,6 +7,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import ShareModal from '@/components/ShareModal';
 import { shareMilestone } from '@/services/ShareService';
 import { useAuth } from '@/context/AuthContext';
+import { doc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { db } from '@/firebaseConfig';
+import { calculateImprovementPercentage } from '@/logic/milesonteUtils';
 
 // Define interfaces for milestone data
 export interface MilestoneStats {
@@ -14,7 +17,7 @@ export interface MilestoneStats {
 }
 
 export interface MilestoneDetails {
-  exercise?: string;
+  exerciseName?: string;
   value?: number;
   weightUnit?: string;
   reps?: number;
@@ -47,8 +50,7 @@ export interface Milestone {
 }
 
 export default function ViewMilestone() {
-  const auth = useAuth() as any;
-  const currentUser = auth?.currentUser;
+  const { currentUser } = useAuth();
   const [shareModalVisible, setShareModalVisible] = useState(false);
   const { id } = useLocalSearchParams();
   const insets = useSafeAreaInsets();
@@ -58,159 +60,77 @@ export default function ViewMilestone() {
   const [isPinned, setIsPinned] = useState(false);
   const [isTop5Percent, setIsTop5Percent] = useState(false);
 
-  // Helper function to set milestone data and handle optional properties
-  const setMilestoneData = (milestoneData: Milestone) => {
-    setMilestone(milestoneData);
-    setIsPinned(milestoneData.pinned ?? false);
-    setIsTop5Percent(milestoneData.top5Percent ?? false);
-  };
-
   useEffect(() => {
-    const fetchData = async () => {
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      if (id === 'm1') {
-        const milestoneData: Milestone = {
-          id: 'm1',
-          userId: 'user1',
-          username: 'fitness_pro',
-          fullName: 'Alex Fitness',
-          profileImageUrl: 'https://randomuser.me/api/portraits/men/32.jpg',
-          createdAt: new Date(Date.now() - 8640000 * 2),
-          milestoneType: 'PR', 
-          details: {
-            exercise: 'Bench Press',
-            value: 225,
-            weightUnit: 'lbs',
-            reps: 5,
-            previousValue: 205,
-            previousReps: 5,
-            improvement: '9.7%'
-          },
-          stats: {
-            likes: 24
-          },
-          isLiked: false,
-          associatedPostId: 'post1',
-          postImageUrl: 'https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
-          pinned: true,
-          top5Percent: true
-        };
-        setMilestoneData(milestoneData);
-      } else if (id === 'm2') {
-        const milestoneData: Milestone = {
-          id: 'm2',
-          userId: 'user2',
-          username: 'runner_girl',
-          fullName: 'Sarah Runner',
-          profileImageUrl: 'https://randomuser.me/api/portraits/women/44.jpg',
-          createdAt: new Date(Date.now() - 86400000),
-          milestoneType: 'PR',
-          details: {
-            exercise: '10K Run',
-            value: 42.5,
-            weightUnit: 'min',
-            reps: 1,
-            previousValue: 45.8,
-            previousReps: 1,
-            improvement: '7.2%'
-          },
-          stats: {
-            likes: 18
-          },
-          isLiked: true,
-          associatedPostId: 'post2',
-          pinned: false,
-          top5Percent: false
-        };
-        setMilestoneData(milestoneData);
-      } else if (id === 'm3') {
-        const milestoneData: Milestone = {
-          id: 'm3',
-          userId: 'user3',
-          username: 'weightloss_journey',
-          fullName: 'Jamie Progress',
-          profileImageUrl: 'https://randomuser.me/api/portraits/women/68.jpg',
-          createdAt: new Date(Date.now() - 43200000),
-          milestoneType: 'weightLoss',
-          details: {
-            newWeight: 165,
-            newWeightUnit: 'lbs',
-            previousWeight: 180,
-            previousWeightUnit: 'lbs',
-            totalLoss: 15,
-            percentageLoss: '8.3%'
-          },
-          stats: {
-            likes: 35
-          },
-          isLiked: true,
-          associatedPostId: 'post3',
-          postImageUrl: 'https://images.unsplash.com/photo-1535743686920-55e4145369b9?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
-          pinned: true,
-          top5Percent: false
-        };
-        setMilestoneData(milestoneData);
-      } else if (id === 'm4') {
-        const milestoneData: Milestone = {
-          id: 'm4',
-          userId: 'user7',
-          username: 'super_athlete',
-          fullName: 'Jamie Athlete',
-          profileImageUrl: 'https://randomuser.me/api/portraits/women/28.jpg',
-          createdAt: new Date(Date.now() - 120000),
-          milestoneType: 'PR',
-          details: {
-            exercise: 'Squat',
-            value: 315,
-            weightUnit: 'lbs',
-            reps: 3,
-            previousValue: 275,
-            previousReps: 3,
-            improvement: '14.5%'
-          },
-          stats: {
-            likes: 45
-          },
-          isLiked: false,
-          associatedPostId: 'post4',
-          pinned: true,
-          top5Percent: true
-        };
-        setMilestoneData(milestoneData);
-      } else {
-        const milestoneData: Milestone = {
-          id: id as string || 'unknown',
-          userId: 'user1',
-          username: 'hlthy_user',
-          fullName: 'Hlthy User',
-          profileImageUrl: 'https://randomuser.me/api/portraits/men/1.jpg',
-          createdAt: new Date(Date.now() - 86400000),
-          milestoneType: 'PR',
-          details: {
-            exercise: 'Deadlift',
-            value: 315,
-            weightUnit: 'lbs',
-            reps: 3,
-            previousValue: 285,
-            previousReps: 3,
-            improvement: '10.5%'
-          },
-          stats: {
-            likes: 12
-          },
-          isLiked: false,
-          pinned: false,
-          top5Percent: false
-        };
-        setMilestoneData(milestoneData);
+    const fetchMilestone = async () => {
+      if (!id) {
+        setLoading(false);
+        return;
       }
-      
-      setLoading(false);
+      setLoading(true);
+      try {
+        const milestoneRef = doc(db, 'posts', id as string);
+        const milestoneSnap = await getDoc(milestoneRef);
+
+        if (milestoneSnap.exists()) {
+          const data = milestoneSnap.data();
+          
+          if (!data.isMilestone) {
+            console.warn("Document is not a milestone:", id);
+            setMilestone(null);
+            return;
+          }
+
+          const milestoneData: Milestone = {
+            id: milestoneSnap.id,
+            userId: data.authorId,
+            username: data.authorUsername,
+            fullName: data.authorFullName || data.authorUsername,
+            profileImageUrl: data.authorProfileImageUrl,
+            createdAt: data.createdAt.toDate(),
+            milestoneType: data.milestoneDetails?.type,
+            details: {
+              exerciseName: data.milestoneDetails?.exerciseName,
+              value: data.milestoneDetails?.value,
+              weightUnit: data.milestoneDetails?.weightUnit,
+              reps: data.milestoneDetails?.reps,
+              newWeight: data.milestoneDetails?.newWeight,
+              newWeightUnit: data.milestoneDetails?.newWeightUnit,
+              previousWeight: data.milestoneDetails?.previousWeight,
+              previousWeightUnit: data.milestoneDetails?.previousWeightUnit,
+              previousValue: data.milestoneDetails?.previousValue,
+              previousReps: data.milestoneDetails?.previousReps,
+              improvement: data.milestoneDetails?.improvement,
+              totalLoss: data.milestoneDetails?.totalLoss,
+              percentageLoss: data.milestoneDetails?.percentageLoss,
+            },
+            stats: {
+              likes: data.likeCount || (Array.isArray(data.likes) ? data.likes.length : 0),
+            },
+            isLiked: currentUser ? (data.likes || []).includes(currentUser.uid) : false,
+            associatedPostId: milestoneSnap.id,
+            postImageUrl: data.imageUrl || null,
+            pinned: data.pinned || false,
+            top5Percent: data.top5Percent || false,
+          };
+          
+          setMilestone(milestoneData);
+          setIsPinned(milestoneData.pinned);
+          setIsTop5Percent(milestoneData.top5Percent);
+
+        } else {
+          console.log("No such milestone document!");
+          setMilestone(null);
+        }
+      } catch (error) {
+        console.error("Error fetching milestone:", error);
+        setMilestone(null);
+      } finally {
+        setLoading(false);
+      }
     };
-    
-    fetchData();
-  }, [id]);
+
+    fetchMilestone();
+  }, [id, currentUser]);
 
   const handleLike = () => {
     if (!milestone) return;
@@ -250,18 +170,6 @@ export default function ViewMilestone() {
     }
     
     setShareModalVisible(true);
-
-    // implement this later
-    /*
-    try {
-      const result = await Share.share({
-        message: `Check out this amazing milestone from ${milestone.username} on Hlthy!`,
-        url: `https://hlthy.app/milestone/${milestone.id}`
-      });
-    } catch (error) {
-      console.error('Error sharing milestone:', error);
-    }
-      */
   };
 
   const shareMilestoneWithUser = async (userId: string, username: string, profileImageUrl?: string) => {
@@ -289,6 +197,76 @@ export default function ViewMilestone() {
     }
   };
 
+  const handleDelete = () => {
+    if (!milestone) return;
+
+    // Logic for a milestone that is also a post with an image
+    if (milestone.postImageUrl && milestone.associatedPostId) {
+      Alert.alert(
+        "Delete Options",
+        "This milestone has an associated post. How would you like to proceed?",
+        [
+          {
+            text: "Delete Milestone Only",
+            onPress: async () => {
+              try {
+                const postRef = doc(db, 'posts', milestone.id);
+                await updateDoc(postRef, {
+                  isMilestone: false,
+                  milestoneDetails: null,
+                });
+                Alert.alert("Success", "The milestone was removed, but the post remains.");
+                router.back();
+              } catch (error) {
+                console.error("Error removing milestone from post:", error);
+                Alert.alert("Error", "Could not remove the milestone from the post.");
+              }
+            },
+          },
+          {
+            text: "Delete Both Milestone & Post",
+            style: "destructive",
+            onPress: async () => {
+              try {
+                const postRef = doc(db, 'posts', milestone.id);
+                await deleteDoc(postRef);
+                Alert.alert("Success", "The milestone and post have been deleted.");
+                router.back();
+              } catch (error) {
+                console.error("Error deleting post and milestone:", error);
+                Alert.alert("Error", "Could not delete the milestone and post.");
+              }
+            },
+          },
+          { text: "Cancel", style: "cancel" },
+        ]
+      );
+    } else {
+      // Logic for a milestone-only post (no image)
+      Alert.alert(
+        "Delete Milestone",
+        "Are you sure you want to permanently delete this milestone?",
+        [
+          {
+            text: "Delete",
+            style: "destructive",
+            onPress: async () => {
+              try {
+                const postRef = doc(db, 'posts', milestone.id);
+                await deleteDoc(postRef);
+                Alert.alert("Success", "The milestone has been deleted.");
+                router.back();
+              } catch (error) {
+                console.error("Error deleting milestone:", error);
+                Alert.alert("Error", "Could not delete the milestone.");
+              }
+            },
+          },
+          { text: "Cancel", style: "cancel" },
+        ]
+      );
+    }
+  };
 
   const formatTimeAgo = (date: Date) => {
     if (!date) return 'Just now';
@@ -312,7 +290,7 @@ export default function ViewMilestone() {
           <View style={styles.previousPRCard}>
             <View style={styles.previousPRHeader}>
               <MaterialCommunityIcons name="trophy-outline" size={18} color="#FF5E69" />
-              <Text style={styles.previousPRTitle}>{milestone.details.exercise}</Text>
+              <Text style={styles.previousPRTitle}>{milestone.details.exerciseName}</Text>
               <Text style={styles.previousPRDate}>{formatTimeAgo(milestone.createdAt)}</Text>
             </View>
             
@@ -335,16 +313,15 @@ export default function ViewMilestone() {
               </View>
             </View>
           </View>
-          
           {/* Previous Best Value (outside the card) */}
-          {milestone.details.previousValue && (
+          {milestone.details.previousValue != null && (
             <View style={styles.outsidePreviousBestRow}>
               <Text style={styles.previousBestLabel}>Previous Best:</Text>
               <View style={styles.prMetricGroup}>
                 <Text style={styles.previousBestValue}>{milestone.details.previousValue}</Text>
                 <Text style={styles.previousBestUnit}>{milestone.details.weightUnit}</Text>
               </View>
-              {milestone.details.previousReps && (
+              {milestone.details.previousReps != null && (
                 <>
                   <Text style={styles.previousBestSeparator}>×</Text>
                   <View style={styles.prMetricGroup}>
@@ -357,11 +334,23 @@ export default function ViewMilestone() {
           )}
           
           {/* Improvement Badge (outside the card) */}
-          {milestone.details.improvement && (
-            <View style={styles.outsideImprovementBadge}>
-              <Text style={styles.improvementText}>+{milestone.details.improvement}</Text>
-            </View>
-          )}
+          {(() => {
+            const improvement = calculateImprovementPercentage(
+              milestone.details.value,
+              milestone.details.previousValue
+            );
+
+            if (improvement && improvement > 0) {
+              return (
+                <View style={styles.outsideImprovementBadge}>
+                  <Text style={styles.improvementText}>
+                    +{improvement}% Improvement
+                  </Text>
+                </View>
+              );
+            }
+            return null;
+          })()}
         </View>
       );
     } else if (milestone.milestoneType === 'weightLoss' || milestone.milestoneType === 'weightGain') {
@@ -402,7 +391,7 @@ export default function ViewMilestone() {
           {milestone.details.totalLoss && (
             <View style={styles.outsideImprovementBadge}>
               <Text style={styles.improvementText}>
-                {isLoss ? '-' : '+'}{milestone.details.totalLoss} {milestone.details.newWeightUnit} ({milestone.details.percentageLoss})
+                {isLoss ? '↓' : '↑'} {milestone.details.totalLoss} {milestone.details.newWeightUnit}
               </Text>
             </View>
           )}
@@ -441,19 +430,32 @@ export default function ViewMilestone() {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={[styles.fixedHeader, { paddingTop: insets.top }]}>
-        <View style={styles.userSection}>
-          <TouchableOpacity 
-            style={styles.userInfoContainer}
-            onPress={() => navigateToProfile(milestone.userId)}
-          >
-            <Image source={{ uri: milestone.profileImageUrl }} style={styles.profilePic} />
-            <View>
-              <Text style={styles.fullName}>{milestone.fullName}</Text>
-              <Text style={styles.username}>@{milestone.username}</Text>
-            </View>
+        <TouchableOpacity 
+          style={styles.backButtonIcon}
+          onPress={() => router.back()}
+        >
+          <Ionicons name="chevron-back" size={28} color="#FFF" />
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={styles.userInfoContainer}
+          onPress={() => navigateToProfile(milestone.userId)}
+        >
+          <Image source={{ uri: milestone.profileImageUrl }} style={styles.profilePic} />
+          <View>
+            <Text style={styles.fullName}>{milestone.fullName}</Text>
+            <Text style={styles.username}>@{milestone.username}</Text>
+          </View>
+        </TouchableOpacity>
+        
+        {currentUser?.uid === milestone.userId ? (
+          <TouchableOpacity onPress={handleDelete} style={styles.moreButton}>
+            <Ionicons name="trash-outline" size={24} color="#FF5E69" />
           </TouchableOpacity>
-          <Text style={styles.timestamp}>{formatTimeAgo(milestone.createdAt)}</Text>
-        </View>
+        ) : (
+          // Add a placeholder view to maintain spacing when the delete button isn't shown
+          <View style={{ width: 34 }} /> 
+        )}
       </View>
 
       {/* Scrollable content */}
@@ -607,22 +609,30 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    backgroundColor: '#000',
+    backgroundColor: 'rgba(0,0,0,0.8)',
     zIndex: 1,
-    paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingHorizontal: 15,
+    paddingBottom: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  backButtonIcon: {
+    padding: 5,
+  },
+  moreButton: {
+    padding: 5,
   },
   headerSpacer: {
     height: 80,
   },
   userSection: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
   },
   userInfoContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
+    justifyContent: 'center',
   },
   profilePic: {
     width: 50,
@@ -835,7 +845,6 @@ const styles = StyleSheet.create({
   scrollViewContent: {
     paddingBottom: 70,
   },
-  // Previous Best widget styles
   previousPRCard: {
     backgroundColor: '#1A1A1A',
     borderRadius: 12,
@@ -930,11 +939,10 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   improvementText: {
-    color: '#000',
+    color: 'white',
     fontWeight: '600',
     fontSize: 14,
   },
-  // Style merged with first declaration
   outsidePreviousBestRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -943,11 +951,13 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   outsideImprovementBadge: {
-    backgroundColor: '#4CD964',
+    backgroundColor: 'rgba(76, 217, 100, 0.2)',
     paddingVertical: 4,
     paddingHorizontal: 12,
     borderRadius: 12,
     alignSelf: 'center',
     marginTop: 8,
+    borderWidth: 1,
+    borderColor: '#4CD964'
   },
 });

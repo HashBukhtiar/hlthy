@@ -18,32 +18,17 @@ import { usePostsData } from '@/hooks/usePostsData';
 import { useAuth } from '@/context/AuthContext';
 import { Ionicons, MaterialCommunityIcons, FontAwesome5, Feather } from '@expo/vector-icons';
 import SelectExercise from './SelectExercise';
-import { Exercise, MetricType } from '@/data/exercises';
+import { Exercise } from '@/data/exercises';
+import { fetchPreviousPRService, PreviousPRData } from '@/services/milestoneService';
 
 // Import shared components
 import {
     SECONDARY_COLOR,
     ErrorMessage,
-    VisibilitySelector,
-    VisibilityModal,
-    visibilityItems,
-    PostAttachment,
-    PostSelectionModal
 } from './PostComponents';
 
 interface MilestoneOnlyPostProps {
     onBack?: () => void;
-}
-
-// Interface for previous PR data
-interface PreviousPRData {
-    weight?: number;
-    reps?: number;
-    distance?: number;
-    duration?: number;
-    level?: number;
-    date?: string;
-    isPR?: boolean;
 }
 
 export default function MilestoneOnlyPost({ onBack }: MilestoneOnlyPostProps) {
@@ -57,7 +42,6 @@ export default function MilestoneOnlyPost({ onBack }: MilestoneOnlyPostProps) {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [formError, setFormError] = useState<string | null>(null);
     const [valueVisibility, setValueVisibility] = useState<string | null>('public');
-    const [visibilityModalVisible, setVisibilityModalVisible] = useState(false);
     
     // Previous PR data
     const [previousPR, setPreviousPR] = useState<PreviousPRData | null>(null);
@@ -80,115 +64,25 @@ export default function MilestoneOnlyPost({ onBack }: MilestoneOnlyPostProps) {
     const [fadeAnim] = useState(new Animated.Value(0));
     const [prFadeAnim] = useState(new Animated.Value(0));
     
-    // Post attachment
-    const [selectedPost, setSelectedPost] = useState<any>(null);
-    const [postModalVisible, setPostModalVisible] = useState(false);
-    
-    // Sample user posts data
-    const [availablePosts] = useState([
-        {
-            id: 'p1',
-            caption: 'Great workout today! Feeling pumped.',
-            imageUrl: 'https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
-            date: 'May 24, 2025',
-            likes: 45,
-            comments: 12
-        },
-        {
-            id: 'p2',
-            caption: 'Sunday morning run with amazing views',
-            imageUrl: 'https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
-            date: 'May 23, 2025',
-            likes: 32,
-            comments: 8
-        },
-        {
-            id: 'p3',
-            caption: 'New workout gear has arrived!',
-            imageUrl: 'https://images.unsplash.com/photo-1556817411-31ae72fa3ea0?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
-            date: 'May 22, 2025',
-            likes: 28,
-            comments: 5
-        },
-        {
-            id: 'p4',
-            caption: 'Thoughts on my training plan?',
-            imageUrl: null,
-            date: 'May 20, 2025',
-            likes: 15,
-            comments: 23
-        }
-    ]);
-    
     // Fetch the previous PR for the selected exercise (using fake data for now)
     const fetchPreviousPR = async (exercise: Exercise) => {
+        if (!currentUser) return;
+
         setLoadingPreviousPR(true);
-        
-        // Simulate API call delay
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        // Fake data based on exercise type
-        let prData: PreviousPRData | null = null;
-        
-        switch (exercise.metricType) {
-            case 'weight_reps':
-                prData = {
-                    weight: 135,
-                    reps: 8,
-                    date: 'May 20, 2025',
-                    isPR: true
-                };
-                break;
-            case 'bodyweight_reps':
-                prData = {
-                    reps: 15,
-                    date: 'May 18, 2025',
-                    isPR: true
-                };
-                break;
-            case 'duration':
-                prData = {
-                    duration: 1800, // 30 minutes in seconds
-                    date: 'May 22, 2025',
-                    isPR: true
-                };
-                break;
-            case 'distance':
-                prData = {
-                    distance: 3.1,
-                    date: 'May 19, 2025',
-                    isPR: true
-                };
-                break;
-            case 'distance_time':
-                prData = {
-                    distance: 5.0,
-                    duration: 1500, // 25 minutes in seconds
-                    date: 'May 15, 2025',
-                    isPR: true
-                };
-                break;
-            case 'duration_level':
-                prData = {
-                    duration: 2700, // 45 minutes in seconds
-                    level: 7,
-                    date: 'May 12, 2025',
-                    isPR: true
-                };
-                break;
-            default:
-                prData = null;
-        }
-        
-        setPreviousPR(prData);
-        setLoadingPreviousPR(false);
-        
-        // Animate the PR card appearance
-        if (prData) {
+        setPreviousPR(null);
+
+        try {
+            const prData = await fetchPreviousPRService(currentUser.uid, exercise);
+            setPreviousPR(prData);
+        } catch (error) {
+            // The service already logs the error, but we can log here too if needed
+            console.error("Error in component while fetching previous PR:", error);
+            setPreviousPR(null);
+        } finally {
+            setLoadingPreviousPR(false);
             Animated.timing(prFadeAnim, {
                 toValue: 1,
                 duration: 400,
-                delay: 100,
                 useNativeDriver: true
             }).start();
         }
@@ -318,15 +212,6 @@ export default function MilestoneOnlyPost({ onBack }: MilestoneOnlyPostProps) {
                 useNativeDriver: true
             })
         ]).start();
-    };
-    
-    const selectPost = (post: any) => {
-        setSelectedPost(post);
-        setPostModalVisible(false);
-    };
-
-    const removePost = () => {
-        setSelectedPost(null);
     };
 
     // Format duration in seconds to a human-readable string
@@ -472,132 +357,115 @@ export default function MilestoneOnlyPost({ onBack }: MilestoneOnlyPostProps) {
         );
     };
 
-    // Validate and prepare achievement data based on exercise type
-    const validateAndPrepareAchievementData = () => {
+    const handleSubmitPost = async () => {
         if (!selectedExercise) {
             setFormError("Please select an exercise first");
-            return null;
+            return;
         }
-        
-        const metricType = selectedExercise.metricType;
-        const achievementData: any = {
-            type: 'PR',
-            exercise: selectedExercise.name,
-            exerciseId: selectedExercise.id,
-        };
-        
-        switch (metricType) {
-            case 'weight_reps':
-                if (!weight || !reps) {
-                    setFormError("Please enter both weight and reps");
-                    return null;
-                }
-                achievementData.weight = parseFloat(weight);
-                achievementData.reps = parseInt(reps);
-                break;
-                
-            case 'bodyweight_reps':
-                if (!reps) {
-                    setFormError("Please enter number of reps");
-                    return null;
-                }
-                achievementData.reps = parseInt(reps);
-                break;
-                
-            case 'duration':
-                if (!hours && !minutes && !seconds) {
-                    setFormError("Please enter a duration");
-                    return null;
-                }
-                // Convert to total seconds
-                const totalSeconds = 
-                    (parseInt(hours || '0') * 3600) + 
-                    (parseInt(minutes || '0') * 60) + 
-                    parseInt(seconds || '0');
-                achievementData.duration = totalSeconds;
-                break;
-                
-            case 'distance':
-                if (!distance) {
-                    setFormError("Please enter a distance");
-                    return null;
-                }
-                achievementData.distance = parseFloat(distance);
-                break;
-                
-            case 'distance_time':
-                if (!distance) {
-                    setFormError("Please enter a distance");
-                    return null;
-                }
-                if (!hours && !minutes && !seconds) {
-                    setFormError("Please enter a time");
-                    return null;
-                }
-                // Convert to total seconds
-                const timeSeconds = 
-                    (parseInt(hours || '0') * 3600) + 
-                    (parseInt(minutes || '0') * 60) + 
-                    parseInt(seconds || '0');
-                achievementData.distance = parseFloat(distance);
-                achievementData.duration = timeSeconds;
-                break;
-                
-            case 'duration_level':
-                if (!hours && !minutes && !seconds) {
-                    setFormError("Please enter a duration");
-                    return null;
-                }
-                if (!level) {
-                    setFormError("Please enter a difficulty level");
-                    return null;
-                }
-                // Convert to total seconds
-                const durationSeconds = 
-                    (parseInt(hours || '0') * 3600) + 
-                    (parseInt(minutes || '0') * 60) + 
-                    parseInt(seconds || '0');
-                achievementData.duration = durationSeconds;
-                achievementData.level = parseInt(level);
-                break;
-                
-            default:
-                setFormError("Unsupported exercise type");
-                return null;
-        }
-        
-        return achievementData;
-    };
 
-    const handleSubmitPost = async () => {
+        setIsSubmitting(true);
+        setFormError(null);
+
+        console.log("Submitting with previousPR:", JSON.stringify(previousPR));
+
         try {
-            const achievementDetails = validateAndPrepareAchievementData();
-            if (!achievementDetails) {
-                return; // Validation failed
+            const metricType = selectedExercise.metricType;
+            const milestoneDetails: any = {
+                type: 'PR',
+                exerciseName: selectedExercise.name,
+                exerciseId: selectedExercise.id,
+                achievedAt: new Date().toISOString(),
+                previousValue: null,
+                previousReps: null,
+                previousDuration: null,
+                previousLevel: null,
+                previousDistance: null,
+            };
+
+            // Validate and assign metric-specific values
+            switch (metricType) {
+                case 'weight_reps':
+                    if (!weight || !reps) {
+                        throw new Error("Please enter both weight and reps");
+                    }
+                    milestoneDetails.value = parseFloat(weight);
+                    milestoneDetails.reps = parseInt(reps, 10);
+                    milestoneDetails.weightUnit = 'lbs';
+                    if (previousPR) {
+                        milestoneDetails.previousValue = previousPR.weight;
+                        milestoneDetails.previousReps = previousPR.reps;
+                    }
+                    break;
+                case 'bodyweight_reps':
+                    if (!reps) {
+                        throw new Error("Please enter number of reps");
+                    }
+                    milestoneDetails.reps = parseInt(reps, 10);
+                    if (previousPR) {
+                        milestoneDetails.previousReps = previousPR.reps;
+                    }
+                    break;
+                case 'duration':
+                case 'duration_level':
+                    const durationSeconds = (parseInt(hours || '0') * 3600) + (parseInt(minutes || '0') * 60) + parseInt(seconds || '0');
+                    if (durationSeconds <= 0) {
+                        throw new Error("Please enter a valid duration");
+                    }
+                    milestoneDetails.duration = durationSeconds;
+                    milestoneDetails.value = durationSeconds; // For consistency, value can hold the primary metric
+                    if (metricType === 'duration_level') {
+                        if (!level) {
+                            throw new Error("Please enter a difficulty level");
+                        }
+                        milestoneDetails.level = level;
+                    }
+                    if (previousPR) {
+                        milestoneDetails.previousDuration = previousPR.duration;
+                        milestoneDetails.previousLevel = previousPR.level;
+                    }
+                    break;
+                case 'distance':
+                case 'distance_time':
+                    if (!distance) {
+                        throw new Error("Please enter a distance");
+                    }
+                    milestoneDetails.value = parseFloat(distance);
+                    milestoneDetails.weightUnit = 'miles';
+                    if (metricType === 'distance_time') {
+                        const timeSeconds = (parseInt(hours || '0') * 3600) + (parseInt(minutes || '0') * 60) + parseInt(seconds || '0');
+                        if (timeSeconds <= 0) {
+                            throw new Error("Please enter a valid time for the distance");
+                        }
+                        milestoneDetails.duration = timeSeconds;
+                    }
+                    if (previousPR) {
+                        milestoneDetails.previousDistance = previousPR.distance;
+                        milestoneDetails.previousDuration = previousPR.duration;
+                    }
+                    break;
+                default:
+                    throw new Error("Unsupported exercise type");
             }
-            
-            setIsSubmitting(true);
-            setFormError(null);
-            
+
+            console.log("Final milestoneDetails object being submitted:", JSON.stringify(milestoneDetails, null, 2));
+
             const postData = {
-                caption: '', // No caption for milestone-only posts
-                imageUri: null, // No image for milestone-only posts
+                caption: '',
+                imageUri: null,
                 isMilestone: true,
-                milestoneDetails: achievementDetails,
+                milestoneDetails: milestoneDetails,
                 visibility: valueVisibility || 'public',
             };
-            
+
             const postId = await addPost(postData);
             console.log("Successfully created achievement with ID:", postId);
             Alert.alert('Success', 'Your achievement has been shared!', [
-                { text: 'OK', onPress: () => {
-                    console.log("Navigating back to home after achievement creation");
-                    router.push('/');
-                }}
+                { text: 'OK', onPress: () => router.push('/') }
             ]);
-        } catch (error) {
+
+        } catch (error: any) {
             console.error('Error creating achievement:', error);
-            setFormError('Failed to share achievement. Please try again.');
+            setFormError(error.message || 'Failed to share achievement. Please try again.');
         } finally {
             setIsSubmitting(false);
         }
@@ -915,39 +783,8 @@ export default function MilestoneOnlyPost({ onBack }: MilestoneOnlyPostProps) {
                                 {renderMetricFields()}
                             </View>
                         </View>
-
-                        {/* Post attachment section */}
-                        <PostAttachment
-                            selectedPost={selectedPost}
-                            setPostModalVisible={setPostModalVisible}
-                            removePost={removePost}
-                        />
-
-                        {/* Visibility options */}
-                        <VisibilitySelector
-                            valueVisibility={valueVisibility}
-                            setVisibilityModalVisible={setVisibilityModalVisible}
-                            itemsVisibility={visibilityItems}
-                        />
                     </ScrollView>
                 </View>
-
-                {/* Visibility selection modal */}
-                <VisibilityModal
-                    visibilityModalVisible={visibilityModalVisible}
-                    setVisibilityModalVisible={setVisibilityModalVisible}
-                    valueVisibility={valueVisibility}
-                    setValueVisibility={setValueVisibility}
-                    itemsVisibility={visibilityItems}
-                />
-
-                {/* Post selection modal */}
-                <PostSelectionModal
-                    postModalVisible={postModalVisible}
-                    setPostModalVisible={setPostModalVisible}
-                    selectPost={selectPost}
-                    availablePosts={availablePosts}
-                />
             </KeyboardAvoidingView>
         </SafeAreaView>
     );
