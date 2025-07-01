@@ -439,51 +439,71 @@ export default function CreateWorkout() {
         showsVerticalScrollIndicator={false}
         keyboardDismissMode='on-drag'
       >
-        {/* Cover Image */}
-        <TouchableOpacity style={styles.imageContainer} onPress={pickImage}>
-          {coverImage ? (
-            <Image source={{ uri: coverImage }} style={styles.coverImage} />
-          ) : (
-            <View style={styles.imagePlaceholder}>
-              <Ionicons name="image-outline" size={40} color="#666" />
-              <Text style={styles.placeholderText}>Add Cover Image</Text>
+        {/* Workout Details Section */}
+        <View style={styles.mainSection}>
+          {/* Cover Image */}
+          <TouchableOpacity style={styles.imageContainer} onPress={pickImage}>
+            {coverImage ? (
+              <Image source={{ uri: coverImage }} style={styles.coverImage} />
+            ) : (
+              <View style={styles.imagePlaceholder}>
+                <Ionicons name="image-outline" size={40} color="#666" />
+                <Text style={styles.placeholderText}>Add Cover Image</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+
+          {/* Title Input */}
+          <View style={styles.inputContainer}>
+            <TextInput
+              style={styles.transparentTextInput}
+              value={title}
+              onChangeText={setTitle}
+              placeholder="Workout Title"
+              placeholderTextColor="rgba(255, 255, 255, 0.3)"
+              maxLength={40}
+            />
+          </View>
+
+          {/* Description Input */}
+          <View style={styles.descriptionContainer}>
+            <TextInput
+              style={styles.descriptionInput}
+              value={description}
+              onChangeText={setDescription}
+              placeholder="Describe your workout..."
+              placeholderTextColor="rgba(255, 255, 255, 0.3)"
+              multiline
+              numberOfLines={3}
+            />
+          </View>
+        </View>
+
+        {/* Settings Section */}
+        <View style={styles.mainSection}>
+          <View style={styles.sectionContainer}>
+            <View style={styles.sectionHeader}>
+              <Ionicons name="settings-outline" size={20} color="#FFF" />
+              <Text style={styles.sectionTitle}>Settings</Text>
             </View>
-          )}
-        </TouchableOpacity>
-
-        {/* Title Input */}
-        <View style={styles.inputContainer}>
-          <Text style={styles.inputLabel}>Title</Text>
-          <TextInput
-            style={styles.textInput}
-            value={title}
-            onChangeText={setTitle}
-            placeholder="Workout Title"
-            placeholderTextColor="#666"
-            maxLength={40}
+          </View>
+          
+          {/* Visibility Selector */}
+          <VisibilitySelector
+            valueVisibility={visibility}
+            setVisibilityModalVisible={setVisibilityModalVisible}
+            itemsVisibility={visibilityItems}
           />
         </View>
 
-        {/* Description Input */}
-        <View style={styles.inputContainer}>
-          <Text style={styles.inputLabel}>Description</Text>
-          <TextInput
-            style={[styles.textInput, styles.textAreaInput]}
-            value={description}
-            onChangeText={setDescription}
-            placeholder="Describe your workout..."
-            placeholderTextColor="#666"
-            multiline
-            numberOfLines={4}
-          />
+        {/* Workout Structure Section */}
+        <View style={styles.mainSection}>
+          <View style={styles.sectionContainer}>
+            <View style={styles.sectionHeader}>
+              <Ionicons name="barbell-outline" size={20} color="#FFF" />
+              <Text style={styles.sectionTitle}>Workout Structure</Text>
+          </View>
         </View>
-
-        {/* Visibility Selector */}
-        <VisibilitySelector
-          valueVisibility={visibility}
-          setVisibilityModalVisible={setVisibilityModalVisible}
-          itemsVisibility={visibilityItems}
-        />
 
         {segments.map((segment, segmentIndex) => (
           <View key={segment.id} style={styles.segmentContainer}>
@@ -594,6 +614,7 @@ export default function CreateWorkout() {
           <Ionicons name="add-circle-outline" size={20} color="white" />
           <Text style={styles.addSegmentText}>Add Segment</Text>
         </TouchableOpacity>
+        </View>
         
         {/* Bottom space for scrolling */}
         <View style={styles.bottomSpace} />
@@ -655,6 +676,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'black'
   },
+  mainSection: {
+    marginBottom: 30,
+    paddingBottom: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+  },
   imageContainer: {
     width: '60%',
     aspectRatio: 1,
@@ -682,6 +709,23 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
     marginBottom: 20,
   },
+  descriptionContainer: {
+    marginHorizontal: 20,
+    marginBottom: 30,
+    marginTop: 10,
+  },
+  descriptionInput: {
+    backgroundColor: 'transparent',
+    borderRadius: 0,
+    padding: 15,
+    paddingHorizontal: 20,
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'normal',
+    minHeight: 80,
+    textAlignVertical: 'top',
+    textAlign: 'center',
+  },
   inputLabel: {
     color: '#ccc',
     fontSize: 16,
@@ -694,6 +738,26 @@ const styles = StyleSheet.create({
     padding: 15,
     color: 'white',
     fontSize: 16,
+  },
+  transparentTextInput: {
+    backgroundColor: 'transparent',
+    borderRadius: 0,
+    padding: 15,
+    paddingHorizontal: 20,
+    color: 'white',
+    fontSize: 28,
+    fontWeight: 'bold',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.2)',
+    textAlign: 'center',
+  },
+  transparentTextAreaInput: {
+    fontSize: 16,
+    fontWeight: 'normal',
+    minHeight: 100,
+    textAlignVertical: 'top',
+    borderBottomWidth: 0,
+    paddingTop: 10,
   },
   textAreaInput: {
     minHeight: 100,
@@ -837,9 +901,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#333',
-    marginBottom: 20,
+    marginBottom: 0,
+  },
+  // Section styles
+  sectionContainer: {
+    marginHorizontal: 20,
+    marginBottom: 15,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#FFF',
+    marginLeft: 8,
   },
   visibilityHeader: {
     flexDirection: 'row',
