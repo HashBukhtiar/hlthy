@@ -525,17 +525,9 @@ export default function CreateWorkout() {
               />
             </View>
           </View>
-        </View>
 
-        {/* Settings Section */}
-        <View style={styles.mainSection}>
-          <View style={styles.sectionContainer}>
-            <View style={styles.sectionHeader}>
-              <Ionicons name="settings-outline" size={20} color="#FFF" />
-              <Text style={styles.sectionTitle}>Settings</Text>
-            </View>
-            
-            {/* Visibility Setting */}
+          {/* Visibility Setting */}
+          <View style={styles.visibilityStandaloneContainer}>
             <View style={styles.settingItem}>
               <View style={styles.settingLabelContainer}>
                 <Ionicons name="eye-outline" size={18} color="#ccc" />
@@ -560,6 +552,7 @@ export default function CreateWorkout() {
             </View>
           </View>
         </View>
+
 
         {/* Workout Structure Section */}
         <View style={styles.mainSection}>
@@ -1000,6 +993,10 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   // Settings styles
+  visibilityStandaloneContainer: {
+    marginHorizontal: 20,
+    marginBottom: 30,
+  },
   settingItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
