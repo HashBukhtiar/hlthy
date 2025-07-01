@@ -23,6 +23,7 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import SelectExercise from './SelectExercise';
 import { Exercise } from '@/data/exercises';
 import { CustomSelector, SelectorItem } from '@/components/CustomSelector';
+import { generateId, generateUniqueFilename } from '@/logic/idGenerator';
 
 // Visibility options for workouts
 const visibilityItems: SelectorItem[] = [
@@ -70,7 +71,7 @@ export default function CreateWorkout() {
   const [coverImage, setCoverImage] = useState<string | null>(null);
   const [segments, setSegments] = useState<WorkoutSegment[]>([
     {
-      id: Date.now().toString(),
+      id: generateId(),
       name: 'Warm Up',
       length: '15',
       exercises: []
@@ -193,7 +194,7 @@ export default function CreateWorkout() {
             exercises: [
               ...segment.exercises,
               {
-                id: Date.now().toString(),
+                id: generateId(),
                 name: exercise.name,
                 sets: '',
                 reps: ''
@@ -218,7 +219,7 @@ export default function CreateWorkout() {
 
   const addSegment = () => {
     const newSegment = {
-      id: Date.now().toString(),
+      id: generateId(),
       name: 'New Segment',
       length: '30',
       exercises: []
@@ -314,7 +315,7 @@ export default function CreateWorkout() {
       if (coverImage) {
         const response = await fetch(coverImage);
         const blob = await response.blob();
-        const imageName = `workoutCovers/${currentUser.uid}/${Date.now()}-${title.replace(/\s+/g, '_')}.jpg`;
+        const imageName = `workoutCovers/${currentUser.uid}/${generateUniqueFilename(title.replace(/\s+/g, '_'), 'jpg')}`;
         const storageRef = ref(storage, imageName);
         await uploadBytes(storageRef, blob);
         coverImageUrl = await getDownloadURL(storageRef);

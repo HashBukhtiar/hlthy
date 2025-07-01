@@ -10,6 +10,7 @@ import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { CustomSelector, SelectorItem } from '@/components/CustomSelector';
+import { generateUniqueFilename } from '@/logic/idGenerator';
 
 interface DropdownItem {
   label: string;
@@ -170,7 +171,7 @@ export default function Settings() {
       
       // Try simpler path (no user subfolder)
       const storage = getStorage();
-      const filename = `profile_${Date.now()}.jpg`;
+      const filename = generateUniqueFilename('profile', 'jpg');
       const storageRef = ref(storage, `profileImages/${filename}`);
       
       console.log(`Uploading to simplified path: profileImages/${filename}`);
