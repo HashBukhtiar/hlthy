@@ -187,9 +187,11 @@ export default function CreateWorkout() {
   const [currentSegmentId, setCurrentSegmentId] = useState<string | null>(null);
   const [currentExerciseId, setCurrentExerciseId] = useState<string | null>(null);
   const [titleFocused, setTitleFocused] = useState(false);
+  const [descriptionFocused, setDescriptionFocused] = useState(false);
 
   const scrollViewRef = useRef<ScrollView>(null);
   const borderAnimation = useRef(new Animated.Value(0)).current;
+  const descriptionAnimation = useRef(new Animated.Value(0)).current;
 
   const animateBorderIn = () => {
     setTitleFocused(true);
@@ -217,6 +219,34 @@ export default function CreateWorkout() {
   const animatedBorderOpacity = borderAnimation.interpolate({
     inputRange: [0, 1],
     outputRange: [0.2, 0.8],
+  });
+
+  const animateDescriptionIn = () => {
+    setDescriptionFocused(true);
+    Animated.timing(descriptionAnimation, {
+      toValue: 1,
+      duration: 200,
+      useNativeDriver: false,
+    }).start();
+  };
+
+  const animateDescriptionOut = () => {
+    setDescriptionFocused(false);
+    Animated.timing(descriptionAnimation, {
+      toValue: 0,
+      duration: 200,
+      useNativeDriver: false,
+    }).start();
+  };
+
+  const animatedDescriptionBorder = descriptionAnimation.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['rgba(255, 255, 255, 0.1)', 'rgba(255, 45, 85, 0.4)'],
+  });
+
+  const animatedDescriptionBackground = descriptionAnimation.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['rgba(255, 255, 255, 0.05)', 'rgba(255, 45, 85, 0.08)'],
   });
 
   const pickImage = async () => {
@@ -513,17 +543,38 @@ export default function CreateWorkout() {
 
           {/* Description Input */}
           <View style={styles.descriptionContainer}>
-            <View style={styles.descriptionWrapper}>
+            <Animated.View 
+              style={[
+                styles.descriptionWrapper,
+                {
+                  borderColor: animatedDescriptionBorder,
+                  backgroundColor: animatedDescriptionBackground,
+                }
+              ]}
+            >
+              <View style={styles.descriptionHeader}>
+                <Ionicons name="document-text-outline" size={16} color="rgba(255, 255, 255, 0.6)" />
+                <Text style={styles.descriptionLabel}>Description</Text>
+                <Text style={styles.descriptionOptional}>Optional</Text>
+              </View>
               <TextInput
                 style={styles.descriptionInput}
                 value={description}
                 onChangeText={setDescription}
-                placeholder="Describe your workout..."
+                placeholder="Tell others what makes this workout special..."
                 placeholderTextColor="rgba(255, 255, 255, 0.4)"
                 multiline
-                numberOfLines={3}
+                numberOfLines={4}
+                maxLength={200}
+                onFocus={animateDescriptionIn}
+                onBlur={animateDescriptionOut}
               />
-            </View>
+              <View style={styles.descriptionFooter}>
+                <Text style={styles.characterCount}>
+                  {description.length}/200
+                </Text>
+              </View>
+            </Animated.View>
           </View>
           
           {/* Visibility Setting */}
@@ -769,26 +820,54 @@ const styles = StyleSheet.create({
   descriptionContainer: {
     marginHorizontal: 20,
     marginBottom: 30,
-    marginTop: 10,
+    marginTop: 15,
   },
   descriptionWrapper: {
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: 12,
-    borderWidth: 1,
+    borderRadius: 16,
+    borderWidth: 1.5,
     borderColor: 'rgba(255, 255, 255, 0.1)',
-    padding: 4,
+    padding: 16,
+  },
+  descriptionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  descriptionLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: 'rgba(255, 255, 255, 0.8)',
+    marginLeft: 6,
+    flex: 1,
+  },
+  descriptionOptional: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.5)',
+    fontStyle: 'italic',
   },
   descriptionInput: {
     backgroundColor: 'transparent',
-    borderRadius: 8,
-    padding: 15,
-    paddingHorizontal: 20,
+    borderRadius: 0,
+    padding: 0,
     color: 'white',
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: 'normal',
     minHeight: 80,
     textAlignVertical: 'top',
-    textAlign: 'center',
+    lineHeight: 22,
+  },
+  descriptionFooter: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  characterCount: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.5)',
   },
   inputLabel: {
     color: '#ccc',
