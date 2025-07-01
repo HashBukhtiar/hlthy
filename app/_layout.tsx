@@ -11,6 +11,18 @@ export default function RootLayout() {
   const colorScheme = useColorScheme();
   const pathname = usePathname();
   const [showBottomBar, setShowBottomBar] = useState(true);
+  
+  // Direct calculation without useEffect
+  const shouldHideBottomBar = pathname === '/create-workout' || 
+                             pathname?.includes('/settings') || 
+                             pathname?.includes('/view-post') ||
+                             pathname?.includes('/signup') ||
+                             pathname?.includes('/select-archetype') ||
+                             pathname?.includes('/landing') ||
+                             pathname?.includes('/login') ||
+                             pathname?.includes('/chat') ||
+                             pathname?.includes('/forgot-password') ||
+                             pathname?.includes('/view-milestone');
 
   // Routes that should not display the bottom navigation
   const hideBottomBarRoutes = [
@@ -23,19 +35,8 @@ export default function RootLayout() {
     'chat',
     'forgot-password',
     'view-milestone',
+    'create-workout',
   ];
-
-  // Check if we should hide the bottom bar based on current route
-  useEffect(() => {
-    if (!pathname) {
-      setShowBottomBar(true);
-      return;
-    }
-
-    // Check if current path includes any of the routes where we should hide the bottom bar
-    const shouldHide = hideBottomBarRoutes.some(route => pathname.includes(route));
-    setShowBottomBar(!shouldHide);
-  }, [pathname]);
 
   return (
     <AuthProvider>
@@ -73,7 +74,7 @@ export default function RootLayout() {
           </Stack>
           
           {/* Bottom navigation that persists across route changes but hides on specific screens */}
-          {showBottomBar && <BottomButtons />}
+          <BottomButtons />
         </View>
       </SafeAreaProvider>
     </AuthProvider>
