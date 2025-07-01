@@ -311,7 +311,9 @@ const styles = StyleSheet.create({
         backgroundColor: '#1a1a1a',
         borderTopLeftRadius: 24,
         borderTopRightRadius: 24,
-        padding: 24,
+        paddingTop: 8,
+        paddingHorizontal: 24,
+        paddingBottom: 24,
         maxHeight: '80%',
     },
     modalTitle: {
@@ -374,8 +376,8 @@ const styles = StyleSheet.create({
     },
     handleBarContainer: {
         alignItems: 'center',
-        paddingTop: 12,
-        paddingBottom: 20,
+        paddingTop: 8,
+        paddingBottom: 16,
     },
     handleBar: {
         width: 36,
