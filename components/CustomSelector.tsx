@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, Modal, StyleSheet, PanResponder, Animated } from 'react-native';
+import { View, Text, TouchableOpacity, Modal, StyleSheet, PanResponder, Animated, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 export interface SelectorItem {
@@ -115,13 +115,18 @@ export const CustomSelector = ({
                     </View>
                     <View style={styles.fullWidthValueContainer}>
                         <View style={styles.fullWidthValue}>
-                            {selectedItem?.icon && (
+                            {selectedItem?.image ? (
+                                <Image 
+                                    source={selectedItem.image} 
+                                    style={styles.selectedItemImage}
+                                />
+                            ) : selectedItem?.icon ? (
                                 <Ionicons 
                                     name={selectedItem.icon as any} 
                                     size={16} 
                                     color="#FFF" 
                                 />
-                            )}
+                            ) : null}
                             <Text style={styles.fullWidthValueText}>
                                 {selectedItem ? selectedItem.label : placeholder}
                             </Text>
@@ -140,13 +145,18 @@ export const CustomSelector = ({
                         onPress={() => setModalVisible(true)}
                     >
                         <View style={styles.selectedValue}>
-                            {selectedItem?.icon && (
+                            {selectedItem?.image ? (
+                                <Image 
+                                    source={selectedItem.image} 
+                                    style={styles.selectedItemImage}
+                                />
+                            ) : selectedItem?.icon ? (
                                 <Ionicons 
                                     name={selectedItem.icon as any} 
                                     size={18} 
                                     color="#FFF" 
                                 />
-                            )}
+                            ) : null}
                             <Text style={styles.selectedValueText}>
                                 {selectedItem ? selectedItem.label : placeholder}
                             </Text>
@@ -204,13 +214,21 @@ export const CustomSelector = ({
                                 }}
                             >
                                 <View style={styles.optionHeader}>
-                                    {item.icon && (
+                                    {item.image ? (
+                                        <Image 
+                                            source={item.image} 
+                                            style={[
+                                                styles.optionImage,
+                                                { tintColor: tempValue === item.value ? "#ff2d55" : "#FFF" }
+                                            ]}
+                                        />
+                                    ) : item.icon ? (
                                         <Ionicons 
                                             name={item.icon as any} 
                                             size={20} 
                                             color={tempValue === item.value ? "#ff2d55" : "#FFF"} 
                                         />
-                                    )}
+                                    ) : null}
                                     <Text style={[
                                         styles.optionLabel,
                                         tempValue === item.value && styles.selectedOptionText
@@ -289,6 +307,17 @@ const styles = StyleSheet.create({
         marginLeft: 6,
         fontSize: 15,
         fontWeight: '500',
+    },
+    // Image styles
+    selectedItemImage: {
+        width: 18,
+        height: 18,
+        tintColor: '#FFF',
+    },
+    optionImage: {
+        width: 20,
+        height: 20,
+        tintColor: '#FFF',
     },
     // Full width variant styles
     fullWidthSelector: {
@@ -378,6 +407,7 @@ const styles = StyleSheet.create({
     },
     cancelButton: {
         marginTop: 10,
+        marginBottom: 20,
         paddingVertical: 12,
         borderRadius: 8,
         backgroundColor: 'rgba(255, 255, 255, 0.1)',
