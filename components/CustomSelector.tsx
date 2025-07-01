@@ -41,38 +41,45 @@ export const CustomSelector = ({
     const panResponder = useRef(
         PanResponder.create({
             onMoveShouldSetPanResponder: (evt, gestureState) => {
-                return Math.abs(gestureState.dy) > 5 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx);
+                return Math.abs(gestureState.dy) > 3;
             },
             onPanResponderGrant: () => {
-                offsetY.current = 0;
+                // Stop any ongoing animation and remember current position
+                translateY.stopAnimation((value) => {
+                    offsetY.current = value;
+                });
             },
             onPanResponderMove: (evt, gestureState) => {
-                // Allow movement both up and down, but limit upward movement
-                if (gestureState.dy >= 0) {
+                // Calculate new position from the starting offset
+                const newValue = offsetY.current + gestureState.dy;
+                
+                if (newValue >= 0) {
                     // Moving down - allow full movement
-                    translateY.setValue(gestureState.dy);
+                    translateY.setValue(newValue);
                 } else {
                     // Moving up - allow limited movement with resistance
-                    const resistanceFactor = 0.3;
-                    translateY.setValue(gestureState.dy * resistanceFactor);
+                    const resistanceFactor = 0.2;
+                    translateY.setValue(newValue * resistanceFactor);
                 }
             },
             onPanResponderRelease: (evt, gestureState) => {
-                if (gestureState.dy > 100 || gestureState.vy > 0.8) {
-                    // Dismiss if swiped down more than 100 pixels or with high velocity
+                const threshold = 80; // Lower threshold for easier dismissal
+                const velocityThreshold = 0.5;
+                
+                if (gestureState.dy > threshold || gestureState.vy > velocityThreshold) {
+                    // Dismiss modal with smooth animation
                     Animated.timing(translateY, {
-                        toValue: 300,
-                        duration: 200,
+                        toValue: 400,
+                        duration: 250,
                         useNativeDriver: true,
                     }).start(() => {
                         setModalVisible(false);
-                        translateY.setValue(0);
                     });
                 } else {
-                    // Snap back to original position
+                    // Snap back to original position with spring animation
                     Animated.spring(translateY, {
                         toValue: 0,
-                        tension: 100,
+                        tension: 120,
                         friction: 8,
                         useNativeDriver: true,
                     }).start();
@@ -84,8 +91,14 @@ export const CustomSelector = ({
     // Reset animation when modal opens and sync tempValue with actual value
     useEffect(() => {
         if (modalVisible) {
+            // Reset position smoothly when modal opens
             translateY.setValue(0);
+            offsetY.current = 0;
             setTempValue(value);
+        } else {
+            // Ensure clean state when modal closes
+            translateY.setValue(0);
+            offsetY.current = 0;
         }
     }, [modalVisible, value]);
 
@@ -152,7 +165,16 @@ export const CustomSelector = ({
                 <TouchableOpacity 
                     style={styles.modalOverlay}
                     activeOpacity={1}
-                    onPress={() => setModalVisible(false)}
+                    onPress={() => {
+                        // Animate out smoothly when tapping overlay
+                        Animated.timing(translateY, {
+                            toValue: 400,
+                            duration: 200,
+                            useNativeDriver: true,
+                        }).start(() => {
+                            setModalVisible(false);
+                        });
+                    }}
                 >
                     <Animated.View 
                         style={[
@@ -380,10 +402,10 @@ const styles = StyleSheet.create({
         paddingBottom: 16,
     },
     handleBar: {
-        width: 36,
+        width: 40,
         height: 4,
         backgroundColor: '#999',
         borderRadius: 2,
-        opacity: 0.6,
+        opacity: 0.8,
     },
 });
