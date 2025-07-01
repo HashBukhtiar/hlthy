@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Stack } from 'expo-router';
 import { useColorScheme } from '@/components/useColorScheme';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -10,33 +10,6 @@ import { AuthProvider } from '@/context/AuthContext';
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   const pathname = usePathname();
-  const [showBottomBar, setShowBottomBar] = useState(true);
-  
-  // Direct calculation without useEffect
-  const shouldHideBottomBar = pathname === '/create-workout' || 
-                             pathname?.includes('/settings') || 
-                             pathname?.includes('/view-post') ||
-                             pathname?.includes('/signup') ||
-                             pathname?.includes('/select-archetype') ||
-                             pathname?.includes('/landing') ||
-                             pathname?.includes('/login') ||
-                             pathname?.includes('/chat') ||
-                             pathname?.includes('/forgot-password') ||
-                             pathname?.includes('/view-milestone');
-
-  // Routes that should not display the bottom navigation
-  const hideBottomBarRoutes = [
-    'settings', 
-    'view-post',
-    'signup',
-    'select-archetype',
-    'landing',
-    'login',
-    'chat',
-    'forgot-password',
-    'view-milestone',
-    'create-workout',
-  ];
 
   return (
     <AuthProvider>
