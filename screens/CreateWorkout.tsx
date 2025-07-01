@@ -190,6 +190,7 @@ export default function CreateWorkout() {
   const [descriptionFocused, setDescriptionFocused] = useState(false);
 
   const scrollViewRef = useRef<ScrollView>(null);
+  const descriptionInputRef = useRef<TextInput>(null);
   const borderAnimation = useRef(new Animated.Value(0)).current;
   const descriptionAnimation = useRef(new Animated.Value(0)).current;
 
@@ -558,6 +559,7 @@ export default function CreateWorkout() {
                 <Text style={styles.descriptionOptional}>Optional</Text>
               </View>
               <TextInput
+                ref={descriptionInputRef}
                 style={styles.descriptionInput}
                 value={description}
                 onChangeText={setDescription}
@@ -581,7 +583,10 @@ export default function CreateWorkout() {
           <View style={styles.visibilityStandaloneContainer}>
             <TouchableOpacity 
               style={styles.settingItem}
-              onPress={() => setVisibilityModalVisible(true)}
+              onPress={() => {
+                descriptionInputRef.current?.blur();
+                setVisibilityModalVisible(true);
+              }}
             >
               <View style={styles.settingLabelContainer}>
                 <Ionicons name="eye-outline" size={18} color="#ccc" />
