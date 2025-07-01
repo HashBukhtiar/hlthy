@@ -32,9 +32,6 @@ import {
     CaptionInput,
     WorkoutAttachment,
     WorkoutSelectionModal,
-    VisibilitySelector,
-    VisibilityModal,
-    visibilityItems
 } from './PostComponents';
 
 interface MilestoneWithPostProps {
@@ -52,8 +49,6 @@ export default function MilestoneWithPost({ onBack }: MilestoneWithPostProps) {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [formError, setFormError] = useState<string | null>(null);
     const [caption, setCaption] = useState('');
-    const [valueVisibility, setValueVisibility] = useState<string | null>('public');
-    const [visibilityModalVisible, setVisibilityModalVisible] = useState(false);
     
     // Previous PR data
     const [previousPR, setPreviousPR] = useState<PreviousPRData | null>(null);
@@ -487,7 +482,7 @@ export default function MilestoneWithPost({ onBack }: MilestoneWithPostProps) {
                 imageUri: imageUri ?? undefined,
                 isMilestone: true,
                 milestoneDetails: milestoneDetails,
-                visibility: (valueVisibility as 'public' | 'followers') || 'public',
+                visibility: userProfile?.defaultPostVisibility || 'public',
                 workoutId: selectedWorkout?.id || null
             };
             
@@ -835,13 +830,6 @@ export default function MilestoneWithPost({ onBack }: MilestoneWithPostProps) {
                             setWorkoutModalVisible={setWorkoutModalVisible}
                             removeWorkout={removeWorkout}
                         />
-
-                        {/* Visibility options */}
-                        <VisibilitySelector
-                            valueVisibility={valueVisibility}
-                            setVisibilityModalVisible={setVisibilityModalVisible}
-                            itemsVisibility={visibilityItems}
-                        />
                     </ScrollView>
                 </View>
 
@@ -853,15 +841,6 @@ export default function MilestoneWithPost({ onBack }: MilestoneWithPostProps) {
                     workoutModalVisible={workoutModalVisible}
                     setWorkoutModalVisible={setWorkoutModalVisible}
                     selectWorkout={selectWorkout}
-                />
-
-                {/* Visibility selection modal */}
-                <VisibilityModal
-                    visibilityModalVisible={visibilityModalVisible}
-                    setVisibilityModalVisible={setVisibilityModalVisible}
-                    valueVisibility={valueVisibility}
-                    setValueVisibility={setValueVisibility}
-                    itemsVisibility={visibilityItems}
                 />
             </KeyboardAvoidingView>
         </SafeAreaView>

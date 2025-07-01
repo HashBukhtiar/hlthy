@@ -23,7 +23,133 @@ import { addDoc, collection, serverTimestamp, doc, updateDoc, increment } from '
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import SelectExercise from './SelectExercise';
 import { Exercise } from '@/data/exercises';
-import { VisibilitySelector, VisibilityModal, visibilityItems } from './PostComponents';
+
+// Visibility options for workouts
+interface DropdownItem {
+    label: string;
+    value: string;
+    icon?: string;
+    description?: string;
+}
+
+const visibilityItems: DropdownItem[] = [
+    { 
+        label: 'Public', 
+        value: 'public',
+        icon: 'earth',
+        description: 'Anyone can see this workout'
+    },
+    { 
+        label: 'Followers Only', 
+        value: 'followers',
+        icon: 'people',
+        description: 'Only your followers can see this workout'
+    },
+    { 
+        label: 'Private', 
+        value: 'private',
+        icon: 'lock-closed',
+        description: 'Only you can see this workout'
+    }
+];
+
+// Visibility selector component for workouts
+const VisibilitySelector = ({
+    valueVisibility,
+    setVisibilityModalVisible,
+    itemsVisibility
+}: {
+    valueVisibility: string | null;
+    setVisibilityModalVisible: (visible: boolean) => void;
+    itemsVisibility: DropdownItem[];
+}) => (
+    <View style={styles.visibilityContainer}>
+        <View style={styles.visibilityHeader}>
+            <Ionicons name="eye-outline" size={20} color="#FFF" />
+            <Text style={styles.visibilityTitle}>Visibility</Text>
+        </View>
+        <TouchableOpacity 
+            style={styles.visibilitySelector}
+            onPress={() => setVisibilityModalVisible(true)}
+        >
+            <View style={styles.selectedVisibility}>
+                <Ionicons 
+                    name={itemsVisibility.find(item => item.value === valueVisibility)?.icon as any || 'earth'} 
+                    size={18} 
+                    color="#FFF" 
+                />
+                <Text style={styles.selectedVisibilityText}>
+                    {itemsVisibility.find(item => item.value === valueVisibility)?.label || 'Public'}
+                </Text>
+            </View>
+            <Ionicons name="chevron-down" size={18} color="#999" />
+        </TouchableOpacity>
+    </View>
+);
+
+// Visibility Modal component for workouts
+const VisibilityModal = ({
+    visibilityModalVisible,
+    setVisibilityModalVisible,
+    valueVisibility,
+    setValueVisibility,
+    itemsVisibility
+}: {
+    visibilityModalVisible: boolean;
+    setVisibilityModalVisible: (visible: boolean) => void;
+    valueVisibility: string | null;
+    setValueVisibility: (value: string) => void;
+    itemsVisibility: DropdownItem[];
+}) => (
+    <Modal
+        animationType="slide"
+        transparent={true}
+        visible={visibilityModalVisible}
+        onRequestClose={() => setVisibilityModalVisible(false)}
+    >
+        <TouchableOpacity 
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setVisibilityModalVisible(false)}
+        >
+            <View style={styles.visibilityModalContent}>
+                <Text style={styles.visibilityModalTitle}>Workout Visibility</Text>
+                
+                {itemsVisibility.map((item) => (
+                    <TouchableOpacity 
+                        key={item.value}
+                        style={[
+                            styles.visibilityModalOption,
+                            valueVisibility === item.value && styles.selectedVisibilityOption
+                        ]}
+                        onPress={() => {
+                            setValueVisibility(item.value);
+                            setVisibilityModalVisible(false);
+                        }}
+                    >
+                        <View style={styles.visibilityOptionHeader}>
+                            <Ionicons name={item.icon as any} size={22} color={valueVisibility === item.value ? '#ff2d55' : "#FFF"} />
+                            <Text style={[
+                                styles.visibilityOptionLabel,
+                                valueVisibility === item.value && styles.selectedVisibilityOptionText
+                            ]}>
+                                {item.label}
+                            </Text>
+                        </View>
+                        <Text style={styles.visibilityOptionDescription}>{item.description}</Text>
+                    </TouchableOpacity>
+                ))}
+                
+                <TouchableOpacity 
+                    style={styles.cancelButton}
+                    onPress={() => setVisibilityModalVisible(false)}
+                >
+                    <Text style={styles.cancelButtonText}>Close</Text>
+                </TouchableOpacity>
+            </View>
+        </TouchableOpacity>
+    </Modal>
+);
 
 interface WorkoutExercise {
   id: string;
@@ -703,5 +829,104 @@ const styles = StyleSheet.create({
   },
   disabledButton: {
     opacity: 0.5,
+  },
+  // Visibility section styles
+  visibilityContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#333',
+    marginBottom: 20,
+  },
+  visibilityHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  visibilityTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFF',
+    marginLeft: 8,
+  },
+  visibilitySelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#333',
+    borderRadius: 8,
+    padding: 10,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: '#444',
+  },
+  selectedVisibility: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 8,
+  },
+  selectedVisibilityText: {
+    color: '#FFF',
+    marginLeft: 6,
+    fontSize: 14,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.8)',
+    justifyContent: 'flex-end',
+  },
+  visibilityModalContent: {
+    backgroundColor: '#222',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+  },
+  visibilityModalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#FFF',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  visibilityModalOption: {
+    padding: 16,
+    backgroundColor: '#333',
+    marginBottom: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#444',
+  },
+  selectedVisibilityOption: {
+    borderColor: '#ff2d55',
+    backgroundColor: 'rgba(255, 45, 85, 0.1)',
+  },
+  visibilityOptionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  visibilityOptionLabel: {
+    color: 'white',
+    marginLeft: 10,
+    fontSize: 16,
+  },
+  selectedVisibilityOptionText: {
+    fontWeight: 'bold',
+  },
+  visibilityOptionDescription: {
+    color: '#ccc',
+    fontSize: 14,
+  },
+  cancelButton: {
+    marginTop: 10,
+    paddingVertical: 12,
+    borderRadius: 8,
+    backgroundColor: '#ff2d55',
+    alignItems: 'center',
+  },
+  cancelButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
   },
 });

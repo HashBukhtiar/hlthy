@@ -25,9 +25,6 @@ import {
     CaptionInput,
     WorkoutAttachment,
     WorkoutSelectionModal,
-    VisibilitySelector,
-    VisibilityModal,
-    visibilityItems,
 } from './PostComponents';
 
 interface RegularPostProps {
@@ -46,8 +43,6 @@ export default function RegularPost({ onBack }: RegularPostProps) {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [formError, setFormError] = useState<string | null>(null);
     const [caption, setCaption] = useState('');
-    const [valueVisibility, setValueVisibility] = useState<string | null>('public');
-    const [visibilityModalVisible, setVisibilityModalVisible] = useState(false);
     
     // Image picker
     const {
@@ -87,7 +82,7 @@ export default function RegularPost({ onBack }: RegularPostProps) {
                 imageUri,
                 isMilestone: false,
                 milestoneDetails: null,
-                visibility: valueVisibility || 'public',
+                visibility: userProfile?.defaultPostVisibility || 'public',
                 workoutId: selectedWorkout?.id
             };
             
@@ -164,13 +159,6 @@ export default function RegularPost({ onBack }: RegularPostProps) {
                             setWorkoutModalVisible={setWorkoutModalVisible}
                             removeWorkout={removeWorkout}
                         />
-
-                        {/* Visibility options */}
-                        <VisibilitySelector
-                            valueVisibility={valueVisibility}
-                            setVisibilityModalVisible={setVisibilityModalVisible}
-                            itemsVisibility={visibilityItems}
-                        />
                     </ScrollView>
                 </View>
 
@@ -182,15 +170,6 @@ export default function RegularPost({ onBack }: RegularPostProps) {
                     workoutModalVisible={workoutModalVisible}
                     setWorkoutModalVisible={setWorkoutModalVisible}
                     selectWorkout={selectWorkout}
-                />
-
-                {/* Visibility selection modal */}
-                <VisibilityModal
-                    visibilityModalVisible={visibilityModalVisible}
-                    setVisibilityModalVisible={setVisibilityModalVisible}
-                    valueVisibility={valueVisibility}
-                    setValueVisibility={setValueVisibility}
-                    itemsVisibility={visibilityItems}
                 />
             </KeyboardAvoidingView>
         </SafeAreaView>
