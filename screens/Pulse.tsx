@@ -216,7 +216,6 @@ export default function Pulse() {
                                         <Text style={activityStyles.usernameText}>
                                             @{displayShortenedString(request.fromUsername, maxUsernameLength)}
                                         </Text>
-                                        <Text style={activityStyles.actionText}> wants to follow you</Text>
                                     </Text>
                                     <Text style={activityStyles.timeText}>{formatTimeAgo(request.createdAt)}</Text>
                                 </View>
