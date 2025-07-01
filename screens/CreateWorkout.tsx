@@ -513,15 +513,17 @@ export default function CreateWorkout() {
 
           {/* Description Input */}
           <View style={styles.descriptionContainer}>
-            <TextInput
-              style={styles.descriptionInput}
-              value={description}
-              onChangeText={setDescription}
-              placeholder="Describe your workout..."
-              placeholderTextColor="rgba(255, 255, 255, 0.3)"
-              multiline
-              numberOfLines={3}
-            />
+            <View style={styles.descriptionWrapper}>
+              <TextInput
+                style={styles.descriptionInput}
+                value={description}
+                onChangeText={setDescription}
+                placeholder="Describe your workout..."
+                placeholderTextColor="rgba(255, 255, 255, 0.4)"
+                multiline
+                numberOfLines={3}
+              />
+            </View>
           </View>
         </View>
 
@@ -532,14 +534,31 @@ export default function CreateWorkout() {
               <Ionicons name="settings-outline" size={20} color="#FFF" />
               <Text style={styles.sectionTitle}>Settings</Text>
             </View>
+            
+            {/* Visibility Setting */}
+            <View style={styles.settingItem}>
+              <View style={styles.settingLabelContainer}>
+                <Ionicons name="eye-outline" size={18} color="#ccc" />
+                <Text style={styles.settingLabel}>Visibility</Text>
+              </View>
+              <TouchableOpacity 
+                style={styles.settingValueContainer}
+                onPress={() => setVisibilityModalVisible(true)}
+              >
+                <View style={styles.settingValue}>
+                  <Ionicons 
+                    name={visibilityItems.find(item => item.value === visibility)?.icon as any || 'earth'} 
+                    size={16} 
+                    color="#FFF" 
+                  />
+                  <Text style={styles.settingValueText}>
+                    {visibilityItems.find(item => item.value === visibility)?.label || 'Public'}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color="#999" />
+              </TouchableOpacity>
+            </View>
           </View>
-          
-          {/* Visibility Selector */}
-          <VisibilitySelector
-            valueVisibility={visibility}
-            setVisibilityModalVisible={setVisibilityModalVisible}
-            itemsVisibility={visibilityItems}
-          />
         </View>
 
         {/* Workout Structure Section */}
@@ -760,9 +779,16 @@ const styles = StyleSheet.create({
     marginBottom: 30,
     marginTop: 10,
   },
+  descriptionWrapper: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    padding: 4,
+  },
   descriptionInput: {
     backgroundColor: 'transparent',
-    borderRadius: 0,
+    borderRadius: 8,
     padding: 15,
     paddingHorizontal: 20,
     color: 'white',
@@ -965,13 +991,47 @@ const styles = StyleSheet.create({
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 15,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#FFF',
     marginLeft: 8,
+  },
+  // Settings styles
+  settingItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  settingLabelContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  settingLabel: {
+    fontSize: 16,
+    color: '#FFF',
+    marginLeft: 8,
+  },
+  settingValueContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  settingValue: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 8,
+  },
+  settingValueText: {
+    fontSize: 14,
+    color: '#ccc',
+    marginLeft: 6,
   },
   visibilityHeader: {
     flexDirection: 'row',
