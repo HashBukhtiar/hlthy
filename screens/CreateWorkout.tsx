@@ -462,11 +462,8 @@ export default function CreateWorkout() {
       // If 'stats' or 'workoutCount' might not exist, we might need a transaction or set with merge:true
       // For simplicity, increment assumes the path exists or can be created by Firestore.
 
-      Alert.alert(
-        'Workout Created',
-        'Your workout has been created successfully!',
-        [{ text: 'OK', onPress: () => router.back() }]
-      );
+      // Navigate to the newly created workout's view page
+      router.replace(`/view-workout/${workoutDocRef.id}`);
 
     } catch (error) {
       console.error('Error saving workout: ', error);
