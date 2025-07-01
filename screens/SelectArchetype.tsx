@@ -102,10 +102,11 @@ export default function SelectArchetype() {
             value={value}
             onSelect={setValue}
             placeholder="Choose your archetype"
-            title="Fitness Archetype"
+            title="Archetype"
             icon="body"
             modalVisible={modalVisible}
             setModalVisible={setModalVisible}
+            variant="fullWidth"
           />
         </View>
         
