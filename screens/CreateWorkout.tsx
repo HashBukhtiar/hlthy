@@ -241,12 +241,12 @@ export default function CreateWorkout() {
 
   const animatedDescriptionBorder = descriptionAnimation.interpolate({
     inputRange: [0, 1],
-    outputRange: ['rgba(255, 255, 255, 0.1)', 'rgba(255, 45, 85, 0.4)'],
+    outputRange: ['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0.3)'],
   });
 
   const animatedDescriptionBackground = descriptionAnimation.interpolate({
     inputRange: [0, 1],
-    outputRange: ['rgba(255, 255, 255, 0.05)', 'rgba(255, 45, 85, 0.08)'],
+    outputRange: ['rgba(255, 255, 255, 0.05)', 'rgba(255, 255, 255, 0.08)'],
   });
 
   const pickImage = async () => {
