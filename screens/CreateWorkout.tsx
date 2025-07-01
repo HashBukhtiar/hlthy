@@ -525,34 +525,33 @@ export default function CreateWorkout() {
               />
             </View>
           </View>
-
-          {/* Visibility Setting */}
-          <View style={styles.visibilityStandaloneContainer}>
-            <View style={styles.settingItem}>
-              <View style={styles.settingLabelContainer}>
-                <Ionicons name="eye-outline" size={18} color="#ccc" />
-                <Text style={styles.settingLabel}>Visibility</Text>
-              </View>
-              <TouchableOpacity 
-                style={styles.settingValueContainer}
-                onPress={() => setVisibilityModalVisible(true)}
-              >
-                <View style={styles.settingValue}>
-                  <Ionicons 
-                    name={visibilityItems.find(item => item.value === visibility)?.icon as any || 'earth'} 
-                    size={16} 
-                    color="#FFF" 
-                  />
-                  <Text style={styles.settingValueText}>
-                    {visibilityItems.find(item => item.value === visibility)?.label || 'Public'}
-                  </Text>
-                </View>
-                <Ionicons name="chevron-forward" size={16} color="#999" />
-              </TouchableOpacity>
-            </View>
-          </View>
         </View>
-
+        
+        {/* Visibility Setting */}
+        <View style={styles.visibilityStandaloneContainer}>
+          <TouchableOpacity 
+            style={styles.settingItem}
+            onPress={() => setVisibilityModalVisible(true)}
+          >
+            <View style={styles.settingLabelContainer}>
+              <Ionicons name="eye-outline" size={18} color="#ccc" />
+              <Text style={styles.settingLabel}>Visibility</Text>
+            </View>
+            <View style={styles.settingValueContainer}>
+              <View style={styles.settingValue}>
+                <Ionicons 
+                  name={visibilityItems.find(item => item.value === visibility)?.icon as any || 'earth'} 
+                  size={16} 
+                  color="#FFF" 
+                />
+                <Text style={styles.settingValueText}>
+                  {visibilityItems.find(item => item.value === visibility)?.label || 'Public'}
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={16} color="#999" />
+            </View>
+          </TouchableOpacity>
+        </View>
 
         {/* Workout Structure Section */}
         <View style={styles.mainSection}>
