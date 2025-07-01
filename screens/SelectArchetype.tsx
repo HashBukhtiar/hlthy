@@ -1,25 +1,44 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, Text, Image, TouchableOpacity } from 'react-native';
-import { SelectCountry } from 'react-native-element-dropdown';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { collection, updateDoc, doc } from "firebase/firestore"; 
 import { db } from '@/firebaseConfig';
 import globalStyles from '@/styles/globalStyles';
+import { CustomSelector, SelectorItem } from '@/components/CustomSelector';
+import { Ionicons } from '@expo/vector-icons';
 
-// Type definitions
-interface Archetype {
-  label: string;
-  value: string;
-  image: any;
-}
-
-// Mock images - you'll need to add these to your assets folder
-const archetypes: Archetype[] = [
-  { label: '  Athlete', value: 'athlete', image: require('@/assets/images/athlete.png') },
-  { label: '  Bodybuilder', value: 'bodybuilder', image: require('@/assets/images/bodybuilder.png') },
-  { label: '  Crossfitter', value: 'crossfitter', image: require('@/assets/images/crossfitter.png') },
-  { label: '  Generalist', value: 'generalist', image: require('@/assets/images/generalist.png') },
-  { label: '  Powerlifter', value: 'powerlifter', image: require('@/assets/images/powerlifter.png') },
+// Transform archetype data to match SelectorItem interface
+const archetypes: SelectorItem[] = [
+  { 
+    label: 'Athlete', 
+    value: 'athlete', 
+    icon: 'flash',
+    description: 'Focused on athletic performance and competition'
+  },
+  { 
+    label: 'Bodybuilder', 
+    value: 'bodybuilder', 
+    icon: 'fitness',
+    description: 'Building muscle mass and definition'
+  },
+  { 
+    label: 'Crossfitter', 
+    value: 'crossfitter', 
+    icon: 'barbell',
+    description: 'Functional fitness and varied workouts'
+  },
+  { 
+    label: 'Generalist', 
+    value: 'generalist', 
+    icon: 'people',
+    description: 'Well-rounded fitness approach'
+  },
+  { 
+    label: 'Powerlifter', 
+    value: 'powerlifter', 
+    icon: 'triangle',
+    description: 'Maximum strength in core lifts'
+  },
 ];
 
 export default function SelectArchetype() {
@@ -28,7 +47,7 @@ export default function SelectArchetype() {
   const userId = params.userId;
   
   const [value, setValue] = useState<string | null>(null);
-  const [isFocus, setIsFocus] = useState<boolean>(false);
+  const [modalVisible, setModalVisible] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
 
   const selectArchetype = async () => {
@@ -52,7 +71,7 @@ export default function SelectArchetype() {
       console.log("User document updated, ID: ", userId, " Archetype: ", value);
       
       // Navigate directly to the tabs route instead of the root
-      router.replace('/(tabs)/');
+      router.replace('/(tabs)' as any);
     } catch (e) {
       console.error("Error updating document: ", e);
       setErrorMessage("Failed to update profile. Please try again.");
@@ -61,48 +80,77 @@ export default function SelectArchetype() {
 
   return (
     <View style={[globalStyles.container, styles.container]}>
-      <View style={styles.logoContainer}>
-        <Image
-          style={styles.logo}
-          source={require('@/assets/images/icon.png')}
-        />
+      {/* Header Section */}
+      <View style={styles.headerSection}>
+        <View style={styles.logoContainer}>
+          <Image
+            style={styles.logo}
+            source={require('@/assets/images/icon.png')}
+          />
+        </View>
+        <Text style={styles.title}>Welcome to hlthy</Text>
+        <Text style={styles.subtitle}>Choose your fitness archetype to get personalized recommendations</Text>
       </View>
+
+      {/* Content Section */}
       <View style={styles.contentContainer}>
-        <Text style={[styles.header, { fontWeight: 'bold' }]}>Select an Archetype</Text>
-        <SelectCountry
-          style={[styles.dropdown, isFocus && { borderColor: 'white' }]}
-          placeholderStyle={styles.placeholderStyle}
-          selectedTextStyle={styles.selectedTextStyle}
-          inputSearchStyle={styles.inputSearchStyle}
-          iconStyle={styles.iconStyle}
-          data={archetypes}
-          maxHeight={200}
-          labelField="label"
-          valueField="value"
-          imageField="image"
-          placeholder={!isFocus ? 'Select archetype' : '...'}
-          searchPlaceholder="Search..."
-          value={value}
-          onFocus={() => setIsFocus(true)}
-          onBlur={() => setIsFocus(false)}
-          onChange={item => {
-            setValue(item.value);
-            setIsFocus(false);
-          }}
-          containerStyle={styles.containerStyle}
-          itemContainerStyle={styles.itemContainerStyle}
-          activeColor="#404040"
-        />
+        <Text style={styles.sectionTitle}>Select Your Archetype</Text>
+        
+        <View style={styles.selectorWrapper}>
+          <CustomSelector
+            items={archetypes}
+            value={value}
+            onSelect={setValue}
+            placeholder="Choose your archetype"
+            title="Fitness Archetype"
+            icon="body"
+            modalVisible={modalVisible}
+            setModalVisible={setModalVisible}
+          />
+        </View>
+        
+        {/* Selected Archetype Preview */}
+        {value && (
+          <View style={styles.previewContainer}>
+            <Text style={styles.previewTitle}>Selected Archetype</Text>
+            <View style={styles.previewCard}>
+              <View style={styles.previewHeader}>
+                <Ionicons 
+                  name={archetypes.find(a => a.value === value)?.icon as any} 
+                  size={24} 
+                  color="#FF2D55" 
+                />
+                <Text style={styles.previewName}>
+                  {archetypes.find(a => a.value === value)?.label}
+                </Text>
+              </View>
+              <Text style={styles.previewDescription}>
+                {archetypes.find(a => a.value === value)?.description}
+              </Text>
+            </View>
+          </View>
+        )}
+      </View>
+
+      {/* Footer Section */}
+      <View style={styles.footerSection}>
         <TouchableOpacity 
           onPress={selectArchetype} 
-          style={styles.button}
+          style={[styles.continueButton, value && styles.continueButtonActive]}
+          disabled={!value}
         >
-          <Text style={styles.buttonText}>Continue</Text>
+          <Text style={[styles.continueButtonText, value && styles.continueButtonTextActive]}>
+            Continue
+          </Text>
         </TouchableOpacity>
+        
         <Text style={styles.note}>
-          Note: You can change your archetype at any time.
+          Don't worry — you can always change your archetype later
         </Text>
-        <Text style={{ color: '#FF5555', textAlign: 'center', marginTop: 0 }}>{errorMessage}</Text>
+        
+        {errorMessage ? (
+          <Text style={styles.errorText}>{errorMessage}</Text>
+        ) : null}
       </View>
     </View>
   );
@@ -110,78 +158,121 @@ export default function SelectArchetype() {
 
 const styles = StyleSheet.create({
   container: {
-    padding: 0,
+    flex: 1,
+    backgroundColor: '#000',
+  },
+  headerSection: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: 60,
+    paddingHorizontal: 24,
   },
   logoContainer: {
-    flex: 1,
-    justifyContent: 'flex-start',
-    alignItems: 'center',
-  },
-  contentContainer: {
-    flex: 3,
-    padding: 16
-  },
-  header: {
-    fontSize: 24,
-    color: 'white',
-    marginBottom: 20,
-    textAlign: 'center',
-    marginTop: 95
-  },
-  button: {
-    marginTop: 20,
-    backgroundColor: '#FFFFFF',
-    padding: 12,
-    borderRadius: 4,
-    alignItems: 'center',
-  },
-  buttonText: {
-    color: '#000',
-    fontWeight: 'bold',
-    fontSize: 16,
+    marginBottom: 24,
   },
   logo: {
-    width: 50,
-    height: 50,
-    alignSelf: 'center',
+    width: 64,
+    height: 64,
   },
-  dropdown: {
-    height: 50,
-    borderColor: 'gray',
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 14,
-    backgroundColor: '#292929',
+  title: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#FFF',
+    textAlign: 'center',
+    marginBottom: 12,
   },
-  note: {
-    color: 'grey',
-    marginTop: 20,
+  subtitle: {
+    fontSize: 16,
+    color: '#999',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginHorizontal: 20,
+  },
+  contentContainer: {
+    flex: 2,
+    paddingHorizontal: 24,
+    paddingTop: 20,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#FFF',
     marginBottom: 20,
     textAlign: 'center',
   },
-  placeholderStyle: {
-    color: 'grey',
+  selectorWrapper: {
+    marginBottom: 24,
   },
-  selectedTextStyle: {
-    color: '#BBBBBB',
+  previewContainer: {
+    marginTop: 20,
   },
-  inputSearchStyle: {
-    color: 'white',
-    height: 40,
+  previewTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#999',
+    marginBottom: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
-  iconStyle: {
-    width: 20,
-    height: 20,
+  previewCard: {
+    backgroundColor: 'rgba(255, 45, 85, 0.1)',
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 45, 85, 0.3)',
   },
-  imageStyle: {
-    width: 24,
-    height: 24,
+  previewHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
   },
-  itemContainerStyle: {
-    backgroundColor: 'transparent',
+  previewName: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#FFF',
+    marginLeft: 12,
   },
-  containerStyle: {
-    backgroundColor: '#292929',
-    borderColor: 'transparent'
+  previewDescription: {
+    fontSize: 14,
+    color: '#CCC',
+    lineHeight: 20,
+  },
+  footerSection: {
+    paddingHorizontal: 24,
+    paddingBottom: 40,
+  },
+  continueButton: {
+    backgroundColor: '#333',
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginBottom: 16,
+    opacity: 0.5,
+  },
+  continueButtonActive: {
+    backgroundColor: '#FF2D55',
+    opacity: 1,
+  },
+  continueButtonText: {
+    color: '#999',
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  continueButtonTextActive: {
+    color: '#FFF',
+  },
+  note: {
+    color: '#666',
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 12,
+  },
+  errorText: {
+    color: '#FF2D55',
+    fontSize: 14,
+    textAlign: 'center',
+    fontWeight: '500',
   },
 });
