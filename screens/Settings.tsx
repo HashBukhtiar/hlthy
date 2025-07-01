@@ -280,16 +280,16 @@ export default function Settings() {
       </View>
       
       <View style={styles.formGroup}>
-        <Text style={styles.label}>Archetype</Text>
         <CustomSelector
           items={archetypeData}
           value={archetype}
           onSelect={setArchetype}
           placeholder="Select archetype"
-          title="Fitness Archetype"
+          title="Archetype"
           icon="body"
           modalVisible={archetypeModalVisible}
           setModalVisible={setArchetypeModalVisible}
+          variant="fullWidth"
         />
       </View>
       
