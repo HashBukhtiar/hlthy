@@ -6,12 +6,15 @@ import {
     Image,
     TouchableOpacity,
     ScrollView,
-    ActivityIndicator
+    ActivityIndicator,
+    Animated,
+    RefreshControl,
+    Platform
 } from 'react-native';
 import { profileIcon } from '@/assets/images';
 import globalStyles from '@/styles/globalStyles';
 import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useAuth } from '@/context/AuthContext'; 
 import { db, app } from '@/firebaseConfig';
 import { getFunctions, httpsCallable } from 'firebase/functions';
@@ -42,7 +45,8 @@ export interface ActivityItem {
 
 export default function Pulse() {
     const router = useRouter();
-    const { currentUser } = useAuth();
+    const authData = useAuth() as any;
+    const currentUser = authData?.currentUser;
     const functions = getFunctions(app, 'northamerica-northeast2');
 
     const [followRequests, setFollowRequests] = useState<ActivityItem[]>([]);
@@ -50,8 +54,18 @@ export default function Pulse() {
     const [loading, setLoading] = useState(true);
     const [loadingActivities, setLoadingActivities] = useState(true);
     const [loadingRequests, setLoadingRequests] = useState(true);
-    const [processingRequestInfo, setProcessingRequestInfo] = useState<{ id: string, action: 'accept' | 'ignore' } | null>(null); // New state
+    const [refreshing, setRefreshing] = useState(false);
+    const [processingRequestInfo, setProcessingRequestInfo] = useState<{ id: string, action: 'accept' | 'ignore' } | null>(null);
+    const fadeAnim = new Animated.Value(1); // Start visible
+    const slideAnim = new Animated.Value(0); // Start in position
     const acceptRequestFunction = httpsCallable(functions, 'acceptfollowrequest');
+
+    // Pull to refresh handler
+    const onRefresh = async () => {
+        setRefreshing(true);
+        // Refresh is handled by the real-time listeners, so just reset the refreshing state
+        setTimeout(() => setRefreshing(false), 1000);
+    };
 
     // useEffect for Follow Requests
     useEffect(() => {
@@ -146,82 +160,112 @@ export default function Pulse() {
     };
 
     function renderFollowRequests() {
-        if (loadingRequests) {
-            if (followRequests.length === 0) {
-                return <Text style={{color: 'white', textAlign: 'center', marginTop: 10}}>Loading requests...</Text>;
-            }
-        }
-
-        if (followRequests.length === 0) {
-            return null;
-        }
-
-        let maxUsernameLength = 12;
-
         return (
             <View>
-                <Text style={[globalStyles.subtitle, {marginLeft: 15, marginVertical: 20, fontWeight: 'bold', fontSize: 30}]}>Follow Requests</Text>
-                <View style={activityStyles.activityView}>
-                    {followRequests.map((request, index) => (
-                        // The main row item is now a TouchableOpacity for navigation
-                        <TouchableOpacity
-                            key={request.id}
-                            style={[activityStyles.activityElement, index !== followRequests.length - 1 && {borderBottomWidth: 1, borderBottomColor: 'grey'}]}
-                            onPress={() => {
-                                // Navigate to profile when the row (excluding buttons) is pressed
-                                if (request.fromUserId) router.push({ pathname: "/profile/[userId]", params: { userId: request.fromUserId } });
-                                console.log("Follow request: Row pressed, navigating to user:", request.fromUserId);
-                            }}
-                            activeOpacity={0.6} // Optional: to give feedback on press
-                        >
-                            {/* Profile Image View - no longer individually touchable for navigation */}
-                            <View style={activityStyles.activityPostImage}>
-                                <Image
-                                    source={request.fromProfileImageUrl ? { uri: request.fromProfileImageUrl } : profileIcon}
-                                    style={activityStyles.activityImageStyle}
-                                />
-                            </View>
-
-                            {/* Text content View */}
-                            <View style={{flex:1, marginRight: 5}}>
-                                <Text style={activityStyles.activityDescription} numberOfLines={2}>
-                                    {/* Username Text - no longer individually touchable for navigation */}
-                                    <Text style={activityStyles.activityUsernameText}>
-                                        @{displayShortenedString(request.fromUsername, maxUsernameLength)}
-                                    </Text>
-                                    <Text> wants to follow you.</Text>
-                                    <Text style={{color:'grey'}}> · {formatTimeAgo(request.createdAt)}</Text>
-                                </Text>
-                            </View>
-
-                            {/* Accept Button - remains a separate TouchableOpacity */}
-                            <TouchableOpacity
-                                style={activityStyles.acceptButton}
-                                onPress={() => handleAcceptFollowRequest(request.id, request.fromUserId)}
-                                disabled={processingRequestInfo?.id === request.id}
-                            >
-                                {processingRequestInfo?.id === request.id && processingRequestInfo?.action === 'accept' ? (
-                                    <ActivityIndicator size="small" color="black" />
-                                ) : (
-                                    <Text style={{color: 'black', fontWeight: 'bold'}}>Accept</Text>
-                                )}
-                            </TouchableOpacity>
-
-                            {/* Ignore Button - remains a separate TouchableOpacity */}
-                            <TouchableOpacity
-                                style={activityStyles.ignoreButton}
-                                onPress={() => handleIgnoreFollowRequest(request.id, request.fromUserId)}
-                                disabled={processingRequestInfo?.id === request.id}
-                            >
-                                {processingRequestInfo?.id === request.id && processingRequestInfo?.action === 'ignore' ? (
-                                    <ActivityIndicator size="small" color="white" />
-                                ) : (
-                                    <Text style={{color: 'white', fontWeight: 'bold'}}>Ignore</Text>
-                                )}
-                            </TouchableOpacity>
-                        </TouchableOpacity>
-                    ))}
+                <View style={activityStyles.sectionHeader}>
+                    <View style={activityStyles.sectionTitleContainer}>
+                        <MaterialIcons name="person-add" size={20} color="#ff2d55" />
+                        <Text style={activityStyles.sectionTitle}>Follow Requests</Text>
+                    </View>
+                    {followRequests.length > 0 && (
+                        <View style={activityStyles.badgeContainer}>
+                            <Text style={activityStyles.badgeText}>{followRequests.length}</Text>
+                        </View>
+                    )}
                 </View>
+
+                {loadingRequests ? (
+                    <View style={activityStyles.loadingContainer}>
+                        <ActivityIndicator size="small" color="#ff2d55" />
+                        <Text style={activityStyles.loadingText}>Loading requests...</Text>
+                    </View>
+                ) : followRequests.length === 0 ? (
+                    <View style={activityStyles.emptyRequestsContainer}>
+                        <MaterialIcons name="check-circle" size={32} color="#4CAF50" style={activityStyles.emptyStateIcon} />
+                        <Text style={activityStyles.emptyRequestsText}>No pending follow requests</Text>
+                    </View>
+                ) : (
+                    <View style={activityStyles.activityView}>
+                        {followRequests.map((request, index) => {
+                            const maxUsernameLength = 12;
+                            return (
+                                <View
+                                    key={request.id}
+                                    style={[
+                                        activityStyles.activityElement,
+                                        index !== followRequests.length - 1 && activityStyles.elementBorder
+                                    ]}
+                                >
+                            <TouchableOpacity
+                                style={activityStyles.mainRowContent}
+                                onPress={() => {
+                                    if (request.fromUserId) router.push({ pathname: "/profile/[userId]", params: { userId: request.fromUserId } });
+                                    console.log("Follow request: Row pressed, navigating to user:", request.fromUserId);
+                                }}
+                                activeOpacity={0.6}
+                            >
+                                <View style={activityStyles.activityPostImage}>
+                                    <Image
+                                        source={request.fromProfileImageUrl ? { uri: request.fromProfileImageUrl } : profileIcon}
+                                        style={activityStyles.profileImage}
+                                    />
+                                </View>
+
+                                <View style={activityStyles.textContent}>
+                                    <Text style={activityStyles.activityDescription} numberOfLines={2}>
+                                        <Text style={activityStyles.usernameText}>
+                                            @{displayShortenedString(request.fromUsername, maxUsernameLength)}
+                                        </Text>
+                                        <Text style={activityStyles.actionText}> wants to follow you</Text>
+                                    </Text>
+                                    <Text style={activityStyles.timeText}>{formatTimeAgo(request.createdAt)}</Text>
+                                </View>
+                            </TouchableOpacity>
+
+                            <View style={activityStyles.actionButtonsContainer}>
+                                <TouchableOpacity
+                                    style={[
+                                        activityStyles.actionButton,
+                                        activityStyles.acceptButton,
+                                        processingRequestInfo?.id === request.id && activityStyles.disabledButton
+                                    ]}
+                                    onPress={() => handleAcceptFollowRequest(request.id, request.fromUserId)}
+                                    disabled={processingRequestInfo?.id === request.id}
+                                >
+                                    {processingRequestInfo?.id === request.id && processingRequestInfo?.action === 'accept' ? (
+                                        <ActivityIndicator size="small" color="#000" />
+                                    ) : (
+                                        <>
+                                            <MaterialIcons name="check" size={16} color="#000" />
+                                            <Text style={activityStyles.acceptButtonText}>Accept</Text>
+                                        </>
+                                    )}
+                                </TouchableOpacity>
+
+                                <TouchableOpacity
+                                    style={[
+                                        activityStyles.actionButton,
+                                        activityStyles.ignoreButton,
+                                        processingRequestInfo?.id === request.id && activityStyles.disabledButton
+                                    ]}
+                                    onPress={() => handleIgnoreFollowRequest(request.id, request.fromUserId)}
+                                    disabled={processingRequestInfo?.id === request.id}
+                                >
+                                    {processingRequestInfo?.id === request.id && processingRequestInfo?.action === 'ignore' ? (
+                                        <ActivityIndicator size="small" color="#666" />
+                                    ) : (
+                                        <>
+                                            <MaterialIcons name="close" size={16} color="#666" />
+                                            <Text style={activityStyles.ignoreButtonText}>Ignore</Text>
+                                        </>
+                                    )}
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    );
+                        })}
+                    </View>
+                )}
             </View>
         );
     }
@@ -275,101 +319,117 @@ export default function Pulse() {
         } finally {
             setProcessingRequestInfo(null);
         }
-    };
-
-    function renderOtherActivity() {
+    };    function renderOtherActivity() {
         if (loadingActivities && otherActivities.length === 0) {
-            return <Text style={{color: 'white', textAlign: 'center', marginTop: 10}}>Loading activities...</Text>;
+            return (
+                <View style={activityStyles.loadingContainer}>
+                    <ActivityIndicator size="small" color="#ff2d55" />
+                    <Text style={activityStyles.loadingText}>Loading activities...</Text>
+                </View>
+            );
         }
-        // Adjusted condition: Show "No other recent activity" only if there are follow requests OR if follow requests are done loading and empty.
-        if (!loadingActivities && otherActivities.length === 0 && (followRequests.length > 0 || (!loadingRequests && followRequests.length === 0))) {
-             return <Text style={{color: 'grey', textAlign: 'center', marginVertical: 20, marginLeft: 15}}>No other recent activity.</Text>;
-        }
-        // This condition is for when everything is loaded and both lists are empty.
-        // It's handled by renderActivity, so this specific check might be redundant here if renderActivity has a global empty state.
-        // For safety, keeping a local null return if otherActivities is truly empty and not loading.
+
         if (!loadingActivities && otherActivities.length === 0) {
-            return null;
+             return (
+                <View style={activityStyles.emptyRequestsContainer}>
+                    <MaterialIcons name="notifications-none" size={32} color="#888888" style={activityStyles.emptyStateIcon} />
+                    <Text style={activityStyles.emptyRequestsText}>No recent activity</Text>
+                </View>
+             );
         }
 
         let maxUsernameLength = 15;
         let maxCommentLength = 30;
         let maxWorkoutTitleLength = 20;
 
+        const getActivityIcon = (type: string) => {
+            switch (type) {
+                case 'post_like':
+                    return <MaterialIcons name="favorite" size={16} color="#ff2d55" />;
+                case 'post_comment':
+                    return <MaterialIcons name="chat-bubble" size={16} color="#ff2d55" />;
+                case 'workout_save':
+                    return <MaterialIcons name="bookmark" size={16} color="#ff2d55" />;
+                case 'new_follower':
+                    return <MaterialIcons name="person-add" size={16} color="#ff2d55" />;
+                case 'follow_accepted':
+                    return <MaterialIcons name="check-circle" size={16} color="#ff2d55" />;
+                default:
+                    return <MaterialIcons name="notifications" size={16} color="#ff2d55" />;
+            }
+        };
+
         return (
             <View>
-                <Text style={[globalStyles.subtitle, {marginLeft: 15, marginVertical: 20, fontWeight: 'bold', fontSize: 30}]}>Activity</Text>
+                <View style={activityStyles.sectionHeader}>
+                    <View style={activityStyles.sectionTitleContainer}>
+                        <MaterialIcons name="timeline" size={20} color="#ff2d55" />
+                        <Text style={activityStyles.sectionTitle}>Recent Activity</Text>
+                    </View>
+                </View>
                 <View style={activityStyles.activityView}>
                     {otherActivities.map((activity, index) => (
-                        <TouchableOpacity
+                        <View
                             key={activity.id}
-                            style={[activityStyles.activityElement, index !== otherActivities.length - 1 && {borderBottomWidth: 1, borderBottomColor: 'grey'}]}
-                            onPress={() => {
-                                // General row click navigation (fallback or for non-specific parts of the row)
-                                if (activity.type === 'post_like' || activity.type === 'post_comment') {
-                                    if (activity.postId) router.push({ pathname: "/view-post/[id]", params: { id: activity.postId } });
-                                } else if (activity.type === 'workout_save') {
-                                    if (activity.workoutId) router.push({ pathname: "/view-workout/[id]", params: { id: activity.workoutId } });
-                                } else if (activity.type === 'new_follower' || activity.type === 'follow_accepted') {
-                                    // For these types, the whole row click can also go to profile,
-                                    // but specific clicks on image/name are handled below.
-                                    if (activity.fromUserId) router.push({ pathname: "/profile/[userId]", params: { userId: activity.fromUserId } });
-                                }
-                                console.log("Activity element (outer) pressed:", activity.type, activity.id);
-                            }}
-                            // activeOpacity={0.7} // Optional: to give feedback on press
+                            style={[
+                                activityStyles.activityElement,
+                                index !== otherActivities.length - 1 && activityStyles.elementBorder
+                            ]}
                         >
                             <TouchableOpacity
+                                style={activityStyles.mainRowContent}
                                 onPress={() => {
-                                    if (activity.fromUserId) router.push({ pathname: "/profile/[userId]", params: { userId: activity.fromUserId } });
-                                    console.log("Profile image pressed, navigating to user:", activity.fromUserId);
+                                    if (activity.type === 'post_like' || activity.type === 'post_comment') {
+                                        if (activity.postId) router.push({ pathname: "/view-post/[id]", params: { id: activity.postId } });
+                                    } else if (activity.type === 'workout_save') {
+                                        if (activity.workoutId) router.push({ pathname: "/view-workout/[id]", params: { id: activity.workoutId } });
+                                    } else if (activity.type === 'new_follower' || activity.type === 'follow_accepted') {
+                                        if (activity.fromUserId) router.push({ pathname: "/profile/[userId]", params: { userId: activity.fromUserId } });
+                                    }
+                                    console.log("Activity element pressed:", activity.type, activity.id);
                                 }}
-                                style={activityStyles.activityPostImage} // Ensure this style allows touch
+                                activeOpacity={0.7}
                             >
-                                <Image
-                                    source={
-                                        (activity.type === 'post_like' || activity.type === 'post_comment')
-                                            ? (activity.fromProfileImageUrl ? { uri: activity.fromProfileImageUrl } : profileIcon)
-                                        : activity.fromProfileImageUrl ? { uri: activity.fromProfileImageUrl }
-                                        : profileIcon
-                                    }
-                                    style={
-                                        (activity.type === 'post_like' || activity.type === 'post_comment' || activity.type === 'new_follower' || activity.type === 'follow_accepted')
-                                            ? activityStyles.activityUserImageStyle
-                                            : activityStyles.activityContentImageStyle
-                                    }
-                                />
-                            </TouchableOpacity>
-                            <View style={{flex:1}}>
-                                <Text style={activityStyles.activityDescription} numberOfLines={3}>
-                                    <Text
-                                        style={activityStyles.activityUsernameText}
-                                        onPress={() => {
-                                            if (activity.fromUserId) router.push({ pathname: "/profile/[userId]", params: { userId: activity.fromUserId } });
-                                            console.log("Username pressed, navigating to user:", activity.fromUserId);
-                                        }}
-                                    >
-                                        @{displayShortenedString(activity.fromUsername || 'User', maxUsernameLength)}
+                                <TouchableOpacity
+                                    onPress={() => {
+                                        if (activity.fromUserId) router.push({ pathname: "/profile/[userId]", params: { userId: activity.fromUserId } });
+                                        console.log("Profile image pressed, navigating to user:", activity.fromUserId);
+                                    }}
+                                    style={activityStyles.activityPostImage}
+                                >
+                                    <Image
+                                        source={
+                                            activity.fromProfileImageUrl 
+                                                ? { uri: activity.fromProfileImageUrl } 
+                                                : profileIcon
+                                        }
+                                        style={activityStyles.activityUserImageStyle}
+                                    />
+                                </TouchableOpacity>
+
+                                <View style={activityStyles.textContent}>
+                                    <Text style={activityStyles.activityDescription} numberOfLines={3}>
+                                        <Text
+                                            style={activityStyles.usernameText}
+                                            onPress={() => {
+                                                if (activity.fromUserId) router.push({ pathname: "/profile/[userId]", params: { userId: activity.fromUserId } });
+                                                console.log("Username pressed, navigating to user:", activity.fromUserId);
+                                            }}
+                                        >
+                                            @{displayShortenedString(activity.fromUsername || 'User', maxUsernameLength)}
+                                        </Text>
+                                        <Text style={activityStyles.actionText}>
+                                            {activity.type === 'post_like' && ' liked your post'}
+                                            {activity.type === 'post_comment' && ` commented: "${displayShortenedString(activity.commentText || '', maxCommentLength)}"`}
+                                            {activity.type === 'workout_save' && ` saved your workout: ${displayShortenedString(activity.workoutTitle || 'Workout', maxWorkoutTitleLength)}`}
+                                            {activity.type === 'new_follower' && ' started following you'}
+                                            {activity.type === 'follow_accepted' && ' accepted your follow request'}
+                                        </Text>
                                     </Text>
-                                    {` `}
-                                    {activity.type === 'post_like' && 'liked your post.'}
-                                    {activity.type === 'post_comment' && `commented: "${displayShortenedString(activity.commentText || '', maxCommentLength)}"`}
-                                    {activity.type === 'workout_save' && (
-                                        <>
-                                            {'saved your workout: '}
-                                            <TouchableOpacity onPress={() => {
-                                                if (activity.workoutId) router.push({ pathname: "/view-workout/[id]", params: { id: activity.workoutId } });
-                                            }}>
-                                                <Text style={{textDecorationLine: 'underline'}}>{displayShortenedString(activity.workoutTitle || 'Workout', maxWorkoutTitleLength)}</Text>
-                                            </TouchableOpacity>
-                                            {'.'}
-                                        </>
-                                    )}
-                                    {activity.type === 'new_follower' && 'started following you.'}
-                                    {activity.type === 'follow_accepted' && 'accepted your follow request.'}
-                                    <Text style={{color:'grey'}}> · {formatTimeAgo(activity.createdAt)}</Text>
-                                </Text>
-                            </View>
+                                    <Text style={activityStyles.timeText}>{formatTimeAgo(activity.createdAt)}</Text>
+                                </View>
+                            </TouchableOpacity>
+
                             {(activity.type === 'post_like' || activity.type === 'post_comment') && activity.postImageUrl && (
                                 <TouchableOpacity
                                     onPress={() => {
@@ -383,7 +443,8 @@ export default function Pulse() {
                                     />
                                 </TouchableOpacity>
                             )}
-                            {activity.type === 'workout_save' && activity.postImageUrl && ( // Assuming postImageUrl might be used for workout image
+
+                            {activity.type === 'workout_save' && activity.postImageUrl && (
                                 <TouchableOpacity
                                     onPress={() => {
                                         if (activity.workoutId) router.push({ pathname: "/view-workout/[id]", params: { id: activity.workoutId } });
@@ -391,12 +452,12 @@ export default function Pulse() {
                                     style={activityStyles.activityContentPreviewImageContainer}
                                 >
                                     <Image
-                                        source={{ uri: activity.postImageUrl }} // Or a specific workoutImageUrl if available
+                                        source={{ uri: activity.postImageUrl }}
                                         style={activityStyles.activityContentPreviewImageStyle}
                                     />
                                 </TouchableOpacity>
                             )}
-                        </TouchableOpacity>
+                        </View>
                     ))}
                 </View>
             </View>
@@ -404,15 +465,43 @@ export default function Pulse() {
     }
 
     function renderActivity() {
-        if (loadingRequests && loadingActivities && followRequests.length === 0 && otherActivities.length === 0) {
-             return <Text style={{color: 'white', textAlign: 'center', marginTop: 50}}>Loading Pulse...</Text>;
+        const isCompletelyLoading = loadingRequests && loadingActivities && followRequests.length === 0 && otherActivities.length === 0;
+        const isCompletelyEmpty = !loadingRequests && !loadingActivities && followRequests.length === 0 && otherActivities.length === 0;
+
+        if (isCompletelyLoading) {
+            return (
+                <View style={activityStyles.emptyStateContainer}>
+                    <ActivityIndicator size="large" color="#ff2d55" />
+                    <Text style={activityStyles.loadingText}>Loading your Pulse...</Text>
+                </View>
+            );
         }
-        // This condition means all loading is done, and both lists are empty.
-        if (!loadingRequests && !loadingActivities && followRequests.length === 0 && otherActivities.length === 0) {
-            return <Text style={{color: 'grey', textAlign: 'center', marginTop: 50, fontSize: 16}}>No activity yet.</Text>;
+
+        if (isCompletelyEmpty) {
+            return (
+                <View style={activityStyles.emptyStateContainer}>
+                    <MaterialIcons name="notifications-none" size={64} color="#888888" style={activityStyles.emptyStateIcon} />
+                    <Text style={activityStyles.emptyStateTitle}>Your Pulse is quiet</Text>
+                    <Text style={activityStyles.emptyStateSubtitle}>
+                        Connect with friends and start sharing your fitness journey to see activity here
+                    </Text>
+                </View>
+            );
         }
+
         return (
-            <ScrollView contentContainerStyle={activityStyles.scrollViewContentContainer}>
+            <ScrollView 
+                contentContainerStyle={activityStyles.scrollViewContentContainer}
+                refreshControl={
+                    <RefreshControl
+                        refreshing={refreshing}
+                        onRefresh={onRefresh}
+                        tintColor="#ff2d55"
+                        colors={["#ff2d55"]}
+                    />
+                }
+                showsVerticalScrollIndicator={false}
+            >
                 {renderFollowRequests()}
                 {renderOtherActivity()}
             </ScrollView>
@@ -420,16 +509,32 @@ export default function Pulse() {
     }
 
     return (
-        <View style={globalStyles.container}>
-            <View>
-                <View style={{flexDirection:'row', alignItems:'center', marginLeft: 15}}>
-                    <TouchableOpacity onPress={() => router.back()}>
-                        <Ionicons name="chevron-back" size={32} color="white" />
+        <View style={[globalStyles.container, { justifyContent: 'flex-start' }]}>
+            {/* Enhanced Header */}
+            <View style={activityStyles.headerGradient}>
+                <View style={activityStyles.headerContainer}>
+                    <TouchableOpacity 
+                        onPress={() => router.back()} 
+                        style={activityStyles.backButton}
+                        activeOpacity={0.7}
+                    >
+                        <Ionicons name="chevron-back" size={20} color="#fff" />
                     </TouchableOpacity>
-                    <Text style={[globalStyles.title, {marginLeft: 10}]}>Pulse</Text>
+                    <View style={activityStyles.titleContainer}>
+                        <Text style={activityStyles.headerTitle}>Pulse</Text>
+                        <Text style={activityStyles.headerSubtitle}>Stay connected</Text>
+                    </View>
+                    <TouchableOpacity 
+                        style={activityStyles.settingsButton}
+                        activeOpacity={0.7}
+                    >
+                        <MaterialIcons name="more-vert" size={18} color="#c0c0c0" />
+                    </TouchableOpacity>
                 </View>
             </View>
-            <View style={{flex:1}}>
+
+            {/* Main Content */}
+            <View style={activityStyles.contentContainer}>
                 {renderActivity()}
             </View>
         </View>
@@ -437,35 +542,269 @@ export default function Pulse() {
 }
 
 const activityStyles = StyleSheet.create({
-    activityView: {
-        paddingHorizontal: 5,
-        marginHorizontal: 15,
-        marginBottom: 10,
-        justifyContent: 'flex-start',
-        alignItems: 'center',
-        backgroundColor: '#2e2e2e',
-        borderRadius: 35,
-    },
-    activityElement: {
-        paddingVertical: 10,
-        paddingHorizontal: 5,
+    // Loading states
+    loadingContainer: {
         flexDirection: 'row',
-        justifyContent: 'center',
         alignItems: 'center',
-        width: '100%',
+        justifyContent: 'center',
+        paddingVertical: 20,
+        backgroundColor: 'rgba(255, 45, 85, 0.05)',
+        borderRadius: 12,
+        marginHorizontal: 16,
+        marginVertical: 8,
     },
+    loadingText: {
+        color: '#fff',
+        marginLeft: 8,
+        fontSize: 14,
+        fontWeight: '500',
+    },
+
+    // Section headers
+    sectionHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 20,
+        paddingVertical: 12,
+        marginTop: 10,
+        position: 'relative',
+    },
+    sectionTitleContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 0,
+        paddingVertical: 0,
+        borderRadius: 0,
+        backgroundColor: 'transparent',
+    },
+    sectionTitle: {
+        color: '#fff',
+        fontSize: 18,
+        fontWeight: '600',
+        marginLeft: 6,
+        letterSpacing: 0.3,
+    },
+    badgeContainer: {
+        backgroundColor: '#ff2d55',
+        borderRadius: 10,
+        minWidth: 20,
+        height: 20,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingHorizontal: 6,
+        ...Platform.select({
+            ios: {
+                shadowColor: '#ff2d55',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.5,
+                shadowRadius: 4,
+            },
+            android: {
+                elevation: 4,
+            },
+        }),
+    },
+    badgeText: {
+        color: '#fff',
+        fontSize: 11,
+        fontWeight: '700',
+    },
+
+    // Activity container
+    activityView: {
+        marginHorizontal: 16,
+        marginBottom: 25,
+        backgroundColor: 'rgba(30, 30, 30, 0.95)',
+        borderRadius: 28,
+        overflow: 'hidden',
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.08)',
+        ...Platform.select({
+            ios: {
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 12 },
+                shadowOpacity: 0.4,
+                shadowRadius: 20,
+            },
+            android: {
+                elevation: 15,
+            },
+        }),
+    },
+
+    // Activity elements
+    activityElement: {
+        paddingVertical: 14,
+        paddingHorizontal: 16,
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'transparent',
+        position: 'relative',
+    },
+    elementBorder: {
+        borderBottomWidth: 1,
+        borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+    },
+    mainRowContent: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+
+    // Profile images
     activityPostImage: {
-        marginRight: 10,
+        marginRight: 12,
+        position: 'relative',
     },
+    profileImage: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        borderWidth: 2,
+        borderColor: 'rgba(255, 255, 255, 0.15)',
+        ...Platform.select({
+            ios: {
+                shadowColor: '#ff2d55',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.4,
+                shadowRadius: 4,
+            },
+            android: {
+                elevation: 3,
+            },
+        }),
+    },
+    onlineIndicator: {
+        position: 'absolute',
+        bottom: -1,
+        right: -1,
+        width: 14,
+        height: 14,
+        borderRadius: 7,
+        backgroundColor: '#ff2d55',
+        borderWidth: 2,
+        borderColor: '#1a1a1a',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+
+    // Text content
+    textContent: {
+        flex: 1,
+        justifyContent: 'center',
+    },
+    activityDescription: {
+        color: '#fff',
+        fontSize: 15,
+        lineHeight: 20,
+        flexShrink: 1,
+        fontWeight: '500',
+    },
+    usernameText: {
+        color: '#fff',
+        fontWeight: '800',
+        fontSize: 15,
+    },
+    actionText: {
+        color: '#e8e8e8',
+        fontSize: 15,
+        fontWeight: '400',
+    },
+    timeText: {
+        color: '#888',
+        fontSize: 12,
+        marginTop: 4,
+        fontWeight: '600',
+    },
+
+    // Action buttons
+    actionButtonsContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginLeft: 12,
+        gap: 6,
+    },
+    actionButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 16,
+        minWidth: 70,
+        justifyContent: 'center',
+    },
+    acceptButton: {
+        backgroundColor: '#ff2d55',
+        borderWidth: 0,
+        ...Platform.select({
+            ios: {
+                shadowColor: '#ff2d55',
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.5,
+                shadowRadius: 8,
+            },
+            android: {
+                elevation: 8,
+            },
+        }),
+    },
+    acceptButtonText: {
+        color: '#fff',
+        fontWeight: '800',
+        fontSize: 13,
+        marginLeft: 4,
+    },
+    ignoreButton: {
+        backgroundColor: 'rgba(255, 255, 255, 0.08)',
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.2)',
+        ...Platform.select({
+            ios: {
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 3 },
+                shadowOpacity: 0.2,
+                shadowRadius: 6,
+            },
+            android: {
+                elevation: 4,
+            },
+        }),
+    },
+    ignoreButtonText: {
+        color: '#e0e0e0',
+        fontWeight: '700',
+        fontSize: 13,
+        marginLeft: 4,
+    },
+    disabledButton: {
+        opacity: 0.5,
+        transform: [{ scale: 0.95 }],
+    },
+
+    // Legacy styles for other activities
     activityImageStyle: {
         width: 50, 
         height: 50, 
         borderRadius: 25,        
     },
     activityUserImageStyle: {
-        width: 50,
-        height: 50,
-        borderRadius: 25,
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        borderWidth: 2,
+        borderColor: 'rgba(255, 255, 255, 0.15)',
+        ...Platform.select({
+            ios: {
+                shadowColor: '#ff2d55',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.3,
+                shadowRadius: 4,
+            },
+            android: {
+                elevation: 3,
+            },
+        }),
     },
     activityContentImageStyle: {
         width: 50,
@@ -476,42 +815,142 @@ const activityStyles = StyleSheet.create({
         marginLeft: 10,
     },
     activityContentPreviewImageStyle: {
-        width: 45,
-        height: 45,
-        borderRadius: 5,
-    },
-    activityDescription: {
-        color: 'white',
-        fontSize: 16,
-        flexShrink: 1,
+        width: 40,
+        height: 40,
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.1)',
+        ...Platform.select({
+            ios: {
+                shadowColor: '#ff2d55',
+                shadowOffset: { width: 0, height: 1 },
+                shadowOpacity: 0.3,
+                shadowRadius: 2,
+            },
+            android: {
+                elevation: 2,
+            },
+        }),
     },
     activityUsernameText: {
-        color: 'white',
-        fontWeight: 'bold',
+        color: '#fff',
+        fontWeight: '700',
         fontSize: 16,
     },
-    acceptButton: {
-        paddingHorizontal: 8,
-        backgroundColor: '#ebebeb',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 5,
-        borderRadius: 10,
-        height: 30,
-        marginRight: 5,
-    },
-    ignoreButton: {
-        paddingHorizontal: 8,
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 5,
-        borderRadius: 10,
-        borderWidth: 1,
-        borderColor: 'grey',
-        height: 30,
-        marginLeft: 5
-    },
+
+    // Scroll view
     scrollViewContentContainer: {
-        paddingBottom: 70,
+        paddingBottom: 100,
+    },
+
+    // Header styles
+    headerGradient: {
+        paddingTop: Platform.OS === 'ios' ? 0 : 0,
+        paddingBottom: 12,
+        backgroundColor: 'transparent',
+    },
+    headerContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 24,
+        paddingVertical: 6,
+        marginTop: 0,
+    },
+    backButton: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: 'rgba(255, 255, 255, 0.12)',
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.1)',
+    },
+    titleContainer: {
+        flex: 1,
+        alignItems: 'center',
+        marginHorizontal: 20,
+    },
+    headerTitle: {
+        color: '#fff',
+        fontSize: 24,
+        fontWeight: '700',
+        textAlign: 'center',
+        letterSpacing: 0.5,
+    },
+    headerSubtitle: {
+        color: '#888',
+        fontSize: 12,
+        textAlign: 'center',
+        marginTop: 2,
+        fontWeight: '600',
+        letterSpacing: 0.3,
+    },
+    settingsButton: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: 'rgba(255, 255, 255, 0.12)',
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.1)',
+    },
+    contentContainer: {
+        flex: 1,
+    },
+
+    // Empty states
+    emptyStateContainer: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 80,
+        paddingHorizontal: 40,
+        backgroundColor: 'rgba(255, 45, 85, 0.02)',
+        marginHorizontal: 20,
+        borderRadius: 24,
+        borderWidth: 1,
+        borderColor: 'rgba(255, 45, 85, 0.1)',
+    },
+    emptyStateIcon: {
+        marginBottom: 24,
+        opacity: 0.7,
+    },
+    emptyStateTitle: {
+        color: '#fff',
+        fontSize: 24,
+        fontWeight: '800',
+        textAlign: 'center',
+        marginBottom: 12,
+        letterSpacing: 0.5,
+    },
+    emptyStateSubtitle: {
+        color: '#b8b8b8',
+        fontSize: 17,
+        textAlign: 'center',
+        lineHeight: 25,
+        fontWeight: '500',
+    },
+
+    // Empty requests state
+    emptyRequestsContainer: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 30,
+        paddingHorizontal: 20,
+        backgroundColor: 'rgba(76, 175, 80, 0.05)',
+        marginHorizontal: 16,
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: 'rgba(76, 175, 80, 0.1)',
+    },
+    emptyRequestsText: {
+        color: '#b8b8b8',
+        fontSize: 16,
+        textAlign: 'center',
+        marginTop: 8,
+        fontWeight: '500',
     },
 });
