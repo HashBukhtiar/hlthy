@@ -19,6 +19,7 @@ interface CustomSelectorProps {
     icon?: string;
     modalVisible: boolean;
     setModalVisible: (visible: boolean) => void;
+    variant?: 'default' | 'fullWidth';
 }
 
 export const CustomSelector = ({
@@ -29,7 +30,8 @@ export const CustomSelector = ({
     title,
     icon = "options",
     modalVisible,
-    setModalVisible
+    setModalVisible,
+    variant = 'default'
 }: CustomSelectorProps) => {
     const selectedItem = items.find(item => item.value === value);
     const [tempValue, setTempValue] = useState<string | null>(value);
@@ -89,30 +91,57 @@ export const CustomSelector = ({
 
     return (
         <>
-            <View style={styles.selectorContainer}>
-                <View style={styles.selectorHeader}>
-                    <Ionicons name={icon as any} size={20} color="#FFF" />
-                    <Text style={styles.selectorTitle}>{title}</Text>
-                </View>
+            {variant === 'fullWidth' ? (
                 <TouchableOpacity 
-                    style={styles.selector}
+                    style={styles.fullWidthSelector}
                     onPress={() => setModalVisible(true)}
                 >
-                    <View style={styles.selectedValue}>
-                        {selectedItem?.icon && (
-                            <Ionicons 
-                                name={selectedItem.icon as any} 
-                                size={18} 
-                                color="#FFF" 
-                            />
-                        )}
-                        <Text style={styles.selectedValueText}>
-                            {selectedItem ? selectedItem.label : placeholder}
-                        </Text>
+                    <View style={styles.fullWidthLabelContainer}>
+                        <Ionicons name={icon as any} size={18} color="#ccc" />
+                        <Text style={styles.fullWidthLabel}>{title}</Text>
                     </View>
-                    <Ionicons name="chevron-down" size={18} color="#999" />
+                    <View style={styles.fullWidthValueContainer}>
+                        <View style={styles.fullWidthValue}>
+                            {selectedItem?.icon && (
+                                <Ionicons 
+                                    name={selectedItem.icon as any} 
+                                    size={16} 
+                                    color="#FFF" 
+                                />
+                            )}
+                            <Text style={styles.fullWidthValueText}>
+                                {selectedItem ? selectedItem.label : placeholder}
+                            </Text>
+                        </View>
+                        <Ionicons name="chevron-forward" size={16} color="#999" />
+                    </View>
                 </TouchableOpacity>
-            </View>
+            ) : (
+                <View style={styles.selectorContainer}>
+                    <View style={styles.selectorHeader}>
+                        <Ionicons name={icon as any} size={20} color="#FFF" />
+                        <Text style={styles.selectorTitle}>{title}</Text>
+                    </View>
+                    <TouchableOpacity 
+                        style={styles.selector}
+                        onPress={() => setModalVisible(true)}
+                    >
+                        <View style={styles.selectedValue}>
+                            {selectedItem?.icon && (
+                                <Ionicons 
+                                    name={selectedItem.icon as any} 
+                                    size={18} 
+                                    color="#FFF" 
+                                />
+                            )}
+                            <Text style={styles.selectedValueText}>
+                                {selectedItem ? selectedItem.label : placeholder}
+                            </Text>
+                        </View>
+                        <Ionicons name="chevron-down" size={18} color="#999" />
+                    </TouchableOpacity>
+                </View>
+            )}
 
             <Modal
                 animationType="slide"
@@ -204,12 +233,7 @@ export const CustomSelector = ({
 
 const styles = StyleSheet.create({
     selectorContainer: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingHorizontal: 0,
-        paddingVertical: 16,
-        marginBottom: 0,
+        width: '100%',
     },
     selectorHeader: {
         flexDirection: 'row',
@@ -224,13 +248,14 @@ const styles = StyleSheet.create({
     selector: {
         flexDirection: 'row',
         alignItems: 'center',
+        justifyContent: 'space-between',
         backgroundColor: 'rgba(255, 255, 255, 0.08)',
         borderRadius: 12,
         padding: 14,
         paddingHorizontal: 16,
         borderWidth: 1,
         borderColor: 'rgba(255, 255, 255, 0.12)',
-        minWidth: 160,
+        flex: 1,
     },
     selectedValue: {
         flexDirection: 'row',
@@ -242,6 +267,40 @@ const styles = StyleSheet.create({
         marginLeft: 6,
         fontSize: 15,
         fontWeight: '500',
+    },
+    // Full width variant styles
+    fullWidthSelector: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        backgroundColor: 'rgba(255, 255, 255, 0.05)',
+        borderRadius: 12,
+        padding: 16,
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.1)',
+    },
+    fullWidthLabelContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    fullWidthLabel: {
+        fontSize: 16,
+        color: '#FFF',
+        marginLeft: 8,
+    },
+    fullWidthValueContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    fullWidthValue: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginRight: 8,
+    },
+    fullWidthValueText: {
+        fontSize: 14,
+        color: '#ccc',
+        marginLeft: 6,
     },
     modalOverlay: {
         flex: 1,
