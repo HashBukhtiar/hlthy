@@ -63,31 +63,31 @@ const archetypeData: SelectorItem[] = [
   { 
     label: 'Athlete', 
     value: 'athlete', 
-    icon: 'flash',
+    image: require('@/assets/images/athlete.png'),
     description: 'Focused on athletic performance and competition'
   },
   { 
     label: 'Bodybuilder', 
     value: 'bodybuilder', 
-    icon: 'fitness',
+    image: require('@/assets/images/bodybuilder.png'),
     description: 'Building muscle mass and definition'
   },
   { 
     label: 'Crossfitter', 
     value: 'crossfitter', 
-    icon: 'barbell',
+    image: require('@/assets/images/crossfitter.png'),
     description: 'Functional fitness and varied workouts'
   },
   { 
     label: 'Generalist', 
     value: 'generalist', 
-    icon: 'people',
+    image: require('@/assets/images/generalist.png'),
     description: 'Well-rounded fitness approach'
   },
   { 
     label: 'Powerlifter', 
     value: 'powerlifter', 
-    icon: 'triangle',
+    image: require('@/assets/images/powerlifter.png'),
     description: 'Maximum strength in core lifts'
   },
 ];
