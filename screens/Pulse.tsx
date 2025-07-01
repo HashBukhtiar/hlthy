@@ -181,7 +181,7 @@ export default function Pulse() {
                     </View>
                 ) : followRequests.length === 0 ? (
                     <View style={activityStyles.emptyRequestsContainer}>
-                        <MaterialIcons name="check-circle" size={32} color="#4CAF50" style={activityStyles.emptyStateIcon} />
+                        <MaterialIcons name="people" size={32} color="#ff2d55" style={activityStyles.emptyStateIcon} />
                         <Text style={activityStyles.emptyRequestsText}>No pending follow requests</Text>
                     </View>
                 ) : (
@@ -703,7 +703,7 @@ const activityStyles = StyleSheet.create({
     },
     usernameText: {
         color: '#fff',
-        fontWeight: '800',
+        fontWeight: '700',
         fontSize: 15,
     },
     actionText: {
@@ -940,11 +940,11 @@ const activityStyles = StyleSheet.create({
         justifyContent: 'center',
         paddingVertical: 30,
         paddingHorizontal: 20,
-        backgroundColor: 'rgba(76, 175, 80, 0.05)',
+        backgroundColor: 'rgba(255, 45, 85, 0.05)',
         marginHorizontal: 16,
         borderRadius: 20,
         borderWidth: 1,
-        borderColor: 'rgba(76, 175, 80, 0.1)',
+        borderColor: 'rgba(255, 45, 85, 0.1)',
     },
     emptyRequestsText: {
         color: '#b8b8b8',
