@@ -178,10 +178,10 @@ export const CustomSelector = ({
                         <TouchableOpacity 
                             style={[
                                 styles.cancelButton,
-                                (tempValue && tempValue !== value) && styles.saveButton
+                                tempValue && styles.saveButton
                             ]}
                             onPress={() => {
-                                if (tempValue && tempValue !== value) {
+                                if (tempValue) {
                                     // Save the selection
                                     onSelect(tempValue);
                                 }
@@ -190,9 +190,9 @@ export const CustomSelector = ({
                         >
                             <Text style={[
                                 styles.cancelButtonText,
-                                (tempValue && tempValue !== value) && styles.saveButtonText
+                                tempValue && styles.saveButtonText
                             ]}>
-                                {tempValue && tempValue !== value ? "Save" : "Cancel"}
+                                {tempValue ? "Save" : "Cancel"}
                             </Text>
                         </TouchableOpacity>
                     </Animated.View>
