@@ -9,36 +9,11 @@ import { Ionicons } from '@expo/vector-icons';
 
 // Transform archetype data to match SelectorItem interface
 const archetypes: SelectorItem[] = [
-  { 
-    label: 'Athlete', 
-    value: 'athlete', 
-    icon: 'flash',
-    description: 'Focused on athletic performance and competition'
-  },
-  { 
-    label: 'Bodybuilder', 
-    value: 'bodybuilder', 
-    icon: 'fitness',
-    description: 'Building muscle mass and definition'
-  },
-  { 
-    label: 'Crossfitter', 
-    value: 'crossfitter', 
-    icon: 'barbell',
-    description: 'Functional fitness and varied workouts'
-  },
-  { 
-    label: 'Generalist', 
-    value: 'generalist', 
-    icon: 'people',
-    description: 'Well-rounded fitness approach'
-  },
-  { 
-    label: 'Powerlifter', 
-    value: 'powerlifter', 
-    icon: 'triangle',
-    description: 'Maximum strength in core lifts'
-  },
+  { label: 'Athlete', value: 'athlete', image: require('@/assets/images/athlete.png'), description: 'Focused on athletic performance and competition' },
+  { label: 'Bodybuilder', value: 'bodybuilder', image: require('@/assets/images/bodybuilder.png'), description: 'Building muscle mass and definition' },
+  { label: 'Crossfitter', value: 'crossfitter', image: require('@/assets/images/crossfitter.png'), description: 'Functional fitness and varied workouts' },
+  { label: 'Generalist', value: 'generalist', image: require('@/assets/images/generalist.png'), description: 'Well-rounded fitness approach' },
+  { label: 'Powerlifter', value: 'powerlifter', image: require('@/assets/images/powerlifter.png'), description: 'Maximum strength in core lifts' },
 ];
 
 export default function SelectArchetype() {
@@ -116,10 +91,9 @@ export default function SelectArchetype() {
             <Text style={styles.previewTitle}>Selected Archetype</Text>
             <View style={styles.previewCard}>
               <View style={styles.previewHeader}>
-                <Ionicons 
-                  name={archetypes.find(a => a.value === value)?.icon as any} 
-                  size={24} 
-                  color="#FF2D55" 
+                <Image 
+                  source={archetypes.find(a => a.value === value)?.image} 
+                  style={styles.previewIcon}
                 />
                 <Text style={styles.previewName}>
                   {archetypes.find(a => a.value === value)?.label}
@@ -227,6 +201,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 8,
+  },
+  previewIcon: {
+    width: 24,
+    height: 24,
+    tintColor: '#FF2D55',
   },
   previewName: {
     fontSize: 18,
