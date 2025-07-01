@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, Modal, StyleSheet } from 'react-native';
+import React, { useRef, useEffect, useState } from 'react';
+import { View, Text, TouchableOpacity, Modal, StyleSheet, PanResponder, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 export interface SelectorItem {
@@ -32,6 +32,60 @@ export const CustomSelector = ({
     setModalVisible
 }: CustomSelectorProps) => {
     const selectedItem = items.find(item => item.value === value);
+    const [tempValue, setTempValue] = useState<string | null>(value);
+    const translateY = useRef(new Animated.Value(0)).current;
+    const offsetY = useRef(0);
+
+    const panResponder = useRef(
+        PanResponder.create({
+            onMoveShouldSetPanResponder: (evt, gestureState) => {
+                return Math.abs(gestureState.dy) > 5 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx);
+            },
+            onPanResponderGrant: () => {
+                offsetY.current = 0;
+            },
+            onPanResponderMove: (evt, gestureState) => {
+                // Allow movement both up and down, but limit upward movement
+                if (gestureState.dy >= 0) {
+                    // Moving down - allow full movement
+                    translateY.setValue(gestureState.dy);
+                } else {
+                    // Moving up - allow limited movement with resistance
+                    const resistanceFactor = 0.3;
+                    translateY.setValue(gestureState.dy * resistanceFactor);
+                }
+            },
+            onPanResponderRelease: (evt, gestureState) => {
+                if (gestureState.dy > 100 || gestureState.vy > 0.8) {
+                    // Dismiss if swiped down more than 100 pixels or with high velocity
+                    Animated.timing(translateY, {
+                        toValue: 300,
+                        duration: 200,
+                        useNativeDriver: true,
+                    }).start(() => {
+                        setModalVisible(false);
+                        translateY.setValue(0);
+                    });
+                } else {
+                    // Snap back to original position
+                    Animated.spring(translateY, {
+                        toValue: 0,
+                        tension: 100,
+                        friction: 8,
+                        useNativeDriver: true,
+                    }).start();
+                }
+            },
+        })
+    ).current;
+
+    // Reset animation when modal opens and sync tempValue with actual value
+    useEffect(() => {
+        if (modalVisible) {
+            translateY.setValue(0);
+            setTempValue(value);
+        }
+    }, [modalVisible, value]);
 
     return (
         <>
@@ -71,7 +125,20 @@ export const CustomSelector = ({
                     activeOpacity={1}
                     onPress={() => setModalVisible(false)}
                 >
-                    <View style={styles.modalContent}>
+                    <Animated.View 
+                        style={[
+                            styles.modalContent,
+                            {
+                                transform: [{ translateY: translateY }]
+                            }
+                        ]}
+                        {...panResponder.panHandlers}
+                    >
+                        {/* Dismissal Handle Bar */}
+                        <View style={styles.handleBarContainer}>
+                            <View style={styles.handleBar} />
+                        </View>
+                        
                         <Text style={styles.modalTitle}>{title}</Text>
                         
                         {items.map((item) => (
@@ -79,11 +146,10 @@ export const CustomSelector = ({
                                 key={item.value}
                                 style={[
                                     styles.modalOption,
-                                    value === item.value && styles.selectedOption
+                                    tempValue === item.value && styles.selectedOption
                                 ]}
                                 onPress={() => {
-                                    onSelect(item.value);
-                                    setModalVisible(false);
+                                    setTempValue(item.value);
                                 }}
                             >
                                 <View style={styles.optionHeader}>
@@ -91,12 +157,12 @@ export const CustomSelector = ({
                                         <Ionicons 
                                             name={item.icon as any} 
                                             size={20} 
-                                            color={value === item.value ? "#ff2d55" : "#FFF"} 
+                                            color={tempValue === item.value ? "#ff2d55" : "#FFF"} 
                                         />
                                     )}
                                     <Text style={[
                                         styles.optionLabel,
-                                        value === item.value && styles.selectedOptionText
+                                        tempValue === item.value && styles.selectedOptionText
                                     ]}>
                                         {item.label}
                                     </Text>
@@ -110,12 +176,26 @@ export const CustomSelector = ({
                         ))}
                         
                         <TouchableOpacity 
-                            style={styles.cancelButton}
-                            onPress={() => setModalVisible(false)}
+                            style={[
+                                styles.cancelButton,
+                                (tempValue && tempValue !== value) && styles.saveButton
+                            ]}
+                            onPress={() => {
+                                if (tempValue && tempValue !== value) {
+                                    // Save the selection
+                                    onSelect(tempValue);
+                                }
+                                setModalVisible(false);
+                            }}
                         >
-                            <Text style={styles.cancelButtonText}>Cancel</Text>
+                            <Text style={[
+                                styles.cancelButtonText,
+                                (tempValue && tempValue !== value) && styles.saveButtonText
+                            ]}>
+                                {tempValue && tempValue !== value ? "Save" : "Cancel"}
+                            </Text>
                         </TouchableOpacity>
-                    </View>
+                    </Animated.View>
                 </TouchableOpacity>
             </Modal>
         </>
@@ -217,11 +297,32 @@ const styles = StyleSheet.create({
         marginTop: 10,
         paddingVertical: 12,
         borderRadius: 8,
-        backgroundColor: '#ff2d55',
+        backgroundColor: 'rgba(255, 255, 255, 0.1)',
         alignItems: 'center',
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.2)',
+    },
+    saveButton: {
+        backgroundColor: '#ff2d55',
+        borderColor: '#ff2d55',
     },
     cancelButtonText: {
-        color: 'white',
+        color: '#FFF',
         fontWeight: 'bold',
+    },
+    saveButtonText: {
+        color: 'white',
+    },
+    handleBarContainer: {
+        alignItems: 'center',
+        paddingTop: 12,
+        paddingBottom: 20,
+    },
+    handleBar: {
+        width: 36,
+        height: 4,
+        backgroundColor: '#999',
+        borderRadius: 2,
+        opacity: 0.6,
     },
 });
