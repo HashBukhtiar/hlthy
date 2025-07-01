@@ -8,7 +8,6 @@ import {
   ScrollView, 
   Image,
   Alert,
-  Switch,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
@@ -24,6 +23,7 @@ import { addDoc, collection, serverTimestamp, doc, updateDoc, increment } from '
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import SelectExercise from './SelectExercise';
 import { Exercise } from '@/data/exercises';
+import { VisibilitySelector, VisibilityModal, visibilityItems } from './PostComponents';
 
 interface WorkoutExercise {
   id: string;
@@ -53,7 +53,8 @@ export default function CreateWorkout() {
       exercises: []
     }
   ]);
-  const [isPublic, setIsPublic] = useState(true);
+  const [visibility, setVisibility] = useState<string>('public');
+  const [visibilityModalVisible, setVisibilityModalVisible] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [showExerciseSelector, setShowExerciseSelector] = useState(false);
   const [currentSegmentId, setCurrentSegmentId] = useState<string | null>(null);
@@ -254,7 +255,8 @@ export default function CreateWorkout() {
           })).filter(ex => ex.name.trim() !== '') // Filter out empty exercises
         })).filter(seg => seg.exercises.length > 0 || seg.name.trim() !== ''), // Filter out segments with no name and no exercises
         createdAt: serverTimestamp(),
-        isPublic: isPublic,
+        isPublic: visibility === 'public',
+        visibility: visibility,
         savedCount: 0,
         tags: [], // Placeholder for future tag functionality
         // Add any other fields as per your DBDESIGN.md for workouts
@@ -350,21 +352,12 @@ export default function CreateWorkout() {
           />
         </View>
 
-        {/* Public/Private Switch */}
-        <View style={styles.inputContainer}>
-          <Text style={styles.inputLabel}>Visibility</Text>
-          <View style={styles.switchContainer}>
-            <Text style={styles.switchLabel}>{isPublic ? 'Public' : 'Private'}</Text>
-            <Switch
-              trackColor={{ false: "#3e3e3e", true: "#ff2d55" }}
-              thumbColor={isPublic ? "#f4f3f4" : "#f4f3f4"}
-              ios_backgroundColor="#3e3e3e"
-              onValueChange={setIsPublic}
-              value={isPublic}
-              disabled={isSaving}
-            />
-          </View>
-        </View>
+        {/* Visibility Selector */}
+        <VisibilitySelector
+          valueVisibility={visibility}
+          setVisibilityModalVisible={setVisibilityModalVisible}
+          itemsVisibility={visibilityItems}
+        />
 
         {segments.map((segment, segmentIndex) => (
           <View key={segment.id} style={styles.segmentContainer}>
@@ -495,6 +488,15 @@ export default function CreateWorkout() {
           }}
         />
       </Modal>
+
+      {/* Visibility Modal */}
+      <VisibilityModal
+        visibilityModalVisible={visibilityModalVisible}
+        setVisibilityModalVisible={setVisibilityModalVisible}
+        valueVisibility={visibility}
+        setValueVisibility={setVisibility}
+        itemsVisibility={visibilityItems}
+      />
     </View>
   );
 }
@@ -701,18 +703,5 @@ const styles = StyleSheet.create({
   },
   disabledButton: {
     opacity: 0.5,
-  },
-  switchContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#222',
-    borderRadius: 10,
-    paddingHorizontal: 15,
-    paddingVertical: 10,
-  },
-  switchLabel: {
-    color: 'white',
-    fontSize: 16,
   },
 });
