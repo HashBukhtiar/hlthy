@@ -11,7 +11,8 @@ import {
   Switch,
   ActivityIndicator,
   KeyboardAvoidingView,
-  Platform
+  Platform,
+  Modal
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import globalStyles from '@/styles/globalStyles';
@@ -21,6 +22,8 @@ import { useAuth } from '@/context/AuthContext';
 import { db, storage } from '@/firebaseConfig';
 import { addDoc, collection, serverTimestamp, doc, updateDoc, increment } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import SelectExercise from './SelectExercise';
+import { Exercise } from '@/data/exercises';
 
 interface WorkoutExercise {
   id: string;
@@ -52,6 +55,9 @@ export default function CreateWorkout() {
   ]);
   const [isPublic, setIsPublic] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [showExerciseSelector, setShowExerciseSelector] = useState(false);
+  const [currentSegmentId, setCurrentSegmentId] = useState<string | null>(null);
+  const [currentExerciseId, setCurrentExerciseId] = useState<string | null>(null);
 
   const scrollViewRef = useRef<ScrollView>(null);
 
@@ -69,25 +75,55 @@ export default function CreateWorkout() {
   };
 
   const addExercise = (segmentId: string) => {
+    setCurrentSegmentId(segmentId);
+    setCurrentExerciseId(null); // null means adding new exercise
+    setShowExerciseSelector(true);
+  };
+
+  const editExercise = (segmentId: string, exerciseId: string) => {
+    setCurrentSegmentId(segmentId);
+    setCurrentExerciseId(exerciseId); // specific ID means editing existing exercise
+    setShowExerciseSelector(true);
+  };
+
+  const handleSelectExercise = (exercise: Exercise) => {
+    if (!currentSegmentId) return;
+    
     const updatedSegments = segments.map(segment => {
-      if (segment.id === segmentId) {
-        return {
-          ...segment,
-          exercises: [
-            ...segment.exercises,
-            {
-              id: Date.now().toString(),
-              name: '',
-              sets: '',
-              reps: ''
-            }
-          ]
-        };
+      if (segment.id === currentSegmentId) {
+        if (currentExerciseId) {
+          // Update existing exercise
+          return {
+            ...segment,
+            exercises: segment.exercises.map(ex => 
+              ex.id === currentExerciseId 
+                ? { ...ex, name: exercise.name }
+                : ex
+            )
+          };
+        } else {
+          // Add new exercise
+          return {
+            ...segment,
+            exercises: [
+              ...segment.exercises,
+              {
+                id: Date.now().toString(),
+                name: exercise.name,
+                sets: '',
+                reps: ''
+              }
+            ]
+          };
+        }
       }
       return segment;
     });
     
     setSegments(updatedSegments);
+    setShowExerciseSelector(false);
+    setCurrentSegmentId(null);
+    setCurrentExerciseId(null);
     
     // Scroll down after adding exercise
     setTimeout(() => {
@@ -378,14 +414,14 @@ export default function CreateWorkout() {
                   </View>
                   
                   <View style={styles.exerciseInputContainer}>
-                    <TextInput
-                      style={styles.exerciseNameInput}
-                      value={exercise.name}
-                      onChangeText={(value) => updateExercise(segment.id, exercise.id, 'name', value)}
-                      placeholder="Exercise name"
-                      placeholderTextColor="#666"
-                      editable={!isSaving}
-                    />
+                    <TouchableOpacity 
+                      onPress={() => !isSaving && editExercise(segment.id, exercise.id)}
+                      disabled={isSaving}
+                    >
+                      <Text style={[styles.exerciseNameInput, !exercise.name && styles.exerciseNamePlaceholder]}>
+                        {exercise.name || 'Tap to select exercise'}
+                      </Text>
+                    </TouchableOpacity>
                     <View style={styles.exerciseDetailsContainer}>
                       <TextInput
                         style={styles.exerciseDetailInput}
@@ -424,8 +460,8 @@ export default function CreateWorkout() {
                 onPress={() => !isSaving && addExercise(segment.id)}
                 disabled={isSaving}
               >
-                <Ionicons name="add-circle-outline" size={18} color="white" />
-                <Text style={styles.addExerciseText}>Add Exercise</Text>
+                <Ionicons name="search-outline" size={18} color="white" />
+                <Text style={styles.addExerciseText}>Browse Exercises</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -443,6 +479,22 @@ export default function CreateWorkout() {
         {/* Bottom space for scrolling */}
         <View style={styles.bottomSpace} />
       </ScrollView>
+
+      {/* Exercise Selector Modal */}
+      <Modal
+        visible={showExerciseSelector}
+        animationType="slide"
+        presentationStyle="fullScreen"
+      >
+        <SelectExercise
+          onSelectExercise={handleSelectExercise}
+          onBack={() => {
+            setShowExerciseSelector(false);
+            setCurrentSegmentId(null);
+            setCurrentExerciseId(null);
+          }}
+        />
+      </Modal>
     </View>
   );
 }
@@ -591,6 +643,10 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     marginBottom: 5,
+  },
+  exerciseNamePlaceholder: {
+    color: '#666',
+    fontStyle: 'italic',
   },
   exerciseDetailsContainer: {
     flexDirection: 'row',
