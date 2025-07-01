@@ -11,7 +11,8 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
-  Modal
+  Modal,
+  Animated
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import globalStyles from '@/styles/globalStyles';
@@ -185,8 +186,38 @@ export default function CreateWorkout() {
   const [showExerciseSelector, setShowExerciseSelector] = useState(false);
   const [currentSegmentId, setCurrentSegmentId] = useState<string | null>(null);
   const [currentExerciseId, setCurrentExerciseId] = useState<string | null>(null);
+  const [titleFocused, setTitleFocused] = useState(false);
 
   const scrollViewRef = useRef<ScrollView>(null);
+  const borderAnimation = useRef(new Animated.Value(0)).current;
+
+  const animateBorderIn = () => {
+    setTitleFocused(true);
+    Animated.timing(borderAnimation, {
+      toValue: 1,
+      duration: 200,
+      useNativeDriver: false,
+    }).start();
+  };
+
+  const animateBorderOut = () => {
+    setTitleFocused(false);
+    Animated.timing(borderAnimation, {
+      toValue: 0,
+      duration: 200,
+      useNativeDriver: false,
+    }).start();
+  };
+
+  const animatedBorderWidth = borderAnimation.interpolate({
+    inputRange: [0, 1],
+    outputRange: [2, 2], // Keep consistent width
+  });
+
+  const animatedBorderOpacity = borderAnimation.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.2, 0.8],
+  });
 
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -455,14 +486,29 @@ export default function CreateWorkout() {
 
           {/* Title Input */}
           <View style={styles.inputContainer}>
-            <TextInput
-              style={styles.transparentTextInput}
-              value={title}
-              onChangeText={setTitle}
-              placeholder="Workout Title"
-              placeholderTextColor="rgba(255, 255, 255, 0.3)"
-              maxLength={40}
-            />
+            <Animated.View
+              style={[
+                styles.transparentTextInput,
+                {
+                  borderBottomWidth: animatedBorderWidth,
+                  borderBottomColor: animatedBorderOpacity.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: ['rgba(255, 255, 255, 0.2)', 'rgba(255, 255, 255, 0.8)']
+                  })
+                }
+              ]}
+            >
+              <TextInput
+                style={styles.animatedTextInput}
+                value={title}
+                onChangeText={setTitle}
+                placeholder="Workout Title"
+                placeholderTextColor="rgba(255, 255, 255, 0.3)"
+                maxLength={40}
+                onFocus={animateBorderIn}
+                onBlur={animateBorderOut}
+              />
+            </Animated.View>
           </View>
 
           {/* Description Input */}
@@ -744,12 +790,20 @@ const styles = StyleSheet.create({
     borderRadius: 0,
     padding: 15,
     paddingHorizontal: 20,
+    borderBottomWidth: 2,
+    borderBottomColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  animatedTextInput: {
     color: 'white',
     fontSize: 28,
     fontWeight: 'bold',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.2)',
     textAlign: 'center',
+    backgroundColor: 'transparent',
+    padding: 0,
+  },
+  transparentTextInputFocused: {
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.8)',
   },
   transparentTextAreaInput: {
     fontSize: 16,
