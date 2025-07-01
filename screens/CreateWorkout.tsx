@@ -530,7 +530,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'black'
   },
   imageContainer: {
-    width: '80%',
+    width: '60%',
     aspectRatio: 1,
     alignSelf: 'center',
     marginVertical: 20,
