@@ -46,7 +46,7 @@ export default function SelectArchetype() {
       console.log("User document updated, ID: ", userId, " Archetype: ", value);
       
       // Navigate directly to the tabs route instead of the root
-      router.replace('/(tabs)' as any);
+      router.replace('/(tabs)');
     } catch (e) {
       console.error("Error updating document: ", e);
       setErrorMessage("Failed to update profile. Please try again.");
