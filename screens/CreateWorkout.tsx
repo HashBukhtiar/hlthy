@@ -109,11 +109,6 @@ export default function CreateWorkout() {
     }).start();
   };
 
-  const animatedBorderWidth = borderAnimation.interpolate({
-    inputRange: [0, 1],
-    outputRange: [2, 2], // Keep consistent width
-  });
-
   const animatedBorderOpacity = borderAnimation.interpolate({
     inputRange: [0, 1],
     outputRange: [0.2, 0.8],
@@ -415,7 +410,7 @@ export default function CreateWorkout() {
               style={[
                 styles.transparentTextInput,
                 {
-                  borderBottomWidth: animatedBorderWidth,
+                  borderBottomWidth: 2,
                   borderBottomColor: animatedBorderOpacity.interpolate({
                     inputRange: [0, 1],
                     outputRange: ['rgba(255, 255, 255, 0.2)', 'rgba(255, 255, 255, 0.8)']
