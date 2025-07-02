@@ -1,14 +1,18 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, TouchableOpacity, Text, TextInput, StyleSheet, ActivityIndicator, Image, FlatList } from 'react-native';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { View, TouchableOpacity, Text, TextInput, StyleSheet, ActivityIndicator, Image, FlatList, Animated } from 'react-native';
 import { useRouter } from 'expo-router';
 import globalStyles from '@/styles/globalStyles';
-import { collection, query, where, getDocs, limit, orderBy, startAfter, QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';
+import { collection, query, where, getDocs, limit, orderBy, startAfter, QueryDocumentSnapshot, DocumentData, QuerySnapshot } from 'firebase/firestore';
 import { db } from '@/firebaseConfig';
 import { useAuth } from '@/context/AuthContext';
+import { LinearGradient } from 'expo-linear-gradient';
 
 interface ExplorePost {
   id: string;
   imageUrl: string;
+  authorId?: string;
+  authorArchetype?: string;
+  isArchetypePost?: boolean;
 }
 
 interface UserSearchResult {
@@ -25,6 +29,78 @@ const shuffleArray = (array: any[]) => {
     [array[i], array[j]] = [array[j], array[i]];
   }
   return array;
+};
+
+const ShimmerPlaceholder = () => {
+  const animatedValue = new Animated.Value(0);
+
+  useEffect(() => {
+    Animated.loop(
+      Animated.timing(animatedValue, {
+        toValue: 1,
+        duration: 1000, // A slightly faster animation
+        useNativeDriver: true,
+      })
+    ).start();
+  }, []);
+
+  const translateX = animatedValue.interpolate({
+    inputRange: [0, 1],
+    outputRange: [-200, 200], // Adjust to ensure it crosses the whole element
+  });
+
+  return (
+    <View style={styles.skeletonItem}>
+      <Animated.View
+        style={[
+          StyleSheet.absoluteFill,
+          { 
+            transform: [{ translateX }],
+            backgroundColor: 'transparent', // Ensure background is transparent
+          },
+        ]}
+      >
+        <LinearGradient
+          colors={['#2e2e2e', '#3a3a3a', '#2e2e2e']}
+          style={{ flex: 1 }}
+          start={{ x: 0, y: 0.5 }}
+          end={{ x: 1, y: 0.5 }}
+        />
+      </Animated.View>
+    </View>
+  );
+};
+
+const PostGridItem = ({ item, onPress }: { item: ExplorePost; onPress: () => void }) => {
+  const imageOpacity = useRef(new Animated.Value(0)).current;
+
+  const onImageLoad = () => {
+    Animated.timing(imageOpacity, {
+      toValue: 1,
+      duration: 300, // Fade in duration
+      useNativeDriver: true,
+    }).start();
+  };
+
+  return (
+    <TouchableOpacity
+      style={[
+        styles.postPreview,
+        // Temporary borders for testing
+        item.isArchetypePost 
+          ? { borderColor: 'green', borderWidth: 2 } 
+          : { borderColor: 'blue', borderWidth: 2 }
+      ]}
+      onPress={onPress}
+    >
+      <ShimmerPlaceholder />
+      <Animated.Image
+        source={{ uri: item.imageUrl }}
+        style={[styles.postImage, { position: 'absolute', opacity: imageOpacity }]}
+        onLoad={onImageLoad}
+      />
+    </TouchableOpacity>
+  );
 };
 
 export default function Explore() {
@@ -60,54 +136,85 @@ export default function Explore() {
           limit(21)
         );
         const querySnapshot = await getDocs(q);
+        
+        // Exclude own posts and posts that are already loaded
+        const existingPostIds = new Set(posts.map(p => p.id));
         fetchedPosts = querySnapshot.docs
           .map(doc => ({ id: doc.id, imageUrl: doc.data().imageUrl, authorId: doc.data().authorId }))
-          .filter(p => p.authorId !== currentUser.uid);
-        newLastVisible = querySnapshot.docs[querySnapshot.docs.length - 1];
+          .filter(p => p.authorId !== currentUser.uid && !existingPostIds.has(p.id));
+
+        newLastVisible = querySnapshot.docs[querySnapshot.docs.length - 1] || lastVisible;
       } else {
         // Initial personalized fetch
         const archetype = userProfile?.archetype;
-        const BATCH_SIZE_ARCHETYPE = 15;
-        const BATCH_SIZE_OTHER = 15; // Increased to fetch more for client-side filtering
+        const postsRef = collection(db, 'posts');
+        let archetypePosts: ExplorePost[] = [];
+        let otherPosts: ExplorePost[] = [];
+        let archetypeSnapshot: QuerySnapshot<DocumentData> | null = null;
 
-        const archetypeQuery = query(
-          postsRef,
-          where('visibility', '==', 'public'),
-          where('imageUrl', '!=', null),
-          where('authorArchetype', '==', archetype || 'none'),
-          orderBy('createdAt', 'desc'),
-          limit(BATCH_SIZE_ARCHETYPE)
-        );
+        if (archetype) {
+          // Fetch archetype posts only if an archetype is defined
+          const BATCH_SIZE_ARCHETYPE = 15;
+          const archetypeQuery = query(
+            postsRef,
+            where('visibility', '==', 'public'),
+            where('imageUrl', '!=', null),
+            where('authorArchetype', '==', archetype),
+            orderBy('createdAt', 'desc'),
+            limit(BATCH_SIZE_ARCHETYPE)
+          );
+          archetypeSnapshot = await getDocs(archetypeQuery);
+          archetypePosts = archetypeSnapshot.docs
+            .map(doc => ({ 
+              id: doc.id, 
+              imageUrl: doc.data().imageUrl, 
+              authorArchetype: doc.data().authorArchetype, 
+              authorId: doc.data().authorId,
+              isArchetypePost: true
+            }))
+            .filter(p => p.authorId !== currentUser.uid);
+        }
 
-        // Fetch all public posts and filter client-side to avoid multiple '!='
+        // Fetch other public posts
+        const BATCH_SIZE_OTHER = 15;
         const otherQuery = query(
           postsRef,
           where('visibility', '==', 'public'),
           where('imageUrl', '!=', null),
           orderBy('createdAt', 'desc'),
-          limit(BATCH_SIZE_OTHER) // Fetch a larger batch to filter from
+          limit(BATCH_SIZE_OTHER)
         );
-
-        const [archetypeSnapshot, otherSnapshot] = await Promise.all([getDocs(archetypeQuery), getDocs(otherQuery)]);
         
-        const archetypePosts = archetypeSnapshot.docs
-          .map(doc => ({ id: doc.id, imageUrl: doc.data().imageUrl, authorArchetype: doc.data().authorArchetype, authorId: doc.data().authorId }))
-          .filter(p => p.authorId !== currentUser.uid);
-        
-        // Filter out posts that match the user's archetype or are already in the archetype list
+        const otherSnapshot = await getDocs(otherQuery);
         const archetypePostIds = new Set(archetypePosts.map(p => p.id));
-        const otherPosts = otherSnapshot.docs
-          .map(doc => ({ id: doc.id, imageUrl: doc.data().imageUrl, authorArchetype: doc.data().authorArchetype, authorId: doc.data().authorId }))
-          .filter(p => p.authorId !== currentUser.uid && p.authorArchetype !== archetype && !archetypePostIds.has(p.id))
-          .slice(0, 6); // Limit to 6 after filtering
-        
+
+        otherPosts = otherSnapshot.docs
+          .map(doc => ({ 
+            id: doc.id, 
+            imageUrl: doc.data().imageUrl, 
+            authorArchetype: doc.data().authorArchetype, 
+            authorId: doc.data().authorId,
+            isArchetypePost: false
+          }))
+          .filter(p => {
+            // Exclude own posts
+            if (p.authorId === currentUser.uid) return false;
+            // Exclude posts already in the archetype list
+            if (archetypePostIds.has(p.id)) return false;
+            // If an archetype exists, exclude posts of that archetype
+            if (archetype && p.authorArchetype === archetype) return false;
+            // Keep the post if it passes all checks
+            return true;
+          })
+          .slice(0, 15);
+
         fetchedPosts = shuffleArray([...archetypePosts, ...otherPosts]);
         
-        // For pagination, get the last document from a general query to ensure continuity
-        const allFetchedDocs = [...archetypeSnapshot.docs, ...otherSnapshot.docs]
+        // For pagination, determine the last visible document correctly from all fetched docs
+        const allFetchedDocs = [...(archetypeSnapshot?.docs || []), ...otherSnapshot.docs]
             .sort((a, b) => b.data().createdAt.toMillis() - a.data().createdAt.toMillis());
-
-        newLastVisible = allFetchedDocs[allFetchedDocs.length - 1];
+        
+        newLastVisible = allFetchedDocs.length > 0 ? allFetchedDocs[allFetchedDocs.length - 1] : null;
       }
 
       if (fetchedPosts.length < 21 && !loadMore) { // Only for initial load, pagination handles its own
@@ -220,7 +327,15 @@ export default function Explore() {
 
   const renderPostsGrid = () => {
     if (loadingPosts && posts.length === 0) {
-      return <ActivityIndicator size="large" color="#fff" style={{ marginTop: 20 }} />;
+      return (
+        <View style={styles.skeletonContainer}>
+          {Array.from({ length: 18 }).map((_, index) => (
+            <View key={index} style={styles.skeletonPreview}>
+              <ShimmerPlaceholder />
+            </View>
+          ))}
+        </View>
+      );
     }
     return (
       <FlatList
@@ -228,12 +343,7 @@ export default function Explore() {
         numColumns={3}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
-          <TouchableOpacity
-            style={styles.postPreview}
-            onPress={() => router.push(`/view-post/${item.id}`)}
-          >
-            <Image source={{ uri: item.imageUrl }} style={styles.postImage} />
-          </TouchableOpacity>
+          <PostGridItem item={item} onPress={() => router.push(`/view-post/${item.id}`)} />
         )}
         onEndReached={() => fetchExplorePosts(true)}
         onEndReachedThreshold={0.5}
@@ -312,5 +422,21 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     borderRadius: 2,
+  },
+  skeletonContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  skeletonPreview: {
+    width: '33.333%',
+    aspectRatio: 1,
+    padding: 1,
+  },
+  skeletonItem: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#2e2e2e',
+    borderRadius: 2,
+    overflow: 'hidden',
   },
 });
