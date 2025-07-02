@@ -178,6 +178,7 @@ useEffect(() => {
             postsRef,
             where('visibility', '==', 'public'),
             where('authorArchetype', '==', userArchetype),
+            where('imageUrl', '!=', null), // Exclude posts without images
             orderBy('createdAt', 'desc'),
             limit(BATCH_SIZE)
           );
@@ -194,6 +195,7 @@ useEffect(() => {
         const popularQuery = query(
           postsRef,
           where('visibility', '==', 'public'),
+          where('imageUrl', '!=', null),
           orderBy('reactionCount', 'desc'),
           orderBy('createdAt', 'desc'),
           limit(BATCH_SIZE)
@@ -216,9 +218,14 @@ useEffect(() => {
         }
         
         // 3. Combine and set initial posts
-        fetchedPosts = shuffleArray([...archetypePosts, ...popularPosts]);
+        // Ensure we filter out any popular posts that might have been fetched in the archetype batch
+        const archetypePostIds = new Set(archetypePosts.map(p => p.id));
+        const uniquePopularPosts = popularPosts.filter(p => !archetypePostIds.has(p.id));
+
+        fetchedPosts = shuffleArray([...archetypePosts, ...uniquePopularPosts]);
         setPosts(fetchedPosts);
         setNextFetchType('archetype'); // Start pagination with archetype posts
+
 
       } else {
         // --- Pagination Logic (On-Scroll) ---
@@ -230,6 +237,7 @@ useEffect(() => {
             postsRef,
             where('visibility', '==', 'public'),
             where('authorArchetype', '==', userArchetype),
+            where('imageUrl', '!=', null), // Exclude posts without images
             orderBy('createdAt', 'desc'),
             ...(lastVisibleArchetype ? [startAfter(lastVisibleArchetype)] : []),
             limit(BATCH_SIZE)
@@ -247,6 +255,7 @@ useEffect(() => {
           const popularQuery = query(
             postsRef,
             where('visibility', '==', 'public'),
+            where('imageUrl', '!=', null),
             orderBy('reactionCount', 'desc'),
             orderBy('createdAt', 'desc'),
             ...(lastVisiblePopular ? [startAfter(lastVisiblePopular)] : []),
@@ -278,9 +287,11 @@ useEffect(() => {
             setAllPostsLoaded(true);
           }
         } else {
-            const existingPostIds = new Set(posts.map(p => p.id));
-            const uniqueNewPosts = fetchedPosts.filter(p => !existingPostIds.has(p.id));
-            setPosts(prev => [...prev, ...uniqueNewPosts]);
+            setPosts(prevPosts => {
+                const existingPostIds = new Set(prevPosts.map(p => p.id));
+                const uniqueNewPosts = fetchedPosts.filter(p => !existingPostIds.has(p.id));
+                return [...prevPosts, ...uniqueNewPosts];
+            });
         }
       }
 
