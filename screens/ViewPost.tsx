@@ -519,7 +519,12 @@ useEffect(() => {
   const navigateToMilestone = (milestoneId: string) => {
     router.push(`/view-milestone/${milestoneId}`);
   };
-  
+
+  const navigateToProfile = (userId: string) => {
+    if (!userId) return;
+    router.push(`/profile/${userId}`);
+  };
+
   if (loading) {
     return (
       <View style={[styles.container, { paddingTop: insets.top, justifyContent: 'center', alignItems: 'center' }]}>
@@ -644,13 +649,16 @@ useEffect(() => {
           style={styles.scrollView}
         >
           <View style={styles.header}>
-            <View style={styles.userInfoContainer}>
+            <TouchableOpacity 
+              style={styles.userInfoContainer}
+              onPress={() => navigateToProfile(post.authorId)}
+            >
               <Image source={{ uri: post.authorProfileImageUrl || 'https://via.placeholder.com/150' }} style={styles.profilePic} />
               <View>
                 <Text style={styles.username}>{post.authorUsername}</Text>
                 <Text style={styles.location}>{formatDate(post.createdAt)}</Text>
               </View>
-            </View>
+            </TouchableOpacity>
             {post.authorId === currentUser?.uid && (
               <TouchableOpacity style={styles.moreButton} onPress={() => setMenuVisible(true)}>
                 <Ionicons name="ellipsis-horizontal" size={20} color="#FFF" />
