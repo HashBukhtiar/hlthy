@@ -22,8 +22,6 @@ import { Exercise, MetricType } from '@/data/exercises';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '@/firebaseConfig';
 import { fetchPreviousPRService, PreviousPRData } from '@/services/milestoneService';
-
-// Import shared components
 import {
     SECONDARY_COLOR,
     useImagePicker,
@@ -34,7 +32,8 @@ import {
     WorkoutSelectionModal,
     VisibilitySelector,
     VisibilityModal,
-    visibilityItems
+    visibilityItems,
+    ImagePickerModal,
 } from './PostComponents';
 
 interface MilestoneWithPostProps {
@@ -60,12 +59,14 @@ export default function MilestoneWithPost({ onBack }: MilestoneWithPostProps) {
     const [loadingPreviousPR, setLoadingPreviousPR] = useState(false);
     
     // Image picker
-    const {
-        imageUri, 
-        imageMenuVisible,
-        setImageMenuVisible,
-        ImagePickerModal
-    } = useImagePicker();
+    const [imageUri, setImageUri] = useState<string | null>(null);
+    const [imageMenuVisible, setImageMenuVisible] = useState(false);
+
+    // Image picker logic hook
+    const { openCamera, openImageLibrary } = useImagePicker((uri) => {
+        setImageUri(uri);
+        setImageMenuVisible(false);
+    });
 
     // Achievement metric fields
     const [weight, setWeight] = useState('');
@@ -488,7 +489,8 @@ export default function MilestoneWithPost({ onBack }: MilestoneWithPostProps) {
                 isMilestone: true,
                 milestoneDetails: milestoneDetails,
                 visibility: (valueVisibility as 'public' | 'followers') || 'public',
-                workoutId: selectedWorkout?.id || null
+                workoutId: selectedWorkout?.id || null,
+                authorArchetype: userProfile?.archetype || null
             };
             
             const postId = await addPost(postData);
@@ -844,26 +846,27 @@ export default function MilestoneWithPost({ onBack }: MilestoneWithPostProps) {
                         />
                     </ScrollView>
                 </View>
-
-                {/* Image picker modal */}
-                <ImagePickerModal />
-
-                {/* Workout selection modal */}
-                <WorkoutSelectionModal
-                    workoutModalVisible={workoutModalVisible}
-                    setWorkoutModalVisible={setWorkoutModalVisible}
-                    selectWorkout={selectWorkout}
-                />
-
-                {/* Visibility selection modal */}
-                <VisibilityModal
-                    visibilityModalVisible={visibilityModalVisible}
-                    setVisibilityModalVisible={setVisibilityModalVisible}
-                    valueVisibility={valueVisibility}
-                    setValueVisibility={setValueVisibility}
-                    itemsVisibility={visibilityItems}
-                />
             </KeyboardAvoidingView>
+
+            {/* MODALS MOVED OUTSIDE */}
+            <ImagePickerModal
+                visible={imageMenuVisible}
+                onClose={() => setImageMenuVisible(false)}
+                onTakePhoto={openCamera}
+                onChooseFromLibrary={openImageLibrary}
+            />
+            <WorkoutSelectionModal
+                workoutModalVisible={workoutModalVisible}
+                setWorkoutModalVisible={setWorkoutModalVisible}
+                selectWorkout={selectWorkout}
+            />
+            <VisibilityModal
+                visibilityModalVisible={visibilityModalVisible}
+                setVisibilityModalVisible={setVisibilityModalVisible}
+                valueVisibility={valueVisibility}
+                setValueVisibility={setValueVisibility}
+                itemsVisibility={visibilityItems}
+            />
         </SafeAreaView>
     );
 }

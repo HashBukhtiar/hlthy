@@ -15,8 +15,6 @@ import { useRouter } from 'expo-router';
 import { usePostsData } from '@/hooks/usePostsData';
 import { useAuth } from '@/context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
-
-// Import shared components
 import {
     SECONDARY_COLOR,
     useImagePicker,
@@ -28,6 +26,7 @@ import {
     VisibilitySelector,
     VisibilityModal,
     visibilityItems,
+    ImagePickerModal,
 } from './PostComponents';
 
 interface RegularPostProps {
@@ -49,13 +48,15 @@ export default function RegularPost({ onBack }: RegularPostProps) {
     const [valueVisibility, setValueVisibility] = useState<string | null>('public');
     const [visibilityModalVisible, setVisibilityModalVisible] = useState(false);
     
-    // Image picker
-    const {
-        imageUri, 
-        imageMenuVisible,
-        setImageMenuVisible,
-        ImagePickerModal
-    } = useImagePicker();
+    // Image picker state
+    const [imageUri, setImageUri] = useState<string | null>(null);
+    const [imageMenuVisible, setImageMenuVisible] = useState(false);
+
+    // Image picker logic hook
+    const { openCamera, openImageLibrary } = useImagePicker((uri) => {
+        setImageUri(uri);
+        setImageMenuVisible(false); // Close modal on selection
+    });
     
     // Workout attachment
     const [selectedWorkout, setSelectedWorkout] = useState<any>(null);
@@ -88,7 +89,8 @@ export default function RegularPost({ onBack }: RegularPostProps) {
                 isMilestone: false,
                 milestoneDetails: null,
                 visibility: valueVisibility || 'public',
-                workoutId: selectedWorkout?.id
+                workoutId: selectedWorkout?.id,
+                authorArchetype: userProfile?.archetype || null
             };
             
             const postId = await addPost(postData);
@@ -173,26 +175,27 @@ export default function RegularPost({ onBack }: RegularPostProps) {
                         />
                     </ScrollView>
                 </View>
-
-                {/* Image picker modal */}
-                <ImagePickerModal />
-
-                {/* Workout selection modal */}
-                <WorkoutSelectionModal
-                    workoutModalVisible={workoutModalVisible}
-                    setWorkoutModalVisible={setWorkoutModalVisible}
-                    selectWorkout={selectWorkout}
-                />
-
-                {/* Visibility selection modal */}
-                <VisibilityModal
-                    visibilityModalVisible={visibilityModalVisible}
-                    setVisibilityModalVisible={setVisibilityModalVisible}
-                    valueVisibility={valueVisibility}
-                    setValueVisibility={setValueVisibility}
-                    itemsVisibility={visibilityItems}
-                />
             </KeyboardAvoidingView>
+
+            {/* MODALS MOVED OUTSIDE */}
+            <ImagePickerModal
+                visible={imageMenuVisible}
+                onClose={() => setImageMenuVisible(false)}
+                onTakePhoto={openCamera}
+                onChooseFromLibrary={openImageLibrary}
+            />
+            <WorkoutSelectionModal
+                workoutModalVisible={workoutModalVisible}
+                setWorkoutModalVisible={setWorkoutModalVisible}
+                selectWorkout={selectWorkout}
+            />
+            <VisibilityModal
+                visibilityModalVisible={visibilityModalVisible}
+                setVisibilityModalVisible={setVisibilityModalVisible}
+                valueVisibility={valueVisibility}
+                setValueVisibility={setValueVisibility}
+                itemsVisibility={visibilityItems}
+            />
         </SafeAreaView>
     );
 }

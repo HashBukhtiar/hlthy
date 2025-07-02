@@ -455,6 +455,7 @@ export default function MilestoneOnlyPost({ onBack }: MilestoneOnlyPostProps) {
                 isMilestone: true,
                 milestoneDetails: milestoneDetails,
                 visibility: valueVisibility || 'public',
+                authorArchetype: userProfile?.archetype || null
             };
 
             const postId = await addPost(postData);
