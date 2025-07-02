@@ -158,88 +158,130 @@ useEffect(() => {
 }, [userProfile]);
 
   const fetchExplorePosts = useCallback(async (isInitialLoad = false) => {
-    if (loadingPosts || allPostsLoaded || !currentUser) return;
+    if (loadingPosts || (!isInitialLoad && allPostsLoaded) || !currentUser) return;
 
     setLoadingPosts(true);
     try {
       const postsRef = collection(db, 'posts');
-      let querySnapshot: QuerySnapshot<DocumentData>;
+      const userArchetype = userProfile?.archetype;
+      const BATCH_SIZE = 12;
       let fetchedPosts: ExplorePost[] = [];
 
-      const userArchetype = userProfile?.archetype;
-      const BATCH_SIZE = 12; // Number of posts to fetch per batch
+      if (isInitialLoad) {
+        // --- Initial Load: Fetch both archetype and popular posts sequentially ---
+        let archetypePosts: ExplorePost[] = [];
+        let popularPosts: ExplorePost[] = [];
 
-      // Determine which type of content to fetch next
-      const currentFetchType = isInitialLoad ? 'archetype' : nextFetchType;
-
-      if (currentFetchType === 'archetype' && userArchetype) {
-        // --- Fetching "For You" (Archetype) Posts ---
-        const archetypeQuery = query(
-          postsRef,
-          where('visibility', '==', 'public'),
-          where('authorArchetype', '==', userArchetype),
-          orderBy('createdAt', 'desc'),
-          ...(lastVisibleArchetype ? [startAfter(lastVisibleArchetype)] : []),
-          limit(BATCH_SIZE)
-        );
-        querySnapshot = await getDocs(archetypeQuery);
-        fetchedPosts = querySnapshot.docs
-          .map(doc => ({
-            id: doc.id,
-            imageUrl: doc.data().imageUrl,
-            authorId: doc.data().authorId,
-            isArchetypePost: true,
-          }))
-          .filter(p => p.authorId !== currentUser.uid);
-        
-        if (querySnapshot.docs.length > 0) {
-          setLastVisibleArchetype(querySnapshot.docs[querySnapshot.docs.length - 1]);
+        // 1. Fetch Archetype Posts
+        if (userArchetype) {
+          const archetypeQuery = query(
+            postsRef,
+            where('visibility', '==', 'public'),
+            where('authorArchetype', '==', userArchetype),
+            orderBy('createdAt', 'desc'),
+            limit(BATCH_SIZE)
+          );
+          const archetypeSnapshot = await getDocs(archetypeQuery);
+          archetypePosts = archetypeSnapshot.docs
+            .map(doc => ({ id: doc.id, imageUrl: doc.data().imageUrl, authorId: doc.data().authorId, isArchetypePost: true }))
+            .filter(p => p.authorId !== currentUser.uid);
+          if (archetypeSnapshot.docs.length > 0) {
+            setLastVisibleArchetype(archetypeSnapshot.docs[archetypeSnapshot.docs.length - 1]);
+          }
         }
-        setNextFetchType('popular'); // Alternate for the next fetch
 
-      } else {
-        // --- Fetching "Trending" (Popular) Posts ---
-        // Note: This requires a composite index on reactionCount and createdAt. 
-        // Firestore will provide a link in the error console to create it automatically.
+        // 2. Fetch Popular Posts
         const popularQuery = query(
           postsRef,
           where('visibility', '==', 'public'),
           orderBy('reactionCount', 'desc'),
           orderBy('createdAt', 'desc'),
-          ...(lastVisiblePopular ? [startAfter(lastVisiblePopular)] : []),
           limit(BATCH_SIZE)
         );
-        querySnapshot = await getDocs(popularQuery);
-        fetchedPosts = querySnapshot.docs
-          .map(doc => ({
-            id: doc.id,
-            imageUrl: doc.data().imageUrl,
-            authorId: doc.data().authorId,
-            isArchetypePost: false,
-          }))
-          .filter(p => p.authorId !== currentUser.uid);
-
-        if (querySnapshot.docs.length > 0) {
-          setLastVisiblePopular(querySnapshot.docs[querySnapshot.docs.length - 1]);
+        const popularSnapshot = await getDocs(popularQuery);
+        popularPosts = popularSnapshot.docs
+          .map(doc => {
+            const data = doc.data();
+            return {
+              id: doc.id,
+              imageUrl: data.imageUrl,
+              authorId: data.authorId,
+              authorArchetype: data.authorArchetype,
+              isArchetypePost: false,
+            };
+          })
+          .filter(p => p.authorId !== currentUser.uid && p.authorArchetype !== userArchetype);
+        if (popularSnapshot.docs.length > 0) {
+          setLastVisiblePopular(popularSnapshot.docs[popularSnapshot.docs.length - 1]);
         }
-        setNextFetchType('archetype'); // Alternate for the next fetch
-      }
+        
+        // 3. Combine and set initial posts
+        fetchedPosts = shuffleArray([...archetypePosts, ...popularPosts]);
+        setPosts(fetchedPosts);
+        setNextFetchType('archetype'); // Start pagination with archetype posts
 
-      if (querySnapshot.empty) {
-        // If one stream runs out, try the other one immediately
-        if (nextFetchType === 'popular') setNextFetchType('archetype');
-        else setAllPostsLoaded(true); // If both seem empty, stop fetching
-      }
+      } else {
+        // --- Pagination Logic (On-Scroll) ---
+        const currentFetchType = nextFetchType;
+        let querySnapshot: QuerySnapshot<DocumentData>;
 
-      // Prevent duplicates from appearing
-      const existingPostIds = new Set(posts.map(p => p.id));
-      const uniqueNewPosts = fetchedPosts.filter(p => !existingPostIds.has(p.id));
+        if (currentFetchType === 'archetype' && userArchetype) {
+          const archetypeQuery = query(
+            postsRef,
+            where('visibility', '==', 'public'),
+            where('authorArchetype', '==', userArchetype),
+            orderBy('createdAt', 'desc'),
+            ...(lastVisibleArchetype ? [startAfter(lastVisibleArchetype)] : []),
+            limit(BATCH_SIZE)
+          );
+          querySnapshot = await getDocs(archetypeQuery);
+          fetchedPosts = querySnapshot.docs
+            .map(doc => ({ id: doc.id, imageUrl: doc.data().imageUrl, authorId: doc.data().authorId, isArchetypePost: true }))
+            .filter(p => p.authorId !== currentUser.uid);
+          if (querySnapshot.docs.length > 0) {
+            setLastVisibleArchetype(querySnapshot.docs[querySnapshot.docs.length - 1]);
+          }
+          setNextFetchType('popular');
 
-      setPosts(prev => isInitialLoad ? uniqueNewPosts : shuffleArray([...prev, ...uniqueNewPosts]));
+        } else {
+          const popularQuery = query(
+            postsRef,
+            where('visibility', '==', 'public'),
+            orderBy('reactionCount', 'desc'),
+            orderBy('createdAt', 'desc'),
+            ...(lastVisiblePopular ? [startAfter(lastVisiblePopular)] : []),
+            limit(BATCH_SIZE)
+          );
+          querySnapshot = await getDocs(popularQuery);
+          fetchedPosts = querySnapshot.docs
+            .map(doc => {
+              const data = doc.data();
+              return {
+                id: doc.id,
+                imageUrl: data.imageUrl,
+                authorId: data.authorId,
+                authorArchetype: data.authorArchetype,
+                isArchetypePost: false,
+              };
+            })
+            .filter(p => p.authorId !== currentUser.uid && p.authorArchetype !== userArchetype);
+          if (querySnapshot.docs.length > 0) {
+            setLastVisiblePopular(querySnapshot.docs[querySnapshot.docs.length - 1]);
+          }
+          setNextFetchType('archetype');
+        }
 
-      // If this was the initial load, immediately fetch the other type for a mixed first page
-      if (isInitialLoad) {
-        fetchExplorePosts(false); 
+        if (querySnapshot.empty) {
+          if (nextFetchType === 'popular') {
+             setNextFetchType('archetype');
+          } else {
+            setAllPostsLoaded(true);
+          }
+        } else {
+            const existingPostIds = new Set(posts.map(p => p.id));
+            const uniqueNewPosts = fetchedPosts.filter(p => !existingPostIds.has(p.id));
+            setPosts(prev => [...prev, ...uniqueNewPosts]);
+        }
       }
 
     } catch (error) {
