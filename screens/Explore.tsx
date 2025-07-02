@@ -29,7 +29,7 @@ const shuffleArray = (array: any[]) => {
 
 export default function Explore() {
   const router = useRouter();
-  const { userProfile } = useAuth();
+  const { userProfile, currentUser } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<UserSearchResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -41,7 +41,7 @@ export default function Explore() {
   const [allPostsLoaded, setAllPostsLoaded] = useState(false);
 
   const fetchExplorePosts = useCallback(async (loadMore = false) => {
-    if (loadingPosts || (loadMore && allPostsLoaded)) return;
+    if (loadingPosts || (loadMore && allPostsLoaded) || !currentUser) return;
 
     setLoadingPosts(true);
     try {
@@ -60,7 +60,9 @@ export default function Explore() {
           limit(21)
         );
         const querySnapshot = await getDocs(q);
-        fetchedPosts = querySnapshot.docs.map(doc => ({ id: doc.id, imageUrl: doc.data().imageUrl }));
+        fetchedPosts = querySnapshot.docs
+          .map(doc => ({ id: doc.id, imageUrl: doc.data().imageUrl, authorId: doc.data().authorId }))
+          .filter(p => p.authorId !== currentUser.uid);
         newLastVisible = querySnapshot.docs[querySnapshot.docs.length - 1];
       } else {
         // Initial personalized fetch
@@ -88,24 +90,29 @@ export default function Explore() {
 
         const [archetypeSnapshot, otherSnapshot] = await Promise.all([getDocs(archetypeQuery), getDocs(otherQuery)]);
         
-        const archetypePosts = archetypeSnapshot.docs.map(doc => ({ id: doc.id, imageUrl: doc.data().imageUrl, authorArchetype: doc.data().authorArchetype }));
+        const archetypePosts = archetypeSnapshot.docs
+          .map(doc => ({ id: doc.id, imageUrl: doc.data().imageUrl, authorArchetype: doc.data().authorArchetype, authorId: doc.data().authorId }))
+          .filter(p => p.authorId !== currentUser.uid);
         
         // Filter out posts that match the user's archetype or are already in the archetype list
         const archetypePostIds = new Set(archetypePosts.map(p => p.id));
         const otherPosts = otherSnapshot.docs
-          .map(doc => ({ id: doc.id, imageUrl: doc.data().imageUrl, authorArchetype: doc.data().authorArchetype }))
-          .filter(p => p.authorArchetype !== archetype && !archetypePostIds.has(p.id))
+          .map(doc => ({ id: doc.id, imageUrl: doc.data().imageUrl, authorArchetype: doc.data().authorArchetype, authorId: doc.data().authorId }))
+          .filter(p => p.authorId !== currentUser.uid && p.authorArchetype !== archetype && !archetypePostIds.has(p.id))
           .slice(0, 6); // Limit to 6 after filtering
         
         fetchedPosts = shuffleArray([...archetypePosts, ...otherPosts]);
         
         // For pagination, get the last document from a general query to ensure continuity
-        const lastDocQuery = query(postsRef, where('visibility', '==', 'public'), where('imageUrl', '!=', null), orderBy('createdAt', 'desc'), limit(fetchedPosts.length || 1));
-        const lastDocSnapshot = await getDocs(lastDocQuery);
-        newLastVisible = lastDocSnapshot.docs[lastDocSnapshot.docs.length - 1];
+        const allFetchedDocs = [...archetypeSnapshot.docs, ...otherSnapshot.docs]
+            .sort((a, b) => b.data().createdAt.toMillis() - a.data().createdAt.toMillis());
+
+        newLastVisible = allFetchedDocs[allFetchedDocs.length - 1];
       }
 
-      if (fetchedPosts.length < 21) {
+      if (fetchedPosts.length < 21 && !loadMore) { // Only for initial load, pagination handles its own
+        // This logic might need adjustment based on desired behavior
+      } else if (loadMore && fetchedPosts.length === 0) {
         setAllPostsLoaded(true);
       }
 
@@ -117,7 +124,7 @@ export default function Explore() {
     } finally {
       setLoadingPosts(false);
     }
-  }, [loadingPosts, allPostsLoaded, lastVisible, userProfile]);
+  }, [loadingPosts, allPostsLoaded, lastVisible, userProfile, currentUser]);
 
   useEffect(() => {
     if (!searchQuery) {
