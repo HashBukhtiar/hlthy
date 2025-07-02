@@ -84,13 +84,7 @@ const PostGridItem = ({ item, onPress }: { item: ExplorePost; onPress: () => voi
 
   return (
     <TouchableOpacity
-      style={[
-        styles.postPreview,
-        // Temporary borders for testing
-        item.isArchetypePost 
-          ? { borderColor: 'green', borderWidth: 2 } 
-          : { borderColor: 'blue', borderWidth: 2 }
-      ]}
+      style={styles.postPreview}
       onPress={onPress}
     >
       <ShimmerPlaceholder />
