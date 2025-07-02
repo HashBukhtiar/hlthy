@@ -6,7 +6,8 @@ import { useAuth } from '@/context/AuthContext';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { formatCount } from '@/logic/formattingFunctions';
 import { BOTTOM_BAR_HEIGHT } from '@/styles/globalStyles';
-
+import { doc, updateDoc } from 'firebase/firestore';
+import { db } from '@/firebaseConfig';
 // Import archetype icons
 const archetypeIcons = {
   'athlete': require('@/assets/images/athlete.png'),
@@ -96,6 +97,8 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
   const tabWidth = screenWidth / 3;
   const [tooltipVisible, setTooltipVisible] = useState(false);
   const [tooltipText, setTooltipText] = useState('');
+  const [isArchetypeModalVisible, setIsArchetypeModalVisible] = useState(false);
+  const [isUpdatingArchetype, setIsUpdatingArchetype] = useState(false);
 
   const isOwnProfile = !routeUserId || routeUserId === currentUser?.uid;
   const displayProfileData = isOwnProfile ? (profileData || currentUserProfile) : profileData;
@@ -183,6 +186,24 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
       );
     }
     return null;
+  };
+
+  const handleArchetypeSelect = async (newArchetype: string) => {
+    if (!currentUser) return;
+    setIsUpdatingArchetype(true);
+    try {
+      const userDocRef = doc(db, 'users', currentUser.uid);
+      await updateDoc(userDocRef, {
+        archetype: newArchetype,
+      });
+      await refreshUserProfile(); // Refresh profile data from auth context
+      setIsArchetypeModalVisible(false);
+    } catch (error) {
+      console.error("Failed to update archetype:", error);
+      // Optionally, show an error message to the user
+    } finally {
+      setIsUpdatingArchetype(false);
+    }
   };
 
   const onRefresh = useCallback(async () => {
@@ -665,12 +686,14 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
           <TouchableOpacity
             style={styles.statItem}
             onPress={() => {
-              if (displayProfileData?.archetype) {
+              if (isOwnProfile) {
+                setIsArchetypeModalVisible(true);
+              } else if (displayProfileData?.archetype) {
                 setTooltipText(archetypeDescriptions[displayProfileData.archetype.toLowerCase() || 'generalist']);
                 setTooltipVisible(true);
               }
             }}
-            disabled={!displayProfileData?.archetype}
+            disabled={!displayProfileData?.archetype && !isOwnProfile}
           >
             <Image
               source={archetypeIcons[displayProfileData?.archetype?.toLowerCase() || 'generalist']}
@@ -694,6 +717,39 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
           </TouchableOpacity>
         </View>
       </View>
+
+      <Modal
+        transparent={true}
+        visible={isArchetypeModalVisible}
+        animationType="fade"
+        onRequestClose={() => setIsArchetypeModalVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalContainer}
+          activeOpacity={1}
+          onPressOut={() => setIsArchetypeModalVisible(false)}
+        >
+          <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
+            <Text style={styles.modalTitle}>Choose Your Archetype</Text>
+            {isUpdatingArchetype ? (
+              <ActivityIndicator size="large" color="#FFF" style={{ marginVertical: 20 }} />
+            ) : (
+              Object.keys(archetypeIcons).map((key) => (
+                <TouchableOpacity
+                  key={key}
+                  style={styles.archetypeChoice}
+                  onPress={() => handleArchetypeSelect(key)}
+                >
+                  <Image source={archetypeIcons[key]} style={styles.archetypeChoiceIcon} />
+                  <Text style={styles.archetypeChoiceText}>
+                    {key.charAt(0).toUpperCase() + key.slice(1)}
+                  </Text>
+                </TouchableOpacity>
+              ))
+            )}
+          </View>
+        </TouchableOpacity>
+      </Modal>
 
       <Modal
         transparent={true}
@@ -1190,6 +1246,42 @@ const styles = StyleSheet.create({
   gainValue: {
     color: '#FF9500',
     fontWeight: 'bold',
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+  },
+  modalContent: {
+    backgroundColor: '#2C2C2E',
+    borderRadius: 14,
+    padding: 20,
+    width: '85%',
+    maxHeight: '80%',
+  },
+  modalTitle: {
+    color: '#FFF',
+    fontSize: 20,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  archetypeChoice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#3A3A3C',
+  },
+  archetypeChoiceIcon: {
+    width: 30,
+    height: 30,
+    marginRight: 15,
+  },
+  archetypeChoiceText: {
+    color: '#FFF',
+    fontSize: 18,
   },
 });
 

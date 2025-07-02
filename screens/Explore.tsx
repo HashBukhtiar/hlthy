@@ -116,6 +116,43 @@ export default function Explore() {
   const [lastVisible, setLastVisible] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
   const [allPostsLoaded, setAllPostsLoaded] = useState(false);
 
+
+  const checkArchetypePosts = async () => {
+  try {
+    console.log("Running diagnostic query for 'bodybuilder' archetype...");
+    const postsRef = collection(db, 'posts');
+    const q = query(postsRef, where('authorArchetype', '==', 'bodybuilder'));
+    const querySnapshot = await getDocs(q);
+
+    if (querySnapshot.empty) {
+      console.log("DIAGNOSTIC: No documents found with authorArchetype: 'bodybuilder'. Check your Firestore data for exact spelling and case.");
+    } else {
+      console.log(`DIAGNOSTIC: Found ${querySnapshot.size} documents with this archetype.`, 'Now checking other fields:');
+      querySnapshot.forEach(doc => {
+        const data = doc.data();
+        console.log({
+          id: doc.id,
+          visibility: data.visibility, // Should be 'public'
+          imageUrl: data.imageUrl,     // Should not be null
+          authorArchetype: data.authorArchetype,
+        });
+      });
+    }
+  } catch (error) {
+    console.error("DIAGNOSTIC ERROR:", error);
+    console.log("If you see a 'FAILED_PRECONDITION' error, Firestore requires a composite index. The error message will contain a link to create it in the Firebase console.");
+  }
+};
+
+// You can call it from your useEffect like this to test:
+useEffect(() => {
+  if (!searchQuery) {
+    fetchExplorePosts();
+    console.log('checking....')
+    checkArchetypePosts(); // <-- Add this call for testing
+  }
+}, [userProfile]);
+
   const fetchExplorePosts = useCallback(async (loadMore = false) => {
     if (loadingPosts || (loadMore && allPostsLoaded) || !currentUser) return;
 
@@ -147,6 +184,8 @@ export default function Explore() {
       } else {
         // Initial personalized fetch
         const archetype = userProfile?.archetype;
+        console.log("Attempting to fetch posts for archetype:", archetype);
+
         const postsRef = collection(db, 'posts');
         let archetypePosts: ExplorePost[] = [];
         let otherPosts: ExplorePost[] = [];
@@ -207,6 +246,9 @@ export default function Explore() {
             return true;
           })
           .slice(0, 15);
+
+        console.log("Archetype Post IDs:", archetypePosts.map(p => p.id));
+        console.log("Other Post IDs:", otherPosts.map(p => p.id));
 
         fetchedPosts = shuffleArray([...archetypePosts, ...otherPosts]);
         
