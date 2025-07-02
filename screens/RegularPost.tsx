@@ -14,6 +14,8 @@ import {
 import { useRouter } from 'expo-router';
 import { usePostsData } from '@/hooks/usePostsData';
 import { useAuth } from '@/context/AuthContext';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '@/firebaseConfig';
 import { Ionicons } from '@expo/vector-icons';
 import {
     SECONDARY_COLOR,
@@ -36,11 +38,9 @@ interface RegularPostProps {
 export default function RegularPost({ onBack }: RegularPostProps) {
     const router = useRouter();
     const { addPost } = usePostsData();
-    // Using type assertion to fix TypeScript errors
-    const auth = useAuth() as any;
-    const currentUser = auth?.currentUser;
-    const userProfile = auth?.userProfile;
-    
+    const { currentUser } = useAuth();
+    const userProfile = currentUser?.userProfile;
+
     // Form state
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [formError, setFormError] = useState<string | null>(null);
@@ -83,6 +83,15 @@ export default function RegularPost({ onBack }: RegularPostProps) {
             setIsSubmitting(true);
             setFormError(null);
             
+            let authorArchetype = null;
+            if (currentUser) {
+                const userDocRef = doc(db, 'users', currentUser.uid);
+                const userDocSnap = await getDoc(userDocRef);
+                if (userDocSnap.exists()) {
+                    authorArchetype = userDocSnap.data().archetype || null;
+                }
+            }
+
             const postData = {
                 caption: caption.trim(),
                 imageUri,
@@ -90,7 +99,7 @@ export default function RegularPost({ onBack }: RegularPostProps) {
                 milestoneDetails: null,
                 visibility: valueVisibility || 'public',
                 workoutId: selectedWorkout?.id,
-                authorArchetype: userProfile?.archetype || null
+                authorArchetype: authorArchetype
             };
             
             const postId = await addPost(postData);

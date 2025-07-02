@@ -253,7 +253,6 @@ export function useProfileData(userId = null) {
 
       // --- Group the extracted milestones ---
       const finalGroupedMilestones = groupAndSortMilestones(userMilestonesRaw);
-      console.log("Final Grouped Milestones for:", profileIdToFetch, finalGroupedMilestones);
 
       setProfileData(userData);
       setPosts(userPosts);

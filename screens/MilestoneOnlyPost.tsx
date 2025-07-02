@@ -16,12 +16,12 @@ import {
 import { useRouter } from 'expo-router';
 import { usePostsData } from '@/hooks/usePostsData';
 import { useAuth } from '@/context/AuthContext';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '@/firebaseConfig';
 import { Ionicons, MaterialCommunityIcons, FontAwesome5, Feather } from '@expo/vector-icons';
 import SelectExercise from './SelectExercise';
 import { Exercise } from '@/data/exercises';
 import { fetchPreviousPRService, PreviousPRData } from '@/services/milestoneService';
-
-// Import shared components
 import {
     SECONDARY_COLOR,
     ErrorMessage,
@@ -34,13 +34,12 @@ interface MilestoneOnlyPostProps {
 export default function MilestoneOnlyPost({ onBack }: MilestoneOnlyPostProps) {
     const router = useRouter();
     const { addPost } = usePostsData();
-    const auth = useAuth() as any;
-    const currentUser = auth?.currentUser;
-    const userProfile = auth?.userProfile;
-    
+    const { currentUser } = useAuth();
+    const userProfile = currentUser?.userProfile;
+
     // Form state
-    const [isSubmitting, setIsSubmitting] = useState(false);
     const [formError, setFormError] = useState<string | null>(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const [valueVisibility, setValueVisibility] = useState<string | null>('public');
     
     // Previous PR data
@@ -449,13 +448,25 @@ export default function MilestoneOnlyPost({ onBack }: MilestoneOnlyPostProps) {
 
             console.log("Final milestoneDetails object being submitted:", JSON.stringify(milestoneDetails, null, 2));
 
+            setIsSubmitting(true);
+            setFormError(null);
+
+            let authorArchetype = null;
+            if (currentUser) {
+                const userDocRef = doc(db, 'users', currentUser.uid);
+                const userDocSnap = await getDoc(userDocRef);
+                if (userDocSnap.exists()) {
+                    authorArchetype = userDocSnap.data().archetype || null;
+                }
+            }
+
             const postData = {
                 caption: '',
                 imageUri: null,
                 isMilestone: true,
                 milestoneDetails: milestoneDetails,
                 visibility: valueVisibility || 'public',
-                authorArchetype: userProfile?.archetype || null
+                authorArchetype: authorArchetype
             };
 
             const postId = await addPost(postData);

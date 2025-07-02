@@ -16,11 +16,11 @@ import {
 import { useRouter } from 'expo-router';
 import { usePostsData } from '@/hooks/usePostsData';
 import { useAuth } from '@/context/AuthContext';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '@/firebaseConfig';
 import { Ionicons, MaterialCommunityIcons, FontAwesome5, Feather } from '@expo/vector-icons';
 import SelectExercise from './SelectExercise';
 import { Exercise, MetricType } from '@/data/exercises';
-import { collection, query, where, getDocs } from 'firebase/firestore';
-import { db } from '@/firebaseConfig';
 import { fetchPreviousPRService, PreviousPRData } from '@/services/milestoneService';
 import {
     SECONDARY_COLOR,
@@ -43,10 +43,9 @@ interface MilestoneWithPostProps {
 export default function MilestoneWithPost({ onBack }: MilestoneWithPostProps) {
     const router = useRouter();
     const { addPost } = usePostsData();
-    const auth = useAuth() as any;
-    const currentUser = auth?.currentUser;
-    const userProfile = auth?.userProfile;
-    
+    const { currentUser } = useAuth();
+    const userProfile = currentUser?.userProfile;
+
     // Form state
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [formError, setFormError] = useState<string | null>(null);
@@ -483,6 +482,15 @@ export default function MilestoneWithPost({ onBack }: MilestoneWithPostProps) {
                     throw new Error("Unsupported exercise type");
             }
 
+            let authorArchetype = null;
+            if (currentUser) {
+                const userDocRef = doc(db, 'users', currentUser.uid);
+                const userDocSnap = await getDoc(userDocRef);
+                if (userDocSnap.exists()) {
+                    authorArchetype = userDocSnap.data().archetype || null;
+                }
+            }
+
             const postData = {
                 caption: caption.trim(),
                 imageUri: imageUri ?? undefined,
@@ -490,7 +498,7 @@ export default function MilestoneWithPost({ onBack }: MilestoneWithPostProps) {
                 milestoneDetails: milestoneDetails,
                 visibility: (valueVisibility as 'public' | 'followers') || 'public',
                 workoutId: selectedWorkout?.id || null,
-                authorArchetype: userProfile?.archetype || null
+                authorArchetype: authorArchetype
             };
             
             const postId = await addPost(postData);

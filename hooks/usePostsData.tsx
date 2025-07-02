@@ -79,6 +79,7 @@ interface NewPostData {
   milestoneDetails?: ClientMilestoneDetails;
   visibility: 'public' | 'followers';
   workoutId?: string | null;
+  authorArchetype?: string | null;
 }
 
 export interface Comment {
@@ -303,6 +304,7 @@ export function usePostsData() {
           milestoneDetails: postData.milestoneDetails,
           visibility: postData.visibility || "public",
           workoutId: postData.workoutId || null,
+          authorArchetype: postData.authorArchetype || null,
         };
         
         console.log("Calling createMilestonePost with payload:", payload);
@@ -330,7 +332,8 @@ export function usePostsData() {
           reactionCount: 0,
           commentCount: 0,
           visibility: postData.visibility || "public",
-          workoutId: postData.workoutId || null
+          workoutId: postData.workoutId || null,
+          authorArchetype: postData.authorArchetype || null,
         });
         console.log("Regular post created directly with ID:", postRef.id);
         return postRef.id;

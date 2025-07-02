@@ -378,10 +378,6 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
           <View>
             <Text style={styles.monthHeader}>{month}</Text>
             {groupedMilestones[month].map((milestoneItem: any, idx: number) => {
-              if (idx === 0) {
-                console.log(`Sample milestoneItem for month ${month}:`, milestoneItem);
-              }
-
               // Infer type
               let milestoneType = "PR";
               if (

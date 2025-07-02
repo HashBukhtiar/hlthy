@@ -38,7 +38,7 @@ const ShimmerPlaceholder = () => {
     Animated.loop(
       Animated.timing(animatedValue, {
         toValue: 1,
-        duration: 1000, // A slightly faster animation
+        duration: 1000,
         useNativeDriver: true,
       })
     ).start();
@@ -46,7 +46,7 @@ const ShimmerPlaceholder = () => {
 
   const translateX = animatedValue.interpolate({
     inputRange: [0, 1],
-    outputRange: [-200, 200], // Adjust to ensure it crosses the whole element
+    outputRange: [-200, 200],
   });
 
   return (
@@ -56,7 +56,7 @@ const ShimmerPlaceholder = () => {
           StyleSheet.absoluteFill,
           { 
             transform: [{ translateX }],
-            backgroundColor: 'transparent', // Ensure background is transparent
+            backgroundColor: 'transparent',
           },
         ]}
       >
@@ -113,9 +113,13 @@ export default function Explore() {
 
   const [posts, setPosts] = useState<ExplorePost[]>([]);
   const [loadingPosts, setLoadingPosts] = useState(false);
-  const [lastVisible, setLastVisible] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
-  const [allPostsLoaded, setAllPostsLoaded] = useState(false);
 
+  // New state for dual pagination
+  const [lastVisibleArchetype, setLastVisibleArchetype] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
+  const [lastVisiblePopular, setLastVisiblePopular] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
+  const [nextFetchType, setNextFetchType] = useState<'archetype' | 'popular'>('archetype');
+
+  const [allPostsLoaded, setAllPostsLoaded] = useState(false);
 
   const checkArchetypePosts = async () => {
   try {
@@ -153,133 +157,104 @@ useEffect(() => {
   }
 }, [userProfile]);
 
-  const fetchExplorePosts = useCallback(async (loadMore = false) => {
-    if (loadingPosts || (loadMore && allPostsLoaded) || !currentUser) return;
+  const fetchExplorePosts = useCallback(async (isInitialLoad = false) => {
+    if (loadingPosts || allPostsLoaded || !currentUser) return;
 
     setLoadingPosts(true);
     try {
       const postsRef = collection(db, 'posts');
+      let querySnapshot: QuerySnapshot<DocumentData>;
       let fetchedPosts: ExplorePost[] = [];
-      let newLastVisible: QueryDocumentSnapshot<DocumentData> | null = null;
 
-      if (loadMore) {
-        // For subsequent loads, fetch general public posts
-        const q = query(
+      const userArchetype = userProfile?.archetype;
+      const BATCH_SIZE = 12; // Number of posts to fetch per batch
+
+      // Determine which type of content to fetch next
+      const currentFetchType = isInitialLoad ? 'archetype' : nextFetchType;
+
+      if (currentFetchType === 'archetype' && userArchetype) {
+        // --- Fetching "For You" (Archetype) Posts ---
+        const archetypeQuery = query(
           postsRef,
           where('visibility', '==', 'public'),
-          where('imageUrl', '!=', null),
+          where('authorArchetype', '==', userArchetype),
           orderBy('createdAt', 'desc'),
-          startAfter(lastVisible),
-          limit(21)
+          ...(lastVisibleArchetype ? [startAfter(lastVisibleArchetype)] : []),
+          limit(BATCH_SIZE)
         );
-        const querySnapshot = await getDocs(q);
-        
-        // Exclude own posts and posts that are already loaded
-        const existingPostIds = new Set(posts.map(p => p.id));
+        querySnapshot = await getDocs(archetypeQuery);
         fetchedPosts = querySnapshot.docs
-          .map(doc => ({ id: doc.id, imageUrl: doc.data().imageUrl, authorId: doc.data().authorId }))
-          .filter(p => p.authorId !== currentUser.uid && !existingPostIds.has(p.id));
-
-        newLastVisible = querySnapshot.docs[querySnapshot.docs.length - 1] || lastVisible;
-      } else {
-        // Initial personalized fetch
-        const archetype = userProfile?.archetype;
-        console.log("Attempting to fetch posts for archetype:", archetype);
-
-        const postsRef = collection(db, 'posts');
-        let archetypePosts: ExplorePost[] = [];
-        let otherPosts: ExplorePost[] = [];
-        let archetypeSnapshot: QuerySnapshot<DocumentData> | null = null;
-
-        if (archetype) {
-          // Fetch archetype posts only if an archetype is defined
-          const BATCH_SIZE_ARCHETYPE = 15;
-          const archetypeQuery = query(
-            postsRef,
-            where('visibility', '==', 'public'),
-            where('imageUrl', '!=', null),
-            where('authorArchetype', '==', archetype),
-            orderBy('createdAt', 'desc'),
-            limit(BATCH_SIZE_ARCHETYPE)
-          );
-          archetypeSnapshot = await getDocs(archetypeQuery);
-          archetypePosts = archetypeSnapshot.docs
-            .map(doc => ({ 
-              id: doc.id, 
-              imageUrl: doc.data().imageUrl, 
-              authorArchetype: doc.data().authorArchetype, 
-              authorId: doc.data().authorId,
-              isArchetypePost: true
-            }))
-            .filter(p => p.authorId !== currentUser.uid);
+          .map(doc => ({
+            id: doc.id,
+            imageUrl: doc.data().imageUrl,
+            authorId: doc.data().authorId,
+            isArchetypePost: true,
+          }))
+          .filter(p => p.authorId !== currentUser.uid);
+        
+        if (querySnapshot.docs.length > 0) {
+          setLastVisibleArchetype(querySnapshot.docs[querySnapshot.docs.length - 1]);
         }
+        setNextFetchType('popular'); // Alternate for the next fetch
 
-        // Fetch other public posts
-        const BATCH_SIZE_OTHER = 15;
-        const otherQuery = query(
+      } else {
+        // --- Fetching "Trending" (Popular) Posts ---
+        // Note: This requires a composite index on reactionCount and createdAt. 
+        // Firestore will provide a link in the error console to create it automatically.
+        const popularQuery = query(
           postsRef,
           where('visibility', '==', 'public'),
-          where('imageUrl', '!=', null),
+          orderBy('reactionCount', 'desc'),
           orderBy('createdAt', 'desc'),
-          limit(BATCH_SIZE_OTHER)
+          ...(lastVisiblePopular ? [startAfter(lastVisiblePopular)] : []),
+          limit(BATCH_SIZE)
         );
-        
-        const otherSnapshot = await getDocs(otherQuery);
-        const archetypePostIds = new Set(archetypePosts.map(p => p.id));
-
-        otherPosts = otherSnapshot.docs
-          .map(doc => ({ 
-            id: doc.id, 
-            imageUrl: doc.data().imageUrl, 
-            authorArchetype: doc.data().authorArchetype, 
+        querySnapshot = await getDocs(popularQuery);
+        fetchedPosts = querySnapshot.docs
+          .map(doc => ({
+            id: doc.id,
+            imageUrl: doc.data().imageUrl,
             authorId: doc.data().authorId,
-            isArchetypePost: false
+            isArchetypePost: false,
           }))
-          .filter(p => {
-            // Exclude own posts
-            if (p.authorId === currentUser.uid) return false;
-            // Exclude posts already in the archetype list
-            if (archetypePostIds.has(p.id)) return false;
-            // If an archetype exists, exclude posts of that archetype
-            if (archetype && p.authorArchetype === archetype) return false;
-            // Keep the post if it passes all checks
-            return true;
-          })
-          .slice(0, 15);
+          .filter(p => p.authorId !== currentUser.uid);
 
-        console.log("Archetype Post IDs:", archetypePosts.map(p => p.id));
-        console.log("Other Post IDs:", otherPosts.map(p => p.id));
-
-        fetchedPosts = shuffleArray([...archetypePosts, ...otherPosts]);
-        
-        // For pagination, determine the last visible document correctly from all fetched docs
-        const allFetchedDocs = [...(archetypeSnapshot?.docs || []), ...otherSnapshot.docs]
-            .sort((a, b) => b.data().createdAt.toMillis() - a.data().createdAt.toMillis());
-        
-        newLastVisible = allFetchedDocs.length > 0 ? allFetchedDocs[allFetchedDocs.length - 1] : null;
+        if (querySnapshot.docs.length > 0) {
+          setLastVisiblePopular(querySnapshot.docs[querySnapshot.docs.length - 1]);
+        }
+        setNextFetchType('archetype'); // Alternate for the next fetch
       }
 
-      if (fetchedPosts.length < 21 && !loadMore) { // Only for initial load, pagination handles its own
-        // This logic might need adjustment based on desired behavior
-      } else if (loadMore && fetchedPosts.length === 0) {
-        setAllPostsLoaded(true);
+      if (querySnapshot.empty) {
+        // If one stream runs out, try the other one immediately
+        if (nextFetchType === 'popular') setNextFetchType('archetype');
+        else setAllPostsLoaded(true); // If both seem empty, stop fetching
       }
 
-      setLastVisible(newLastVisible);
-      setPosts(prev => loadMore ? [...prev, ...fetchedPosts] : fetchedPosts);
+      // Prevent duplicates from appearing
+      const existingPostIds = new Set(posts.map(p => p.id));
+      const uniqueNewPosts = fetchedPosts.filter(p => !existingPostIds.has(p.id));
+
+      setPosts(prev => isInitialLoad ? uniqueNewPosts : shuffleArray([...prev, ...uniqueNewPosts]));
+
+      // If this was the initial load, immediately fetch the other type for a mixed first page
+      if (isInitialLoad) {
+        fetchExplorePosts(false); 
+      }
 
     } catch (error) {
       console.error("Error fetching explore posts:", error);
+      // Firestore will log an error with a link to create the required index if it's missing.
     } finally {
       setLoadingPosts(false);
     }
-  }, [loadingPosts, allPostsLoaded, lastVisible, userProfile, currentUser]);
+  }, [loadingPosts, allPostsLoaded, userProfile, currentUser, posts, lastVisibleArchetype, lastVisiblePopular, nextFetchType]);
 
   useEffect(() => {
     if (!searchQuery) {
-      fetchExplorePosts();
+      fetchExplorePosts(true);
     }
-  }, [userProfile]); // Refetch if user profile changes
+  }, [userProfile]);
 
   const handleSearch = useCallback(async (text: string) => {
     setSearchQuery(text);
@@ -387,8 +362,8 @@ useEffect(() => {
         renderItem={({ item }) => (
           <PostGridItem item={item} onPress={() => router.push(`/view-post/${item.id}`)} />
         )}
-        onEndReached={() => fetchExplorePosts(true)}
-        onEndReachedThreshold={0.5}
+        onEndReached={() => fetchExplorePosts(false)}
+        onEndReachedThreshold={0.7}
         ListFooterComponent={loadingPosts && posts.length > 0 ? <ActivityIndicator style={{ margin: 20 }} size="small" color="#FFF" /> : null}
       />
     );
