@@ -8,10 +8,9 @@ import {
   ScrollView, 
   Image,
   Alert,
-  Switch,
   ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform
+  Modal,
+  Animated
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import globalStyles from '@/styles/globalStyles';
@@ -21,6 +20,135 @@ import { useAuth } from '@/context/AuthContext';
 import { db, storage } from '@/firebaseConfig';
 import { addDoc, collection, serverTimestamp, doc, updateDoc, increment } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import SelectExercise from './SelectExercise';
+import { Exercise } from '@/data/exercises';
+
+// Visibility options for workouts
+interface DropdownItem {
+    label: string;
+    value: string;
+    icon?: string;
+    description?: string;
+}
+
+const visibilityItems: DropdownItem[] = [
+    { 
+        label: 'Public', 
+        value: 'public',
+        icon: 'earth',
+        description: 'Anyone can see this workout'
+    },
+    { 
+        label: 'Followers Only', 
+        value: 'followers',
+        icon: 'people',
+        description: 'Only your followers can see this workout'
+    },
+    { 
+        label: 'Private', 
+        value: 'private',
+        icon: 'lock-closed',
+        description: 'Only you can see this workout'
+    }
+];
+
+// Visibility selector component for workouts
+const VisibilitySelector = ({
+    valueVisibility,
+    setVisibilityModalVisible,
+    itemsVisibility
+}: {
+    valueVisibility: string | null;
+    setVisibilityModalVisible: (visible: boolean) => void;
+    itemsVisibility: DropdownItem[];
+}) => (
+    <View style={styles.visibilityContainer}>
+        <View style={styles.visibilityHeader}>
+            <Ionicons name="eye-outline" size={20} color="#FFF" />
+            <Text style={styles.visibilityTitle}>Visibility</Text>
+        </View>
+        <TouchableOpacity 
+            style={styles.visibilitySelector}
+            onPress={() => setVisibilityModalVisible(true)}
+        >
+            <View style={styles.selectedVisibility}>
+                <Ionicons 
+                    name={itemsVisibility.find(item => item.value === valueVisibility)?.icon as any || 'earth'} 
+                    size={18} 
+                    color="#FFF" 
+                />
+                <Text style={styles.selectedVisibilityText}>
+                    {itemsVisibility.find(item => item.value === valueVisibility)?.label || 'Public'}
+                </Text>
+            </View>
+            <Ionicons name="chevron-down" size={18} color="#999" />
+        </TouchableOpacity>
+    </View>
+);
+
+// Visibility Modal component for workouts
+const VisibilityModal = ({
+    visibilityModalVisible,
+    setVisibilityModalVisible,
+    valueVisibility,
+    setValueVisibility,
+    itemsVisibility
+}: {
+    visibilityModalVisible: boolean;
+    setVisibilityModalVisible: (visible: boolean) => void;
+    valueVisibility: string | null;
+    setValueVisibility: (value: string) => void;
+    itemsVisibility: DropdownItem[];
+}) => (
+    <Modal
+        animationType="slide"
+        transparent={true}
+        visible={visibilityModalVisible}
+        onRequestClose={() => setVisibilityModalVisible(false)}
+    >
+        <TouchableOpacity 
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setVisibilityModalVisible(false)}
+        >
+            <View style={styles.visibilityModalContent}>
+                <Text style={styles.visibilityModalTitle}>Workout Visibility</Text>
+                
+                {itemsVisibility.map((item) => (
+                    <TouchableOpacity 
+                        key={item.value}
+                        style={[
+                            styles.visibilityModalOption,
+                            valueVisibility === item.value && styles.selectedVisibilityOption
+                        ]}
+                        onPress={() => {
+                            setValueVisibility(item.value);
+                            setVisibilityModalVisible(false);
+                        }}
+                    >
+                        <View style={styles.visibilityOptionHeader}>
+                            <Ionicons name={item.icon as any} size={22} color={valueVisibility === item.value ? '#ff2d55' : "#FFF"} />
+                            <Text style={[
+                                styles.visibilityOptionLabel,
+                                valueVisibility === item.value && styles.selectedVisibilityOptionText
+                            ]}>
+                                {item.label}
+                            </Text>
+                        </View>
+                        <Text style={styles.visibilityOptionDescription}>{item.description}</Text>
+                    </TouchableOpacity>
+                ))}
+                
+                <TouchableOpacity 
+                    style={styles.cancelButton}
+                    onPress={() => setVisibilityModalVisible(false)}
+                >
+                    <Text style={styles.cancelButtonText}>Close</Text>
+                </TouchableOpacity>
+            </View>
+        </TouchableOpacity>
+    </Modal>
+);
 
 interface WorkoutExercise {
   id: string;
@@ -50,10 +178,75 @@ export default function CreateWorkout() {
       exercises: []
     }
   ]);
-  const [isPublic, setIsPublic] = useState(true);
+  const [visibility, setVisibility] = useState<string>('public');
+  const [visibilityModalVisible, setVisibilityModalVisible] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [showExerciseSelector, setShowExerciseSelector] = useState(false);
+  const [currentSegmentId, setCurrentSegmentId] = useState<string | null>(null);
+  const [currentExerciseId, setCurrentExerciseId] = useState<string | null>(null);
+  const [titleFocused, setTitleFocused] = useState(false);
+  const [descriptionFocused, setDescriptionFocused] = useState(false);
 
   const scrollViewRef = useRef<ScrollView>(null);
+  const descriptionInputRef = useRef<TextInput>(null);
+  const borderAnimation = useRef(new Animated.Value(0)).current;
+  const descriptionAnimation = useRef(new Animated.Value(0)).current;
+
+  const animateBorderIn = () => {
+    setTitleFocused(true);
+    Animated.timing(borderAnimation, {
+      toValue: 1,
+      duration: 200,
+      useNativeDriver: false,
+    }).start();
+  };
+
+  const animateBorderOut = () => {
+    setTitleFocused(false);
+    Animated.timing(borderAnimation, {
+      toValue: 0,
+      duration: 200,
+      useNativeDriver: false,
+    }).start();
+  };
+
+  const animatedBorderWidth = borderAnimation.interpolate({
+    inputRange: [0, 1],
+    outputRange: [2, 2], // Keep consistent width
+  });
+
+  const animatedBorderOpacity = borderAnimation.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.2, 0.8],
+  });
+
+  const animateDescriptionIn = () => {
+    setDescriptionFocused(true);
+    Animated.timing(descriptionAnimation, {
+      toValue: 1,
+      duration: 200,
+      useNativeDriver: false,
+    }).start();
+  };
+
+  const animateDescriptionOut = () => {
+    setDescriptionFocused(false);
+    Animated.timing(descriptionAnimation, {
+      toValue: 0,
+      duration: 200,
+      useNativeDriver: false,
+    }).start();
+  };
+
+  const animatedDescriptionBorder = descriptionAnimation.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0.3)'],
+  });
+
+  const animatedDescriptionBackground = descriptionAnimation.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['rgba(255, 255, 255, 0.05)', 'rgba(255, 255, 255, 0.08)'],
+  });
 
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -69,25 +262,55 @@ export default function CreateWorkout() {
   };
 
   const addExercise = (segmentId: string) => {
+    setCurrentSegmentId(segmentId);
+    setCurrentExerciseId(null); // null means adding new exercise
+    setShowExerciseSelector(true);
+  };
+
+  const editExercise = (segmentId: string, exerciseId: string) => {
+    setCurrentSegmentId(segmentId);
+    setCurrentExerciseId(exerciseId); // specific ID means editing existing exercise
+    setShowExerciseSelector(true);
+  };
+
+  const handleSelectExercise = (exercise: Exercise) => {
+    if (!currentSegmentId) return;
+    
     const updatedSegments = segments.map(segment => {
-      if (segment.id === segmentId) {
-        return {
-          ...segment,
-          exercises: [
-            ...segment.exercises,
-            {
-              id: Date.now().toString(),
-              name: '',
-              sets: '',
-              reps: ''
-            }
-          ]
-        };
+      if (segment.id === currentSegmentId) {
+        if (currentExerciseId) {
+          // Update existing exercise
+          return {
+            ...segment,
+            exercises: segment.exercises.map(ex => 
+              ex.id === currentExerciseId 
+                ? { ...ex, name: exercise.name }
+                : ex
+            )
+          };
+        } else {
+          // Add new exercise
+          return {
+            ...segment,
+            exercises: [
+              ...segment.exercises,
+              {
+                id: Date.now().toString(),
+                name: exercise.name,
+                sets: '',
+                reps: ''
+              }
+            ]
+          };
+        }
       }
       return segment;
     });
     
     setSegments(updatedSegments);
+    setShowExerciseSelector(false);
+    setCurrentSegmentId(null);
+    setCurrentExerciseId(null);
     
     // Scroll down after adding exercise
     setTimeout(() => {
@@ -218,7 +441,8 @@ export default function CreateWorkout() {
           })).filter(ex => ex.name.trim() !== '') // Filter out empty exercises
         })).filter(seg => seg.exercises.length > 0 || seg.name.trim() !== ''), // Filter out segments with no name and no exercises
         createdAt: serverTimestamp(),
-        isPublic: isPublic,
+        isPublic: visibility === 'public',
+        visibility: visibility,
         savedCount: 0,
         tags: [], // Placeholder for future tag functionality
         // Add any other fields as per your DBDESIGN.md for workouts
@@ -236,11 +460,8 @@ export default function CreateWorkout() {
       // If 'stats' or 'workoutCount' might not exist, we might need a transaction or set with merge:true
       // For simplicity, increment assumes the path exists or can be created by Firestore.
 
-      Alert.alert(
-        'Workout Created',
-        'Your workout has been created successfully!',
-        [{ text: 'OK', onPress: () => router.back() }]
-      );
+      // Navigate to the newly created workout's view page
+      router.replace(`/view-workout/${workoutDocRef.id}`);
 
     } catch (error) {
       console.error('Error saving workout: ', error);
@@ -275,58 +496,120 @@ export default function CreateWorkout() {
         showsVerticalScrollIndicator={false}
         keyboardDismissMode='on-drag'
       >
-        {/* Cover Image */}
-        <TouchableOpacity style={styles.imageContainer} onPress={pickImage}>
-          {coverImage ? (
-            <Image source={{ uri: coverImage }} style={styles.coverImage} />
-          ) : (
-            <View style={styles.imagePlaceholder}>
-              <Ionicons name="image-outline" size={40} color="#666" />
-              <Text style={styles.placeholderText}>Add Cover Image</Text>
-            </View>
-          )}
-        </TouchableOpacity>
+        {/* Workout Details Section */}
+        <View style={styles.mainSection}>
+          {/* Cover Image */}
+          <TouchableOpacity style={styles.imageContainer} onPress={pickImage}>
+            {coverImage ? (
+              <Image source={{ uri: coverImage }} style={styles.coverImage} />
+            ) : (
+              <View style={styles.imagePlaceholder}>
+                <Ionicons name="image-outline" size={40} color="#666" />
+                <Text style={styles.placeholderText}>Add Cover Image</Text>
+              </View>
+            )}
+          </TouchableOpacity>
 
-        {/* Title Input */}
-        <View style={styles.inputContainer}>
-          <Text style={styles.inputLabel}>Title</Text>
-          <TextInput
-            style={styles.textInput}
-            value={title}
-            onChangeText={setTitle}
-            placeholder="Workout Title"
-            placeholderTextColor="#666"
-            maxLength={40}
-          />
+          {/* Title Input */}
+          <View style={styles.inputContainer}>
+            <Animated.View
+              style={[
+                styles.transparentTextInput,
+                {
+                  borderBottomWidth: animatedBorderWidth,
+                  borderBottomColor: animatedBorderOpacity.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: ['rgba(255, 255, 255, 0.2)', 'rgba(255, 255, 255, 0.8)']
+                  })
+                }
+              ]}
+            >
+              <TextInput
+                style={styles.animatedTextInput}
+                value={title}
+                onChangeText={setTitle}
+                placeholder="Workout Title"
+                placeholderTextColor="rgba(255, 255, 255, 0.3)"
+                maxLength={40}
+                onFocus={animateBorderIn}
+                onBlur={animateBorderOut}
+              />
+            </Animated.View>
+          </View>
+
+          {/* Description Input */}
+          <View style={styles.descriptionContainer}>
+            <Animated.View 
+              style={[
+                styles.descriptionWrapper,
+                {
+                  borderColor: animatedDescriptionBorder,
+                  backgroundColor: animatedDescriptionBackground,
+                }
+              ]}
+            >
+              <View style={styles.descriptionHeader}>
+                <Ionicons name="document-text-outline" size={16} color="rgba(255, 255, 255, 0.6)" />
+                <Text style={styles.descriptionLabel}>Description</Text>
+                <Text style={styles.descriptionOptional}>Optional</Text>
+              </View>
+              <TextInput
+                ref={descriptionInputRef}
+                style={styles.descriptionInput}
+                value={description}
+                onChangeText={setDescription}
+                placeholder="Tell others what makes this workout special..."
+                placeholderTextColor="rgba(255, 255, 255, 0.4)"
+                multiline
+                numberOfLines={4}
+                maxLength={200}
+                onFocus={animateDescriptionIn}
+                onBlur={animateDescriptionOut}
+              />
+              <View style={styles.descriptionFooter}>
+                <Text style={styles.characterCount}>
+                  {description.length}/200
+                </Text>
+              </View>
+            </Animated.View>
+          </View>
+          
+          {/* Visibility Setting */}
+          <View style={styles.visibilityStandaloneContainer}>
+            <TouchableOpacity 
+              style={styles.settingItem}
+              onPress={() => {
+                descriptionInputRef.current?.blur();
+                setVisibilityModalVisible(true);
+              }}
+            >
+              <View style={styles.settingLabelContainer}>
+                <Ionicons name="eye-outline" size={18} color="#ccc" />
+                <Text style={styles.settingLabel}>Visibility</Text>
+              </View>
+              <View style={styles.settingValueContainer}>
+                <View style={styles.settingValue}>
+                  <Ionicons 
+                    name={visibilityItems.find(item => item.value === visibility)?.icon as any || 'earth'} 
+                    size={16} 
+                    color="#FFF" 
+                  />
+                  <Text style={styles.settingValueText}>
+                    {visibilityItems.find(item => item.value === visibility)?.label || 'Public'}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color="#999" />
+              </View>
+            </TouchableOpacity>
+          </View>
         </View>
-
-        {/* Description Input */}
-        <View style={styles.inputContainer}>
-          <Text style={styles.inputLabel}>Description</Text>
-          <TextInput
-            style={[styles.textInput, styles.textAreaInput]}
-            value={description}
-            onChangeText={setDescription}
-            placeholder="Describe your workout..."
-            placeholderTextColor="#666"
-            multiline
-            numberOfLines={4}
-          />
-        </View>
-
-        {/* Public/Private Switch */}
-        <View style={styles.inputContainer}>
-          <Text style={styles.inputLabel}>Visibility</Text>
-          <View style={styles.switchContainer}>
-            <Text style={styles.switchLabel}>{isPublic ? 'Public' : 'Private'}</Text>
-            <Switch
-              trackColor={{ false: "#3e3e3e", true: "#ff2d55" }}
-              thumbColor={isPublic ? "#f4f3f4" : "#f4f3f4"}
-              ios_backgroundColor="#3e3e3e"
-              onValueChange={setIsPublic}
-              value={isPublic}
-              disabled={isSaving}
-            />
+        
+        {/* Workout Structure Section */}
+        <View style={styles.mainSection}>
+          <View style={styles.sectionContainer}>
+            <View style={styles.sectionHeader}>
+              <Ionicons name="barbell-outline" size={20} color="#FFF" />
+              <Text style={styles.sectionTitle}>Workout Structure</Text>
           </View>
         </View>
 
@@ -378,14 +661,14 @@ export default function CreateWorkout() {
                   </View>
                   
                   <View style={styles.exerciseInputContainer}>
-                    <TextInput
-                      style={styles.exerciseNameInput}
-                      value={exercise.name}
-                      onChangeText={(value) => updateExercise(segment.id, exercise.id, 'name', value)}
-                      placeholder="Exercise name"
-                      placeholderTextColor="#666"
-                      editable={!isSaving}
-                    />
+                    <TouchableOpacity 
+                      onPress={() => !isSaving && editExercise(segment.id, exercise.id)}
+                      disabled={isSaving}
+                    >
+                      <Text style={[styles.exerciseNameInput, !exercise.name && styles.exerciseNamePlaceholder]}>
+                        {exercise.name || 'Tap to select exercise'}
+                      </Text>
+                    </TouchableOpacity>
                     <View style={styles.exerciseDetailsContainer}>
                       <TextInput
                         style={styles.exerciseDetailInput}
@@ -424,8 +707,8 @@ export default function CreateWorkout() {
                 onPress={() => !isSaving && addExercise(segment.id)}
                 disabled={isSaving}
               >
-                <Ionicons name="add-circle-outline" size={18} color="white" />
-                <Text style={styles.addExerciseText}>Add Exercise</Text>
+                <Ionicons name="search-outline" size={18} color="white" />
+                <Text style={styles.addExerciseText}>Browse Exercises</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -439,10 +722,36 @@ export default function CreateWorkout() {
           <Ionicons name="add-circle-outline" size={20} color="white" />
           <Text style={styles.addSegmentText}>Add Segment</Text>
         </TouchableOpacity>
+        </View>
         
         {/* Bottom space for scrolling */}
         <View style={styles.bottomSpace} />
       </ScrollView>
+
+      {/* Exercise Selector Modal */}
+      <Modal
+        visible={showExerciseSelector}
+        animationType="slide"
+        presentationStyle="fullScreen"
+      >
+        <SelectExercise
+          onSelectExercise={handleSelectExercise}
+          onBack={() => {
+            setShowExerciseSelector(false);
+            setCurrentSegmentId(null);
+            setCurrentExerciseId(null);
+          }}
+        />
+      </Modal>
+
+      {/* Visibility Modal */}
+      <VisibilityModal
+        visibilityModalVisible={visibilityModalVisible}
+        setVisibilityModalVisible={setVisibilityModalVisible}
+        valueVisibility={visibility}
+        setValueVisibility={setVisibility}
+        itemsVisibility={visibilityItems}
+      />
     </View>
   );
 }
@@ -475,8 +784,14 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'black'
   },
+  mainSection: {
+    marginBottom: 30,
+    paddingBottom: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+  },
   imageContainer: {
-    width: '80%',
+    width: '60%',
     aspectRatio: 1,
     alignSelf: 'center',
     marginVertical: 20,
@@ -502,6 +817,58 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
     marginBottom: 20,
   },
+  descriptionContainer: {
+    marginHorizontal: 20,
+    marginBottom: 30,
+    marginTop: 15,
+  },
+  descriptionWrapper: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    padding: 16,
+  },
+  descriptionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  descriptionLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: 'rgba(255, 255, 255, 0.8)',
+    marginLeft: 6,
+    flex: 1,
+  },
+  descriptionOptional: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.5)',
+    fontStyle: 'italic',
+  },
+  descriptionInput: {
+    backgroundColor: 'transparent',
+    borderRadius: 0,
+    padding: 0,
+    color: 'white',
+    fontSize: 15,
+    fontWeight: 'normal',
+    minHeight: 80,
+    textAlignVertical: 'top',
+    lineHeight: 22,
+  },
+  descriptionFooter: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  characterCount: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.5)',
+  },
   inputLabel: {
     color: '#ccc',
     fontSize: 16,
@@ -514,6 +881,34 @@ const styles = StyleSheet.create({
     padding: 15,
     color: 'white',
     fontSize: 16,
+  },
+  transparentTextInput: {
+    backgroundColor: 'transparent',
+    borderRadius: 0,
+    padding: 15,
+    paddingHorizontal: 20,
+    borderBottomWidth: 2,
+    borderBottomColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  animatedTextInput: {
+    color: 'white',
+    fontSize: 28,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    backgroundColor: 'transparent',
+    padding: 0,
+  },
+  transparentTextInputFocused: {
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.8)',
+  },
+  transparentTextAreaInput: {
+    fontSize: 16,
+    fontWeight: 'normal',
+    minHeight: 100,
+    textAlignVertical: 'top',
+    borderBottomWidth: 0,
+    paddingTop: 10,
   },
   textAreaInput: {
     minHeight: 100,
@@ -592,6 +987,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginBottom: 5,
   },
+  exerciseNamePlaceholder: {
+    color: '#666',
+    fontStyle: 'italic',
+  },
   exerciseDetailsContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -646,17 +1045,155 @@ const styles = StyleSheet.create({
   disabledButton: {
     opacity: 0.5,
   },
-  switchContainer: {
+  // Visibility section styles
+  visibilityContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#222',
-    borderRadius: 10,
-    paddingHorizontal: 15,
-    paddingVertical: 10,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    marginBottom: 0,
   },
-  switchLabel: {
-    color: 'white',
+  // Section styles
+  sectionContainer: {
+    marginHorizontal: 20,
+    marginBottom: 15,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#FFF',
+    marginLeft: 8,
+  },
+  // Settings styles
+  visibilityStandaloneContainer: {
+    marginHorizontal: 20,
+    marginBottom: 15,
+  },
+  settingItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  settingLabelContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  settingLabel: {
     fontSize: 16,
+    color: '#FFF',
+    marginLeft: 8,
+  },
+  settingValueContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  settingValue: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 8,
+  },
+  settingValueText: {
+    fontSize: 14,
+    color: '#ccc',
+    marginLeft: 6,
+  },
+  visibilityHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  visibilityTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFF',
+    marginLeft: 8,
+  },
+  visibilitySelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#333',
+    borderRadius: 8,
+    padding: 10,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: '#444',
+  },
+  selectedVisibility: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 8,
+  },
+  selectedVisibilityText: {
+    color: '#FFF',
+    marginLeft: 6,
+    fontSize: 14,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.8)',
+    justifyContent: 'flex-end',
+  },
+  visibilityModalContent: {
+    backgroundColor: '#222',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+  },
+  visibilityModalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#FFF',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  visibilityModalOption: {
+    padding: 16,
+    backgroundColor: '#333',
+    marginBottom: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#444',
+  },
+  selectedVisibilityOption: {
+    borderColor: '#ff2d55',
+    backgroundColor: 'rgba(255, 45, 85, 0.1)',
+  },
+  visibilityOptionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  visibilityOptionLabel: {
+    color: 'white',
+    marginLeft: 10,
+    fontSize: 16,
+  },
+  selectedVisibilityOptionText: {
+    fontWeight: 'bold',
+  },
+  visibilityOptionDescription: {
+    color: '#ccc',
+    fontSize: 14,
+  },
+  cancelButton: {
+    marginTop: 10,
+    paddingVertical: 12,
+    borderRadius: 8,
+    backgroundColor: '#ff2d55',
+    alignItems: 'center',
+  },
+  cancelButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
   },
 });

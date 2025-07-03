@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Stack } from 'expo-router';
 import { useColorScheme } from '@/components/useColorScheme';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -10,32 +10,6 @@ import { AuthProvider } from '@/context/AuthContext';
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   const pathname = usePathname();
-  const [showBottomBar, setShowBottomBar] = useState(true);
-
-  // Routes that should not display the bottom navigation
-  const hideBottomBarRoutes = [
-    'settings', 
-    'view-post',
-    'signup',
-    'select-archetype',
-    'landing',
-    'login',
-    'chat',
-    'forgot-password',
-    'view-milestone',
-  ];
-
-  // Check if we should hide the bottom bar based on current route
-  useEffect(() => {
-    if (!pathname) {
-      setShowBottomBar(true);
-      return;
-    }
-
-    // Check if current path includes any of the routes where we should hide the bottom bar
-    const shouldHide = hideBottomBarRoutes.some(route => pathname.includes(route));
-    setShowBottomBar(!shouldHide);
-  }, [pathname]);
 
   return (
     <AuthProvider>
@@ -73,7 +47,7 @@ export default function RootLayout() {
           </Stack>
           
           {/* Bottom navigation that persists across route changes but hides on specific screens */}
-          {showBottomBar && <BottomButtons />}
+          <BottomButtons />
         </View>
       </SafeAreaProvider>
     </AuthProvider>
