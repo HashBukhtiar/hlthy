@@ -22,6 +22,7 @@ import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage
 import { app, db, storage } from '@/firebaseConfig';
 import { useAuth } from '@/context/AuthContext';
 import { getFunctions, httpsCallable } from 'firebase/functions';
+import { generateUniqueFilename } from '@/logic/idGenerator';
 
 export interface Post {
   id: string;
@@ -174,7 +175,7 @@ export function usePostsData() {
 
   const uploadImage = async (imageUri: string): Promise<string> => {
     try {
-      const filename = `posts/${currentUser!.uid}/${Date.now()}.jpg`;
+      const filename = `posts/${currentUser!.uid}/${generateUniqueFilename('post', 'jpg')}`;
       const storageRef = ref(storage, filename);
       
       // Fetch the image and convert to blob

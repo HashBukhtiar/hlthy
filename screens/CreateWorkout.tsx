@@ -22,16 +22,11 @@ import { addDoc, collection, serverTimestamp, doc, updateDoc, increment } from '
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import SelectExercise from './SelectExercise';
 import { Exercise } from '@/data/exercises';
+import { CustomSelector, SelectorItem } from '@/components/CustomSelector';
+import { generateId, generateUniqueFilename } from '@/logic/idGenerator';
 
 // Visibility options for workouts
-interface DropdownItem {
-    label: string;
-    value: string;
-    icon?: string;
-    description?: string;
-}
-
-const visibilityItems: DropdownItem[] = [
+const visibilityItems: SelectorItem[] = [
     { 
         label: 'Public', 
         value: 'public',
@@ -52,103 +47,7 @@ const visibilityItems: DropdownItem[] = [
     }
 ];
 
-// Visibility selector component for workouts
-const VisibilitySelector = ({
-    valueVisibility,
-    setVisibilityModalVisible,
-    itemsVisibility
-}: {
-    valueVisibility: string | null;
-    setVisibilityModalVisible: (visible: boolean) => void;
-    itemsVisibility: DropdownItem[];
-}) => (
-    <View style={styles.visibilityContainer}>
-        <View style={styles.visibilityHeader}>
-            <Ionicons name="eye-outline" size={20} color="#FFF" />
-            <Text style={styles.visibilityTitle}>Visibility</Text>
-        </View>
-        <TouchableOpacity 
-            style={styles.visibilitySelector}
-            onPress={() => setVisibilityModalVisible(true)}
-        >
-            <View style={styles.selectedVisibility}>
-                <Ionicons 
-                    name={itemsVisibility.find(item => item.value === valueVisibility)?.icon as any || 'earth'} 
-                    size={18} 
-                    color="#FFF" 
-                />
-                <Text style={styles.selectedVisibilityText}>
-                    {itemsVisibility.find(item => item.value === valueVisibility)?.label || 'Public'}
-                </Text>
-            </View>
-            <Ionicons name="chevron-down" size={18} color="#999" />
-        </TouchableOpacity>
-    </View>
-);
 
-// Visibility Modal component for workouts
-const VisibilityModal = ({
-    visibilityModalVisible,
-    setVisibilityModalVisible,
-    valueVisibility,
-    setValueVisibility,
-    itemsVisibility
-}: {
-    visibilityModalVisible: boolean;
-    setVisibilityModalVisible: (visible: boolean) => void;
-    valueVisibility: string | null;
-    setValueVisibility: (value: string) => void;
-    itemsVisibility: DropdownItem[];
-}) => (
-    <Modal
-        animationType="slide"
-        transparent={true}
-        visible={visibilityModalVisible}
-        onRequestClose={() => setVisibilityModalVisible(false)}
-    >
-        <TouchableOpacity 
-            style={styles.modalOverlay}
-            activeOpacity={1}
-            onPress={() => setVisibilityModalVisible(false)}
-        >
-            <View style={styles.visibilityModalContent}>
-                <Text style={styles.visibilityModalTitle}>Workout Visibility</Text>
-                
-                {itemsVisibility.map((item) => (
-                    <TouchableOpacity 
-                        key={item.value}
-                        style={[
-                            styles.visibilityModalOption,
-                            valueVisibility === item.value && styles.selectedVisibilityOption
-                        ]}
-                        onPress={() => {
-                            setValueVisibility(item.value);
-                            setVisibilityModalVisible(false);
-                        }}
-                    >
-                        <View style={styles.visibilityOptionHeader}>
-                            <Ionicons name={item.icon as any} size={22} color={valueVisibility === item.value ? '#ff2d55' : "#FFF"} />
-                            <Text style={[
-                                styles.visibilityOptionLabel,
-                                valueVisibility === item.value && styles.selectedVisibilityOptionText
-                            ]}>
-                                {item.label}
-                            </Text>
-                        </View>
-                        <Text style={styles.visibilityOptionDescription}>{item.description}</Text>
-                    </TouchableOpacity>
-                ))}
-                
-                <TouchableOpacity 
-                    style={styles.cancelButton}
-                    onPress={() => setVisibilityModalVisible(false)}
-                >
-                    <Text style={styles.cancelButtonText}>Close</Text>
-                </TouchableOpacity>
-            </View>
-        </TouchableOpacity>
-    </Modal>
-);
 
 interface WorkoutExercise {
   id: string;
@@ -172,7 +71,7 @@ export default function CreateWorkout() {
   const [coverImage, setCoverImage] = useState<string | null>(null);
   const [segments, setSegments] = useState<WorkoutSegment[]>([
     {
-      id: Date.now().toString(),
+      id: generateId(),
       name: 'Warm Up',
       length: '15',
       exercises: []
@@ -209,11 +108,6 @@ export default function CreateWorkout() {
       useNativeDriver: false,
     }).start();
   };
-
-  const animatedBorderWidth = borderAnimation.interpolate({
-    inputRange: [0, 1],
-    outputRange: [2, 2], // Keep consistent width
-  });
 
   const animatedBorderOpacity = borderAnimation.interpolate({
     inputRange: [0, 1],
@@ -295,7 +189,7 @@ export default function CreateWorkout() {
             exercises: [
               ...segment.exercises,
               {
-                id: Date.now().toString(),
+                id: generateId(),
                 name: exercise.name,
                 sets: '',
                 reps: ''
@@ -320,7 +214,7 @@ export default function CreateWorkout() {
 
   const addSegment = () => {
     const newSegment = {
-      id: Date.now().toString(),
+      id: generateId(),
       name: 'New Segment',
       length: '30',
       exercises: []
@@ -416,7 +310,7 @@ export default function CreateWorkout() {
       if (coverImage) {
         const response = await fetch(coverImage);
         const blob = await response.blob();
-        const imageName = `workoutCovers/${currentUser.uid}/${Date.now()}-${title.replace(/\s+/g, '_')}.jpg`;
+        const imageName = `workoutCovers/${currentUser.uid}/${generateUniqueFilename(title.replace(/\s+/g, '_'), 'jpg')}`;
         const storageRef = ref(storage, imageName);
         await uploadBytes(storageRef, blob);
         coverImageUrl = await getDownloadURL(storageRef);
@@ -516,7 +410,7 @@ export default function CreateWorkout() {
               style={[
                 styles.transparentTextInput,
                 {
-                  borderBottomWidth: animatedBorderWidth,
+                  borderBottomWidth: 2,
                   borderBottomColor: animatedBorderOpacity.interpolate({
                     inputRange: [0, 1],
                     outputRange: ['rgba(255, 255, 255, 0.2)', 'rgba(255, 255, 255, 0.8)']
@@ -575,32 +469,18 @@ export default function CreateWorkout() {
           </View>
           
           {/* Visibility Setting */}
-          <View style={styles.visibilityStandaloneContainer}>
-            <TouchableOpacity 
-              style={styles.settingItem}
-              onPress={() => {
-                descriptionInputRef.current?.blur();
-                setVisibilityModalVisible(true);
-              }}
-            >
-              <View style={styles.settingLabelContainer}>
-                <Ionicons name="eye-outline" size={18} color="#ccc" />
-                <Text style={styles.settingLabel}>Visibility</Text>
-              </View>
-              <View style={styles.settingValueContainer}>
-                <View style={styles.settingValue}>
-                  <Ionicons 
-                    name={visibilityItems.find(item => item.value === visibility)?.icon as any || 'earth'} 
-                    size={16} 
-                    color="#FFF" 
-                  />
-                  <Text style={styles.settingValueText}>
-                    {visibilityItems.find(item => item.value === visibility)?.label || 'Public'}
-                  </Text>
-                </View>
-                <Ionicons name="chevron-forward" size={16} color="#999" />
-              </View>
-            </TouchableOpacity>
+          <View style={styles.visibilityContainer}>
+            <CustomSelector
+              items={visibilityItems}
+              value={visibility}
+              onSelect={setVisibility}
+              placeholder="Select visibility"
+              title="Visibility"
+              icon="eye-outline"
+              modalVisible={visibilityModalVisible}
+              setModalVisible={setVisibilityModalVisible}
+              variant="fullWidth"
+            />
           </View>
         </View>
         
@@ -743,15 +623,6 @@ export default function CreateWorkout() {
           }}
         />
       </Modal>
-
-      {/* Visibility Modal */}
-      <VisibilityModal
-        visibilityModalVisible={visibilityModalVisible}
-        setVisibilityModalVisible={setVisibilityModalVisible}
-        valueVisibility={visibility}
-        setValueVisibility={setVisibility}
-        itemsVisibility={visibilityItems}
-      />
     </View>
   );
 }
@@ -1047,12 +918,8 @@ const styles = StyleSheet.create({
   },
   // Visibility section styles
   visibilityContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    marginBottom: 0,
+    marginHorizontal: 20,
+    marginBottom: 15,
   },
   // Section styles
   sectionContainer: {
@@ -1069,131 +936,5 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#FFF',
     marginLeft: 8,
-  },
-  // Settings styles
-  visibilityStandaloneContainer: {
-    marginHorizontal: 20,
-    marginBottom: 15,
-  },
-  settingItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  settingLabelContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  settingLabel: {
-    fontSize: 16,
-    color: '#FFF',
-    marginLeft: 8,
-  },
-  settingValueContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  settingValue: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginRight: 8,
-  },
-  settingValueText: {
-    fontSize: 14,
-    color: '#ccc',
-    marginLeft: 6,
-  },
-  visibilityHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  visibilityTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFF',
-    marginLeft: 8,
-  },
-  visibilitySelector: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#333',
-    borderRadius: 8,
-    padding: 10,
-    paddingHorizontal: 12,
-    borderWidth: 1,
-    borderColor: '#444',
-  },
-  selectedVisibility: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginRight: 8,
-  },
-  selectedVisibilityText: {
-    color: '#FFF',
-    marginLeft: 6,
-    fontSize: 14,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.8)',
-    justifyContent: 'flex-end',
-  },
-  visibilityModalContent: {
-    backgroundColor: '#222',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 24,
-  },
-  visibilityModalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#FFF',
-    marginBottom: 20,
-    textAlign: 'center',
-  },
-  visibilityModalOption: {
-    padding: 16,
-    backgroundColor: '#333',
-    marginBottom: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#444',
-  },
-  selectedVisibilityOption: {
-    borderColor: '#ff2d55',
-    backgroundColor: 'rgba(255, 45, 85, 0.1)',
-  },
-  visibilityOptionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  visibilityOptionLabel: {
-    color: 'white',
-    marginLeft: 10,
-    fontSize: 16,
-  },
-  selectedVisibilityOptionText: {
-    fontWeight: 'bold',
-  },
-  visibilityOptionDescription: {
-    color: '#ccc',
-    fontSize: 14,
-  },
-  cancelButton: {
-    marginTop: 10,
-    paddingVertical: 12,
-    borderRadius: 8,
-    backgroundColor: '#ff2d55',
-    alignItems: 'center',
-  },
-  cancelButtonText: {
-    color: 'white',
-    fontWeight: 'bold',
   },
 });

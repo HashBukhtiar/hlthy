@@ -20,6 +20,7 @@ import { useAuth } from '@/context/AuthContext';
 import { db, storage } from '@/firebaseConfig';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { generateId, generateUniqueFilename } from '@/logic/idGenerator';
 
 interface WorkoutExercise {
   id: string;
@@ -100,7 +101,7 @@ export default function EditWorkout() {
           exercises: [
             ...segment.exercises,
             {
-              id: Date.now().toString(),
+              id: generateId(),
               name: '',
               sets: '',
               reps: ''
@@ -121,7 +122,7 @@ export default function EditWorkout() {
 
   const addSegment = () => {
     const newSegment = {
-      id: Date.now().toString(),
+      id: generateId(),
       name: 'New Segment',
       length: '30',
       exercises: []
@@ -217,7 +218,7 @@ export default function EditWorkout() {
       if (coverImage) {
         const response = await fetch(coverImage);
         const blob = await response.blob();
-        const imageName = `workoutCovers/${currentUser.uid}/${Date.now()}-${title.replace(/\s+/g, '_')}.jpg`;
+        const imageName = `workoutCovers/${currentUser.uid}/${generateUniqueFilename(title.replace(/\s+/g, '_'), 'jpg')}`;
         const storageRef = ref(storage, imageName);
         await uploadBytes(storageRef, blob);
         coverImageUrl = await getDownloadURL(storageRef);

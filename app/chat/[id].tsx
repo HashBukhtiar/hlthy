@@ -40,6 +40,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { sendMessage } from '@/ai/ai_chat';
 import { calculateImprovementPercentage } from '@/logic/milesonteUtils';
+import { generateId } from '@/logic/idGenerator';
 
 interface FirestoreMessageData {
   senderId: string;
@@ -594,7 +595,7 @@ export default function ChatScreen() {
     const textToSend = input.trim();
 
     const newMessage: Message = {
-      id: Date.now().toString(),
+      id: generateId(),
       text: textToSend,
       user: 'user', 
       createdAt: new Date(),
@@ -608,7 +609,7 @@ export default function ChatScreen() {
       try {
         const aiResponse = await sendMessage(textToSend);
         const aiMessage: Message = {
-          id: Date.now().toString(), 
+          id: generateId(), 
           text: aiResponse,
           user: 'ai',
           createdAt: new Date(),
