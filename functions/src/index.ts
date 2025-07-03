@@ -10,3 +10,4 @@ export const initializeadminoninit = onInit(async () => {
 export * from "./activityTriggers";
 export * from "./callableFunctions";
 export * from "./milestoneTriggers";
+export * from "./imageProcessing";
