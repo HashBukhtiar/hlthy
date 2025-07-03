@@ -10,6 +10,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 interface ExplorePost {
   id: string;
   imageUrl: string;
+  thumbnailUrl?: string;
   authorId?: string;
   authorArchetype?: string;
   isArchetypePost?: boolean;
@@ -89,7 +90,7 @@ const PostGridItem = ({ item, onPress }: { item: ExplorePost; onPress: () => voi
     >
       <ShimmerPlaceholder />
       <Animated.Image
-        source={{ uri: item.imageUrl }}
+        source={{ uri: item.thumbnailUrl || item.imageUrl }}
         style={[styles.postImage, { position: 'absolute', opacity: imageOpacity }]}
         onLoad={onImageLoad}
       />
@@ -178,7 +179,7 @@ useEffect(() => {
           );
           const archetypeSnapshot = await getDocs(archetypeQuery);
           archetypePosts = archetypeSnapshot.docs
-            .map(doc => ({ id: doc.id, imageUrl: doc.data().imageUrl, authorId: doc.data().authorId, isArchetypePost: true }))
+            .map(doc => ({ id: doc.id, imageUrl: doc.data().imageUrl, thumbnailUrl: doc.data().thumbnailUrl, authorId: doc.data().authorId, isArchetypePost: true }))
             .filter(p => p.authorId !== currentUser.uid);
           if (archetypeSnapshot.docs.length > 0) {
             setLastVisibleArchetype(archetypeSnapshot.docs[archetypeSnapshot.docs.length - 1]);
@@ -201,6 +202,7 @@ useEffect(() => {
             return {
               id: doc.id,
               imageUrl: data.imageUrl,
+              thumbnailUrl: data.thumbnailUrl,
               authorId: data.authorId,
               authorArchetype: data.authorArchetype,
               isArchetypePost: false,
@@ -238,7 +240,7 @@ useEffect(() => {
           );
           querySnapshot = await getDocs(archetypeQuery);
           fetchedPosts = querySnapshot.docs
-            .map(doc => ({ id: doc.id, imageUrl: doc.data().imageUrl, authorId: doc.data().authorId, isArchetypePost: true }))
+            .map(doc => ({ id: doc.id, imageUrl: doc.data().imageUrl, thumbnailUrl: doc.data().thumbnailUrl, authorId: doc.data().authorId, isArchetypePost: true }))
             .filter(p => p.authorId !== currentUser.uid);
           if (querySnapshot.docs.length > 0) {
             setLastVisibleArchetype(querySnapshot.docs[querySnapshot.docs.length - 1]);
@@ -262,6 +264,7 @@ useEffect(() => {
               return {
                 id: doc.id,
                 imageUrl: data.imageUrl,
+                thumbnailUrl: data.thumbnailUrl,
                 authorId: data.authorId,
                 authorArchetype: data.authorArchetype,
                 isArchetypePost: false,
