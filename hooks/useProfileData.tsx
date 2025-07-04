@@ -23,6 +23,7 @@ interface WorkoutItemData {
   creatorId: string;
   creatorUsername: string;
   coverImageUrl?: string | null;
+  thumbnailUrl?: string | null;
 }
 
 export function useProfileData(userId = null) {

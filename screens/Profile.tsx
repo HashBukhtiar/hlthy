@@ -8,7 +8,6 @@ import { formatCount } from '@/logic/formattingFunctions';
 import { BOTTOM_BAR_HEIGHT } from '@/styles/globalStyles';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/firebaseConfig';
-// Import archetype icons
 const archetypeIcons = {
   'athlete': require('@/assets/images/athlete.png'),
   'bodybuilder': require('@/assets/images/bodybuilder.png'),
@@ -16,7 +15,6 @@ const archetypeIcons = {
   'generalist': require('@/assets/images/generalist.png'),
   'powerlifter': require('@/assets/images/powerlifter.png'),
 };
-
 // Archetype descriptions for tooltips. Should we add this to the DB?
 const archetypeDescriptions = {
   'athlete': 'Balanced all-round athletic performance with focus on endurance and strength.',
@@ -25,6 +23,7 @@ const archetypeDescriptions = {
   'generalist': 'Well-rounded fitness approach with balanced strength, cardio, and flexibility goals.',
   'powerlifter': 'Specialized in maximizing strength in the squat, bench press, and deadlift.',
 };
+import { getOptimalImageUrl } from '@/utils/imageUtils';
 
 interface Workout {
   id: number;
@@ -283,7 +282,11 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
       onPress={() => router.push(`/view-workout/${item.id}`)}
     >
       <Image 
-        source={item.thumbnailUrl || item.coverImageUrl ? { uri: item.thumbnailUrl || item.coverImageUrl } : require('@/assets/images/default_workout_cover.png')} 
+        source={
+          getOptimalImageUrl(item.thumbnailUrl, item.coverImageUrl) 
+            ? { uri: getOptimalImageUrl(item.thumbnailUrl, item.coverImageUrl)! } 
+            : require('@/assets/images/default_workout_cover.png')
+        } 
         style={styles.workoutItemImage} 
       />
       <View style={styles.workoutItemTextContainer}>
@@ -420,7 +423,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
       return (
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20, minHeight: 200 }}>
           <Text style={{ color: 'gray', textAlign: 'center' }}>No workouts yet. Create or save a workout to see it here.</Text>
-           <RefreshControl
+          <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
             tintColor="#FFFFFF"
@@ -468,7 +471,11 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
               style={styles.workoutListItemRowStyle}
             >
               <Image 
-                source={item.coverImageUrl ? { uri: item.coverImageUrl } : require('@/assets/images/default_workout_cover.png')} 
+                source={
+                  getOptimalImageUrl(item.thumbnailUrl, item.coverImageUrl) 
+                    ? { uri: getOptimalImageUrl(item.thumbnailUrl, item.coverImageUrl)! } 
+                    : require('@/assets/images/default_workout_cover.png')
+                } 
                 style={styles.workoutListItemImageStyle} 
               />
               <View style={styles.workoutListItemTextContainerStyle}>
@@ -496,7 +503,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
         }
       />
     );
-  }, [workouts, refreshing, handleWorkoutPress, onRefresh, loadingWorkouts]);
+  }, [workouts, refreshing, handleWorkoutPress, onRefresh, loadingWorkouts, isOwnProfile]);
 
   const postsTabComponent = useMemo(() => renderPostsContent(), [renderPostsContent]);
   const milestonesTabComponent = useMemo(() => renderMilestonesContent(), [renderMilestonesContent]);
@@ -620,7 +627,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
               styles.followButton,
               isFollowingStatus 
                 ? styles.unfollowButtonActive 
-                : isRequestPending // Use the new state from useProfileData
+                : isRequestPending
                   ? styles.requestedButtonActive // Add a new style for "Requested"
                   : styles.followButtonActive,
               followActionLoading && styles.followButtonDisabled
@@ -1113,6 +1120,10 @@ const styles = StyleSheet.create({
   },
   followButtonDisabled: {
     opacity: 0.7,
+  },
+  requestedButtonActive: {
+    backgroundColor: '#444',
+    borderColor: '#555',
   },
   archetypeText: { 
     color: 'white',
