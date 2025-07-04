@@ -277,18 +277,18 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
 
   const renderWorkoutListItem = (item: any, index: number) => ( 
     <TouchableOpacity 
-        key={item.id || index} 
-        style={styles.workoutItem} 
-        onPress={() => router.push(`/view-workout/${item.id}`)}
+      key={item.id || index} 
+      style={styles.workoutItem} 
+      onPress={() => router.push(`/view-workout/${item.id}`)}
     >
-        <Image 
-            source={item.coverImageUrl ? { uri: item.coverImageUrl } : require('@/assets/images/default_workout_cover.png')} 
-            style={styles.workoutItemImage} 
-        />
-        <View style={styles.workoutItemTextContainer}>
-            <Text style={styles.workoutItemTitle} numberOfLines={1}>{item.title}</Text>
-            <Text style={styles.workoutItemCreator} numberOfLines={1}>by {item.creatorUsername}</Text>
-        </View>
+      <Image 
+        source={item.thumbnailUrl || item.coverImageUrl ? { uri: item.thumbnailUrl || item.coverImageUrl } : require('@/assets/images/default_workout_cover.png')} 
+        style={styles.workoutItemImage} 
+      />
+      <View style={styles.workoutItemTextContainer}>
+        <Text style={styles.workoutItemTitle} numberOfLines={1}>{item.title}</Text>
+        <Text style={styles.workoutItemCreator} numberOfLines={1}>by {item.creatorUsername}</Text>
+      </View>
     </TouchableOpacity>
   );
 
@@ -323,7 +323,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
       data={displayablePosts}
       renderItem={({ item }) => (
         <TouchableOpacity onPress={() => handleImagePress(item)}>
-          <Image source={{ uri: item.imageUrl }} style={styles.postImage} />
+          <Image source={{ uri: item.thumbnailUrl || item.imageUrl }} style={styles.postImage} />
         </TouchableOpacity>
       )}
       keyExtractor={(item) => item.id}

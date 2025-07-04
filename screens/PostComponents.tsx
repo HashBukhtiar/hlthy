@@ -464,12 +464,12 @@ export const WorkoutSelectionModal: React.FC<WorkoutSelectionModalProps> = ({
       onPress={() => {
         selectWorkout(item);
         setSearchQuery(''); 
-      }}
-    >
-      <Image
-        source={item.coverImageUrl ? { uri: item.coverImageUrl } : require('@/assets/images/icon.png')} 
-        style={postComponentStyles.workoutThumbnailLarge} // Use a potentially larger thumbnail style
-      />
+          }}
+        >
+            <Image
+                source={item.thumbnailUrl ? { uri: item.thumbnailUrl } : item.coverImageUrl ? { uri: item.coverImageUrl } : require('@/assets/images/icon.png')} 
+                style={postComponentStyles.workoutThumbnailLarge} // Use a potentially larger thumbnail style
+            />
       <View style={postComponentStyles.workoutItemInfo}>
         <Text style={postComponentStyles.workoutItemTitle} numberOfLines={1}>{item.title}</Text>
         {item.creatorUsername && <Text style={postComponentStyles.workoutItemCreator} numberOfLines={1}>by {item.creatorUsername}</Text>}

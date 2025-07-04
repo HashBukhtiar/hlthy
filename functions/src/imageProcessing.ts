@@ -1,69 +1,120 @@
-import {onDocumentCreated} from "firebase-functions/v2/firestore";
+import {onObjectFinalized} from "firebase-functions/v2/storage";
 import * as admin from "firebase-admin";
 import * as path from "path";
 import * as os from "os";
 import * as fs from "fs";
 import sharp from "sharp";
-import {getStorage} from "firebase-admin/storage";
 
 const db = admin.firestore();
 
-export const generatethumbnail = onDocumentCreated("posts/{postId}", async (event) => {
-  const snapshot = event.data;
-  if (!snapshot) {
-    console.log("No data associated with the event");
-    return;
-  }
-  const postData = snapshot.data();
-  const imageUrl = postData.imageUrl;
+// Define runtime options to increase memory and timeout, and add retry logic
+const runtimeOpts = {
+  timeoutSeconds: 300, // 5 minutes
+  memory: "1GiB" as const,
+  retry: true, // Enable retries on failure
+};
 
-  // Exit if there's no imageUrl or if a thumbnail already exists.
-  if (!imageUrl || postData.thumbnailUrl) {
-    console.log("Exiting: No image URL or thumbnail already exists.");
-    return;
+export const generatePostThumbnail = onObjectFinalized({region: "us-east1", ...runtimeOpts}, async (event) => {
+  const {bucket: fileBucket, name: filePath, contentType, metadata: fileMetadata} = event.data;
+
+  console.log("Raw event metadata object:", fileMetadata);
+
+  if (!filePath || !contentType) {
+    console.log("Exiting: Missing file path or content type.");
+    return null;
+  }
+  const postId = fileMetadata?.postId; // Get postId from custom metadata
+  if (!postId) {
+    console.log("Exiting: No postId found in custom metadata.");
+    return null;
   }
 
-  const bucket = getStorage().bucket();
-  // Extract the file path from the URL
-  // The path is between '/o/' and '?alt=media'
-  const urlParts = imageUrl.split("/o/");
-  if (urlParts.length < 2) {
-    console.log("Invalid imageUrl format. Could not extract file path.");
-    return;
+  // Exit if this is not an image or if it's already a thumbnail.
+  if (!contentType.startsWith("image/") || path.basename(filePath).startsWith("thumb_")) {
+    console.log(`Exiting for post ${postId}: Not a processable image or already a thumbnail.`);
+    return null;
   }
-  const filePath = decodeURIComponent(urlParts[1].split("?")[0]);
+
+  const bucket = admin.storage().bucket(fileBucket);
   const fileName = path.basename(filePath);
   const tempFilePath = path.join(os.tmpdir(), fileName);
-  const metadata = {contentType: "image/jpeg"}; // Assuming jpeg, can be improved
+  // Preserve the custom metadata when uploading the thumbnail
+  const metadata = {
+    contentType: "image/jpeg",
+    metadata: {
+      postId: postId,
+    },
+  };
 
-  // Exit if it's already a thumbnail (a failsafe)
-  if (fileName.startsWith("thumb_")) {
-    console.log("This is already a thumbnail.");
-    return;
+  try {
+    await bucket.file(filePath).download({destination: tempFilePath});
+    console.log(`Image for post ${postId} downloaded locally.`);
+    const thumbFileName = `thumb_${fileName}`;
+    const thumbFilePath = path.join(os.tmpdir(), thumbFileName);
+    await sharp(tempFilePath).resize(400, 400, {fit: "inside"}).jpeg({quality: 80}).toFile(thumbFilePath);
+    const thumbUploadPath = path.join(path.dirname(filePath), thumbFileName);
+    await bucket.upload(thumbFilePath, {destination: thumbUploadPath, metadata});
+    fs.unlinkSync(tempFilePath);
+    fs.unlinkSync(thumbFilePath);
+    const thumbFile = bucket.file(thumbUploadPath);
+    const [thumbnailUrl] = await thumbFile.getSignedUrl({action: "read", expires: "03-09-2491"});
+    // Update the document directly using the postId from metadata
+    console.log(`Found post ${postId} from metadata, updating with thumbnail URL.`);
+    // Use set with merge: true to create the document if it doesn't exist, or update it if it does.
+    return db.collection("posts").doc(postId).set({thumbnailUrl}, {merge: true});
+  } catch (error) {
+    console.error(`Failed to process image for post ${postId}. Error:`, error);
+    return null;
+  }
+});
+
+export const generateWorkoutCoverThumbnail = onObjectFinalized({region: "us-east1", ...runtimeOpts}, async (event) => {
+  const {bucket: fileBucket, name: filePath, contentType, metadata: fileMetadata} = event.data;
+
+  if (!filePath || !contentType || !fileMetadata) {
+    console.log("Exiting: Missing file path, content type, or metadata.");
+    return null;
   }
 
-  await bucket.file(filePath).download({destination: tempFilePath});
-  console.log("Image downloaded locally to", tempFilePath);
+  const workoutId = fileMetadata.workoutId; // Expect workoutId for these
+  if (!workoutId) {
+    console.log("Exiting: No workoutId found in custom metadata.");
+    return null;
+  }
 
-  const thumbFileName = `thumb_${fileName}`;
-  const thumbFilePath = path.join(os.tmpdir(), thumbFileName);
-  const THUMB_MAX_WIDTH = 400;
-  const THUMB_MAX_HEIGHT = 400;
+  if (!contentType.startsWith("image/") || path.basename(filePath).startsWith("thumb_")) {
+    console.log(`Exiting for workout ${workoutId}: Not a processable image or already a thumbnail.`);
+    return null;
+  }
 
-  await sharp(tempFilePath).resize(THUMB_MAX_WIDTH, THUMB_MAX_HEIGHT, {fit: "inside"}).toFile(thumbFilePath);
+  const bucket = admin.storage().bucket(fileBucket);
+  const fileName = path.basename(filePath);
+  const tempFilePath = path.join(os.tmpdir(), fileName);
+  // Preserve the custom metadata when uploading the thumbnail
+  const metadata = {
+    contentType: "image/jpeg",
+    customMetadata: {
+      workoutId: workoutId,
+    },
+  };
 
-  const thumbUploadPath = path.join(path.dirname(filePath), thumbFileName);
-  await bucket.upload(thumbFilePath, {
-    destination: thumbUploadPath,
-    metadata: metadata,
-  });
-
-  fs.unlinkSync(tempFilePath);
-  fs.unlinkSync(thumbFilePath);
-
-  const thumbFile = bucket.file(thumbUploadPath);
-  const [thumbnailUrl] = await thumbFile.getSignedUrl({action: "read", expires: "03-09-2491"});
-
-  console.log(`Updating post ${snapshot.id} with thumbnail URL.`);
-  return db.collection("posts").doc(snapshot.id).update({thumbnailUrl: thumbnailUrl});
+  try {
+    await bucket.file(filePath).download({destination: tempFilePath});
+    const thumbFileName = `thumb_${fileName}`;
+    const thumbFilePath = path.join(os.tmpdir(), thumbFileName);
+    await sharp(tempFilePath).resize(400, 400, {fit: "inside"}).jpeg({quality: 80}).toFile(thumbFilePath);
+    const thumbUploadPath = path.join(path.dirname(filePath), thumbFileName);
+    await bucket.upload(thumbFilePath, {destination: thumbUploadPath, metadata});
+    fs.unlinkSync(tempFilePath);
+    fs.unlinkSync(thumbFilePath);
+    const thumbFile = bucket.file(thumbUploadPath);
+    const [thumbnailUrl] = await thumbFile.getSignedUrl({action: "read", expires: "03-09-2491"});
+    // Update the document directly using the workoutId from metadata
+    console.log(`Found workout ${workoutId} from metadata, updating with thumbnail URL.`);
+    // Use set with merge: true to create the document if it doesn't exist, or update it if it does.
+    return db.collection("workouts").doc(workoutId).set({thumbnailUrl}, {merge: true});
+  } catch (error) {
+    console.error(`Failed to process image for workout ${workoutId}. Error:`, error);
+    return null;
+  }
 });

@@ -83,7 +83,7 @@ export default function FavoriteWorkouts() {
 
     const renderItem = ({ item }: { item: WorkoutItemData }) => (
         <TouchableOpacity style={styles.workoutItem} onPress={() => router.push(`/view-workout/${item.id}`)}>
-            <Image source={item.coverImageUrl ? { uri: item.coverImageUrl } : require('@/assets/images/default_workout_cover.png')} style={styles.workoutImage} />
+            <Image source={item.thumbnailUrl || item.coverImageUrl ? { uri: item.thumbnailUrl || item.coverImageUrl } : require('@/assets/images/default_workout_cover.png')} style={styles.workoutImage} />
             <View style={styles.workoutInfo}>
                 <Text style={styles.workoutTitle}>{item.title}</Text>
                 <Text style={styles.workoutAuthor}>by {item.creatorUsername}</Text>

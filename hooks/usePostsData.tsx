@@ -8,6 +8,7 @@ import {
   addDoc,
   query,
   where,
+  setDoc,
   getDocs,
   writeBatch,
   deleteDoc,
@@ -17,6 +18,7 @@ import {
   runTransaction,
   Timestamp,
   serverTimestamp,
+  updateDoc,
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import { app, db, storage } from '@/firebaseConfig';
@@ -173,17 +175,24 @@ export function usePostsData() {
   };
 
 
-  const uploadImage = async (imageUri: string): Promise<string> => {
+  const uploadImage = async (imageUri: string, postId: string): Promise<string> => {
     try {
-      const filename = `posts/${currentUser!.uid}/${Date.now()}.jpg`;
+      const filename = `posts/${currentUser!.uid}/${postId}.jpg`;
       const storageRef = ref(storage, filename);
       
       // Fetch the image and convert to blob
       const response = await fetch(imageUri);
       const blob = await response.blob();
       
-      // Upload image
-      await uploadBytes(storageRef, blob);
+      // Define custom metadata
+      const metadata = {
+        customMetadata: {
+          postId: postId
+        }
+      };
+
+      // Upload image with metadata
+      await uploadBytes(storageRef, blob, metadata);
       
       // Get download URL
       const downloadURL = await getDownloadURL(storageRef);
@@ -279,28 +288,21 @@ export function usePostsData() {
   };
 
   // Add a new post
-  const addPost = async (postData: NewPostData): Promise<string> => {
+  const addPost = async (postData: NewPostData) => {
     if (!currentUser || !userProfile) {
       throw new Error("User not authenticated");
     }
 
     try {
-      let imageUrl = "";
-      if (postData.imageUri) {
-        imageUrl = await uploadImage(postData.imageUri);
-      }
-
       if (postData.isMilestone) {
-        if (!postData.milestoneDetails) {
-          throw new Error("Milestone details are required for a milestone post.");
-        }
-        const createMilestonePostFunction = httpsCallable(functionsInstance, 'createMilestonePost');
+        // 1. First create the milestone post document
+        const functions = getFunctions(app, 'northamerica-northeast2');
+        const createMilestonePost = httpsCallable(functions, 'createMilestonePost');
         
         const payload = {
           authorUsername: userProfile.username || "User",
           authorProfileImageUrl: userProfile.profileImageUrl || null,
           caption: postData.caption || "",
-          imageUrl: imageUrl || null,
           milestoneDetails: postData.milestoneDetails,
           visibility: postData.visibility || "public",
           workoutId: postData.workoutId || null,
@@ -308,19 +310,33 @@ export function usePostsData() {
         };
         
         console.log("Calling createMilestonePost with payload:", payload);
-        const result = await createMilestonePostFunction(payload);
-        const resultData = result.data as { success: boolean, postId: string, error?: string };
+        const result = await createMilestonePost(payload);
+        const resultData = result.data as { success: boolean, postId: string };
 
-        if (!resultData.success || !resultData.postId) {
-          console.error("Cloud function 'createMilestonePost' failed:", resultData.error);
-          throw new Error(resultData.error || "Failed to create milestone post via cloud function.");
+        // 2. If there's an image, upload it with the postId metadata AND update the document
+        if (resultData.success && postData.imageUri) {
+          console.log("Uploading image for milestone post:", resultData.postId);
+          const imageUrl = await uploadImage(postData.imageUri, resultData.postId);
+          
+          // Update the post document with the image URL
+          const postRef = doc(db, "posts", resultData.postId);
+          await updateDoc(postRef, { imageUrl });
+          console.log("Updated milestone post with image URL");
         }
-        console.log("Milestone post created via Cloud Function with ID:", resultData.postId);
+        
         return resultData.postId;
 
       } else {
+        // Regular posts - same logic as before
+        const postRef = doc(collection(db, "posts"));
+        const postId = postRef.id;
 
-        const postRef = await addDoc(collection(db, "posts"), {
+        let imageUrl = null;
+        if (postData.imageUri) {
+          imageUrl = await uploadImage(postData.imageUri, postId);
+        }
+
+        await setDoc(postRef, {
           authorId: currentUser.uid,
           authorUsername: userProfile.username || "Unknown user",
           authorProfileImageUrl: userProfile.profileImageUrl || "",
@@ -335,11 +351,12 @@ export function usePostsData() {
           workoutId: postData.workoutId || null,
           authorArchetype: postData.authorArchetype || null,
         });
-        console.log("Regular post created directly with ID:", postRef.id);
-        return postRef.id;
+        
+        console.log("Regular post created directly with ID:", postId);
+        return postId;
       }
     } catch (error) {
-      console.error("Error in addPost:", error);
+      console.error("Error adding post:", error);
       throw error;
     }
   };

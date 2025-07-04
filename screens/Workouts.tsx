@@ -253,7 +253,7 @@ export default function Workouts() {
                 // If there is a cover image, use it with absoluteFill style and add blur
                 <>
                     <Image 
-                        source={{ uri: item.coverImageUrl }}
+                        source={{ uri: item.thumbnailUrl || item.coverImageUrl }}
                         style={[StyleSheet.absoluteFill, { backgroundColor: '#333', resizeMode: 'cover' }]}
                     />
                     <BlurView intensity={25} tint="dark" style={blurStyle}>

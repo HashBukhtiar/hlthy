@@ -343,7 +343,7 @@ const MessageItem = React.memo<{ item: Message; onLongPress: (m: Message) => voi
             </Text>
           </View>
           {item.sharedWorkout.coverImageUrl && (
-            <Image source={{ uri: item.sharedWorkout.coverImageUrl }} style={styles.sharedWorkoutImage} />
+            <Image source={{ uri: item.sharedWorkout.thumbnailUrl || item.sharedWorkout.coverImageUrl }} style={styles.sharedWorkoutImage} />
           )}
           <Text style={styles.sharedWorkoutTitle} numberOfLines={2}>
             {item.sharedWorkout.title}
