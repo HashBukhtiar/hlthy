@@ -35,6 +35,7 @@ export interface Post {
   fullName: string;
   profilePic: string;
   imageUrl: string;
+  thumbnailUrl?: string;
   caption: string;
   timestamp: string;
   location: string;

@@ -11,6 +11,7 @@ import {
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import postsData, { Post } from '@/data/posts';
+import { getOptimalImageUrl } from '@/utils/imageUtils';
 
 export default function PostsFeed() {
   const router = useRouter();
@@ -106,7 +107,7 @@ export default function PostsFeed() {
         activeOpacity={0.9}
         onPress={() => handleViewPost(item.id)}
       >
-        <Image source={{ uri: item.imageUrl }} style={styles.postImage} />
+        <Image source={{ uri: getOptimalImageUrl(item.thumbnailUrl, item.imageUrl) }} style={styles.postImage} />
       </TouchableOpacity>
 
       {/* Action Buttons */}

@@ -40,6 +40,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { sendMessage } from '@/ai/ai_chat';
 import { calculateImprovementPercentage } from '@/logic/milesonteUtils';
+import { getOptimalImageUrl } from '@/utils/imageUtils';
 
 interface FirestoreMessageData {
   senderId: string;
@@ -225,7 +226,10 @@ const MessageItem = React.memo<{ item: Message; onLongPress: (m: Message) => voi
             </Text>
           </View>
           {item.sharedPost.imageUrl && (
-            <Image source={{ uri: item.sharedPost.imageUrl }} style={styles.sharedPostImage} />
+            <Image 
+              source={{ uri: getOptimalImageUrl(item.sharedPost.thumbnailUrl, item.sharedPost.imageUrl) }} 
+              style={styles.sharedPostImage} 
+            />
           )}
           {item.sharedPost.caption && (
             <Text style={styles.sharedPostCaption} numberOfLines={2}>
@@ -343,7 +347,10 @@ const MessageItem = React.memo<{ item: Message; onLongPress: (m: Message) => voi
             </Text>
           </View>
           {item.sharedWorkout.coverImageUrl && (
-            <Image source={{ uri: item.sharedWorkout.thumbnailUrl || item.sharedWorkout.coverImageUrl }} style={styles.sharedWorkoutImage} />
+            <Image 
+              source={{ uri: getOptimalImageUrl(item.sharedWorkout.thumbnailUrl, item.sharedWorkout.coverImageUrl) }} 
+              style={styles.sharedWorkoutImage} 
+            />
           )}
           <Text style={styles.sharedWorkoutTitle} numberOfLines={2}>
             {item.sharedWorkout.title}

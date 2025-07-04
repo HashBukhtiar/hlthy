@@ -32,6 +32,7 @@ export interface Post {
   authorProfileImageUrl: string;
   caption: string;
   imageUrl: string;
+  thumbnailUrl?: string | null;
   createdAt: Timestamp;
   exerciseTags?: string[];
   isMilestone: boolean;

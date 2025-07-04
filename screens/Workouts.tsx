@@ -19,6 +19,7 @@ import { BlurView } from 'expo-blur';
 import { useAuth } from '@/context/AuthContext';
 import { db } from '@/firebaseConfig';
 import { collection, query, where, getDocs, orderBy, limit, doc, getDoc as getFirestoreDoc } from 'firebase/firestore';
+import { getOptimalImageUrl } from '@/utils/imageUtils';
 
 interface WorkoutItemData {
     id: string;
@@ -250,10 +251,9 @@ export default function Workouts() {
             }}
         >
             {item.coverImageUrl ? (
-                // If there is a cover image, use it with absoluteFill style and add blur
                 <>
                     <Image 
-                        source={{ uri: item.thumbnailUrl || item.coverImageUrl }}
+                        source={{ uri: getOptimalImageUrl(item.thumbnailUrl, item.coverImageUrl) }}
                         style={[StyleSheet.absoluteFill, { backgroundColor: '#333', resizeMode: 'cover' }]}
                     />
                     <BlurView intensity={25} tint="dark" style={blurStyle}>

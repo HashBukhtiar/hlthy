@@ -21,6 +21,7 @@ import { useRouter } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
 import { db } from '@/firebaseConfig';
 import { collection, doc, getDoc, getDocs, query, where, orderBy } from 'firebase/firestore';
+import { getOptimalImageUrl } from '@/utils/imageUtils';
 
 // Secondary color and its variations
 export const SECONDARY_COLOR = '#ff2d55';
@@ -466,14 +467,18 @@ export const WorkoutSelectionModal: React.FC<WorkoutSelectionModalProps> = ({
         setSearchQuery(''); 
           }}
         >
-            <Image
-                source={item.thumbnailUrl ? { uri: item.thumbnailUrl } : item.coverImageUrl ? { uri: item.coverImageUrl } : require('@/assets/images/icon.png')} 
-                style={postComponentStyles.workoutThumbnailLarge} // Use a potentially larger thumbnail style
+            <Image 
+                source={
+                    getOptimalImageUrl(item.thumbnailUrl, item.coverImageUrl)
+                        ? { uri: getOptimalImageUrl(item.thumbnailUrl, item.coverImageUrl)! }
+                        : require('@/assets/images/icon.png')
+                } 
+                style={postComponentStyles.workoutThumbnailLarge}
             />
-      <View style={postComponentStyles.workoutItemInfo}>
-        <Text style={postComponentStyles.workoutItemTitle} numberOfLines={1}>{item.title}</Text>
-        {item.creatorUsername && <Text style={postComponentStyles.workoutItemCreator} numberOfLines={1}>by {item.creatorUsername}</Text>}
-      </View>
+        <View style={postComponentStyles.workoutItemInfo}>
+            <Text style={postComponentStyles.workoutItemTitle} numberOfLines={1}>{item.title}</Text>
+            {item.creatorUsername && <Text style={postComponentStyles.workoutItemCreator} numberOfLines={1}>by {item.creatorUsername}</Text>}
+        </View>
     </TouchableOpacity>
   );
 
