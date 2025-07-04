@@ -27,6 +27,7 @@ interface WorkoutItemData {
     creatorId: string;
     creatorUsername: string;
     coverImageUrl?: string | null;
+    thumbnailUrl?: string | null;
     savedCount?: number;
 }
 
@@ -142,16 +143,6 @@ export default function Workouts() {
         }
     }, [currentUser]);
 
-    useEffect(() => {
-        if (currentUser) {
-            fetchMyWorkouts();
-            fetchFavoriteWorkouts();
-            fetchFollowingWorkouts(); 
-        }
-        fetchTrendingWorkouts();
-    }, [currentUser, fetchMyWorkouts, fetchFavoriteWorkouts, fetchTrendingWorkouts, fetchFollowingWorkouts]);
-
-
     const fetchTrendingWorkouts = useCallback(async () => {
         setLoadingTrending(true);
         try {
@@ -172,14 +163,14 @@ export default function Workouts() {
         }
     }, []);
 
-
     useEffect(() => {
         if (currentUser) {
             fetchMyWorkouts();
             fetchFavoriteWorkouts();
+            fetchFollowingWorkouts(); 
         }
         fetchTrendingWorkouts();
-    }, [currentUser, fetchMyWorkouts, fetchFavoriteWorkouts, fetchTrendingWorkouts]); 
+    }, [currentUser, fetchMyWorkouts, fetchFavoriteWorkouts, fetchTrendingWorkouts, fetchFollowingWorkouts]);
 
     useEffect(() => {
         const lowerCaseQuery = searchQuery.toLowerCase().trim();
@@ -250,10 +241,10 @@ export default function Workouts() {
                 setSearchQuery('');
             }}
         >
-            {item.coverImageUrl ? (
+            {getOptimalImageUrl(item.thumbnailUrl, item.coverImageUrl) ? (
                 <>
                     <Image 
-                        source={{ uri: getOptimalImageUrl(item.thumbnailUrl, item.coverImageUrl) }}
+                        source={{ uri: getOptimalImageUrl(item.thumbnailUrl, item.coverImageUrl)! }}
                         style={[StyleSheet.absoluteFill, { backgroundColor: '#333', resizeMode: 'cover' }]}
                     />
                     <BlurView intensity={25} tint="dark" style={blurStyle}>
@@ -289,14 +280,17 @@ export default function Workouts() {
             }}
         >
             <Image 
-                source={item.coverImageUrl ? { uri: item.coverImageUrl } : require('@/assets/images/icon.png')}
+                source={
+                    getOptimalImageUrl(item.thumbnailUrl, item.coverImageUrl) 
+                        ? { uri: getOptimalImageUrl(item.thumbnailUrl, item.coverImageUrl)! } 
+                        : require('@/assets/images/icon.png')
+                }
                 style={styles.searchResultImage}
             />
             <View style={styles.searchResultTextContainer}>
                 <Text style={styles.searchResultTitle} numberOfLines={1}>{item.title}</Text>
                 <Text style={styles.searchResultCreator} numberOfLines={1}>by {item.creatorUsername}</Text>
             </View>
-            {/* Optionally, add savedCount or other info */}
         </TouchableOpacity>
     );
 
@@ -407,8 +401,12 @@ export default function Workouts() {
                                         }}
                                     >
                                         <Image 
-                                            source={item.coverImageUrl ? { uri: item.coverImageUrl } : require('@/assets/images/icon.png')}
-                                            style={styles.searchResultImage}
+                                            source={
+                                                getOptimalImageUrl(item.thumbnailUrl, item.coverImageUrl) 
+                                                    ? { uri: getOptimalImageUrl(item.thumbnailUrl, item.coverImageUrl)! } 
+                                                    : require('@/assets/images/icon.png')
+                                            }
+                                            style={styles.trendingColumnItemImage}
                                         />
                                         <View style={styles.trendingColumnItemTextContainer}>
                                             <Text style={styles.trendingColumnItemTitle} numberOfLines={1}>{item.title}</Text>
