@@ -16,7 +16,7 @@ import {
 import { useRouter } from 'expo-router';
 import { usePostsData } from '@/hooks/usePostsData';
 import { useAuth } from '@/context/AuthContext';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '@/firebaseConfig';
 import { Ionicons, MaterialCommunityIcons, FontAwesome5, Feather } from '@expo/vector-icons';
 import SelectExercise from './SelectExercise';
@@ -501,10 +501,28 @@ export default function MilestoneWithPost({ onBack }: MilestoneWithPostProps) {
                 authorArchetype: authorArchetype
             };
             
+            // Create the post first
             const postId = await addPost(postData);
+            
+            // Store the milestone separately in the milestones collection
+            try {
+            const milestoneDocRef = doc(db, 'milestones', postId);
+            await setDoc(milestoneDocRef, {
+                ...milestoneDetails,
+                postId: postId,
+                authorId: currentUser.uid,
+                createdAt: new Date(),
+                updatedAt: new Date()
+            });
+            } catch (milestoneError) {
+            console.error("Error storing milestone separately:", milestoneError);
+            // Post was created successfully, but milestone storage failed
+            // We can continue as the milestone data is still in the post
+            }
+            
             console.log("Successfully created achievement post with ID:", postId);
             Alert.alert('Success', 'Your achievement has been shared!', [
-                { text: 'OK', onPress: () => router.push('/') }
+            { text: 'OK', onPress: () => router.push('/') }
             ]);
 
         } catch (error: any) {

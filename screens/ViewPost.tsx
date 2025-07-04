@@ -10,7 +10,7 @@ import { useAuth } from '@/context/AuthContext';
 import { collection } from 'firebase/firestore';
 import { db } from '@/firebaseConfig';
 import { query, where, limit, getDocs } from 'firebase/firestore';
-import { deleteImageFromStorage } from '@/utils/imageUtils';
+import { deleteImageFromStorage, deleteMilestoneFromFirestore } from '@/utils/imageUtils';
 
 export default function ViewPost() {
   const [menuVisible, setMenuVisible] = useState(false);
@@ -256,47 +256,107 @@ useEffect(() => {
   const handleDeletePost = async () => {
     if (!post || !currentUser) return;
     
-    Alert.alert(
-      "Delete Post",
-      "Are you sure you want to delete this post? This cannot be undone.",
-      [
-        {
-          text: "Cancel",
-          style: "cancel"
-        },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              setMenuVisible(false);
-              setLoading(true);
-              
-              // Delete images from storage first
-              if (post.imageUrl) {
-                try {
-                  await deleteImageFromStorage(post.imageUrl);
-                } catch (storageError) {
-                  console.error("Error deleting images from storage:", storageError);
-                  // Continue with post deletion even if image deletion fails
-                }
-              }
-              
-              // Delete the post document
-              await deletePost(post.id);
-              
-              Alert.alert("Success", "Post deleted successfully", [
-                { text: "OK", onPress: () => router.replace('/') }
-              ]);
-            } catch (error) {
-              console.error("Error deleting post:", error);
-              Alert.alert("Error", "Could not delete post. Please try again.");
-              setLoading(false);
+    // Check if post has a milestone
+    if (post.isMilestone && post.milestoneDetails) {
+      Alert.alert(
+        "Delete Post",
+        "This post contains a milestone. What would you like to delete?",
+        [
+          {
+            text: "Cancel",
+            style: "cancel"
+          },
+          {
+            text: "Delete Post Only",
+            onPress: async () => {
+              await performPostDeletion(false);
+            }
+          },
+          {
+            text: "Delete Both",
+            style: "destructive",
+            onPress: async () => {
+              await performPostDeletion(true);
             }
           }
+        ]
+      );
+    } else {
+      Alert.alert(
+        "Delete Post",
+        "Are you sure you want to delete this post? This cannot be undone.",
+        [
+          {
+            text: "Cancel",
+            style: "cancel"
+          },
+          {
+            text: "Delete",
+            style: "destructive",
+            onPress: async () => {
+              await performPostDeletion(false);
+            }
+          }
+        ]
+      );
+    }
+  };
+
+  const performPostDeletion = async (deleteMilestone: boolean) => {
+    if (!post || !currentUser) return;
+    
+    try {
+      setMenuVisible(false);
+      setLoading(true);
+      
+      let storageErrors: string[] = [];
+      let milestoneErrors: string[] = [];
+      
+      // Delete images from storage first
+      if (post.imageUrl) {
+        try {
+          await deleteImageFromStorage(post.imageUrl);
+        } catch (storageError: any) {
+          console.error("Error deleting images from storage:", storageError);
+          storageErrors.push("Failed to delete images from storage");
+          // Continue with post deletion even if image deletion fails
         }
-      ]
-    );
+      }
+      
+      // Delete milestone if requested and post has one
+      if (deleteMilestone && post.isMilestone && post.milestoneDetails) {
+        try {
+          await deleteMilestoneFromFirestore(post.id);
+        } catch (milestoneError: any) {
+          console.error("Error deleting milestone:", milestoneError);
+          milestoneErrors.push("Failed to delete milestone record");
+          // Continue with post deletion even if milestone deletion fails
+        }
+      }
+      
+      // Delete the post document from Firestore
+      await deletePost(post.id);
+      
+      // Show success message with any warnings
+      const successMessage = deleteMilestone && post.isMilestone 
+        ? "Post and milestone deleted successfully" 
+        : "Post deleted successfully";
+      
+      const warnings = [...storageErrors, ...milestoneErrors];
+      const fullMessage = warnings.length > 0 
+        ? `${successMessage}\n\nNote: ${warnings.join(', ')}`
+        : successMessage;
+      
+      Alert.alert("Success", fullMessage, [
+        { text: "OK", onPress: () => router.replace('/') }
+      ]);
+      
+    } catch (error: any) {
+      console.error("Error deleting post:", error);
+      const errorMessage = error.message || "Could not delete post. Please try again.";
+      Alert.alert("Error", errorMessage);
+      setLoading(false);
+    }
   };
   
   const handleRefresh = async () => {
@@ -981,13 +1041,33 @@ useEffect(() => {
             onPress={() => setMenuVisible(false)}
           >
             <View style={styles.menuModalContent}>
-              <TouchableOpacity 
-                style={styles.menuItem}
-                onPress={handleDeletePost}
-              >
-                <Ionicons name="trash-outline" size={20} color="#FF3B30" />
-                <Text style={[styles.menuItemText, { color: '#FF3B30' }]}>Delete Post</Text>
-              </TouchableOpacity>
+              {post?.isMilestone && post.milestoneDetails ? (
+                <>
+                  <TouchableOpacity 
+                    style={styles.menuItem}
+                    onPress={() => performPostDeletion(false)}
+                  >
+                    <Ionicons name="document-outline" size={20} color="#FF9500" />
+                    <Text style={[styles.menuItemText, { color: '#FF9500' }]}>Delete Post Only</Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity 
+                    style={styles.menuItem}
+                    onPress={() => performPostDeletion(true)}
+                  >
+                    <Ionicons name="trash-outline" size={20} color="#FF3B30" />
+                    <Text style={[styles.menuItemText, { color: '#FF3B30' }]}>Delete Post & Milestone</Text>
+                  </TouchableOpacity>
+                </>
+              ) : (
+                <TouchableOpacity 
+                  style={styles.menuItem}
+                  onPress={() => performPostDeletion(false)}
+                >
+                  <Ionicons name="trash-outline" size={20} color="#FF3B30" />
+                  <Text style={[styles.menuItemText, { color: '#FF3B30' }]}>Delete Post</Text>
+                </TouchableOpacity>
+              )}
               
               <TouchableOpacity 
                 style={styles.menuItem}
