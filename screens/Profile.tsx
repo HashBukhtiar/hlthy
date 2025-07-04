@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { View, ScrollView, Text, Image, StyleSheet, Dimensions, FlatList, TouchableOpacity, SafeAreaView, Animated, ActivityIndicator, RefreshControl, Modal } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useProfileData, GroupedMilestones, Milestone } from '@/hooks/useProfileData';
+import { useProfileData } from '@/hooks/useProfileData';
 import { useAuth } from '@/context/AuthContext';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { formatCount } from '@/logic/formattingFunctions';
@@ -68,6 +68,8 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
     posts,
     groupedMilestones,
     workouts,
+    savedWorkouts,
+    loadingWorkouts,
     followers,
     following,
     error,
@@ -78,9 +80,8 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
     unfollowUser,
     followActionLoading,
     viewedProfileId,
-    savedWorkouts,
-    loadingWorkouts,
   } = useProfileData(routeUserId);
+  const createdWorkouts = workouts || [];
 
   const displayablePosts = useMemo(() => {
     if (!posts) return [];
@@ -345,9 +346,6 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
   ), [displayablePosts, refreshing, handleImagePress, onRefresh]);
 
   const renderMilestonesContent = useCallback(() => {
-    // Log the entire groupedMilestones object
-    console.log("groupedMilestones:", groupedMilestones);
-
     const monthKeys = Object.keys(groupedMilestones).sort((a, b) => {
       try {
         const dateA = new Date(`01 ${a}`);
@@ -360,16 +358,10 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
       return (
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20, minHeight: 200 }}>
           <Text style={{ color: 'gray', textAlign: 'center' }}>No milestones yet. Add a milestone to see it here.</Text>
-           <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor="#FFFFFF"
-            colors={["#FFFFFF"]}
-            progressBackgroundColor="#212121"
-          />
         </View>
       );
     }
+    
     return (
       <FlatList
         key="milestones-list"
@@ -412,18 +404,9 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
           </View>
         )}
         keyExtractor={(item) => item}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor="#FFFFFF"
-            colors={["#FFFFFF"]}
-            progressBackgroundColor="#212121"
-          />
-        }
       />
     );
-  }, [groupedMilestones, refreshing, handleMilestonePress, onRefresh]);
+  }, [groupedMilestones, handleMilestonePress]);
   
   const renderWorkoutsContent = useCallback(() => {
     if (loadingWorkouts && (!workouts || workouts.length === 0)) { 

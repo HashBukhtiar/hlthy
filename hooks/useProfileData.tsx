@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { collection, query, orderBy, getDocs, deleteDoc, getCountFromServer, doc, getDoc, increment, where, setDoc, runTransaction, serverTimestamp } from 'firebase/firestore';
+import { useState, useEffect, useCallback } from 'react';
+import { collection, query, orderBy, getDocs, doc, getDoc, increment, where, setDoc, runTransaction, serverTimestamp } from 'firebase/firestore';
 import { db, app } from '@/firebaseConfig';
 import { useAuth } from '@/context/AuthContext';
 import { getFunctions, httpsCallable } from 'firebase/functions';
@@ -29,7 +29,7 @@ export function useProfileData(userId = null) {
   const { currentUser } = useAuth();
   const profileIdToFetch = userId || currentUser?.uid;
   const functions = getFunctions(app, 'northamerica-northeast2');
-
+  const isOwnProfile = !userId || userId === currentUser?.uid;
   const [loading, setLoading] = useState(true);
   const [profileData, setProfileData] = useState<any | null>(null);
   const [posts, setPosts] = useState<any[]>([]);
@@ -42,7 +42,8 @@ export function useProfileData(userId = null) {
   const [isFollowingStatus, setIsFollowingStatus] = useState(false);
   const [followActionLoading, setFollowActionLoading] = useState(false);
   const [activePostCount, setActivePostCount] = useState<number | null>(null);
-
+  const [savedWorkouts, setSavedWorkouts] = useState<any[]>([]);
+  const [loadingWorkouts, setLoadingWorkouts] = useState(false);
 
   const groupAndSortMilestones = (milestonesToSort: Milestone[]): GroupedMilestones => {
     // Sort milestones first
@@ -90,25 +91,28 @@ export function useProfileData(userId = null) {
     }, {});
 };
 
-  // This is the primary function called by useEffect
-  const fetchProfileData = async () => {
+  // Memoize fetchProfileData to prevent infinite loops
+  const fetchProfileData = useCallback(async () => {
     if (!profileIdToFetch) {
       setLoading(false);
       setError(new Error("No profile ID available to fetch data."));
       console.log("No profileIdToFetch, returning early from fetchProfileData");
       return;
     }
+    
     console.log(`Fetching profile data for ID (fetchProfileData): ${profileIdToFetch}`);
     setLoading(true);
+    setLoadingWorkouts(true);
     setError(null);
 
     try {
-      let userData: any | null = null; // Use specific type
+      let userData: any | null = null;
       let userPosts: any[] = [];
       let userMilestonesRaw: Milestone[] = [];
       let userWorkouts: any[] = [];
+      let userSavedWorkouts: any[] = [];
       let userFollowers: any[] = [];
-      let userFollowingData: any[] = []; // Renamed to avoid conflict with state
+      let userFollowingData: any[] = [];
 
       // 1. Fetch user profile
       try {
@@ -170,11 +174,9 @@ export function useProfileData(userId = null) {
         console.error("Error processing milestones:", milestoneError);
       }
 
-      // 4. Fetch user workouts
       try {
         const workoutsQuery = query(
           collection(db, "workouts"),
-          // Ensure this field name 'creatorId' matches your Firestore structure for workouts
           where("creatorId", "==", profileIdToFetch), 
           orderBy("createdAt", "desc")
         );
@@ -185,7 +187,37 @@ export function useProfileData(userId = null) {
         console.error("Error fetching workouts:", workoutsError);
       }
 
-      // 5. Fetch followers
+      // 5. Fetch saved workouts (only for own profile)
+      if (isOwnProfile) {
+        try {
+          const savedWorkoutsQuery = query(
+            collection(db, "users", profileIdToFetch, "savedWorkouts"),
+            orderBy("savedAt", "desc")
+          );
+          const savedWorkoutsSnapshot = await getDocs(savedWorkoutsQuery);
+          const savedWorkoutIds = savedWorkoutsSnapshot.docs.map(doc => doc.id);
+          
+          // Fetch full workout data for saved workouts
+          if (savedWorkoutIds.length > 0) {
+            const savedWorkoutPromises = savedWorkoutIds.map(async (workoutId) => {
+              const workoutDoc = await getDoc(doc(db, "workouts", workoutId));
+              if (workoutDoc.exists()) {
+                return { id: workoutDoc.id, ...workoutDoc.data() };
+              }
+              return null;
+            });
+            
+            const savedWorkoutResults = await Promise.all(savedWorkoutPromises);
+            userSavedWorkouts = savedWorkoutResults.filter(workout => workout !== null);
+          }
+          
+          console.log(`Retrieved ${userSavedWorkouts.length} saved workouts for:`, profileIdToFetch);
+        } catch (savedWorkoutsError) {
+          console.error("Error fetching saved workouts:", savedWorkoutsError);
+        }
+      }
+
+      // 6. Fetch followers
       try {
         const followersQuery = query(collection(db, "users", profileIdToFetch, "followers"));
         const followersSnap = await getDocs(followersQuery);
@@ -197,7 +229,7 @@ export function useProfileData(userId = null) {
         console.error("Error fetching followers:", followersError);
       }
 
-      // 6. Fetch following
+      // 7. Fetch following
       try {
         const followingQuery = query(collection(db, "users", profileIdToFetch, "following"));
         const followingSnap = await getDocs(followingQuery);
@@ -258,19 +290,20 @@ export function useProfileData(userId = null) {
       setPosts(userPosts);
       setGroupedMilestones(finalGroupedMilestones);
       setWorkouts(userWorkouts);
+      setSavedWorkouts(userSavedWorkouts);
       setFollowers(userFollowers);
       setFollowing(userFollowingData);
 
       console.log("Profile data refresh complete for:", profileIdToFetch);
-
     } catch (err) {
       console.error("Error in fetchProfileData:", err);
       setError(err as Error);
     } finally {
       setLoading(false);
+      setLoadingWorkouts(false);
       console.log("Loading set to false for:", profileIdToFetch);
     }
-  };
+  }, [profileIdToFetch, currentUser?.uid, isOwnProfile]);
 
   const followUser = async (targetUserId: string) => {
     if (!currentUser || !currentUser.uid || followActionLoading) {
@@ -388,21 +421,21 @@ export function useProfileData(userId = null) {
     }
   };
 
-  const refreshProfileData = async () => {
+  // Memoize refreshProfileData as well
+  const refreshProfileData = useCallback(async () => {
     console.log("Manual refresh triggered for profile ID:", profileIdToFetch);
     await fetchProfileData();
-  };
+  }, [fetchProfileData]);
 
   useEffect(() => {
     console.log("useEffect in useProfileData triggered. profileIdToFetch:", profileIdToFetch);
-    if (profileIdToFetch) { // Only fetch if profileIdToFetch is available
+    if (profileIdToFetch) {
       fetchProfileData();
     } else {
-      // Handle case where profileIdToFetch is not yet available (e.g., currentUser not loaded)
       setLoading(false); 
       console.log("profileIdToFetch is null/undefined in useEffect, not fetching.");
     }
-  }, [profileIdToFetch, currentUser?.uid]);
+  }, [fetchProfileData]);
 
   return {
     loading,
@@ -410,15 +443,17 @@ export function useProfileData(userId = null) {
     posts,
     groupedMilestones,
     workouts,
+    savedWorkouts,
+    loadingWorkouts,
     followers,
     following,
     error,
     refreshProfileData,
     isFollowingStatus,
     isRequestPending,
-    followUser, 
+    followUser,
     unfollowUser,
     followActionLoading,
-    viewedProfileId: profileIdToFetch
+    viewedProfileId: profileIdToFetch,
   };
 }
