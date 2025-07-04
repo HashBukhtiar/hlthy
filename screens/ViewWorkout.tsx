@@ -240,6 +240,7 @@ export default function ViewWorkout() {
           id: workoutData.id,
           title: workoutData.title,
           coverImageUrl: workoutData.coverImageUrl || null,
+          thumbnailUrl: workoutData.thumbnailUrl || null, // Add this
           creatorUsername: workoutData.creatorUsername,
           description: workoutData.description
         }

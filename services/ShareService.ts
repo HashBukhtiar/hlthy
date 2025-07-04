@@ -124,6 +124,7 @@ export const shareWorkout = async (
     id: string;
     title: string;
     coverImageUrl: string | null;
+    thumbnailUrl?: string | null;
     creatorUsername: string;
     description?: string;
   }
@@ -147,6 +148,7 @@ export const shareWorkout = async (
         id: workout.id,
         title: workout.title,
         coverImageUrl: workout.coverImageUrl || null,
+        thumbnailUrl: workout.thumbnailUrl || null,
         creatorUsername: workout.creatorUsername,
       },
     });
@@ -221,6 +223,7 @@ export const sharePost = async (
     id: string;
     caption?: string;
     imageUrl?: string | null;
+    thumbnailUrl?: string | null;
     authorUsername?: string;
   }
 ) => {
@@ -242,6 +245,7 @@ export const sharePost = async (
       sharedPost: {
         id: post.id,
         imageUrl: post.imageUrl || null,
+        thumbnailUrl: post.thumbnailUrl || null,
         caption: post.caption || '',
         authorUsername: post.authorUsername || currentUser.displayName || '',
       }

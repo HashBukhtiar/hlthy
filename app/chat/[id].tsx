@@ -49,6 +49,7 @@ interface FirestoreMessageData {
   sharedPost?: {
     id: string;
     imageUrl: string | null;
+    thumbnailUrl?: string | null;
     caption: string;
     authorUsername: string;
   };
@@ -75,6 +76,7 @@ interface FirestoreMessageData {
     id: string;
     title: string;
     coverImageUrl?: string;
+    thumbnailUrl?: string | null;
     creatorUsername: string;
   };
 }
@@ -87,6 +89,7 @@ interface Message {
   sharedPost?: {
     id: string;
     imageUrl: string | null;
+    thumbnailUrl?: string | null;
     caption: string;
     authorUsername: string;
     isAvailable?: boolean;
@@ -115,6 +118,7 @@ interface Message {
     id: string;
     title: string;
     coverImageUrl?: string;
+    thumbnailUrl?: string | null;
     creatorUsername: string;
     isAvailable?: boolean;
   };
@@ -392,8 +396,10 @@ const MessageItem = React.memo<{ item: Message; onLongPress: (m: Message) => voi
       prev.item.id === next.item.id &&
       prev.item.text === next.item.text &&
       prev.item.sharedPost?.isAvailable === next.item.sharedPost?.isAvailable &&
+      prev.item.sharedPost?.thumbnailUrl === next.item.sharedPost?.thumbnailUrl &&
       prev.item.sharedMilestone?.isAvailable === next.item.sharedMilestone?.isAvailable &&
-      prev.item.sharedWorkout?.isAvailable === next.item.sharedWorkout?.isAvailable
+      prev.item.sharedWorkout?.isAvailable === next.item.sharedWorkout?.isAvailable &&
+      prev.item.sharedWorkout?.thumbnailUrl === next.item.sharedWorkout?.thumbnailUrl
     );
   }
 );
