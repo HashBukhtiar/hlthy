@@ -291,19 +291,34 @@ export default function ViewWorkout() {
                       style: "destructive",
                       onPress: async () => {
                         try {
-                          // Delete cover image from storage first
+                          // Delete both cover image and thumbnail from storage
                           if (workoutData.coverImageUrl) {
                             try {
                               await deleteImageFromStorage(workoutData.coverImageUrl);
                             } catch (storageError) {
-                              console.error("Error deleting images from storage:", storageError);
-                              // Continue with workout deletion even if image deletion fails
+                              console.error("Error deleting cover image from storage:", storageError);
+                            }
+                          }
+                          
+                          // Delete thumbnail if it exists
+                          if (workoutData.thumbnailUrl) {
+                            try {
+                              await deleteImageFromStorage(workoutData.thumbnailUrl);
+                            } catch (storageError) {
+                              console.error("Error deleting thumbnail from storage:", storageError);
                             }
                           }
                           
                           // Delete the workout document
                           const workoutDocRef = doc(db, 'workouts', workoutId);
                           await deleteDoc(workoutDocRef);
+                          
+                          // Update user's workout count
+                          const userDocRef = doc(db, 'users', currentUser.uid);
+                          await updateDoc(userDocRef, {
+                            'stats.workoutCount': increment(-1)
+                          });
+                          
                           router.back();
                         } catch (error) {
                           console.error("Error deleting workout:", error);
