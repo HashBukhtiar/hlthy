@@ -10,6 +10,7 @@ import { useAuth } from '@/context/AuthContext';
 import { collection } from 'firebase/firestore';
 import { db } from '@/firebaseConfig';
 import { query, where, limit, getDocs } from 'firebase/firestore';
+import { deleteImageFromStorage } from '@/utils/imageUtils';
 
 export default function ViewPost() {
   const [menuVisible, setMenuVisible] = useState(false);
@@ -269,12 +270,21 @@ useEffect(() => {
           onPress: async () => {
             try {
               setMenuVisible(false);
-              // Show loading
               setLoading(true);
               
+              // Delete images from storage first
+              if (post.imageUrl) {
+                try {
+                  await deleteImageFromStorage(post.imageUrl);
+                } catch (storageError) {
+                  console.error("Error deleting images from storage:", storageError);
+                  // Continue with post deletion even if image deletion fails
+                }
+              }
+              
+              // Delete the post document
               await deletePost(post.id);
               
-              // Navigate back after successful deletion
               Alert.alert("Success", "Post deleted successfully", [
                 { text: "OK", onPress: () => router.replace('/') }
               ]);

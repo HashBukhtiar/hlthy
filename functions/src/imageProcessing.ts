@@ -23,6 +23,13 @@ export const generatePostThumbnail = onObjectFinalized({region: "us-east1", ...r
     console.log("Exiting: Missing file path or content type.");
     return null;
   }
+
+  // Check if this is a workout cover image
+  if (fileMetadata?.workoutId) {
+    console.log("This is a workout cover image, letting generateWorkoutCoverThumbnail handle it.");
+    return null;
+  }
+
   const postId = fileMetadata?.postId; // Get postId from custom metadata
   if (!postId) {
     console.log("Exiting: No postId found in custom metadata.");
@@ -41,7 +48,7 @@ export const generatePostThumbnail = onObjectFinalized({region: "us-east1", ...r
   // Preserve the custom metadata when uploading the thumbnail
   const metadata = {
     contentType: "image/jpeg",
-    metadata: {
+    customMetadata: {
       postId: postId,
     },
   };
@@ -71,19 +78,23 @@ export const generatePostThumbnail = onObjectFinalized({region: "us-east1", ...r
 export const generateWorkoutCoverThumbnail = onObjectFinalized({region: "us-east1", ...runtimeOpts}, async (event) => {
   const {bucket: fileBucket, name: filePath, contentType, metadata: fileMetadata} = event.data;
 
-  if (!filePath || !contentType || !fileMetadata) {
-    console.log("Exiting: Missing file path, content type, or metadata.");
+  console.log("generateWorkoutCoverThumbnail - Raw event metadata object:", fileMetadata);
+
+  if (!filePath || !contentType) {
+    console.log("generateWorkoutCoverThumbnail - Exiting: Missing file path or content type.");
     return null;
   }
 
-  const workoutId = fileMetadata.workoutId; // Expect workoutId for these
-  if (!workoutId) {
-    console.log("Exiting: No workoutId found in custom metadata.");
+  // Only proceed if this has workout metadata
+  if (!fileMetadata?.workoutId) {
+    console.log("generateWorkoutCoverThumbnail - Exiting: No workoutId found in custom metadata.");
     return null;
   }
+
+  const workoutId = fileMetadata.workoutId;
 
   if (!contentType.startsWith("image/") || path.basename(filePath).startsWith("thumb_")) {
-    console.log(`Exiting for workout ${workoutId}: Not a processable image or already a thumbnail.`);
+    console.log(`generateWorkoutCoverThumbnail - Exiting for workout ${workoutId}: Not a processable image or already a thumbnail.`);
     return null;
   }
 
@@ -100,6 +111,7 @@ export const generateWorkoutCoverThumbnail = onObjectFinalized({region: "us-east
 
   try {
     await bucket.file(filePath).download({destination: tempFilePath});
+    console.log(`generateWorkoutCoverThumbnail - Image for workout ${workoutId} downloaded locally.`);
     const thumbFileName = `thumb_${fileName}`;
     const thumbFilePath = path.join(os.tmpdir(), thumbFileName);
     await sharp(tempFilePath).resize(400, 400, {fit: "inside"}).jpeg({quality: 80}).toFile(thumbFilePath);
@@ -110,11 +122,11 @@ export const generateWorkoutCoverThumbnail = onObjectFinalized({region: "us-east
     const thumbFile = bucket.file(thumbUploadPath);
     const [thumbnailUrl] = await thumbFile.getSignedUrl({action: "read", expires: "03-09-2491"});
     // Update the document directly using the workoutId from metadata
-    console.log(`Found workout ${workoutId} from metadata, updating with thumbnail URL.`);
+    console.log(`generateWorkoutCoverThumbnail - Found workout ${workoutId} from metadata, updating with thumbnail URL.`);
     // Use set with merge: true to create the document if it doesn't exist, or update it if it does.
     return db.collection("workouts").doc(workoutId).set({thumbnailUrl}, {merge: true});
   } catch (error) {
-    console.error(`Failed to process image for workout ${workoutId}. Error:`, error);
+    console.error(`generateWorkoutCoverThumbnail - Failed to process image for workout ${workoutId}. Error:`, error);
     return null;
   }
 });
