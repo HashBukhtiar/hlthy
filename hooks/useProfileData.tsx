@@ -3,6 +3,7 @@ import { collection, query, orderBy, getDocs, doc, getDoc, increment, where, set
 import { db, app } from '@/firebaseConfig';
 import { useAuth } from '@/context/AuthContext';
 import { getFunctions, httpsCallable } from 'firebase/functions';
+import { UserProfile } from '@/types/user';
 
 export interface Milestone {
   id: string;
@@ -119,7 +120,10 @@ export function useProfileData(userId = null) {
       try {
         const userDoc = await getDoc(doc(db, "users", profileIdToFetch));
         if (userDoc.exists()) {
-          userData = { id: userDoc.id, ...userDoc.data() }; // Include ID in profileData
+          userData = { 
+            id: userDoc.id, 
+            ...userDoc.data(),
+          }; 
           console.log("User profile data retrieved for:", profileIdToFetch, userData);
         } else {
           console.log("User profile not found for:", profileIdToFetch);

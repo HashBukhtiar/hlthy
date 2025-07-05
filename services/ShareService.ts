@@ -15,6 +15,7 @@ export interface UserInfo {
   displayName?: string | null;
   email?: string | null;
   photoURL?: string | null;
+  profileThumbnailUrl?: string | null;
 }
 
 // Helper function to sanitize undefined values from an object
@@ -43,7 +44,8 @@ export const prepareConversation = async (
   currentUser: UserInfo,
   recipientId: string, 
   recipientUsername: string, 
-  recipientProfileImageUrl?: string
+  recipientProfileImageUrl?: string,
+  recipientProfileThumbnailUrl?: string
 ) => {
   const conversationId = generateConversationId(currentUser.uid, recipientId);
   const conversationRef = doc(db, 'conversations', conversationId);
@@ -63,6 +65,10 @@ export const prepareConversation = async (
         [currentUser.uid]: currentUser.photoURL || '',
         [recipientId]: recipientProfileImageUrl || '',
       },
+      participantProfileThumbnails: {
+        [currentUser.uid]: currentUser.profileThumbnailUrl || '',
+        [recipientId]: recipientProfileThumbnailUrl || '',
+      },
     });
 
     // Create user-specific conversation entries
@@ -70,12 +76,14 @@ export const prepareConversation = async (
       otherParticipantId: recipientId,
       otherParticipantUsername: recipientUsername || 'User',
       otherParticipantProfileImage: recipientProfileImageUrl || '',
+      otherParticipantThumbnailUrl: recipientProfileThumbnailUrl || '',
     });
     
     await setDoc(doc(db, `users/${recipientId}/conversations`, conversationId), {
       otherParticipantId: currentUser.uid,
       otherParticipantUsername: currentUser.displayName || currentUser.email || 'Current User',
       otherParticipantProfileImage: currentUser.photoURL || '',
+      otherParticipantThumbnailUrl: currentUser.profileThumbnailUrl || '',
     });
   }
 
@@ -120,6 +128,7 @@ export const shareWorkout = async (
   recipientId: string,
   recipientUsername: string,
   recipientProfileImageUrl: string | undefined,
+  recipientProfileThumbnailUrl: string | undefined, // Add this parameter
   workout: {
     id: string;
     title: string;
@@ -134,7 +143,8 @@ export const shareWorkout = async (
       currentUser, 
       recipientId, 
       recipientUsername, 
-      recipientProfileImageUrl
+      recipientProfileImageUrl,
+      recipientProfileThumbnailUrl
     );
 
     // Add message with shared workout
@@ -169,6 +179,7 @@ export const shareMilestone = async (
   recipientId: string,
   recipientUsername: string,
   recipientProfileImageUrl: string | undefined,
+  recipientProfileThumbnailUrl: string | undefined, // Add this parameter
   milestone: {
     id: string;
     milestoneType: string;
@@ -181,7 +192,8 @@ export const shareMilestone = async (
       currentUser, 
       recipientId, 
       recipientUsername, 
-      recipientProfileImageUrl
+      recipientProfileImageUrl,
+      recipientProfileThumbnailUrl
     );
 
     // Sanitize the details object to remove undefined values
@@ -219,6 +231,7 @@ export const sharePost = async (
   recipientId: string,
   recipientUsername: string,
   recipientProfileImageUrl: string | undefined,
+  recipientProfileThumbnailUrl: string | undefined,
   post: {
     id: string;
     caption?: string;
@@ -232,7 +245,8 @@ export const sharePost = async (
       currentUser, 
       recipientId, 
       recipientUsername, 
-      recipientProfileImageUrl
+      recipientProfileImageUrl,
+      recipientProfileThumbnailUrl
     );
 
     // Add a message with the shared post

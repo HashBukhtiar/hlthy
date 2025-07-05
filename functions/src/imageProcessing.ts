@@ -130,3 +130,60 @@ export const generateWorkoutCoverThumbnail = onObjectFinalized({region: "us-east
     return null;
   }
 });
+
+export const generateProfileThumbnail = onObjectFinalized({
+  region: "us-east1",
+  ...runtimeOpts,
+}, async (event) => {
+  const {bucket: fileBucket, name: filePath, contentType} = event.data;
+
+  if (!filePath || !contentType) return null;
+
+  // Check if this is a profile image
+  if (!filePath.includes("profileImages/") || !contentType.startsWith("image/")) {
+    return null;
+  }
+
+  // Skip if already a thumbnail
+  if (path.basename(filePath).startsWith("thumb_")) {
+    return null;
+  }
+
+  const bucket = admin.storage().bucket(fileBucket);
+  const fileName = path.basename(filePath);
+  const tempFilePath = path.join(os.tmpdir(), fileName);
+
+  try {
+    await bucket.file(filePath).download({destination: tempFilePath});
+    // Create 150x150 profile thumbnail
+    const thumbFileName = `thumb_${fileName}`;
+    const thumbFilePath = path.join(os.tmpdir(), thumbFileName);
+    await sharp(tempFilePath)
+      .resize(150, 150, {fit: "cover"})
+      .jpeg({quality: 80})
+      .toFile(thumbFilePath);
+
+    const thumbUploadPath = path.join(path.dirname(filePath), thumbFileName);
+    await bucket.upload(thumbFilePath, {destination: thumbUploadPath});
+    const thumbUrl = await bucket.file(thumbUploadPath).getSignedUrl({
+      action: "read",
+      expires: "03-09-2491",
+    });
+
+    // Extract userId from path: profileImages/{userId}/filename.jpg
+    const userId = filePath.split("/")[1];
+    if (userId) {
+      await admin.firestore().doc(`users/${userId}`).update({
+        profileThumbnailUrl: thumbUrl[0],
+      });
+    }
+
+    // Cleanup
+    fs.unlinkSync(tempFilePath);
+    fs.unlinkSync(thumbFilePath);
+    return null;
+  } catch (error) {
+    console.error("Error processing profile thumbnail:", error);
+    return null;
+  }
+});
