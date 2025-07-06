@@ -29,16 +29,14 @@ export default function Landing() {
         style={[styles.gradient, { height: height + 100 }]} // Extended height
       />
       
-      {/* Aurora positioned lower on the screen */}
       <View style={styles.auroraContainer}>
         <SimplifiedAurora 
           colorStops={['#FF2D55', '#a434eb', '#5227FF']}
-          speed={0.2}
+          speed={0.6}
           intensity={1.2}
         />
       </View>
       
-      {/* Content container - with SafeAreaView for proper insets */}
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.content}>
           <View style={styles.centeredContent}>
@@ -70,6 +68,10 @@ export default function Landing() {
                 <Text style={[styles.buttonText, styles.loginButtonText]}>Login</Text>
               </TouchableOpacity>
             </View>
+
+            <View>
+                <View style={{ height: '15%' }} />
+            </View>
           </View>
         </View>
       </SafeAreaView>
@@ -91,7 +93,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    height: '50%', // Occupies the lower half of the screen
+    height: '60%',
     zIndex: 2,
   },
   safeArea: {
@@ -101,14 +103,15 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     padding: 20,
-    justifyContent: 'flex-end', // Pushes content to bottom half
-    paddingBottom: '30%', // Creates space from the bottom (positions content above center)
+    justifyContent: 'center', // Center content vertically
+    alignItems: 'center', // Center content horizontally
     zIndex: 10, // Higher z-index to ensure it's above all backgrounds
     backfaceVisibility: 'hidden', // Improves text rendering
   },
   centeredContent: {
     alignItems: 'center',
     justifyContent: 'center',
+    width: '100%',
   },
   logoContainer: {
     alignItems: 'center',
@@ -128,7 +131,7 @@ const styles = StyleSheet.create({
   taglineContainer: {
     alignItems: 'center',
     marginBottom: 40,
-    paddingHorizontal: 22,
+    paddingHorizontal: 20,
   },
   tagline: {
     fontSize: 24,
