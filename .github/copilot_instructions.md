@@ -207,13 +207,6 @@ interface ImageEntity {
 
 ---
 
-### In the "🤖 Copilot Behavior Guidelines" section, add to the "✅ Do" list:
-- Use `getOptimalImageUrl()` for all image displays in lists, feeds, and carousels
-- Include both `imageUrl` and `thumbnailUrl` properties in image-related interfaces
-- Prioritize performance with thumbnail usage in list views
-
----
-
 ## 🧠 Copilot Summary
 
 You are part of a lean, fast-moving dev team building a mobile-first app that combines community, fitness, and AI. Your code should:
