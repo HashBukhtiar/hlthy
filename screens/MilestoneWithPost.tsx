@@ -30,9 +30,6 @@ import {
     CaptionInput,
     WorkoutAttachment,
     WorkoutSelectionModal,
-    VisibilitySelector,
-    VisibilityModal,
-    visibilityItems,
     ImagePickerModal,
 } from './PostComponents';
 
@@ -481,11 +478,16 @@ export default function MilestoneWithPost({ onBack }: MilestoneWithPostProps) {
             }
 
             let authorArchetype = null;
+            let userVisibility = 'public'; // Default visibility
+            
             if (currentUser) {
                 const userDocRef = doc(db, 'users', currentUser.uid);
                 const userDocSnap = await getDoc(userDocRef);
                 if (userDocSnap.exists()) {
-                    authorArchetype = userDocSnap.data().archetype || null;
+                    const userData = userDocSnap.data();
+                    authorArchetype = userData.archetype || null;
+                    // Get user's default visibility preference from profile
+                    userVisibility = userData.defaultVisibility || 'public';
                 }
             }
 
@@ -494,7 +496,7 @@ export default function MilestoneWithPost({ onBack }: MilestoneWithPostProps) {
                 imageUri: imageUri ?? undefined,
                 isMilestone: true,
                 milestoneDetails: milestoneDetails,
-                visibility: (valueVisibility as 'public' | 'followers') || 'public',
+                visibility: userVisibility, // Use user's profile visibility preference
                 workoutId: selectedWorkout?.id || null,
                 authorArchetype: authorArchetype
             };
@@ -876,13 +878,6 @@ export default function MilestoneWithPost({ onBack }: MilestoneWithPostProps) {
                 workoutModalVisible={workoutModalVisible}
                 setWorkoutModalVisible={setWorkoutModalVisible}
                 selectWorkout={selectWorkout}
-            />
-            <VisibilityModal
-                visibilityModalVisible={visibilityModalVisible}
-                setVisibilityModalVisible={setVisibilityModalVisible}
-                valueVisibility={valueVisibility}
-                setValueVisibility={setValueVisibility}
-                itemsVisibility={visibilityItems}
             />
         </SafeAreaView>
     );

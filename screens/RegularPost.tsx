@@ -25,9 +25,6 @@ import {
     CaptionInput,
     WorkoutAttachment,
     WorkoutSelectionModal,
-    VisibilitySelector,
-    VisibilityModal,
-    visibilityItems,
     ImagePickerModal,
 } from './PostComponents';
 
@@ -60,7 +57,6 @@ export default function RegularPost({ onBack }: RegularPostProps) {
     const [selectedWorkout, setSelectedWorkout] = useState<any>(null);
     const [workoutModalVisible, setWorkoutModalVisible] = useState(false);
 
-
     const selectWorkout = (workout: any) => { 
         setSelectedWorkout(workout);
         setWorkoutModalVisible(false);
@@ -82,11 +78,16 @@ export default function RegularPost({ onBack }: RegularPostProps) {
             setFormError(null);
             
             let authorArchetype = null;
+            let userVisibility = 'public'; // Default visibility
+            
             if (currentUser) {
                 const userDocRef = doc(db, 'users', currentUser.uid);
                 const userDocSnap = await getDoc(userDocRef);
                 if (userDocSnap.exists()) {
-                    authorArchetype = userDocSnap.data().archetype || null;
+                    const userData = userDocSnap.data();
+                    authorArchetype = userData.archetype || null;
+                    // Get user's default visibility preference from profile
+                    userVisibility = userData.defaultVisibility || 'public';
                 }
             }
 
@@ -95,7 +96,7 @@ export default function RegularPost({ onBack }: RegularPostProps) {
                 imageUri,
                 isMilestone: false,
                 milestoneDetails: null,
-                visibility: valueVisibility || 'public',
+                visibility: userVisibility, // Use user's profile visibility preference
                 workoutId: selectedWorkout?.id,
                 authorArchetype: authorArchetype
             };
@@ -173,11 +174,19 @@ export default function RegularPost({ onBack }: RegularPostProps) {
                             setWorkoutModalVisible={setWorkoutModalVisible}
                             removeWorkout={removeWorkout}
                         />
+
+                        {/* Note about visibility */}
+                        <View style={styles.visibilityNote}>
+                            <Ionicons name="information-circle-outline" size={16} color="#999" />
+                            <Text style={styles.visibilityNoteText}>
+                                Posts use your profile's default visibility setting. Change it in Settings.
+                            </Text>
+                        </View>
                     </ScrollView>
                 </View>
             </KeyboardAvoidingView>
 
-            {/* MODALS MOVED OUTSIDE */}
+            {/* MODALS */}
             <ImagePickerModal
                 visible={imageMenuVisible}
                 onClose={() => setImageMenuVisible(false)}
@@ -188,13 +197,6 @@ export default function RegularPost({ onBack }: RegularPostProps) {
                 workoutModalVisible={workoutModalVisible}
                 setWorkoutModalVisible={setWorkoutModalVisible}
                 selectWorkout={selectWorkout}
-            />
-            <VisibilityModal
-                visibilityModalVisible={visibilityModalVisible}
-                setVisibilityModalVisible={setVisibilityModalVisible}
-                valueVisibility={valueVisibility}
-                setValueVisibility={setValueVisibility}
-                itemsVisibility={visibilityItems}
             />
         </SafeAreaView>
     );
