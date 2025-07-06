@@ -33,8 +33,8 @@ export default function Landing() {
             </View>
 
             <View style={styles.taglineContainer}>
-              <Text style={styles.tagline}>Your Personal Health Journey</Text>
-              <Text style={styles.subtagline}>Start your path to better health today</Text>
+              <Text style={styles.tagline}>Smarter Fitness Starts Here</Text>
+              <Text style={styles.subtagline}>Stay motivated, track progress, and grow together with AI-powered support.</Text>
             </View>
 
             <View style={styles.buttonContainer}>
