@@ -8,6 +8,8 @@ import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { getOptimalImageUrl } from '@/utils/imageUtils';
+import { CustomSelector, SelectorItem } from '@/components/CustomSelector';
+import { generateUniqueFilename } from '@/logic/idGenerator';
 
 interface DropdownItem {
   label: string;
@@ -57,12 +59,47 @@ const regionData: DropdownItem[] = [
   { label: 'Turkey', value: 'tr' },
 ];
 
+const archetypeData: SelectorItem[] = [
+  { 
+    label: 'Athlete', 
+    value: 'athlete', 
+    image: require('@/assets/images/athlete.png'),
+    description: 'Focused on athletic performance and competition'
+  },
+  { 
+    label: 'Bodybuilder', 
+    value: 'bodybuilder', 
+    image: require('@/assets/images/bodybuilder.png'),
+    description: 'Building muscle mass and definition'
+  },
+  { 
+    label: 'Crossfitter', 
+    value: 'crossfitter', 
+    image: require('@/assets/images/crossfitter.png'),
+    description: 'Functional fitness and varied workouts'
+  },
+  { 
+    label: 'Generalist', 
+    value: 'generalist', 
+    image: require('@/assets/images/generalist.png'),
+    description: 'Well-rounded fitness approach'
+  },
+  { 
+    label: 'Powerlifter', 
+    value: 'powerlifter', 
+    image: require('@/assets/images/powerlifter.png'),
+    description: 'Maximum strength in core lifts'
+  },
+];
+
 export default function Settings() {
   const { userProfile, currentUser, refreshUserProfile } = useAuth();
   const router = useRouter();
   const [displayName, setDisplayName] = useState(userProfile?.displayName || '');
   const [bio, setBio] = useState(userProfile?.bio || '');
   const [profileImage, setProfileImage] = useState(userProfile?.profileImageUrl);
+  const [archetype, setArchetype] = useState(userProfile?.archetype || '');
+  const [archetypeModalVisible, setArchetypeModalVisible] = useState(false);
   const [loading, setLoading] = useState(false);
   
   const handleLogout = async () => {
@@ -84,6 +121,7 @@ export default function Settings() {
       await updateDoc(doc(db, "users", currentUser.uid), {
         displayName,
         bio,
+        archetype,
         ...(profileImage !== userProfile?.profileImageUrl && { profileImageUrl: profileImage })
       });
       
@@ -132,7 +170,6 @@ export default function Settings() {
       
       // Create storage reference
       const storage = getStorage();
-      const storageRef = ref(storage, `profileImages/${currentUser.uid}/${Date.now()}.jpg`);
 
       // Add metadata to trigger thumbnail generation
       const metadata = {
@@ -141,6 +178,10 @@ export default function Settings() {
           type: 'profileImage'
         }
       };
+      const filename = generateUniqueFilename('profile', 'jpg');
+      const storageRef = ref(storage, `profileImages/${filename}`);
+      
+      console.log(`Uploading to simplified path: profileImages/${filename}`);
       
       try {
         // First attempt with blob
@@ -259,8 +300,17 @@ export default function Settings() {
       </View>
       
       <View style={styles.formGroup}>
-        <Text style={styles.label}>Archetype</Text>
-        <Text style={styles.staticText}>{userProfile?.archetype || 'Not set'}</Text>
+        <CustomSelector
+          items={archetypeData}
+          value={archetype}
+          onSelect={setArchetype}
+          placeholder="Select archetype"
+          title="Archetype"
+          icon="body"
+          modalVisible={archetypeModalVisible}
+          setModalVisible={setArchetypeModalVisible}
+          variant="fullWidth"
+        />
       </View>
       
       <TouchableOpacity 

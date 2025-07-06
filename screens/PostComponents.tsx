@@ -52,28 +52,6 @@ export interface DropdownItem {
     description?: string;
 }
 
-// Visibility options for all post types
-export const visibilityItems: DropdownItem[] = [
-    { 
-        label: 'Public', 
-        value: 'public',
-        icon: 'earth',
-        description: 'Anyone can see this post'
-    },
-    { 
-        label: 'Followers Only', 
-        value: 'followers',
-        icon: 'people',
-        description: 'Only your followers can see this post'
-    },
-    { 
-        label: 'Private', 
-        value: 'private',
-        icon: 'lock-closed',
-        description: 'Only you can see this post'
-    }
-];
-
 // Milestone-specific dropdown options
 export const milestoneItems: DropdownItem[] = [
     { label: 'PR', value: 'PR' },
@@ -536,104 +514,6 @@ export const WorkoutSelectionModal: React.FC<WorkoutSelectionModalProps> = ({
   );
 };
 
-// Visibility selector component
-export const VisibilitySelector = ({
-    valueVisibility,
-    setVisibilityModalVisible,
-    itemsVisibility
-}: {
-    valueVisibility: string | null;
-    setVisibilityModalVisible: (visible: boolean) => void;
-    itemsVisibility: DropdownItem[];
-}) => (
-    <View style={postComponentStyles.visibilityContainer}>
-        <View style={postComponentStyles.visibilityHeader}>
-            <Ionicons name="eye-outline" size={20} color="#FFF" />
-            <Text style={postComponentStyles.visibilityTitle}>Visibility</Text>
-        </View>
-        <TouchableOpacity 
-            style={postComponentStyles.visibilitySelector}
-            onPress={() => setVisibilityModalVisible(true)}
-        >
-            <View style={postComponentStyles.selectedVisibility}>
-                <Ionicons 
-                    name={itemsVisibility.find(item => item.value === valueVisibility)?.icon as any || 'earth'} 
-                    size={18} 
-                    color="#FFF" 
-                />
-                <Text style={postComponentStyles.selectedVisibilityText}>
-                    {itemsVisibility.find(item => item.value === valueVisibility)?.label || 'Public'}
-                </Text>
-            </View>
-            <Ionicons name="chevron-down" size={18} color="#999" />
-        </TouchableOpacity>
-    </View>
-);
-
-// Visibility Modal component
-export const VisibilityModal = ({
-    visibilityModalVisible,
-    setVisibilityModalVisible,
-    valueVisibility,
-    setValueVisibility,
-    itemsVisibility
-}: {
-    visibilityModalVisible: boolean;
-    setVisibilityModalVisible: (visible: boolean) => void;
-    valueVisibility: string | null;
-    setValueVisibility: (value: string) => void;
-    itemsVisibility: DropdownItem[];
-}) => (
-    <Modal
-        animationType="slide"
-        transparent={true}
-        visible={visibilityModalVisible}
-        onRequestClose={() => setVisibilityModalVisible(false)}
-    >
-        <TouchableOpacity 
-            style={postComponentStyles.modalOverlay}
-            activeOpacity={1}
-            onPress={() => setVisibilityModalVisible(false)}
-        >
-            <View style={postComponentStyles.visibilityModalContent}>
-                <Text style={postComponentStyles.visibilityModalTitle}>Post Visibility</Text>
-                
-                {itemsVisibility.map((item) => (
-                    <TouchableOpacity 
-                        key={item.value}
-                        style={[
-                            postComponentStyles.visibilityModalOption,
-                            valueVisibility === item.value && postComponentStyles.selectedVisibilityOption
-                        ]}
-                        onPress={() => {
-                            setValueVisibility(item.value);
-                            setVisibilityModalVisible(false);
-                        }}
-                    >
-                        <View style={postComponentStyles.visibilityOptionHeader}>
-                            <Ionicons name={item.icon as any} size={22} color={valueVisibility === item.value ? SECONDARY_COLOR : "#FFF"} />
-                            <Text style={[
-                                postComponentStyles.visibilityOptionLabel,
-                                valueVisibility === item.value && postComponentStyles.selectedVisibilityOptionText
-                            ]}>
-                                {item.label}
-                            </Text>
-                        </View>
-                        <Text style={postComponentStyles.visibilityOptionDescription}>{item.description}</Text>
-                    </TouchableOpacity>
-                ))}
-                
-                <TouchableOpacity 
-                    style={postComponentStyles.cancelButton}
-                    onPress={() => setVisibilityModalVisible(false)}
-                >
-                    <Text style={postComponentStyles.cancelButtonText}>Close</Text>
-                </TouchableOpacity>
-            </View>
-        </TouchableOpacity>
-    </Modal>
-);
-
 // Milestone Field Components
 export const PRFields = ({
     exerciseSearch,
@@ -1074,47 +954,6 @@ const postComponentStyles = StyleSheet.create({
         marginTop: 8,
     },
 
-    // Visibility section
-    visibilityContainer: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingHorizontal: 16,
-        paddingVertical: 16,
-        borderTopWidth: 1,
-        borderTopColor: '#222',
-    },
-    visibilityHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    visibilityTitle: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: '#FFF',
-        marginLeft: 8,
-    },
-    visibilitySelector: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#111',
-        borderRadius: 8,
-        padding: 10,
-        paddingHorizontal: 12,
-        borderWidth: 1,
-        borderColor: '#333',
-    },
-    selectedVisibility: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginRight: 8,
-    },
-    selectedVisibilityText: {
-        color: '#FFF',
-        marginLeft: 6,
-        fontSize: 14,
-    },
-
     // Image modal
     modalOverlay: {
         flex: 1,
@@ -1271,73 +1110,6 @@ const postComponentStyles = StyleSheet.create({
         paddingVertical: 10,
         fontSize: 16,
         marginBottom: 15,
-    },
-
-    // Visibility modal styles
-    visibilityModalContent: {
-        backgroundColor: '#111',
-        borderTopLeftRadius: 24,
-        borderTopRightRadius: 24,
-        padding: 24,
-    },
-    visibilityModalTitle: {
-        fontSize: 20,
-        fontWeight: 'bold',
-        color: '#FFF',
-        marginBottom: 20,
-        textAlign: 'center',
-    },
-    visibilityModalOption: {
-        padding: 16,
-        backgroundColor: '#1D1D1D',
-        marginBottom: 12,
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor: '#333',
-    },
-    selectedVisibilityOption: {
-        borderColor: SECONDARY_COLOR,
-        backgroundColor: SECONDARY_COLOR_LIGHT,
-    },
-    visibilityOptionHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 6,
-    },
-    visibilityOptionLabel: {
-        color: '#FFF',
-        fontSize: 16,
-        fontWeight: '600',
-        marginLeft: 10,
-    },
-    selectedVisibilityOptionText: {
-        color: SECONDARY_COLOR,
-    },
-    visibilityOptionDescription: {
-        color: '#999',
-        fontSize: 14,
-        marginLeft: 32,
-    },
-    visibilityItem: {
-        padding: 12,
-        flexDirection: 'column',
-    },
-    visibilityItemLeft: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 4,
-    },
-    visibilityIcon: {
-        marginRight: 8,
-    },
-    visibilityLabel: {
-        color: '#FFF',
-        fontSize: 16,
-    },
-    visibilityDescription: {
-        color: '#999',
-        fontSize: 12,
-        paddingLeft: 28,
     },
 
     // Milestone attachment

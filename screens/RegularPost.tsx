@@ -45,8 +45,6 @@ export default function RegularPost({ onBack }: RegularPostProps) {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [formError, setFormError] = useState<string | null>(null);
     const [caption, setCaption] = useState('');
-    const [valueVisibility, setValueVisibility] = useState<string | null>('public');
-    const [visibilityModalVisible, setVisibilityModalVisible] = useState(false);
     
     // Image picker state
     const [imageUri, setImageUri] = useState<string | null>(null);
@@ -174,13 +172,6 @@ export default function RegularPost({ onBack }: RegularPostProps) {
                             selectedWorkout={selectedWorkout}
                             setWorkoutModalVisible={setWorkoutModalVisible}
                             removeWorkout={removeWorkout}
-                        />
-
-                        {/* Visibility options */}
-                        <VisibilitySelector
-                            valueVisibility={valueVisibility}
-                            setVisibilityModalVisible={setVisibilityModalVisible}
-                            itemsVisibility={visibilityItems}
                         />
                     </ScrollView>
                 </View>

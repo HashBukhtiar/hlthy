@@ -50,8 +50,6 @@ export default function MilestoneWithPost({ onBack }: MilestoneWithPostProps) {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [formError, setFormError] = useState<string | null>(null);
     const [caption, setCaption] = useState('');
-    const [valueVisibility, setValueVisibility] = useState<string | null>('public');
-    const [visibilityModalVisible, setVisibilityModalVisible] = useState(false);
     
     // Previous PR data
     const [previousPR, setPreviousPR] = useState<PreviousPRData | null>(null);
@@ -862,13 +860,6 @@ export default function MilestoneWithPost({ onBack }: MilestoneWithPostProps) {
                             selectedWorkout={selectedWorkout}
                             setWorkoutModalVisible={setWorkoutModalVisible}
                             removeWorkout={removeWorkout}
-                        />
-
-                        {/* Visibility options */}
-                        <VisibilitySelector
-                            valueVisibility={valueVisibility}
-                            setVisibilityModalVisible={setVisibilityModalVisible}
-                            itemsVisibility={visibilityItems}
                         />
                     </ScrollView>
                 </View>

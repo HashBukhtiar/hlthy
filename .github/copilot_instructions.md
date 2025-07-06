@@ -89,7 +89,7 @@ The hlthy app includes a built-in AI assistant that supports users by providing 
 ## 🎨 UI/UX Guidelines
 
 - Clean, minimal, and sleek.
-- Visuals: dark theme with white icons and pink accents and orange-pink-purple gradients for emphasis.
+- Visuals: dark theme with white icons and #FF2D55 accents and orange-pink-purple gradients for emphasis.
 - Pages must feel breathable, not cluttered.
 - Progress is shown using graphical elements where possible: progress bars, checkmarks, completion rings.
 - Responsive for mobile-first interactions.

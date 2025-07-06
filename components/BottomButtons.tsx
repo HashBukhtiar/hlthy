@@ -77,6 +77,20 @@ function BottomButtons() {
     router.push('/profile');
   }, [router]);
 
+  // Hide bottom bar on specific routes (after all hooks are called)
+  if (pathname === '/create-workout' || 
+      pathname?.includes('/settings') || 
+      pathname?.includes('/view-post') ||
+      pathname?.includes('/signup') ||
+      pathname?.includes('/select-archetype') ||
+      pathname?.includes('/landing') ||
+      pathname?.includes('/login') ||
+      pathname?.includes('/chat') ||
+      pathname?.includes('/forgot-password') ||
+      pathname?.includes('/view-milestone')) {
+    return null;
+  }
+
   return (
     <View 
       style={[

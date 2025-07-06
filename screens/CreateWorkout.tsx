@@ -8,10 +8,9 @@ import {
   ScrollView, 
   Image,
   Alert,
-  Switch,
   ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform
+  Modal,
+  Animated
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import globalStyles from '@/styles/globalStyles';
@@ -21,6 +20,34 @@ import { useAuth } from '@/context/AuthContext';
 import { db, storage } from '@/firebaseConfig';
 import { addDoc, collection, serverTimestamp, doc, updateDoc, increment } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import SelectExercise from './SelectExercise';
+import { Exercise } from '@/data/exercises';
+import { CustomSelector, SelectorItem } from '@/components/CustomSelector';
+import { generateId, generateUniqueFilename } from '@/logic/idGenerator';
+
+// Visibility options for workouts
+const visibilityItems: SelectorItem[] = [
+    { 
+        label: 'Public', 
+        value: 'public',
+        icon: 'earth',
+        description: 'Anyone can see this workout'
+    },
+    { 
+        label: 'Followers Only', 
+        value: 'followers',
+        icon: 'people',
+        description: 'Only your followers can see this workout'
+    },
+    { 
+        label: 'Private', 
+        value: 'private',
+        icon: 'lock-closed',
+        description: 'Only you can see this workout'
+    }
+];
+
+
 
 interface WorkoutExercise {
   id: string;
@@ -44,16 +71,76 @@ export default function CreateWorkout() {
   const [coverImage, setCoverImage] = useState<string | null>(null);
   const [segments, setSegments] = useState<WorkoutSegment[]>([
     {
-      id: Date.now().toString(),
+      id: generateId(),
       name: 'Warm Up',
       length: '15',
       exercises: []
     }
   ]);
-  const [isPublic, setIsPublic] = useState(true);
+  const [visibility, setVisibility] = useState<string>('public');
+  const [visibilityModalVisible, setVisibilityModalVisible] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [showExerciseSelector, setShowExerciseSelector] = useState(false);
+  const [currentSegmentId, setCurrentSegmentId] = useState<string | null>(null);
+  const [currentExerciseId, setCurrentExerciseId] = useState<string | null>(null);
+  const [titleFocused, setTitleFocused] = useState(false);
+  const [descriptionFocused, setDescriptionFocused] = useState(false);
 
   const scrollViewRef = useRef<ScrollView>(null);
+  const descriptionInputRef = useRef<TextInput>(null);
+  const borderAnimation = useRef(new Animated.Value(0)).current;
+  const descriptionAnimation = useRef(new Animated.Value(0)).current;
+
+  const animateBorderIn = () => {
+    setTitleFocused(true);
+    Animated.timing(borderAnimation, {
+      toValue: 1,
+      duration: 200,
+      useNativeDriver: false,
+    }).start();
+  };
+
+  const animateBorderOut = () => {
+    setTitleFocused(false);
+    Animated.timing(borderAnimation, {
+      toValue: 0,
+      duration: 200,
+      useNativeDriver: false,
+    }).start();
+  };
+
+  const animatedBorderOpacity = borderAnimation.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.2, 0.8],
+  });
+
+  const animateDescriptionIn = () => {
+    setDescriptionFocused(true);
+    Animated.timing(descriptionAnimation, {
+      toValue: 1,
+      duration: 200,
+      useNativeDriver: false,
+    }).start();
+  };
+
+  const animateDescriptionOut = () => {
+    setDescriptionFocused(false);
+    Animated.timing(descriptionAnimation, {
+      toValue: 0,
+      duration: 200,
+      useNativeDriver: false,
+    }).start();
+  };
+
+  const animatedDescriptionBorder = descriptionAnimation.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0.3)'],
+  });
+
+  const animatedDescriptionBackground = descriptionAnimation.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['rgba(255, 255, 255, 0.05)', 'rgba(255, 255, 255, 0.08)'],
+  });
 
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -69,25 +156,55 @@ export default function CreateWorkout() {
   };
 
   const addExercise = (segmentId: string) => {
+    setCurrentSegmentId(segmentId);
+    setCurrentExerciseId(null); // null means adding new exercise
+    setShowExerciseSelector(true);
+  };
+
+  const editExercise = (segmentId: string, exerciseId: string) => {
+    setCurrentSegmentId(segmentId);
+    setCurrentExerciseId(exerciseId); // specific ID means editing existing exercise
+    setShowExerciseSelector(true);
+  };
+
+  const handleSelectExercise = (exercise: Exercise) => {
+    if (!currentSegmentId) return;
+    
     const updatedSegments = segments.map(segment => {
-      if (segment.id === segmentId) {
-        return {
-          ...segment,
-          exercises: [
-            ...segment.exercises,
-            {
-              id: Date.now().toString(),
-              name: '',
-              sets: '',
-              reps: ''
-            }
-          ]
-        };
+      if (segment.id === currentSegmentId) {
+        if (currentExerciseId) {
+          // Update existing exercise
+          return {
+            ...segment,
+            exercises: segment.exercises.map(ex => 
+              ex.id === currentExerciseId 
+                ? { ...ex, name: exercise.name }
+                : ex
+            )
+          };
+        } else {
+          // Add new exercise
+          return {
+            ...segment,
+            exercises: [
+              ...segment.exercises,
+              {
+                id: generateId(),
+                name: exercise.name,
+                sets: '',
+                reps: ''
+              }
+            ]
+          };
+        }
       }
       return segment;
     });
     
     setSegments(updatedSegments);
+    setShowExerciseSelector(false);
+    setCurrentSegmentId(null);
+    setCurrentExerciseId(null);
     
     // Scroll down after adding exercise
     setTimeout(() => {
@@ -97,7 +214,7 @@ export default function CreateWorkout() {
 
   const addSegment = () => {
     const newSegment = {
-      id: Date.now().toString(),
+      id: generateId(),
       name: 'New Segment',
       length: '30',
       exercises: []
@@ -193,7 +310,7 @@ export default function CreateWorkout() {
       if (coverImage) {
         const response = await fetch(coverImage);
         const blob = await response.blob();
-        const imageName = `workoutCovers/${currentUser.uid}/${Date.now()}-${title.replace(/\s+/g, '_')}.jpg`;
+        const imageName = `workoutCovers/${currentUser.uid}/${generateUniqueFilename(title.replace(/\s+/g, '_'), 'jpg')}`;
         const storageRef = ref(storage, imageName);
         
         // First save the workout to get the workoutId
@@ -216,6 +333,7 @@ export default function CreateWorkout() {
           })).filter(seg => seg.exercises.length > 0 || seg.name.trim() !== ''),
           createdAt: serverTimestamp(),
           isPublic: isPublic,
+          visibility: isPublic ? 'public' : 'private',
           savedCount: 0,
           tags: [],
         };
@@ -259,6 +377,7 @@ export default function CreateWorkout() {
           })).filter(seg => seg.exercises.length > 0 || seg.name.trim() !== ''),
           createdAt: serverTimestamp(),
           isPublic: isPublic,
+          visibility: isPublic ? 'public' : 'private',
           savedCount: 0,
           tags: [],
         };
@@ -272,8 +391,6 @@ export default function CreateWorkout() {
       await updateDoc(userDocRef, {
         'stats.workoutCount': increment(1)
       });
-      // If 'stats' or 'workoutCount' might not exist, we might need a transaction or set with merge:true
-      // For simplicity, increment assumes the path exists or can be created by Firestore.
 
       Alert.alert(
         'Workout Created',
@@ -314,58 +431,106 @@ export default function CreateWorkout() {
         showsVerticalScrollIndicator={false}
         keyboardDismissMode='on-drag'
       >
-        {/* Cover Image */}
-        <TouchableOpacity style={styles.imageContainer} onPress={pickImage}>
-          {coverImage ? (
-            <Image source={{ uri: coverImage }} style={styles.coverImage} />
-          ) : (
-            <View style={styles.imagePlaceholder}>
-              <Ionicons name="image-outline" size={40} color="#666" />
-              <Text style={styles.placeholderText}>Add Cover Image</Text>
-            </View>
-          )}
-        </TouchableOpacity>
+        {/* Workout Details Section */}
+        <View style={styles.mainSection}>
+          {/* Cover Image */}
+          <TouchableOpacity style={styles.imageContainer} onPress={pickImage}>
+            {coverImage ? (
+              <Image source={{ uri: coverImage }} style={styles.coverImage} />
+            ) : (
+              <View style={styles.imagePlaceholder}>
+                <Ionicons name="image-outline" size={40} color="#666" />
+                <Text style={styles.placeholderText}>Add Cover Image</Text>
+              </View>
+            )}
+          </TouchableOpacity>
 
-        {/* Title Input */}
-        <View style={styles.inputContainer}>
-          <Text style={styles.inputLabel}>Title</Text>
-          <TextInput
-            style={styles.textInput}
-            value={title}
-            onChangeText={setTitle}
-            placeholder="Workout Title"
-            placeholderTextColor="#666"
-            maxLength={40}
-          />
-        </View>
+          {/* Title Input */}
+          <View style={styles.inputContainer}>
+            <Animated.View
+              style={[
+                styles.transparentTextInput,
+                {
+                  borderBottomWidth: 2,
+                  borderBottomColor: animatedBorderOpacity.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: ['rgba(255, 255, 255, 0.2)', 'rgba(255, 255, 255, 0.8)']
+                  })
+                }
+              ]}
+            >
+              <TextInput
+                style={styles.animatedTextInput}
+                value={title}
+                onChangeText={setTitle}
+                placeholder="Workout Title"
+                placeholderTextColor="rgba(255, 255, 255, 0.3)"
+                maxLength={40}
+                onFocus={animateBorderIn}
+                onBlur={animateBorderOut}
+              />
+            </Animated.View>
+          </View>
 
-        {/* Description Input */}
-        <View style={styles.inputContainer}>
-          <Text style={styles.inputLabel}>Description</Text>
-          <TextInput
-            style={[styles.textInput, styles.textAreaInput]}
-            value={description}
-            onChangeText={setDescription}
-            placeholder="Describe your workout..."
-            placeholderTextColor="#666"
-            multiline
-            numberOfLines={4}
-          />
-        </View>
-
-        {/* Public/Private Switch */}
-        <View style={styles.inputContainer}>
-          <Text style={styles.inputLabel}>Visibility</Text>
-          <View style={styles.switchContainer}>
-            <Text style={styles.switchLabel}>{isPublic ? 'Public' : 'Private'}</Text>
-            <Switch
-              trackColor={{ false: "#3e3e3e", true: "#ff2d55" }}
-              thumbColor={isPublic ? "#f4f3f4" : "#f4f3f4"}
-              ios_backgroundColor="#3e3e3e"
-              onValueChange={setIsPublic}
-              value={isPublic}
-              disabled={isSaving}
+          {/* Description Input */}
+          <View style={styles.descriptionContainer}>
+            <Animated.View 
+              style={[
+                styles.descriptionWrapper,
+                {
+                  borderColor: animatedDescriptionBorder,
+                  backgroundColor: animatedDescriptionBackground,
+                }
+              ]}
+            >
+              <View style={styles.descriptionHeader}>
+                <Ionicons name="document-text-outline" size={16} color="rgba(255, 255, 255, 0.6)" />
+                <Text style={styles.descriptionLabel}>Description</Text>
+                <Text style={styles.descriptionOptional}>Optional</Text>
+              </View>
+              <TextInput
+                ref={descriptionInputRef}
+                style={styles.descriptionInput}
+                value={description}
+                onChangeText={setDescription}
+                placeholder="Tell others what makes this workout special..."
+                placeholderTextColor="rgba(255, 255, 255, 0.4)"
+                multiline
+                numberOfLines={4}
+                maxLength={200}
+                onFocus={animateDescriptionIn}
+                onBlur={animateDescriptionOut}
+              />
+              <View style={styles.descriptionFooter}>
+                <Text style={styles.characterCount}>
+                  {description.length}/200
+                </Text>
+              </View>
+            </Animated.View>
+          </View>
+          
+          {/* Visibility Setting */}
+          <View style={styles.visibilityContainer}>
+            <CustomSelector
+              items={visibilityItems}
+              value={visibility}
+              onSelect={setVisibility}
+              placeholder="Select visibility"
+              title="Visibility"
+              icon="eye-outline"
+              modalVisible={visibilityModalVisible}
+              setModalVisible={setVisibilityModalVisible}
+              variant="fullWidth"
             />
+          </View>
+        </View>
+        
+        {/* Workout Structure Section */}
+        <View style={styles.mainSection}>
+          <View style={styles.sectionContainer}>
+            <View style={styles.sectionHeader}>
+              <Ionicons name="barbell-outline" size={20} color="#FFF" />
+              <Text style={styles.sectionTitle}>Workout Structure</Text>
           </View>
         </View>
 
@@ -417,14 +582,14 @@ export default function CreateWorkout() {
                   </View>
                   
                   <View style={styles.exerciseInputContainer}>
-                    <TextInput
-                      style={styles.exerciseNameInput}
-                      value={exercise.name}
-                      onChangeText={(value) => updateExercise(segment.id, exercise.id, 'name', value)}
-                      placeholder="Exercise name"
-                      placeholderTextColor="#666"
-                      editable={!isSaving}
-                    />
+                    <TouchableOpacity 
+                      onPress={() => !isSaving && editExercise(segment.id, exercise.id)}
+                      disabled={isSaving}
+                    >
+                      <Text style={[styles.exerciseNameInput, !exercise.name && styles.exerciseNamePlaceholder]}>
+                        {exercise.name || 'Tap to select exercise'}
+                      </Text>
+                    </TouchableOpacity>
                     <View style={styles.exerciseDetailsContainer}>
                       <TextInput
                         style={styles.exerciseDetailInput}
@@ -463,8 +628,8 @@ export default function CreateWorkout() {
                 onPress={() => !isSaving && addExercise(segment.id)}
                 disabled={isSaving}
               >
-                <Ionicons name="add-circle-outline" size={18} color="white" />
-                <Text style={styles.addExerciseText}>Add Exercise</Text>
+                <Ionicons name="search-outline" size={18} color="white" />
+                <Text style={styles.addExerciseText}>Browse Exercises</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -478,10 +643,27 @@ export default function CreateWorkout() {
           <Ionicons name="add-circle-outline" size={20} color="white" />
           <Text style={styles.addSegmentText}>Add Segment</Text>
         </TouchableOpacity>
+        </View>
         
         {/* Bottom space for scrolling */}
         <View style={styles.bottomSpace} />
       </ScrollView>
+
+      {/* Exercise Selector Modal */}
+      <Modal
+        visible={showExerciseSelector}
+        animationType="slide"
+        presentationStyle="fullScreen"
+      >
+        <SelectExercise
+          onSelectExercise={handleSelectExercise}
+          onBack={() => {
+            setShowExerciseSelector(false);
+            setCurrentSegmentId(null);
+            setCurrentExerciseId(null);
+          }}
+        />
+      </Modal>
     </View>
   );
 }
@@ -514,8 +696,14 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'black'
   },
+  mainSection: {
+    marginBottom: 30,
+    paddingBottom: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+  },
   imageContainer: {
-    width: '80%',
+    width: '60%',
     aspectRatio: 1,
     alignSelf: 'center',
     marginVertical: 20,
@@ -541,6 +729,58 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
     marginBottom: 20,
   },
+  descriptionContainer: {
+    marginHorizontal: 20,
+    marginBottom: 30,
+    marginTop: 15,
+  },
+  descriptionWrapper: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    padding: 16,
+  },
+  descriptionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  descriptionLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: 'rgba(255, 255, 255, 0.8)',
+    marginLeft: 6,
+    flex: 1,
+  },
+  descriptionOptional: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.5)',
+    fontStyle: 'italic',
+  },
+  descriptionInput: {
+    backgroundColor: 'transparent',
+    borderRadius: 0,
+    padding: 0,
+    color: 'white',
+    fontSize: 15,
+    fontWeight: 'normal',
+    minHeight: 80,
+    textAlignVertical: 'top',
+    lineHeight: 22,
+  },
+  descriptionFooter: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  characterCount: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.5)',
+  },
   inputLabel: {
     color: '#ccc',
     fontSize: 16,
@@ -553,6 +793,34 @@ const styles = StyleSheet.create({
     padding: 15,
     color: 'white',
     fontSize: 16,
+  },
+  transparentTextInput: {
+    backgroundColor: 'transparent',
+    borderRadius: 0,
+    padding: 15,
+    paddingHorizontal: 20,
+    borderBottomWidth: 2,
+    borderBottomColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  animatedTextInput: {
+    color: 'white',
+    fontSize: 28,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    backgroundColor: 'transparent',
+    padding: 0,
+  },
+  transparentTextInputFocused: {
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.8)',
+  },
+  transparentTextAreaInput: {
+    fontSize: 16,
+    fontWeight: 'normal',
+    minHeight: 100,
+    textAlignVertical: 'top',
+    borderBottomWidth: 0,
+    paddingTop: 10,
   },
   textAreaInput: {
     minHeight: 100,
@@ -631,6 +899,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginBottom: 5,
   },
+  exerciseNamePlaceholder: {
+    color: '#666',
+    fontStyle: 'italic',
+  },
   exerciseDetailsContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -685,17 +957,25 @@ const styles = StyleSheet.create({
   disabledButton: {
     opacity: 0.5,
   },
-  switchContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#222',
-    borderRadius: 10,
-    paddingHorizontal: 15,
-    paddingVertical: 10,
+  // Visibility section styles
+  visibilityContainer: {
+    marginHorizontal: 20,
+    marginBottom: 15,
   },
-  switchLabel: {
-    color: 'white',
-    fontSize: 16,
+  // Section styles
+  sectionContainer: {
+    marginHorizontal: 20,
+    marginBottom: 15,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#FFF',
+    marginLeft: 8,
   },
 });
