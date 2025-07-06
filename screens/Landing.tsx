@@ -50,21 +50,25 @@ export default function Landing() {
     setShowLogin(true);
     Animated.timing(slideAnim, {
       toValue: 1,
-      duration: 250, // Reduced from 300ms
+      duration: 250,
       useNativeDriver: true,
     }).start();
   }, [slideAnim]);
 
   const handleBackToLanding = useCallback(() => {
+    // Dismiss keyboard first
+    Keyboard.dismiss();
+    
     Animated.timing(slideAnim, {
       toValue: 0,
-      duration: 250, // Reduced from 300ms
+      duration: 250,
       useNativeDriver: true,
     }).start(() => {
       setShowLogin(false);
       setErrorMessage('');
       setEmailAddress('');
       setPassword('');
+      setIsEmailValid(true);
     });
   }, [slideAnim]);
 
@@ -230,7 +234,7 @@ export default function Landing() {
                         label="Email Address"
                         value={emailAddress}
                         onChangeText={setEmailAddress}
-                        onBlur={() => setIsEmailValid(isValidEmail(emailAddress))}
+                        onBlur={() => setIsEmailValid(emailAddress === '' || isValidEmail(emailAddress))}
                         style={styles.modernInput}
                         mode="outlined"
                         theme={{ 
