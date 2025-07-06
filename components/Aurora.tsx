@@ -2,17 +2,17 @@ import React, { useEffect, useRef } from 'react';
 import { StyleSheet, View, Animated, Dimensions, Easing } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
-interface OptimizedAuroraProps {
+interface AuroraProps {
   colorStops?: string[];
   speed?: number;
   intensity?: number;
 }
 
-export default function OptimizedAurora({ 
+export default function Aurora({ 
   colorStops = ['#FF2D55', '#a434eb', '#5227FF'],
   speed = 1.0,
   intensity = 1.0
-}: OptimizedAuroraProps) {
+}: AuroraProps) {
   const { width, height } = Dimensions.get('window');
   
   // Create continuous rotation values - all other animations derive from these

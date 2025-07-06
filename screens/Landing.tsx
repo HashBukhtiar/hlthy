@@ -21,7 +21,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Button, TextInput } from 'react-native-paper';
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from '@/firebaseConfig';
-import OptimizedAurora from '@/components/OptimizedAurora';
+import Aurora from '@/components/Aurora';
 import { useScreenIsFocused } from '@/hooks/useScreenIsFocused';
 
 export default function Landing() {
@@ -151,7 +151,7 @@ export default function Landing() {
       
       <View style={styles.auroraContainer}>
         {isFocused && (
-          <OptimizedAurora 
+          <Aurora 
             colorStops={['#FF2D55', '#a434eb', '#5227FF']}
             speed={0.8}
             intensity={1.2}
