@@ -237,12 +237,6 @@ export default function ForgotPasswordForm({ visible, onBackPress, onBackToLogin
           
           {/* Footer buttons - locked at bottom */}
           <View style={styles.forgotPasswordFooterFixed}>
-            {onBackToLogin && (
-              <TouchableOpacity onPress={onBackToLogin} activeOpacity={0.7}>
-                <Text style={styles.linkText}>Remember your password? <Text style={styles.linkTextBold}>Back to Login</Text></Text>
-              </TouchableOpacity>
-            )}
-            
             <TouchableOpacity onPress={() => router.push('/signup')} activeOpacity={0.7}>
               <Text style={styles.linkText}>Don't have an account? <Text style={styles.linkTextBold}>Sign Up</Text></Text>
             </TouchableOpacity>
