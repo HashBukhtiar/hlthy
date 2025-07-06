@@ -31,6 +31,7 @@ export interface Post {
   authorId: string;
   authorUsername: string;
   authorProfileImageUrl: string;
+  authorProfileThumbnailUrl?: string;
   caption: string;
   imageUrl: string;
   thumbnailUrl?: string | null;

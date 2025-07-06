@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { 
   StyleSheet, 
   Text, 
@@ -18,6 +18,8 @@ import { useFeedData } from '@/hooks/useFeedData';
 import { usePostsData, Post } from '@/hooks/usePostsData';
 import { useAuth } from '@/context/AuthContext';
 
+const DEFAULT_PROFILE_IMAGE = 'https://thumbs.dreamstime.com/b/creative-illustration-default-avatar-profile-placeholder-isolated-background-art-design-grey-photo-blank-template-mockup-144855718.jpg';
+
 export default function PostsFeed() {
   const router = useRouter();
   const { currentUser, userProfile } = useAuth();
@@ -28,18 +30,28 @@ export default function PostsFeed() {
   const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
   const [submittingComment, setSubmittingComment] = useState(false);
 
-  // Filter posts to exclude milestone-only posts
-  // Only show: regular posts (not milestones) OR achievement posts (posts with both content AND milestones)
-  const posts = allPosts.filter(post => {
-    // If it's not a milestone, include it (regular post)
-    if (!post.isMilestone) {
-      return true;
-    }
+  // Filter posts to exclude milestone-only posts AND remove duplicates
+  const posts = useMemo(() => {
+    const seenIds = new Set<string>();
     
-    // If it's a milestone, only include it if it has additional content (achievement post)
-    // Achievement posts have both milestone data AND (image OR caption)
-    return post.imageUrl || (post.caption && post.caption.trim() !== '');
-  });
+    return allPosts.filter(post => {
+      // Skip if we've already seen this post ID
+      if (seenIds.has(post.id)) {
+        console.warn(`Duplicate post found and removed: ${post.id}`);
+        return false;
+      }
+      seenIds.add(post.id);
+      
+      // If it's not a milestone, include it (regular post)
+      if (!post.isMilestone) {
+        return true;
+      }
+      
+      // If it's a milestone, only include it if it has additional content (achievement post)
+      // Achievement posts have both milestone data AND (image OR caption)
+      return post.imageUrl || (post.caption && post.caption.trim() !== '');
+    });
+  }, [allPosts]);
 
   // Handle image click to view full post
   const handleViewPost = useCallback((postId: string) => {
@@ -148,7 +160,9 @@ export default function PostsFeed() {
           onPress={() => navigateToProfile(item.authorId)}
         >
           <Image 
-            source={{ uri: getOptimalImageUrl(item.authorProfileImageUrl, item.authorProfileImageUrl) }} 
+            source={{ 
+              uri: getOptimalImageUrl(item.authorProfileThumbnailUrl, item.authorProfileImageUrl) || DEFAULT_PROFILE_IMAGE
+            }} 
             style={styles.profilePic} 
           />
           <View>
@@ -170,7 +184,7 @@ export default function PostsFeed() {
           onPress={() => handleViewPost(item.id)}
         >
           <Image 
-            source={{ uri: getOptimalImageUrl(item.thumbnailUrl, item.imageUrl) }} 
+            source={{ uri: getOptimalImageUrl(item.thumbnailUrl, item.imageUrl) || item.imageUrl }} 
             style={styles.postImage} 
           />
         </TouchableOpacity>
@@ -235,7 +249,9 @@ export default function PostsFeed() {
       {activeCommentId === item.id && (
         <View style={styles.commentInputContainer}>
           <Image 
-            source={{ uri: getOptimalImageUrl(userProfile?.profileImageUrl, userProfile?.profileImageUrl) }} 
+            source={{ 
+              uri: getOptimalImageUrl(userProfile?.profileThumbnailUrl, userProfile?.profileImageUrl) || DEFAULT_PROFILE_IMAGE
+            }} 
             style={styles.commentInputProfilePic} 
           />
           <TextInput
@@ -381,7 +397,7 @@ export default function PostsFeed() {
     <FlatList
       data={posts}
       renderItem={renderPost}
-      keyExtractor={(item) => item.id}
+      keyExtractor={(item, index) => `${item.id}-${index}`}
       showsVerticalScrollIndicator={false}
       contentContainerStyle={posts.length === 0 ? styles.emptyContainer : styles.postsContainer}
       refreshControl={
