@@ -203,121 +203,112 @@ export default function Landing() {
 
           {/* Login Content */}
           <Animated.View style={[styles.slideView, loginTransform]}>
+            {/* Back button - locked at top */}
+            <TouchableOpacity 
+              style={styles.backButtonTop}
+              onPress={handleBackToLanding}
+            >
+              <Text style={styles.backButtonText}>←</Text>
+            </TouchableOpacity>
+
             <KeyboardAvoidingView 
               behavior={Platform.OS === "ios" ? "padding" : "height"}
               style={styles.loginContainer}
             >
               <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-                <ScrollView 
-                  contentContainerStyle={styles.loginScrollContainer}
-                  keyboardShouldPersistTaps="handled"
-                >
+                <View style={styles.loginFullContainer}>
                   {loading && (
                     <View style={styles.loadingOverlay}>
                       <ActivityIndicator size="large" color="#FFFFFF" />
                       <Text style={styles.loadingText}>Logging in...</Text>
                     </View>
                   )}
-
-                  <View style={styles.loginLogoContainer}>
-                    <Image
-                      style={styles.loginLogo}
-                      source={require('@/assets/images/logo-dark.png')}
-                    />
+                  
+                  {/* Centered login content */}
+                  <View style={styles.loginCenteredContent}>
+                    <View style={styles.loginHeader}>
+                      <Text style={styles.loginTitle}>Welcome Back</Text>
+                      <Text style={styles.loginSubtitle}>Sign in to continue your fitness journey</Text>
+                    </View>
+                  
+                    <View style={styles.formContainer}>
+                      <TextInput
+                        label="Email Address"
+                        value={emailAddress}
+                        onChangeText={setEmailAddress}
+                        onBlur={() => setIsEmailValid(isValidEmail(emailAddress))}
+                        style={styles.modernInput}
+                        mode="outlined"
+                        theme={{ 
+                          colors: { 
+                            primary: '#FFFFFF', 
+                            background: 'transparent',
+                            onSurfaceVariant: '#AAAAAA',
+                            outline: '#333333',
+                            error: '#FF5555'
+                          }
+                        }}
+                        autoCapitalize='none'
+                        keyboardType="email-address"
+                        textColor='#FFFFFF'
+                        error={!isEmailValid}
+                        outlineColor="#333333"
+                        activeOutlineColor="#FFFFFF"
+                      />
+                      
+                      <TextInput
+                        label="Password"
+                        value={password}
+                        onChangeText={setPassword}
+                        secureTextEntry
+                        style={styles.modernInput}
+                        mode="outlined"
+                        theme={{ 
+                          colors: { 
+                            primary: '#FFFFFF', 
+                            background: 'transparent',
+                            onSurfaceVariant: '#AAAAAA',
+                            outline: '#333333'
+                          }
+                        }}
+                        textColor='#FFFFFF'
+                        outlineColor="#333333"
+                        activeOutlineColor="#FFFFFF"
+                      />
+                      
+                      {errorMessage ? (
+                        <Text style={styles.errorText}>{errorMessage}</Text>
+                      ) : null}
+                      
+                      <TouchableOpacity
+                        style={[
+                          styles.modernLoginButton,
+                          loading && styles.modernLoginButtonDisabled
+                        ]}
+                        onPress={handleLogin}
+                        disabled={loading}
+                      >
+                        <Text style={styles.modernLoginButtonText}>
+                          {loading ? 'Signing In...' : 'Sign In'}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
                   </View>
                   
-                  <View style={styles.loginContentContainer}>
-                    <View>
-                      <TouchableOpacity 
-                        style={styles.backButton}
-                        onPress={handleBackToLanding}
-                      >
-                        <Text style={styles.backButtonText}>←</Text>
-                      </TouchableOpacity>
-
-                      <View style={styles.loginHeader}>
-                        <Text style={styles.loginTitle}>Welcome Back</Text>
-                        <Text style={styles.loginSubtitle}>Sign in to continue your fitness journey</Text>
-                      </View>
+                  {/* Footer buttons - locked at bottom */}
+                  <View style={styles.loginFooterFixed}>
+                    <TouchableOpacity onPress={() => router.push('/signup')}>
+                      <Text style={styles.linkText}>Don't have an account? <Text style={styles.linkTextBold}>Sign Up</Text></Text>
+                    </TouchableOpacity>
                     
-                      <View style={styles.formContainer}>
-                        <TextInput
-                          label="Email Address"
-                          value={emailAddress}
-                          onChangeText={setEmailAddress}
-                          onBlur={() => setIsEmailValid(isValidEmail(emailAddress))}
-                          style={styles.modernInput}
-                          mode="outlined"
-                          theme={{ 
-                            colors: { 
-                              primary: '#FFFFFF', 
-                              background: 'transparent',
-                              onSurfaceVariant: '#AAAAAA',
-                              outline: '#333333',
-                              error: '#FF5555'
-                            }
-                          }}
-                          autoCapitalize='none'
-                          keyboardType="email-address"
-                          textColor='#FFFFFF'
-                          error={!isEmailValid}
-                          outlineColor="#333333"
-                          activeOutlineColor="#FFFFFF"
-                        />
-                        
-                        <TextInput
-                          label="Password"
-                          value={password}
-                          onChangeText={setPassword}
-                          secureTextEntry
-                          style={styles.modernInput}
-                          mode="outlined"
-                          theme={{ 
-                            colors: { 
-                              primary: '#FFFFFF', 
-                              background: 'transparent',
-                              onSurfaceVariant: '#AAAAAA',
-                              outline: '#333333'
-                            }
-                          }}
-                          textColor='#FFFFFF'
-                          outlineColor="#333333"
-                          activeOutlineColor="#FFFFFF"
-                        />
-                        
-                        {errorMessage ? (
-                          <Text style={styles.errorText}>{errorMessage}</Text>
-                        ) : null}
-                        
-                        <TouchableOpacity
-                          style={[
-                            styles.modernLoginButton,
-                            loading && styles.modernLoginButtonDisabled
-                          ]}
-                          onPress={handleLogin}
-                          disabled={loading}
-                        >
-                          <Text style={styles.modernLoginButtonText}>
-                            {loading ? 'Signing In...' : 'Sign In'}
-                          </Text>
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                    
-                    <View style={styles.loginFooter}>
-                      <TouchableOpacity onPress={() => router.push('/signup')}>
-                        <Text style={styles.linkText}>Don't have an account? <Text style={styles.linkTextBold}>Sign Up</Text></Text>
-                      </TouchableOpacity>
-                      
-                      <TouchableOpacity 
-                        style={styles.forgotPasswordButton}
-                        onPress={() => router.push('/forgot-password')}
-                      >
-                        <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
-                      </TouchableOpacity>
-                    </View>
+                    <TouchableOpacity 
+                      style={styles.forgotPasswordButton}
+                      onPress={() => router.push('/forgot-password')}
+                    >
+                      <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+                    </TouchableOpacity>
                   </View>
-                </ScrollView>
+                </View>
               </TouchableWithoutFeedback>
             </KeyboardAvoidingView>
           </Animated.View>
@@ -437,16 +428,18 @@ const styles = StyleSheet.create({
   loginContainer: {
     flex: 1,
   },
+  loginFullContainer: {
+    flex: 1,
+    padding: 24,
+    justifyContent: 'space-between',
+  },
   loginScrollContainer: {
     flexGrow: 1,
   },
-  loginLogoContainer: {
-    paddingTop: 20,
-    alignItems: 'center',
-  },
-  loginLogo: {
-    width: 50,
-    height: 50,
+  loginCenteredContent: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingTop: 60, // Account for back button space
   },
   loginContentContainer: {
     flex: 1,
@@ -464,6 +457,19 @@ const styles = StyleSheet.create({
     height: 48,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  backButtonTop: {
+    position: 'absolute',
+    top: 20,
+    left: 20,
+    padding: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: 12,
+    width: 48,
+    height: 48,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
   },
   backButtonText: {
     color: '#FFFFFF',
@@ -529,6 +535,11 @@ const styles = StyleSheet.create({
   loginFooter: {
     alignItems: 'center',
     gap: 16,
+  },
+  loginFooterFixed: {
+    alignItems: 'center',
+    gap: 16,
+    paddingBottom: 20,
   },
   linkText: {
     color: '#AAAAAA',
