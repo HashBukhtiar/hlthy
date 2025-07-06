@@ -10,6 +10,7 @@ import {
   startAfter,
   QueryDocumentSnapshot,
   DocumentData,
+  onSnapshot,
 } from 'firebase/firestore';
 import { db } from '@/firebaseConfig';
 import { useAuth } from '@/context/AuthContext';
@@ -182,9 +183,48 @@ export function useFeedData() {
 
   // Initial load
   useEffect(() => {
-    if (currentUser?.uid) {
-      fetchFeedData();
-    }
+    if (!currentUser?.uid) return;
+
+    const feedRef = collection(db, 'feeds', currentUser.uid, 'userFeed');
+    const feedQuery = query(
+      feedRef,
+      orderBy('createdAt', 'desc'),
+      limit(BATCH_SIZE)
+    );
+
+    const unsubscribe = onSnapshot(feedQuery, 
+      async (snapshot) => {
+        const feedPosts: FeedPost[] = [];
+        
+        for (const feedDoc of snapshot.docs) {
+          const feedData = feedDoc.data();
+          const postId = feedDoc.id;
+          
+          // Check if user has liked this post
+          const likeRef = doc(db, 'posts', postId, 'likers', currentUser.uid);
+          const likeDoc = await getDoc(likeRef);
+          
+          feedPosts.push({
+            ...feedData,
+            id: postId,
+            isLiked: likeDoc.exists(),
+            isBookmarked: false,
+          } as FeedPost);
+        }
+
+        setPosts(feedPosts);
+        setMilestones(feedPosts.filter(post => post.isMilestone));
+        setLoading(false);
+        setError(null);
+      },
+      (error) => {
+        console.error('Feed listener error:', error);
+        setError(error as Error);
+        setLoading(false);
+      }
+    );
+
+    return unsubscribe;
   }, [currentUser?.uid]);
 
   return {

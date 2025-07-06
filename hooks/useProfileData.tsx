@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { collection, query, orderBy, getDocs, doc, getDoc, increment, where, setDoc, runTransaction, serverTimestamp } from 'firebase/firestore';
+import { collection, query, orderBy, getDocs, doc, getDoc, increment, where, setDoc, runTransaction, serverTimestamp, writeBatch } from 'firebase/firestore';
 import { db, app } from '@/firebaseConfig';
 import { useAuth } from '@/context/AuthContext';
 import { getFunctions, httpsCallable } from 'firebase/functions';
@@ -322,13 +322,10 @@ export function useProfileData(userId = null) {
     }
     setFollowActionLoading(true);
 
-    // Path for the pending follow request
-    const pendingFollowerRef = doc(db, "users", targetUserId, "pendingFollowers", currentUserId);
-
     try {
       // Check if already following or request already pending to prevent duplicate writes
-      const isAlreadyFollowing = isFollowingStatus; // Use existing state
-      const isAlreadyPending = isRequestPending; // Use new state
+      const isAlreadyFollowing = isFollowingStatus;
+      const isAlreadyPending = isRequestPending;
 
       if (isAlreadyFollowing) {
         console.log("Already following this user.");
@@ -341,18 +338,63 @@ export function useProfileData(userId = null) {
         return;
       }
 
-      await setDoc(pendingFollowerRef, {
-        requestedAt: serverTimestamp(),
-        // You can add other relevant info here if needed by the target user,
-        // like currentUserId's username, profileImageUrl, though the cloud function
-        // for activity creation already fetches this.
-      });
+      // Get target user's profile to check if account is private
+      const targetUserDoc = await getDoc(doc(db, "users", targetUserId));
+      const targetUserData = targetUserDoc.data();
+      const isPrivateAccount = targetUserData?.isPrivate || false;
 
-      setIsRequestPending(true); // Update UI to show "Requested"
-      console.log("Follow request sent to user:", targetUserId);
+      if (isPrivateAccount) {
+        // For private accounts, send a follow request
+        const pendingFollowerRef = doc(db, "users", targetUserId, "pendingFollowers", currentUserId);
+        await setDoc(pendingFollowerRef, {
+          requestedAt: serverTimestamp(),
+          requesterUsername: currentUser.displayName || 'Unknown',
+          requesterProfileImageUrl: currentUser.photoURL || '',
+        });
+
+        setIsRequestPending(true);
+        console.log("Follow request sent to private account:", targetUserId);
+      } else {
+        // For public accounts, directly create the follow relationship
+        const batch = writeBatch(db);
+        
+        // Add to target user's followers (this triggers the Cloud Function)
+        const followerRef = doc(db, 'users', targetUserId, 'followers', currentUserId);
+        batch.set(followerRef, {
+          userId: currentUserId,
+          username: currentUser.displayName || 'Unknown',
+          profileImageUrl: currentUser.photoURL || '',
+          followedAt: serverTimestamp()
+        });
+        
+        // Add to current user's following
+        const followingRef = doc(db, 'users', currentUserId, 'following', targetUserId);
+        batch.set(followingRef, {
+          userId: targetUserId,
+          username: targetUserData?.username || 'Unknown',
+          profileImageUrl: targetUserData?.profileImageUrl || '',
+          followedAt: serverTimestamp()
+        });
+
+        // Update follower/following counts
+        const targetUserDocRef = doc(db, "users", targetUserId);
+        const currentUserDocRef = doc(db, "users", currentUserId);
+        batch.update(targetUserDocRef, { followerCount: increment(1) });
+        batch.update(currentUserDocRef, { followingCount: increment(1) });
+        
+        await batch.commit();
+
+        // Update local state
+        setIsFollowingStatus(true);
+        setProfileData(prev => prev ? { 
+          ...prev, 
+          followerCount: (prev.followerCount || 0) + 1 
+        } : null);
+        
+        console.log("Successfully followed public account:", targetUserId);
+      }
     } catch (error) {
-      console.error("Error sending follow request:", error);
-      // Potentially revert setIsRequestPending(false) if needed, or show error
+      console.error("Error in follow operation:", error);
     } finally {
       setFollowActionLoading(false);
     }
