@@ -21,6 +21,66 @@ export const getOptimalImageUrl = (thumbnailUrl?: string | null, originalUrl?: s
 };
 
 /**
+ * Gets the storage bucket name from the Firebase config
+ * @returns The storage bucket name
+ */
+const getStorageBucketName = (): string => {
+  // Get the bucket name from the storage instance
+  const bucketName = storage.app.options.storageBucket;
+  if (!bucketName) {
+    throw new Error('Storage bucket not configured in Firebase config');
+  }
+  return bucketName;
+};
+
+/**
+ * Extracts the file path from a Firebase Storage URL
+ * @param imageUrl - The Firebase Storage URL
+ * @returns The decoded file path or null if not recognized
+ */
+const extractFilePathFromUrl = (imageUrl: string): string | null => {
+  try {
+    const bucketName = getStorageBucketName();
+    
+    // Handle both possible URL formats
+    const oldBaseUrl = 'https://firebasestorage.googleapis.com/v0/b/';
+    const newBaseUrl = `https://${bucketName.replace('.appspot.com', '.firebasestorage.app')}/`;
+    
+    let decodedPath = '';
+    
+    if (imageUrl.includes(oldBaseUrl)) {
+      // Handle old format: https://firebasestorage.googleapis.com/v0/b/{bucket}/o/path?...
+      const pathStart = imageUrl.indexOf('/o/') + 3;
+      const pathEnd = imageUrl.indexOf('?');
+      if (pathStart === -1 || pathEnd === -1) {
+        console.warn('Invalid old format URL structure');
+        return null;
+      }
+      const encodedPath = imageUrl.substring(pathStart, pathEnd);
+      decodedPath = decodeURIComponent(encodedPath);
+    } else if (imageUrl.includes(newBaseUrl)) {
+      // Handle new format: https://{bucket}/v0/b/{bucket}/o/path?...
+      const pathStart = imageUrl.indexOf('/o/') + 3;
+      const pathEnd = imageUrl.indexOf('?');
+      if (pathStart === -1 || pathEnd === -1) {
+        console.warn('Invalid new format URL structure');
+        return null;
+      }
+      const encodedPath = imageUrl.substring(pathStart, pathEnd);
+      decodedPath = decodeURIComponent(encodedPath);
+    } else {
+      console.warn('URL format not recognized:', imageUrl);
+      return null;
+    }
+    
+    return decodedPath;
+  } catch (error) {
+    console.error('Error extracting file path from URL:', error);
+    return null;
+  }
+};
+
+/**
  * Deletes an image and its thumbnail from Firebase Storage
  * @param imageUrl - The URL of the image to delete
  */
@@ -28,26 +88,9 @@ export const deleteImageFromStorage = async (imageUrl: string): Promise<void> =>
   if (!imageUrl) return;
   
   try {
-    // Updated to handle both old and new Firebase Storage URL formats
-    const oldBaseUrl = 'https://firebasestorage.googleapis.com/v0/b/';
-    const newBaseUrl = 'https://hlthy-421200.firebasestorage.app/';
-    
-    let decodedPath = '';
-    
-    if (imageUrl.includes(oldBaseUrl)) {
-      // Handle old format: https://firebasestorage.googleapis.com/v0/b/hlthy-421200.appspot.com/o/path?...
-      const pathStart = imageUrl.indexOf('/o/') + 3;
-      const pathEnd = imageUrl.indexOf('?');
-      const encodedPath = imageUrl.substring(pathStart, pathEnd);
-      decodedPath = decodeURIComponent(encodedPath);
-    } else if (imageUrl.includes(newBaseUrl)) {
-      // Handle new format: https://hlthy-421200.firebasestorage.app/v0/b/hlthy-421200.firebasestorage.app/o/path?...
-      const pathStart = imageUrl.indexOf('/o/') + 3;
-      const pathEnd = imageUrl.indexOf('?');
-      const encodedPath = imageUrl.substring(pathStart, pathEnd);
-      decodedPath = decodeURIComponent(encodedPath);
-    } else {
-      console.log('URL format not recognized, skipping deletion');
+    const decodedPath = extractFilePathFromUrl(imageUrl);
+    if (!decodedPath) {
+      console.log('Could not extract file path from URL, skipping deletion');
       return;
     }
     
