@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback, useMemo } from 'react';
 import { 
   View, 
   StyleSheet, 
@@ -21,7 +21,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Button, TextInput } from 'react-native-paper';
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from '@/firebaseConfig';
-import SimplifiedAurora from '@/components/SimplifiedAurora';
+import OptimizedAurora from '@/components/OptimizedAurora';
 import { useScreenIsFocused } from '@/hooks/useScreenIsFocused';
 
 export default function Landing() {
@@ -48,19 +48,19 @@ export default function Landing() {
     return re.test(email);
   };
 
-  const handleShowLogin = () => {
+  const handleShowLogin = useCallback(() => {
     setShowLogin(true);
     Animated.timing(slideAnim, {
       toValue: 1,
-      duration: 300,
+      duration: 250, // Reduced from 300ms
       useNativeDriver: true,
     }).start();
-  };
+  }, [slideAnim]);
 
-  const handleBackToLanding = () => {
+  const handleBackToLanding = useCallback(() => {
     Animated.timing(slideAnim, {
       toValue: 0,
-      duration: 300,
+      duration: 250, // Reduced from 300ms
       useNativeDriver: true,
     }).start(() => {
       setShowLogin(false);
@@ -68,7 +68,7 @@ export default function Landing() {
       setEmailAddress('');
       setPassword('');
     });
-  };
+  }, [slideAnim]);
 
   const handleLogin = async () => {
     try {
@@ -118,6 +118,27 @@ export default function Landing() {
     }
   };
 
+  // Memoize interpolation values for better performance
+  const landingTransform = useMemo(() => ({
+    transform: [{
+      translateX: slideAnim.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0, -width],
+        extrapolate: 'clamp'
+      })
+    }]
+  }), [slideAnim, width]);
+
+  const loginTransform = useMemo(() => ({
+    transform: [{
+      translateX: slideAnim.interpolate({
+        inputRange: [0, 1],
+        outputRange: [width, 0],
+        extrapolate: 'clamp'
+      })
+    }]
+  }), [slideAnim, width]);
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
@@ -130,9 +151,9 @@ export default function Landing() {
       
       <View style={styles.auroraContainer}>
         {isFocused && (
-          <SimplifiedAurora 
+          <OptimizedAurora 
             colorStops={['#FF2D55', '#a434eb', '#5227FF']}
-            speed={0.4}
+            speed={0.8}
             intensity={1.2}
           />
         )}
@@ -141,17 +162,7 @@ export default function Landing() {
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.contentWrapper}>
           {/* Landing Content */}
-          <Animated.View style={[
-            styles.slideView,
-            {
-              transform: [{
-                translateX: slideAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [0, -width]
-                })
-              }]
-            }
-          ]}>
+          <Animated.View style={[styles.slideView, landingTransform]}>
             <View style={styles.content}>
               <View style={styles.centeredContent}>
                 <View style={styles.logoContainer}>
@@ -191,17 +202,7 @@ export default function Landing() {
           </Animated.View>
 
           {/* Login Content */}
-          <Animated.View style={[
-            styles.slideView,
-            {
-              transform: [{
-                translateX: slideAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [width, 0]
-                })
-              }]
-            }
-          ]}>
+          <Animated.View style={[styles.slideView, loginTransform]}>
             <KeyboardAvoidingView 
               behavior={Platform.OS === "ios" ? "padding" : "height"}
               style={styles.loginContainer}
@@ -340,7 +341,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    height: '60%',
+    height: '55%', // Increased to make motion more visible
     zIndex: 2,
   },
   safeArea: {
