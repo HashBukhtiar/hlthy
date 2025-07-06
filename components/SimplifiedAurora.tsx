@@ -295,7 +295,7 @@ export default function SimplifiedAurora({
               { scale: scale1 }
             ],
             opacity: opacity1,
-            height: height * 0.85,
+            height: height * 1.0,
             top: height * 0.3,
             borderTopLeftRadius: width * 0.8,
             borderTopRightRadius: width * 0.7,
@@ -327,7 +327,7 @@ export default function SimplifiedAurora({
               { scale: scale2 }
             ],
             opacity: opacity2,
-            height: height * 0.75,
+            height: height * 0.95,
             top: height * 0.15,
             left: '-35%',
             width: '170%',
@@ -360,7 +360,7 @@ export default function SimplifiedAurora({
               { scale: 1.05 }
             ],
             opacity: opacity3,
-            height: height * 0.7,
+            height: height * 0.9,
             top: height * 0.2,
             borderTopLeftRadius: width * 0.9,
             borderTopRightRadius: width * 0.6,
@@ -390,7 +390,7 @@ export default function SimplifiedAurora({
               { translateY: translateY4 }
             ],
             opacity: opacity4,
-            height: height * 0.65,
+            height: height * 0.85,
             top: height * 0.25,
             left: '-20%',
             width: '140%',
@@ -430,6 +430,15 @@ export default function SimplifiedAurora({
         />
       </View>
       
+      <LinearGradient
+        colors={[
+          'rgba(0,0,0,0)',
+          colorStops[1] + '30',
+          colorStops[2] + '40'
+        ]}
+        style={styles.floorLayer}
+      />
+      
       {/* Blur layer for better blending on iOS */}
       {Platform.OS === 'ios' && (
         <BlurView intensity={15} style={styles.blurLayer} tint="dark" />
@@ -448,6 +457,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     zIndex: 2,
     overflow: 'hidden',
+    paddingBottom: 100, // Extra padding to cover the bottom notch area
   },
   auroraWave: {
     position: 'absolute',
@@ -477,5 +487,12 @@ const styles = StyleSheet.create({
     height: '100%',
     zIndex: 4,
     opacity: 0.5,
+  },
+  floorLayer: {
+    position: 'absolute',
+    width: '100%',
+    height: 150,
+    bottom: -50,
+    zIndex: 3,
   }
 });

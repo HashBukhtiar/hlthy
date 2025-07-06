@@ -1,12 +1,12 @@
 import React from 'react';
-import { StyleSheet, SafeAreaView } from 'react-native';
+import { StyleSheet, View, SafeAreaView } from 'react-native';
 import Landing from '@/screens/Landing';
 
 export default function LandingScreen() {
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <Landing />
-    </SafeAreaView>
+    </View>
   );
 }
 

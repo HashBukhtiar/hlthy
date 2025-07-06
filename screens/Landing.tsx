@@ -6,7 +6,8 @@ import {
   Image, 
   TouchableOpacity,
   Dimensions,
-  StatusBar
+  StatusBar,
+  SafeAreaView
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -16,16 +17,16 @@ import SimplifiedAurora from '@/components/SimplifiedAurora';
 
 export default function Landing() {
   const router = useRouter();
-  const { width } = Dimensions.get('window');
+  const { width, height } = Dimensions.get('window');
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
       
-      {/* Base background gradient */}
+      {/* Base background gradient - extending beyond safe area */}
       <LinearGradient
         colors={['#000000', '#121212']}
-        style={styles.gradient}
+        style={[styles.gradient, { height: height + 100 }]} // Extended height
       />
       
       {/* Enhanced SimplifiedAurora with better blending and wave effects */}
@@ -35,8 +36,8 @@ export default function Landing() {
         intensity={1.2}
       />
       
-      {/* Content container */}
-      <View style={styles.content}>
+      {/* Content container - with SafeAreaView for proper insets */}
+      <SafeAreaView style={styles.content}>
         <View style={styles.centeredContent}>
           <View style={styles.logoContainer}>
             <Image
@@ -48,7 +49,7 @@ export default function Landing() {
 
             <View style={styles.taglineContainer}>
               <Text style={styles.tagline}>Smarter Fitness Starts Here</Text>
-              <Text style={styles.subtagline}>Stay motivated, track progress, and grow together with AI-powered support.</Text>
+              <Text style={styles.subtagline}>Stay motivated, track progress, and grow together with AI-powered support</Text>
             </View>
 
           <View style={styles.buttonContainer}>
@@ -67,7 +68,7 @@ export default function Landing() {
             </TouchableOpacity>
           </View>
         </View>
-      </View>
+      </SafeAreaView>
     </View>
   );
 }
