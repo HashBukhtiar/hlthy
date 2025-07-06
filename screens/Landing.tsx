@@ -9,8 +9,6 @@ import {
   StatusBar,
   SafeAreaView,
   Animated,
-  KeyboardAvoidingView,
-  ScrollView,
   TouchableWithoutFeedback,
   Keyboard,
   Platform,
@@ -58,6 +56,9 @@ export default function Landing() {
   }, [slideAnim]);
 
   const handleBackToLanding = useCallback(() => {
+    // Dismiss keyboard first
+    Keyboard.dismiss();
+    
     Animated.timing(slideAnim, {
       toValue: 0,
       duration: 250, // Reduced from 300ms
@@ -211,12 +212,8 @@ export default function Landing() {
               <Text style={styles.backButtonText}>←</Text>
             </TouchableOpacity>
 
-            <KeyboardAvoidingView 
-              behavior={Platform.OS === "ios" ? "padding" : "height"}
-              style={styles.loginContainer}
-            >
-              <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-                <View style={styles.loginFullContainer}>
+            <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+              <View style={styles.loginFullContainer}>
                   {loading && (
                     <View style={styles.loadingOverlay}>
                       <ActivityIndicator size="large" color="#FFFFFF" />
@@ -293,6 +290,10 @@ export default function Landing() {
                         </Text>
                       </TouchableOpacity>
                     </View>
+
+                    <View>
+                      <View style={{ height: '25%' }} />
+                    </View>
                   </View>
                   
                   {/* Footer buttons - locked at bottom */}
@@ -310,7 +311,6 @@ export default function Landing() {
                   </View>
                 </View>
               </TouchableWithoutFeedback>
-            </KeyboardAvoidingView>
           </Animated.View>
         </View>
       </SafeAreaView>
@@ -425,16 +425,10 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   // Login form styles
-  loginContainer: {
-    flex: 1,
-  },
   loginFullContainer: {
     flex: 1,
     padding: 24,
     justifyContent: 'space-between',
-  },
-  loginScrollContainer: {
-    flexGrow: 1,
   },
   loginCenteredContent: {
     flex: 1,
