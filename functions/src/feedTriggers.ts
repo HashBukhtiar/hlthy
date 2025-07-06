@@ -34,22 +34,32 @@ export const populateFeedsOnPostCreate = onDocumentCreated(
           .collection("userFeed")
           .doc(postId);
 
-        // Add essential post data to the follower's feed
-        batch.set(feedItemRef, {
+        // Prepare feed item data, filtering out undefined values
+        const feedItemData: { [key: string]: any } = {
           authorId: postData.authorId,
           authorUsername: postData.authorUsername,
           authorProfileImageUrl: postData.authorProfileImageUrl,
           caption: postData.caption,
-          imageUrl: postData.imageUrl,
-          thumbnailUrl: postData.thumbnailUrl,
           createdAt: postData.createdAt,
           reactionCount: postData.reactionCount || 0,
           commentCount: postData.commentCount || 0,
           isMilestone: postData.isMilestone || false,
-          milestoneDetails: postData.milestoneDetails || null,
-          workoutId: postData.workoutId || null,
           visibility: postData.visibility || "public",
-        });
+        };
+        // Only add these fields if they have actual values (not undefined)
+        if (postData.imageUrl !== undefined) {
+          feedItemData.imageUrl = postData.imageUrl;
+        }
+        if (postData.thumbnailUrl !== undefined) {
+          feedItemData.thumbnailUrl = postData.thumbnailUrl;
+        }
+        if (postData.milestoneDetails !== undefined) {
+          feedItemData.milestoneDetails = postData.milestoneDetails;
+        }
+        if (postData.workoutId !== undefined) {
+          feedItemData.workoutId = postData.workoutId;
+        }
+        batch.set(feedItemRef, feedItemData);
       });
       await batch.commit();
       logger.info(`Populated ${followersQuery.size} followers' feeds for post ${postId}`);
