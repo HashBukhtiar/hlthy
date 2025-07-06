@@ -15,13 +15,9 @@ export default function OptimizedAurora({
 }: OptimizedAuroraProps) {
   const { width, height } = Dimensions.get('window');
   
-  // Create continuous rotation and movement values
+  // Create continuous rotation values - all other animations derive from these
   const rotation1 = useRef(new Animated.Value(0)).current;
   const rotation2 = useRef(new Animated.Value(0)).current;
-  const translateX1 = useRef(new Animated.Value(0)).current;
-  const translateX2 = useRef(new Animated.Value(0)).current;
-  const scale1 = useRef(new Animated.Value(1)).current;
-  const scale2 = useRef(new Animated.Value(1)).current;
   
   useEffect(() => {
     // Create truly continuous animations that never reset
@@ -37,37 +33,21 @@ export default function OptimizedAurora({
       );
     };
 
-    // Start continuous rotations with different speeds to avoid sync
+    // Only create rotation animations - we'll derive all other movements from these
     const rotationAnim1 = createContinuousAnimation(rotation1, 20000);
-    const rotationAnim2 = createContinuousAnimation(rotation2, 25000);
-    
-    // Continuous horizontal movement
-    const translateAnim1 = createContinuousAnimation(translateX1, 15000);
-    const translateAnim2 = createContinuousAnimation(translateX2, 18000);
-    
-    // Continuous scale pulsing
-    const scaleAnim1 = createContinuousAnimation(scale1, 12000);
-    const scaleAnim2 = createContinuousAnimation(scale2, 14000);
+    const rotationAnim2 = createContinuousAnimation(rotation2, 30000);
 
     // Start all animations
     rotationAnim1.start();
     rotationAnim2.start();
-    translateAnim1.start();
-    translateAnim2.start();
-    scaleAnim1.start();
-    scaleAnim2.start();
 
     return () => {
       rotationAnim1.stop();
       rotationAnim2.stop();
-      translateAnim1.stop();
-      translateAnim2.stop();
-      scaleAnim1.stop();
-      scaleAnim2.stop();
     };
-  }, [speed, rotation1, rotation2, translateX1, translateX2, scale1, scale2]);
+  }, [speed, rotation1, rotation2]);
 
-  // Create interpolations for smooth continuous motion
+  // Create interpolations for smooth continuous motion using sine waves
   const rotation1Interpolated = rotation1.interpolate({
     inputRange: [0, 1],
     outputRange: ['0deg', '360deg'],
@@ -75,27 +55,40 @@ export default function OptimizedAurora({
 
   const rotation2Interpolated = rotation2.interpolate({
     inputRange: [0, 1],
-    outputRange: ['360deg', '0deg'], // Opposite direction
+    outputRange: ['0deg', '-360deg'], // Opposite direction
   });
 
-  const translateX1Interpolated = translateX1.interpolate({
-    inputRange: [0, 1],
-    outputRange: [-width * 0.3, width * 0.3],
+  // Use sine wave patterns for smooth continuous translation
+  const translateX1Interpolated = rotation1.interpolate({
+    inputRange: [0, 0.25, 0.5, 0.75, 1],
+    outputRange: [0, width * 0.2, 0, -width * 0.2, 0],
   });
 
-  const translateX2Interpolated = translateX2.interpolate({
-    inputRange: [0, 1],
-    outputRange: [width * 0.2, -width * 0.2],
+  const translateX2Interpolated = rotation2.interpolate({
+    inputRange: [0, 0.25, 0.5, 0.75, 1],
+    outputRange: [0, -width * 0.15, 0, width * 0.15, 0],
   });
 
-  const scale1Interpolated = scale1.interpolate({
+  // Add gentle vertical movement for more organic motion
+  const translateY1Interpolated = rotation1.interpolate({
     inputRange: [0, 0.5, 1],
-    outputRange: [1, 1.3, 1],
+    outputRange: [0, -height * 0.05, 0],
   });
 
-  const scale2Interpolated = scale2.interpolate({
+  const translateY2Interpolated = rotation2.interpolate({
     inputRange: [0, 0.5, 1],
-    outputRange: [1.2, 0.8, 1.2],
+    outputRange: [0, height * 0.03, 0],
+  });
+
+  // Smooth sine wave scaling that loops perfectly - derived from rotation
+  const scale1Interpolated = rotation1.interpolate({
+    inputRange: [0, 0.25, 0.5, 0.75, 1],
+    outputRange: [1, 1.2, 1, 0.9, 1],
+  });
+
+  const scale2Interpolated = rotation2.interpolate({
+    inputRange: [0, 0.33, 0.66, 1],
+    outputRange: [1.1, 0.9, 1.3, 1.1],
   });
 
   return (
@@ -107,6 +100,7 @@ export default function OptimizedAurora({
           {
             transform: [
               { translateX: translateX1Interpolated },
+              { translateY: translateY1Interpolated },
               { rotate: rotation1Interpolated },
               { scale: scale1Interpolated },
             ],
@@ -129,6 +123,7 @@ export default function OptimizedAurora({
           {
             transform: [
               { translateX: translateX2Interpolated },
+              { translateY: translateY2Interpolated },
               { rotate: rotation2Interpolated },
               { scale: scale2Interpolated },
             ],
