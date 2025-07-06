@@ -51,21 +51,6 @@ export default function Landing() {
               <Text style={[styles.buttonText, styles.loginButtonText]}>Login</Text>
             </TouchableOpacity>
           </View>
-
-          <View style={styles.featuresContainer}>
-            <View style={styles.featureItem}>
-              <Text style={styles.featureTitle}>Track Progress</Text>
-              <Text style={styles.featureDescription}>Monitor your health journey with detailed analytics</Text>
-            </View>
-            <View style={styles.featureItem}>
-              <Text style={styles.featureTitle}>Personalized Plans</Text>
-              <Text style={styles.featureDescription}>Get customized health recommendations</Text>
-            </View>
-            <View style={styles.featureItem}>
-              <Text style={styles.featureTitle}>Community Support</Text>
-              <Text style={styles.featureDescription}>Connect with others on similar health journeys</Text>
-            </View>
-          </View>
         </View>
       </LinearGradient>
     </View>
@@ -144,24 +129,5 @@ const styles = StyleSheet.create({
   },
   loginButtonText: {
     color: '#FFFFFF',
-  },
-  featuresContainer: {
-    marginTop: 40,
-    marginBottom: 40,
-  },
-  featureItem: {
-    marginBottom: 25,
-    paddingHorizontal: 20,
-  },
-  featureTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    marginBottom: 5,
-  },
-  featureDescription: {
-    fontSize: 14,
-    color: '#AAAAAA',
-    lineHeight: 20,
   },
 });
