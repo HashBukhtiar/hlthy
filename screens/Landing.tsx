@@ -23,33 +23,35 @@ export default function Landing() {
         style={styles.gradient}
       >
         <View style={styles.content}>
-          <View style={styles.logoContainer}>
-            <Image
-              style={styles.logo}
-              source={require('@/assets/images/logo-dark.png')}
-            />
-            <Text style={styles.appName}>HLTHY</Text>
-          </View>
+          <View style={styles.centeredContent}>
+            <View style={styles.logoContainer}>
+              <Image
+                style={styles.logo}
+                source={require('@/assets/images/logo-dark.png')}
+              />
+              <Text style={styles.appName}>HLTHY</Text>
+            </View>
 
-          <View style={styles.taglineContainer}>
-            <Text style={styles.tagline}>Your Personal Health Journey</Text>
-            <Text style={styles.subtagline}>Start your path to better health today</Text>
-          </View>
+            <View style={styles.taglineContainer}>
+              <Text style={styles.tagline}>Your Personal Health Journey</Text>
+              <Text style={styles.subtagline}>Start your path to better health today</Text>
+            </View>
 
-          <View style={styles.buttonContainer}>
-            <TouchableOpacity
-              style={[styles.button, styles.signUpButton]}
-              onPress={() => router.push('/signup')}
-            >
-              <Text style={styles.buttonText}>Sign Up</Text>
-            </TouchableOpacity>
+            <View style={styles.buttonContainer}>
+              <TouchableOpacity
+                style={[styles.button, styles.signUpButton]}
+                onPress={() => router.push('/signup')}
+              >
+                <Text style={styles.buttonText}>Sign Up</Text>
+              </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[styles.button, styles.loginButton]}
-              onPress={() => router.push('/login')}
-            >
-              <Text style={[styles.buttonText, styles.loginButtonText]}>Login</Text>
-            </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.button, styles.loginButton]}
+                onPress={() => router.push('/login')}
+              >
+                <Text style={[styles.buttonText, styles.loginButtonText]}>Login</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </LinearGradient>
@@ -68,11 +70,15 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     padding: 20,
-    justifyContent: 'space-between',
+    justifyContent: 'center',
+  },
+  centeredContent: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   logoContainer: {
     alignItems: 'center',
-    marginTop: 60,
+    marginBottom: 30,
   },
   logo: {
     width: 80,
@@ -87,7 +93,7 @@ const styles = StyleSheet.create({
   },
   taglineContainer: {
     alignItems: 'center',
-    marginTop: 20,
+    marginBottom: 40,
   },
   tagline: {
     fontSize: 24,
@@ -104,7 +110,6 @@ const styles = StyleSheet.create({
   buttonContainer: {
     width: '100%',
     paddingHorizontal: 20,
-    marginTop: 40,
   },
   button: {
     width: '100%',
