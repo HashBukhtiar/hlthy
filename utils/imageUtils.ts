@@ -28,47 +28,60 @@ export const deleteImageFromStorage = async (imageUrl: string): Promise<void> =>
   if (!imageUrl) return;
   
   try {
-    const baseUrl = 'https://firebasestorage.googleapis.com/v0/b/';
-    const bucket = 'hlthy-8.appspot.com'; // Replace with your actual bucket name
+    // Updated to handle both old and new Firebase Storage URL formats
+    const oldBaseUrl = 'https://firebasestorage.googleapis.com/v0/b/';
+    const newBaseUrl = 'https://hlthy-421200.firebasestorage.app/';
     
-    if (imageUrl.includes(baseUrl)) {
+    let decodedPath = '';
+    
+    if (imageUrl.includes(oldBaseUrl)) {
+      // Handle old format: https://firebasestorage.googleapis.com/v0/b/hlthy-421200.appspot.com/o/path?...
       const pathStart = imageUrl.indexOf('/o/') + 3;
       const pathEnd = imageUrl.indexOf('?');
       const encodedPath = imageUrl.substring(pathStart, pathEnd);
-      const decodedPath = decodeURIComponent(encodedPath);
-      
-      // Delete original image
-      try {
-        const imageRef = ref(storage, decodedPath);
-        await deleteObject(imageRef);
-        console.log(`Successfully deleted original image: ${decodedPath}`);
-      } catch (imageError: any) {
-        if (imageError.code === 'storage/object-not-found') {
-          console.log(`Original image not found (may have been already deleted): ${decodedPath}`);
-        } else {
-          console.error("Error deleting original image:", imageError);
-          throw imageError;
-        }
+      decodedPath = decodeURIComponent(encodedPath);
+    } else if (imageUrl.includes(newBaseUrl)) {
+      // Handle new format: https://hlthy-421200.firebasestorage.app/v0/b/hlthy-421200.firebasestorage.app/o/path?...
+      const pathStart = imageUrl.indexOf('/o/') + 3;
+      const pathEnd = imageUrl.indexOf('?');
+      const encodedPath = imageUrl.substring(pathStart, pathEnd);
+      decodedPath = decodeURIComponent(encodedPath);
+    } else {
+      console.log('URL format not recognized, skipping deletion');
+      return;
+    }
+    
+    // Delete original image
+    try {
+      const imageRef = ref(storage, decodedPath);
+      await deleteObject(imageRef);
+      console.log(`Successfully deleted original image: ${decodedPath}`);
+    } catch (imageError: any) {
+      if (imageError.code === 'storage/object-not-found') {
+        console.log(`Original image not found (may have been already deleted): ${decodedPath}`);
+      } else {
+        console.error("Error deleting original image:", imageError);
+        throw imageError;
       }
+    }
+    
+    // Delete thumbnail if it exists
+    const pathParts = decodedPath.split('/');
+    const fileName = pathParts[pathParts.length - 1];
+    
+    if (!fileName.startsWith('thumb_')) {
+      const thumbFileName = `thumb_${fileName}`;
+      const thumbPath = decodedPath.replace(fileName, thumbFileName);
       
-      // Delete thumbnail if it exists
-      const pathParts = decodedPath.split('/');
-      const fileName = pathParts[pathParts.length - 1];
-      
-      if (!fileName.startsWith('thumb_')) {
-        const thumbFileName = `thumb_${fileName}`;
-        const thumbPath = decodedPath.replace(fileName, thumbFileName);
-        
-        try {
-          const thumbRef = ref(storage, thumbPath);
-          await deleteObject(thumbRef);
-          console.log(`Successfully deleted thumbnail: ${thumbPath}`);
-        } catch (thumbError: any) {
-          if (thumbError.code === 'storage/object-not-found') {
-            console.log(`Thumbnail not found (may not exist or already deleted): ${thumbPath}`);
-          } else {
-            console.log("Error deleting thumbnail (non-critical):", thumbError);
-          }
+      try {
+        const thumbRef = ref(storage, thumbPath);
+        await deleteObject(thumbRef);
+        console.log(`Successfully deleted thumbnail: ${thumbPath}`);
+      } catch (thumbError: any) {
+        if (thumbError.code === 'storage/object-not-found') {
+          console.log(`Thumbnail not found (may not exist or already deleted): ${thumbPath}`);
+        } else {
+          console.log("Error deleting thumbnail (non-critical):", thumbError);
         }
       }
     }
@@ -128,6 +141,20 @@ export const deletePostCompletely = async (
     // Delete milestone if requested
     if (deleteMilestone && milestoneId) {
       await deleteMilestoneFromFirestore(milestoneId);
+    }
+    
+    // Delete the post document from Firestore
+    try {
+      const postDocRef = doc(db, 'posts', postId);
+      await deleteDoc(postDocRef);
+      console.log(`Successfully deleted post document: ${postId}`);
+    } catch (postError: any) {
+      if (postError.code === 'not-found') {
+        console.log(`Post document not found (may have been already deleted): ${postId}`);
+      } else {
+        console.error('Error deleting post document:', postError);
+        throw postError;
+      }
     }
     
     console.log(`Post ${postId} deleted completely`);
