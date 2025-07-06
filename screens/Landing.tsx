@@ -226,79 +226,95 @@ export default function Landing() {
                   </View>
                   
                   <View style={styles.loginContentContainer}>
-                    <TouchableOpacity 
-                      style={styles.backButton}
-                      onPress={handleBackToLanding}
-                    >
-                      <Text style={styles.backButtonText}>← Back</Text>
-                    </TouchableOpacity>
+                    <View>
+                      <TouchableOpacity 
+                        style={styles.backButton}
+                        onPress={handleBackToLanding}
+                      >
+                        <Text style={styles.backButtonText}>←</Text>
+                      </TouchableOpacity>
 
-                    <Text style={[styles.header, {fontWeight: 'bold'}]}>Login</Text>
+                      <View style={styles.loginHeader}>
+                        <Text style={styles.loginTitle}>Welcome Back</Text>
+                        <Text style={styles.loginSubtitle}>Sign in to continue your fitness journey</Text>
+                      </View>
                     
-                    <TextInput
-                      label="Email Address"
-                      value={emailAddress}
-                      onChangeText={setEmailAddress}
-                      onBlur={() => setIsEmailValid(isValidEmail(emailAddress))}
-                      style={styles.input}
-                      mode="outlined"
-                      theme={{ 
-                        colors: { 
-                          primary: 'white', 
-                          background: '#222222',
-                          onSurfaceVariant: 'white',
-                          outline: 'white'
-                        }
-                      }}
-                      autoCapitalize='none'
-                      keyboardType="email-address"
-                      textColor='white'
-                      error={!isEmailValid}
-                    />
+                      <View style={styles.formContainer}>
+                        <TextInput
+                          label="Email Address"
+                          value={emailAddress}
+                          onChangeText={setEmailAddress}
+                          onBlur={() => setIsEmailValid(isValidEmail(emailAddress))}
+                          style={styles.modernInput}
+                          mode="outlined"
+                          theme={{ 
+                            colors: { 
+                              primary: '#FFFFFF', 
+                              background: 'transparent',
+                              onSurfaceVariant: '#AAAAAA',
+                              outline: '#333333',
+                              error: '#FF5555'
+                            }
+                          }}
+                          autoCapitalize='none'
+                          keyboardType="email-address"
+                          textColor='#FFFFFF'
+                          error={!isEmailValid}
+                          outlineColor="#333333"
+                          activeOutlineColor="#FFFFFF"
+                        />
+                        
+                        <TextInput
+                          label="Password"
+                          value={password}
+                          onChangeText={setPassword}
+                          secureTextEntry
+                          style={styles.modernInput}
+                          mode="outlined"
+                          theme={{ 
+                            colors: { 
+                              primary: '#FFFFFF', 
+                              background: 'transparent',
+                              onSurfaceVariant: '#AAAAAA',
+                              outline: '#333333'
+                            }
+                          }}
+                          textColor='#FFFFFF'
+                          outlineColor="#333333"
+                          activeOutlineColor="#FFFFFF"
+                        />
+                        
+                        {errorMessage ? (
+                          <Text style={styles.errorText}>{errorMessage}</Text>
+                        ) : null}
+                        
+                        <TouchableOpacity
+                          style={[
+                            styles.modernLoginButton,
+                            loading && styles.modernLoginButtonDisabled
+                          ]}
+                          onPress={handleLogin}
+                          disabled={loading}
+                        >
+                          <Text style={styles.modernLoginButtonText}>
+                            {loading ? 'Signing In...' : 'Sign In'}
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
                     
-                    <TextInput
-                      label="Password"
-                      value={password}
-                      onChangeText={setPassword}
-                      secureTextEntry
-                      style={styles.input}
-                      mode="outlined"
-                      theme={{ 
-                        colors: { 
-                          primary: 'white', 
-                          background: '#222222',
-                          onSurfaceVariant: 'white',
-                          outline: 'white'
-                        }
-                      }}
-                      textColor='white'
-                    />
-                    
-                    <Button 
-                      mode="contained" 
-                      onPress={handleLogin}
-                      style={[styles.loginSubmitButton, { backgroundColor: '#FFFFFF' }]} 
-                      labelStyle={{ color: '#000' }}>
-                      Log In
-                    </Button>
-                    
-                    <Text style={{ color: '#FF5555', textAlign: 'center', marginTop: 15, marginBottom: 10 }}>{errorMessage}</Text>
-                    
-                    <Button 
-                      mode="text" 
-                      onPress={() => router.push('/signup')}
-                      style={[styles.loginSubmitButton]} 
-                      labelStyle={{ color: '#FFFFFF' }}>
-                      Don't have an account? Sign Up
-                    </Button>
-                    
-                    <Button 
-                      mode="text" 
-                      onPress={() => router.push('/forgot-password')}
-                      style={[styles.loginSubmitButton]} 
-                      labelStyle={{ color: '#AAAAAA' }}>
-                      Forgot Password?
-                    </Button>
+                    <View style={styles.loginFooter}>
+                      <TouchableOpacity onPress={() => router.push('/signup')}>
+                        <Text style={styles.linkText}>Don't have an account? <Text style={styles.linkTextBold}>Sign Up</Text></Text>
+                      </TouchableOpacity>
+                      
+                      <TouchableOpacity 
+                        style={styles.forgotPasswordButton}
+                        onPress={() => router.push('/forgot-password')}
+                      >
+                        <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+                      </TouchableOpacity>
+                    </View>
                   </View>
                 </ScrollView>
               </TouchableWithoutFeedback>
@@ -432,31 +448,106 @@ const styles = StyleSheet.create({
     height: 50,
   },
   loginContentContainer: {
-    padding: 16,
+    flex: 1,
+    padding: 24,
     paddingBottom: 40,
+    justifyContent: 'space-between',
   },
   backButton: {
     alignSelf: 'flex-start',
-    marginBottom: 20,
-    padding: 5,
+    marginBottom: 30,
+    padding: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 12,
+    width: 48,
+    height: 48,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   backButtonText: {
     color: '#FFFFFF',
-    fontSize: 16,
+    fontSize: 20,
+    fontWeight: '600',
   },
-  header: {
-    fontSize: 24,
-    color: 'white',
-    marginBottom: 20,
+  loginHeader: {
+    alignItems: 'center',
+    marginBottom: 40,
+  },
+  loginTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    marginBottom: 8,
     textAlign: 'center',
+  },
+  loginSubtitle: {
+    fontSize: 16,
+    color: '#AAAAAA',
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  formContainer: {
+    width: '100%',
+    marginBottom: 30,
+  },
+  modernInput: {
+    marginBottom: 20,
+    backgroundColor: 'transparent',
+  },
+  errorText: {
+    color: '#FF5555',
+    textAlign: 'center',
+    marginBottom: 20,
+    fontSize: 14,
+  },
+  modernLoginButton: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 25,
+    height: 52,
+    justifyContent: 'center',
+    alignItems: 'center',
     marginTop: 10,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  modernLoginButtonDisabled: {
+    backgroundColor: '#666666',
+    opacity: 0.6,
+  },
+  modernLoginButtonText: {
+    color: '#000000',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  loginFooter: {
+    alignItems: 'center',
+    gap: 16,
+  },
+  linkText: {
+    color: '#AAAAAA',
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  linkTextBold: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+  },
+  forgotPasswordButton: {
+    padding: 8,
+  },
+  forgotPasswordText: {
+    color: '#888888',
+    fontSize: 14,
   },
   input: {
     marginBottom: 16,
     color: 'white',
-  },
-  loginSubmitButton: {
-    marginTop: 16,
   },
   loadingOverlay: {
     position: 'absolute',
@@ -464,13 +555,16 @@ const styles = StyleSheet.create({
     right: 0,
     top: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.7)',
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 1000,
+    borderRadius: 12,
   },
   loadingText: {
-    color: 'white',
-    marginTop: 10,
+    color: '#FFFFFF',
+    marginTop: 16,
+    fontSize: 16,
+    fontWeight: '500',
   },
 });
