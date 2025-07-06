@@ -246,8 +246,12 @@ export default function Landing() {
                           setEmailFocused(false);
                           setIsEmailValid(emailAddress === '' || isValidEmail(emailAddress));
                         }}
-                        style={[styles.modernInput, !isEmailValid && styles.modernInputError]}
-                        contentStyle={emailAddress || emailFocused ? styles.inputContentStyle : styles.inputContentStyleUnfocused}
+                        style={[
+                          (emailAddress || emailFocused) ? styles.modernInput : styles.modernInputCompact, 
+                          !isEmailValid && styles.modernInputError
+                        ]}
+                        contentStyle={(emailAddress || emailFocused) ? styles.inputContentStyle : styles.inputContentStyleCompact}
+                        dense={!emailAddress && !emailFocused}
                         mode="flat"
                         theme={{ 
                           colors: { 
@@ -274,8 +278,9 @@ export default function Landing() {
                         onFocus={() => setPasswordFocused(true)}
                         onBlur={() => setPasswordFocused(false)}
                         secureTextEntry
-                        style={styles.modernInput}
-                        contentStyle={password || passwordFocused ? styles.inputContentStyle : styles.inputContentStyleUnfocused}
+                        style={(password || passwordFocused) ? styles.modernInput : styles.modernInputCompact}
+                        contentStyle={(password || passwordFocused) ? styles.inputContentStyle : styles.inputContentStyleCompact}
+                        dense={!password && !passwordFocused}
                         mode="flat"
                         theme={{ 
                           colors: { 
@@ -513,17 +518,26 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
   modernInput: {
-    marginBottom: 20,
+    marginBottom: 10,
     backgroundColor: 'transparent',
     marginHorizontal: 5,
     paddingHorizontal: 0,
-    height: 67, // Fixed height to prevent repositioning
+    height: 65, // Fixed height to prevent repositioning
+  },
+  modernInputCompact: {
+    marginTop: 20,
+    marginBottom: 10,
+    backgroundColor: 'transparent',
+    marginHorizontal: 5,
+    paddingHorizontal: 0,
+    height: 45, // Smaller height when unfocused and empty
   },
   inputContentStyle: {
+    // nothing right now.
   },
-  inputContentStyleUnfocused: {
-    paddingTop: 0,
-    paddingBottom: 0,
+  inputContentStyleCompact: {
+    // paddingTop: 8, // Minimal padding when unfocused to keep label close to line
+    // paddingBottom: 4,
   },
   modernInputError: {
     borderBottomColor: '#FF5555',
@@ -546,7 +560,7 @@ const styles = StyleSheet.create({
     height: 52,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 10,
+    marginTop: 20,
     elevation: 3,
     shadowColor: '#000',
     shadowOffset: {
