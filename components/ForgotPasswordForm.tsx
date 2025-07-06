@@ -9,7 +9,7 @@ import {
   Keyboard
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { TextInput, RadioButton } from 'react-native-paper';
+import { TextInput } from 'react-native-paper';
 import CustomSpinner from '@/components/CustomSpinner';
 
 interface ForgotPasswordFormProps {
@@ -22,7 +22,6 @@ export default function ForgotPasswordForm({ visible, onBackPress, onBackToLogin
   const router = useRouter();
   
   const [emailAddress, setEmailAddress] = useState<string>('');
-  const [resetMethod, setResetMethod] = useState<string>('email-code'); // 'email-code' or 'reset-link'
   const [isEmailValid, setIsEmailValid] = useState<boolean>(true);
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
@@ -45,7 +44,6 @@ export default function ForgotPasswordForm({ visible, onBackPress, onBackToLogin
     setIsEmailValid(true);
     setEmailFocused(false);
     setSubmitted(false);
-    setResetMethod('email-code');
     
     // Use onBackToLogin if available, otherwise onBackPress
     if (onBackToLogin) {
@@ -94,7 +92,7 @@ export default function ForgotPasswordForm({ visible, onBackPress, onBackToLogin
       {loading && (
         <View style={styles.loadingOverlay}>
           <CustomSpinner size={80} />
-          <Text style={styles.loadingText}>Sending reset instructions...</Text>
+          <Text style={styles.loadingText}>Sending password reset link...</Text>
         </View>
       )}
       
@@ -115,16 +113,10 @@ export default function ForgotPasswordForm({ visible, onBackPress, onBackToLogin
               <View style={styles.successHeader}>
                 <Text style={styles.successTitle}>Check Your Email</Text>
                 <Text style={styles.successMessage}>
-                  {resetMethod === 'email-code' 
-                    ? `We've sent a one-time verification code to ${emailAddress}`
-                    : `We've sent a password reset link to ${emailAddress}`
-                  }
+                  We've sent a password reset link to {emailAddress}
                 </Text>
                 <Text style={styles.instructionText}>
-                  {resetMethod === 'email-code' 
-                    ? 'Enter the verification code in the login page to access your account.'
-                    : 'Click the link in your email to reset your password, then return to login.'
-                  }
+                  Click the link in your email to reset your password, then return to login.
                 </Text>
               </View>
             </View>
@@ -133,50 +125,10 @@ export default function ForgotPasswordForm({ visible, onBackPress, onBackToLogin
             <View style={styles.forgotPasswordCenteredContent}>
               <View style={styles.forgotPasswordHeader}>
                 <Text style={styles.forgotPasswordTitle}>Forgot Password</Text>
-                <Text style={styles.forgotPasswordSubtitle}>Choose how you'd like to recover your account</Text>
+                <Text style={styles.forgotPasswordSubtitle}>Enter your email address to reset password</Text>
               </View>
             
               <View style={styles.formContainer}>
-                {/* Reset Method Selection */}
-                <View style={styles.radioContainer}>
-                  <TouchableOpacity 
-                    style={styles.radioOption}
-                    onPress={() => setResetMethod('email-code')}
-                    activeOpacity={0.7}
-                  >
-                    <RadioButton
-                      value="email-code"
-                      status={resetMethod === 'email-code' ? 'checked' : 'unchecked'}
-                      onPress={() => setResetMethod('email-code')}
-                      color="#FFFFFF"
-                    />
-                    <View style={styles.radioTextContainer}>
-                      <Text style={styles.radioTitle}>One-time Email Code</Text>
-                      <Text style={styles.radioDescription}>
-                        Receive a verification code to login temporarily
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
-                  
-                  <TouchableOpacity 
-                    style={styles.radioOption}
-                    onPress={() => setResetMethod('reset-link')}
-                    activeOpacity={0.7}
-                  >
-                    <RadioButton
-                      value="reset-link"
-                      status={resetMethod === 'reset-link' ? 'checked' : 'unchecked'}
-                      onPress={() => setResetMethod('reset-link')}
-                      color="#FFFFFF"
-                    />
-                    <View style={styles.radioTextContainer}>
-                      <Text style={styles.radioTitle}>Password Reset Link</Text>
-                      <Text style={styles.radioDescription}>
-                        Receive a link to create a new password
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
-                </View>
 
                 <TextInput
                   label="Email Address"
@@ -222,7 +174,7 @@ export default function ForgotPasswordForm({ visible, onBackPress, onBackToLogin
                   activeOpacity={0.7}
                 >
                   <Text style={styles.modernSubmitButtonText}>
-                    {loading ? 'Sending...' : 'Send Reset Instructions'}
+                    {loading ? 'Sending...' : 'Send Reset Link'}
                   </Text>
                 </TouchableOpacity>
                 
@@ -231,6 +183,8 @@ export default function ForgotPasswordForm({ visible, onBackPress, onBackToLogin
                     {errorMessage || ' '}
                   </Text>
                 </View>
+
+                <View style={{ height: '15%' }} />
               </View>
             </View>
           )}
@@ -330,30 +284,6 @@ const styles = StyleSheet.create({
   formContainer: {
     width: '100%',
     marginBottom: 30,
-  },
-  radioContainer: {
-    marginBottom: 30,
-  },
-  radioOption: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 20,
-    paddingVertical: 8,
-  },
-  radioTextContainer: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  radioTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    marginBottom: 4,
-  },
-  radioDescription: {
-    fontSize: 14,
-    color: '#AAAAAA',
-    lineHeight: 18,
   },
   modernInput: {
     marginBottom: 10,
