@@ -191,6 +191,7 @@ export default function Landing() {
                   <TouchableOpacity
                     style={[styles.button, styles.signUpButton]}
                     onPress={() => router.push('/signup')}
+                    activeOpacity={0.7}
                   >
                     <Text style={styles.buttonText}>Sign Up</Text>
                   </TouchableOpacity>
@@ -198,6 +199,7 @@ export default function Landing() {
                   <TouchableOpacity
                     style={[styles.button, styles.loginButton]}
                     onPress={handleShowLogin}
+                    activeOpacity={0.7}
                   >
                     <Text style={[styles.buttonText, styles.loginButtonText]}>Login</Text>
                   </TouchableOpacity>
@@ -216,6 +218,7 @@ export default function Landing() {
             <TouchableOpacity 
               style={styles.backButtonTop}
               onPress={handleBackToLanding}
+              activeOpacity={0.7}
             >
               <Text style={styles.backButtonText}>←</Text>
             </TouchableOpacity>
@@ -303,6 +306,7 @@ export default function Landing() {
                         ]}
                         onPress={handleLogin}
                         disabled={loading}
+                        activeOpacity={0.7}
                       >
                         <Text style={styles.modernLoginButtonText}>
                           {loading ? 'Signing In...' : 'Sign In'}
@@ -323,13 +327,14 @@ export default function Landing() {
                   
                   {/* Footer buttons - locked at bottom */}
                   <View style={styles.loginFooterFixed}>
-                    <TouchableOpacity onPress={() => router.push('/signup')}>
+                    <TouchableOpacity onPress={() => router.push('/signup')} activeOpacity={0.7}>
                       <Text style={styles.linkText}>Don't have an account? <Text style={styles.linkTextBold}>Sign Up</Text></Text>
                     </TouchableOpacity>
                     
                     <TouchableOpacity 
                       style={styles.forgotPasswordButton}
                       onPress={() => router.push('/forgot-password')}
+                      activeOpacity={0.7}
                     >
                       <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
                     </TouchableOpacity>
