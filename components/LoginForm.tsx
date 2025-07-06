@@ -18,9 +18,10 @@ import CustomSpinner from '@/components/CustomSpinner';
 interface LoginFormProps {
   visible: boolean;
   onBackPress: () => void;
+  onForgotPasswordPress: () => void;
 }
 
-export default function LoginForm({ visible, onBackPress }: LoginFormProps) {
+export default function LoginForm({ visible, onBackPress, onForgotPasswordPress }: LoginFormProps) {
   const router = useRouter();
   const { width } = Dimensions.get('window');
   
@@ -232,7 +233,7 @@ export default function LoginForm({ visible, onBackPress }: LoginFormProps) {
               
               <TouchableOpacity 
                 style={styles.forgotPasswordButton}
-                onPress={() => router.push('/forgot-password')}
+                onPress={onForgotPasswordPress}
                 activeOpacity={0.7}
               >
                 <Text style={styles.forgotPasswordText}>Forgot Password?</Text>

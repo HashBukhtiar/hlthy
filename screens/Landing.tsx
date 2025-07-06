@@ -6,25 +6,23 @@ import {
   Image, 
   TouchableOpacity,
   Dimensions,
-  StatusBar,
   SafeAreaView,
   Animated
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
-import Aurora from '@/components/Aurora';
+import AuthBackground from '@/components/AuthBackground';
 import LoginForm from '@/components/LoginForm';
-import { useScreenIsFocused } from '@/hooks/useScreenIsFocused';
+import ForgotPasswordForm from '@/components/ForgotPasswordForm';
 
 export default function Landing() {
   const router = useRouter();
-  const { width, height } = Dimensions.get('window');
-  const isFocused = useScreenIsFocused();
+  const { width } = Dimensions.get('window');
   
-  // State for showing login form
+  // State for showing forms
   const [showLogin, setShowLogin] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
   
-  // Animation values
+  // Single animation value for all screens
   const slideAnim = useRef(new Animated.Value(0)).current;
 
   const handleShowLogin = useCallback(() => {
@@ -43,6 +41,26 @@ export default function Landing() {
       useNativeDriver: true,
     }).start(() => {
       setShowLogin(false);
+      setShowForgotPassword(false);
+    });
+  }, [slideAnim]);
+
+  const handleShowForgotPassword = useCallback(() => {
+    setShowForgotPassword(true);
+    Animated.timing(slideAnim, {
+      toValue: 2, // Move to the third screen position
+      duration: 250,
+      useNativeDriver: true,
+    }).start();
+  }, [slideAnim]);
+
+  const handleBackToLandingFromForgotPassword = useCallback(() => {
+    Animated.timing(slideAnim, {
+      toValue: 1, // Back to login position
+      duration: 250,
+      useNativeDriver: true,
+    }).start(() => {
+      setShowForgotPassword(false);
     });
   }, [slideAnim]);
 
@@ -50,8 +68,8 @@ export default function Landing() {
   const landingTransform = useMemo(() => ({
     transform: [{
       translateX: slideAnim.interpolate({
-        inputRange: [0, 1],
-        outputRange: [0, -width],
+        inputRange: [0, 1, 2],
+        outputRange: [0, -width, -width * 2],
         extrapolate: 'clamp'
       })
     }]
@@ -60,33 +78,25 @@ export default function Landing() {
   const loginTransform = useMemo(() => ({
     transform: [{
       translateX: slideAnim.interpolate({
-        inputRange: [0, 1],
-        outputRange: [width, 0],
+        inputRange: [0, 1, 2],
+        outputRange: [width, 0, -width],
+        extrapolate: 'clamp'
+      })
+    }]
+  }), [slideAnim, width]);
+
+  const forgotPasswordTransform = useMemo(() => ({
+    transform: [{
+      translateX: slideAnim.interpolate({
+        inputRange: [0, 1, 2],
+        outputRange: [width * 2, width, 0],
         extrapolate: 'clamp'
       })
     }]
   }), [slideAnim, width]);
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" />
-      
-      {/* Base background gradient - extending beyond safe area */}
-      <LinearGradient
-        colors={['#000000', '#121212']}
-        style={[styles.gradient, { height: height + 100 }]}
-      />
-      
-      <View style={styles.auroraContainer}>
-        {isFocused && (
-          <Aurora 
-            colorStops={['#FF2D55', '#a434eb', '#5227FF']}
-            speed={0.8}
-            intensity={1.2}
-          />
-        )}
-      </View>
-      
+    <AuthBackground>
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.contentWrapper}>
           {/* Landing Content */}
@@ -125,7 +135,7 @@ export default function Landing() {
                 </View>
 
                 <View>
-                    <View style={{ height: '15%' }} />
+                  <View style={{ height: '15%' }} />
                 </View>
               </View>
             </View>
@@ -133,34 +143,30 @@ export default function Landing() {
 
           {/* Login Content */}
           <Animated.View style={[styles.slideView, loginTransform]}>
-            <LoginForm visible={showLogin} onBackPress={handleBackToLanding} />
+            <LoginForm 
+              visible={showLogin} 
+              onBackPress={handleBackToLanding} 
+              onForgotPasswordPress={handleShowForgotPassword}
+            />
+          </Animated.View>
+
+          {/* Forgot Password Content */}
+          <Animated.View style={[styles.slideView, forgotPasswordTransform]}>
+            <ForgotPasswordForm 
+              visible={showForgotPassword} 
+              onBackPress={handleBackToLandingFromForgotPassword}
+              onBackToLogin={handleBackToLandingFromForgotPassword}
+            />
           </Animated.View>
         </View>
       </SafeAreaView>
-    </View>
+    </AuthBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#000000',
-  },
-  gradient: {
-    ...StyleSheet.absoluteFillObject,
-    zIndex: 1,
-  },
-  auroraContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: '55%',
-    zIndex: 2,
-  },
   safeArea: {
     flex: 1,
-    zIndex: 10,
   },
   contentWrapper: {
     flex: 1,
@@ -179,7 +185,6 @@ const styles = StyleSheet.create({
     padding: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 10,
     backfaceVisibility: 'hidden',
   },
   centeredContent: {
