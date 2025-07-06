@@ -11,13 +11,13 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import AuroraShader from '@/components/AuroraShader';
-import TestGLView from '@/components/TestGLView';
 import SimplifiedAurora from '@/components/SimplifiedAurora';
+import { useScreenIsFocused } from '@/hooks/useScreenIsFocused';
 
 export default function Landing() {
   const router = useRouter();
   const { width, height } = Dimensions.get('window');
+  const isFocused = useScreenIsFocused();
 
   return (
     <View style={styles.container}>
@@ -30,11 +30,13 @@ export default function Landing() {
       />
       
       <View style={styles.auroraContainer}>
-        <SimplifiedAurora 
-          colorStops={['#FF2D55', '#a434eb', '#5227FF']}
-          speed={0.6}
-          intensity={1.2}
-        />
+        {isFocused && (
+          <SimplifiedAurora 
+            colorStops={['#FF2D55', '#a434eb', '#5227FF']}
+            speed={0.4}
+            intensity={1.2}
+          />
+        )}
       </View>
       
       <SafeAreaView style={styles.safeArea}>
