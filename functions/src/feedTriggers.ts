@@ -27,19 +27,25 @@ export const populateFeedsOnPostCreate = onDocumentCreated(
       // Create batch operations to add this post to all followers' feeds (but NOT the author's feed)
       const batch = db.batch();
       let addedToFeedsCount = 0;
-      followersQuery.forEach((followerDoc) => {
+      for (const followerDoc of followersQuery.docs) {
         const followerId = followerDoc.id;
         // Skip adding to the author's own feed
         if (followerId === postData.authorId) {
           logger.info(`Skipping feed population for author ${postData.authorId} on their own post ${postId}`);
-          return;
+          continue;
         }
         const feedItemRef = db
           .collection("feeds")
           .doc(followerId)
           .collection("userFeed")
-          .doc(postId);
+          .doc(postId); // Using postId as document ID prevents duplicates
 
+        // Check if this feed item already exists to prevent duplicates
+        const existingFeedItem = await feedItemRef.get();
+        if (existingFeedItem.exists) {
+          logger.info(`Feed item already exists for post ${postId} in user ${followerId} feed, skipping`);
+          continue;
+        }
         // Prepare feed item data, filtering out undefined values
         const feedItemData: { [key: string]: any } = {
           authorId: postData.authorId,
@@ -67,7 +73,7 @@ export const populateFeedsOnPostCreate = onDocumentCreated(
         }
         batch.set(feedItemRef, feedItemData);
         addedToFeedsCount++;
-      });
+      }
       await batch.commit();
       logger.info(`Populated ${addedToFeedsCount} followers' feeds for post ${postId} (excluded author ${postData.authorId})`);
     } catch (error) {

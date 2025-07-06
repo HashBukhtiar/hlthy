@@ -34,6 +34,18 @@ export function useFeedData() {
   const { currentUser } = useAuth();
   const BATCH_SIZE = 10;
 
+  const removeDuplicatePosts = useCallback((posts: FeedPost[]): FeedPost[] => {
+    const seenIds = new Set<string>();
+    return posts.filter(post => {
+      if (seenIds.has(post.id)) {
+        console.warn(`Duplicate post prevented in feed data: ${post.id}`);
+        return false;
+      }
+      seenIds.add(post.id);
+      return true;
+    });
+  }, []);
+
   const fetchFeedData = useCallback(async (isRefresh = false, isLoadMore = false) => {
     if (!currentUser?.uid) return;
 
@@ -108,17 +120,24 @@ export function useFeedData() {
         setLastVisible(feedSnapshot.docs[feedSnapshot.docs.length - 1]);
       }
 
+      // Remove duplicates before updating state
+      const uniqueFeedPosts = removeDuplicatePosts(feedPosts);
+
       // Update state
       if (isRefresh || !isLoadMore) {
-        setPosts(feedPosts);
-        // Filter milestones
-        setMilestones(feedPosts.filter(post => post.isMilestone));
+        setPosts(uniqueFeedPosts);
+        setMilestones(uniqueFeedPosts.filter(post => post.isMilestone));
       } else {
-        setPosts(prevPosts => [...prevPosts, ...feedPosts]);
-        setMilestones(prevMilestones => [
-          ...prevMilestones,
-          ...feedPosts.filter(post => post.isMilestone)
-        ]);
+        // For load more, ensure we don't add duplicates to existing posts
+        setPosts(prevPosts => {
+          const combinedPosts = [...prevPosts, ...uniqueFeedPosts];
+          return removeDuplicatePosts(combinedPosts);
+        });
+        setMilestones(prevMilestones => {
+          const newMilestones = uniqueFeedPosts.filter(post => post.isMilestone);
+          const combinedMilestones = [...prevMilestones, ...newMilestones];
+          return removeDuplicatePosts(combinedMilestones);
+        });
       }
 
       // Check if we have more data
@@ -133,7 +152,7 @@ export function useFeedData() {
       setRefreshing(false);
       setLoadingMore(false);
     }
-  }, [currentUser?.uid, lastVisible]);
+  }, [currentUser?.uid, lastVisible, removeDuplicatePosts]);
 
   const fetchPublicPostsFallback = async (isRefresh = false) => {
     try {
@@ -166,8 +185,10 @@ export function useFeedData() {
         });
       }
 
-      setPosts(publicPosts);
-      setMilestones(publicPosts.filter(post => post.isMilestone));
+      // Remove duplicates before setting state
+      const uniquePublicPosts = removeDuplicatePosts(publicPosts);
+      setPosts(uniquePublicPosts);
+      setMilestones(uniquePublicPosts.filter(post => post.isMilestone));
       setHasMore(publicSnapshot.docs.length === BATCH_SIZE);
 
     } catch (err) {
@@ -210,8 +231,9 @@ export function useFeedData() {
           });
         }
 
-        setPosts(filteredPosts);
-        setMilestones(filteredPosts.filter(post => post.isMilestone));
+        const uniqueFilteredPosts = removeDuplicatePosts(filteredPosts);
+        setPosts(uniqueFilteredPosts);
+        setMilestones(uniqueFilteredPosts.filter(post => post.isMilestone));
         setHasMore(filteredPosts.length === BATCH_SIZE);
         
       } catch (fallbackErr) {
@@ -269,8 +291,10 @@ export function useFeedData() {
           } as FeedPost);
         }
 
-        setPosts(feedPosts);
-        setMilestones(feedPosts.filter(post => post.isMilestone));
+        // Remove duplicates before setting state
+        const uniqueFeedPosts = removeDuplicatePosts(feedPosts);
+        setPosts(uniqueFeedPosts);
+        setMilestones(uniqueFeedPosts.filter(post => post.isMilestone));
         setLoading(false);
         setError(null);
       },
@@ -282,7 +306,7 @@ export function useFeedData() {
     );
 
     return unsubscribe;
-  }, [currentUser?.uid]);
+  }, [currentUser?.uid, removeDuplicatePosts]);
 
   return {
     posts,
