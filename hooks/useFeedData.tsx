@@ -11,6 +11,7 @@ import {
   QueryDocumentSnapshot,
   DocumentData,
   onSnapshot,
+  where,
 } from 'firebase/firestore';
 import { db } from '@/firebaseConfig';
 import { useAuth } from '@/context/AuthContext';
@@ -137,9 +138,13 @@ export function useFeedData() {
   const fetchPublicPostsFallback = async (isRefresh = false) => {
     try {
       // Fallback to public posts if user has no personalized feed
+      // EXCLUDE the current user's own posts from the fallback
       const postsRef = collection(db, 'posts');
       const publicQuery = query(
         postsRef,
+        where('authorId', '!=', currentUser!.uid), // Exclude user's own posts
+        where('visibility', '==', 'public'),
+        orderBy('authorId'), // Required for != queries
         orderBy('createdAt', 'desc'),
         limit(BATCH_SIZE)
       );
@@ -167,7 +172,52 @@ export function useFeedData() {
 
     } catch (err) {
       console.error('Error fetching public posts fallback:', err);
-      setError(err as Error);
+      // If the compound query fails, try a simpler approach
+      try {
+        const postsRef = collection(db, 'posts');
+        const simpleQuery = query(
+          postsRef,
+          where('visibility', '==', 'public'),
+          orderBy('createdAt', 'desc'),
+          limit(BATCH_SIZE * 2) // Get more to filter out user's posts
+        );
+
+        const simpleSnapshot = await getDocs(simpleQuery);
+        const filteredPosts: FeedPost[] = [];
+
+        for (const postDoc of simpleSnapshot.docs) {
+          const postData = postDoc.data() as Post;
+          
+          // Skip user's own posts
+          if (postData.authorId === currentUser!.uid) {
+            continue;
+          }
+          
+          // Stop once we have enough posts
+          if (filteredPosts.length >= BATCH_SIZE) {
+            break;
+          }
+          
+          // Check if user has liked this post
+          const likeRef = doc(db, 'posts', postDoc.id, 'likers', currentUser!.uid);
+          const likeDoc = await getDoc(likeRef);
+          
+          filteredPosts.push({
+            ...postData,
+            id: postDoc.id,
+            isLiked: likeDoc.exists(),
+            isBookmarked: false,
+          });
+        }
+
+        setPosts(filteredPosts);
+        setMilestones(filteredPosts.filter(post => post.isMilestone));
+        setHasMore(filteredPosts.length === BATCH_SIZE);
+        
+      } catch (fallbackErr) {
+        console.error('Error in simple fallback query:', fallbackErr);
+        setError(fallbackErr as Error);
+      }
     }
   };
 
@@ -181,7 +231,7 @@ export function useFeedData() {
     }
   }, [fetchFeedData, loadingMore, hasMore]);
 
-  // Initial load
+  // Initial load with real-time listener
   useEffect(() => {
     if (!currentUser?.uid) return;
 
@@ -194,6 +244,13 @@ export function useFeedData() {
 
     const unsubscribe = onSnapshot(feedQuery, 
       async (snapshot) => {
+        if (snapshot.empty) {
+          // No personalized feed data, use fallback
+          await fetchPublicPostsFallback();
+          setLoading(false);
+          return;
+        }
+
         const feedPosts: FeedPost[] = [];
         
         for (const feedDoc of snapshot.docs) {

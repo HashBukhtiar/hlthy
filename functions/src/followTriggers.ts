@@ -11,6 +11,12 @@ export const populateFeedOnFollow = onDocumentCreated(
     const userId = event.params.userId; // Person being followed
     const followerId = event.params.followerId; // Person doing the following
 
+    // Don't populate feed if someone is following themselves (edge case)
+    if (userId === followerId) {
+      logger.info(`User ${userId} tried to follow themselves, skipping feed population`);
+      return;
+    }
+
     try {
       // Get the recent posts from the user being followed
       const recentPostsQuery = await db
@@ -22,6 +28,7 @@ export const populateFeedOnFollow = onDocumentCreated(
         .get();
 
       const batch = db.batch();
+      let addedPostsCount = 0;
 
       recentPostsQuery.forEach((postDoc) => {
         const postData = postDoc.data();
@@ -31,24 +38,36 @@ export const populateFeedOnFollow = onDocumentCreated(
           .collection("userFeed")
           .doc(postDoc.id);
 
-        batch.set(feedItemRef, {
+        // Prepare feed item data, filtering out undefined values
+        const feedItemData: { [key: string]: any } = {
           authorId: postData.authorId,
           authorUsername: postData.authorUsername,
           authorProfileImageUrl: postData.authorProfileImageUrl,
           caption: postData.caption,
-          imageUrl: postData.imageUrl,
-          thumbnailUrl: postData.thumbnailUrl,
           createdAt: postData.createdAt,
           reactionCount: postData.reactionCount || 0,
           commentCount: postData.commentCount || 0,
           isMilestone: postData.isMilestone || false,
-          milestoneDetails: postData.milestoneDetails || null,
-          workoutId: postData.workoutId || null,
           visibility: postData.visibility || "public",
-        });
+        };
+        // Only add these fields if they have actual values (not undefined)
+        if (postData.imageUrl !== undefined) {
+          feedItemData.imageUrl = postData.imageUrl;
+        }
+        if (postData.thumbnailUrl !== undefined) {
+          feedItemData.thumbnailUrl = postData.thumbnailUrl;
+        }
+        if (postData.milestoneDetails !== undefined) {
+          feedItemData.milestoneDetails = postData.milestoneDetails;
+        }
+        if (postData.workoutId !== undefined) {
+          feedItemData.workoutId = postData.workoutId;
+        }
+        batch.set(feedItemRef, feedItemData);
+        addedPostsCount++;
       });
       await batch.commit();
-      logger.info(`Added ${recentPostsQuery.size} posts to ${followerId}'s feed from ${userId}`);
+      logger.info(`Added ${addedPostsCount} posts to ${followerId}'s feed from ${userId}`);
     } catch (error) {
       logger.error("Error populating feed on follow:", error);
     }

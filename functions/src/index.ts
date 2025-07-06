@@ -13,3 +13,4 @@ export * from "./milestoneTriggers";
 export * from "./imageProcessing";
 export * from "./feedTriggers";
 export * from "./followTriggers";
+export * from "./adminFunctions";

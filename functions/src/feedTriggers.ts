@@ -17,17 +17,23 @@ export const populateFeedsOnPostCreate = onDocumentCreated(
     }
 
     try {
-      // Get the author's followers
+      // Get the author's followers (excluding the author themselves)
       const followersQuery = await db
         .collection("users")
         .doc(postData.authorId)
         .collection("followers")
         .get();
 
-      // Create batch operations to add this post to all followers' feeds
+      // Create batch operations to add this post to all followers' feeds (but NOT the author's feed)
       const batch = db.batch();
+      let addedToFeedsCount = 0;
       followersQuery.forEach((followerDoc) => {
         const followerId = followerDoc.id;
+        // Skip adding to the author's own feed
+        if (followerId === postData.authorId) {
+          logger.info(`Skipping feed population for author ${postData.authorId} on their own post ${postId}`);
+          return;
+        }
         const feedItemRef = db
           .collection("feeds")
           .doc(followerId)
@@ -60,16 +66,17 @@ export const populateFeedsOnPostCreate = onDocumentCreated(
           feedItemData.workoutId = postData.workoutId;
         }
         batch.set(feedItemRef, feedItemData);
+        addedToFeedsCount++;
       });
       await batch.commit();
-      logger.info(`Populated ${followersQuery.size} followers' feeds for post ${postId}`);
+      logger.info(`Populated ${addedToFeedsCount} followers' feeds for post ${postId} (excluded author ${postData.authorId})`);
     } catch (error) {
       logger.error("Error populating feeds:", error);
     }
   }
 );
 
-// Clean up feeds when a post is deleted
+// Clean up feeds when a post is deleted (no changes needed here)
 export const cleanupFeedsOnPostDelete = onDocumentDeleted(
   "posts/{postId}",
   async (event) => {
