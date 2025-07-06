@@ -56,9 +56,6 @@ export default function Landing() {
   }, [slideAnim]);
 
   const handleBackToLanding = useCallback(() => {
-    // Dismiss keyboard first
-    Keyboard.dismiss();
-    
     Animated.timing(slideAnim, {
       toValue: 0,
       duration: 250, // Reduced from 300ms
@@ -239,7 +236,8 @@ export default function Landing() {
                         theme={{ 
                           colors: { 
                             primary: '#FFFFFF', 
-                            background: 'transparent',
+                            background: '#000000',
+                            surface: '#000000',
                             onSurfaceVariant: '#AAAAAA',
                             outline: '#333333',
                             error: '#FF5555'
@@ -263,7 +261,8 @@ export default function Landing() {
                         theme={{ 
                           colors: { 
                             primary: '#FFFFFF', 
-                            background: 'transparent',
+                            background: '#000000',
+                            surface: '#000000',
                             onSurfaceVariant: '#AAAAAA',
                             outline: '#333333'
                           }
