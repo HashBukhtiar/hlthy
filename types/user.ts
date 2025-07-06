@@ -1,5 +1,15 @@
 import { Timestamp } from 'firebase/firestore';
 
+export interface LatestPR {
+  date: Timestamp;
+  duration?: number | null;
+  exerciseName: string;
+  level?: number | null;
+  postId: string;
+  reps?: number | null;
+  value: number;
+}
+
 export interface UserProfile {
   // Core Identity
   uid: string;
@@ -14,27 +24,28 @@ export interface UserProfile {
   
   // Timestamps
   createdAt: Timestamp;
-  dateOfBirth?: Date;
+  dateOfBirth?: Timestamp; // Changed from Date to Timestamp to match Firebase
   
   // Fitness Identity
   archetype: string; // 'athlete' | 'bodybuilder' | 'crossfitter' | 'generalist' | 'powerlifter'
   
-  // Social Stats
+  // Social Stats - Using top-level structure to match Firebase
+  followerCount: number;
+  followingCount: number;
+  
+  // Stats object - Keep for additional metrics
   stats: {
-    followerCount: number;
-    followingCount: number;
+    followerCount: number; // Duplicate for backwards compatibility during migration
+    followingCount: number; // Duplicate for backwards compatibility during migration
     postCount: number;
     workoutCount?: number;
   };
   
-  // Social Stats (alternative structure - some parts of your code use this)
-  followerCount?: number;
-  followingCount?: number;
-  postCount?: number;
-  workoutCount?: number;
-  
   // Privacy & Settings
   accountPrivacy?: 'public' | 'private';
+  
+  // Fitness Data - Match Firebase structure
+  latestPRs?: { [exerciseId: string]: LatestPR };
   
   // Physical Stats (for fitness tracking)
   physicalStats?: {

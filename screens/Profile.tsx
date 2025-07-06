@@ -103,6 +103,27 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
   const isOwnProfile = !routeUserId || routeUserId === currentUser?.uid;
   const displayProfileData = isOwnProfile ? (profileData || currentUserProfile) : profileData;
 
+  // Process profile data to ensure consistent count structure
+  const processedProfileData = useMemo(() => {
+    if (!displayProfileData) return null;
+    
+    return {
+      ...displayProfileData,
+      // Prioritize top-level counts (current Firebase structure)
+      followerCount: displayProfileData.followerCount ?? displayProfileData.stats?.followerCount ?? 0,
+      followingCount: displayProfileData.followingCount ?? displayProfileData.stats?.followingCount ?? 0,
+      
+      // Ensure stats object exists with consistent data
+      stats: {
+        ...displayProfileData.stats,
+        followerCount: displayProfileData.followerCount ?? displayProfileData.stats?.followerCount ?? 0,
+        followingCount: displayProfileData.followingCount ?? displayProfileData.stats?.followingCount ?? 0,
+        postCount: displayProfileData.stats?.postCount ?? 0,
+        workoutCount: displayProfileData.stats?.workoutCount ?? 0,
+      }
+    };
+  }, [displayProfileData]);
+
   const indicatorPosition = tabIndicator.interpolate({
     inputRange: [0, screenWidth, screenWidth * 2],
     outputRange: [0, tabWidth, tabWidth * 2],
@@ -668,15 +689,15 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
         <Image
           source={{ 
             uri: getOptimalImageUrl(
-              displayProfileData?.profileThumbnailUrl, 
-              displayProfileData?.profileImageUrl
+              processedProfileData?.profileThumbnailUrl, 
+              processedProfileData?.profileImageUrl
             ) || 'https://thumbs.dreamstime.com/b/creative-illustration-default-avatar-profile-placeholder-isolated-background-art-design-grey-photo-blank-template-mockup-144855718.jpg' 
           }}
           style={styles.profileImage}
         />
-        <Text style={styles.profileName}>{displayProfileData?.displayName || 'User'}</Text>
-        <Text style={styles.profileUsername}>@{displayProfileData?.username || 'username'}</Text>
-        <Text style={styles.profileBio}>{displayProfileData?.bio || 'No bio yet'}</Text>
+        <Text style={styles.profileName}>{processedProfileData?.displayName || 'User'}</Text>
+        <Text style={styles.profileUsername}>@{processedProfileData?.username || 'username'}</Text>
+        <Text style={styles.profileBio}>{processedProfileData?.bio || 'No bio yet'}</Text>
 
         <View style={styles.statsContainer}>
           <TouchableOpacity
@@ -701,14 +722,18 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
             style={styles.statItem}
             onPress={() => router.push(`/followers/${viewedProfileId || currentUser?.uid}`)}
           >
-            <Text style={styles.statNumber}>{profileData?.followerCount !== undefined ? profileData.followerCount : followers.length}</Text>
+            <Text style={styles.statNumber}>
+              {processedProfileData?.followerCount ?? followers.length}
+            </Text>
             <Text style={styles.statLabel}>Followers</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.statItem}
             onPress={() => router.push(`/following/${viewedProfileId || currentUser?.uid}`)}
           >
-            <Text style={styles.statNumber}>{profileData?.followingCount !== undefined ? profileData.followingCount : following.length}</Text>
+            <Text style={styles.statNumber}>
+              {processedProfileData?.followingCount ?? following.length}
+            </Text>
             <Text style={styles.statLabel}>Following</Text>
           </TouchableOpacity>
         </View>
