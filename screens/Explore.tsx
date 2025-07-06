@@ -116,41 +116,117 @@ export default function Explore() {
 
   const [allPostsLoaded, setAllPostsLoaded] = useState(false);
 
-  const checkArchetypePosts = async () => {
-  try {
-    console.log("Running diagnostic query for 'bodybuilder' archetype...");
-    const postsRef = collection(db, 'posts');
-    const q = query(postsRef, where('authorArchetype', '==', 'bodybuilder'));
-    const querySnapshot = await getDocs(q);
+  // Debounce timer ref - Use number type for React Native
+  const debounceTimer = useRef<number | null>(null);
 
-    if (querySnapshot.empty) {
-      console.log("DIAGNOSTIC: No documents found with authorArchetype: 'bodybuilder'. Check your Firestore data for exact spelling and case.");
-    } else {
-      console.log(`DIAGNOSTIC: Found ${querySnapshot.size} documents with this archetype.`, 'Now checking other fields:');
-      querySnapshot.forEach(doc => {
-        const data = doc.data();
-        console.log({
-          id: doc.id,
-          visibility: data.visibility, // Should be 'public'
-          imageUrl: data.imageUrl,     // Should not be null
-          authorArchetype: data.authorArchetype,
-        });
-      });
+  // Actual search function (separated from input handler)
+  const performSearch = useCallback(async (searchText: string) => {
+    if (searchText.trim().length < 2) {
+      setSearchResults([]);
+      setSearchPerformed(false);
+      setIsLoading(false);
+      return;
     }
-  } catch (error) {
-    console.error("DIAGNOSTIC ERROR:", error);
-    console.log("If you see a 'FAILED_PRECONDITION' error, Firestore requires a composite index. The error message will contain a link to create it in the Firebase console.");
-  }
-};
 
-// You can call it from your useEffect like this to test:
-useEffect(() => {
-  if (!searchQuery) {
-    fetchExplorePosts();
-    console.log('checking....')
-    checkArchetypePosts(); // <-- Add this call for testing
-  }
-}, [userProfile]);
+    setIsLoading(true);
+    setSearchPerformed(true);
+    
+    try {
+      const usersRef = collection(db, 'users');
+      const q = query(
+        usersRef,
+        where('username', '>=', searchText.toLowerCase()),
+        where('username', '<=', searchText.toLowerCase() + '\uf8ff'),
+        limit(10)
+      );
+      const querySnapshot = await getDocs(q);
+      const users: UserSearchResult[] = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        username: doc.data().username,
+        displayName: doc.data().displayName,
+        profilePictureUrl: doc.data().profileImageUrl,
+      }));
+      setSearchResults(users);
+    } catch (error) {
+      console.error("Error searching users:", error);
+      setSearchResults([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  // Debounced search handler
+  const handleSearch = useCallback((text: string) => {
+    setSearchQuery(text);
+    
+    // Clear existing timer
+    if (debounceTimer.current) {
+      clearTimeout(debounceTimer.current);
+    }
+    
+    // If search is empty, immediately clear results
+    if (text.trim().length === 0) {
+      setSearchResults([]);
+      setSearchPerformed(false);
+      setIsLoading(false);
+      return;
+    }
+    
+    // Show loading state immediately for better UX
+    if (text.trim().length >= 2) {
+      setIsLoading(true);
+    }
+    
+    // Set new timer with 300ms delay
+    debounceTimer.current = setTimeout(() => {
+      performSearch(text);
+    }, 300);
+  }, [performSearch]);
+
+  // Cleanup debounce timer on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimer.current) {
+        clearTimeout(debounceTimer.current);
+      }
+    };
+  }, []);
+
+  const checkArchetypePosts = async () => {
+    try {
+      console.log("Running diagnostic query for 'bodybuilder' archetype...");
+      const postsRef = collection(db, 'posts');
+      const q = query(postsRef, where('authorArchetype', '==', 'bodybuilder'));
+      const querySnapshot = await getDocs(q);
+
+      if (querySnapshot.empty) {
+        console.log("DIAGNOSTIC: No documents found with authorArchetype: 'bodybuilder'. Check your Firestore data for exact spelling and case.");
+      } else {
+        console.log(`DIAGNOSTIC: Found ${querySnapshot.size} documents with this archetype.`, 'Now checking other fields:');
+        querySnapshot.forEach(doc => {
+          const data = doc.data();
+          console.log({
+            id: doc.id,
+            visibility: data.visibility, // Should be 'public'
+            imageUrl: data.imageUrl,     // Should not be null
+            authorArchetype: data.authorArchetype,
+          });
+        });
+      }
+    } catch (error) {
+      console.error("DIAGNOSTIC ERROR:", error);
+      console.log("If you see a 'FAILED_PRECONDITION' error, Firestore requires a composite index. The error message will contain a link to create it in the Firebase console.");
+    }
+  };
+
+  // You can call it from your useEffect like this to test:
+  useEffect(() => {
+    if (!searchQuery) {
+      fetchExplorePosts();
+      console.log('checking....')
+      checkArchetypePosts(); // <-- Add this call for testing
+    }
+  }, [userProfile]);
 
   const fetchExplorePosts = useCallback(async (isInitialLoad = false) => {
     if (loadingPosts || (!isInitialLoad && allPostsLoaded) || !currentUser) return;
@@ -163,6 +239,11 @@ useEffect(() => {
       let fetchedPosts: ExplorePost[] = [];
 
       if (isInitialLoad) {
+        // Reset pagination states
+        setLastVisibleArchetype(null);
+        setLastVisiblePopular(null);
+        setAllPostsLoaded(false);
+        
         // --- Initial Load: Fetch both archetype and popular posts sequentially ---
         let archetypePosts: ExplorePost[] = [];
         let popularPosts: ExplorePost[] = [];
@@ -214,14 +295,12 @@ useEffect(() => {
         }
         
         // 3. Combine and set initial posts
-        // Ensure we filter out any popular posts that might have been fetched in the archetype batch
         const archetypePostIds = new Set(archetypePosts.map(p => p.id));
         const uniquePopularPosts = popularPosts.filter(p => !archetypePostIds.has(p.id));
 
         fetchedPosts = shuffleArray([...archetypePosts, ...uniquePopularPosts]);
         setPosts(fetchedPosts);
         setNextFetchType('archetype'); // Start pagination with archetype posts
-
 
       } else {
         // --- Pagination Logic (On-Scroll) ---
@@ -294,52 +373,16 @@ useEffect(() => {
 
     } catch (error) {
       console.error("Error fetching explore posts:", error);
-      // Firestore will log an error with a link to create the required index if it's missing.
     } finally {
       setLoadingPosts(false);
     }
-  }, [loadingPosts, allPostsLoaded, userProfile, currentUser, posts, lastVisibleArchetype, lastVisiblePopular, nextFetchType]);
+  }, [loadingPosts, allPostsLoaded, userProfile, currentUser, lastVisibleArchetype, lastVisiblePopular, nextFetchType]);
 
   useEffect(() => {
     if (!searchQuery) {
       fetchExplorePosts(true);
     }
   }, [userProfile]);
-
-  const handleSearch = useCallback(async (text: string) => {
-    setSearchQuery(text);
-    if (text.trim().length < 2) {
-      setSearchResults([]);
-      setSearchPerformed(false);
-      setIsLoading(false);
-      return;
-    }
-
-    setIsLoading(true);
-    setSearchPerformed(true);
-    try {
-      const usersRef = collection(db, 'users');
-      const q = query(
-        usersRef,
-        where('username', '>=', text.toLowerCase()),
-        where('username', '<=', text.toLowerCase() + '\uf8ff'),
-        limit(10)
-      );
-      const querySnapshot = await getDocs(q);
-      const users: UserSearchResult[] = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        username: doc.data().username,
-        displayName: doc.data().displayName,
-        profilePictureUrl: doc.data().profileImageUrl,
-      }));
-      setSearchResults(users);
-    } catch (error) {
-      console.error("Error searching users:", error);
-      setSearchResults([]);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
 
   const renderSearchBar = () => (
     <View style={styles.searchBarView}>
