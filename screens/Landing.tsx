@@ -29,42 +29,47 @@ export default function Landing() {
         style={[styles.gradient, { height: height + 100 }]} // Extended height
       />
       
-      <SimplifiedAurora 
-        colorStops={['#FF2D55', '#a434eb', '#5227FF']}
-        speed={0.6}
-        intensity={1.2}
-      />
+      {/* Aurora positioned lower on the screen */}
+      <View style={styles.auroraContainer}>
+        <SimplifiedAurora 
+          colorStops={['#FF2D55', '#a434eb', '#5227FF']}
+          speed={0.2}
+          intensity={1.2}
+        />
+      </View>
       
       {/* Content container - with SafeAreaView for proper insets */}
-      <SafeAreaView style={styles.content}>
-        <View style={styles.centeredContent}>
-          <View style={styles.logoContainer}>
-            <Image
-              style={styles.logo}
-              source={require('@/assets/images/logo-dark.png')}
-            />
-            <Text style={styles.appName}>HLTHY</Text>
-          </View>
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.content}>
+          <View style={styles.centeredContent}>
+            <View style={styles.logoContainer}>
+              <Image
+                style={styles.logo}
+                source={require('@/assets/images/logo-dark.png')}
+              />
+              <Text style={styles.appName}>HLTHY</Text>
+            </View>
 
             <View style={styles.taglineContainer}>
               <Text style={styles.tagline}>Smarter Fitness Starts Here</Text>
               <Text style={styles.subtagline}>Stay motivated, track progress, and grow together with AI-powered support</Text>
             </View>
 
-          <View style={styles.buttonContainer}>
-            <TouchableOpacity
-              style={[styles.button, styles.signUpButton]}
-              onPress={() => router.push('/signup')}
-            >
-              <Text style={styles.buttonText}>Sign Up</Text>
-            </TouchableOpacity>
+            <View style={styles.buttonContainer}>
+              <TouchableOpacity
+                style={[styles.button, styles.signUpButton]}
+                onPress={() => router.push('/signup')}
+              >
+                <Text style={styles.buttonText}>Sign Up</Text>
+              </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[styles.button, styles.loginButton]}
-              onPress={() => router.push('/login')}
-            >
-              <Text style={[styles.buttonText, styles.loginButtonText]}>Login</Text>
-            </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.button, styles.loginButton]}
+                onPress={() => router.push('/login')}
+              >
+                <Text style={[styles.buttonText, styles.loginButtonText]}>Login</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </SafeAreaView>
@@ -81,11 +86,23 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     zIndex: 1,
   },
+  auroraContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: '50%', // Occupies the lower half of the screen
+    zIndex: 2,
+  },
+  safeArea: {
+    flex: 1,
+    zIndex: 10,
+  },
   content: {
     flex: 1,
     padding: 20,
-    justifyContent: 'flex-start',
-    paddingTop: '20%',
+    justifyContent: 'flex-end', // Pushes content to bottom half
+    paddingBottom: '30%', // Creates space from the bottom (positions content above center)
     zIndex: 10, // Higher z-index to ensure it's above all backgrounds
     backfaceVisibility: 'hidden', // Improves text rendering
   },
