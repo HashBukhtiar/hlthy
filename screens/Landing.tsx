@@ -10,6 +10,9 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
+import AuroraShader from '@/components/AuroraShader';
+import TestGLView from '@/components/TestGLView';
+import SimplifiedAurora from '@/components/SimplifiedAurora';
 
 export default function Landing() {
   const router = useRouter();
@@ -18,43 +21,53 @@ export default function Landing() {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
+      
+      {/* Base background gradient */}
       <LinearGradient
-        colors={['#000000', '#1a1a1a']}
+        colors={['#000000', '#121212']}
         style={styles.gradient}
-      >
-        <View style={styles.content}>
-          <View style={styles.centeredContent}>
-            <View style={styles.logoContainer}>
-              <Image
-                style={styles.logo}
-                source={require('@/assets/images/logo-dark.png')}
-              />
-              <Text style={styles.appName}>HLTHY</Text>
-            </View>
+      />
+      
+      {/* Enhanced SimplifiedAurora with better blending and wave effects */}
+      <SimplifiedAurora 
+        colorStops={['#FF2D55', '#a434eb', '#5227FF']}
+        speed={0.6}
+        intensity={1.2}
+      />
+      
+      {/* Content container */}
+      <View style={styles.content}>
+        <View style={styles.centeredContent}>
+          <View style={styles.logoContainer}>
+            <Image
+              style={styles.logo}
+              source={require('@/assets/images/logo-dark.png')}
+            />
+            <Text style={styles.appName}>HLTHY</Text>
+          </View>
 
             <View style={styles.taglineContainer}>
               <Text style={styles.tagline}>Smarter Fitness Starts Here</Text>
               <Text style={styles.subtagline}>Stay motivated, track progress, and grow together with AI-powered support.</Text>
             </View>
 
-            <View style={styles.buttonContainer}>
-              <TouchableOpacity
-                style={[styles.button, styles.signUpButton]}
-                onPress={() => router.push('/signup')}
-              >
-                <Text style={styles.buttonText}>Sign Up</Text>
-              </TouchableOpacity>
+          <View style={styles.buttonContainer}>
+            <TouchableOpacity
+              style={[styles.button, styles.signUpButton]}
+              onPress={() => router.push('/signup')}
+            >
+              <Text style={styles.buttonText}>Sign Up</Text>
+            </TouchableOpacity>
 
-              <TouchableOpacity
-                style={[styles.button, styles.loginButton]}
-                onPress={() => router.push('/login')}
-              >
-                <Text style={[styles.buttonText, styles.loginButtonText]}>Login</Text>
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity
+              style={[styles.button, styles.loginButton]}
+              onPress={() => router.push('/login')}
+            >
+              <Text style={[styles.buttonText, styles.loginButtonText]}>Login</Text>
+            </TouchableOpacity>
           </View>
         </View>
-      </LinearGradient>
+      </View>
     </View>
   );
 }
@@ -65,12 +78,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#000000',
   },
   gradient: {
-    flex: 1,
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 1,
   },
   content: {
     flex: 1,
     padding: 20,
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
+    paddingTop: '20%',
+    zIndex: 10, // Higher z-index to ensure it's above all backgrounds
+    backfaceVisibility: 'hidden', // Improves text rendering
   },
   centeredContent: {
     alignItems: 'center',
