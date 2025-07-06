@@ -36,6 +36,8 @@ export default function Landing() {
   const [isEmailValid, setIsEmailValid] = useState<boolean>(true);
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
+  const [emailFocused, setEmailFocused] = useState<boolean>(false);
+  const [passwordFocused, setPasswordFocused] = useState<boolean>(false);
   
   // Animation values
   const slideAnim = useRef(new Animated.Value(0)).current;
@@ -69,11 +71,16 @@ export default function Landing() {
       setEmailAddress('');
       setPassword('');
       setIsEmailValid(true);
+      setEmailFocused(false);
+      setPasswordFocused(false);
     });
   }, [slideAnim]);
 
   const handleLogin = async () => {
     try {
+      // Dismiss keyboard first
+      Keyboard.dismiss();
+      
       // Clear previous errors
       setErrorMessage("");
       
@@ -148,7 +155,7 @@ export default function Landing() {
       {/* Base background gradient - extending beyond safe area */}
       <LinearGradient
         colors={['#000000', '#121212']}
-        style={[styles.gradient, { height: height + 100 }]} // Extended height
+        style={[styles.gradient, { height: height + 100 }]}
       />
       
       <View style={styles.auroraContainer}>
@@ -234,8 +241,13 @@ export default function Landing() {
                         label="Email Address"
                         value={emailAddress}
                         onChangeText={setEmailAddress}
-                        onBlur={() => setIsEmailValid(emailAddress === '' || isValidEmail(emailAddress))}
+                        onFocus={() => setEmailFocused(true)}
+                        onBlur={() => {
+                          setEmailFocused(false);
+                          setIsEmailValid(emailAddress === '' || isValidEmail(emailAddress));
+                        }}
                         style={[styles.modernInput, !isEmailValid && styles.modernInputError]}
+                        contentStyle={emailAddress || emailFocused ? styles.inputContentStyle : styles.inputContentStyleUnfocused}
                         mode="flat"
                         theme={{ 
                           colors: { 
@@ -259,8 +271,11 @@ export default function Landing() {
                         label="Password"
                         value={password}
                         onChangeText={setPassword}
+                        onFocus={() => setPasswordFocused(true)}
+                        onBlur={() => setPasswordFocused(false)}
                         secureTextEntry
                         style={styles.modernInput}
+                        contentStyle={password || passwordFocused ? styles.inputContentStyle : styles.inputContentStyleUnfocused}
                         mode="flat"
                         theme={{ 
                           colors: { 
@@ -276,10 +291,6 @@ export default function Landing() {
                         activeUnderlineColor="#FFFFFF"
                       />
                       
-                      {errorMessage ? (
-                        <Text style={styles.errorText}>{errorMessage}</Text>
-                      ) : null}
-                      
                       <TouchableOpacity
                         style={[
                           styles.modernLoginButton,
@@ -292,6 +303,12 @@ export default function Landing() {
                           {loading ? 'Signing In...' : 'Sign In'}
                         </Text>
                       </TouchableOpacity>
+                      
+                      <View style={styles.errorContainer}>
+                        <Text style={[styles.errorText, { opacity: errorMessage ? 1 : 0 }]}>
+                          {errorMessage || ' '}
+                        </Text>
+                      </View>
                     </View>
 
                     <View>
@@ -335,7 +352,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    height: '55%', // Increased to make motion more visible
+    height: '55%',
     zIndex: 2,
   },
   safeArea: {
@@ -357,10 +374,10 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     padding: 20,
-    justifyContent: 'center', // Center content vertically
-    alignItems: 'center', // Center content horizontally
-    zIndex: 10, // Higher z-index to ensure it's above all backgrounds
-    backfaceVisibility: 'hidden', // Improves text rendering
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+    backfaceVisibility: 'hidden',
   },
   centeredContent: {
     alignItems: 'center',
@@ -436,7 +453,7 @@ const styles = StyleSheet.create({
   loginCenteredContent: {
     flex: 1,
     justifyContent: 'center',
-    paddingTop: 60, // Account for back button space
+    paddingTop: 60,
   },
   loginContentContainer: {
     flex: 1,
@@ -475,6 +492,7 @@ const styles = StyleSheet.create({
   },
   loginHeader: {
     alignItems: 'center',
+    marginTop: 30,
     marginBottom: 40,
   },
   loginTitle: {
@@ -497,6 +515,15 @@ const styles = StyleSheet.create({
   modernInput: {
     marginBottom: 20,
     backgroundColor: 'transparent',
+    marginHorizontal: 5,
+    paddingHorizontal: 0,
+    height: 67, // Fixed height to prevent repositioning
+  },
+  inputContentStyle: {
+  },
+  inputContentStyleUnfocused: {
+    paddingTop: 0,
+    paddingBottom: 0,
   },
   modernInputError: {
     borderBottomColor: '#FF5555',
@@ -505,8 +532,13 @@ const styles = StyleSheet.create({
   errorText: {
     color: '#FF5555',
     textAlign: 'center',
-    marginBottom: 20,
+    marginTop: 20,
     fontSize: 14,
+  },
+  errorContainer: {
+    minHeight: 44,
+    justifyContent: 'flex-start',
+    alignItems: 'center',
   },
   modernLoginButton: {
     backgroundColor: '#FFFFFF',
