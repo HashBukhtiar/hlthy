@@ -7,13 +7,13 @@ import {
   Dimensions,
   Animated,
   TouchableWithoutFeedback,
-  Keyboard,
-  ActivityIndicator
+  Keyboard
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { TextInput } from 'react-native-paper';
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from '@/firebaseConfig';
+import CustomSpinner from '@/components/CustomSpinner';
 
 interface LoginFormProps {
   visible: boolean;
@@ -101,7 +101,7 @@ export default function LoginForm({ visible, onBackPress }: LoginFormProps) {
         errorMsg = "This account has been disabled.";
       }
       
-      console.error("Login error:", error);
+    //   console.error("Login error:", error);
       setErrorMessage(errorMsg);
     } finally {
       setLoading(false);
@@ -112,7 +112,15 @@ export default function LoginForm({ visible, onBackPress }: LoginFormProps) {
 
   return (
     <View style={styles.slideView}>
-      {/* Back button - locked at top */}
+      {/* Loading overlay - positioned at slideView level to cover entire screen */}
+      {loading && (
+        <View style={styles.loadingOverlay}>
+          <CustomSpinner size={80} />
+          <Text style={styles.loadingText}>Logging in...</Text>
+        </View>
+      )}
+      
+      {/* Back button */}
       <TouchableOpacity 
         style={styles.backButtonTop}
         onPress={handleBackToLanding}
@@ -123,13 +131,6 @@ export default function LoginForm({ visible, onBackPress }: LoginFormProps) {
 
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <View style={styles.loginFullContainer}>
-            {loading && (
-              <View style={styles.loadingOverlay}>
-                <ActivityIndicator size="large" color="#FFFFFF" />
-                <Text style={styles.loadingText}>Logging in...</Text>
-              </View>
-            )}
-            
             {/* Centered login content */}
             <View style={styles.loginCenteredContent}>
               <View style={styles.loginHeader}>
@@ -387,20 +388,20 @@ const styles = StyleSheet.create({
   },
   loadingOverlay: {
     position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    top: -200, // Extend well beyond the top
+    left: -200, // Extend well beyond the left
+    right: -200, // Extend well beyond the right
+    bottom: -200, // Extend well beyond the bottom
+    backgroundColor: 'rgba(0, 0, 0, 0.95)',
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 1000,
-    borderRadius: 12,
   },
   loadingText: {
     color: '#FFFFFF',
-    marginTop: 16,
+    marginTop: 24,
     fontSize: 16,
     fontWeight: '500',
+    textAlign: 'center',
   },
 });
