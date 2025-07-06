@@ -235,15 +235,15 @@ export default function Landing() {
                         value={emailAddress}
                         onChangeText={setEmailAddress}
                         onBlur={() => setIsEmailValid(emailAddress === '' || isValidEmail(emailAddress))}
-                        style={styles.modernInput}
-                        mode="outlined"
+                        style={[styles.modernInput, !isEmailValid && styles.modernInputError]}
+                        mode="flat"
                         theme={{ 
                           colors: { 
                             primary: '#FFFFFF', 
-                            background: '#000000',
-                            surface: '#000000',
+                            background: 'transparent',
+                            surface: 'transparent',
                             onSurfaceVariant: '#AAAAAA',
-                            outline: '#333333',
+                            outline: 'transparent',
                             error: '#FF5555'
                           }
                         }}
@@ -251,8 +251,8 @@ export default function Landing() {
                         keyboardType="email-address"
                         textColor='#FFFFFF'
                         error={!isEmailValid}
-                        outlineColor="#333333"
-                        activeOutlineColor="#FFFFFF"
+                        underlineColor={!isEmailValid ? "#FF5555" : "rgba(255, 255, 255, 0.3)"}
+                        activeUnderlineColor={!isEmailValid ? "#FF5555" : "#FFFFFF"}
                       />
                       
                       <TextInput
@@ -261,19 +261,19 @@ export default function Landing() {
                         onChangeText={setPassword}
                         secureTextEntry
                         style={styles.modernInput}
-                        mode="outlined"
+                        mode="flat"
                         theme={{ 
                           colors: { 
                             primary: '#FFFFFF', 
-                            background: '#000000',
-                            surface: '#000000',
+                            background: 'transparent',
+                            surface: 'transparent',
                             onSurfaceVariant: '#AAAAAA',
-                            outline: '#333333'
+                            outline: 'transparent'
                           }
                         }}
                         textColor='#FFFFFF'
-                        outlineColor="#333333"
-                        activeOutlineColor="#FFFFFF"
+                        underlineColor="rgba(255, 255, 255, 0.3)"
+                        activeUnderlineColor="#FFFFFF"
                       />
                       
                       {errorMessage ? (
@@ -497,6 +497,10 @@ const styles = StyleSheet.create({
   modernInput: {
     marginBottom: 20,
     backgroundColor: 'transparent',
+  },
+  modernInputError: {
+    borderBottomColor: '#FF5555',
+    borderBottomWidth: 2,
   },
   errorText: {
     color: '#FF5555',
