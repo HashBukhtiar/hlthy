@@ -29,7 +29,6 @@ export default function Landing() {
         style={[styles.gradient, { height: height + 100 }]} // Extended height
       />
       
-      {/* Enhanced SimplifiedAurora with better blending and wave effects */}
       <SimplifiedAurora 
         colorStops={['#FF2D55', '#a434eb', '#5227FF']}
         speed={0.6}
@@ -112,6 +111,7 @@ const styles = StyleSheet.create({
   taglineContainer: {
     alignItems: 'center',
     marginBottom: 40,
+    paddingHorizontal: 22,
   },
   tagline: {
     fontSize: 24,

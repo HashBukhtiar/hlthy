@@ -35,231 +35,281 @@ export default function SimplifiedAurora({
     // Add a slight delay for smoother startup
     setTimeout(() => setIsReady(true), 100);
     
-    // Complex Y-axis wave movements with different timings and ranges
-    const animateY1 = Animated.loop(
-      Animated.sequence([
-        Animated.timing(translateY1, {
-          toValue: height * 0.15,
-          duration: 18000 / speed,
-          easing: Easing.bezier(0.42, 0, 0.58, 1),
-          useNativeDriver: true
-        }),
-        Animated.timing(translateY1, {
-          toValue: -height * 0.05,
-          duration: 16000 / speed,
-          easing: Easing.bezier(0.42, 0, 0.58, 1),
-          useNativeDriver: true
-        })
-      ])
-    );
+    // Create continuous animation drivers for smooth, non-glitchy movement
+    // We'll use a single continuous animation value for each animation
+    // and interpolate the values to create smooth sinusoidal waves
     
-    const animateY2 = Animated.loop(
-      Animated.sequence([
-        Animated.timing(translateY2, {
-          toValue: height * 0.1,
-          duration: 22000 / speed,
-          easing: Easing.bezier(0.12, 0.6, 0.38, 0.9),
-          useNativeDriver: true
-        }),
-        Animated.timing(translateY2, {
-          toValue: -height * 0.08,
-          duration: 20000 / speed,
-          easing: Easing.bezier(0.45, 0.05, 0.55, 0.95),
+    // Helper function to create perfectly continuous time-based animations
+    const createContinuousDriver = (baseTime = 10000) => {
+      // Create an animated value that cycles from 0 to 1
+      const animDriver = new Animated.Value(0);
+      
+      // Use loop with timing for continuous movement without jumps
+      const anim = Animated.loop(
+        Animated.timing(animDriver, {
+          toValue: 1,
+          duration: baseTime / speed,
+          easing: Easing.linear, // Linear easing for smoothest interpolation
           useNativeDriver: true
         })
-      ])
-    );
+      );
+      
+      return { driver: animDriver, animation: anim };
+    };
     
-    // Add X-axis movement for more complex wave patterns
-    const animateX1 = Animated.loop(
-      Animated.sequence([
-        Animated.timing(translateX1, {
-          toValue: width * 0.1,
-          duration: 24000 / speed,
-          easing: Easing.bezier(0.25, 0.46, 0.45, 0.94),
-          useNativeDriver: true
-        }),
-        Animated.timing(translateX1, {
-          toValue: -width * 0.1,
-          duration: 24000 / speed,
-          easing: Easing.bezier(0.25, 0.46, 0.45, 0.94),
-          useNativeDriver: true
-        })
-      ])
-    );
+    // Create prime-based timings to avoid synchronization patterns
+    // This helps make the movement look more organic and less repetitive
+    const getUniqueTime = (baseTime: number): number => {
+      const primes = [97, 101, 103, 107, 109, 113, 127, 131, 137];
+      const randomPrime = primes[Math.floor(Math.random() * primes.length)];
+      return baseTime * (randomPrime / 100);
+    };
     
-    const animateX2 = Animated.loop(
-      Animated.sequence([
-        Animated.timing(translateX2, {
-          toValue: -width * 0.08,
-          duration: 30000 / speed,
-          easing: Easing.bezier(0.42, 0, 0.58, 1),
-          useNativeDriver: true
-        }),
-        Animated.timing(translateX2, {
-          toValue: width * 0.08,
-          duration: 30000 / speed,
-          easing: Easing.bezier(0.42, 0, 0.58, 1),
-          useNativeDriver: true
-        })
-      ])
-    );
-
-    // Additional wave layers with different timing
-    const animateY3 = Animated.loop(
-      Animated.sequence([
-        Animated.timing(translateY3, {
-          toValue: height * 0.12,
-          duration: 15000 / speed,
-          easing: Easing.bezier(0.25, 0.1, 0.25, 1),
-          useNativeDriver: true
-        }),
-        Animated.timing(translateY3, {
-          toValue: -height * 0.06,
-          duration: 14000 / speed,
-          easing: Easing.bezier(0.25, 0.1, 0.25, 1),
-          useNativeDriver: true
-        })
-      ])
-    );
+    // Create smooth continuous sine wave interpolators
+    // Instead of sequence-based animations (which cause jumps),
+    // we'll use continuous drivers with sine wave interpolation
     
-    const animateY4 = Animated.loop(
-      Animated.sequence([
-        Animated.timing(translateY4, {
-          toValue: height * 0.07,
-          duration: 27000 / speed,
-          easing: Easing.bezier(0.22, 1, 0.36, 1),
-          useNativeDriver: true
-        }),
-        Animated.timing(translateY4, {
-          toValue: -height * 0.03,
-          duration: 25000 / speed,
-          easing: Easing.bezier(0.22, 1, 0.36, 1),
-          useNativeDriver: true
-        })
-      ])
-    );
+    // Y-axis continuous wave drivers
+    const y1Driver = createContinuousDriver(getUniqueTime(12000));
+    const y2Driver = createContinuousDriver(getUniqueTime(15000));
+    const y3Driver = createContinuousDriver(getUniqueTime(13000));
+    const y4Driver = createContinuousDriver(getUniqueTime(16000));
     
-    // Opacity pulsing animations with different timings
-    const animateOpacity1 = Animated.loop(
-      Animated.sequence([
-        Animated.timing(opacity1, {
-          toValue: 0.75 * intensity,
-          duration: 9000 / speed,
-          easing: Easing.bezier(0.4, 0, 0.2, 1),
-          useNativeDriver: true
-        }),
-        Animated.timing(opacity1, {
-          toValue: 0.5 * intensity,
-          duration: 8000 / speed,
-          easing: Easing.bezier(0.4, 0, 0.2, 1),
-          useNativeDriver: true
-        })
-      ])
-    );
+    // X-axis continuous wave drivers
+    const x1Driver = createContinuousDriver(getUniqueTime(18000));
+    const x2Driver = createContinuousDriver(getUniqueTime(20000));
     
-    const animateOpacity2 = Animated.loop(
-      Animated.sequence([
-        Animated.timing(opacity2, {
-          toValue: 0.65 * intensity,
-          duration: 11000 / speed,
-          easing: Easing.bezier(0.4, 0, 0.2, 1),
-          useNativeDriver: true
-        }),
-        Animated.timing(opacity2, {
-          toValue: 0.35 * intensity,
-          duration: 10000 / speed,
-          easing: Easing.bezier(0.4, 0, 0.2, 1),
-          useNativeDriver: true
-        })
-      ])
-    );
+    // Scale and opacity continuous drivers
+    const opacity1Driver = createContinuousDriver(getUniqueTime(9000));
+    const opacity2Driver = createContinuousDriver(getUniqueTime(11000));
+    const opacity3Driver = createContinuousDriver(getUniqueTime(13000));
+    const opacity4Driver = createContinuousDriver(getUniqueTime(15000));
+    const scale1Driver = createContinuousDriver(getUniqueTime(19000));
+    const scale2Driver = createContinuousDriver(getUniqueTime(21000));
     
-    const animateOpacity3 = Animated.loop(
-      Animated.sequence([
-        Animated.timing(opacity3, {
-          toValue: 0.5 * intensity,
-          duration: 13000 / speed,
-          easing: Easing.bezier(0.4, 0, 0.2, 1),
-          useNativeDriver: true
-        }),
-        Animated.timing(opacity3, {
-          toValue: 0.25 * intensity,
-          duration: 12000 / speed,
-          easing: Easing.bezier(0.4, 0, 0.2, 1),
-          useNativeDriver: true
-        })
-      ])
-    );
+    // Set up interpolations for Y movements - smooth sine waves
+    translateY1.setValue(0);
+    // Use direct connection to driver values via interpolate
+    // This creates a smooth sinusoidal movement with no jumps
+    translateY1.addListener(() => {});
+    Animated.timing(translateY1, { 
+      toValue: 0, 
+      duration: 1, 
+      useNativeDriver: true 
+    }).start();
     
-    const animateOpacity4 = Animated.loop(
-      Animated.sequence([
-        Animated.timing(opacity4, {
-          toValue: 0.45 * intensity,
-          duration: 17000 / speed,
-          easing: Easing.bezier(0.4, 0, 0.2, 1),
-          useNativeDriver: true
-        }),
-        Animated.timing(opacity4, {
-          toValue: 0.2 * intensity,
-          duration: 15000 / speed,
-          easing: Easing.bezier(0.4, 0, 0.2, 1),
-          useNativeDriver: true
-        })
-      ])
-    );
+    // Connect the driver to the animation value
+    y1Driver.driver.addListener(({ value }) => {
+      // Map the 0-1 driver to a sine wave movement pattern
+      const mappedValue = Math.sin(value * Math.PI * 2) * height * 0.08;
+      translateY1.setValue(mappedValue);
+    });
     
-    // Scale animations for breathing effect
-    const animateScale1 = Animated.loop(
-      Animated.sequence([
-        Animated.timing(scale1, {
-          toValue: 1.05,
-          duration: 19000 / speed,
-          easing: Easing.bezier(0.4, 0, 0.2, 1),
-          useNativeDriver: true
-        }),
-        Animated.timing(scale1, {
-          toValue: 0.95,
-          duration: 18000 / speed,
-          easing: Easing.bezier(0.4, 0, 0.2, 1),
-          useNativeDriver: true
-        })
-      ])
-    );
+    translateY2.setValue(0);
+    translateY2.addListener(() => {});
+    Animated.timing(translateY2, { 
+      toValue: 0, 
+      duration: 1, 
+      useNativeDriver: true 
+    }).start();
     
-    const animateScale2 = Animated.loop(
-      Animated.sequence([
-        Animated.timing(scale2, {
-          toValue: 1.08,
-          duration: 23000 / speed,
-          easing: Easing.bezier(0.4, 0, 0.2, 1),
-          useNativeDriver: true
-        }),
-        Animated.timing(scale2, {
-          toValue: 0.98,
-          duration: 21000 / speed,
-          easing: Easing.bezier(0.4, 0, 0.2, 1),
-          useNativeDriver: true
-        })
-      ])
-    );
+    y2Driver.driver.addListener(({ value }) => {
+      // Offset phase for more natural movement
+      const mappedValue = Math.sin((value + 0.2) * Math.PI * 2) * height * 0.06 * -1;
+      translateY2.setValue(mappedValue);
+    });
     
-    // Start all animations with slight delays
-    setTimeout(() => animateY1.start(), 0);
-    setTimeout(() => animateY2.start(), 200);
-    setTimeout(() => animateY3.start(), 400);
-    setTimeout(() => animateY4.start(), 600);
-    setTimeout(() => animateX1.start(), 100);
-    setTimeout(() => animateX2.start(), 300);
-    setTimeout(() => animateOpacity1.start(), 0);
-    setTimeout(() => animateOpacity2.start(), 250);
-    setTimeout(() => animateOpacity3.start(), 500);
-    setTimeout(() => animateOpacity4.start(), 750);
-    setTimeout(() => animateScale1.start(), 150);
-    setTimeout(() => animateScale2.start(), 350);
+    translateY3.setValue(0);
+    translateY3.addListener(() => {});
+    Animated.timing(translateY3, { 
+      toValue: 0, 
+      duration: 1, 
+      useNativeDriver: true 
+    }).start();
+    
+    y3Driver.driver.addListener(({ value }) => {
+      // Different phase and amplitude
+      const mappedValue = Math.sin((value + 0.4) * Math.PI * 2) * height * 0.07;
+      translateY3.setValue(mappedValue);
+    });
+    
+    translateY4.setValue(0);
+    translateY4.addListener(() => {});
+    Animated.timing(translateY4, { 
+      toValue: 0, 
+      duration: 1, 
+      useNativeDriver: true 
+    }).start();
+    
+    y4Driver.driver.addListener(({ value }) => {
+      // Use cosine for phase variety
+      const mappedValue = Math.cos(value * Math.PI * 2) * height * 0.05 * -1;
+      translateY4.setValue(mappedValue);
+    });
+    
+    // X movement with continuous waves
+    translateX1.setValue(0);
+    translateX1.addListener(() => {});
+    Animated.timing(translateX1, { 
+      toValue: 0, 
+      duration: 1, 
+      useNativeDriver: true 
+    }).start();
+    
+    x1Driver.driver.addListener(({ value }) => {
+      // Horizontal movement with sine
+      const mappedValue = Math.sin(value * Math.PI * 2) * width * 0.04;
+      translateX1.setValue(mappedValue);
+    });
+    
+    translateX2.setValue(0);
+    translateX2.addListener(() => {});
+    Animated.timing(translateX2, { 
+      toValue: 0, 
+      duration: 1, 
+      useNativeDriver: true 
+    }).start();
+    
+    x2Driver.driver.addListener(({ value }) => {
+      // Horizontal movement with cosine for variety
+      const mappedValue = Math.cos((value + 0.25) * Math.PI * 2) * width * 0.05 * -1;
+      translateX2.setValue(mappedValue);
+    });
+    
+    // Opacity with smooth sine waves
+    opacity1.setValue(0.5 * intensity);
+    opacity1.addListener(() => {});
+    Animated.timing(opacity1, { 
+      toValue: 0.5 * intensity, 
+      duration: 1, 
+      useNativeDriver: true 
+    }).start();
+    
+    opacity1Driver.driver.addListener(({ value }) => {
+      // Oscillate opacity with sine
+      const baseValue = 0.5 * intensity;
+      const amplitude = 0.15 * intensity;
+      const mappedValue = baseValue + Math.sin(value * Math.PI * 2) * amplitude;
+      opacity1.setValue(mappedValue);
+    });
+    
+    opacity2.setValue(0.4 * intensity);
+    opacity2.addListener(() => {});
+    Animated.timing(opacity2, { 
+      toValue: 0.4 * intensity, 
+      duration: 1, 
+      useNativeDriver: true 
+    }).start();
+    
+    opacity2Driver.driver.addListener(({ value }) => {
+      // Different phase for opacity
+      const baseValue = 0.4 * intensity;
+      const amplitude = 0.12 * intensity;
+      const mappedValue = baseValue + Math.sin((value + 0.3) * Math.PI * 2) * amplitude;
+      opacity2.setValue(mappedValue);
+    });
+    
+    opacity3.setValue(0.3 * intensity);
+    opacity3.addListener(() => {});
+    Animated.timing(opacity3, { 
+      toValue: 0.3 * intensity, 
+      duration: 1, 
+      useNativeDriver: true 
+    }).start();
+    
+    opacity3Driver.driver.addListener(({ value }) => {
+      // Yet another phase
+      const baseValue = 0.3 * intensity;
+      const amplitude = 0.1 * intensity;
+      const mappedValue = baseValue + Math.sin((value + 0.6) * Math.PI * 2) * amplitude;
+      opacity3.setValue(mappedValue);
+    });
+    
+    opacity4.setValue(0.25 * intensity);
+    opacity4.addListener(() => {});
+    Animated.timing(opacity4, { 
+      toValue: 0.25 * intensity, 
+      duration: 1, 
+      useNativeDriver: true 
+    }).start();
+    
+    opacity4Driver.driver.addListener(({ value }) => {
+      // Different frequency for variety
+      const baseValue = 0.25 * intensity;
+      const amplitude = 0.08 * intensity;
+      const mappedValue = baseValue + Math.sin((value + 0.9) * Math.PI * 2) * amplitude;
+      opacity4.setValue(mappedValue);
+    });
+    
+    // Scale animations with continuous waves
+    scale1.setValue(1);
+    scale1.addListener(() => {});
+    Animated.timing(scale1, { 
+      toValue: 1, 
+      duration: 1, 
+      useNativeDriver: true 
+    }).start();
+    
+    scale1Driver.driver.addListener(({ value }) => {
+      // Breathing effect
+      const baseValue = 1;
+      const amplitude = 0.05;
+      const mappedValue = baseValue + Math.sin(value * Math.PI * 2) * amplitude;
+      scale1.setValue(mappedValue);
+    });
+    
+    scale2.setValue(1);
+    scale2.addListener(() => {});
+    Animated.timing(scale2, { 
+      toValue: 1, 
+      duration: 1, 
+      useNativeDriver: true 
+    }).start();
+    
+    scale2Driver.driver.addListener(({ value }) => {
+      // Different phase for scale
+      const baseValue = 1;
+      const amplitude = 0.08;
+      const mappedValue = baseValue + Math.sin((value + 0.5) * Math.PI * 2) * amplitude;
+      scale2.setValue(mappedValue);
+    });
+    
+    // Start all animations with slight phase shifts for more organic movement
+    const startAllAnimations = () => {
+      // Group all animations
+      const allAnimations = [
+        y1Driver.animation, y2Driver.animation, y3Driver.animation, y4Driver.animation,
+        x1Driver.animation, x2Driver.animation,
+        opacity1Driver.animation, opacity2Driver.animation, opacity3Driver.animation, opacity4Driver.animation,
+        scale1Driver.animation, scale2Driver.animation
+      ];
+      
+      // Start each with a slight delay for phase difference
+      allAnimations.forEach((anim, index) => {
+        // Add a small random offset to make movement even more organic
+        const phaseOffset = index * 80 + Math.random() * 40;
+        setTimeout(() => anim.start(), phaseOffset);
+      });
+    };
+    
+    // Start all animations
+    startAllAnimations();
     
     return () => {
-      // Clean up animations
+      // Clean up animations and listeners
+      const allDrivers = [
+        y1Driver, y2Driver, y3Driver, y4Driver,
+        x1Driver, x2Driver,
+        opacity1Driver, opacity2Driver, opacity3Driver, opacity4Driver,
+        scale1Driver, scale2Driver
+      ];
+      
+      allDrivers.forEach(driver => {
+        driver.animation.stop();
+        driver.driver.removeAllListeners();
+      });
+      
+      // Clean up animation values
       [translateY1, translateY2, translateY3, translateY4, 
        translateX1, translateX2, 
        opacity1, opacity2, opacity3, opacity4,
