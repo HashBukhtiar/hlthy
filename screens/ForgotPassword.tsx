@@ -60,7 +60,7 @@ export default function ForgotPassword() {
   };
 
   const handleBackToLogin = () => {
-    router.push('/login');
+    router.push('/landing');
   };
 
   if (submitted) {
@@ -217,7 +217,7 @@ export default function ForgotPassword() {
             
             <Button 
               mode="text" 
-              onPress={() => router.push('/login')}
+              onPress={() => router.push('/landing')}
               style={styles.button} 
               labelStyle={{ color: '#AAAAAA' }}>
               Back to Login

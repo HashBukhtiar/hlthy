@@ -84,7 +84,6 @@ function BottomButtons() {
       pathname?.includes('/signup') ||
       pathname?.includes('/select-archetype') ||
       pathname?.includes('/landing') ||
-      pathname?.includes('/login') ||
       pathname?.includes('/chat') ||
       pathname?.includes('/forgot-password') ||
       pathname?.includes('/view-milestone')) {
