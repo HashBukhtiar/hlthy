@@ -119,6 +119,7 @@ The hlthy app includes a built-in AI assistant that supports users by providing 
 - **Testing Environment**: Expo Go for local development and iOS simulator and Android simulator builds upon merging to main branch.
 - **Image Processing:** Sharp.js via Cloud Functions for automatic thumbnail generation
 - **Storage:** Firebase Storage with automatic thumbnail pipeline
+- **Real-time Updates:** Firestore real-time listeners for feeds and notifications
 
 ---
 
@@ -131,6 +132,7 @@ The hlthy app includes a built-in AI assistant that supports users by providing 
 - `/assets/` — Images, branding, icons
 - `/utils/` — Helper functions (e.g., `imageUtils.ts` for optimal image loading)
 - `/types/` — TypeScript interfaces and types
+- `/functions/src/` — Cloud Functions for backend logic
 
 ---
 
@@ -139,12 +141,13 @@ The hlthy app includes a built-in AI assistant that supports users by providing 
 ✅ **Do**:
 - Write reusable functional components using hooks.
 - Use clean variable and prop names.
-- Reflect hlthy’s core concepts (e.g., milestones, activity types, user goals).
+- Reflect hlthy's core concepts (e.g., milestones, activity types, user goals).
 - Suggest mobile-first layouts.
 - Keep performance optimized for mobile.
 - Use your judgement and creativity for design elements or minor features when designing the UI for pages.
+- Prioritize performance with thumbnail usage in list views.
 
-❌ **Don’t**:
+❌ **Don't**:
 - Suggest desktop or browser-specific features.
 - Include irrelevant imports or unused state.
 - Add unrequested backend logic.
@@ -223,6 +226,6 @@ If you notice potential future issues, anti-patterns, inconsistencies, or risky 
 
 While the given prompt and these guidelines define hlthy’s intended structure and design, you are encouraged to use your judgment and creativity. If a suggestion clearly improves usability, performance, or user experience — even if it slightly deviates from the rules — propose it along with a short explanation. Balance consistency with innovation.
 
-_Last updated: 2025-07-04_
+_Last updated: 2025-07-05_
 
 _Update this file with any changes to app structure, goals, or features._
