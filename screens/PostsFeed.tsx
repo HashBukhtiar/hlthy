@@ -21,12 +21,25 @@ import { useAuth } from '@/context/AuthContext';
 export default function PostsFeed() {
   const router = useRouter();
   const { currentUser, userProfile } = useAuth();
-  const { posts, loading, refreshing, loadingMore, hasMore, error, refreshFeed, loadMorePosts } = useFeedData();
+  const { posts: allPosts, loading, refreshing, loadingMore, hasMore, error, refreshFeed, loadMorePosts } = useFeedData();
   const { likePost, unlikePost, addComment } = usePostsData();
   
   const [newComment, setNewComment] = useState('');
   const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
   const [submittingComment, setSubmittingComment] = useState(false);
+
+  // Filter posts to exclude milestone-only posts
+  // Only show: regular posts (not milestones) OR achievement posts (posts with both content AND milestones)
+  const posts = allPosts.filter(post => {
+    // If it's not a milestone, include it (regular post)
+    if (!post.isMilestone) {
+      return true;
+    }
+    
+    // If it's a milestone, only include it if it has additional content (achievement post)
+    // Achievement posts have both milestone data AND (image OR caption)
+    return post.imageUrl || (post.caption && post.caption.trim() !== '');
+  });
 
   // Handle image click to view full post
   const handleViewPost = useCallback((postId: string) => {
@@ -249,7 +262,7 @@ export default function PostsFeed() {
         </View>
       )}
 
-      {/* Attached Milestone (if exists) */}
+      {/* Attached Milestone (if exists) - For Achievement Posts */}
       {item.isMilestone && item.milestoneDetails && (
         <TouchableOpacity 
           style={styles.attachedItemContainer}
@@ -388,7 +401,7 @@ export default function PostsFeed() {
       windowSize={10}
     />
   );
-}
+};
 
 const styles = StyleSheet.create({
   postsContainer: {
