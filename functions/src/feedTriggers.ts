@@ -74,20 +74,49 @@ export const cleanupFeedsOnPostDelete = onDocumentDeleted(
   "posts/{postId}",
   async (event) => {
     const postId = event.params.postId;
-
     try {
-      // Query all feeds containing this post
-      const feedsQuery = await db.collectionGroup("userFeed")
-        .where("__name__", "==", postId)
+      // Instead of querying all feeds, we can use a more targeted approach
+      // by querying the userFeed collection group with a custom field
+      const feedsQuery = await db
+        .collectionGroup("userFeed")
+        .where("authorId", "==", event.data?.data()?.authorId) // If you have the author data
         .get();
       const batch = db.batch();
+      let deletedCount = 0;
       feedsQuery.forEach((doc) => {
-        batch.delete(doc.ref);
+        // Check if this document's ID matches our post ID
+        if (doc.id === postId) {
+          batch.delete(doc.ref);
+          deletedCount++;
+        }
       });
       await batch.commit();
-      logger.info(`Cleaned up ${feedsQuery.size} feed entries for deleted post ${postId}`);
+      logger.info(`Cleaned up ${deletedCount} feed entries for deleted post ${postId}`);
     } catch (error) {
       logger.error("Error cleaning up feeds:", error);
+      // Fallback to the previous approach if the optimized one fails
+      try {
+        const feedsQuery = await db.collection("feeds").get();
+        const batch = db.batch();
+        let deletedCount = 0;
+        for (const feedDoc of feedsQuery.docs) {
+          const feedId = feedDoc.id;
+          const feedItemRef = db
+            .collection("feeds")
+            .doc(feedId)
+            .collection("userFeed")
+            .doc(postId);
+          const feedItemDoc = await feedItemRef.get();
+          if (feedItemDoc.exists) {
+            batch.delete(feedItemRef);
+            deletedCount++;
+          }
+        }
+        await batch.commit();
+        logger.info(`Fallback cleanup: Removed ${deletedCount} feed entries for deleted post ${postId}`);
+      } catch (fallbackError) {
+        logger.error("Error in fallback cleanup:", fallbackError);
+      }
     }
   }
 );
