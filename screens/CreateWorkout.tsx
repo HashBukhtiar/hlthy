@@ -312,50 +312,91 @@ export default function CreateWorkout() {
         const blob = await response.blob();
         const imageName = `workoutCovers/${currentUser.uid}/${generateUniqueFilename(title.replace(/\s+/g, '_'), 'jpg')}`;
         const storageRef = ref(storage, imageName);
-        await uploadBytes(storageRef, blob);
+        
+        // First save the workout to get the workoutId
+        const workoutData = {
+          creatorId: currentUser.uid,
+          creatorUsername: currentUser.username || currentUser.displayName || 'Anonymous',
+          title: title.trim(),
+          description: description.trim(),
+          coverImageUrl: null, // Will be updated after upload
+          segments: segments.map(segment => ({
+            id: segment.id,
+            name: segment.name.trim(),
+            length: segment.length.trim(),
+            exercises: segment.exercises.map(ex => ({
+              id: ex.id,
+              name: ex.name.trim(),
+              sets: ex.sets.trim(),
+              reps: ex.reps.trim(),
+            })).filter(ex => ex.name.trim() !== '')
+          })).filter(seg => seg.exercises.length > 0 || seg.name.trim() !== ''),
+          createdAt: serverTimestamp(),
+          visibility: visibility, // Use the visibility selector value
+          isPublic: visibility === 'public', // Derive isPublic from visibility
+          savedCount: 0,
+          tags: [],
+        };
+        
+        const workoutDocRef = await addDoc(collection(db, 'workouts'), workoutData);
+        const workoutId = workoutDocRef.id;
+        
+        // Upload image with workoutId metadata
+        await uploadBytes(storageRef, blob, {
+          customMetadata: {
+            workoutId: workoutId
+          }
+        });
+        
         coverImageUrl = await getDownloadURL(storageRef);
+        
+        // Update the workout with the cover image URL
+        await updateDoc(workoutDocRef, {
+          coverImageUrl: coverImageUrl
+        });
+        
+        console.log('Workout saved with ID: ', workoutId);
+      } else {
+        // No cover image, just save the workout normally
+        const workoutData = {
+          creatorId: currentUser.uid,
+          creatorUsername: currentUser.username || currentUser.displayName || 'Anonymous',
+          title: title.trim(),
+          description: description.trim(),
+          coverImageUrl: null,
+          segments: segments.map(segment => ({
+            id: segment.id,
+            name: segment.name.trim(),
+            length: segment.length.trim(),
+            exercises: segment.exercises.map(ex => ({
+              id: ex.id,
+              name: ex.name.trim(),
+              sets: ex.sets.trim(),
+              reps: ex.reps.trim(),
+            })).filter(ex => ex.name.trim() !== '')
+          })).filter(seg => seg.exercises.length > 0 || seg.name.trim() !== ''),
+          createdAt: serverTimestamp(),
+          visibility: visibility, // Use the visibility selector value
+          isPublic: visibility === 'public', // Derive isPublic from visibility
+          savedCount: 0,
+          tags: [],
+        };
+        
+        const workoutDocRef = await addDoc(collection(db, 'workouts'), workoutData);
+        console.log('Workout saved with ID: ', workoutDocRef.id);
       }
-
-      // 2. Prepare workout data
-      const workoutData = {
-        creatorId: currentUser.uid,
-        creatorUsername: currentUser.username || currentUser.displayName || 'Anonymous',
-        title: title.trim(),
-        description: description.trim(),
-        coverImageUrl: coverImageUrl || null,
-        segments: segments.map(segment => ({ // Ensure segments and exercises have necessary data
-          id: segment.id,
-          name: segment.name.trim(),
-          length: segment.length.trim(),
-          exercises: segment.exercises.map(ex => ({
-            id: ex.id,
-            name: ex.name.trim(),
-            sets: ex.sets.trim(),
-            reps: ex.reps.trim(),
-          })).filter(ex => ex.name.trim() !== '') // Filter out empty exercises
-        })).filter(seg => seg.exercises.length > 0 || seg.name.trim() !== ''), // Filter out segments with no name and no exercises
-        createdAt: serverTimestamp(),
-        isPublic: visibility === 'public',
-        visibility: visibility,
-        savedCount: 0,
-        tags: [], // Placeholder for future tag functionality
-        // Add any other fields as per your DBDESIGN.md for workouts
-      };
-
-      // 3. Save workout to Firestore
-      const workoutDocRef = await addDoc(collection(db, 'workouts'), workoutData);
-      console.log('Workout saved with ID: ', workoutDocRef.id);
 
       // 4. Update user's workout count (denormalization)
       const userDocRef = doc(db, 'users', currentUser.uid);
       await updateDoc(userDocRef, {
         'stats.workoutCount': increment(1)
       });
-      // If 'stats' or 'workoutCount' might not exist, we might need a transaction or set with merge:true
-      // For simplicity, increment assumes the path exists or can be created by Firestore.
 
-      // Navigate to the newly created workout's view page
-      router.replace(`/view-workout/${workoutDocRef.id}`);
+      Alert.alert(
+        'Workout Created',
+        'Your workout has been created successfully!',
+        [{ text: 'OK', onPress: () => router.back() }]
+      );
 
     } catch (error) {
       console.error('Error saving workout: ', error);

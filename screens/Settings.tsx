@@ -1,7 +1,5 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Alert, Image } from 'react-native';
-import { Dropdown } from 'react-native-element-dropdown';
-import globalStyles from '@/styles/globalStyles';
 import { useAuth } from '@/context/AuthContext';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db, auth } from '@/firebaseConfig';
@@ -9,6 +7,7 @@ import { signOut } from 'firebase/auth';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { getOptimalImageUrl } from '@/utils/imageUtils';
 import { CustomSelector, SelectorItem } from '@/components/CustomSelector';
 import { generateUniqueFilename } from '@/logic/idGenerator';
 
@@ -169,8 +168,16 @@ export default function Settings() {
       const uri = result.assets[0].uri;
       const base64Data = result.assets[0].base64;
       
-      // Try simpler path (no user subfolder)
+      // Create storage reference
       const storage = getStorage();
+
+      // Add metadata to trigger thumbnail generation
+      const metadata = {
+        customMetadata: {
+          userId: currentUser.uid,
+          type: 'profileImage'
+        }
+      };
       const filename = generateUniqueFilename('profile', 'jpg');
       const storageRef = ref(storage, `profileImages/${filename}`);
       
@@ -190,7 +197,7 @@ export default function Settings() {
         }
         
         console.log("Attempting blob upload...");
-        await uploadBytes(storageRef, blob);
+        await uploadBytes(storageRef, blob, metadata); // Fixed: moved metadata here
         console.log("Upload successful!");
         
         // Get URL
@@ -199,6 +206,13 @@ export default function Settings() {
         
         // Update state
         setProfileImage(downloadURL);
+        
+        // Update user document in Firestore
+        await updateDoc(doc(db, "users", currentUser.uid), {
+          profileImageUrl: downloadURL,
+          // The thumbnail URL will be added by the Cloud Function
+        });
+        
       } catch (blobError) {
         console.error("Blob upload failed:", blobError);
         
@@ -239,8 +253,13 @@ export default function Settings() {
       </View>
       
       <View style={styles.imageContainer}>
-        <Image source={{ uri: profileImage || 'https://thumbs.dreamstime.com/b/creative-illustration-default-avatar-profile-placeholder-isolated-background-art-design-grey-photo-blank-template-mockup-144855718.jpg' }} 
-               style={styles.profileImage} />
+        <Image 
+          source={{ 
+            uri: getOptimalImageUrl(userProfile?.profileThumbnailUrl, userProfile?.profileImageUrl) || 
+                'https://thumbs.dreamstime.com/b/creative-illustration-default-avatar-profile-placeholder-isolated-background-art-design-grey-photo-blank-template-mockup-144855718.jpg' 
+          }} 
+          style={styles.profileImage} 
+        />
         <TouchableOpacity style={styles.imageButton} onPress={pickImage}>
           <Text style={styles.imageButtonText}>Change Photo</Text>
         </TouchableOpacity>

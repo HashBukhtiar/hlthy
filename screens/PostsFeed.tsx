@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { 
   StyleSheet, 
   Text, 
@@ -6,94 +6,170 @@ import {
   Image, 
   TouchableOpacity, 
   FlatList, 
-  TextInput 
+  TextInput,
+  ActivityIndicator,
+  RefreshControl,
+  Alert
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import postsData, { Post } from '@/data/posts';
+import { getOptimalImageUrl } from '@/utils/imageUtils';
+import { useFeedData } from '@/hooks/useFeedData';
+import { usePostsData, Post } from '@/hooks/usePostsData';
+import { useAuth } from '@/context/AuthContext';
+
+const DEFAULT_PROFILE_IMAGE = 'https://thumbs.dreamstime.com/b/creative-illustration-default-avatar-profile-placeholder-isolated-background-art-design-grey-photo-blank-template-mockup-144855718.jpg';
 
 export default function PostsFeed() {
   const router = useRouter();
+  const { currentUser, userProfile } = useAuth();
+  const { posts: allPosts, loading, refreshing, loadingMore, hasMore, error, refreshFeed, loadMorePosts } = useFeedData();
+  const { likePost, unlikePost, addComment } = usePostsData();
   
-  const [feedPosts, setFeedPosts] = useState<Post[]>(postsData);
   const [newComment, setNewComment] = useState('');
   const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
+  const [submittingComment, setSubmittingComment] = useState(false);
 
-  // Function to handle image click to view full post
-  const handleViewPost = (postId: string) => {
+  // Filter posts to exclude milestone-only posts AND remove duplicates
+  const posts = useMemo(() => {
+    const seenIds = new Set<string>();
+    
+    return allPosts.filter(post => {
+      // Skip if we've already seen this post ID
+      if (seenIds.has(post.id)) {
+        console.warn(`Duplicate post found and removed: ${post.id}`);
+        return false;
+      }
+      seenIds.add(post.id);
+      
+      // If it's not a milestone, include it (regular post)
+      if (!post.isMilestone) {
+        return true;
+      }
+      
+      // If it's a milestone, only include it if it has additional content (achievement post)
+      // Achievement posts have both milestone data AND (image OR caption)
+      return post.imageUrl || (post.caption && post.caption.trim() !== '');
+    });
+  }, [allPosts]);
+
+  // Handle image click to view full post
+  const handleViewPost = useCallback((postId: string) => {
     router.push(`/view-post/${postId}`);
-  };
+  }, [router]);
 
-  // Function to toggle like on a post
-  const toggleLike = (postId: string) => {
-    setFeedPosts(feedPosts.map(post => {
-      if (post.id === postId) {
-        const newIsLiked = !post.isLiked;
-        return {
-          ...post,
-          isLiked: newIsLiked,
-          likes: newIsLiked ? post.likes + 1 : post.likes - 1
-        };
+  // Handle like/unlike post
+  const handleToggleLike = useCallback(async (postId: string, isCurrentlyLiked: boolean) => {
+    if (!currentUser) {
+      Alert.alert('Please log in', 'You need to be logged in to like posts.');
+      return;
+    }
+
+    try {
+      if (isCurrentlyLiked) {
+        await unlikePost(postId);
+      } else {
+        await likePost(postId);
       }
-      return post;
-    }));
-  };
+      // The UI update should be handled by the parent component or through state management
+    } catch (error) {
+      console.error('Error toggling like:', error);
+      Alert.alert('Error', 'Could not update like status. Please try again.');
+    }
+  }, [currentUser, likePost, unlikePost]);
 
-  // Function to toggle bookmark on a post
-  const toggleBookmark = (postId: string) => {
-    setFeedPosts(feedPosts.map(post => {
-      if (post.id === postId) {
-        return { ...post, isBookmarked: !post.isBookmarked };
-      }
-      return post;
-    }));
-  };
+  // Handle bookmark toggle
+  const handleToggleBookmark = useCallback((postId: string) => {
+    // TODO: Implement bookmark functionality
+    console.log('Bookmark toggle for post:', postId);
+  }, []);
 
-  const navigateToWorkout = (workoutId: string) => {
+  // Navigation functions
+  const navigateToWorkout = useCallback((workoutId: string) => {
     router.push(`/view-workout/${workoutId}`);
-  };
+  }, [router]);
 
-  const navigateToMilestone = (milestoneId: string) => {
+  const navigateToMilestone = useCallback((milestoneId: string) => {
     router.push(`/view-milestone/${milestoneId}`);
-  };
+  }, [router]);
 
-  const handleCommentPress = (postId: string) => {
-    router.push(`/view-post/${postId}`);
-  };
-  
-  // Toggle comment input for a specific post
-  const toggleCommentInput = (postId: string) => {
+  const navigateToProfile = useCallback((userId: string) => {
+    router.push(`/profile/${userId}`);
+  }, [router]);
+
+  // Comment functions
+  const toggleCommentInput = useCallback((postId: string) => {
     setActiveCommentId(activeCommentId === postId ? null : postId);
     setNewComment('');
-  };
+  }, [activeCommentId]);
 
-  // Add a new comment
-  const addComment = (postId: string) => {
-    if (newComment.trim() === '') return;
-    
-    setFeedPosts(feedPosts.map(post => {
-      if (post.id === postId) {
-        return {
-          ...post,
-          comments: post.comments + 1,
-        };
+  const handleAddComment = useCallback(async (postId: string) => {
+    if (!currentUser || !newComment.trim() || submittingComment) return;
+
+    try {
+      setSubmittingComment(true);
+      await addComment(postId, newComment.trim());
+      setNewComment('');
+      setActiveCommentId(null);
+      // Optionally refresh the feed or update the specific post
+    } catch (error) {
+      console.error('Error adding comment:', error);
+      Alert.alert('Error', 'Could not add comment. Please try again.');
+    } finally {
+      setSubmittingComment(false);
+    }
+  }, [currentUser, newComment, submittingComment, addComment]);
+
+  // Format milestone preview
+  const formatMilestonePreview = useCallback((details: any): string => {
+    if (!details) return '';
+  
+    if (details.type === 'weightLoss' || details.type === 'weightGain') {
+      return `${details.type === 'weightLoss' ? 'Lost' : 'Gained'}: ${details.totalLoss || details.totalGain} ${details.newWeightUnit || 'lbs'}`;
+    }
+  
+    if (details.type === 'PR') {
+      const exercise = details.exerciseName || 'Record';
+      if (details.value && details.reps) {
+        return `${exercise}: ${details.value} ${details.weightUnit || 'lbs'} × ${details.reps} reps`;
       }
-      return post;
-    }));
-    
-    setNewComment('');
-    setActiveCommentId(null);
-  };
+      if (details.reps) {
+        return `${exercise}: ${details.reps} reps`;
+      }
+      if (details.duration) {
+        const d = details.duration;
+        const h = Math.floor(d / 3600);
+        const m = Math.floor((d % 3600) / 60);
+        const s = d % 60;
+        const time = [h > 0 ? `${h}h` : '', m > 0 ? `${m}m` : '', (s > 0 || (!h && !m)) ? `${s}s` : ''].filter(Boolean).join(' ');
+        return `${exercise}: ${time}`;
+      }
+      return exercise;
+    }
+  
+    return 'View Achievement';
+  }, []);
 
-  const renderPost = ({ item }: { item: Post }) => (
+  // Render individual post
+  const renderPost = useCallback(({ item }: { item: Post }) => (
     <View style={styles.postContainer}>
       {/* Header with user info */}
       <View style={styles.postHeader}>
-        <TouchableOpacity style={styles.userInfoContainer}>
-          <Image source={{ uri: item.profilePic }} style={styles.profilePic} />
+        <TouchableOpacity 
+          style={styles.userInfoContainer}
+          onPress={() => navigateToProfile(item.authorId)}
+        >
+          <Image 
+            source={{ 
+              uri: getOptimalImageUrl(item.authorProfileThumbnailUrl, item.authorProfileImageUrl) || DEFAULT_PROFILE_IMAGE
+            }} 
+            style={styles.profilePic} 
+          />
           <View>
-            <Text style={styles.username}>{item.username}</Text>
-            <Text style={styles.location}>{item.location}</Text>
+            <Text style={styles.username}>{item.authorUsername}</Text>
+            <Text style={styles.timestamp}>
+              {item.createdAt ? new Date(item.createdAt.toDate()).toLocaleDateString() : 'Unknown'}
+            </Text>
           </View>
         </TouchableOpacity>
         <TouchableOpacity style={styles.moreButton}>
@@ -102,19 +178,24 @@ export default function PostsFeed() {
       </View>
 
       {/* Post Image */}
-      <TouchableOpacity 
-        activeOpacity={0.9}
-        onPress={() => handleViewPost(item.id)}
-      >
-        <Image source={{ uri: item.imageUrl }} style={styles.postImage} />
-      </TouchableOpacity>
+      {item.imageUrl && (
+        <TouchableOpacity 
+          activeOpacity={0.9}
+          onPress={() => handleViewPost(item.id)}
+        >
+          <Image 
+            source={{ uri: getOptimalImageUrl(item.thumbnailUrl, item.imageUrl) || item.imageUrl }} 
+            style={styles.postImage} 
+          />
+        </TouchableOpacity>
+      )}
 
       {/* Action Buttons */}
       <View style={styles.actionButtons}>
         <View style={styles.leftActions}>
           <TouchableOpacity 
             style={styles.actionButton} 
-            onPress={() => toggleLike(item.id)}
+            onPress={() => handleToggleLike(item.id, item.isLiked || false)}
           >
             <Ionicons 
               name={item.isLiked ? "heart" : "heart-outline"} 
@@ -134,7 +215,7 @@ export default function PostsFeed() {
         </View>
         <TouchableOpacity 
           style={[styles.actionButton, styles.bookmarkButton]}
-          onPress={() => toggleBookmark(item.id)}
+          onPress={() => handleToggleBookmark(item.id)}
         >
           <Ionicons 
             name={item.isBookmarked ? "bookmark" : "bookmark-outline"} 
@@ -145,12 +226,14 @@ export default function PostsFeed() {
       </View>
 
       {/* Likes */}
-      <Text style={styles.likes}>{item.likes} likes</Text>
+      <Text style={styles.likes}>{item.reactionCount || 0} likes</Text>
 
       {/* Caption */}
-      <View style={styles.captionContainer}>
-        <Text style={styles.caption} numberOfLines={2}>{item.caption}</Text>
-      </View>
+      {item.caption && (
+        <View style={styles.captionContainer}>
+          <Text style={styles.caption} numberOfLines={2}>{item.caption}</Text>
+        </View>
+      )}
       
       {/* Comments preview button */}
       <TouchableOpacity 
@@ -158,18 +241,17 @@ export default function PostsFeed() {
         onPress={() => handleViewPost(item.id)}
       >
         <Text style={styles.commentsPreviewText}>
-          View all {item.comments} comments
+          View all {item.commentCount || 0} comments
         </Text>
       </TouchableOpacity>
-
-      {/* Timestamp */}
-      <Text style={styles.timestamp}>{item.timestamp}</Text>
 
       {/* Comment Input (shown only for active comment) */}
       {activeCommentId === item.id && (
         <View style={styles.commentInputContainer}>
           <Image 
-            source={{ uri: 'https://randomuser.me/api/portraits/men/1.jpg' }} 
+            source={{ 
+              uri: getOptimalImageUrl(userProfile?.profileThumbnailUrl, userProfile?.profileImageUrl) || DEFAULT_PROFILE_IMAGE
+            }} 
             style={styles.commentInputProfilePic} 
           />
           <TextInput
@@ -178,34 +260,40 @@ export default function PostsFeed() {
             placeholderTextColor="#666"
             value={newComment}
             onChangeText={setNewComment}
+            autoFocus
           />
           <TouchableOpacity 
-            style={[styles.postButton, newComment.trim() === '' && styles.disabledButton]}
-            onPress={() => addComment(item.id)}
-            disabled={newComment.trim() === ''}
+            style={[styles.postButton, (newComment.trim() === '' || submittingComment) && styles.disabledButton]}
+            onPress={() => handleAddComment(item.id)}
+            disabled={newComment.trim() === '' || submittingComment}
           >
-            <Text style={[styles.postButtonText, newComment.trim() === '' && styles.disabledButtonText]}>
-              Post
-            </Text>
+            {submittingComment ? (
+              <ActivityIndicator size="small" color="#0A84FF" />
+            ) : (
+              <Text style={[styles.postButtonText, newComment.trim() === '' && styles.disabledButtonText]}>
+                Post
+              </Text>
+            )}
           </TouchableOpacity>
         </View>
       )}
 
-      {/* Attached Milestone (if exists) */}
-      {item.attachedMilestone && (
+      {/* Attached Milestone (if exists) - For Achievement Posts */}
+      {item.isMilestone && item.milestoneDetails && (
         <TouchableOpacity 
           style={styles.attachedItemContainer}
-          onPress={() => item.attachedMilestone && navigateToMilestone(item.attachedMilestone.id)}
+          onPress={() => navigateToMilestone(item.id)}
         >
           <View style={styles.attachedItemContent}>
             <View style={styles.attachedItemInfo}>
               <Ionicons name="trophy-outline" size={18} color="#FFF" style={styles.attachedItemIcon} />
               <View>
                 <Text style={styles.attachedItemTitle}>
-                  {item.attachedMilestone.title}
+                  {item.milestoneDetails.type === 'PR' ? 'Personal Record' : 
+                   item.milestoneDetails.type === 'weightLoss' ? 'Weight Loss' : 'Weight Gain'}
                 </Text>
                 <Text style={styles.attachedItemDetails}>
-                  {item.attachedMilestone.details}
+                  {formatMilestonePreview(item.milestoneDetails)}
                 </Text>
               </View>
             </View>
@@ -215,20 +303,20 @@ export default function PostsFeed() {
       )}
 
       {/* Attached Workout (if exists) */}
-      {item.attachedWorkout && (
+      {item.workoutId && (
         <TouchableOpacity 
           style={styles.attachedItemContainer}
-          onPress={() => item.attachedWorkout && navigateToWorkout(item.attachedWorkout.id)}
+          onPress={() => navigateToWorkout(item.workoutId!)}
         >
           <View style={styles.attachedItemContent}>
             <View style={styles.attachedItemInfo}>
               <Ionicons name="flame" size={18} color="#FFF" style={styles.attachedItemIcon} />
               <View>
                 <Text style={styles.attachedItemTitle}>
-                  {item.attachedWorkout.title}
+                  Workout
                 </Text>
                 <Text style={styles.attachedItemDetails}>
-                  {item.attachedWorkout.details}
+                  View attached workout
                 </Text>
               </View>
             </View>
@@ -237,23 +325,106 @@ export default function PostsFeed() {
         </TouchableOpacity>
       )}
     </View>
-  );
-  
+  ), [
+    navigateToProfile, 
+    handleViewPost, 
+    handleToggleLike, 
+    toggleCommentInput, 
+    handleToggleBookmark, 
+    activeCommentId,
+    newComment,
+    submittingComment,
+    handleAddComment,
+    navigateToMilestone,
+    navigateToWorkout,
+    formatMilestonePreview,
+    userProfile
+  ]);
+
+  // Render footer for load more
+  const renderFooter = useCallback(() => {
+    if (!loadingMore) return null;
+    return (
+      <View style={styles.loadingFooter}>
+        <ActivityIndicator size="large" color="#0A84FF" />
+        <Text style={styles.loadingText}>Loading more posts...</Text>
+      </View>
+    );
+  }, [loadingMore]);
+
+  // Render empty state
+  const renderEmptyState = useCallback(() => {
+    if (loading) {
+      return (
+        <View style={styles.emptyState}>
+          <ActivityIndicator size="large" color="#0A84FF" />
+          <Text style={styles.emptyStateText}>Loading your feed...</Text>
+        </View>
+      );
+    }
+
+    return (
+      <View style={styles.emptyState}>
+        <Ionicons name="people-outline" size={80} color="#333" />
+        <Text style={styles.emptyStateTitle}>Your feed is empty</Text>
+        <Text style={styles.emptyStateText}>
+          Follow other users to see their posts here, or check out trending content in Explore.
+        </Text>
+        <TouchableOpacity 
+          style={styles.exploreButton}
+          onPress={() => router.push('/explore')}
+        >
+          <Text style={styles.exploreButtonText}>Explore</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }, [loading, router]);
+
+  if (error) {
+    return (
+      <View style={styles.errorState}>
+        <Ionicons name="alert-circle-outline" size={80} color="#FF3B30" />
+        <Text style={styles.errorTitle}>Something went wrong</Text>
+        <Text style={styles.errorText}>Could not load your feed. Please try again.</Text>
+        <TouchableOpacity style={styles.retryButton} onPress={refreshFeed}>
+          <Text style={styles.retryButtonText}>Retry</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   return (
     <FlatList
-      data={feedPosts}
+      data={posts}
       renderItem={renderPost}
-      keyExtractor={item => item.id}
+      keyExtractor={(item, index) => `${item.id}-${index}`}
       showsVerticalScrollIndicator={false}
-      contentContainerStyle={styles.postsContainer}
+      contentContainerStyle={posts.length === 0 ? styles.emptyContainer : styles.postsContainer}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={refreshFeed}
+          colors={['#0A84FF']}
+          tintColor="#0A84FF"
+        />
+      }
+      onEndReached={loadMorePosts}
+      onEndReachedThreshold={0.5}
+      ListFooterComponent={renderFooter}
+      ListEmptyComponent={renderEmptyState}
+      removeClippedSubviews={true}
+      maxToRenderPerBatch={5}
+      windowSize={10}
     />
   );
-}
+};
 
 const styles = StyleSheet.create({
   postsContainer: {
-    width: '100%',
     paddingBottom: 70,
+  },
+  emptyContainer: {
+    flex: 1,
   },
   postContainer: {
     marginBottom: 15,
@@ -285,7 +456,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#FFF',
   },
-  location: {
+  timestamp: {
     fontSize: 12,
     color: '#999',
   },
@@ -334,12 +505,6 @@ const styles = StyleSheet.create({
   commentsPreviewText: {
     color: '#999',
     fontSize: 14,
-  },
-  timestamp: {
-    fontSize: 12,
-    color: '#999',
-    paddingHorizontal: 15,
-    marginBottom: 10,
   },
   commentInputContainer: {
     flexDirection: 'row',
@@ -419,5 +584,75 @@ const styles = StyleSheet.create({
     color: '#999',
     fontSize: 13,
     marginTop: 2,
+  },
+  loadingFooter: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  loadingText: {
+    color: '#999',
+    marginTop: 10,
+  },
+  emptyState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 40,
+  },
+  emptyStateTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#FFF',
+    marginTop: 20,
+    marginBottom: 10,
+  },
+  emptyStateText: {
+    fontSize: 16,
+    color: '#999',
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: 30,
+  },
+  exploreButton: {
+    backgroundColor: '#0A84FF',
+    paddingHorizontal: 30,
+    paddingVertical: 12,
+    borderRadius: 25,
+  },
+  exploreButtonText: {
+    color: '#FFF',
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  errorState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 40,
+  },
+  errorTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#FF3B30',
+    marginTop: 20,
+    marginBottom: 10,
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#999',
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: 30,
+  },
+  retryButton: {
+    backgroundColor: '#FF3B30',
+    paddingHorizontal: 30,
+    paddingVertical: 12,
+    borderRadius: 25,
+  },
+  retryButtonText: {
+    color: '#FFF',
+    fontWeight: '600',
+    fontSize: 16,
   },
 });

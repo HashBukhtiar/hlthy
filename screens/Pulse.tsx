@@ -18,8 +18,8 @@ import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useAuth } from '@/context/AuthContext'; 
 import { db, app } from '@/firebaseConfig';
 import { getFunctions, httpsCallable } from 'firebase/functions';
-import { collection, query, where, orderBy, onSnapshot, Timestamp } from 'firebase/firestore'; 
-
+import { collection, query, where, orderBy, onSnapshot, Timestamp } from 'firebase/firestore';
+import { getOptimalImageUrl } from '@/utils/imageUtils';
 
 // Helper function to display shortened string
 const displayShortenedString = (str: string, maxLength: number): string => {
@@ -28,19 +28,21 @@ const displayShortenedString = (str: string, maxLength: number): string => {
 };
 
 export interface ActivityItem {
-  id: string; 
-  type: 'follow_request' | 'new_follower' | 'post_like' | 'post_comment' | 'workout_save' | string; // add more as needed
-  fromUserId: string;
-  fromUsername: string;
-  fromProfileImageUrl?: string;
-  postId?: string;
-  postImageUrl?: string; 
-  workoutId?: string; 
-  workoutTitle?: string; 
-  commentText?: string;
-  createdAt: Timestamp;
-  isRead: boolean;
-  status?: 'pending' | 'accepted' | 'ignored'; 
+    id: string; 
+    type: 'follow_request' | 'new_follower' | 'post_like' | 'post_comment' | 'workout_save' | string;
+    fromUserId: string;
+    fromUsername: string;
+    fromProfileImageUrl?: string;
+    postId?: string;
+    postImageUrl?: string;
+    postThumbnailUrl?: string;
+    workoutId?: string; 
+    workoutTitle?: string;
+    workoutThumbnailUrl?: string;
+    commentText?: string;
+    createdAt: Timestamp;
+    isRead: boolean;
+    status?: 'pending' | 'accepted' | 'ignored'; 
 }
 
 export default function Pulse() {
@@ -437,7 +439,7 @@ export default function Pulse() {
                                     style={activityStyles.activityContentPreviewImageContainer}
                                 >
                                     <Image
-                                        source={{ uri: activity.postImageUrl }}
+                                        source={{ uri: getOptimalImageUrl(activity.postThumbnailUrl, activity.postImageUrl) }}
                                         style={activityStyles.activityContentPreviewImageStyle}
                                     />
                                 </TouchableOpacity>
@@ -451,7 +453,7 @@ export default function Pulse() {
                                     style={activityStyles.activityContentPreviewImageContainer}
                                 >
                                     <Image
-                                        source={{ uri: activity.postImageUrl }}
+                                        source={{ uri: getOptimalImageUrl(activity.workoutThumbnailUrl, activity.postImageUrl) }}
                                         style={activityStyles.activityContentPreviewImageStyle}
                                     />
                                 </TouchableOpacity>

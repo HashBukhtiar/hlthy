@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
-import { collection, query, orderBy, getDocs, deleteDoc, getCountFromServer, doc, getDoc, increment, where, setDoc, runTransaction, serverTimestamp } from 'firebase/firestore';
+import { useState, useEffect, useCallback } from 'react';
+import { collection, query, orderBy, getDocs, doc, getDoc, increment, where, setDoc, runTransaction, serverTimestamp, writeBatch } from 'firebase/firestore';
 import { db, app } from '@/firebaseConfig';
 import { useAuth } from '@/context/AuthContext';
 import { getFunctions, httpsCallable } from 'firebase/functions';
+import { UserProfile } from '@/types/user';
 
 export interface Milestone {
   id: string;
@@ -23,15 +24,16 @@ interface WorkoutItemData {
   creatorId: string;
   creatorUsername: string;
   coverImageUrl?: string | null;
+  thumbnailUrl?: string | null;
 }
 
 export function useProfileData(userId = null) {
   const { currentUser } = useAuth();
   const profileIdToFetch = userId || currentUser?.uid;
   const functions = getFunctions(app, 'northamerica-northeast2');
-
+  const isOwnProfile = !userId || userId === currentUser?.uid;
   const [loading, setLoading] = useState(true);
-  const [profileData, setProfileData] = useState<any | null>(null);
+  const [profileData, setProfileData] = useState<UserProfile | null>(null);
   const [posts, setPosts] = useState<any[]>([]);
   const [groupedMilestones, setGroupedMilestones] = useState<GroupedMilestones>({});
   const [workouts, setWorkouts] = useState<any[]>([]);
@@ -42,7 +44,102 @@ export function useProfileData(userId = null) {
   const [isFollowingStatus, setIsFollowingStatus] = useState(false);
   const [followActionLoading, setFollowActionLoading] = useState(false);
   const [activePostCount, setActivePostCount] = useState<number | null>(null);
+  const [savedWorkouts, setSavedWorkouts] = useState<any[]>([]);
+  const [loadingWorkouts, setLoadingWorkouts] = useState(false);
 
+  const processUserProfile = (userData: any): UserProfile => {
+    if (!userData) {
+      throw new Error("User data is required");
+    }
+
+    return {
+      ...userData,
+      // Prioritize top-level counts (current Firebase structure)
+      followerCount: userData.followerCount ?? userData.stats?.followerCount ?? 0,
+      followingCount: userData.followingCount ?? userData.stats?.followingCount ?? 0,
+      
+      // Ensure stats object exists with consistent data
+      stats: {
+        followerCount: userData.followerCount ?? userData.stats?.followerCount ?? 0,
+        followingCount: userData.followingCount ?? userData.stats?.followingCount ?? 0,
+        postCount: userData.stats?.postCount ?? 0,
+        workoutCount: userData.stats?.workoutCount ?? 0,
+      },
+
+      // Handle profile images with proper fallbacks
+      profileImageUrl: userData.profileImageUrl || '',
+      profileThumbnailUrl: userData.profileThumbnailUrl || null,
+
+      // Ensure required fields have defaults
+      uid: userData.uid || userData.id,
+      username: userData.username || '',
+      displayName: userData.displayName || '',
+      email: userData.email || '',
+      bio: userData.bio || '',
+      archetype: userData.archetype || 'generalist',
+      createdAt: userData.createdAt,
+      
+      // Optional fields with proper defaults
+      dateOfBirth: userData.dateOfBirth || undefined,
+      accountPrivacy: userData.accountPrivacy || 'public',
+      latestPRs: userData.latestPRs || {},
+      
+      // Physical stats
+      physicalStats: userData.physicalStats || undefined,
+      
+      // Goals & Preferences
+      fitnessGoals: userData.fitnessGoals || [],
+      preferredWorkoutTypes: userData.preferredWorkoutTypes || [],
+      workoutFrequency: userData.workoutFrequency || undefined,
+      
+      // Verification & Status
+      isVerified: userData.isVerified || false,
+      isPremium: userData.isPremium || false,
+      subscriptionStatus: userData.subscriptionStatus || 'free',
+      
+      // Activity Status
+      lastActive: userData.lastActive || undefined,
+      isOnline: userData.isOnline || false,
+      
+      // Location
+      location: userData.location || undefined,
+      
+      // Social Links
+      socialLinks: userData.socialLinks || undefined,
+      
+      // Notification Preferences
+      notificationSettings: userData.notificationSettings || {
+        pushNotifications: true,
+        emailNotifications: false,
+        followRequests: true,
+        workoutReminders: true,
+        socialUpdates: true,
+      },
+      
+      // Achievement System
+      badges: userData.badges || [],
+      achievements: userData.achievements || [],
+      currentStreak: userData.currentStreak || 0,
+      longestStreak: userData.longestStreak || 0,
+      
+      // Content Preferences
+      contentPreferences: userData.contentPreferences || {
+        showMilestones: true,
+        showWorkouts: true,
+        allowTagging: true,
+        profileVisibility: 'everyone',
+      },
+      
+      // App Preferences
+      units: userData.units || 'metric',
+      language: userData.language || 'en',
+      region: userData.region || undefined,
+      
+      // Profile Completion
+      isProfileComplete: userData.isProfileComplete || false,
+      profileCompletionPercentage: userData.profileCompletionPercentage || 0,
+    } as UserProfile;
+  };
 
   const groupAndSortMilestones = (milestonesToSort: Milestone[]): GroupedMilestones => {
     // Sort milestones first
@@ -90,32 +187,40 @@ export function useProfileData(userId = null) {
     }, {});
 };
 
-  // This is the primary function called by useEffect
-  const fetchProfileData = async () => {
+  // Memoize fetchProfileData to prevent infinite loops
+  const fetchProfileData = useCallback(async () => {
     if (!profileIdToFetch) {
       setLoading(false);
       setError(new Error("No profile ID available to fetch data."));
       console.log("No profileIdToFetch, returning early from fetchProfileData");
       return;
     }
+    
     console.log(`Fetching profile data for ID (fetchProfileData): ${profileIdToFetch}`);
     setLoading(true);
+    setLoadingWorkouts(true);
     setError(null);
 
     try {
-      let userData: any | null = null; // Use specific type
+      let userData: any | null = null;
       let userPosts: any[] = [];
       let userMilestonesRaw: Milestone[] = [];
       let userWorkouts: any[] = [];
+      let userSavedWorkouts: any[] = [];
       let userFollowers: any[] = [];
-      let userFollowingData: any[] = []; // Renamed to avoid conflict with state
+      let userFollowingData: any[] = [];
 
       // 1. Fetch user profile
       try {
         const userDoc = await getDoc(doc(db, "users", profileIdToFetch));
         if (userDoc.exists()) {
-          userData = { id: userDoc.id, ...userDoc.data() }; // Include ID in profileData
-          console.log("User profile data retrieved for:", profileIdToFetch, userData);
+          const rawUserData = { 
+            id: userDoc.id, 
+            ...userDoc.data(),
+          }; 
+          // Process the raw user data through our migration function
+          userData = processUserProfile(rawUserData);
+          console.log("User profile data retrieved and processed for:", profileIdToFetch);
         } else {
           console.log("User profile not found for:", profileIdToFetch);
           throw new Error("User profile not found.");
@@ -170,11 +275,9 @@ export function useProfileData(userId = null) {
         console.error("Error processing milestones:", milestoneError);
       }
 
-      // 4. Fetch user workouts
       try {
         const workoutsQuery = query(
           collection(db, "workouts"),
-          // Ensure this field name 'creatorId' matches your Firestore structure for workouts
           where("creatorId", "==", profileIdToFetch), 
           orderBy("createdAt", "desc")
         );
@@ -185,50 +288,47 @@ export function useProfileData(userId = null) {
         console.error("Error fetching workouts:", workoutsError);
       }
 
-      // 5. Fetch followers
+      // 5. Fetch saved workouts (only for own profile)
+      if (isOwnProfile) {
+        try {
+          const savedWorkoutsQuery = query(
+            collection(db, "users", profileIdToFetch, "savedWorkouts"),
+            orderBy("savedAt", "desc")
+          );
+          const savedWorkoutsSnapshot = await getDocs(savedWorkoutsQuery);
+          const savedWorkoutIds = savedWorkoutsSnapshot.docs.map(doc => doc.id);
+          
+          // Fetch full workout data for saved workouts
+          if (savedWorkoutIds.length > 0) {
+            const savedWorkoutPromises = savedWorkoutIds.map(async (workoutId) => {
+              const workoutDoc = await getDoc(doc(db, "workouts", workoutId));
+              if (workoutDoc.exists()) {
+                return { id: workoutDoc.id, ...workoutDoc.data() };
+              }
+              return null;
+            });
+            
+            const savedWorkoutResults = await Promise.all(savedWorkoutPromises);
+            userSavedWorkouts = savedWorkoutResults.filter(workout => workout !== null);
+          }
+          
+          console.log(`Retrieved ${userSavedWorkouts.length} saved workouts for:`, profileIdToFetch);
+        } catch (savedWorkoutsError) {
+          console.error("Error fetching saved workouts:", savedWorkoutsError);
+        }
+      }
+
+      // 6. Fetch followers
       try {
         const followersQuery = query(collection(db, "users", profileIdToFetch, "followers"));
         const followersSnap = await getDocs(followersQuery);
-        // The documents in this subcollection represent the users who are followers.
-        // Their IDs are the UIDs of the followers.
-        userFollowers = followersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })); // doc.data() might be empty or contain timestamp
+        userFollowers = followersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         console.log(`Retrieved ${userFollowers.length} followers for:`, profileIdToFetch);
       } catch (followersError) {
         console.error("Error fetching followers:", followersError);
       }
 
-      // 6. Fetch following
-      try {
-        const followingQuery = query(collection(db, "users", profileIdToFetch, "following"));
-        const followingSnap = await getDocs(followingQuery);
-        // The documents in this subcollection represent the users whom profileIdToFetch is following.
-        // Their IDs are the UIDs of the users being followed.
-        userFollowingData = followingSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })); // doc.data() might be empty or contain timestamp
-        console.log(`Retrieved ${userFollowingData.length} following for:`, profileIdToFetch);
-      } catch (followingError) {
-        console.error("Error fetching following:", followingError);
-      }
-
-      // Fetch follow status if not own profile
-      if (currentUser && profileIdToFetch !== currentUser.uid) {
-        try {
-          const followDoc = await getDoc(doc(db, "users", profileIdToFetch, "followers", currentUser.uid));
-          setIsFollowingStatus(followDoc.exists());
-          if (!followDoc.exists()) { // Only check for pending if not already following
-            const pendingRequestDoc = await getDoc(doc(db, "users", profileIdToFetch, "pendingFollowers", currentUser.uid));
-            setIsRequestPending(pendingRequestDoc.exists());
-          } else {
-            setIsRequestPending(false); // Not pending if already following
-          }
-          console.log(`Follow status for ${profileIdToFetch} by ${currentUser.uid}: ${followDoc.exists()}, Pending: ${isRequestPending}`);
-        } catch (followStatusError) {
-          console.error("Error checking follow/pending status:", followStatusError);
-        }
-      } else if (profileIdToFetch === currentUser?.uid) {
-        setIsFollowingStatus(false);
-        setIsRequestPending(false);
-      }
-
+      // 7. Fetch following
       try {
         const followingQuery = query(collection(db, "users", profileIdToFetch, "following"));
         const followingSnap = await getDocs(followingQuery);
@@ -237,41 +337,48 @@ export function useProfileData(userId = null) {
       } catch (followingError) {
         console.error("Error fetching following:", followingError);
       }
-      
-      // Fetch follow status if not own profile and currentUser is available
+
+      // 8. Fetch follow status if not own profile
       if (currentUser && profileIdToFetch !== currentUser.uid) {
         try {
           const followDoc = await getDoc(doc(db, "users", profileIdToFetch, "followers", currentUser.uid));
           setIsFollowingStatus(followDoc.exists());
-          console.log(`Follow status for ${profileIdToFetch} by ${currentUser.uid}: ${followDoc.exists()}`);
+          if (!followDoc.exists()) {
+            const pendingRequestDoc = await getDoc(doc(db, "users", profileIdToFetch, "pendingFollowers", currentUser.uid));
+            setIsRequestPending(pendingRequestDoc.exists());
+          } else {
+            setIsRequestPending(false);
+          }
+          console.log(`Follow status for ${profileIdToFetch} by ${currentUser.uid}: following=${followDoc.exists()}, pending=${!followDoc.exists() && isRequestPending}`);
         } catch (followStatusError) {
-          console.error("Error checking follow status:", followStatusError);
+          console.error("Error checking follow/pending status:", followStatusError);
         }
       } else if (profileIdToFetch === currentUser?.uid) {
         setIsFollowingStatus(false);
+        setIsRequestPending(false);
       }
 
       // --- Group the extracted milestones ---
       const finalGroupedMilestones = groupAndSortMilestones(userMilestonesRaw);
-      console.log("Final Grouped Milestones for:", profileIdToFetch, finalGroupedMilestones);
 
       setProfileData(userData);
       setPosts(userPosts);
       setGroupedMilestones(finalGroupedMilestones);
       setWorkouts(userWorkouts);
+      setSavedWorkouts(userSavedWorkouts);
       setFollowers(userFollowers);
       setFollowing(userFollowingData);
 
       console.log("Profile data refresh complete for:", profileIdToFetch);
-
     } catch (err) {
       console.error("Error in fetchProfileData:", err);
       setError(err as Error);
     } finally {
       setLoading(false);
+      setLoadingWorkouts(false);
       console.log("Loading set to false for:", profileIdToFetch);
     }
-  };
+  }, [profileIdToFetch, currentUser?.uid, isOwnProfile]);
 
   const followUser = async (targetUserId: string) => {
     if (!currentUser || !currentUser.uid || followActionLoading) {
@@ -285,13 +392,10 @@ export function useProfileData(userId = null) {
     }
     setFollowActionLoading(true);
 
-    // Path for the pending follow request
-    const pendingFollowerRef = doc(db, "users", targetUserId, "pendingFollowers", currentUserId);
-
     try {
       // Check if already following or request already pending to prevent duplicate writes
-      const isAlreadyFollowing = isFollowingStatus; // Use existing state
-      const isAlreadyPending = isRequestPending; // Use new state
+      const isAlreadyFollowing = isFollowingStatus;
+      const isAlreadyPending = isRequestPending;
 
       if (isAlreadyFollowing) {
         console.log("Already following this user.");
@@ -304,18 +408,73 @@ export function useProfileData(userId = null) {
         return;
       }
 
-      await setDoc(pendingFollowerRef, {
-        requestedAt: serverTimestamp(),
-        // You can add other relevant info here if needed by the target user,
-        // like currentUserId's username, profileImageUrl, though the cloud function
-        // for activity creation already fetches this.
-      });
+      // Get target user's profile to check if account is private
+      const targetUserDoc = await getDoc(doc(db, "users", targetUserId));
+      const targetUserData = targetUserDoc.data();
+      const isPrivateAccount = targetUserData?.accountPrivacy === 'private' || targetUserData?.isPrivate || false;
 
-      setIsRequestPending(true); // Update UI to show "Requested"
-      console.log("Follow request sent to user:", targetUserId);
+      if (isPrivateAccount) {
+        // For private accounts, send a follow request
+        const pendingFollowerRef = doc(db, "users", targetUserId, "pendingFollowers", currentUserId);
+        await setDoc(pendingFollowerRef, {
+          requestedAt: serverTimestamp(),
+          requesterUsername: currentUser.displayName || 'Unknown',
+          requesterProfileImageUrl: currentUser.photoURL || '',
+        });
+
+        setIsRequestPending(true);
+        console.log("Follow request sent to private account:", targetUserId);
+      } else {
+        // For public accounts, directly create the follow relationship
+        const batch = writeBatch(db);
+        
+        // Add to target user's followers (this triggers the Cloud Function)
+        const followerRef = doc(db, 'users', targetUserId, 'followers', currentUserId);
+        batch.set(followerRef, {
+          userId: currentUserId,
+          username: currentUser.displayName || 'Unknown',
+          profileImageUrl: currentUser.photoURL || '',
+          followedAt: serverTimestamp()
+        });
+        
+        // Add to current user's following
+        const followingRef = doc(db, 'users', currentUserId, 'following', targetUserId);
+        batch.set(followingRef, {
+          userId: targetUserId,
+          username: targetUserData?.username || 'Unknown',
+          profileImageUrl: targetUserData?.profileImageUrl || '',
+          followedAt: serverTimestamp()
+        });
+
+        // Update both top-level and stats counts for consistency during migration
+        const targetUserDocRef = doc(db, "users", targetUserId);
+        const currentUserDocRef = doc(db, "users", currentUserId);
+        batch.update(targetUserDocRef, { 
+          followerCount: increment(1),
+          'stats.followerCount': increment(1)
+        });
+        batch.update(currentUserDocRef, { 
+          followingCount: increment(1),
+          'stats.followingCount': increment(1)
+        });
+        
+        await batch.commit();
+
+        // Update local state
+        setIsFollowingStatus(true);
+        setProfileData(prev => prev ? { 
+          ...prev, 
+          followerCount: (prev.followerCount || 0) + 1,
+          stats: {
+            ...prev.stats,
+            followerCount: (prev.followerCount || 0) + 1
+          }
+        } : null);
+        
+        console.log("Successfully followed public account:", targetUserId);
+      }
     } catch (error) {
-      console.error("Error sending follow request:", error);
-      // Potentially revert setIsRequestPending(false) if needed, or show error
+      console.error("Error in follow operation:", error);
     } finally {
       setFollowActionLoading(false);
     }
@@ -337,10 +496,7 @@ export function useProfileData(userId = null) {
     const currentUserFollowingRef = doc(db, "users", currentUserId, "following", targetUserId);
     const targetUserDocRef = doc(db, "users", targetUserId);
     const currentUserDocRef = doc(db, "users", currentUserId);
-    
-    // Also consider deleting a pending request if unfollow is hit while request is pending
     const pendingFollowerRef = doc(db, "users", targetUserId, "pendingFollowers", currentUserId);
-
 
     try {
       // Check if a request is pending and delete it if "Unfollow" (or "Cancel Request") is pressed
@@ -359,8 +515,6 @@ export function useProfileData(userId = null) {
           const currentUserSnap = await transaction.get(currentUserDocRef);
 
           if (!targetUserSnap.exists() || !currentUserSnap.exists()) {
-            // If user docs don't exist, but follow relationship docs might, still try to delete them.
-            // This case should ideally not happen if data is consistent.
             console.warn("User document not found for unfollow operation, but attempting to clean up follow docs.");
           }
           
@@ -370,15 +524,30 @@ export function useProfileData(userId = null) {
 
           transaction.delete(targetUserFollowersRef);
           transaction.delete(currentUserFollowingRef);
+          
           if (targetUserSnap.exists()) {
-            transaction.update(targetUserDocRef, { followerCount: increment(currentFollowerCount > 0 ? -1 : 0) });
+            transaction.update(targetUserDocRef, { 
+              followerCount: increment(currentFollowerCount > 0 ? -1 : 0),
+              'stats.followerCount': increment(currentFollowerCount > 0 ? -1 : 0)
+            });
           }
           if (currentUserSnap.exists()) {
-            transaction.update(currentUserDocRef, { followingCount: increment(currentFollowingCount > 0 ? -1 : 0) });
+            transaction.update(currentUserDocRef, { 
+              followingCount: increment(currentFollowingCount > 0 ? -1 : 0),
+              'stats.followingCount': increment(currentFollowingCount > 0 ? -1 : 0)
+            });
           }
         });
+        
         setIsFollowingStatus(false);
-        setProfileData(prev => prev ? { ...prev, followerCount: Math.max(0, (prev.followerCount || 0) - 1) } : null);
+        setProfileData(prev => prev ? { 
+          ...prev, 
+          followerCount: Math.max(0, (prev.followerCount || 0) - 1),
+          stats: {
+            ...prev.stats,
+            followerCount: Math.max(0, (prev.followerCount || 0) - 1)
+          }
+        } : null);
         setFollowers(prev => prev.filter(follower => follower.id !== currentUserId));
         console.log("Successfully unfollowed user:", targetUserId);
       }
@@ -389,21 +558,21 @@ export function useProfileData(userId = null) {
     }
   };
 
-  const refreshProfileData = async () => {
+  // Memoize refreshProfileData as well
+  const refreshProfileData = useCallback(async () => {
     console.log("Manual refresh triggered for profile ID:", profileIdToFetch);
     await fetchProfileData();
-  };
+  }, [fetchProfileData]);
 
   useEffect(() => {
     console.log("useEffect in useProfileData triggered. profileIdToFetch:", profileIdToFetch);
-    if (profileIdToFetch) { // Only fetch if profileIdToFetch is available
+    if (profileIdToFetch) {
       fetchProfileData();
     } else {
-      // Handle case where profileIdToFetch is not yet available (e.g., currentUser not loaded)
       setLoading(false); 
       console.log("profileIdToFetch is null/undefined in useEffect, not fetching.");
     }
-  }, [profileIdToFetch, currentUser?.uid]);
+  }, [fetchProfileData]);
 
   return {
     loading,
@@ -411,15 +580,17 @@ export function useProfileData(userId = null) {
     posts,
     groupedMilestones,
     workouts,
+    savedWorkouts,
+    loadingWorkouts,
     followers,
     following,
     error,
     refreshProfileData,
     isFollowingStatus,
     isRequestPending,
-    followUser, 
+    followUser,
     unfollowUser,
     followActionLoading,
-    viewedProfileId: profileIdToFetch
+    viewedProfileId: profileIdToFetch,
   };
 }

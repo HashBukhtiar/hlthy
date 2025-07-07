@@ -99,6 +99,7 @@
 .expo/
 .DS_Store
 *.pem
+pglite-debug.log
 
 # local env files
 .env*.local

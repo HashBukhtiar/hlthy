@@ -214,14 +214,24 @@ export default function EditWorkout() {
     let coverImageUrl = '';
 
     try {
-      // 1. Upload cover image if selected
-      if (coverImage) {
+      // 1. Upload cover image if selected and it's a new image
+      if (coverImage && !coverImage.startsWith('https://')) {
         const response = await fetch(coverImage);
         const blob = await response.blob();
         const imageName = `workoutCovers/${currentUser.uid}/${generateUniqueFilename(title.replace(/\s+/g, '_'), 'jpg')}`;
         const storageRef = ref(storage, imageName);
-        await uploadBytes(storageRef, blob);
+        
+        // Upload with workoutId metadata
+        await uploadBytes(storageRef, blob, {
+          customMetadata: {
+            workoutId: id as string
+          }
+        });
+        
         coverImageUrl = await getDownloadURL(storageRef);
+      } else if (coverImage) {
+        // Use existing image URL
+        coverImageUrl = coverImage;
       }
 
       // 2. Prepare workout data

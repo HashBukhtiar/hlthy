@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { 
   StyleSheet, 
   Text, 
@@ -6,7 +6,9 @@ import {
   Image, 
   TouchableOpacity, 
   FlatList,
-  Alert
+  Alert,
+  ActivityIndicator,
+  RefreshControl
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -14,6 +16,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import ShareModal from '@/components/ShareModal';
 import { shareMilestone } from '@/services/ShareService';
 import { useAuth } from '@/context/AuthContext';
+import { useFeedData } from '@/hooks/useFeedData';
+import { usePostsData } from '@/hooks/usePostsData';
+import { getOptimalImageUrl } from '@/utils/imageUtils';
 
 // Define interfaces for milestone data
 export interface MilestoneStats {
@@ -34,155 +39,80 @@ export interface MilestoneDetails {
   improvement?: string;
   totalLoss?: number;
   percentageLoss?: string;
+  type: 'PR' | 'weightLoss' | 'weightGain';
 }
 
 export interface Milestone {
   id: string;
-  userId: string;
-  fullName?: string;
-  profileImageUrl: string;
-  createdAt: Date;
+  authorId: string;
+  authorUsername: string;
+  authorProfileImageUrl: string;
+  createdAt: any;
   milestoneType: 'PR' | 'weightLoss' | 'weightGain' | string;
-  details: MilestoneDetails;
-  stats: MilestoneStats;
+  milestoneDetails: MilestoneDetails;
+  reactionCount: number;
   isLiked: boolean;
   associatedPostId?: string;
-  postImageUrl?: string;
+  imageUrl?: string;
   pinned?: boolean;
   top5Percent?: boolean;
 }
 
 export default function MilestonesFeed() {
   const router = useRouter();
-  const auth = useAuth() as any;
-  const currentUser = auth?.currentUser;
+  const { currentUser } = useAuth();
+  const { milestones, loading, refreshing, loadingMore, hasMore, error, refreshFeed, loadMorePosts } = useFeedData();
+  const { likePost, unlikePost } = usePostsData();
   const [shareModalVisible, setShareModalVisible] = useState(false);
   const milestoneToShare = useRef<Milestone | null>(null);
-  const [milestones, setMilestones] = useState<Milestone[]>([
-    {
-      id: 'm1',
-      userId: 'user1',
-      fullName: 'Alex Fitness',
-      profileImageUrl: 'https://randomuser.me/api/portraits/men/32.jpg',
-      createdAt: new Date(Date.now() - 8640000 * 2), // 2 days ago
-      milestoneType: 'PR', 
-      details: {
-        exerciseName: 'Bench Press',
-        value: 225,
-        weightUnit: 'lbs',
-        reps: 5,
-        previousValue: 205,
-        previousReps: 5,
-        improvement: '9.7%'
-      },
-      stats: {
-        likes: 24
-      },
-      isLiked: false,
-      associatedPostId: 'post1',
-      postImageUrl: 'https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
-      pinned: false,
-      top5Percent: true
-    },
-    {
-      id: 'm2',
-      userId: 'user2',
-      fullName: 'Sarah Runner',
-      profileImageUrl: 'https://randomuser.me/api/portraits/women/44.jpg',
-      createdAt: new Date(Date.now() - 86400000), // 1 day ago
-      milestoneType: 'PR',
-      details: {
-        exerciseName: '10K Run',
-        value: 42.5,
-        weightUnit: 'min',
-        reps: 1,
-        previousValue: 45.8,
-        previousReps: 1,
-        improvement: '7.2%'
-      },
-      stats: {
-        likes: 18
-      },
-      isLiked: true,
-      associatedPostId: 'post2',
-      top5Percent: false,
-      pinned: false
-    },
-    {
-      id: 'm3',
-      userId: 'user3',
-      fullName: 'Jamie Progress',
-      profileImageUrl: 'https://randomuser.me/api/portraits/women/68.jpg',
-      createdAt: new Date(Date.now() - 43200000), // 12 hours ago
-      milestoneType: 'weightLoss',
-      details: {
-        newWeight: 165,
-        newWeightUnit: 'lbs',
-        previousWeight: 180,
-        previousWeightUnit: 'lbs',
-        totalLoss: 15,
-        percentageLoss: '8.3%'
-      },
-      stats: {
-        likes: 35
-      },
-      isLiked: false,
-      associatedPostId: 'post3',
-      postImageUrl: 'https://images.unsplash.com/photo-1535743686920-55e4145369b9?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
-      pinned: true,
-      top5Percent: false
-    }
-  ]);
-  
+
   // Format the time as "X time ago"
-  const formatTimeAgo = (date: Date): string => {
+  const formatTimeAgo = useCallback((date: any): string => {
     if (!date) return 'Just now';
     
-    const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000);
+    const timestamp = date.toDate ? date.toDate() : new Date(date);
+    const seconds = Math.floor((new Date().getTime() - timestamp.getTime()) / 1000);
     
     if (seconds < 60) return `${seconds}s ago`;
     if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
     if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
     if (seconds < 604800) return `${Math.floor(seconds / 86400)}d ago`;
-    
-    return date.toLocaleDateString();
-  };
+    return timestamp.toLocaleDateString();
+  }, []);
   
-  const handleLike = (milestoneId: string): void => {
-    setMilestones(milestones.map(milestone => {
-      if (milestone.id === milestoneId) {
-        // Toggle liked status and update like count
-        const newIsLiked = !milestone.isLiked;
-        const likeDelta = newIsLiked ? 1 : -1;
-        
-        return {
-          ...milestone,
-          isLiked: newIsLiked,
-          stats: {
-            ...milestone.stats,
-            likes: Math.max(0, milestone.stats.likes + likeDelta)
-          }
-        };
+  const handleLike = useCallback(async (milestoneId: string, isCurrentlyLiked: boolean) => {
+    if (!currentUser) {
+      Alert.alert('Please log in', 'You need to be logged in to like milestones.');
+      return;
+    }
+
+    try {
+      if (isCurrentlyLiked) {
+        await unlikePost(milestoneId);
+      } else {
+        await likePost(milestoneId);
       }
-      return milestone;
-    }));
-  };
+    } catch (error) {
+      console.error('Error toggling milestone like:', error);
+      Alert.alert('Error', 'Could not update like status. Please try again.');
+    }
+  }, [currentUser, likePost, unlikePost]);
   
-  const navigateToMilestone = (id: string): void => {
+  const navigateToMilestone = useCallback((id: string) => {
     router.push(`/view-milestone/${id}`);
-  };
+  }, [router]);
   
-  const navigateToPost = (id: string): void => {
+  const navigateToPost = useCallback((id: string) => {
     if (id) {
       router.push(`/view-post/${id}`);
     }
-  };
+  }, [router]);
   
-  const navigateToProfile = (userId: string): void => {
-    router.push(`/profile?id=${userId}`);
-  };
+  const navigateToProfile = useCallback((userId: string) => {
+    router.push(`/profile/${userId}`);
+  }, [router]);
 
-  const handleShare = async (milestone: Milestone) => {
+  const handleShare = useCallback((milestone: Milestone) => {
     if (!currentUser) {
       Alert.alert("Please log in", "You need to be logged in to share milestones.");
       return;
@@ -190,20 +120,9 @@ export default function MilestonesFeed() {
     
     milestoneToShare.current = milestone;
     setShareModalVisible(true);
-    // implement later
-    /*
-    try {
-      await Share.share({
-        message: `Check out this amazing milestone on Hlthy!`,
-        url: `https://hlthy.app/milestone/${milestone.id}`
-      });
-    } catch (error) {
-      console.error('Error sharing milestone:', error);
-    }
-    */
-  };
+  }, [currentUser]);
 
-  const handleShareWithUser = async (userId: string, username: string, profileImageUrl?: string) => {
+  const handleShareWithUser = useCallback(async (userId: string, username: string, profileImageUrl?: string) => {
     if (!currentUser || !milestoneToShare.current) return;
     
     try {
@@ -215,45 +134,45 @@ export default function MilestonesFeed() {
         {
           id: milestoneToShare.current.id,
           milestoneType: milestoneToShare.current.milestoneType,
-          details: milestoneToShare.current.details,
-          username: milestoneToShare.current.fullName,
+          details: milestoneToShare.current.milestoneDetails,
+          username: milestoneToShare.current.authorUsername,
         }
       );
       
-      // Close modal and show confirmation
       setShareModalVisible(false);
       Alert.alert("Success", "Milestone shared successfully");
     } catch (error) {
       console.error("Error sharing milestone:", error);
       Alert.alert("Error", "Failed to share milestone. Please try again.");
     }
-  };
+  }, [currentUser]);
 
-  const renderMilestoneDetails = (milestone: Milestone) => {
-    if (milestone.milestoneType === 'PR') {
+  const renderMilestoneDetails = useCallback((milestone: Milestone) => {
+    const details = milestone.milestoneDetails;
+    
+    if (details.type === 'PR') {
       return (
         <View style={styles.detailsContainer}>
           <View style={styles.previousPRCard}>
             <View style={styles.previousPRHeaderNoLine}>
               <MaterialCommunityIcons name="trophy-outline" size={18} color="#FF5E69" />
               <Text style={styles.previousPRTitle}>
-                {milestone.details.exercise || 'Personal Record'}
-                </Text>
+                {details.exerciseName || 'Personal Record'}
+              </Text>
               <Text style={styles.previousPRDate}>{formatTimeAgo(milestone.createdAt)}</Text>
             </View>
             
             <View style={styles.previousPRContent}>
-              {/* Current PR Value */}
               <View style={styles.prMetricsRow}>
                 <View style={styles.prMetricGroup}>
-                  <Text style={styles.prMetricValue}>{milestone.details.value}</Text>
-                  <Text style={styles.prMetricLabel}>{milestone.details.weightUnit}</Text>
+                  <Text style={styles.prMetricValue}>{details.value}</Text>
+                  <Text style={styles.prMetricLabel}>{details.weightUnit}</Text>
                 </View>
-                {milestone.details.reps && (
+                {details.reps && (
                   <>
                     <Text style={styles.prMetricSeparator}>×</Text>
                     <View style={styles.prMetricGroup}>
-                      <Text style={styles.prMetricValue}>{milestone.details.reps}</Text>
+                      <Text style={styles.prMetricValue}>{details.reps}</Text>
                       <Text style={styles.prMetricLabel}>reps</Text>
                     </View>
                   </>
@@ -262,20 +181,19 @@ export default function MilestonesFeed() {
             </View>
           </View>
           
-          {/* Previous Best only, improvement badge removed */}
-          {milestone.details.previousValue && (
+          {details.previousValue && (
             <View style={styles.centeredRow}>
               <View style={styles.previousBestRow}>
                 <Text style={styles.previousBestLabel}>Previous Best:</Text>
                 <View style={styles.prMetricGroup}>
-                  <Text style={styles.previousBestValue}>{milestone.details.previousValue}</Text>
-                  <Text style={styles.previousBestUnit}>{milestone.details.weightUnit}</Text>
+                  <Text style={styles.previousBestValue}>{details.previousValue}</Text>
+                  <Text style={styles.previousBestUnit}>{details.weightUnit}</Text>
                 </View>
-                {milestone.details.previousReps && (
+                {details.previousReps && (
                   <>
                     <Text style={styles.previousBestSeparator}>×</Text>
                     <View style={styles.prMetricGroup}>
-                      <Text style={styles.previousBestValue}>{milestone.details.previousReps}</Text>
+                      <Text style={styles.previousBestValue}>{details.previousReps}</Text>
                       <Text style={styles.previousBestUnit}>reps</Text>
                     </View>
                   </>
@@ -285,8 +203,8 @@ export default function MilestonesFeed() {
           )}
         </View>
       );
-    } else if (milestone.milestoneType === 'weightLoss' || milestone.milestoneType === 'weightGain') {
-      const isLoss = milestone.milestoneType === 'weightLoss';
+    } else if (details.type === 'weightLoss' || details.type === 'weightGain') {
+      const isLoss = details.type === 'weightLoss';
       
       return (
         <View style={styles.detailsContainer}>
@@ -298,24 +216,22 @@ export default function MilestonesFeed() {
             </View>
             
             <View style={styles.previousPRContent}>
-              {/* Current Weight */}
               <View style={styles.prMetricsRow}>
                 <View style={styles.prMetricGroup}>
-                  <Text style={styles.prMetricValue}>{milestone.details.newWeight}</Text>
-                  <Text style={styles.prMetricLabel}>{milestone.details.newWeightUnit}</Text>
+                  <Text style={styles.prMetricValue}>{details.newWeight}</Text>
+                  <Text style={styles.prMetricLabel}>{details.newWeightUnit}</Text>
                 </View>
               </View>
             </View>
           </View>
           
-          {/* Previous Weight centered, styled like PR previous best */}
-          {milestone.details.previousWeight && (
+          {details.previousWeight && (
             <View style={styles.centeredRow}>
               <View style={styles.previousBestRow}>
                 <Text style={styles.previousBestLabel}>Previous Weight:</Text>
                 <View style={styles.prMetricGroup}>
-                  <Text style={styles.previousBestValue}>{milestone.details.previousWeight}</Text>
-                  <Text style={styles.previousBestUnit}>{milestone.details.previousWeightUnit}</Text>
+                  <Text style={styles.previousBestValue}>{details.previousWeight}</Text>
+                  <Text style={styles.previousBestUnit}>{details.previousWeightUnit}</Text>
                 </View>
               </View>
             </View>
@@ -325,38 +241,55 @@ export default function MilestonesFeed() {
     }
     
     return null;
-  };
+  }, [formatTimeAgo]);
 
-  const renderMilestoneCard = (item: Milestone) => {
+  const renderMilestoneCard = useCallback((item: Milestone) => {
+    // Convert Post to Milestone format
+    const milestone: Milestone = {
+      id: item.id,
+      authorId: item.authorId,
+      authorUsername: item.authorUsername,
+      authorProfileImageUrl: item.authorProfileImageUrl,
+      createdAt: item.createdAt,
+      milestoneType: item.milestoneDetails?.type || 'PR',
+      milestoneDetails: item.milestoneDetails as MilestoneDetails,
+      reactionCount: item.reactionCount || 0,
+      isLiked: item.isLiked || false,
+      associatedPostId: item.id,
+      imageUrl: item.imageUrl,
+      pinned: false, // TODO: Implement pinned logic
+      top5Percent: false, // TODO: Implement top 5% logic
+    };
+
     // Determine the styling based on milestone status
     let CardWrapper: any = View;
     let wrapperStyle = styles.milestoneCard;
     let innerContent = null;
     
-    if (item.top5Percent) {
+    if (milestone.top5Percent) {
       // Top 5% milestone with gradient border
       CardWrapper = LinearGradient;
       wrapperStyle = styles.gradientBorder;
       innerContent = (
         <View style={styles.gradientInnerContainer}>
-          {renderCardContent(item, true, 'Top 5%', '#FFA84B')}
+          {renderCardContent(milestone, true, 'Top 5%', '#FFA84B')}
         </View>
       );
-    } else if (item.pinned) {
+    } else if (milestone.pinned) {
       // Pinned milestone 
       wrapperStyle = styles.pinnedBorder;
       innerContent = (
         <View style={styles.pinnedInnerContainer}>
-          {renderCardContent(item, true, 'Pinned', '#FF5E69')}
+          {renderCardContent(milestone, true, 'Pinned', '#FF5E69')}
         </View>
       );
     } else {
       // Regular milestone
-      innerContent = renderCardContent(item);
+      innerContent = renderCardContent(milestone);
     }
     
     // Render the appropriate card with gradient if top 5%
-    if (item.top5Percent) {
+    if (milestone.top5Percent) {
       return (
         <View style={styles.gradientWrapper}>
           <CardWrapper
@@ -373,16 +306,16 @@ export default function MilestonesFeed() {
     
     // For pinned or regular milestones
     return (
-      <View style={item.pinned ? styles.pinnedWrapper : null}>
+      <View style={milestone.pinned ? styles.pinnedWrapper : null}>
         <View style={wrapperStyle}>
           {innerContent}
         </View>
       </View>
     );
-  };
+  }, []);
 
   // Helper function to render the card content
-  const renderCardContent = (item: Milestone, hasStatus = false, statusText = '', statusColor = '') => {
+  const renderCardContent = useCallback((item: Milestone, hasStatus = false, statusText = '', statusColor = '') => {
     return (
       <>
         {/* Milestone Card Header and Details */}
@@ -392,16 +325,17 @@ export default function MilestonesFeed() {
         >
           <View style={styles.milestoneHeader}>
             <View style={styles.milestoneIconContainer}>
-              <TouchableOpacity onPress={() => navigateToProfile(item.userId)}>
+              <TouchableOpacity onPress={() => navigateToProfile(item.authorId)}>
                 <Image 
-                  source={{ uri: item.profileImageUrl }} 
+                  source={{ uri: getOptimalImageUrl(item.authorProfileImageUrl, item.authorProfileImageUrl) }} 
                   style={styles.profilePic}
                 />
               </TouchableOpacity>
             </View>
+            
             <View style={styles.milestoneTitleContainer}>
               <Text style={styles.milestoneType}>
-                {item.fullName}
+                {item.authorUsername}
               </Text>
               <Text style={styles.milestoneDate}>
                 {formatTimeAgo(item.createdAt)}
@@ -410,14 +344,14 @@ export default function MilestonesFeed() {
             </View>
             
             {/* Post Preview (if available) */}
-            {item.postImageUrl && (
+            {item.imageUrl && (
               <TouchableOpacity 
                 style={styles.postPreviewContainer}
                 onPress={() => navigateToPost(item.associatedPostId || '')}
                 activeOpacity={0.9}
               >
                 <Image 
-                  source={{ uri: item.postImageUrl }} 
+                  source={{ uri: getOptimalImageUrl(item.imageUrl, item.imageUrl) }} 
                   style={styles.postPreviewImage} 
                 />
                 <View style={styles.postPreviewOverlay}>
@@ -435,7 +369,7 @@ export default function MilestonesFeed() {
         <View style={styles.cardFooter}>
           <TouchableOpacity 
             style={styles.footerButton}
-            onPress={() => handleLike(item.id)}
+            onPress={() => handleLike(item.id, item.isLiked)}
           >
             <Ionicons 
               name={item.isLiked ? "heart" : "heart-outline"} 
@@ -443,8 +377,8 @@ export default function MilestonesFeed() {
               color={item.isLiked ? "#FF69B4" : "#FFF"} 
             />
             <Text style={styles.footerButtonText}>
-              {item.stats.likes > 0 
-                ? `${item.stats.likes}` 
+              {item.reactionCount > 0 
+                ? `${item.reactionCount}` 
                 : "Like"}
             </Text>
           </TouchableOpacity>
@@ -459,28 +393,87 @@ export default function MilestonesFeed() {
         </View>
       </>
     );
-  };
+  }, [navigateToMilestone, navigateToProfile, navigateToPost, formatTimeAgo, renderMilestoneDetails, handleLike, handleShare]);
 
-  if (milestones.length === 0) {
+  // Render footer for load more
+  const renderFooter = useCallback(() => {
+    if (!loadingMore) return null;
+    return (
+      <View style={styles.loadingFooter}>
+        <ActivityIndicator size="large" color="#0A84FF" />
+        <Text style={styles.loadingText}>Loading more milestones...</Text>
+      </View>
+    );
+  }, [loadingMore]);
+
+  // Render empty state
+  const renderEmptyState = useCallback(() => {
+    if (loading) {
+      return (
+        <View style={styles.emptyMilestonesContainer}>
+          <ActivityIndicator size="large" color="#0A84FF" />
+          <Text style={styles.emptyMilestonesText}>Loading milestones...</Text>
+        </View>
+      );
+    }
+
     return (
       <View style={styles.emptyMilestonesContainer}>
-        <Text style={styles.emptyMilestonesText}>No milestones to display</Text>
+        <Ionicons name="trophy-outline" size={80} color="#333" />
+        <Text style={styles.emptyMilestonesTitle}>No milestones yet</Text>
+        <Text style={styles.emptyMilestonesText}>
+          Follow users to see their achievements here, or create your first milestone!
+        </Text>
+        <TouchableOpacity 
+          style={styles.createButton}
+          onPress={() => router.push('/create-post')}
+        >
+          <Text style={styles.createButtonText}>Create Milestone</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }, [loading, router]);
+
+  if (error) {
+    return (
+      <View style={styles.emptyMilestonesContainer}>
+        <Ionicons name="alert-circle-outline" size={80} color="#FF3B30" />
+        <Text style={styles.emptyMilestonesTitle}>Something went wrong</Text>
+        <Text style={styles.emptyMilestonesText}>Could not load milestones. Please try again.</Text>
+        <TouchableOpacity style={styles.retryButton} onPress={refreshFeed}>
+          <Text style={styles.retryButtonText}>Retry</Text>
+        </TouchableOpacity>
       </View>
     );
   }
   
   return (
-    <View>
+    <View style={{ flex: 1 }}>
       <FlatList
         data={milestones}
         keyExtractor={(item) => item.id}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.milestonesContainer}
-        renderItem={({item}) => (
+        contentContainerStyle={milestones.length === 0 ? { flex: 1 } : styles.milestonesContainer}
+        renderItem={({ item }) => (
           <View style={styles.milestoneContainer}>
             {renderMilestoneCard(item)}
           </View>
         )}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={refreshFeed}
+            colors={['#0A84FF']}
+            tintColor="#0A84FF"
+          />
+        }
+        onEndReached={loadMorePosts}
+        onEndReachedThreshold={0.5}
+        ListFooterComponent={renderFooter}
+        ListEmptyComponent={renderEmptyState}
+        removeClippedSubviews={true}
+        maxToRenderPerBatch={5}
+        windowSize={10}
       />
       
       <ShareModal 
@@ -492,49 +485,14 @@ export default function MilestonesFeed() {
   );
 }
 
+// Add the missing styles
 const styles = StyleSheet.create({
   milestonesContainer: {
-    width: '100%',
     paddingBottom: 70,
   },
   milestoneContainer: {
     paddingTop: 15,
     paddingBottom: 10,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 15,
-    paddingVertical: 10,
-  },
-  userInfoContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  profilePic: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-  },
-  username: {
-    fontWeight: '600',
-    fontSize: 16,
-    color: '#FFF',
-  },
-  fullName: {
-    fontSize: 14,
-    color: '#999',
-  },
-  rightHeader: {
-    alignItems: 'flex-end',
-  },
-  timestamp: {
-    fontSize: 12,
-    color: '#999',
-  },
-  milestoneCardWrapper: {
-    paddingHorizontal: 15,
   },
   milestoneCard: {
     backgroundColor: '#1A1A1A',
@@ -567,7 +525,6 @@ const styles = StyleSheet.create({
   pinnedBorder: {
     padding: 2,
     borderRadius: 12,
-    // borderColor: '#FF5E69',
     borderColor: 'rgba(255, 94, 105, 0.75)',
     borderWidth: 2,
     backgroundColor: '#1A1A1A',
@@ -590,8 +547,10 @@ const styles = StyleSheet.create({
     overflow: 'hidden', 
     marginRight: 12,
   },
-  milestoneIcon: {
-    // No additional styles needed
+  profilePic: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
   },
   milestoneTitleContainer: {
     flex: 1,
@@ -601,11 +560,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     marginBottom: 4,
-  },
-  usernameText: {
-    color: '#999',
-    fontSize: 12,
-    marginBottom: 2,
   },
   milestoneDate: {
     color: '#999',
@@ -630,80 +584,102 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     paddingVertical: 2,
     alignItems: 'center',
-  },  detailsContainer: {
+  },
+  detailsContainer: {
     padding: 15,
     paddingTop: 0,
     paddingBottom: 8,
   },
-  detailRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  previousPRCard: {
+    backgroundColor: '#0A0A0A',
+    borderRadius: 8,
+    padding: 12,
     marginBottom: 8,
   },
-  detailLabel: {
+  previousPRHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    paddingBottom: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: '#333',
+  },
+  previousPRHeaderNoLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    paddingBottom: 6,
+  },
+  previousPRTitle: {
+    color: '#FFF',
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 8,
+    flex: 1,
+  },
+  previousPRDate: {
     color: '#999',
-    fontSize: 14,
-  },
-  detailValue: {
-    color: '#FFF',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  highlightedValue: {
-    color: '#4CD964',
-    fontWeight: 'bold',
-  },
-  improvementValue: {
-    color: '#4CD964',
-    fontWeight: 'bold',
-  },
-  lossValue: {
-    color: '#4CD964',
-    fontWeight: 'bold',
-  },
-  gainValue: {
-    color: '#FF9500',
-    fontWeight: 'bold',
-  },
-  reactionsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 15,
-    paddingTop: 12,
-    marginTop: 10,
-  },
-  reactionButtons: {
-    flexDirection: 'row',
-  },
-  combinedReactionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#333',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 16,
-    marginRight: 8,
-  },
-  activeReactionButton: {
-    backgroundColor: '#FF5E69',
-  },
-  reactionEmoji: {
-    fontSize: 14,
-    marginRight: 4,
-  },
-  reactionCount: {
     fontSize: 12,
-    color: '#FFF',
   },
-  viewDetailsButton: {
-    flexDirection: 'row',
+  previousPRContent: {
     alignItems: 'center',
   },
-  viewDetailsText: {
+  prMetricsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  prMetricGroup: {
+    alignItems: 'center',
+  },
+  prMetricValue: {
+    color: '#FFF',
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  prMetricLabel: {
+    color: '#999',
+    fontSize: 12,
+    marginTop: 2,
+  },
+  prMetricSeparator: {
+    color: '#999',
+    fontSize: 16,
+    marginHorizontal: 8,
+  },
+  previousBestRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  previousBestLabel: {
+    color: '#777',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  previousBestValue: {
+    color: '#777',
     fontSize: 14,
-    color: '#FF5E69',
-    marginRight: 4,
+    fontWeight: '600',
+  },
+  previousBestUnit: {
+    color: '#777',
+    fontSize: 12,
+    marginLeft: 2,
+  },
+  previousBestSeparator: {
+    color: '#777',
+    fontSize: 12,
+    marginHorizontal: 6,
+  },
+  centeredRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 6,
+    marginBottom: 4,
+    gap: 12,
   },
   cardFooter: {
     flexDirection: 'row',
@@ -728,114 +704,54 @@ const styles = StyleSheet.create({
     marginLeft: 6,
     fontWeight: '500',
   },
+  loadingFooter: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  loadingText: {
+    color: '#999',
+    marginTop: 10,
+  },
   emptyMilestonesContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'black',
+    padding: 40,
+  },
+  emptyMilestonesTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#FFF',
+    marginTop: 20,
+    marginBottom: 10,
   },
   emptyMilestonesText: {
-    color: 'gray',
     fontSize: 16,
-    fontWeight: 'bold',
+    color: '#999',
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: 30,
   },
-  previousPRCard: {
-    backgroundColor: '#1A1A1A',
-    borderRadius: 12,
-    marginBottom: 4,
-    borderWidth: 1,
-    borderColor: '#333',
-    overflow: 'hidden',
+  createButton: {
+    backgroundColor: '#0A84FF',
+    paddingHorizontal: 30,
+    paddingVertical: 12,
+    borderRadius: 25,
   },
-  previousPRHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#333',
-    backgroundColor: '#222',
-  },
-  previousPRHeaderNoLine: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    backgroundColor: '#222',
-  },
-  previousPRTitle: {
+  createButtonText: {
     color: '#FFF',
-    fontSize: 15,
     fontWeight: '600',
-    marginLeft: 6,
-    flex: 1,
-  },
-  previousPRDate: {
-    color: '#999',
-    fontSize: 12,
-  },
-  previousPRContent: {
-    padding: 14
-  },
-  prMetricsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginVertical: 4,
-  },
-  prMetricsColumn: {
-    alignItems: 'center',
-  },
-  prMetricGroup: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-  },
-  prMetricValue: {
-    color: '#FFF',
-    fontSize: 26,
-    fontWeight: '700',
-  },
-  prMetricLabel: {
-    color: '#999',
     fontSize: 16,
-    marginLeft: 4,
   },
-  prMetricSeparator: {
-    color: '#FF5E69',
-    fontSize: 20,
-    marginHorizontal: 8,
+  retryButton: {
+    backgroundColor: '#FF3B30',
+    paddingHorizontal: 30,
+    paddingVertical: 12,
+    borderRadius: 25,
   },
-  previousBestRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 6,
-    marginBottom: 8,
-  },
-  previousBestLabel: {
-    color: '#777',
-    fontSize: 12,
-    marginRight: 6,
-  },
-  previousBestValue: {
-    color: '#777',
-    fontSize: 14,
+  retryButtonText: {
+    color: '#FFF',
     fontWeight: '600',
-  },
-  previousBestUnit: {
-    color: '#777',
-    fontSize: 12,
-    marginLeft: 2,
-  },
-  previousBestSeparator: {
-    color: '#777',
-    fontSize: 12,
-    marginHorizontal: 6,
-  },
-  centeredRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 6,
-    marginBottom: 4,
-    gap: 12,
+    fontSize: 16,
   },
 });

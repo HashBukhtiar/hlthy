@@ -329,7 +329,7 @@ export const createMilestonePost = onCall(
       authorUsername: data.authorUsername || "User",
       authorProfileImageUrl: data.authorProfileImageUrl || null,
       caption: data.caption || "",
-      imageUrl: data.imageUrl || null,
+      imageUrl: null,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       isMilestone: true,
       milestoneDetails: {
@@ -356,8 +356,8 @@ export const createMilestonePost = onCall(
       reactionCount: 0,
       commentCount: 0,
       visibility: data.visibility || "public",
-      // Add any other fields your posts collection normally has
-      // e.g., workoutId: data.workoutId || null,
+      workoutId: data.workoutId || null,
+      authorArchetype: data.authorArchetype || null,
     };
 
     console.log("Final postPayload being saved: ", JSON.stringify(postPayload, null, 2));

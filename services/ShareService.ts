@@ -15,6 +15,7 @@ export interface UserInfo {
   displayName?: string | null;
   email?: string | null;
   photoURL?: string | null;
+  profileThumbnailUrl?: string | null;
 }
 
 // Helper function to sanitize undefined values from an object
@@ -43,7 +44,8 @@ export const prepareConversation = async (
   currentUser: UserInfo,
   recipientId: string, 
   recipientUsername: string, 
-  recipientProfileImageUrl?: string
+  recipientProfileImageUrl?: string,
+  recipientProfileThumbnailUrl?: string
 ) => {
   const conversationId = generateConversationId(currentUser.uid, recipientId);
   const conversationRef = doc(db, 'conversations', conversationId);
@@ -63,6 +65,10 @@ export const prepareConversation = async (
         [currentUser.uid]: currentUser.photoURL || '',
         [recipientId]: recipientProfileImageUrl || '',
       },
+      participantProfileThumbnails: {
+        [currentUser.uid]: currentUser.profileThumbnailUrl || '',
+        [recipientId]: recipientProfileThumbnailUrl || '',
+      },
     });
 
     // Create user-specific conversation entries
@@ -70,12 +76,14 @@ export const prepareConversation = async (
       otherParticipantId: recipientId,
       otherParticipantUsername: recipientUsername || 'User',
       otherParticipantProfileImage: recipientProfileImageUrl || '',
+      otherParticipantThumbnailUrl: recipientProfileThumbnailUrl || '',
     });
     
     await setDoc(doc(db, `users/${recipientId}/conversations`, conversationId), {
       otherParticipantId: currentUser.uid,
       otherParticipantUsername: currentUser.displayName || currentUser.email || 'Current User',
       otherParticipantProfileImage: currentUser.photoURL || '',
+      otherParticipantThumbnailUrl: currentUser.profileThumbnailUrl || '',
     });
   }
 
@@ -120,10 +128,12 @@ export const shareWorkout = async (
   recipientId: string,
   recipientUsername: string,
   recipientProfileImageUrl: string | undefined,
+  recipientProfileThumbnailUrl: string | undefined, // Add this parameter
   workout: {
     id: string;
     title: string;
     coverImageUrl: string | null;
+    thumbnailUrl?: string | null;
     creatorUsername: string;
     description?: string;
   }
@@ -133,7 +143,8 @@ export const shareWorkout = async (
       currentUser, 
       recipientId, 
       recipientUsername, 
-      recipientProfileImageUrl
+      recipientProfileImageUrl,
+      recipientProfileThumbnailUrl
     );
 
     // Add message with shared workout
@@ -147,6 +158,7 @@ export const shareWorkout = async (
         id: workout.id,
         title: workout.title,
         coverImageUrl: workout.coverImageUrl || null,
+        thumbnailUrl: workout.thumbnailUrl || null,
         creatorUsername: workout.creatorUsername,
       },
     });
@@ -167,6 +179,7 @@ export const shareMilestone = async (
   recipientId: string,
   recipientUsername: string,
   recipientProfileImageUrl: string | undefined,
+  recipientProfileThumbnailUrl: string | undefined, // Add this parameter
   milestone: {
     id: string;
     milestoneType: string;
@@ -179,7 +192,8 @@ export const shareMilestone = async (
       currentUser, 
       recipientId, 
       recipientUsername, 
-      recipientProfileImageUrl
+      recipientProfileImageUrl,
+      recipientProfileThumbnailUrl
     );
 
     // Sanitize the details object to remove undefined values
@@ -217,10 +231,12 @@ export const sharePost = async (
   recipientId: string,
   recipientUsername: string,
   recipientProfileImageUrl: string | undefined,
+  recipientProfileThumbnailUrl: string | undefined,
   post: {
     id: string;
     caption?: string;
     imageUrl?: string | null;
+    thumbnailUrl?: string | null;
     authorUsername?: string;
   }
 ) => {
@@ -229,7 +245,8 @@ export const sharePost = async (
       currentUser, 
       recipientId, 
       recipientUsername, 
-      recipientProfileImageUrl
+      recipientProfileImageUrl,
+      recipientProfileThumbnailUrl
     );
 
     // Add a message with the shared post
@@ -242,6 +259,7 @@ export const sharePost = async (
       sharedPost: {
         id: post.id,
         imageUrl: post.imageUrl || null,
+        thumbnailUrl: post.thumbnailUrl || null,
         caption: post.caption || '',
         authorUsername: post.authorUsername || currentUser.displayName || '',
       }

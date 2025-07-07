@@ -1,13 +1,13 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { View, ScrollView, Text, Image, StyleSheet, Dimensions, FlatList, TouchableOpacity, SafeAreaView, Animated, ActivityIndicator, RefreshControl, Modal } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useProfileData, GroupedMilestones, Milestone } from '@/hooks/useProfileData';
+import { useProfileData } from '@/hooks/useProfileData';
 import { useAuth } from '@/context/AuthContext';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { formatCount } from '@/logic/formattingFunctions';
 import { BOTTOM_BAR_HEIGHT } from '@/styles/globalStyles';
-
-// Import archetype icons
+import { doc, updateDoc } from 'firebase/firestore';
+import { db } from '@/firebaseConfig';
 const archetypeIcons = {
   'athlete': require('@/assets/images/athlete.png'),
   'bodybuilder': require('@/assets/images/bodybuilder.png'),
@@ -15,7 +15,6 @@ const archetypeIcons = {
   'generalist': require('@/assets/images/generalist.png'),
   'powerlifter': require('@/assets/images/powerlifter.png'),
 };
-
 // Archetype descriptions for tooltips. Should we add this to the DB?
 const archetypeDescriptions = {
   'athlete': 'Balanced all-round athletic performance with focus on endurance and strength.',
@@ -24,6 +23,7 @@ const archetypeDescriptions = {
   'generalist': 'Well-rounded fitness approach with balanced strength, cardio, and flexibility goals.',
   'powerlifter': 'Specialized in maximizing strength in the squat, bench press, and deadlift.',
 };
+import { getOptimalImageUrl } from '@/utils/imageUtils';
 
 interface Workout {
   id: number;
@@ -67,6 +67,8 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
     posts,
     groupedMilestones,
     workouts,
+    savedWorkouts,
+    loadingWorkouts,
     followers,
     following,
     error,
@@ -77,9 +79,8 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
     unfollowUser,
     followActionLoading,
     viewedProfileId,
-    savedWorkouts,
-    loadingWorkouts,
   } = useProfileData(routeUserId);
+  const createdWorkouts = workouts || [];
 
   const displayablePosts = useMemo(() => {
     if (!posts) return [];
@@ -96,9 +97,32 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
   const tabWidth = screenWidth / 3;
   const [tooltipVisible, setTooltipVisible] = useState(false);
   const [tooltipText, setTooltipText] = useState('');
+  const [isArchetypeModalVisible, setIsArchetypeModalVisible] = useState(false);
+  const [isUpdatingArchetype, setIsUpdatingArchetype] = useState(false);
 
   const isOwnProfile = !routeUserId || routeUserId === currentUser?.uid;
   const displayProfileData = isOwnProfile ? (profileData || currentUserProfile) : profileData;
+
+  // Process profile data to ensure consistent count structure
+  const processedProfileData = useMemo(() => {
+    if (!displayProfileData) return null;
+    
+    return {
+      ...displayProfileData,
+      // Prioritize top-level counts (current Firebase structure)
+      followerCount: displayProfileData.followerCount ?? displayProfileData.stats?.followerCount ?? 0,
+      followingCount: displayProfileData.followingCount ?? displayProfileData.stats?.followingCount ?? 0,
+      
+      // Ensure stats object exists with consistent data
+      stats: {
+        ...displayProfileData.stats,
+        followerCount: displayProfileData.followerCount ?? displayProfileData.stats?.followerCount ?? 0,
+        followingCount: displayProfileData.followingCount ?? displayProfileData.stats?.followingCount ?? 0,
+        postCount: displayProfileData.stats?.postCount ?? 0,
+        workoutCount: displayProfileData.stats?.workoutCount ?? 0,
+      }
+    };
+  }, [displayProfileData]);
 
   const indicatorPosition = tabIndicator.interpolate({
     inputRange: [0, screenWidth, screenWidth * 2],
@@ -185,6 +209,24 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
     return null;
   };
 
+  const handleArchetypeSelect = async (newArchetype: string) => {
+    if (!currentUser) return;
+    setIsUpdatingArchetype(true);
+    try {
+      const userDocRef = doc(db, 'users', currentUser.uid);
+      await updateDoc(userDocRef, {
+        archetype: newArchetype,
+      });
+      await refreshUserProfile(); // Refresh profile data from auth context
+      setIsArchetypeModalVisible(false);
+    } catch (error) {
+      console.error("Failed to update archetype:", error);
+      // Optionally, show an error message to the user
+    } finally {
+      setIsUpdatingArchetype(false);
+    }
+  };
+
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
@@ -256,18 +298,22 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
 
   const renderWorkoutListItem = (item: any, index: number) => ( 
     <TouchableOpacity 
-        key={item.id || index} 
-        style={styles.workoutItem} 
-        onPress={() => router.push(`/view-workout/${item.id}`)}
+      key={item.id || index} 
+      style={styles.workoutItem} 
+      onPress={() => router.push(`/view-workout/${item.id}`)}
     >
-        <Image 
-            source={item.coverImageUrl ? { uri: item.coverImageUrl } : require('@/assets/images/default_workout_cover.png')} 
-            style={styles.workoutItemImage} 
-        />
-        <View style={styles.workoutItemTextContainer}>
-            <Text style={styles.workoutItemTitle} numberOfLines={1}>{item.title}</Text>
-            <Text style={styles.workoutItemCreator} numberOfLines={1}>by {item.creatorUsername}</Text>
-        </View>
+      <Image 
+        source={
+          getOptimalImageUrl(item.thumbnailUrl, item.coverImageUrl) 
+            ? { uri: getOptimalImageUrl(item.thumbnailUrl, item.coverImageUrl)! } 
+            : require('@/assets/images/default_workout_cover.png')
+        } 
+        style={styles.workoutItemImage} 
+      />
+      <View style={styles.workoutItemTextContainer}>
+        <Text style={styles.workoutItemTitle} numberOfLines={1}>{item.title}</Text>
+        <Text style={styles.workoutItemCreator} numberOfLines={1}>by {item.creatorUsername}</Text>
+      </View>
     </TouchableOpacity>
   );
 
@@ -302,7 +348,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
       data={displayablePosts}
       renderItem={({ item }) => (
         <TouchableOpacity onPress={() => handleImagePress(item)}>
-          <Image source={{ uri: item.imageUrl }} style={styles.postImage} />
+          <Image source={{ uri: item.thumbnailUrl || item.imageUrl }} style={styles.postImage} />
         </TouchableOpacity>
       )}
       keyExtractor={(item) => item.id}
@@ -324,9 +370,6 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
   ), [displayablePosts, refreshing, handleImagePress, onRefresh]);
 
   const renderMilestonesContent = useCallback(() => {
-    // Log the entire groupedMilestones object
-    console.log("groupedMilestones:", groupedMilestones);
-
     const monthKeys = Object.keys(groupedMilestones).sort((a, b) => {
       try {
         const dateA = new Date(`01 ${a}`);
@@ -339,16 +382,10 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
       return (
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20, minHeight: 200 }}>
           <Text style={{ color: 'gray', textAlign: 'center' }}>No milestones yet. Add a milestone to see it here.</Text>
-           <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor="#FFFFFF"
-            colors={["#FFFFFF"]}
-            progressBackgroundColor="#212121"
-          />
         </View>
       );
     }
+    
     return (
       <FlatList
         key="milestones-list"
@@ -357,10 +394,6 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
           <View>
             <Text style={styles.monthHeader}>{month}</Text>
             {groupedMilestones[month].map((milestoneItem: any, idx: number) => {
-              if (idx === 0) {
-                console.log(`Sample milestoneItem for month ${month}:`, milestoneItem);
-              }
-
               // Infer type
               let milestoneType = "PR";
               if (
@@ -395,18 +428,9 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
           </View>
         )}
         keyExtractor={(item) => item}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor="#FFFFFF"
-            colors={["#FFFFFF"]}
-            progressBackgroundColor="#212121"
-          />
-        }
       />
     );
-  }, [groupedMilestones, refreshing, handleMilestonePress, onRefresh]);
+  }, [groupedMilestones, handleMilestonePress]);
   
   const renderWorkoutsContent = useCallback(() => {
     if (loadingWorkouts && (!workouts || workouts.length === 0)) { 
@@ -420,7 +444,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
       return (
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20, minHeight: 200 }}>
           <Text style={{ color: 'gray', textAlign: 'center' }}>No workouts yet. Create or save a workout to see it here.</Text>
-           <RefreshControl
+          <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
             tintColor="#FFFFFF"
@@ -468,7 +492,11 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
               style={styles.workoutListItemRowStyle}
             >
               <Image 
-                source={item.coverImageUrl ? { uri: item.coverImageUrl } : require('@/assets/images/default_workout_cover.png')} 
+                source={
+                  getOptimalImageUrl(item.thumbnailUrl, item.coverImageUrl) 
+                    ? { uri: getOptimalImageUrl(item.thumbnailUrl, item.coverImageUrl)! } 
+                    : require('@/assets/images/default_workout_cover.png')
+                } 
                 style={styles.workoutListItemImageStyle} 
               />
               <View style={styles.workoutListItemTextContainerStyle}>
@@ -496,7 +524,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
         }
       />
     );
-  }, [workouts, refreshing, handleWorkoutPress, onRefresh, loadingWorkouts]);
+  }, [workouts, refreshing, handleWorkoutPress, onRefresh, loadingWorkouts, isOwnProfile]);
 
   const postsTabComponent = useMemo(() => renderPostsContent(), [renderPostsContent]);
   const milestonesTabComponent = useMemo(() => renderMilestonesContent(), [renderMilestonesContent]);
@@ -572,7 +600,12 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
       <SafeAreaView style={styles.container}>
         <View style={styles.profileHeader}>
           <Image
-            source={{ uri: currentUserProfile?.profileImageUrl || 'https://thumbs.dreamstime.com/b/creative-illustration-default-avatar-profile-placeholder-isolated-background-art-design-grey-photo-blank-template-mockup-144855718.jpg' }}
+            source={{ 
+              uri: getOptimalImageUrl(
+                displayProfileData?.profileThumbnailUrl, 
+                displayProfileData?.profileImageUrl
+              ) || 'https://thumbs.dreamstime.com/b/creative-illustration-default-avatar-profile-placeholder-isolated-background-art-design-grey-photo-blank-template-mockup-144855718.jpg' 
+            }}
             style={styles.profileImage}
           />
           <Text style={styles.profileName}>{currentUserProfile?.displayName || 'User'}</Text>
@@ -620,7 +653,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
               styles.followButton,
               isFollowingStatus 
                 ? styles.unfollowButtonActive 
-                : isRequestPending // Use the new state from useProfileData
+                : isRequestPending
                   ? styles.requestedButtonActive // Add a new style for "Requested"
                   : styles.followButtonActive,
               followActionLoading && styles.followButtonDisabled
@@ -654,23 +687,30 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
         )}
 
         <Image
-          source={{ uri: displayProfileData?.profileImageUrl || 'https://thumbs.dreamstime.com/b/creative-illustration-default-avatar-profile-placeholder-isolated-background-art-design-grey-photo-blank-template-mockup-144855718.jpg' }}
+          source={{ 
+            uri: getOptimalImageUrl(
+              processedProfileData?.profileThumbnailUrl, 
+              processedProfileData?.profileImageUrl
+            ) || 'https://thumbs.dreamstime.com/b/creative-illustration-default-avatar-profile-placeholder-isolated-background-art-design-grey-photo-blank-template-mockup-144855718.jpg' 
+          }}
           style={styles.profileImage}
         />
-        <Text style={styles.profileName}>{displayProfileData?.displayName || 'User'}</Text>
-        <Text style={styles.profileUsername}>@{displayProfileData?.username || 'username'}</Text>
-        <Text style={styles.profileBio}>{displayProfileData?.bio || 'No bio yet'}</Text>
+        <Text style={styles.profileName}>{processedProfileData?.displayName || 'User'}</Text>
+        <Text style={styles.profileUsername}>@{processedProfileData?.username || 'username'}</Text>
+        <Text style={styles.profileBio}>{processedProfileData?.bio || 'No bio yet'}</Text>
 
         <View style={styles.statsContainer}>
           <TouchableOpacity
             style={styles.statItem}
             onPress={() => {
-              if (displayProfileData?.archetype) {
+              if (isOwnProfile) {
+                setIsArchetypeModalVisible(true);
+              } else if (displayProfileData?.archetype) {
                 setTooltipText(archetypeDescriptions[displayProfileData.archetype.toLowerCase() || 'generalist']);
                 setTooltipVisible(true);
               }
             }}
-            disabled={!displayProfileData?.archetype}
+            disabled={!displayProfileData?.archetype && !isOwnProfile}
           >
             <Image
               source={archetypeIcons[displayProfileData?.archetype?.toLowerCase() || 'generalist']}
@@ -682,18 +722,55 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
             style={styles.statItem}
             onPress={() => router.push(`/followers/${viewedProfileId || currentUser?.uid}`)}
           >
-            <Text style={styles.statNumber}>{profileData?.followerCount !== undefined ? profileData.followerCount : followers.length}</Text>
+            <Text style={styles.statNumber}>
+              {processedProfileData?.followerCount ?? followers.length}
+            </Text>
             <Text style={styles.statLabel}>Followers</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.statItem}
             onPress={() => router.push(`/following/${viewedProfileId || currentUser?.uid}`)}
           >
-            <Text style={styles.statNumber}>{profileData?.followingCount !== undefined ? profileData.followingCount : following.length}</Text>
+            <Text style={styles.statNumber}>
+              {processedProfileData?.followingCount ?? following.length}
+            </Text>
             <Text style={styles.statLabel}>Following</Text>
           </TouchableOpacity>
         </View>
       </View>
+
+      <Modal
+        transparent={true}
+        visible={isArchetypeModalVisible}
+        animationType="fade"
+        onRequestClose={() => setIsArchetypeModalVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalContainer}
+          activeOpacity={1}
+          onPressOut={() => setIsArchetypeModalVisible(false)}
+        >
+          <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
+            <Text style={styles.modalTitle}>Choose Your Archetype</Text>
+            {isUpdatingArchetype ? (
+              <ActivityIndicator size="large" color="#FFF" style={{ marginVertical: 20 }} />
+            ) : (
+              Object.keys(archetypeIcons).map((key) => (
+                <TouchableOpacity
+                  key={key}
+                  style={styles.archetypeChoice}
+                  onPress={() => handleArchetypeSelect(key)}
+                >
+                  <Image source={archetypeIcons[key]} style={styles.archetypeChoiceIcon} />
+                  <Text style={styles.archetypeChoiceText}>
+                    {key.charAt(0).toUpperCase() + key.slice(1)}
+                  </Text>
+                </TouchableOpacity>
+              ))
+            )}
+          </View>
+        </TouchableOpacity>
+      </Modal>
 
       <Modal
         transparent={true}
@@ -1079,6 +1156,10 @@ const styles = StyleSheet.create({
   followButtonDisabled: {
     opacity: 0.7,
   },
+  requestedButtonActive: {
+    backgroundColor: '#444',
+    borderColor: '#555',
+  },
   archetypeText: { 
     color: 'white',
     fontSize: 13, 
@@ -1190,6 +1271,42 @@ const styles = StyleSheet.create({
   gainValue: {
     color: '#FF9500',
     fontWeight: 'bold',
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+  },
+  modalContent: {
+    backgroundColor: '#2C2C2E',
+    borderRadius: 14,
+    padding: 20,
+    width: '85%',
+    maxHeight: '80%',
+  },
+  modalTitle: {
+    color: '#FFF',
+    fontSize: 20,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  archetypeChoice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#3A3A3C',
+  },
+  archetypeChoiceIcon: {
+    width: 30,
+    height: 30,
+    marginRight: 15,
+  },
+  archetypeChoiceText: {
+    color: '#FFF',
+    fontSize: 18,
   },
 });
 

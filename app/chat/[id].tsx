@@ -41,6 +41,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { sendMessage } from '@/ai/ai_chat';
 import { calculateImprovementPercentage } from '@/logic/milesonteUtils';
 import { generateId } from '@/logic/idGenerator';
+import { getOptimalImageUrl } from '@/utils/imageUtils';
 
 interface FirestoreMessageData {
   senderId: string;
@@ -49,6 +50,7 @@ interface FirestoreMessageData {
   sharedPost?: {
     id: string;
     imageUrl: string | null;
+    thumbnailUrl?: string | null;
     caption: string;
     authorUsername: string;
   };
@@ -75,6 +77,7 @@ interface FirestoreMessageData {
     id: string;
     title: string;
     coverImageUrl?: string;
+    thumbnailUrl?: string | null;
     creatorUsername: string;
   };
 }
@@ -87,6 +90,7 @@ interface Message {
   sharedPost?: {
     id: string;
     imageUrl: string | null;
+    thumbnailUrl?: string | null;
     caption: string;
     authorUsername: string;
     isAvailable?: boolean;
@@ -115,6 +119,7 @@ interface Message {
     id: string;
     title: string;
     coverImageUrl?: string;
+    thumbnailUrl?: string | null;
     creatorUsername: string;
     isAvailable?: boolean;
   };
@@ -226,7 +231,10 @@ const MessageItem = React.memo<{ item: Message; onLongPress: (m: Message) => voi
             </Text>
           </View>
           {item.sharedPost.imageUrl && (
-            <Image source={{ uri: item.sharedPost.imageUrl }} style={styles.sharedPostImage} />
+            <Image 
+              source={{ uri: getOptimalImageUrl(item.sharedPost.thumbnailUrl, item.sharedPost.imageUrl) }} 
+              style={styles.sharedPostImage} 
+            />
           )}
           {item.sharedPost.caption && (
             <Text style={styles.sharedPostCaption} numberOfLines={2}>
@@ -344,7 +352,10 @@ const MessageItem = React.memo<{ item: Message; onLongPress: (m: Message) => voi
             </Text>
           </View>
           {item.sharedWorkout.coverImageUrl && (
-            <Image source={{ uri: item.sharedWorkout.coverImageUrl }} style={styles.sharedWorkoutImage} />
+            <Image 
+              source={{ uri: getOptimalImageUrl(item.sharedWorkout.thumbnailUrl, item.sharedWorkout.coverImageUrl) }} 
+              style={styles.sharedWorkoutImage} 
+            />
           )}
           <Text style={styles.sharedWorkoutTitle} numberOfLines={2}>
             {item.sharedWorkout.title}
@@ -386,8 +397,10 @@ const MessageItem = React.memo<{ item: Message; onLongPress: (m: Message) => voi
       prev.item.id === next.item.id &&
       prev.item.text === next.item.text &&
       prev.item.sharedPost?.isAvailable === next.item.sharedPost?.isAvailable &&
+      prev.item.sharedPost?.thumbnailUrl === next.item.sharedPost?.thumbnailUrl &&
       prev.item.sharedMilestone?.isAvailable === next.item.sharedMilestone?.isAvailable &&
-      prev.item.sharedWorkout?.isAvailable === next.item.sharedWorkout?.isAvailable
+      prev.item.sharedWorkout?.isAvailable === next.item.sharedWorkout?.isAvailable &&
+      prev.item.sharedWorkout?.thumbnailUrl === next.item.sharedWorkout?.thumbnailUrl
     );
   }
 );

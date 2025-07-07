@@ -14,9 +14,9 @@ import {
 import { useRouter } from 'expo-router';
 import { usePostsData } from '@/hooks/usePostsData';
 import { useAuth } from '@/context/AuthContext';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '@/firebaseConfig';
 import { Ionicons } from '@expo/vector-icons';
-
-// Import shared components
 import {
     SECONDARY_COLOR,
     useImagePicker,
@@ -25,6 +25,7 @@ import {
     CaptionInput,
     WorkoutAttachment,
     WorkoutSelectionModal,
+    ImagePickerModal,
 } from './PostComponents';
 
 interface RegularPostProps {
@@ -34,28 +35,27 @@ interface RegularPostProps {
 export default function RegularPost({ onBack }: RegularPostProps) {
     const router = useRouter();
     const { addPost } = usePostsData();
-    // Using type assertion to fix TypeScript errors
-    const auth = useAuth() as any;
-    const currentUser = auth?.currentUser;
-    const userProfile = auth?.userProfile;
-    
+    const { currentUser } = useAuth();
+    const userProfile = currentUser?.userProfile;
+
     // Form state
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [formError, setFormError] = useState<string | null>(null);
     const [caption, setCaption] = useState('');
     
-    // Image picker
-    const {
-        imageUri, 
-        imageMenuVisible,
-        setImageMenuVisible,
-        ImagePickerModal
-    } = useImagePicker();
+    // Image picker state
+    const [imageUri, setImageUri] = useState<string | null>(null);
+    const [imageMenuVisible, setImageMenuVisible] = useState(false);
+
+    // Image picker logic hook
+    const { openCamera, openImageLibrary } = useImagePicker((uri) => {
+        setImageUri(uri);
+        setImageMenuVisible(false); // Close modal on selection
+    });
     
     // Workout attachment
     const [selectedWorkout, setSelectedWorkout] = useState<any>(null);
     const [workoutModalVisible, setWorkoutModalVisible] = useState(false);
-
 
     const selectWorkout = (workout: any) => { 
         setSelectedWorkout(workout);
@@ -77,13 +77,28 @@ export default function RegularPost({ onBack }: RegularPostProps) {
             setIsSubmitting(true);
             setFormError(null);
             
+            let authorArchetype = null;
+            let userVisibility = 'public'; // Default visibility
+            
+            if (currentUser) {
+                const userDocRef = doc(db, 'users', currentUser.uid);
+                const userDocSnap = await getDoc(userDocRef);
+                if (userDocSnap.exists()) {
+                    const userData = userDocSnap.data();
+                    authorArchetype = userData.archetype || null;
+                    // Get user's default visibility preference from profile
+                    userVisibility = userData.defaultVisibility || 'public';
+                }
+            }
+
             const postData = {
                 caption: caption.trim(),
                 imageUri,
                 isMilestone: false,
                 milestoneDetails: null,
-                visibility: userProfile?.defaultPostVisibility || 'public',
-                workoutId: selectedWorkout?.id
+                visibility: userVisibility, // Use user's profile visibility preference
+                workoutId: selectedWorkout?.id,
+                authorArchetype: authorArchetype
             };
             
             const postId = await addPost(postData);
@@ -159,19 +174,30 @@ export default function RegularPost({ onBack }: RegularPostProps) {
                             setWorkoutModalVisible={setWorkoutModalVisible}
                             removeWorkout={removeWorkout}
                         />
+
+                        {/* Note about visibility */}
+                        <View style={styles.visibilityNote}>
+                            <Ionicons name="information-circle-outline" size={16} color="#999" />
+                            <Text style={styles.visibilityNoteText}>
+                                Posts use your profile's default visibility setting. Change it in Settings.
+                            </Text>
+                        </View>
                     </ScrollView>
                 </View>
-
-                {/* Image picker modal */}
-                <ImagePickerModal />
-
-                {/* Workout selection modal */}
-                <WorkoutSelectionModal
-                    workoutModalVisible={workoutModalVisible}
-                    setWorkoutModalVisible={setWorkoutModalVisible}
-                    selectWorkout={selectWorkout}
-                />
             </KeyboardAvoidingView>
+
+            {/* MODALS */}
+            <ImagePickerModal
+                visible={imageMenuVisible}
+                onClose={() => setImageMenuVisible(false)}
+                onTakePhoto={openCamera}
+                onChooseFromLibrary={openImageLibrary}
+            />
+            <WorkoutSelectionModal
+                workoutModalVisible={workoutModalVisible}
+                setWorkoutModalVisible={setWorkoutModalVisible}
+                selectWorkout={selectWorkout}
+            />
         </SafeAreaView>
     );
 }

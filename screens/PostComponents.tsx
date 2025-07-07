@@ -21,6 +21,7 @@ import { useRouter } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
 import { db } from '@/firebaseConfig';
 import { collection, doc, getDoc, getDocs, query, where, orderBy } from 'firebase/firestore';
+import { getOptimalImageUrl } from '@/utils/imageUtils';
 
 // Secondary color and its variations
 export const SECONDARY_COLOR = '#ff2d55';
@@ -100,12 +101,8 @@ export const ErrorMessage = ({ error }: { error: string | null }) => {
     );
 };
 
-// Image picker modal and functions
-export const useImagePicker = () => {
-    const [imageUri, setImageUri] = useState<string | null>(null);
-    const [imageDimensions, setImageDimensions] = useState({ width: 0, height: 0 });
-    const [imageMenuVisible, setImageMenuVisible] = useState(false);
-
+// Image picker hook (LOGIC ONLY)
+export const useImagePicker = (onImageSelected: (uri: string) => void) => {
     const openCamera = async () => {
         const { status } = await ImagePicker.requestCameraPermissionsAsync();
         if (status !== 'granted') {
@@ -114,18 +111,14 @@ export const useImagePicker = () => {
         }
 
         const result = await ImagePicker.launchCameraAsync({
-            mediaTypes: [MediaType.Image],
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
             allowsEditing: true,
-            aspect: [4, 3],
-            quality: 1,
+            aspect: [1, 1],
+            quality: 0.8,
         });
 
         if (!result.canceled && result.assets && result.assets.length > 0) {
-            const uri = result.assets[0].uri;
-            const { width, height } = result.assets[0];
-            setImageUri(uri);
-            setImageDimensions({ width, height });
-            setImageMenuVisible(false);
+            onImageSelected(result.assets[0].uri);
         }
     };
 
@@ -137,75 +130,72 @@ export const useImagePicker = () => {
         }
 
         const result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: [MediaType.Image],
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
             allowsEditing: true,
-            aspect: [4, 3],
-            quality: 1,
+            aspect: [1, 1],
+            quality: 0.8,
         });
 
         if (!result.canceled && result.assets && result.assets.length > 0) {
-            const uri = result.assets[0].uri;
-            const { width, height } = result.assets[0];
-            setImageUri(uri);
-            setImageDimensions({ width, height });
-            setImageMenuVisible(false);
+            onImageSelected(result.assets[0].uri);
         }
     };
 
-    const ImagePickerModal = () => (
-        <Modal
-            animationType="slide"
-            transparent={true}
-            visible={imageMenuVisible}
-            onRequestClose={() => setImageMenuVisible(false)}
-        >
-            <TouchableOpacity 
-                style={postComponentStyles.modalOverlay}
-                activeOpacity={1}
-                onPress={() => setImageMenuVisible(false)}
-            >
-                <View style={postComponentStyles.imageModalContent}>
-                    <Text style={postComponentStyles.imageModalTitle}>Add Photo</Text>
-                    
-                    <TouchableOpacity 
-                        style={postComponentStyles.imageModalOption}
-                        onPress={openCamera}
-                    >
-                        <Ionicons name="camera-outline" size={24} color={SECONDARY_COLOR} />
-                        <Text style={postComponentStyles.imageModalOptionText}>Take a photo</Text>
-                    </TouchableOpacity>
-                    
-                    <TouchableOpacity 
-                        style={postComponentStyles.imageModalOption}
-                        onPress={openImageLibrary}
-                    >
-                        <Ionicons name="images-outline" size={24} color={SECONDARY_COLOR} />
-                        <Text style={postComponentStyles.imageModalOptionText}>Choose from library</Text>
-                    </TouchableOpacity>
-                    
-                    <TouchableOpacity 
-                        style={postComponentStyles.cancelButton}
-                        onPress={() => setImageMenuVisible(false)}
-                    >
-                        <Text style={postComponentStyles.cancelButtonText}>Cancel</Text>
-                    </TouchableOpacity>
-                </View>
-            </TouchableOpacity>
-        </Modal>
-    );
-
-    return {
-        imageUri,
-        setImageUri,
-        imageDimensions,
-        setImageDimensions,
-        imageMenuVisible,
-        setImageMenuVisible,
-        openCamera,
-        openImageLibrary,
-        ImagePickerModal
-    };
+    return { openCamera, openImageLibrary };
 };
+
+// Image Picker Modal (UI ONLY)
+export const ImagePickerModal = ({
+    visible,
+    onClose,
+    onTakePhoto,
+    onChooseFromLibrary,
+}: {
+    visible: boolean;
+    onClose: () => void;
+    onTakePhoto: () => void;
+    onChooseFromLibrary: () => void;
+}) => (
+    <Modal
+        animationType="fade"
+        transparent={true}
+        visible={visible}
+        onRequestClose={onClose}
+    >
+        <TouchableOpacity 
+            style={postComponentStyles.modalOverlay}
+            activeOpacity={1}
+            onPress={onClose}
+        >
+            <View style={postComponentStyles.imageModalContent} onStartShouldSetResponder={() => true}>
+                <Text style={postComponentStyles.imageModalTitle}>Add Photo</Text>
+                
+                <TouchableOpacity 
+                    style={postComponentStyles.imageModalOption}
+                    onPress={onTakePhoto}
+                >
+                    <Ionicons name="camera-outline" size={24} color={SECONDARY_COLOR} />
+                    <Text style={postComponentStyles.imageModalOptionText}>Take a photo</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                    style={postComponentStyles.imageModalOption}
+                    onPress={onChooseFromLibrary}
+                >
+                    <Ionicons name="images-outline" size={24} color={SECONDARY_COLOR} />
+                    <Text style={postComponentStyles.imageModalOptionText}>Choose from library</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                    style={[postComponentStyles.imageModalOption, { borderBottomWidth: 0 }]}
+                    onPress={onClose}
+                >
+                    <Text style={[postComponentStyles.imageModalOptionText, { color: '#FF3B30' }]}>Cancel</Text>
+                </TouchableOpacity>
+            </View>
+        </TouchableOpacity>
+    </Modal>
+);
 
 // Image Section Component
 export const ImageSection = ({ 
@@ -453,16 +443,20 @@ export const WorkoutSelectionModal: React.FC<WorkoutSelectionModalProps> = ({
       onPress={() => {
         selectWorkout(item);
         setSearchQuery(''); 
-      }}
-    >
-      <Image
-        source={item.coverImageUrl ? { uri: item.coverImageUrl } : require('@/assets/images/icon.png')} 
-        style={postComponentStyles.workoutThumbnailLarge} // Use a potentially larger thumbnail style
-      />
-      <View style={postComponentStyles.workoutItemInfo}>
-        <Text style={postComponentStyles.workoutItemTitle} numberOfLines={1}>{item.title}</Text>
-        {item.creatorUsername && <Text style={postComponentStyles.workoutItemCreator} numberOfLines={1}>by {item.creatorUsername}</Text>}
-      </View>
+          }}
+        >
+            <Image 
+                source={
+                    getOptimalImageUrl(item.thumbnailUrl, item.coverImageUrl)
+                        ? { uri: getOptimalImageUrl(item.thumbnailUrl, item.coverImageUrl)! }
+                        : require('@/assets/images/icon.png')
+                } 
+                style={postComponentStyles.workoutThumbnailLarge}
+            />
+        <View style={postComponentStyles.workoutItemInfo}>
+            <Text style={postComponentStyles.workoutItemTitle} numberOfLines={1}>{item.title}</Text>
+            {item.creatorUsername && <Text style={postComponentStyles.workoutItemCreator} numberOfLines={1}>by {item.creatorUsername}</Text>}
+        </View>
     </TouchableOpacity>
   );
 

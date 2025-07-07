@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { ScrollView, View, Text, TouchableOpacity, Image, StyleSheet, ActivityIndicator, Alert, Modal, TextInput, FlatList, KeyboardAvoidingView, Platform } from 'react-native';
+import { ScrollView, View, Text, TouchableOpacity, Image, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import ShareModal from '@/components/ShareModal';
 import { shareWorkout } from '@/services/ShareService';
 import { Ionicons } from '@expo/vector-icons';
 import { db } from '@/firebaseConfig'; 
-import { doc, addDoc, serverTimestamp, getDoc, Timestamp, updateDoc, increment, setDoc, deleteDoc, collection, query, where, orderBy, getDocs, limit } from 'firebase/firestore';
+import { doc, getDoc, Timestamp, updateDoc, increment, setDoc, deleteDoc, collection, query, where, orderBy, getDocs, limit } from 'firebase/firestore';
 import { useAuth } from '@/context/AuthContext'; 
+import { getOptimalImageUrl, deleteImageFromStorage } from '@/utils/imageUtils';
 
 // Interface for individual exercise within a segment
 interface WorkoutExercise {
@@ -31,6 +32,7 @@ interface WorkoutData {
   creatorId: string;
   creatorUsername: string;
   coverImageUrl?: string | null;
+  thumbnailUrl?: string | null;
   workoutLength?: string; 
   segments: WorkoutSegment[];
   description: string;
@@ -238,6 +240,7 @@ export default function ViewWorkout() {
           id: workoutData.id,
           title: workoutData.title,
           coverImageUrl: workoutData.coverImageUrl || null,
+          thumbnailUrl: workoutData.thumbnailUrl || null, // Add this
           creatorUsername: workoutData.creatorUsername,
           description: workoutData.description
         }
@@ -289,8 +292,34 @@ export default function ViewWorkout() {
                       style: "destructive",
                       onPress: async () => {
                         try {
+                          // Delete both cover image and thumbnail from storage
+                          if (workoutData.coverImageUrl) {
+                            try {
+                              await deleteImageFromStorage(workoutData.coverImageUrl);
+                            } catch (storageError) {
+                              console.error("Error deleting cover image from storage:", storageError);
+                            }
+                          }
+                          
+                          // Delete thumbnail if it exists
+                          if (workoutData.thumbnailUrl) {
+                            try {
+                              await deleteImageFromStorage(workoutData.thumbnailUrl);
+                            } catch (storageError) {
+                              console.error("Error deleting thumbnail from storage:", storageError);
+                            }
+                          }
+                          
+                          // Delete the workout document
                           const workoutDocRef = doc(db, 'workouts', workoutId);
                           await deleteDoc(workoutDocRef);
+                          
+                          // Update user's workout count
+                          const userDocRef = doc(db, 'users', currentUser.uid);
+                          await updateDoc(userDocRef, {
+                            'stats.workoutCount': increment(-1)
+                          });
+                          
                           router.back();
                         } catch (error) {
                           console.error("Error deleting workout:", error);
@@ -332,7 +361,11 @@ export default function ViewWorkout() {
       
       <View style={styles.imageContainer}>
         <Image
-          source={workoutData.coverImageUrl ? { uri: workoutData.coverImageUrl } : require('@/assets/images/default_workout_cover.png')}
+          source={
+            getOptimalImageUrl(workoutData.thumbnailUrl, workoutData.coverImageUrl) 
+              ? { uri: getOptimalImageUrl(workoutData.thumbnailUrl, workoutData.coverImageUrl)! } 
+              : require('@/assets/images/default_workout_cover.png')
+          }
           style={styles.workoutImage}
           resizeMode="cover" 
         />

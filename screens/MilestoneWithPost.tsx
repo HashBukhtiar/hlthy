@@ -16,14 +16,12 @@ import {
 import { useRouter } from 'expo-router';
 import { usePostsData } from '@/hooks/usePostsData';
 import { useAuth } from '@/context/AuthContext';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { db } from '@/firebaseConfig';
 import { Ionicons, MaterialCommunityIcons, FontAwesome5, Feather } from '@expo/vector-icons';
 import SelectExercise from './SelectExercise';
 import { Exercise, MetricType } from '@/data/exercises';
-import { collection, query, where, getDocs } from 'firebase/firestore';
-import { db } from '@/firebaseConfig';
 import { fetchPreviousPRService, PreviousPRData } from '@/services/milestoneService';
-
-// Import shared components
 import {
     SECONDARY_COLOR,
     useImagePicker,
@@ -32,6 +30,7 @@ import {
     CaptionInput,
     WorkoutAttachment,
     WorkoutSelectionModal,
+    ImagePickerModal,
 } from './PostComponents';
 
 interface MilestoneWithPostProps {
@@ -41,10 +40,9 @@ interface MilestoneWithPostProps {
 export default function MilestoneWithPost({ onBack }: MilestoneWithPostProps) {
     const router = useRouter();
     const { addPost } = usePostsData();
-    const auth = useAuth() as any;
-    const currentUser = auth?.currentUser;
-    const userProfile = auth?.userProfile;
-    
+    const { currentUser } = useAuth();
+    const userProfile = currentUser?.userProfile;
+
     // Form state
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [formError, setFormError] = useState<string | null>(null);
@@ -55,12 +53,14 @@ export default function MilestoneWithPost({ onBack }: MilestoneWithPostProps) {
     const [loadingPreviousPR, setLoadingPreviousPR] = useState(false);
     
     // Image picker
-    const {
-        imageUri, 
-        imageMenuVisible,
-        setImageMenuVisible,
-        ImagePickerModal
-    } = useImagePicker();
+    const [imageUri, setImageUri] = useState<string | null>(null);
+    const [imageMenuVisible, setImageMenuVisible] = useState(false);
+
+    // Image picker logic hook
+    const { openCamera, openImageLibrary } = useImagePicker((uri) => {
+        setImageUri(uri);
+        setImageMenuVisible(false);
+    });
 
     // Achievement metric fields
     const [weight, setWeight] = useState('');
@@ -477,19 +477,52 @@ export default function MilestoneWithPost({ onBack }: MilestoneWithPostProps) {
                     throw new Error("Unsupported exercise type");
             }
 
+            let authorArchetype = null;
+            let userVisibility = 'public'; // Default visibility
+            
+            if (currentUser) {
+                const userDocRef = doc(db, 'users', currentUser.uid);
+                const userDocSnap = await getDoc(userDocRef);
+                if (userDocSnap.exists()) {
+                    const userData = userDocSnap.data();
+                    authorArchetype = userData.archetype || null;
+                    // Get user's default visibility preference from profile
+                    userVisibility = userData.defaultVisibility || 'public';
+                }
+            }
+
             const postData = {
                 caption: caption.trim(),
                 imageUri: imageUri ?? undefined,
                 isMilestone: true,
                 milestoneDetails: milestoneDetails,
-                visibility: userProfile?.defaultPostVisibility || 'public',
-                workoutId: selectedWorkout?.id || null
+                visibility: userVisibility, // Use user's profile visibility preference
+                workoutId: selectedWorkout?.id || null,
+                authorArchetype: authorArchetype
             };
             
+            // Create the post first
             const postId = await addPost(postData);
+            
+            // Store the milestone separately in the milestones collection
+            try {
+            const milestoneDocRef = doc(db, 'milestones', postId);
+            await setDoc(milestoneDocRef, {
+                ...milestoneDetails,
+                postId: postId,
+                authorId: currentUser.uid,
+                createdAt: new Date(),
+                updatedAt: new Date()
+            });
+            } catch (milestoneError) {
+            console.error("Error storing milestone separately:", milestoneError);
+            // Post was created successfully, but milestone storage failed
+            // We can continue as the milestone data is still in the post
+            }
+            
             console.log("Successfully created achievement post with ID:", postId);
             Alert.alert('Success', 'Your achievement has been shared!', [
-                { text: 'OK', onPress: () => router.push('/') }
+            { text: 'OK', onPress: () => router.push('/') }
             ]);
 
         } catch (error: any) {
@@ -832,17 +865,20 @@ export default function MilestoneWithPost({ onBack }: MilestoneWithPostProps) {
                         />
                     </ScrollView>
                 </View>
-
-                {/* Image picker modal */}
-                <ImagePickerModal />
-
-                {/* Workout selection modal */}
-                <WorkoutSelectionModal
-                    workoutModalVisible={workoutModalVisible}
-                    setWorkoutModalVisible={setWorkoutModalVisible}
-                    selectWorkout={selectWorkout}
-                />
             </KeyboardAvoidingView>
+
+            {/* MODALS MOVED OUTSIDE */}
+            <ImagePickerModal
+                visible={imageMenuVisible}
+                onClose={() => setImageMenuVisible(false)}
+                onTakePhoto={openCamera}
+                onChooseFromLibrary={openImageLibrary}
+            />
+            <WorkoutSelectionModal
+                workoutModalVisible={workoutModalVisible}
+                setWorkoutModalVisible={setWorkoutModalVisible}
+                selectWorkout={selectWorkout}
+            />
         </SafeAreaView>
     );
 }

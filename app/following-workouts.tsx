@@ -14,6 +14,7 @@ import { useAuth } from '@/context/AuthContext';
 import { db } from '@/firebaseConfig';
 import { collection, query, getDocs, doc, getDoc, where, orderBy } from 'firebase/firestore';
 import { Ionicons } from '@expo/vector-icons';
+import { getOptimalImageUrl } from '@/utils/imageUtils';
 
 interface WorkoutItemData {
     id: string;
@@ -75,7 +76,14 @@ export default function FollowingWorkouts() {
 
     const renderItem = ({ item }: { item: WorkoutItemData }) => (
         <TouchableOpacity style={styles.workoutItem} onPress={() => router.push(`/view-workout/${item.id}`)}>
-            <Image source={item.coverImageUrl ? { uri: item.coverImageUrl } : require('@/assets/images/default_workout_cover.png')} style={styles.workoutImage} />
+            <Image 
+                source={
+                    getOptimalImageUrl(item.thumbnailUrl, item.coverImageUrl) 
+                        ? { uri: getOptimalImageUrl(item.thumbnailUrl, item.coverImageUrl)! } 
+                        : require('@/assets/images/default_workout_cover.png')
+                } 
+                style={styles.workoutImage} 
+            />
             <View style={styles.workoutInfo}>
                 <Text style={styles.workoutTitle}>{item.title}</Text>
                 <Text style={styles.workoutAuthor}>by {item.creatorUsername}</Text>
