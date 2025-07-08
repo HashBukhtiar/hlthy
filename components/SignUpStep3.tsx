@@ -147,22 +147,25 @@ export default function SignUpStep3({ visible, onBackPress, onComplete, onShowLo
                   label="Password"
                   value={password}
                   onChangeText={setPassword}
-                  mode="outlined"
-                  style={styles.input}
-                  theme={{
-                    colors: {
-                      primary: '#FFFFFF',
-                      outline: passwordFocused ? '#FFFFFF' : 'rgba(255, 255, 255, 0.3)',
-                      onSurfaceVariant: 'rgba(255, 255, 255, 0.6)',
-                      onSurface: '#FFFFFF',
-                      surface: 'transparent',
-                    },
-                  }}
-                  textColor="#FFFFFF"
                   onFocus={() => setPasswordFocused(true)}
                   onBlur={() => setPasswordFocused(false)}
                   secureTextEntry={!showPassword}
-                  left={<TextInput.Icon icon="lock" />}
+                  style={(password || passwordFocused) ? styles.modernInput : styles.modernInputCompact}
+                  contentStyle={(password || passwordFocused) ? styles.inputContentStyle : styles.inputContentStyleCompact}
+                  dense={!password && !passwordFocused}
+                  mode="flat"
+                  theme={{ 
+                    colors: { 
+                      primary: '#FFFFFF', 
+                      background: 'transparent',
+                      surface: 'transparent',
+                      onSurfaceVariant: '#AAAAAA',
+                      outline: 'transparent'
+                    }
+                  }}
+                  textColor='#FFFFFF'
+                  underlineColor="rgba(255, 255, 255, 0.3)"
+                  activeUnderlineColor="#FFFFFF"
                   right={
                     <TextInput.Icon 
                       icon={showPassword ? "eye-off" : "eye"} 
@@ -201,22 +204,25 @@ export default function SignUpStep3({ visible, onBackPress, onComplete, onShowLo
                   label="Confirm Password"
                   value={confirmPassword}
                   onChangeText={setConfirmPassword}
-                  mode="outlined"
-                  style={styles.input}
-                  theme={{
-                    colors: {
-                      primary: '#FFFFFF',
-                      outline: confirmPasswordFocused ? '#FFFFFF' : 'rgba(255, 255, 255, 0.3)',
-                      onSurfaceVariant: 'rgba(255, 255, 255, 0.6)',
-                      onSurface: '#FFFFFF',
-                      surface: 'transparent',
-                    },
-                  }}
-                  textColor="#FFFFFF"
                   onFocus={() => setConfirmPasswordFocused(true)}
                   onBlur={() => setConfirmPasswordFocused(false)}
                   secureTextEntry={!showConfirmPassword}
-                  left={<TextInput.Icon icon="lock-check" />}
+                  style={(confirmPassword || confirmPasswordFocused) ? styles.modernInput : styles.modernInputCompact}
+                  contentStyle={(confirmPassword || confirmPasswordFocused) ? styles.inputContentStyle : styles.inputContentStyleCompact}
+                  dense={!confirmPassword && !confirmPasswordFocused}
+                  mode="flat"
+                  theme={{ 
+                    colors: { 
+                      primary: '#FFFFFF', 
+                      background: 'transparent',
+                      surface: 'transparent',
+                      onSurfaceVariant: '#AAAAAA',
+                      outline: 'transparent'
+                    }
+                  }}
+                  textColor='#FFFFFF'
+                  underlineColor="rgba(255, 255, 255, 0.3)"
+                  activeUnderlineColor="#FFFFFF"
                   right={
                     <TextInput.Icon 
                       icon={showConfirmPassword ? "eye-off" : "eye"} 
@@ -363,6 +369,28 @@ const styles = StyleSheet.create({
   },
   inputContainer: {
     marginBottom: 20,
+  },
+  modernInput: {
+    marginBottom: 10,
+    backgroundColor: 'transparent',
+    marginHorizontal: 5,
+    paddingHorizontal: 0,
+    height: 65, // Fixed height to prevent repositioning
+  },
+  modernInputCompact: {
+    marginTop: 20,
+    marginBottom: 10,
+    backgroundColor: 'transparent',
+    marginHorizontal: 5,
+    paddingHorizontal: 0,
+    height: 45, // Smaller height when unfocused and empty
+  },
+  inputContentStyle: {
+    // nothing right now.
+  },
+  inputContentStyleCompact: {
+    // paddingTop: 8, // Minimal padding when unfocused to keep label close to line
+    // paddingBottom: 4,
   },
   input: {
     backgroundColor: 'transparent',
