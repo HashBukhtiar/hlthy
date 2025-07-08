@@ -268,7 +268,8 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
+    paddingTop: 20,
   },
   title: {
     fontSize: 32,
@@ -281,18 +282,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: 'rgba(255, 255, 255, 0.7)',
     textAlign: 'center',
-    marginBottom: 40,
+    marginBottom: 30,
   },
   form: {
-    marginBottom: 40,
+    marginBottom: 20,
   },
   nameRow: {
     flexDirection: 'row',
     gap: 12,
-    marginBottom: 20,
+    marginBottom: 10,
   },
   inputContainer: {
-    marginBottom: 20,
+    marginBottom: 10,
   },
   nameInput: {
     flex: 1,
