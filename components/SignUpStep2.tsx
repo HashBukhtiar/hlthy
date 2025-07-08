@@ -199,14 +199,6 @@ export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin,
               </View>
             </View>
 
-            {/* Info Box */}
-            <View style={styles.infoBox}>
-              <Ionicons name="information-circle" size={20} color="rgba(255, 255, 255, 0.7)" />
-              <Text style={styles.infoText}>
-                Your username will be visible to other users. Choose something that represents you!
-              </Text>
-            </View>
-
             {/* Buttons */}
             <View style={styles.buttonContainer}>
               <TouchableOpacity
@@ -222,6 +214,14 @@ export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin,
               <View style={styles.errorContainer}>
                 <Text style={[styles.errorText, { opacity: errorMessage ? 1 : 0 }]}>
                   {errorMessage || ' '}
+                </Text>
+              </View>
+
+              {/* Info Box */}
+              <View style={styles.infoBox}>
+                <Ionicons name="information-circle" size={20} color="rgba(255, 255, 255, 0.7)" />
+                <Text style={styles.infoText}>
+                  Your date of birth will not be visible to other users.
                 </Text>
               </View>
             </View>
