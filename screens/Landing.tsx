@@ -270,6 +270,7 @@ export default function Landing() {
               onBackPress={handleSignUpStep2Back}
               onNext={handleSignUpStep2Data}
               onShowLogin={handleShowLogin}
+              firstName={signupData.firstName}
             />
           </Animated.View>
 

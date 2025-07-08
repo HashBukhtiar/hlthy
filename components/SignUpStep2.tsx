@@ -19,9 +19,10 @@ interface SignUpStep2Props {
   onBackPress: () => void;
   onNext: (data: { username: string; dateOfBirth: string }) => void;
   onShowLogin?: () => void;
+  firstName?: string;
 }
 
-export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin }: SignUpStep2Props) {
+export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin, firstName }: SignUpStep2Props) {
   const { width, height } = Dimensions.get('window');
   
   const [username, setUsername] = useState<string>('');
@@ -135,7 +136,7 @@ export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin 
 
           {/* Content */}
           <View style={styles.content}>
-            <Text style={styles.title}>Choose your identity</Text>
+            <Text style={styles.title}>Welcome, {firstName || 'there'}</Text>
             <Text style={styles.subtitle}>Pick a username and tell us when you were born</Text>
 
             {/* Form */}
