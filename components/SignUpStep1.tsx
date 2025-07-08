@@ -103,11 +103,6 @@ export default function SignUpStep1({ visible, onBackPress, onNext, onShowLogin 
 
           {/* Header */}
           <View style={styles.header}>
-            <View style={styles.progressContainer}>
-              <View style={[styles.progressDot, styles.progressDotActive]} />
-              <View style={styles.progressDot} />
-              <View style={styles.progressDot} />
-            </View>
           </View>
 
           {/* Content */}
@@ -285,19 +280,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 20,
     fontWeight: '600',
-  },
-  progressContainer: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  progressDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
-  },
-  progressDotActive: {
-    backgroundColor: '#FFFFFF',
   },
   content: {
     flex: 1,
