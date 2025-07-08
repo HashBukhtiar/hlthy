@@ -424,7 +424,7 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   errorText: {
-    color: '#FF6B6B',
+    color: '#FF5555',
     fontSize: 14,
     textAlign: 'center',
     marginTop: 10,

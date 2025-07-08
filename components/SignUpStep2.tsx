@@ -333,7 +333,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   errorText: {
-    color: '#FF6B6B',
+    color: '#FF5555',
     fontSize: 14,
     textAlign: 'center',
     marginTop: 10,

@@ -33,10 +33,11 @@ export default function SignUpStep1({ visible, onBackPress, onNext, onShowLogin 
   const [firstNameFocused, setFirstNameFocused] = useState<boolean>(false);
   const [lastNameFocused, setLastNameFocused] = useState<boolean>(false);
   const [emailFocused, setEmailFocused] = useState<boolean>(false);
+  const [isEmailValid, setIsEmailValid] = useState<boolean>(true);
 
   const validateEmail = (email: string): boolean => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
+    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return re.test(email);
   };
 
   const handleNext = useCallback(() => {
@@ -61,7 +62,7 @@ export default function SignUpStep1({ visible, onBackPress, onNext, onShowLogin 
     }
     
     if (!validateEmail(email)) {
-      setErrorMessage('Please enter a valid email address');
+      setErrorMessage('Please provide a valid email.');
       return;
     }
     
@@ -74,6 +75,7 @@ export default function SignUpStep1({ visible, onBackPress, onNext, onShowLogin 
     setFirstName('');
     setLastName('');
     setEmail('');
+    setIsEmailValid(true);
     onBackPress();
   }, [onBackPress]);
 
@@ -176,8 +178,14 @@ export default function SignUpStep1({ visible, onBackPress, onNext, onShowLogin 
                   value={email}
                   onChangeText={setEmail}
                   onFocus={() => setEmailFocused(true)}
-                  onBlur={() => setEmailFocused(false)}
-                  style={(email || emailFocused) ? styles.modernInput : styles.modernInputCompact}
+                  onBlur={() => {
+                    setEmailFocused(false);
+                    setIsEmailValid(email === '' || validateEmail(email));
+                  }}
+                  style={[
+                    (email || emailFocused) ? styles.modernInput : styles.modernInputCompact, 
+                    !isEmailValid && styles.modernInputError
+                  ]}
                   contentStyle={(email || emailFocused) ? styles.inputContentStyle : styles.inputContentStyleCompact}
                   dense={!email && !emailFocused}
                   mode="flat"
@@ -187,14 +195,16 @@ export default function SignUpStep1({ visible, onBackPress, onNext, onShowLogin 
                       background: 'transparent',
                       surface: 'transparent',
                       onSurfaceVariant: '#AAAAAA',
-                      outline: 'transparent'
+                      outline: 'transparent',
+                      error: '#FF5555'
                     }
                   }}
-                  textColor='#FFFFFF'
-                  underlineColor="rgba(255, 255, 255, 0.3)"
-                  activeUnderlineColor="#FFFFFF"
+                  autoCapitalize='none'
                   keyboardType="email-address"
-                  autoCapitalize="none"
+                  textColor='#FFFFFF'
+                  error={!isEmailValid}
+                  underlineColor={!isEmailValid ? "#FF5555" : "rgba(255, 255, 255, 0.3)"}
+                  activeUnderlineColor={!isEmailValid ? "#FF5555" : "#FFFFFF"}
                 />
               </View>
             </View>
@@ -327,11 +337,15 @@ const styles = StyleSheet.create({
     // paddingTop: 8, // Minimal padding when unfocused to keep label close to line
     // paddingBottom: 4,
   },
+  modernInputError: {
+    borderBottomColor: '#FF5555',
+    borderBottomWidth: 2,
+  },
   input: {
     backgroundColor: 'transparent',
   },
   errorText: {
-    color: '#FF6B6B',
+    color: '#FF5555',
     fontSize: 14,
     textAlign: 'center',
     marginTop: 0,
