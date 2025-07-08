@@ -223,10 +223,6 @@ export default function SignUpStep1({ visible, onBackPress, onNext, onShowLogin 
                 </Text>
               </View>
             </View>
-
-            <View>
-              <View style={{ height: '15%' }} />
-            </View>
           </View>
           
           {/* Footer buttons - locked at bottom */}
@@ -284,7 +280,7 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     justifyContent: 'flex-start',
-    paddingTop: 20,
+    paddingTop: 80,
   },
   title: {
     fontSize: 32,
