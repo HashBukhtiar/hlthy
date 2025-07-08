@@ -13,18 +13,33 @@ import { useRouter } from 'expo-router';
 import AuthBackground from '@/components/AuthBackground';
 import LoginForm from '@/components/LoginForm';
 import ForgotPasswordForm from '@/components/ForgotPasswordForm';
-import SignUpForm from '@/components/SignUpForm';
+import SignUpStep1 from '@/components/SignUpStep1';
+import SignUpStep2 from '@/components/SignUpStep2';
+import SignUpStep3 from '@/components/SignUpStep3';
 
 export default function Landing() {
   const router = useRouter();
   const { width } = Dimensions.get('window');
   
   // State for current active screen
-  const [currentScreen, setCurrentScreen] = useState<'landing' | 'signup' | 'login' | 'forgot'>('landing');
+  const [currentScreen, setCurrentScreen] = useState<'landing' | 'signup-step1' | 'signup-step2' | 'signup-step3' | 'login' | 'forgot'>('landing');
   
+  // State for storing signup data across steps
+  const [signupData, setSignupData] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    username: '',
+    dateOfBirth: '',
+    password: '',
+  });
+  const [signupLoading, setSignupLoading] = useState(false);
+
   // Animation values for each screen - only center instance needed, positioned dynamically
   const landingAnim = useRef(new Animated.Value(0)).current;
-  const signUpAnim = useRef(new Animated.Value(width)).current;
+  const signUpStep1Anim = useRef(new Animated.Value(width)).current;
+  const signUpStep2Anim = useRef(new Animated.Value(width)).current;
+  const signUpStep3Anim = useRef(new Animated.Value(width)).current;
   const loginAnim = useRef(new Animated.Value(width)).current;
   const forgotPasswordAnim = useRef(new Animated.Value(width)).current;
 
@@ -32,25 +47,33 @@ export default function Landing() {
   useEffect(() => {
     // Landing starts active (center), others start off-screen (right)
     landingAnim.setValue(0);
-    signUpAnim.setValue(width);
+    signUpStep1Anim.setValue(width);
+    signUpStep2Anim.setValue(width);
+    signUpStep3Anim.setValue(width);
     loginAnim.setValue(width);
     forgotPasswordAnim.setValue(width);
   }, []);
 
   // Helper function to animate screen transitions with position restoration
   const animateToScreen = useCallback((
-    targetScreen: 'landing' | 'signup' | 'login' | 'forgot', 
+    targetScreen: 'landing' | 'signup-step1' | 'signup-step2' | 'signup-step3' | 'login' | 'forgot', 
     direction: 'forward' | 'backward' = 'forward'
   ) => {
     if (targetScreen === currentScreen) return;
 
-    const currentAnim = currentScreen === 'landing' ? landingAnim :
-                       currentScreen === 'signup' ? signUpAnim :
-                       currentScreen === 'login' ? loginAnim : forgotPasswordAnim;
-    
-    const targetAnim = targetScreen === 'landing' ? landingAnim :
-                      targetScreen === 'signup' ? signUpAnim :
-                      targetScreen === 'login' ? loginAnim : forgotPasswordAnim;
+    const getCurrentAnim = (screen: typeof currentScreen) => {
+      switch (screen) {
+        case 'landing': return landingAnim;
+        case 'signup-step1': return signUpStep1Anim;
+        case 'signup-step2': return signUpStep2Anim;
+        case 'signup-step3': return signUpStep3Anim;
+        case 'login': return loginAnim;
+        case 'forgot': return forgotPasswordAnim;
+      }
+    };
+
+    const currentAnim = getCurrentAnim(currentScreen);
+    const targetAnim = getCurrentAnim(targetScreen);
 
     if (direction === 'forward') {
       // Forward navigation: target slides in from right, current slides out to left
@@ -97,18 +120,18 @@ export default function Landing() {
     }
 
     setCurrentScreen(targetScreen);
-  }, [currentScreen, landingAnim, signUpAnim, loginAnim, forgotPasswordAnim, width]);
+  }, [currentScreen, landingAnim, signUpStep1Anim, signUpStep2Anim, signUpStep3Anim, loginAnim, forgotPasswordAnim, width]);
 
   const handleShowSignUp = useCallback(() => {
-    animateToScreen('signup', 'forward');
+    animateToScreen('signup-step1', 'forward');
   }, [animateToScreen]);
 
   const handleShowSignUpFromLogin = useCallback(() => {
-    animateToScreen('signup', 'forward');
+    animateToScreen('signup-step1', 'forward');
   }, [animateToScreen]);
 
   const handleShowSignUpFromForgotPassword = useCallback(() => {
-    animateToScreen('signup', 'forward');
+    animateToScreen('signup-step1', 'forward');
   }, [animateToScreen]);
 
   const handleShowLogin = useCallback(() => {
@@ -126,6 +149,55 @@ export default function Landing() {
   const handleBackToLandingFromForgotPassword = useCallback(() => {
     animateToScreen('login', 'backward');
   }, [animateToScreen]);
+
+  // Signup step back handlers
+  const handleSignUpStep2Back = useCallback(() => {
+    animateToScreen('signup-step1', 'backward');
+  }, [animateToScreen]);
+
+  const handleSignUpStep3Back = useCallback(() => {
+    animateToScreen('signup-step2', 'backward');
+  }, [animateToScreen]);
+
+  // Signup step data handlers
+  const handleSignUpStep1Data = useCallback((data: { firstName: string; lastName: string; email: string }) => {
+    setSignupData(prev => ({ ...prev, ...data }));
+    animateToScreen('signup-step2', 'forward');
+  }, [animateToScreen]);
+
+  const handleSignUpStep2Data = useCallback((data: { username: string; dateOfBirth: string }) => {
+    setSignupData(prev => ({ ...prev, ...data }));
+    animateToScreen('signup-step3', 'forward');
+  }, [animateToScreen]);
+
+  const handleSignUpComplete = useCallback(async (data: { password: string; confirmPassword: string }) => {
+    setSignupLoading(true);
+    try {
+      const finalData = { ...signupData, password: data.password };
+      
+      // TODO: Implement actual signup logic here
+      // For now, just simulate API call
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      console.log('Signup completed with data:', finalData);
+      
+      // Reset data and navigate back to landing
+      setSignupData({
+        firstName: '',
+        lastName: '',
+        email: '',
+        username: '',
+        dateOfBirth: '',
+        password: '',
+      });
+      
+      animateToScreen('landing', 'backward');
+    } catch (error) {
+      console.error('Signup error:', error);
+    } finally {
+      setSignupLoading(false);
+    }
+  }, [signupData, animateToScreen]);
 
   return (
     <AuthBackground>
@@ -165,7 +237,7 @@ export default function Landing() {
                     onPress={handleShowLogin}
                     activeOpacity={0.7}
                   >
-                    <Text style={[styles.buttonText, styles.loginButtonText]}>Login</Text>
+                    <Text style={[styles.buttonText, styles.loginButtonText]}>Log In</Text>
                   </TouchableOpacity>
                 </View>
 
@@ -176,15 +248,41 @@ export default function Landing() {
             </View>
           </Animated.View>
 
-          {/* Sign Up Content */}
+          {/* Sign Up Step 1 Content */}
           <Animated.View style={[
             styles.slideView, 
-            { transform: [{ translateX: signUpAnim }] }
+            { transform: [{ translateX: signUpStep1Anim }] }
           ]}>
-            <SignUpForm 
+            <SignUpStep1 
               visible={true} 
               onBackPress={handleBackToLanding}
+              onNext={handleSignUpStep1Data}
               onShowLogin={handleShowLogin}
+            />
+          </Animated.View>
+
+          <Animated.View style={[
+            styles.slideView, 
+            { transform: [{ translateX: signUpStep2Anim }] }
+          ]}>
+            <SignUpStep2 
+              visible={true} 
+              onBackPress={handleSignUpStep2Back}
+              onNext={handleSignUpStep2Data}
+              onShowLogin={handleShowLogin}
+            />
+          </Animated.View>
+
+          <Animated.View style={[
+            styles.slideView, 
+            { transform: [{ translateX: signUpStep3Anim }] }
+          ]}>
+            <SignUpStep3 
+              visible={true} 
+              onBackPress={handleSignUpStep3Back}
+              onComplete={handleSignUpComplete}
+              onShowLogin={handleShowLogin}
+              loading={signupLoading}
             />
           </Animated.View>
 
