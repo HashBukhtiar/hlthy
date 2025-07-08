@@ -36,6 +36,28 @@ export default function Landing() {
     }).start();
   }, [slideAnim]);
 
+  const handleShowSignUpFromLogin = useCallback(() => {
+    // First hide login, then show signup
+    setShowLogin(false);
+    setShowSignUp(true);
+    Animated.timing(slideAnim, {
+      toValue: 1, // Go to signup position
+      duration: 250,
+      useNativeDriver: true,
+    }).start();
+  }, [slideAnim]);
+
+  const handleShowSignUpFromForgotPassword = useCallback(() => {
+    // First hide forgot password, then show signup
+    setShowForgotPassword(false);
+    setShowSignUp(true);
+    Animated.timing(slideAnim, {
+      toValue: 1, // Go to signup position
+      duration: 250,
+      useNativeDriver: true,
+    }).start();
+  }, [slideAnim]);
+
   const handleShowLogin = useCallback(() => {
     setShowLogin(true);
     Animated.timing(slideAnim, {
@@ -178,6 +200,7 @@ export default function Landing() {
               visible={showLogin} 
               onBackPress={handleBackToLanding} 
               onForgotPasswordPress={handleShowForgotPassword}
+              onShowSignUp={handleShowSignUpFromLogin}
             />
           </Animated.View>
 
@@ -187,6 +210,7 @@ export default function Landing() {
               visible={showForgotPassword} 
               onBackPress={handleBackToLandingFromForgotPassword}
               onBackToLogin={handleBackToLandingFromForgotPassword}
+              onShowSignUp={handleShowSignUpFromForgotPassword}
             />
           </Animated.View>
         </View>

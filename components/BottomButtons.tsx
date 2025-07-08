@@ -81,7 +81,6 @@ function BottomButtons() {
   if (pathname === '/create-workout' || 
       pathname?.includes('/settings') || 
       pathname?.includes('/view-post') ||
-      pathname?.includes('/signup') ||
       pathname?.includes('/select-archetype') ||
       pathname?.includes('/landing') ||
       pathname?.includes('/chat') ||

@@ -16,9 +16,10 @@ interface ForgotPasswordFormProps {
   visible: boolean;
   onBackPress: () => void;
   onBackToLogin?: () => void;
+  onShowSignUp?: () => void;
 }
 
-export default function ForgotPasswordForm({ visible, onBackPress, onBackToLogin }: ForgotPasswordFormProps) {
+export default function ForgotPasswordForm({ visible, onBackPress, onBackToLogin, onShowSignUp }: ForgotPasswordFormProps) {
   const router = useRouter();
   
   const [emailAddress, setEmailAddress] = useState<string>('');
@@ -191,7 +192,7 @@ export default function ForgotPasswordForm({ visible, onBackPress, onBackToLogin
           
           {/* Footer buttons - locked at bottom */}
           <View style={styles.forgotPasswordFooterFixed}>
-            <TouchableOpacity onPress={() => router.push('/signup')} activeOpacity={0.7}>
+            <TouchableOpacity onPress={onShowSignUp || (() => router.push('/landing'))} activeOpacity={0.7}>
               <Text style={styles.linkText}>Don't have an account? <Text style={styles.linkTextBold}>Sign Up</Text></Text>
             </TouchableOpacity>
           </View>

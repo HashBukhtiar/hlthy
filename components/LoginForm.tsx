@@ -19,9 +19,10 @@ interface LoginFormProps {
   visible: boolean;
   onBackPress: () => void;
   onForgotPasswordPress: () => void;
+  onShowSignUp?: () => void;
 }
 
-export default function LoginForm({ visible, onBackPress, onForgotPasswordPress }: LoginFormProps) {
+export default function LoginForm({ visible, onBackPress, onForgotPasswordPress, onShowSignUp }: LoginFormProps) {
   const router = useRouter();
   const { width } = Dimensions.get('window');
   
@@ -227,7 +228,7 @@ export default function LoginForm({ visible, onBackPress, onForgotPasswordPress 
             
             {/* Footer buttons - locked at bottom */}
             <View style={styles.loginFooterFixed}>
-              <TouchableOpacity onPress={() => router.push('/signup')} activeOpacity={0.7}>
+              <TouchableOpacity onPress={onShowSignUp || (() => router.push('/landing'))} activeOpacity={0.7}>
                 <Text style={styles.linkText}>Don't have an account? <Text style={styles.linkTextBold}>Sign Up</Text></Text>
               </TouchableOpacity>
               
