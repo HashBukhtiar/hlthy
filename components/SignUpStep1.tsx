@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { 
   View, 
   StyleSheet, 
@@ -9,7 +9,8 @@ import {
   Keyboard,
   ScrollView,
   KeyboardAvoidingView,
-  Platform
+  Platform,
+  Animated
 } from 'react-native';
 import { TextInput } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
@@ -34,6 +35,37 @@ export default function SignUpStep1({ visible, onBackPress, onNext, onShowLogin 
   const [lastNameFocused, setLastNameFocused] = useState<boolean>(false);
   const [emailFocused, setEmailFocused] = useState<boolean>(false);
   const [isEmailValid, setIsEmailValid] = useState<boolean>(true);
+  
+  // Animation for keyboard
+  const contentPaddingAnim = useRef(new Animated.Value(80)).current;
+
+  useEffect(() => {
+    const keyboardDidShowListener = Keyboard.addListener(
+      'keyboardDidShow',
+      () => {
+        Animated.timing(contentPaddingAnim, {
+          toValue: 20,
+          duration: 250,
+          useNativeDriver: false,
+        }).start();
+      }
+    );
+    const keyboardDidHideListener = Keyboard.addListener(
+      'keyboardDidHide',
+      () => {
+        Animated.timing(contentPaddingAnim, {
+          toValue: 80,
+          duration: 250,
+          useNativeDriver: false,
+        }).start();
+      }
+    );
+
+    return () => {
+      keyboardDidHideListener?.remove();
+      keyboardDidShowListener?.remove();
+    };
+  }, [contentPaddingAnim]);
 
   const validateEmail = (email: string): boolean => {
     const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -106,7 +138,7 @@ export default function SignUpStep1({ visible, onBackPress, onNext, onShowLogin 
           </View>
 
           {/* Content */}
-          <View style={styles.content}>
+          <Animated.View style={[styles.content, { paddingTop: contentPaddingAnim }]}>
             <Text style={styles.title}>Let's get started</Text>
             <Text style={styles.subtitle}>Tell us a bit about yourself</Text>
 
@@ -223,7 +255,7 @@ export default function SignUpStep1({ visible, onBackPress, onNext, onShowLogin 
                 </Text>
               </View>
             </View>
-          </View>
+          </Animated.View>
           
           {/* Footer buttons - locked at bottom */}
           {onShowLogin && (
@@ -280,7 +312,6 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     justifyContent: 'flex-start',
-    paddingTop: 80,
   },
   title: {
     fontSize: 32,
