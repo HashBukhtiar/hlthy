@@ -169,7 +169,7 @@ export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin,
           {/* Content */}
           <Animated.View style={[styles.content, { paddingTop: contentPaddingAnim }]}>
             <Text style={styles.title}>Welcome, {firstName || 'there'}</Text>
-            <Text style={styles.subtitle}>Pick a username and your birth date</Text>
+            <Text style={styles.subtitle}>Pick a username and enter your birthdate</Text>
 
             {/* Form */}
             <View style={styles.form}>
