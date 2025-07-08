@@ -38,7 +38,10 @@ export default function Landing() {
   }, []);
 
   // Helper function to animate screen transitions with position restoration
-  const animateToScreen = useCallback((targetScreen: 'landing' | 'signup' | 'login' | 'forgot') => {
+  const animateToScreen = useCallback((
+    targetScreen: 'landing' | 'signup' | 'login' | 'forgot', 
+    direction: 'forward' | 'backward' = 'forward'
+  ) => {
     if (targetScreen === currentScreen) return;
 
     const currentAnim = currentScreen === 'landing' ? landingAnim :
@@ -49,60 +52,79 @@ export default function Landing() {
                       targetScreen === 'signup' ? signUpAnim :
                       targetScreen === 'login' ? loginAnim : forgotPasswordAnim;
 
-    // Set target screen to slide in from the right
-    targetAnim.setValue(width);
-
-    // Animate current screen out to the left and target screen in from the right
-    Animated.parallel([
-      Animated.timing(currentAnim, {
-        toValue: -width,
-        duration: 250,
-        useNativeDriver: true,
-      }),
-      Animated.timing(targetAnim, {
-        toValue: 0,
-        duration: 250,
-        useNativeDriver: true,
-      })
-    ]).start(() => {
-      // After animation completes, ensure current screen is positioned for future left-side entry
-      // and target screen can be accessed from right again
+    if (direction === 'forward') {
+      // Forward navigation: target slides in from right, current slides out to left
+      targetAnim.setValue(width);
       
-      // Reset the old current screen to be ready on the right side again
-      setTimeout(() => {
-        currentAnim.setValue(width);
-      }, 50); // Small delay to avoid visual glitch
-    });
+      Animated.parallel([
+        Animated.timing(currentAnim, {
+          toValue: -width,
+          duration: 250,
+          useNativeDriver: true,
+        }),
+        Animated.timing(targetAnim, {
+          toValue: 0,
+          duration: 250,
+          useNativeDriver: true,
+        })
+      ]).start(() => {
+        // Reset the old current screen to be ready on the right side again
+        setTimeout(() => {
+          currentAnim.setValue(width);
+        }, 50);
+      });
+    } else {
+      // Backward navigation: target slides in from left, current slides out to right
+      targetAnim.setValue(-width);
+      
+      Animated.parallel([
+        Animated.timing(currentAnim, {
+          toValue: width,
+          duration: 250,
+          useNativeDriver: true,
+        }),
+        Animated.timing(targetAnim, {
+          toValue: 0,
+          duration: 250,
+          useNativeDriver: true,
+        })
+      ]).start(() => {
+        // Reset the old current screen to be ready on the left side again
+        setTimeout(() => {
+          currentAnim.setValue(-width);
+        }, 50);
+      });
+    }
 
     setCurrentScreen(targetScreen);
   }, [currentScreen, landingAnim, signUpAnim, loginAnim, forgotPasswordAnim, width]);
 
   const handleShowSignUp = useCallback(() => {
-    animateToScreen('signup');
+    animateToScreen('signup', 'forward');
   }, [animateToScreen]);
 
   const handleShowSignUpFromLogin = useCallback(() => {
-    animateToScreen('signup');
+    animateToScreen('signup', 'forward');
   }, [animateToScreen]);
 
   const handleShowSignUpFromForgotPassword = useCallback(() => {
-    animateToScreen('signup');
+    animateToScreen('signup', 'forward');
   }, [animateToScreen]);
 
   const handleShowLogin = useCallback(() => {
-    animateToScreen('login');
+    animateToScreen('login', 'forward');
   }, [animateToScreen]);
 
   const handleBackToLanding = useCallback(() => {
-    animateToScreen('landing');
+    animateToScreen('landing', 'backward');
   }, [animateToScreen]);
 
   const handleShowForgotPassword = useCallback(() => {
-    animateToScreen('forgot');
+    animateToScreen('forgot', 'forward');
   }, [animateToScreen]);
 
   const handleBackToLandingFromForgotPassword = useCallback(() => {
-    animateToScreen('login');
+    animateToScreen('login', 'backward');
   }, [animateToScreen]);
 
   return (
