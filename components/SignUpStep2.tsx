@@ -10,10 +10,12 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
-  Animated
+  Animated,
+  Modal
 } from 'react-native';
 import { TextInput } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 interface SignUpStep2Props {
   visible: boolean;
@@ -140,6 +142,35 @@ export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin,
     onBackPress();
   }, [onBackPress]);
 
+  // Username input always starts with '@'
+  const getUsernameValue = () => (username.startsWith('@') ? username : '@' + username);
+  const handleUsernameChange = (text: string) => {
+    // Remove all leading @'s, then prepend one
+    const sanitized = text.replace(/^@+/, '');
+    setUsername('@' + sanitized);
+  };
+
+  // Date picker state
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [dateObj, setDateObj] = useState<Date>(new Date(2000, 0, 1));
+  const [dateOfBirthFormatted, setDateOfBirthFormatted] = useState<string>('');
+
+  // Format date for display
+  const formatDate = (date: Date): string => {
+    const month = date.getMonth() + 1;
+    const day = date.getDate();
+    const year = date.getFullYear();
+    return `${month < 10 ? '0' + month : month}/${day < 10 ? '0' + day : day}/${year}`;
+  };
+
+  const handleDateChangePicker = (event: any, selectedDate?: Date) => {
+    if (event.type === 'set' && selectedDate) {
+      setDateObj(selectedDate);
+      setDateOfBirthFormatted(formatDate(selectedDate));
+      setDateOfBirth(formatDate(selectedDate));
+    }
+  };
+
   if (!visible) return null;
 
   return (
@@ -176,8 +207,8 @@ export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin,
               <View style={styles.inputContainer}>
                 <TextInput
                   label="Username"
-                  value={username}
-                  onChangeText={setUsername}
+                  value={getUsernameValue()}
+                  onChangeText={handleUsernameChange}
                   onFocus={() => setUsernameFocused(true)}
                   onBlur={() => setUsernameFocused(false)}
                   style={(username || usernameFocused) ? styles.modernInput : styles.modernInputCompact}
@@ -197,35 +228,62 @@ export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin,
                   underlineColor="rgba(255, 255, 255, 0.3)"
                   activeUnderlineColor="#FFFFFF"
                   autoCapitalize="none"
+                  left={null}
+                  // Hide the left icon, since @ is now part of the value
+                  selectionColor="#FFFFFF"
+                  selection={{ start: Math.max(1, username.length), end: Math.max(1, username.length) }}
                 />
               </View>
 
               <View style={styles.inputContainer}>
-                <TextInput
-                  label="Date of Birth (MM/DD/YYYY)"
-                  value={dateOfBirth}
-                  onChangeText={handleDateChange}
-                  onFocus={() => setDateFocused(true)}
-                  onBlur={() => setDateFocused(false)}
-                  style={(dateOfBirth || dateFocused) ? styles.modernInput : styles.modernInputCompact}
-                  contentStyle={(dateOfBirth || dateFocused) ? styles.inputContentStyle : styles.inputContentStyleCompact}
-                  dense={!dateOfBirth && !dateFocused}
-                  mode="flat"
-                  theme={{ 
-                    colors: { 
-                      primary: '#FFFFFF', 
-                      background: 'transparent',
-                      surface: 'transparent',
-                      onSurfaceVariant: '#AAAAAA',
-                      outline: 'transparent'
-                    }
-                  }}
-                  textColor='#FFFFFF'
-                  underlineColor="rgba(255, 255, 255, 0.3)"
-                  activeUnderlineColor="#FFFFFF"
-                  keyboardType="numeric"
-                  maxLength={10}
-                />
+                <TouchableOpacity
+                  onPress={() => setShowDatePicker(true)}
+                  style={[styles.modernInput, {flexDirection: 'row', alignItems: 'center', paddingLeft: 8, paddingBottom: 0}]}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="calendar" size={18} color="#AAAAAA" style={{marginRight: 12}} />
+                  <Text style={{color: '#fff', opacity: dateOfBirthFormatted ? 1 : 0.5, fontSize: 16}}>
+                    {dateOfBirthFormatted || 'Date of Birth (MM/DD/YYYY)'}
+                  </Text>
+                </TouchableOpacity>
+                <View style={{
+                  height: 0.25,
+                  backgroundColor: 'rgba(255, 255, 255, 0.3)',
+                  marginHorizontal: 5,
+                  marginTop: -20,
+                  borderRadius: 1,
+                  transitionProperty: 'background-color',
+                  transitionDuration: '200ms',
+                }} />
+                {showDatePicker && (
+                  <Modal
+                    transparent={true}
+                    animationType="slide"
+                    visible={showDatePicker}
+                  >
+                    <View style={{flex:1, justifyContent:'flex-end', backgroundColor:'rgba(0,0,0,0.3)'}}>
+                      <View style={{backgroundColor:'#222', borderTopLeftRadius:16, borderTopRightRadius:16, padding:16}}>
+                        <View style={{flexDirection:'row', justifyContent:'space-between', alignItems:'center', marginBottom:8}}>
+                          <TouchableOpacity onPress={() => setShowDatePicker(false)}>
+                            <Text style={{color:'#AAA', fontSize:16}}>Cancel</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity onPress={() => { setShowDatePicker(false); if(dateObj) { setDateOfBirthFormatted(formatDate(dateObj)); setDateOfBirth(formatDate(dateObj)); } }}>
+                            <Text style={{color:'#fff', fontWeight:'bold', fontSize:16}}>Done</Text>
+                          </TouchableOpacity>
+                        </View>
+                        <DateTimePicker
+                          value={dateObj}
+                          mode="date"
+                          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                          onChange={handleDateChangePicker}
+                          maximumDate={new Date(new Date().getFullYear() - 13, new Date().getMonth(), new Date().getDate())}
+                          minimumDate={new Date(1900, 0, 1)}
+                          style={{backgroundColor:'#222'}}
+                        />
+                      </View>
+                    </View>
+                  </Modal>
+                )}
               </View>
             </View>
 
