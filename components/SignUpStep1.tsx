@@ -117,20 +117,24 @@ export default function SignUpStep1({ visible, onBackPress, onNext, onShowLogin 
                     label="First Name"
                     value={firstName}
                     onChangeText={setFirstName}
-                    mode="outlined"
-                    style={styles.input}
-                    theme={{
-                      colors: {
-                        primary: '#FFFFFF',
-                        outline: firstNameFocused ? '#FFFFFF' : 'rgba(255, 255, 255, 0.3)',
-                        onSurfaceVariant: 'rgba(255, 255, 255, 0.6)',
-                        onSurface: '#FFFFFF',
-                        surface: 'transparent',
-                      },
-                    }}
-                    textColor="#FFFFFF"
                     onFocus={() => setFirstNameFocused(true)}
                     onBlur={() => setFirstNameFocused(false)}
+                    style={(firstName || firstNameFocused) ? styles.modernInput : styles.modernInputCompact}
+                    contentStyle={(firstName || firstNameFocused) ? styles.inputContentStyle : styles.inputContentStyleCompact}
+                    dense={!firstName && !firstNameFocused}
+                    mode="flat"
+                    theme={{ 
+                      colors: { 
+                        primary: '#FFFFFF', 
+                        background: 'transparent',
+                        surface: 'transparent',
+                        onSurfaceVariant: '#AAAAAA',
+                        outline: 'transparent'
+                      }
+                    }}
+                    textColor='#FFFFFF'
+                    underlineColor="rgba(255, 255, 255, 0.3)"
+                    activeUnderlineColor="#FFFFFF"
                     autoCapitalize="words"
                   />
                 </View>
@@ -140,20 +144,24 @@ export default function SignUpStep1({ visible, onBackPress, onNext, onShowLogin 
                     label="Last Name"
                     value={lastName}
                     onChangeText={setLastName}
-                    mode="outlined"
-                    style={styles.input}
-                    theme={{
-                      colors: {
-                        primary: '#FFFFFF',
-                        outline: lastNameFocused ? '#FFFFFF' : 'rgba(255, 255, 255, 0.3)',
-                        onSurfaceVariant: 'rgba(255, 255, 255, 0.6)',
-                        onSurface: '#FFFFFF',
-                        surface: 'transparent',
-                      },
-                    }}
-                    textColor="#FFFFFF"
                     onFocus={() => setLastNameFocused(true)}
                     onBlur={() => setLastNameFocused(false)}
+                    style={(lastName || lastNameFocused) ? styles.modernInput : styles.modernInputCompact}
+                    contentStyle={(lastName || lastNameFocused) ? styles.inputContentStyle : styles.inputContentStyleCompact}
+                    dense={!lastName && !lastNameFocused}
+                    mode="flat"
+                    theme={{ 
+                      colors: { 
+                        primary: '#FFFFFF', 
+                        background: 'transparent',
+                        surface: 'transparent',
+                        onSurfaceVariant: '#AAAAAA',
+                        outline: 'transparent'
+                      }
+                    }}
+                    textColor='#FFFFFF'
+                    underlineColor="rgba(255, 255, 255, 0.3)"
+                    activeUnderlineColor="#FFFFFF"
                     autoCapitalize="words"
                   />
                 </View>
@@ -164,20 +172,24 @@ export default function SignUpStep1({ visible, onBackPress, onNext, onShowLogin 
                   label="Email Address"
                   value={email}
                   onChangeText={setEmail}
-                  mode="outlined"
-                  style={styles.input}
-                  theme={{
-                    colors: {
-                      primary: '#FFFFFF',
-                      outline: emailFocused ? '#FFFFFF' : 'rgba(255, 255, 255, 0.3)',
-                      onSurfaceVariant: 'rgba(255, 255, 255, 0.6)',
-                      onSurface: '#FFFFFF',
-                      surface: 'transparent',
-                    },
-                  }}
-                  textColor="#FFFFFF"
                   onFocus={() => setEmailFocused(true)}
                   onBlur={() => setEmailFocused(false)}
+                  style={(email || emailFocused) ? styles.modernInput : styles.modernInputCompact}
+                  contentStyle={(email || emailFocused) ? styles.inputContentStyle : styles.inputContentStyleCompact}
+                  dense={!email && !emailFocused}
+                  mode="flat"
+                  theme={{ 
+                    colors: { 
+                      primary: '#FFFFFF', 
+                      background: 'transparent',
+                      surface: 'transparent',
+                      onSurfaceVariant: '#AAAAAA',
+                      outline: 'transparent'
+                    }
+                  }}
+                  textColor='#FFFFFF'
+                  underlineColor="rgba(255, 255, 255, 0.3)"
+                  activeUnderlineColor="#FFFFFF"
                   keyboardType="email-address"
                   autoCapitalize="none"
                 />
@@ -285,6 +297,28 @@ const styles = StyleSheet.create({
   nameInput: {
     flex: 1,
     marginBottom: 0,
+  },
+  modernInput: {
+    marginBottom: 10,
+    backgroundColor: 'transparent',
+    marginHorizontal: 5,
+    paddingHorizontal: 0,
+    height: 65, // Fixed height to prevent repositioning
+  },
+  modernInputCompact: {
+    marginTop: 20,
+    marginBottom: 10,
+    backgroundColor: 'transparent',
+    marginHorizontal: 5,
+    paddingHorizontal: 0,
+    height: 45, // Smaller height when unfocused and empty
+  },
+  inputContentStyle: {
+    // nothing right now.
+  },
+  inputContentStyleCompact: {
+    // paddingTop: 8, // Minimal padding when unfocused to keep label close to line
+    // paddingBottom: 4,
   },
   input: {
     backgroundColor: 'transparent',
