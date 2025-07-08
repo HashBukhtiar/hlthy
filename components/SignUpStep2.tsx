@@ -197,7 +197,6 @@ export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin,
                   underlineColor="rgba(255, 255, 255, 0.3)"
                   activeUnderlineColor="#FFFFFF"
                   autoCapitalize="none"
-                  left={<TextInput.Icon icon="at" />}
                 />
               </View>
 
@@ -226,7 +225,6 @@ export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin,
                   activeUnderlineColor="#FFFFFF"
                   keyboardType="numeric"
                   maxLength={10}
-                  left={<TextInput.Icon icon="calendar" />}
                 />
               </View>
             </View>
