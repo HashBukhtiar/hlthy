@@ -72,6 +72,9 @@ export default function SignUpStep3({ visible, onBackPress, onComplete, onShowLo
   };
 
   const handleComplete = useCallback(() => {
+    // Dismiss keyboard first
+    Keyboard.dismiss();
+    
     setErrorMessage('');
     
     if (!password.trim()) {

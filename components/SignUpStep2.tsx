@@ -74,6 +74,9 @@ export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin 
   };
 
   const handleNext = useCallback(() => {
+    // Dismiss keyboard first
+    Keyboard.dismiss();
+    
     setErrorMessage('');
     
     if (!username.trim()) {
