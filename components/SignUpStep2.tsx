@@ -137,7 +137,7 @@ export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin,
           {/* Content */}
           <View style={styles.content}>
             <Text style={styles.title}>Welcome, {firstName || 'there'}</Text>
-            <Text style={styles.subtitle}>Pick a username and tell us when you were born</Text>
+            <Text style={styles.subtitle}>Pick a username and your birth date</Text>
 
             {/* Form */}
             <View style={styles.form}>
@@ -298,10 +298,10 @@ const styles = StyleSheet.create({
     marginBottom: 40,
   },
   form: {
-    marginBottom: 20,
+    marginBottom: 0,
   },
   inputContainer: {
-    marginBottom: 20,
+    marginBottom: 10,
   },
   modernInput: {
     marginBottom: 10,
@@ -355,7 +355,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   buttonContainer: {
-    gap: 20,
+    gap: 4,
   },
   nextButton: {
     backgroundColor: '#FFFFFF',
