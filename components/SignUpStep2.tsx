@@ -146,20 +146,24 @@ export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin 
                   label="Username"
                   value={username}
                   onChangeText={setUsername}
-                  mode="outlined"
-                  style={styles.input}
-                  theme={{
-                    colors: {
-                      primary: '#FFFFFF',
-                      outline: usernameFocused ? '#FFFFFF' : 'rgba(255, 255, 255, 0.3)',
-                      onSurfaceVariant: 'rgba(255, 255, 255, 0.6)',
-                      onSurface: '#FFFFFF',
-                      surface: 'transparent',
-                    },
-                  }}
-                  textColor="#FFFFFF"
                   onFocus={() => setUsernameFocused(true)}
                   onBlur={() => setUsernameFocused(false)}
+                  style={(username || usernameFocused) ? styles.modernInput : styles.modernInputCompact}
+                  contentStyle={(username || usernameFocused) ? styles.inputContentStyle : styles.inputContentStyleCompact}
+                  dense={!username && !usernameFocused}
+                  mode="flat"
+                  theme={{ 
+                    colors: { 
+                      primary: '#FFFFFF', 
+                      background: 'transparent',
+                      surface: 'transparent',
+                      onSurfaceVariant: '#AAAAAA',
+                      outline: 'transparent'
+                    }
+                  }}
+                  textColor='#FFFFFF'
+                  underlineColor="rgba(255, 255, 255, 0.3)"
+                  activeUnderlineColor="#FFFFFF"
                   autoCapitalize="none"
                   left={<TextInput.Icon icon="at" />}
                 />
@@ -170,20 +174,24 @@ export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin 
                   label="Date of Birth (MM/DD/YYYY)"
                   value={dateOfBirth}
                   onChangeText={handleDateChange}
-                  mode="outlined"
-                  style={styles.input}
-                  theme={{
-                    colors: {
-                      primary: '#FFFFFF',
-                      outline: dateFocused ? '#FFFFFF' : 'rgba(255, 255, 255, 0.3)',
-                      onSurfaceVariant: 'rgba(255, 255, 255, 0.6)',
-                      onSurface: '#FFFFFF',
-                      surface: 'transparent',
-                    },
-                  }}
-                  textColor="#FFFFFF"
                   onFocus={() => setDateFocused(true)}
                   onBlur={() => setDateFocused(false)}
+                  style={(dateOfBirth || dateFocused) ? styles.modernInput : styles.modernInputCompact}
+                  contentStyle={(dateOfBirth || dateFocused) ? styles.inputContentStyle : styles.inputContentStyleCompact}
+                  dense={!dateOfBirth && !dateFocused}
+                  mode="flat"
+                  theme={{ 
+                    colors: { 
+                      primary: '#FFFFFF', 
+                      background: 'transparent',
+                      surface: 'transparent',
+                      onSurfaceVariant: '#AAAAAA',
+                      outline: 'transparent'
+                    }
+                  }}
+                  textColor='#FFFFFF'
+                  underlineColor="rgba(255, 255, 255, 0.3)"
+                  activeUnderlineColor="#FFFFFF"
                   keyboardType="numeric"
                   maxLength={10}
                   left={<TextInput.Icon icon="calendar" />}
@@ -291,6 +299,28 @@ const styles = StyleSheet.create({
   },
   inputContainer: {
     marginBottom: 20,
+  },
+  modernInput: {
+    marginBottom: 10,
+    backgroundColor: 'transparent',
+    marginHorizontal: 5,
+    paddingHorizontal: 0,
+    height: 65, // Fixed height to prevent repositioning
+  },
+  modernInputCompact: {
+    marginTop: 20,
+    marginBottom: 10,
+    backgroundColor: 'transparent',
+    marginHorizontal: 5,
+    paddingHorizontal: 0,
+    height: 45, // Smaller height when unfocused and empty
+  },
+  inputContentStyle: {
+    // nothing right now.
+  },
+  inputContentStyleCompact: {
+    // paddingTop: 8, // Minimal padding when unfocused to keep label close to line
+    // paddingBottom: 4,
   },
   input: {
     backgroundColor: 'transparent',
