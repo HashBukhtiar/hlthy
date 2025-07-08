@@ -1,375 +1,213 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback, useMemo } from 'react';
 import { 
   View, 
   StyleSheet, 
   Text, 
   Image, 
-  KeyboardAvoidingView, 
-  ScrollView,
-  TouchableWithoutFeedback,
-  Keyboard,
-  Platform,
   TouchableOpacity,
-  Modal,
-  ActivityIndicator
+  Dimensions,
+  SafeAreaView,
+  Animated
 } from 'react-native';
-import { Button, TextInput } from 'react-native-paper';
-import { collection, setDoc, doc, getDocs, query, where, limit, serverTimestamp } from "firebase/firestore";
-import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
-import { db, auth } from '@/firebaseConfig';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { useRouter } from 'expo-router';
-import globalStyles from '@/styles/globalStyles';
+import AuthBackground from '@/components/AuthBackground';
+import SignUpForm from '@/components/SignUpForm';
 
 export default function SignUp() {
   const router = useRouter();
+  const { width } = Dimensions.get('window');
   
-  const [userName, setUserName] = useState<string>('');
-  const [firstName, setFirstName] = useState<string>('');
-  const [lastName, setLastName] = useState<string>('');
-  const [emailAddress, setEmailAddress] = useState<string>('');
-  const [password, setPassword] = useState<string>('');
-  const [date, setDate] = useState<Date>(new Date());
-  const [showDatePicker, setShowDatePicker] = useState<boolean>(false);
-  const [dateOfBirthFormatted, setDateOfBirthFormatted] = useState<string>('');
-  const [isUsernameValid, setIsUsernameValid] = useState<boolean>(true);
-  const [isUsernameAvailable, setIsUsernameAvailable] = useState<boolean>(true);
-  const [isEmailValid, setIsEmailValid] = useState<boolean>(true);
-  const [errorMessage, setErrorMessage] = useState<string>('');
-  const [loading, setLoading] = useState<boolean>(false);
+  // State for showing forms
+  const [showSignUpForm, setShowSignUpForm] = useState(false);
   
-  // Format date for display
-  const formatDate = (date: Date): string => {
-    const month = date.getMonth() + 1;
-    const day = date.getDate();
-    const year = date.getFullYear();
-    return `${month < 10 ? '0' + month : month}/${day < 10 ? '0' + day : day}/${year}`;
-  };
+  // Single animation value for all screens
+  const slideAnim = useRef(new Animated.Value(0)).current;
 
-  // Check if the email is valid
-  const isValidEmail = (email: string): boolean => {
-    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return re.test(email);
-  };
+  const handleShowSignUpForm = useCallback(() => {
+    setShowSignUpForm(true);
+    Animated.timing(slideAnim, {
+      toValue: 1,
+      duration: 250,
+      useNativeDriver: true,
+    }).start();
+  }, [slideAnim]);
 
-  // Check if username is valid
-  const isValidUsername = (username: string): boolean => {
-    if (!username || typeof username === 'undefined') {
-      return false;
-    }
-    const re = /^[a-zA-Z0-9_.]+$/;
-    return re.test(username);
-  };
+  const handleBackToLanding = useCallback(() => {
+    Animated.timing(slideAnim, {
+      toValue: 0,
+      duration: 250,
+      useNativeDriver: true,
+    }).start(() => {
+      setShowSignUpForm(false);
+    });
+  }, [slideAnim]);
 
-  // Check if username is available
-  const isAvailableUsername = async (username: string): Promise<boolean> => {
-    if (!username) return false;
-    try {
-      // Create a query against the collection.
-      const usersRef = collection(db, "users");
-      // Query for documents where the 'username' field matches
-      const q = query(usersRef, where("username", "==", username), limit(1));
-      
-      const querySnapshot = await getDocs(q);
-      
-      // If querySnapshot is empty, the username is available
-      return querySnapshot.empty; 
-    } catch (error) {
-      console.error("Error checking username availability:", error);
-      // Assume unavailable or handle error appropriately
-      return false; 
-    }
-  };
+  // Memoize interpolation values for better performance
+  const landingTransform = useMemo(() => ({
+    transform: [{
+      translateX: slideAnim.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0, -width],
+        extrapolate: 'clamp'
+      })
+    }]
+  }), [slideAnim, width]);
 
-  // Date picker change handler
-  const onChange = (event: any, selectedDate?: Date) => {
-    const currentDate = selectedDate || date;
-    setShowDatePicker(Platform.OS === 'ios');
-    setDate(currentDate);
-    setDateOfBirthFormatted(formatDate(currentDate));
-  };
-  
-  const signUp = async () => {
-    try {
-      // …your validation + loading logic…
-  
-      // 1) Create the user account
-      const { user } = await createUserWithEmailAndPassword(
-        auth,
-        emailAddress,
-        password
-      );
-  
-      // 2) Set their Firebase Auth displayName
-      const fullName = `${firstName.trim()} ${lastName.trim()}`;
-      await updateProfile(user, { displayName: fullName });
-  
-      // 3) Write the complete profile doc
-      await setDoc(doc(db, 'users', user.uid), {
-        username:         userName,
-        displayName:      fullName,
-        email:            user.email,
-        profileImageUrl:  '',             
-        bio:              '',
-        createdAt:        serverTimestamp(),
-        archetype:        '',             
-        stats: {
-          followerCount:  0,
-          followingCount: 0,
-          postCount:      0
-        },
-        dateOfBirth:      date           
-      });
-  
-      // 4) Navigate on success
-      router.push({
-        pathname: '/select-archetype',
-        params: { userId: user.uid }
-      });
-  
-    } catch (error) {
-      // …your existing error handling…
-    } finally {
-      setLoading(false);
-    }
-  };  
-  
+  const signUpTransform = useMemo(() => ({
+    transform: [{
+      translateX: slideAnim.interpolate({
+        inputRange: [0, 1],
+        outputRange: [width, 0],
+        extrapolate: 'clamp'
+      })
+    }]
+  }), [slideAnim, width]);
+
   return (
-    <KeyboardAvoidingView 
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      style={styles.container}
-    >
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <ScrollView 
-          contentContainerStyle={styles.scrollContainer}
-          keyboardShouldPersistTaps="handled"
-        >
-          <View style={styles.logoContainer}>
-            <Image
-              style={styles.logo}
-              source={require('@/assets/images/logo-dark.png')}
-            />
-          </View>
-          
-          <View style={styles.contentContainer}>
-          {loading && (
-            <View style={styles.loadingOverlay}>
-              <ActivityIndicator size="large" color="#FFFFFF" />
-              <Text style={styles.loadingText}>Creating your account...</Text>
-            </View>
-          )}
-            <Text style={[styles.header, {fontWeight: 'bold'}]}>Create an Account</Text>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-              <TextInput
-                label="First Name"
-                value={firstName}
-                onChangeText={setFirstName}
-                style={[styles.input, { flex: 1, marginRight: 10 }]}
-                mode="outlined"
-                theme={{ colors: { primary: 'white', text: 'white', underlineColor:'transparent', background: '#222222'}}}
-                textColor='white'
-              />
-              <TextInput
-                label="Last Name"
-                value={lastName}
-                onChangeText={setLastName}
-                style={[styles.input, { flex: 1, marginLeft: 10 }]}
-                mode="outlined"
-                theme={{ colors: { primary: 'white', text: 'white', underlineColor:'transparent', background: '#222222'}}}
-                textColor='white'
-              />
-            </View>
-            <TextInput
-              label="Username"
-              value={userName}
-              onChangeText={(text) => setUserName(text.toLowerCase())}
-              onBlur={async () => {
-                setIsUsernameValid(isValidUsername(userName));
-                setIsUsernameAvailable(await isAvailableUsername(userName));
-              }}
-              style={[styles.input]}
-              mode="outlined"
-              theme={{ colors: { primary: 'white', text: 'white', underlineColor:'transparent', background: '#222222'}}}
-              textColor='white'
-              autoCapitalize='none'
-              error={!isUsernameValid}
-            />
-            <TextInput
-              label="Email Address"
-              value={emailAddress}
-              onChangeText={setEmailAddress}
-              onBlur={() => setIsEmailValid(isValidEmail(emailAddress))}
-              style={styles.input}
-              mode="outlined"
-              theme={{ colors: { primary: 'white', text: 'white', underlineColor:'transparent', background: '#222222'}}}
-              autoCapitalize='none'
-              textColor='white'
-              error={!isEmailValid}
-            />
-            <TextInput
-              label="Password"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-              style={styles.input}
-              mode="outlined"
-              theme={{ colors: { primary: 'white', text: 'white', underlineColor:'transparent', background: '#222222'}}}
-              textColor='white'
-            />
-            
-            {/* Date of Birth Picker */}
-            <TouchableOpacity 
-              onPress={() => setShowDatePicker(true)}
-              style={styles.dobContainer}
-            >
-              <Text style={styles.dobLabel}>Date of Birth</Text>
-              <Text style={styles.dobValue}>
-                {dateOfBirthFormatted || 'Select your date of birth'}
-              </Text>
-            </TouchableOpacity>
-
-            {showDatePicker && (
-              <Modal
-                transparent={true}
-                animationType="slide"
-                visible={showDatePicker}
-              >
-                <View style={styles.pickerModalContainer}>
-                  <View style={styles.pickerContainer}>
-                    <View style={styles.pickerHeader}>
-                      <TouchableOpacity onPress={() => setShowDatePicker(false)}>
-                        <Text style={styles.pickerCancelButton}>Cancel</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity onPress={() => {
-                        setShowDatePicker(false);
-                        setDateOfBirthFormatted(formatDate(date));
-                      }}>
-                        <Text style={styles.pickerDoneButton}>Done</Text>
-                      </TouchableOpacity>
-                    </View>
-                    <DateTimePicker
-                      value={date}
-                      mode="date"
-                      display="spinner"
-                      onChange={onChange}
-                      style={styles.datePicker}
-                      maximumDate={new Date()}
-                      minimumDate={new Date(1900, 0, 1)}
-                    />
-                  </View>
+    <AuthBackground>
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.contentWrapper}>
+          {/* Landing Content */}
+          <Animated.View style={[styles.slideView, landingTransform]}>
+            <View style={styles.content}>
+              <View style={styles.centeredContent}>
+                <View style={styles.logoContainer}>
+                  <Image
+                    style={styles.logo}
+                    source={require('@/assets/images/logo-dark.png')}
+                  />
+                  <Text style={styles.appName}>HLTHY</Text>
                 </View>
-              </Modal>
-            )}
 
-            <Button 
-              mode="contained" 
-              onPress={signUp}
-              style={[styles.button, { backgroundColor: '#FFFFFF' }]} 
-              labelStyle={{ color: '#000' }}>
-              Sign Up
-            </Button>
-            <Text style={{ color: '#FF5555', textAlign: 'center', marginTop: 15, marginBottom: 20 }}>{errorMessage}</Text>
-          </View>
-        </ScrollView>
-      </TouchableWithoutFeedback>
-    </KeyboardAvoidingView>
+                <View style={styles.taglineContainer}>
+                  <Text style={styles.tagline}>Join the Community</Text>
+                  <Text style={styles.subtagline}>Create your account to start your fitness journey and connect with others</Text>
+                </View>
+
+                <View style={styles.buttonContainer}>
+                  <TouchableOpacity
+                    style={[styles.button, styles.signUpButton]}
+                    onPress={handleShowSignUpForm}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.buttonText}>Get Started</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.button, styles.loginButton]}
+                    onPress={() => router.push('/landing')}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.buttonText, styles.loginButtonText]}>Already have an account?</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <View>
+                  <View style={{ height: '15%' }} />
+                </View>
+              </View>
+            </View>
+          </Animated.View>
+
+          {/* Sign Up Form Content */}
+          <Animated.View style={[styles.slideView, signUpTransform]}>
+            <SignUpForm 
+              visible={showSignUpForm} 
+              onBackPress={handleBackToLanding} 
+            />
+          </Animated.View>
+        </View>
+      </SafeAreaView>
+    </AuthBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  safeArea: {
     flex: 1,
-    backgroundColor: '#000000',
   },
-  scrollContainer: {
-    flexGrow: 1,
-  },
-  logoContainer: {
-    paddingTop: 20,
-    alignItems: 'center',
-  },
-  contentContainer: {
-    padding: 16,
-    paddingBottom: 40,
-  },
-  header: {
-    fontSize: 24,
-    color: 'white',
-    marginBottom: 20,
-    textAlign: 'center',
-    marginTop: 30
-  },
-  input: {
-    marginBottom: 16,
-    color: 'white',
-  },
-  button: {
-    marginTop: 16,
-  },
-  logo: {
-    width: 50,
-    height: 50,
-  },
-  dobContainer: {
-    borderWidth: 1,
-    borderColor: 'white',
-    borderRadius: 4,
-    padding: 12,
-    marginBottom: 16,
-    backgroundColor: '#222222',
-  },
-  dobLabel: {
-    color: '#AAAAAA',
-    fontSize: 12,
-    marginBottom: 4,
-  },
-  dobValue: {
-    color: 'white',
-    fontSize: 16,
-  },
-  pickerModalContainer: {
+  contentWrapper: {
     flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    position: 'relative',
   },
-  pickerContainer: {
-    backgroundColor: '#222222',
-    borderTopLeftRadius: 12,
-    borderTopRightRadius: 12,
-  },
-  pickerHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#333333',
-  },
-  pickerCancelButton: {
-    color: '#FF6666',
-    fontSize: 16,
-  },
-  pickerDoneButton: {
-    color: '#66BB6A',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  datePicker: {
-    backgroundColor: '#222222',
-    height: 250,
-  },
-  loadingOverlay: {
+  slideView: {
     position: 'absolute',
+    top: 0,
     left: 0,
     right: 0,
-    top: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.7)',
+    width: Dimensions.get('window').width,
+  },
+  content: {
+    flex: 1,
+    padding: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 1000,
+    backfaceVisibility: 'hidden',
   },
-  loadingText: {
-    color: 'white',
-    marginTop: 10,
-  }
+  centeredContent: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+  },
+  logoContainer: {
+    alignItems: 'center',
+    marginBottom: 30,
+  },
+  logo: {
+    width: 80,
+    height: 80,
+    marginBottom: 10,
+  },
+  appName: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    letterSpacing: 2,
+  },
+  taglineContainer: {
+    alignItems: 'center',
+    marginBottom: 40,
+    paddingHorizontal: 20,
+  },
+  tagline: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    textAlign: 'center',
+    marginBottom: 10,
+  },
+  subtagline: {
+    fontSize: 16,
+    color: '#AAAAAA',
+    textAlign: 'center',
+  },
+  buttonContainer: {
+    width: '100%',
+    paddingHorizontal: 20,
+  },
+  button: {
+    width: '100%',
+    height: 50,
+    borderRadius: 25,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  signUpButton: {
+    backgroundColor: '#FFFFFF',
+  },
+  loginButton: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: '#FFFFFF',
+  },
+  buttonText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#000000',
+  },
+  loginButtonText: {
+    color: '#FFFFFF',
+  },
 });

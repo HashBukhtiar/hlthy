@@ -13,6 +13,7 @@ import { useRouter } from 'expo-router';
 import AuthBackground from '@/components/AuthBackground';
 import LoginForm from '@/components/LoginForm';
 import ForgotPasswordForm from '@/components/ForgotPasswordForm';
+import SignUpForm from '@/components/SignUpForm';
 
 export default function Landing() {
   const router = useRouter();
@@ -21,14 +22,24 @@ export default function Landing() {
   // State for showing forms
   const [showLogin, setShowLogin] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [showSignUp, setShowSignUp] = useState(false);
   
   // Single animation value for all screens
   const slideAnim = useRef(new Animated.Value(0)).current;
 
+  const handleShowSignUp = useCallback(() => {
+    setShowSignUp(true);
+    Animated.timing(slideAnim, {
+      toValue: 1,
+      duration: 250,
+      useNativeDriver: true,
+    }).start();
+  }, [slideAnim]);
+
   const handleShowLogin = useCallback(() => {
     setShowLogin(true);
     Animated.timing(slideAnim, {
-      toValue: 1,
+      toValue: 2,
       duration: 250,
       useNativeDriver: true,
     }).start();
@@ -42,13 +53,14 @@ export default function Landing() {
     }).start(() => {
       setShowLogin(false);
       setShowForgotPassword(false);
+      setShowSignUp(false);
     });
   }, [slideAnim]);
 
   const handleShowForgotPassword = useCallback(() => {
     setShowForgotPassword(true);
     Animated.timing(slideAnim, {
-      toValue: 2, // Move to the third screen position
+      toValue: 3, // Move to the fourth screen position
       duration: 250,
       useNativeDriver: true,
     }).start();
@@ -56,7 +68,7 @@ export default function Landing() {
 
   const handleBackToLandingFromForgotPassword = useCallback(() => {
     Animated.timing(slideAnim, {
-      toValue: 1, // Back to login position
+      toValue: 2, // Back to login position
       duration: 250,
       useNativeDriver: true,
     }).start(() => {
@@ -68,8 +80,18 @@ export default function Landing() {
   const landingTransform = useMemo(() => ({
     transform: [{
       translateX: slideAnim.interpolate({
-        inputRange: [0, 1, 2],
-        outputRange: [0, -width, -width * 2],
+        inputRange: [0, 1, 2, 3],
+        outputRange: [0, -width, -width * 2, -width * 3],
+        extrapolate: 'clamp'
+      })
+    }]
+  }), [slideAnim, width]);
+
+  const signUpTransform = useMemo(() => ({
+    transform: [{
+      translateX: slideAnim.interpolate({
+        inputRange: [0, 1, 2, 3],
+        outputRange: [width, 0, -width, -width * 2],
         extrapolate: 'clamp'
       })
     }]
@@ -78,8 +100,8 @@ export default function Landing() {
   const loginTransform = useMemo(() => ({
     transform: [{
       translateX: slideAnim.interpolate({
-        inputRange: [0, 1, 2],
-        outputRange: [width, 0, -width],
+        inputRange: [0, 1, 2, 3],
+        outputRange: [width * 2, width, 0, -width],
         extrapolate: 'clamp'
       })
     }]
@@ -88,8 +110,8 @@ export default function Landing() {
   const forgotPasswordTransform = useMemo(() => ({
     transform: [{
       translateX: slideAnim.interpolate({
-        inputRange: [0, 1, 2],
-        outputRange: [width * 2, width, 0],
+        inputRange: [0, 1, 2, 3],
+        outputRange: [width * 3, width * 2, width, 0],
         extrapolate: 'clamp'
       })
     }]
@@ -119,7 +141,7 @@ export default function Landing() {
                 <View style={styles.buttonContainer}>
                   <TouchableOpacity
                     style={[styles.button, styles.signUpButton]}
-                    onPress={() => router.push('/signup')}
+                    onPress={handleShowSignUp}
                     activeOpacity={0.7}
                   >
                     <Text style={styles.buttonText}>Sign Up</Text>
@@ -139,6 +161,15 @@ export default function Landing() {
                 </View>
               </View>
             </View>
+          </Animated.View>
+
+          {/* Sign Up Content */}
+          <Animated.View style={[styles.slideView, signUpTransform]}>
+            <SignUpForm 
+              visible={showSignUp} 
+              onBackPress={handleBackToLanding}
+              onShowLogin={handleShowLogin}
+            />
           </Animated.View>
 
           {/* Login Content */}
