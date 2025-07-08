@@ -231,10 +231,6 @@ export default function SignUpStep3({ visible, onBackPress, onComplete, onShowLo
                   }
                 />
               </View>
-
-              {errorMessage ? (
-                <Text style={styles.errorText}>{errorMessage}</Text>
-              ) : null}
             </View>
 
             {/* Password Requirements */}
@@ -291,6 +287,13 @@ export default function SignUpStep3({ visible, onBackPress, onComplete, onShowLo
                   </>
                 )}
               </TouchableOpacity>
+
+              {/* Error message container with fixed height */}
+              <View style={styles.errorContainer}>
+                <Text style={[styles.errorText, { opacity: errorMessage ? 1 : 0 }]}>
+                  {errorMessage || ' '}
+                </Text>
+              </View>
 
               {onShowLogin && (
                 <TouchableOpacity
@@ -422,6 +425,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
     marginTop: 10,
+  },
+  errorContainer: {
+    minHeight: 44,
+    justifyContent: 'flex-start',
+    alignItems: 'center',
   },
   requirementsBox: {
     backgroundColor: 'rgba(255, 255, 255, 0.1)',

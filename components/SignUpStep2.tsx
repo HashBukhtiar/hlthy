@@ -197,10 +197,6 @@ export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin 
                   left={<TextInput.Icon icon="calendar" />}
                 />
               </View>
-
-              {errorMessage ? (
-                <Text style={styles.errorText}>{errorMessage}</Text>
-              ) : null}
             </View>
 
             {/* Info Box */}
@@ -221,6 +217,13 @@ export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin 
                 <Text style={styles.nextButtonText}>Continue</Text>
                 <Ionicons name="chevron-forward" size={20} color="#000000" />
               </TouchableOpacity>
+
+              {/* Error message container with fixed height */}
+              <View style={styles.errorContainer}>
+                <Text style={[styles.errorText, { opacity: errorMessage ? 1 : 0 }]}>
+                  {errorMessage || ' '}
+                </Text>
+              </View>
 
               {onShowLogin && (
                 <TouchableOpacity
@@ -331,6 +334,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
     marginTop: 10,
+  },
+  errorContainer: {
+    minHeight: 44,
+    justifyContent: 'flex-start',
+    alignItems: 'center',
   },
   infoBox: {
     flexDirection: 'row',

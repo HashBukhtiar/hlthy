@@ -194,10 +194,6 @@ export default function SignUpStep1({ visible, onBackPress, onNext, onShowLogin 
                   autoCapitalize="none"
                 />
               </View>
-
-              {errorMessage ? (
-                <Text style={styles.errorText}>{errorMessage}</Text>
-              ) : null}
             </View>
 
             {/* Buttons */}
@@ -210,6 +206,13 @@ export default function SignUpStep1({ visible, onBackPress, onNext, onShowLogin 
                 <Text style={styles.nextButtonText}>Continue</Text>
                 <Ionicons name="chevron-forward" size={20} color="#000000" />
               </TouchableOpacity>
+
+              {/* Error message container with fixed height */}
+              <View style={styles.errorContainer}>
+                <Text style={[styles.errorText, { opacity: errorMessage ? 1 : 0 }]}>
+                  {errorMessage || ' '}
+                </Text>
+              </View>
 
               {onShowLogin && (
                 <TouchableOpacity
@@ -285,7 +288,7 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
   form: {
-    marginBottom: 20,
+    marginBottom: 10,
   },
   nameRow: {
     flexDirection: 'row',
@@ -328,7 +331,12 @@ const styles = StyleSheet.create({
     color: '#FF6B6B',
     fontSize: 14,
     textAlign: 'center',
-    marginTop: 10,
+    marginTop: 0,
+  },
+  errorContainer: {
+    minHeight: 44,
+    justifyContent: 'flex-start',
+    alignItems: 'center',
   },
   buttonContainer: {
     gap: 20,
