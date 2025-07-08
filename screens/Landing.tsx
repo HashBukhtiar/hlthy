@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { 
   View, 
   StyleSheet, 
@@ -19,132 +19,101 @@ export default function Landing() {
   const router = useRouter();
   const { width } = Dimensions.get('window');
   
-  // State for showing forms
-  const [showLogin, setShowLogin] = useState(false);
-  const [showForgotPassword, setShowForgotPassword] = useState(false);
-  const [showSignUp, setShowSignUp] = useState(false);
+  // State for current active screen
+  const [currentScreen, setCurrentScreen] = useState<'landing' | 'signup' | 'login' | 'forgot'>('landing');
   
-  // Single animation value for all screens
-  const slideAnim = useRef(new Animated.Value(0)).current;
+  // Animation values for each screen - only center instance needed, positioned dynamically
+  const landingAnim = useRef(new Animated.Value(0)).current;
+  const signUpAnim = useRef(new Animated.Value(width)).current;
+  const loginAnim = useRef(new Animated.Value(width)).current;
+  const forgotPasswordAnim = useRef(new Animated.Value(width)).current;
+
+  // Initialize screen positions
+  useEffect(() => {
+    // Landing starts active (center), others start off-screen (right)
+    landingAnim.setValue(0);
+    signUpAnim.setValue(width);
+    loginAnim.setValue(width);
+    forgotPasswordAnim.setValue(width);
+  }, []);
+
+  // Helper function to animate screen transitions with position restoration
+  const animateToScreen = useCallback((targetScreen: 'landing' | 'signup' | 'login' | 'forgot') => {
+    if (targetScreen === currentScreen) return;
+
+    const currentAnim = currentScreen === 'landing' ? landingAnim :
+                       currentScreen === 'signup' ? signUpAnim :
+                       currentScreen === 'login' ? loginAnim : forgotPasswordAnim;
+    
+    const targetAnim = targetScreen === 'landing' ? landingAnim :
+                      targetScreen === 'signup' ? signUpAnim :
+                      targetScreen === 'login' ? loginAnim : forgotPasswordAnim;
+
+    // Set target screen to slide in from the right
+    targetAnim.setValue(width);
+
+    // Animate current screen out to the left and target screen in from the right
+    Animated.parallel([
+      Animated.timing(currentAnim, {
+        toValue: -width,
+        duration: 250,
+        useNativeDriver: true,
+      }),
+      Animated.timing(targetAnim, {
+        toValue: 0,
+        duration: 250,
+        useNativeDriver: true,
+      })
+    ]).start(() => {
+      // After animation completes, ensure current screen is positioned for future left-side entry
+      // and target screen can be accessed from right again
+      
+      // Reset the old current screen to be ready on the right side again
+      setTimeout(() => {
+        currentAnim.setValue(width);
+      }, 50); // Small delay to avoid visual glitch
+    });
+
+    setCurrentScreen(targetScreen);
+  }, [currentScreen, landingAnim, signUpAnim, loginAnim, forgotPasswordAnim, width]);
 
   const handleShowSignUp = useCallback(() => {
-    setShowSignUp(true);
-    Animated.timing(slideAnim, {
-      toValue: 1,
-      duration: 250,
-      useNativeDriver: true,
-    }).start();
-  }, [slideAnim]);
+    animateToScreen('signup');
+  }, [animateToScreen]);
 
   const handleShowSignUpFromLogin = useCallback(() => {
-    // First hide login, then show signup
-    setShowLogin(false);
-    setShowSignUp(true);
-    Animated.timing(slideAnim, {
-      toValue: 1, // Go to signup position
-      duration: 250,
-      useNativeDriver: true,
-    }).start();
-  }, [slideAnim]);
+    animateToScreen('signup');
+  }, [animateToScreen]);
 
   const handleShowSignUpFromForgotPassword = useCallback(() => {
-    // First hide forgot password, then show signup
-    setShowForgotPassword(false);
-    setShowSignUp(true);
-    Animated.timing(slideAnim, {
-      toValue: 1, // Go to signup position
-      duration: 250,
-      useNativeDriver: true,
-    }).start();
-  }, [slideAnim]);
+    animateToScreen('signup');
+  }, [animateToScreen]);
 
   const handleShowLogin = useCallback(() => {
-    setShowLogin(true);
-    Animated.timing(slideAnim, {
-      toValue: 2,
-      duration: 250,
-      useNativeDriver: true,
-    }).start();
-  }, [slideAnim]);
+    animateToScreen('login');
+  }, [animateToScreen]);
 
   const handleBackToLanding = useCallback(() => {
-    Animated.timing(slideAnim, {
-      toValue: 0,
-      duration: 250,
-      useNativeDriver: true,
-    }).start(() => {
-      setShowLogin(false);
-      setShowForgotPassword(false);
-      setShowSignUp(false);
-    });
-  }, [slideAnim]);
+    animateToScreen('landing');
+  }, [animateToScreen]);
 
   const handleShowForgotPassword = useCallback(() => {
-    setShowForgotPassword(true);
-    Animated.timing(slideAnim, {
-      toValue: 3, // Move to the fourth screen position
-      duration: 250,
-      useNativeDriver: true,
-    }).start();
-  }, [slideAnim]);
+    animateToScreen('forgot');
+  }, [animateToScreen]);
 
   const handleBackToLandingFromForgotPassword = useCallback(() => {
-    Animated.timing(slideAnim, {
-      toValue: 2, // Back to login position
-      duration: 250,
-      useNativeDriver: true,
-    }).start(() => {
-      setShowForgotPassword(false);
-    });
-  }, [slideAnim]);
-
-  // Memoize interpolation values for better performance
-  const landingTransform = useMemo(() => ({
-    transform: [{
-      translateX: slideAnim.interpolate({
-        inputRange: [0, 1, 2, 3],
-        outputRange: [0, -width, -width * 2, -width * 3],
-        extrapolate: 'clamp'
-      })
-    }]
-  }), [slideAnim, width]);
-
-  const signUpTransform = useMemo(() => ({
-    transform: [{
-      translateX: slideAnim.interpolate({
-        inputRange: [0, 1, 2, 3],
-        outputRange: [width, 0, -width, -width * 2],
-        extrapolate: 'clamp'
-      })
-    }]
-  }), [slideAnim, width]);
-
-  const loginTransform = useMemo(() => ({
-    transform: [{
-      translateX: slideAnim.interpolate({
-        inputRange: [0, 1, 2, 3],
-        outputRange: [width * 2, width, 0, -width],
-        extrapolate: 'clamp'
-      })
-    }]
-  }), [slideAnim, width]);
-
-  const forgotPasswordTransform = useMemo(() => ({
-    transform: [{
-      translateX: slideAnim.interpolate({
-        inputRange: [0, 1, 2, 3],
-        outputRange: [width * 3, width * 2, width, 0],
-        extrapolate: 'clamp'
-      })
-    }]
-  }), [slideAnim, width]);
+    animateToScreen('login');
+  }, [animateToScreen]);
 
   return (
     <AuthBackground>
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.contentWrapper}>
           {/* Landing Content */}
-          <Animated.View style={[styles.slideView, landingTransform]}>
+          <Animated.View style={[
+            styles.slideView, 
+            { transform: [{ translateX: landingAnim }] }
+          ]}>
             <View style={styles.content}>
               <View style={styles.centeredContent}>
                 <View style={styles.logoContainer}>
@@ -186,18 +155,24 @@ export default function Landing() {
           </Animated.View>
 
           {/* Sign Up Content */}
-          <Animated.View style={[styles.slideView, signUpTransform]}>
+          <Animated.View style={[
+            styles.slideView, 
+            { transform: [{ translateX: signUpAnim }] }
+          ]}>
             <SignUpForm 
-              visible={showSignUp} 
+              visible={currentScreen === 'signup'} 
               onBackPress={handleBackToLanding}
               onShowLogin={handleShowLogin}
             />
           </Animated.View>
 
           {/* Login Content */}
-          <Animated.View style={[styles.slideView, loginTransform]}>
+          <Animated.View style={[
+            styles.slideView, 
+            { transform: [{ translateX: loginAnim }] }
+          ]}>
             <LoginForm 
-              visible={showLogin} 
+              visible={currentScreen === 'login'} 
               onBackPress={handleBackToLanding} 
               onForgotPasswordPress={handleShowForgotPassword}
               onShowSignUp={handleShowSignUpFromLogin}
@@ -205,9 +180,12 @@ export default function Landing() {
           </Animated.View>
 
           {/* Forgot Password Content */}
-          <Animated.View style={[styles.slideView, forgotPasswordTransform]}>
+          <Animated.View style={[
+            styles.slideView, 
+            { transform: [{ translateX: forgotPasswordAnim }] }
+          ]}>
             <ForgotPasswordForm 
-              visible={showForgotPassword} 
+              visible={currentScreen === 'forgot'} 
               onBackPress={handleBackToLandingFromForgotPassword}
               onBackToLogin={handleBackToLandingFromForgotPassword}
               onShowSignUp={handleShowSignUpFromForgotPassword}
