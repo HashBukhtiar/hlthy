@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { 
   View, 
   StyleSheet, 
@@ -9,7 +9,8 @@ import {
   Keyboard,
   ScrollView,
   KeyboardAvoidingView,
-  Platform
+  Platform,
+  Animated
 } from 'react-native';
 import { TextInput } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
@@ -32,6 +33,37 @@ export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin,
   // Focus states
   const [usernameFocused, setUsernameFocused] = useState<boolean>(false);
   const [dateFocused, setDateFocused] = useState<boolean>(false);
+
+  // Animation for keyboard
+  const contentPaddingAnim = useRef(new Animated.Value(80)).current;
+
+  useEffect(() => {
+    const keyboardDidShowListener = Keyboard.addListener(
+      'keyboardDidShow',
+      () => {
+        Animated.timing(contentPaddingAnim, {
+          toValue: 20,
+          duration: 250,
+          useNativeDriver: false,
+        }).start();
+      }
+    );
+    const keyboardDidHideListener = Keyboard.addListener(
+      'keyboardDidHide',
+      () => {
+        Animated.timing(contentPaddingAnim, {
+          toValue: 80,
+          duration: 250,
+          useNativeDriver: false,
+        }).start();
+      }
+    );
+
+    return () => {
+      keyboardDidHideListener?.remove();
+      keyboardDidShowListener?.remove();
+    };
+  }, [contentPaddingAnim]);
 
   const validateUsername = (username: string): boolean => {
     // Username should be 3-20 characters, alphanumeric and underscores only
@@ -135,7 +167,7 @@ export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin,
           </View>
 
           {/* Content */}
-          <View style={styles.content}>
+          <Animated.View style={[styles.content, { paddingTop: contentPaddingAnim }]}>
             <Text style={styles.title}>Welcome, {firstName || 'there'}</Text>
             <Text style={styles.subtitle}>Pick a username and your birth date</Text>
 
@@ -225,7 +257,7 @@ export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin,
                 </Text>
               </View>
             </View>
-          </View>
+          </Animated.View>
           
           {/* Footer buttons - locked at bottom */}
           {onShowLogin && (
@@ -282,7 +314,6 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     justifyContent: 'flex-start',
-    paddingTop: 80,
   },
   title: {
     fontSize: 32,
@@ -295,10 +326,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: 'rgba(255, 255, 255, 0.7)',
     textAlign: 'center',
-    marginBottom: 40,
+    marginBottom: 30,
   },
   form: {
-    marginBottom: 0,
+    marginBottom: 10,
   },
   inputContainer: {
     marginBottom: 10,
@@ -332,7 +363,7 @@ const styles = StyleSheet.create({
     color: '#FF5555',
     fontSize: 14,
     textAlign: 'center',
-    marginTop: 10,
+    marginTop: 0,
   },
   errorContainer: {
     minHeight: 44,
@@ -355,7 +386,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   buttonContainer: {
-    gap: 4,
+    gap: 20,
   },
   nextButton: {
     backgroundColor: '#FFFFFF',
