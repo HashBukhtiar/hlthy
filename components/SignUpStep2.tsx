@@ -227,20 +227,26 @@ export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin 
                   {errorMessage || ' '}
                 </Text>
               </View>
+            </View>
 
-              {onShowLogin && (
-                <TouchableOpacity
-                  style={styles.loginLink}
-                  onPress={onShowLogin}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.loginLinkText}>
-                    Already have an account? <Text style={styles.loginLinkBold}>Sign In</Text>
-                  </Text>
-                </TouchableOpacity>
-              )}
+            <View>
+              <View style={{ height: '15%' }} />
             </View>
           </View>
+          
+          {/* Footer buttons - locked at bottom */}
+          {onShowLogin && (
+            <View style={styles.loginFooterFixed}>
+              <TouchableOpacity
+                onPress={onShowLogin}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.linkText}>
+                  Already have an account? <Text style={styles.linkTextBold}>Sign In</Text>
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
     </TouchableWithoutFeedback>
@@ -374,6 +380,21 @@ const styles = StyleSheet.create({
     color: '#000000',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  loginFooterFixed: {
+    alignItems: 'center',
+    gap: 16,
+    paddingBottom: 50,
+    paddingHorizontal: 20,
+  },
+  linkText: {
+    color: '#AAAAAA',
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  linkTextBold: {
+    color: '#FFFFFF',
+    fontWeight: '600',
   },
   loginLink: {
     alignItems: 'center',
