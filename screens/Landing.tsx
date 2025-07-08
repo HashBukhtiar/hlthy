@@ -182,7 +182,7 @@ export default function Landing() {
             { transform: [{ translateX: signUpAnim }] }
           ]}>
             <SignUpForm 
-              visible={currentScreen === 'signup'} 
+              visible={true} 
               onBackPress={handleBackToLanding}
               onShowLogin={handleShowLogin}
             />
@@ -194,7 +194,7 @@ export default function Landing() {
             { transform: [{ translateX: loginAnim }] }
           ]}>
             <LoginForm 
-              visible={currentScreen === 'login'} 
+              visible={true} 
               onBackPress={handleBackToLanding} 
               onForgotPasswordPress={handleShowForgotPassword}
               onShowSignUp={handleShowSignUpFromLogin}
@@ -207,7 +207,7 @@ export default function Landing() {
             { transform: [{ translateX: forgotPasswordAnim }] }
           ]}>
             <ForgotPasswordForm 
-              visible={currentScreen === 'forgot'} 
+              visible={true} 
               onBackPress={handleBackToLandingFromForgotPassword}
               onBackToLogin={handleBackToLandingFromForgotPassword}
               onShowSignUp={handleShowSignUpFromForgotPassword}
