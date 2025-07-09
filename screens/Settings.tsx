@@ -16,6 +16,11 @@ import { SettingsItem } from '@/components/settings/SettingsItem';
 import { UserSettings, SettingsSection as SettingsSectionType } from '@/types/settings';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Platform } from 'react-native';
+import { validateSettings, sanitizeSettings } from '@/utils/settingsValidation';
+import { createSettingsBackup, restoreSettingsBackup, getSettingsHistory } from '@/utils/settingsBackup';
+import { exportSettings, importSettings } from '@/utils/settingsExport';
+import { trackSettingsChange, generateSettingsInsights, calculatePrivacyLevel } from '@/utils/settingsAnalytics';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Data constants
 const archetypeData: SelectorItem[] = [
@@ -135,6 +140,12 @@ export default function Settings() {
   const [languageModalVisible, setLanguageModalVisible] = useState(false);
   const [weightUnitModalVisible, setWeightUnitModalVisible] = useState(false);
   const [distanceUnitModalVisible, setDistanceUnitModalVisible] = useState(false);
+  const [insights, setInsights] = useState<string[]>([]);
+  const [showInsights, setShowInsights] = useState(false);
+  const [privacyLevel, setPrivacyLevel] = useState<'open' | 'moderate' | 'strict'>('moderate');
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [originalSettings, setOriginalSettings] = useState<Partial<UserSettings>>({});
+
 
   // Update settings when userProfile changes
   useEffect(() => {
@@ -195,6 +206,48 @@ export default function Settings() {
     }
   }, [userProfile]);
 
+  useEffect(() => {
+    // Generate insights when settings change
+    const newInsights = generateSettingsInsights(settings);
+    setInsights(newInsights);
+    setPrivacyLevel(calculatePrivacyLevel(settings));
+    
+    // Check for unsaved changes
+    const hasChanges = JSON.stringify(settings) !== JSON.stringify(originalSettings);
+    setHasUnsavedChanges(hasChanges);
+  }, [settings, originalSettings]);
+
+  useEffect(() => {
+    if (userProfile && Object.keys(originalSettings).length === 0) {
+      setOriginalSettings({
+        displayName: userProfile.displayName || '',
+        bio: userProfile.bio || '',
+        archetype: userProfile.archetype || '',
+        // ... add all other settings
+      });
+    }
+  }, [userProfile, originalSettings]);
+
+  useEffect(() => {
+    const unsubscribe = router.canGoBack() ? (() => {
+      if (hasUnsavedChanges) {
+        Alert.alert(
+          "Unsaved Changes",
+          "You have unsaved changes. Do you want to save them before leaving?",
+          [
+            { text: "Discard", style: "destructive", onPress: () => router.back() },
+            { text: "Cancel", style: "cancel" },
+            { text: "Save", onPress: handleSaveSettings }
+          ]
+        );
+        return false; // Prevent navigation
+      }
+      return true; // Allow navigation
+    }) : undefined;
+
+    return unsubscribe;
+  }, [hasUnsavedChanges, router]);
+
   const toggleSection = (sectionId: string) => {
     setSections(prev => prev.map(section => 
       section.id === sectionId 
@@ -204,9 +257,12 @@ export default function Settings() {
   };
 
   const updateSetting = (key: string, value: any) => {
+    const oldValue = key.includes('.') 
+      ? key.split('.').reduce((obj, k) => obj?.[k], settings)
+      : settings[key as keyof typeof settings];
+
     setSettings(prev => {
       if (key.includes('.')) {
-        // Handle nested keys like 'notifications.newFollowers'
         const keys = key.split('.');
         const newSettings = { ...prev };
         let current: any = newSettings;
@@ -222,6 +278,11 @@ export default function Settings() {
         return { ...prev, [key]: value };
       }
     });
+
+    // Track the change for analytics
+    if (currentUser) {
+      trackSettingsChange(currentUser.uid, key, oldValue, value);
+    }
   };
 
   const pickImage = async () => {
@@ -295,27 +356,63 @@ export default function Settings() {
     try {
       setLoading(true);
       
-      console.log('Attempting to save settings:', settings);
+      // Validate settings first
+      const validation = validateSettings(settings);
       
-      // Prepare settings for saving, converting Date objects to proper format
+      if (!validation.isValid) {
+        Alert.alert(
+          'Invalid Settings',
+          'Please fix the following issues:\n' + validation.errors.join('\n'),
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+
+      // Show warnings if any
+      if (validation.warnings.length > 0) {
+        Alert.alert(
+          'Warning',
+          validation.warnings.join('\n'),
+          [
+            { text: 'Cancel', style: 'cancel', onPress: () => setLoading(false) },
+            { text: 'Continue', onPress: () => saveSettingsAfterValidation() }
+          ]
+        );
+        return;
+      }
+
+      await saveSettingsAfterValidation();
+    } catch (error) {
+      console.error("Error updating settings:", error);
+      Alert.alert("Error", "Failed to update settings: " + (error?.message || 'Unknown error'));
+      setLoading(false);
+    }
+  };
+
+  const saveSettingsAfterValidation = async () => {
+    try {
+      // Sanitize settings
+      const sanitizedSettings = sanitizeSettings(settings);
+      
+      // Create backup before saving
+      await createSettingsBackup(sanitizedSettings);
+      
+      // Prepare settings for saving
       const settingsToSave = {
-        ...settings,
-        // Convert Date to Firestore Timestamp or ISO string
-        dateOfBirth: settings.dateOfBirth ? settings.dateOfBirth.toISOString() : null,
+        ...sanitizedSettings,
+        dateOfBirth: sanitizedSettings.dateOfBirth ? sanitizedSettings.dateOfBirth.toISOString() : null,
       };
       
-      // Check if functions is properly initialized
+      // Save using existing logic...
       if (!functions || !functions.app) {
         console.warn('Functions not properly initialized, falling back to direct Firestore update');
         
-        // Fallback to direct Firestore update
-        await updateDoc(doc(db, "users", currentUser.uid), {
+        await updateDoc(doc(db, "users", currentUser!.uid), {
           ...settingsToSave,
           lastModified: new Date(),
           version: 1,
         });
       } else {
-        // Use cloud function for more secure settings update
         try {
           const updateUserSettings = httpsCallable(functions, 'updateUserSettings');
           await updateUserSettings({ settings: settingsToSave });
@@ -323,8 +420,7 @@ export default function Settings() {
         } catch (functionError) {
           console.error('Cloud Function failed, falling back to direct update:', functionError);
           
-          // Fallback to direct Firestore update
-          await updateDoc(doc(db, "users", currentUser.uid), {
+          await updateDoc(doc(db, "users", currentUser!.uid), {
             ...settingsToSave,
             lastModified: new Date(),
             version: 1,
@@ -332,22 +428,117 @@ export default function Settings() {
         }
       }
       
-      // Also update profile image if changed
+      // Update profile image if changed
       if (profileImage !== userProfile?.profileImageUrl) {
-        await updateDoc(doc(db, "users", currentUser.uid), {
+        await updateDoc(doc(db, "users", currentUser!.uid), {
           profileImageUrl: profileImage,
         });
       }
       
       await refreshUserProfile();
+      setOriginalSettings(settings); // Update original settings
+      setHasUnsavedChanges(false);
       
       Alert.alert("Success", "Settings updated successfully");
     } catch (error) {
-      console.error("Error updating settings:", error);
+      console.error("Error in saveSettingsAfterValidation:", error);
       Alert.alert("Error", "Failed to update settings: " + (error?.message || 'Unknown error'));
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleExportSettings = async () => {
+    if (!currentUser || !userProfile) return;
+    
+    const success = await exportSettings(settings, currentUser.uid, userProfile.username);
+    if (success) {
+      Alert.alert("Success", "Settings exported successfully!");
+    }
+  };
+
+  const handleImportSettings = async () => {
+    const importedSettings = await importSettings();
+    if (importedSettings) {
+      Alert.alert(
+        "Import Settings",
+        "This will replace your current settings. Are you sure?",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Import",
+            onPress: () => {
+              setSettings(prev => ({ ...prev, ...importedSettings }));
+              Alert.alert("Success", "Settings imported successfully!");
+            }
+          }
+        ]
+      );
+    }
+  };
+
+  const handleRestoreBackup = async () => {
+    const backup = await restoreSettingsBackup();
+    if (backup) {
+      Alert.alert(
+        "Restore Backup",
+        "This will restore your settings from the last backup. Continue?",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Restore",
+            onPress: () => {
+              setSettings(prev => ({ ...prev, ...backup }));
+              Alert.alert("Success", "Settings restored from backup!");
+            }
+          }
+        ]
+      );
+    } else {
+      Alert.alert("No Backup", "No backup found to restore from.");
+    }
+  };
+
+  const handleResetToDefaults = () => {
+    Alert.alert(
+      "Reset to Defaults",
+      "This will reset all settings to their default values. This action cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Reset",
+          style: "destructive",
+          onPress: () => {
+            setSettings({
+              displayName: userProfile?.displayName || '',
+              bio: '',
+              archetype: '',
+              profileVisibility: 'public',
+              followPermission: 'anyone',
+              commentPermission: 'everyone',
+              messagePermission: 'everyone',
+              theme: 'dark',
+              language: 'en',
+              units: {
+                weight: 'metric',
+                distance: 'metric',
+              },
+              notifications: {
+                newFollowers: true,
+                likesAndComments: true,
+                directMessages: true,
+                followRequestAccepted: true,
+                taggedInComments: true,
+                mentionedInReplies: true,
+              },
+              twoFactorEnabled: false,
+              dateOfBirth: undefined,
+            });
+            Alert.alert("Success", "Settings reset to defaults!");
+          }
+        }
+      ]
+    );
   };
 
   const handleLogout = async () => {
@@ -821,15 +1012,82 @@ export default function Settings() {
           />
         </SettingsSection>
 
+        {/* Advanced Section */}
+        <SettingsSection
+          title="Advanced"
+          icon="cog"
+          expanded={sections.find(s => s.id === 'advanced')?.expanded || false}
+          onToggle={() => toggleSection('advanced')}
+        >
+          {/* Privacy Level Indicator */}
+          <View style={styles.privacyLevelContainer}>
+            <Text style={styles.privacyLevelTitle}>Privacy Level</Text>
+            <View style={[
+              styles.privacyLevelBadge,
+              { backgroundColor: 
+                privacyLevel === 'strict' ? '#34C759' : 
+                privacyLevel === 'moderate' ? '#FF9500' : '#FF3B30' 
+              }
+            ]}>
+              <Text style={styles.privacyLevelText}>
+                {privacyLevel.charAt(0).toUpperCase() + privacyLevel.slice(1)}
+              </Text>
+            </View>
+          </View>
+
+          {/* Insights */}
+          <SettingsItem
+            type="button"
+            label={`Privacy Insights (${insights.length})`}
+            onPress={() => setShowInsights(true)}
+          />
+
+          <SettingsItem
+            type="button"
+            label="Export Settings"
+            onPress={handleExportSettings}
+          />
+
+          <SettingsItem
+            type="button"
+            label="Import Settings"
+            onPress={handleImportSettings}
+          />
+
+          <SettingsItem
+            type="button"
+            label="Restore from Backup"
+            onPress={handleRestoreBackup}
+          />
+
+          <SettingsItem
+            type="button"
+            label="Reset to Defaults"
+            onPress={handleResetToDefaults}
+            destructive={true}
+          />
+        </SettingsSection>
+
         {/* Action Buttons */}
         <View style={styles.actionButtons}>
+          {hasUnsavedChanges && (
+            <View style={styles.unsavedChangesIndicator}>
+              <Text style={styles.unsavedChangesText}>
+                You have unsaved changes
+              </Text>
+            </View>
+          )}
+          
           <TouchableOpacity 
-            style={styles.saveButton} 
+            style={[
+              styles.saveButton,
+              hasUnsavedChanges && styles.saveButtonHighlighted
+            ]} 
             onPress={handleSaveSettings}
             disabled={loading}
           >
             <Text style={styles.saveButtonText}>
-              {loading ? 'Saving...' : 'Save Changes'}
+              {loading ? 'Saving...' : hasUnsavedChanges ? 'Save Changes' : 'Settings Saved'}
             </Text>
           </TouchableOpacity>
 
@@ -1018,6 +1276,49 @@ export default function Settings() {
           variant="fullWidth"
         />
       )}
+
+      {/* Insights Modal */}
+      {showInsights && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.insightsModal}>
+            <View style={styles.insightsHeader}>
+              <Text style={styles.insightsTitle}>Privacy Insights</Text>
+              <TouchableOpacity onPress={() => setShowInsights(false)}>
+                <Text style={styles.closeButton}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            
+            <View style={styles.privacyLevelSection}>
+              <Text style={styles.privacyLevelLabel}>Your Privacy Level:</Text>
+              <View style={[
+                styles.privacyLevelBadge,
+                { backgroundColor: 
+                  privacyLevel === 'strict' ? '#34C759' : 
+                  privacyLevel === 'moderate' ? '#FF9500' : '#FF3B30' 
+                }
+              ]}>
+                <Text style={styles.privacyLevelText}>
+                  {privacyLevel.charAt(0).toUpperCase() + privacyLevel.slice(1)}
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.insightsList}>
+              {insights.map((insight, index) => (
+                <View key={index} style={styles.insightItem}>
+                  <Text style={styles.insightText}>{insight}</Text>
+                </View>
+              ))}
+              
+              {insights.length === 0 && (
+                <Text style={styles.noInsightsText}>
+                  No insights available. Your settings look good! 👍
+                </Text>
+              )}
+            </View>
+          </View>
+        </View>
+      )}
     </>
   );
 }
@@ -1084,5 +1385,113 @@ const styles = StyleSheet.create({
     color: 'white',
     fontWeight: 'bold',
     fontSize: 16,
+  },
+  privacyLevelContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+    padding: 12,
+    backgroundColor: '#2C2C2E',
+    borderRadius: 8,
+  },
+  privacyLevelTitle: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  privacyLevelBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  privacyLevelText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  privacyLevelLabel: {
+    color: '#fff',
+    fontSize: 14,
+    marginRight: 8,
+  },
+  modalOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  insightsModal: {
+    backgroundColor: '#1C1C1E',
+    borderRadius: 16,
+    padding: 20,
+    margin: 20,
+    maxHeight: '70%',
+    width: '90%',
+  },
+  insightsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  insightsTitle: {
+    color: '#fff',
+    fontSize: 20,
+    fontWeight: '600',
+  },
+  closeButton: {
+    color: '#999',
+    fontSize: 18,
+    padding: 4,
+  },
+  privacyLevelSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+    padding: 12,
+    backgroundColor: '#2C2C2E',
+    borderRadius: 8,
+  },
+  insightsList: {
+    maxHeight: 300,
+  },
+  insightItem: {
+    backgroundColor: '#2C2C2E',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  insightText: {
+    color: '#fff',
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  noInsightsText: {
+    color: '#999',
+    fontSize: 14,
+    textAlign: 'center',
+    fontStyle: 'italic',
+  },
+  unsavedChangesIndicator: {
+    backgroundColor: '#FF9500',
+    padding: 8,
+    borderRadius: 8,
+    marginBottom: 12,
+    alignItems: 'center',
+  },
+  unsavedChangesText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  saveButtonHighlighted: {
+    backgroundColor: '#FF9500',
+    transform: [{ scale: 1.02 }],
   },
 });
