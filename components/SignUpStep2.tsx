@@ -236,13 +236,22 @@ export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin,
               <View style={styles.inputContainer}>
                 <TouchableOpacity
                   onPress={() => setShowDatePicker(true)}
-                  style={[styles.modernInput, {flexDirection: 'row', alignItems: 'center', paddingLeft: 8, paddingBottom: 0}]}
+                  style={[styles.modernInput, {flexDirection: 'row', alignItems: 'center', paddingLeft: 8, paddingBottom: 0, position: 'relative'}]}
                   activeOpacity={0.8}
                 >
                   <Ionicons name="calendar" size={18} color="#AAAAAA" style={{marginRight: 12}} />
-                  <Text style={{color: '#fff', opacity: dateOfBirthFormatted ? 1 : 0.5, fontSize: 16}}>
+                  <Text style={{color: '#fff', opacity: dateOfBirthFormatted ? 1 : 0.5, fontSize: 16, flex: 1}}>
                     {dateOfBirthFormatted || 'Date of Birth (MM/DD/YYYY)'}
                   </Text>
+                  {dateOfBirthFormatted ? (
+                    <TouchableOpacity
+                      onPress={(e) => { e.stopPropagation && e.stopPropagation(); setDateOfBirth(''); setDateOfBirthFormatted(''); }}
+                      style={{marginLeft: 8, marginRight: 4, padding: 4}}
+                      hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}
+                    >
+                      <Ionicons name="close-circle" size={20} color="#AAAAAA" />
+                    </TouchableOpacity>
+                  ) : null}
                 </TouchableOpacity>
                 <View style={{
                   height: 0.25,
