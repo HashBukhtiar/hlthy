@@ -246,7 +246,6 @@ export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin,
                   style={[
                     styles.modernInput,
                     {flexDirection: 'row', alignItems: 'center', paddingLeft: 0, paddingBottom: 0, position: 'relative'},
-                    (dateFocused || dateOfBirthFormatted) ? {paddingTop: 10} : {},
                   ]}
                   activeOpacity={0.8}
                 >
@@ -516,7 +515,6 @@ const styles = StyleSheet.create({
   floatingLabel: {
     position: 'absolute',
     left: 5,
-    top: 5,
     fontSize: 12,
     color: 'rgba(255,255,255,0.7)',
     zIndex: 2,
