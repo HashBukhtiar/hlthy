@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, Alert, Image, TouchableOpacity } fr
 import { useAuth } from '@/context/AuthContext';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db, auth } from '@/firebaseConfig';
-import { signOut } from 'firebase/auth';
+import { signOut, sendPasswordResetEmail } from 'firebase/auth';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -50,35 +50,35 @@ const archetypeData: SelectorItem[] = [
   },
 ];
 
-const languageOptions = [
-  { label: 'English', value: 'en' },
-  { label: 'Spanish', value: 'es' },
-  { label: 'French', value: 'fr' },
-  { label: 'German', value: 'de' },
-  { label: 'Italian', value: 'it' },
-  { label: 'Dutch', value: 'nl' },
-];
-
-const themeOptions = [
-  { label: 'Light', value: 'light' },
-  { label: 'Dark', value: 'dark' },
-  { label: 'System', value: 'system' },
-];
-
 const privacyOptions = [
-  { label: 'Public', value: 'public' },
-  { label: 'Followers Only', value: 'followers' },
-  { label: 'Private', value: 'private' },
+  { label: 'Public', value: 'public', icon: 'earth' },
+  { label: 'Followers Only', value: 'followers', icon: 'people' },
+  { label: 'Private', value: 'private', icon: 'lock-closed' },
 ];
 
 const permissionOptions = [
-  { label: 'Everyone', value: 'everyone' },
-  { label: 'Followers Only', value: 'followers' },
+  { label: 'Everyone', value: 'everyone', icon: 'globe' },
+  { label: 'Followers Only', value: 'followers', icon: 'people' },
 ];
 
 const followOptions = [
-  { label: 'Anyone', value: 'anyone' },
-  { label: 'Approval Required', value: 'approval' },
+  { label: 'Anyone', value: 'anyone', icon: 'person-add' },
+  { label: 'Approval Required', value: 'approval', icon: 'checkmark-circle' },
+];
+
+const themeOptions = [
+  { label: 'Light', value: 'light', icon: 'sunny' },
+  { label: 'Dark', value: 'dark', icon: 'moon' },
+  { label: 'System', value: 'system', icon: 'phone-portrait' },
+];
+
+const languageOptions = [
+  { label: 'English', value: 'en', icon: 'language' },
+  { label: 'Spanish', value: 'es', icon: 'language' },
+  { label: 'French', value: 'fr', icon: 'language' },
+  { label: 'German', value: 'de', icon: 'language' },
+  { label: 'Italian', value: 'it', icon: 'language' },
+  { label: 'Dutch', value: 'nl', icon: 'language' },
 ];
 
 export default function Settings() {
@@ -126,6 +126,14 @@ export default function Settings() {
   const [archetypeModalVisible, setArchetypeModalVisible] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [privacyModalVisible, setPrivacyModalVisible] = useState(false);
+  const [followModalVisible, setFollowModalVisible] = useState(false);
+  const [commentModalVisible, setCommentModalVisible] = useState(false);
+  const [messageModalVisible, setMessageModalVisible] = useState(false);
+  const [themeModalVisible, setThemeModalVisible] = useState(false);
+  const [languageModalVisible, setLanguageModalVisible] = useState(false);
+  const [weightUnitModalVisible, setWeightUnitModalVisible] = useState(false);
+  const [distanceUnitModalVisible, setDistanceUnitModalVisible] = useState(false);
 
   // Update settings when userProfile changes
   useEffect(() => {
@@ -287,8 +295,26 @@ export default function Settings() {
   };
 
   const handleChangePassword = () => {
-    // TODO: Implement password change
-    Alert.alert("Coming Soon", "Password change will be available in a future update.");
+    Alert.alert(
+      "Change Password",
+      "You will receive an email with instructions to reset your password.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Send Email",
+          onPress: async () => {
+            try {
+              const { sendPasswordResetEmail } = await import('firebase/auth');
+              await sendPasswordResetEmail(auth, currentUser?.email || '');
+              Alert.alert("Success", "Password reset email sent! Check your inbox.");
+            } catch (error) {
+              console.error('Password reset error:', error);
+              Alert.alert("Error", "Failed to send password reset email. Please try again.");
+            }
+          }
+        }
+      ]
+    );
   };
 
   const handleDateChange = (event: any, selectedDate?: Date) => {
@@ -415,7 +441,7 @@ export default function Settings() {
             label="Profile Visibility"
             value={settings.profileVisibility}
             options={privacyOptions}
-            onPress={() => {/* TODO: Show modal */}}
+            onPress={() => setPrivacyModalVisible(true)}
           />
 
           <SettingsItem
@@ -423,7 +449,7 @@ export default function Settings() {
             label="Who Can Follow You"
             value={settings.followPermission}
             options={followOptions}
-            onPress={() => {/* TODO: Show modal */}}
+            onPress={() => setFollowModalVisible(true)}
           />
 
           <SettingsItem
@@ -431,7 +457,7 @@ export default function Settings() {
             label="Who Can Comment"
             value={settings.commentPermission}
             options={permissionOptions}
-            onPress={() => {/* TODO: Show modal */}}
+            onPress={() => setCommentModalVisible(true)}
           />
 
           <SettingsItem
@@ -439,13 +465,13 @@ export default function Settings() {
             label="Who Can Message You"
             value={settings.messagePermission}
             options={permissionOptions}
-            onPress={() => {/* TODO: Show modal */}}
+            onPress={() => setMessageModalVisible(true)}
           />
 
           <SettingsItem
             type="button"
             label="Blocked Users"
-            onPress={() => {/* TODO: Navigate to blocked users */}}
+            onPress={() => router.push('/blocked-users')}
           />
         </SettingsSection>
 
@@ -511,7 +537,7 @@ export default function Settings() {
             label="Theme"
             value={settings.theme}
             options={themeOptions}
-            onPress={() => {/* TODO: Show modal */}}
+            onPress={() => setThemeModalVisible(true)}
           />
 
           <SettingsItem
@@ -519,7 +545,7 @@ export default function Settings() {
             label="Language"
             value={settings.language}
             options={languageOptions}
-            onPress={() => {/* TODO: Show modal */}}
+            onPress={() => setLanguageModalVisible(true)}
           />
 
           <SettingsItem
@@ -530,7 +556,7 @@ export default function Settings() {
               { label: 'Metric (kg)', value: 'metric' },
               { label: 'Imperial (lbs)', value: 'imperial' }
             ]}
-            onPress={() => {/* TODO: Show modal */}}
+            onPress={() => setWeightUnitModalVisible(true)}
           />
 
           <SettingsItem
@@ -541,10 +567,10 @@ export default function Settings() {
               { label: 'Metric (km)', value: 'metric' },
               { label: 'Imperial (mi)', value: 'imperial' }
             ]}
-            onPress={() => {/* TODO: Show modal */}}
+            onPress={() => setDistanceUnitModalVisible(true)}
           />
         </SettingsSection>
-
+        
         {/* Miscellaneous Section */}
         <SettingsSection
           title="Miscellaneous"
@@ -555,13 +581,39 @@ export default function Settings() {
           <SettingsItem
             type="button"
             label="Clear Chat History"
-            onPress={() => {/* TODO: Clear chat history */}}
+            onPress={() => {
+              Alert.alert(
+                "Clear Chat History",
+                "This will permanently delete all your chat messages. This action cannot be undone.",
+                [
+                  { text: "Cancel", style: "cancel" },
+                  { 
+                    text: "Clear", 
+                    style: "destructive",
+                    onPress: () => Alert.alert("Coming Soon", "Chat history clearing will be available in a future update.")
+                  }
+                ]
+              );
+            }}
           />
 
           <SettingsItem
             type="button"
             label="Clear Search History"
-            onPress={() => {/* TODO: Clear search history */}}
+            onPress={() => {
+              Alert.alert(
+                "Clear Search History",
+                "This will remove all your recent searches.",
+                [
+                  { text: "Cancel", style: "cancel" },
+                  { 
+                    text: "Clear", 
+                    style: "destructive",
+                    onPress: () => Alert.alert("Coming Soon", "Search history clearing will be available in a future update.")
+                  }
+                ]
+              );
+            }}
           />
 
           <SettingsItem
@@ -573,13 +625,13 @@ export default function Settings() {
           <SettingsItem
             type="button"
             label="Privacy Policy"
-            onPress={() => {/* TODO: Open privacy policy */}}
+            onPress={() => Alert.alert("Coming Soon", "Privacy policy will be available in a future update.")}
           />
 
           <SettingsItem
             type="button"
             label="Terms of Service"
-            onPress={() => {/* TODO: Open terms */}}
+            onPress={() => Alert.alert("Coming Soon", "Terms of service will be available in a future update.")}
           />
         </SettingsSection>
 
@@ -623,6 +675,159 @@ export default function Settings() {
           icon="body"
           modalVisible={archetypeModalVisible}
           setModalVisible={setArchetypeModalVisible}
+          variant="fullWidth"
+        />
+      )}
+
+      {/* Privacy Modals */}
+      {privacyModalVisible && (
+        <CustomSelector
+          items={privacyOptions.map(opt => ({ 
+            label: opt.label, 
+            value: opt.value,
+            icon: opt.icon,
+            description: opt.value === 'public' ? 'Anyone can see your profile' :
+                        opt.value === 'followers' ? 'Only your followers can see your profile' :
+                        'Only you can see your profile'
+          }))}
+          value={settings.profileVisibility}
+          onSelect={(value) => updateSetting('profileVisibility', value)}
+          placeholder="Select visibility"
+          title="Profile Visibility"
+          icon="eye"
+          modalVisible={privacyModalVisible}
+          setModalVisible={setPrivacyModalVisible}
+          variant="fullWidth"
+        />
+      )}
+
+      {followModalVisible && (
+        <CustomSelector
+          items={followOptions.map(opt => ({ 
+            label: opt.label, 
+            value: opt.value,
+            icon: opt.icon,
+            description: opt.value === 'anyone' ? 'Anyone can follow you' : 'You must approve follow requests'
+          }))}
+          value={settings.followPermission}
+          onSelect={(value) => updateSetting('followPermission', value)}
+          placeholder="Select follow permission"
+          title="Who Can Follow You"
+          icon="person-add"
+          modalVisible={followModalVisible}
+          setModalVisible={setFollowModalVisible}
+          variant="fullWidth"
+        />
+      )}
+
+      {commentModalVisible && (
+        <CustomSelector
+          items={permissionOptions.map(opt => ({ 
+            label: opt.label, 
+            value: opt.value,
+            icon: opt.icon,
+            description: opt.value === 'everyone' ? 'Anyone can comment on your posts' : 'Only followers can comment'
+          }))}
+          value={settings.commentPermission}
+          onSelect={(value) => updateSetting('commentPermission', value)}
+          placeholder="Select comment permission"
+          title="Who Can Comment"
+          icon="chatbubble"
+          modalVisible={commentModalVisible}
+          setModalVisible={setCommentModalVisible}
+          variant="fullWidth"
+        />
+      )}
+
+      {messageModalVisible && (
+        <CustomSelector
+          items={permissionOptions.map(opt => ({ 
+            label: opt.label, 
+            value: opt.value,
+            icon: opt.icon,
+            description: opt.value === 'everyone' ? 'Anyone can message you' : 'Only followers can message you'
+          }))}
+          value={settings.messagePermission}
+          onSelect={(value) => updateSetting('messagePermission', value)}
+          placeholder="Select message permission"
+          title="Who Can Message You"
+          icon="mail"
+          modalVisible={messageModalVisible}
+          setModalVisible={setMessageModalVisible}
+          variant="fullWidth"
+        />
+      )}
+
+      {/* Preference Modals */}
+      {themeModalVisible && (
+        <CustomSelector
+          items={themeOptions.map(opt => ({ 
+            label: opt.label, 
+            value: opt.value,
+            icon: opt.icon,
+            description: opt.value === 'light' ? 'Light color scheme' :
+                        opt.value === 'dark' ? 'Dark color scheme' :
+                        'Follow device settings'
+          }))}
+          value={settings.theme}
+          onSelect={(value) => updateSetting('theme', value)}
+          placeholder="Select theme"
+          title="App Theme"
+          icon="color-palette"
+          modalVisible={themeModalVisible}
+          setModalVisible={setThemeModalVisible}
+          variant="fullWidth"
+        />
+      )}
+
+      {languageModalVisible && (
+        <CustomSelector
+          items={languageOptions.map(opt => ({ 
+            label: opt.label, 
+            value: opt.value,
+            icon: opt.icon
+          }))}
+          value={settings.language}
+          onSelect={(value) => updateSetting('language', value)}
+          placeholder="Select language"
+          title="App Language"
+          icon="globe"
+          modalVisible={languageModalVisible}
+          setModalVisible={setLanguageModalVisible}
+          variant="fullWidth"
+        />
+      )}
+
+      {weightUnitModalVisible && (
+        <CustomSelector
+          items={[
+            { label: 'Metric (kg)', value: 'metric', icon: 'barbell', description: 'Kilograms for weight measurements' },
+            { label: 'Imperial (lbs)', value: 'imperial', icon: 'barbell', description: 'Pounds for weight measurements' }
+          ]}
+          value={settings.units?.weight}
+          onSelect={(value) => updateSetting('units.weight', value)}
+          placeholder="Select weight unit"
+          title="Weight Unit"
+          icon="barbell"
+          modalVisible={weightUnitModalVisible}
+          setModalVisible={setWeightUnitModalVisible}
+          variant="fullWidth"
+        />
+      )}
+
+      {distanceUnitModalVisible && (
+        <CustomSelector
+          items={[
+            { label: 'Metric (km)', value: 'metric', icon: 'walk', description: 'Kilometers for distance measurements' },
+            { label: 'Imperial (mi)', value: 'imperial', icon: 'walk', description: 'Miles for distance measurements' }
+          ]}
+          value={settings.units?.distance}
+          onSelect={(value) => updateSetting('units.distance', value)}
+          placeholder="Select distance unit"
+          title="Distance Unit"
+          icon="walk"
+          modalVisible={distanceUnitModalVisible}
+          setModalVisible={setDistanceUnitModalVisible}
           variant="fullWidth"
         />
       )}
