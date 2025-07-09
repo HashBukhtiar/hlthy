@@ -240,8 +240,12 @@ export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin,
                   activeOpacity={0.8}
                 >
                   <Ionicons name="calendar" size={18} color="#AAAAAA" style={{marginRight: 12}} />
-                  <Text style={{color: '#fff', opacity: dateOfBirthFormatted ? 1 : 0.5, fontSize: 16, flex: 1}}>
-                    {dateOfBirthFormatted || 'Date of Birth (MM/DD/YYYY)'}
+                  <Text style={{
+                    color: dateFocused || dateOfBirthFormatted ? '#fff' : 'rgba(255,255,255,0.7)',
+                    fontSize: 16,
+                    flex: 1
+                  }}>
+                    {dateOfBirthFormatted || 'Date of Birth'}
                   </Text>
                   {dateOfBirthFormatted ? (
                     <TouchableOpacity
