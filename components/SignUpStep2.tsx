@@ -229,14 +229,25 @@ export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin,
                   autoCapitalize="none"
                   left={null}
                   selectionColor="#FFFFFF"
-                  // Remove selection prop, not needed for plain username
                 />
               </View>
 
               <View style={styles.inputContainer}>
+                {/* Floating label for Date of Birth */}
+                {(dateFocused || dateOfBirthFormatted) && (
+                  <Text style={styles.floatingLabel}>
+                    Date of Birth
+                  </Text>
+                )}
                 <TouchableOpacity
                   onPress={() => setShowDatePicker(true)}
-                  style={[styles.modernInput, {flexDirection: 'row', alignItems: 'center', paddingLeft: 0, paddingBottom: 0, position: 'relative'}]}
+                  onFocus={() => setDateFocused(true)}
+                  onBlur={() => setDateFocused(false)}
+                  style={[
+                    styles.modernInput,
+                    {flexDirection: 'row', alignItems: 'center', paddingLeft: 0, paddingBottom: 0, position: 'relative'},
+                    (dateFocused || dateOfBirthFormatted) ? {paddingTop: 10} : {},
+                  ]}
                   activeOpacity={0.8}
                 >
                   <Text style={{
@@ -244,7 +255,7 @@ export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin,
                     fontSize: 16,
                     flex: 1
                   }}>
-                    {dateOfBirthFormatted || 'Date of Birth'}
+                    {dateOfBirthFormatted || (!dateFocused ? 'Date of Birth' : '')}
                   </Text>
                   {dateOfBirthFormatted ? (
                     <TouchableOpacity
@@ -501,5 +512,14 @@ const styles = StyleSheet.create({
   loginLinkBold: {
     color: '#FFFFFF',
     fontWeight: 'bold',
+  },
+  floatingLabel: {
+    position: 'absolute',
+    left: 5,
+    top: 5,
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.7)',
+    zIndex: 2,
+    backgroundColor: 'transparent',
   },
 });
