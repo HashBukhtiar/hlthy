@@ -6,8 +6,7 @@ import { useAuth } from '@/context/AuthContext';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { formatCount } from '@/logic/formattingFunctions';
 import { BOTTOM_BAR_HEIGHT } from '@/styles/globalStyles';
-import { doc, updateDoc } from 'firebase/firestore';
-import { db } from '@/firebaseConfig';
+
 const archetypeIcons = {
   'athlete': require('@/assets/images/athlete.png'),
   'bodybuilder': require('@/assets/images/bodybuilder.png'),
@@ -15,7 +14,8 @@ const archetypeIcons = {
   'generalist': require('@/assets/images/generalist.png'),
   'powerlifter': require('@/assets/images/powerlifter.png'),
 };
-// Archetype descriptions for tooltips. Should we add this to the DB?
+
+// Archetype descriptions for tooltips
 const archetypeDescriptions = {
   'athlete': 'Balanced all-round athletic performance with focus on endurance and strength.',
   'bodybuilder': 'Focus on muscle hypertrophy, symmetry, and aesthetic physique development.',
@@ -97,8 +97,6 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
   const tabWidth = screenWidth / 3;
   const [tooltipVisible, setTooltipVisible] = useState(false);
   const [tooltipText, setTooltipText] = useState('');
-  const [isArchetypeModalVisible, setIsArchetypeModalVisible] = useState(false);
-  const [isUpdatingArchetype, setIsUpdatingArchetype] = useState(false);
 
   const isOwnProfile = !routeUserId || routeUserId === currentUser?.uid;
   const displayProfileData = isOwnProfile ? (profileData || currentUserProfile) : profileData;
@@ -207,24 +205,6 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
       );
     }
     return null;
-  };
-
-  const handleArchetypeSelect = async (newArchetype: string) => {
-    if (!currentUser) return;
-    setIsUpdatingArchetype(true);
-    try {
-      const userDocRef = doc(db, 'users', currentUser.uid);
-      await updateDoc(userDocRef, {
-        archetype: newArchetype,
-      });
-      await refreshUserProfile(); // Refresh profile data from auth context
-      setIsArchetypeModalVisible(false);
-    } catch (error) {
-      console.error("Failed to update archetype:", error);
-      // Optionally, show an error message to the user
-    } finally {
-      setIsUpdatingArchetype(false);
-    }
   };
 
   const onRefresh = useCallback(async () => {
@@ -654,17 +634,15 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
               isFollowingStatus 
                 ? styles.unfollowButtonActive 
                 : isRequestPending
-                  ? styles.requestedButtonActive // Add a new style for "Requested"
+                  ? styles.requestedButtonActive
                   : styles.followButtonActive,
               followActionLoading && styles.followButtonDisabled
             ]}
             onPress={() => {
               if (followActionLoading) return;
               if (isFollowingStatus) {
-                unfollowUser(displayProfileData.id); // This will also cancel a request if isFollowingStatus is false but isRequestPending is true
+                unfollowUser(displayProfileData.id);
               } else if (isRequestPending) {
-                // Optionally, allow cancelling the request by pressing "Requested" again
-                // This would call unfollowUser which now handles cancelling pending requests
                 unfollowUser(displayProfileData.id); 
               } else {
                 followUser(displayProfileData.id);
@@ -703,17 +681,15 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
           <TouchableOpacity
             style={styles.statItem}
             onPress={() => {
-              if (isOwnProfile) {
-                setIsArchetypeModalVisible(true);
-              } else if (displayProfileData?.archetype) {
-                setTooltipText(archetypeDescriptions[displayProfileData.archetype.toLowerCase() || 'generalist']);
+              if (processedProfileData?.archetype) {
+                setTooltipText(archetypeDescriptions[processedProfileData.archetype.toLowerCase() || 'generalist']);
                 setTooltipVisible(true);
               }
             }}
-            disabled={!displayProfileData?.archetype && !isOwnProfile}
+            disabled={!processedProfileData?.archetype}
           >
             <Image
-              source={archetypeIcons[displayProfileData?.archetype?.toLowerCase() || 'generalist']}
+              source={archetypeIcons[processedProfileData?.archetype?.toLowerCase() || 'generalist']}
               style={styles.archetypeIcon}
             />
             <Text style={styles.statLabel}>Archetype</Text>
@@ -739,39 +715,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
         </View>
       </View>
 
-      <Modal
-        transparent={true}
-        visible={isArchetypeModalVisible}
-        animationType="fade"
-        onRequestClose={() => setIsArchetypeModalVisible(false)}
-      >
-        <TouchableOpacity
-          style={styles.modalContainer}
-          activeOpacity={1}
-          onPressOut={() => setIsArchetypeModalVisible(false)}
-        >
-          <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
-            <Text style={styles.modalTitle}>Choose Your Archetype</Text>
-            {isUpdatingArchetype ? (
-              <ActivityIndicator size="large" color="#FFF" style={{ marginVertical: 20 }} />
-            ) : (
-              Object.keys(archetypeIcons).map((key) => (
-                <TouchableOpacity
-                  key={key}
-                  style={styles.archetypeChoice}
-                  onPress={() => handleArchetypeSelect(key)}
-                >
-                  <Image source={archetypeIcons[key]} style={styles.archetypeChoiceIcon} />
-                  <Text style={styles.archetypeChoiceText}>
-                    {key.charAt(0).toUpperCase() + key.slice(1)}
-                  </Text>
-                </TouchableOpacity>
-              ))
-            )}
-          </View>
-        </TouchableOpacity>
-      </Modal>
-
+      {/* Archetype Tooltip Modal - For all profiles */}
       <Modal
         transparent={true}
         visible={tooltipVisible}
@@ -786,11 +730,11 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
           <View style={styles.tooltip}>
             <View style={styles.tooltipHeader}>
               <Image
-                source={archetypeIcons[displayProfileData?.archetype?.toLowerCase() || 'generalist']}
+                source={archetypeIcons[processedProfileData?.archetype?.toLowerCase() || 'generalist']}
                 style={styles.tooltipIcon}
               />
               <Text style={styles.tooltipTitle}>
-                {displayProfileData?.archetype?.split(' ').map(word =>
+                {processedProfileData?.archetype?.split(' ').map(word =>
                   word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
                 ).join(' ') || 'Generalist'}
               </Text>
@@ -1271,42 +1215,6 @@ const styles = StyleSheet.create({
   gainValue: {
     color: '#FF9500',
     fontWeight: 'bold',
-  },
-  modalContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-  },
-  modalContent: {
-    backgroundColor: '#2C2C2E',
-    borderRadius: 14,
-    padding: 20,
-    width: '85%',
-    maxHeight: '80%',
-  },
-  modalTitle: {
-    color: '#FFF',
-    fontSize: 20,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 20,
-  },
-  archetypeChoice: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#3A3A3C',
-  },
-  archetypeChoiceIcon: {
-    width: 30,
-    height: 30,
-    marginRight: 15,
-  },
-  archetypeChoiceText: {
-    color: '#FFF',
-    fontSize: 18,
   },
 });
 
