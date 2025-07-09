@@ -73,12 +73,12 @@ const themeOptions = [
 ];
 
 const languageOptions = [
-  { label: 'English', value: 'en', icon: 'language' },
-  { label: 'Spanish', value: 'es', icon: 'language' },
-  { label: 'French', value: 'fr', icon: 'language' },
-  { label: 'German', value: 'de', icon: 'language' },
-  { label: 'Italian', value: 'it', icon: 'language' },
-  { label: 'Dutch', value: 'nl', icon: 'language' },
+  { label: 'English', value: 'en', icon: 'flag' },
+  { label: 'Spanish', value: 'es', icon: 'flag-outline' },
+  { label: 'French', value: 'fr', icon: 'library' },
+  { label: 'German', value: 'de', icon: 'business' },
+  { label: 'Italian', value: 'it', icon: 'wine' },
+  { label: 'Dutch', value: 'nl', icon: 'flower' },
 ];
 
 export default function Settings() {
@@ -570,7 +570,7 @@ export default function Settings() {
             onPress={() => setDistanceUnitModalVisible(true)}
           />
         </SettingsSection>
-        
+
         {/* Miscellaneous Section */}
         <SettingsSection
           title="Miscellaneous"
