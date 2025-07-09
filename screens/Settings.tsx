@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert, Image, TouchableOpacity } from 'react-native';
 import { useAuth } from '@/context/AuthContext';
 import { doc, updateDoc } from 'firebase/firestore';
-import { db, auth } from '@/firebaseConfig';
+import { db, auth, functions } from '@/firebaseConfig';
 import { signOut, sendPasswordResetEmail } from 'firebase/auth';
+import { httpsCallable } from 'firebase/functions';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -249,12 +250,16 @@ export default function Settings() {
     try {
       setLoading(true);
       
-      // Update user document in Firestore with all settings
-      await updateDoc(doc(db, "users", currentUser.uid), {
-        ...settings,
-        ...(profileImage !== userProfile?.profileImageUrl && { profileImageUrl: profileImage }),
-        lastModified: new Date(),
-      });
+      // Use cloud function for more secure settings update
+      const updateUserSettings = httpsCallable(functions, 'updateUserSettings');
+      await updateUserSettings({ settings });
+      
+      // Also update profile image if changed
+      if (profileImage !== userProfile?.profileImageUrl) {
+        await updateDoc(doc(db, "users", currentUser.uid), {
+          profileImageUrl: profileImage,
+        });
+      }
       
       await refreshUserProfile();
       
@@ -279,19 +284,78 @@ export default function Settings() {
   const handleDeleteAccount = () => {
     Alert.alert(
       "Delete Account",
-      "This action cannot be undone. Are you sure you want to delete your account?",
+      "This action cannot be undone. Type 'DELETE' to confirm account deletion.",
       [
         { text: "Cancel", style: "cancel" },
         { 
-          text: "Delete", 
+          text: "Continue", 
           style: "destructive",
           onPress: () => {
-            // TODO: Implement account deletion
-            Alert.alert("Coming Soon", "Account deletion will be available in a future update.");
+            Alert.prompt(
+              "Confirm Deletion",
+              "Type 'DELETE' to permanently delete your account:",
+              [
+                { text: "Cancel", style: "cancel" },
+                {
+                  text: "Delete Account",
+                  style: "destructive",
+                  onPress: async (text) => {
+                    if (text === 'DELETE') {
+                      try {
+                        setLoading(true);
+                        const deleteUserAccount = httpsCallable(functions, 'deleteUserAccount');
+                        await deleteUserAccount({ 
+                          confirmationToken: `DELETE_${currentUser.uid}` 
+                        });
+                        
+                        Alert.alert("Account Deleted", "Your account has been permanently deleted.");
+                        router.replace('/');
+                      } catch (error) {
+                        console.error('Error deleting account:', error);
+                        Alert.alert("Error", "Failed to delete account. Please try again.");
+                      } finally {
+                        setLoading(false);
+                      }
+                    } else {
+                      Alert.alert("Invalid Input", "You must type 'DELETE' exactly to confirm.");
+                    }
+                  }
+                }
+              ],
+              "plain-text"
+            );
           }
         }
       ]
     );
+  };
+
+  const clearChatHistory = async () => {
+    try {
+      setLoading(true);
+      const clearUserData = httpsCallable(functions, 'clearUserData');
+      await clearUserData({ dataType: 'chatHistory' });
+      Alert.alert("Success", "Chat history cleared successfully");
+    } catch (error) {
+      console.error('Error clearing chat history:', error);
+      Alert.alert("Error", "Failed to clear chat history");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const clearSearchHistory = async () => {
+    try {
+      setLoading(true);
+      const clearUserData = httpsCallable(functions, 'clearUserData');
+      await clearUserData({ dataType: 'searchHistory' });
+      Alert.alert("Success", "Search history cleared successfully");
+    } catch (error) {
+      console.error('Error clearing search history:', error);
+      Alert.alert("Error", "Failed to clear search history");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleChangePassword = () => {
@@ -590,7 +654,7 @@ export default function Settings() {
                   { 
                     text: "Clear", 
                     style: "destructive",
-                    onPress: () => Alert.alert("Coming Soon", "Chat history clearing will be available in a future update.")
+                    onPress: clearChatHistory
                   }
                 ]
               );
@@ -609,7 +673,7 @@ export default function Settings() {
                   { 
                     text: "Clear", 
                     style: "destructive",
-                    onPress: () => Alert.alert("Coming Soon", "Search history clearing will be available in a future update.")
+                    onPress: clearSearchHistory
                   }
                 ]
               );
