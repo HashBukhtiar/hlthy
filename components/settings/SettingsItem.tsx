@@ -12,6 +12,7 @@ interface SettingsItemProps {
   helperText?: string;
   destructive?: boolean;
   disabled?: boolean;
+  displayValue?: string;
   onPress?: () => void;
 }
 
@@ -25,6 +26,7 @@ export const SettingsItem: React.FC<SettingsItemProps> = ({
   helperText,
   destructive = false,
   disabled = false,
+  displayValue,
   onPress
 }) => {
   const renderContent = () => {
@@ -91,10 +93,10 @@ export const SettingsItem: React.FC<SettingsItemProps> = ({
             style={[styles.selectButton, disabled && styles.disabled]} 
             onPress={disabled ? undefined : onPress}
           >
-            <Text style={[styles.selectText, disabled && styles.disabledText]}>
-              {value ? new Date(value).toLocaleDateString() : placeholder || 'Select date...'}
+            <Text style={[styles.selectText, !displayValue && !value && styles.placeholder, disabled && styles.disabledText]}>
+              {displayValue || (value ? value.toLocaleDateString() : placeholder)}
             </Text>
-            <Ionicons name="calendar" size={16} color="#999" />
+            <Ionicons name="chevron-forward" size={16} color="#999" />
           </TouchableOpacity>
         );
 
@@ -102,6 +104,25 @@ export const SettingsItem: React.FC<SettingsItemProps> = ({
         return null;
     }
   };
+
+  // For date type, we don't want to duplicate the label and content
+  if (type === 'date') {
+    return (
+      <View style={styles.container}>
+        <View style={styles.row}>
+          <View style={styles.labelContainer}>
+            <Text style={[styles.label, destructive && styles.destructiveText, disabled && styles.disabledText]}>
+              {label}
+            </Text>
+            {helperText && (
+              <Text style={styles.helperText}>{helperText}</Text>
+            )}
+          </View>
+          {renderContent()}
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -156,6 +177,9 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 14,
     marginRight: 8,
+  },
+  placeholder: {
+    color: '#666',
   },
   input: {
     backgroundColor: '#2C2C2E',

@@ -88,29 +88,29 @@ export default function Settings() {
   
   // Settings state
   const [settings, setSettings] = useState<Partial<UserSettings>>({
-    displayName: userProfile?.displayName || '',
-    bio: userProfile?.bio || '',
-    archetype: userProfile?.archetype || '',
-    profileVisibility: userProfile?.profileVisibility || 'public',
-    followPermission: userProfile?.followPermission || 'anyone',
-    commentPermission: userProfile?.commentPermission || 'everyone',
-    messagePermission: userProfile?.messagePermission || 'everyone',
-    theme: userProfile?.theme || 'dark',
-    language: userProfile?.language || 'en',
+    displayName: '',
+    bio: '',
+    archetype: '',
+    profileVisibility: 'public',
+    followPermission: 'anyone',
+    commentPermission: 'everyone',
+    messagePermission: 'everyone',
+    theme: 'dark',
+    language: 'en',
     units: {
-      weight: userProfile?.units?.weight || 'metric',
-      distance: userProfile?.units?.distance || 'metric',
+      weight: 'metric',
+      distance: 'metric',
     },
     notifications: {
-      newFollowers: userProfile?.notifications?.newFollowers ?? true,
-      likesAndComments: userProfile?.notifications?.likesAndComments ?? true,
-      directMessages: userProfile?.notifications?.directMessages ?? true,
-      followRequestAccepted: userProfile?.notifications?.followRequestAccepted ?? true,
-      taggedInComments: userProfile?.notifications?.taggedInComments ?? true,
-      mentionedInReplies: userProfile?.notifications?.mentionedInReplies ?? true,
+      newFollowers: true,
+      likesAndComments: true,
+      directMessages: true,
+      followRequestAccepted: true,
+      taggedInComments: true,
+      mentionedInReplies: true,
     },
-    twoFactorEnabled: userProfile?.twoFactorEnabled || false,
-    dateOfBirth: userProfile?.dateOfBirth ? new Date(userProfile.dateOfBirth) : undefined,
+    twoFactorEnabled: false,
+    dateOfBirth: undefined,
   });
 
   // UI state
@@ -139,12 +139,57 @@ export default function Settings() {
   // Update settings when userProfile changes
   useEffect(() => {
     if (userProfile) {
+      const parseDateOfBirth = (dateValue: any) => {
+        if (!dateValue) return undefined;
+        
+        try {
+          if (dateValue instanceof Date) {
+            return isNaN(dateValue.getTime()) ? undefined : dateValue;
+          }
+          
+          // Handle Firestore Timestamp
+          if (dateValue.toDate && typeof dateValue.toDate === 'function') {
+            return dateValue.toDate();
+          }
+          
+          // Handle string dates
+          if (typeof dateValue === 'string') {
+            const parsed = new Date(dateValue);
+            return isNaN(parsed.getTime()) ? undefined : parsed;
+          }
+          
+          return undefined;
+        } catch (error) {
+          console.error('Error parsing date of birth:', error);
+          return undefined;
+        }
+      };
+
       setSettings(prev => ({
         ...prev,
         displayName: userProfile.displayName || '',
         bio: userProfile.bio || '',
         archetype: userProfile.archetype || '',
-        // Add other fields as they become available in userProfile
+        profileVisibility: userProfile.profileVisibility || 'public',
+        followPermission: userProfile.followPermission || 'anyone',
+        commentPermission: userProfile.commentPermission || 'everyone',
+        messagePermission: userProfile.messagePermission || 'everyone',
+        theme: userProfile.theme || 'dark',
+        language: userProfile.language || 'en',
+        units: {
+          weight: userProfile.units?.weight || 'metric',
+          distance: userProfile.units?.distance || 'metric',
+        },
+        notifications: {
+          newFollowers: userProfile.notifications?.newFollowers ?? true,
+          likesAndComments: userProfile.notifications?.likesAndComments ?? true,
+          directMessages: userProfile.notifications?.directMessages ?? true,
+          followRequestAccepted: userProfile.notifications?.followRequestAccepted ?? true,
+          taggedInComments: userProfile.notifications?.taggedInComments ?? true,
+          mentionedInReplies: userProfile.notifications?.mentionedInReplies ?? true,
+        },
+        twoFactorEnabled: userProfile.twoFactorEnabled || false,
+        dateOfBirth: parseDateOfBirth(userProfile.dateOfBirth),
       }));
       setProfileImage(userProfile.profileImageUrl);
     }
@@ -250,9 +295,42 @@ export default function Settings() {
     try {
       setLoading(true);
       
-      // Use cloud function for more secure settings update
-      const updateUserSettings = httpsCallable(functions, 'updateUserSettings');
-      await updateUserSettings({ settings });
+      console.log('Attempting to save settings:', settings);
+      
+      // Prepare settings for saving, converting Date objects to proper format
+      const settingsToSave = {
+        ...settings,
+        // Convert Date to Firestore Timestamp or ISO string
+        dateOfBirth: settings.dateOfBirth ? settings.dateOfBirth.toISOString() : null,
+      };
+      
+      // Check if functions is properly initialized
+      if (!functions || !functions.app) {
+        console.warn('Functions not properly initialized, falling back to direct Firestore update');
+        
+        // Fallback to direct Firestore update
+        await updateDoc(doc(db, "users", currentUser.uid), {
+          ...settingsToSave,
+          lastModified: new Date(),
+          version: 1,
+        });
+      } else {
+        // Use cloud function for more secure settings update
+        try {
+          const updateUserSettings = httpsCallable(functions, 'updateUserSettings');
+          await updateUserSettings({ settings: settingsToSave });
+          console.log('Settings updated via Cloud Function');
+        } catch (functionError) {
+          console.error('Cloud Function failed, falling back to direct update:', functionError);
+          
+          // Fallback to direct Firestore update
+          await updateDoc(doc(db, "users", currentUser.uid), {
+            ...settingsToSave,
+            lastModified: new Date(),
+            version: 1,
+          });
+        }
+      }
       
       // Also update profile image if changed
       if (profileImage !== userProfile?.profileImageUrl) {
@@ -266,7 +344,7 @@ export default function Settings() {
       Alert.alert("Success", "Settings updated successfully");
     } catch (error) {
       console.error("Error updating settings:", error);
-      Alert.alert("Error", "Failed to update settings");
+      Alert.alert("Error", "Failed to update settings: " + (error?.message || 'Unknown error'));
     } finally {
       setLoading(false);
     }
@@ -303,6 +381,12 @@ export default function Settings() {
                     if (text === 'DELETE') {
                       try {
                         setLoading(true);
+                        
+                        if (!functions || !functions.app) {
+                          Alert.alert("Error", "Cloud functions not available. Account deletion requires server-side processing.");
+                          return;
+                        }
+                        
                         const deleteUserAccount = httpsCallable(functions, 'deleteUserAccount');
                         await deleteUserAccount({ 
                           confirmationToken: `DELETE_${currentUser.uid}` 
@@ -312,7 +396,7 @@ export default function Settings() {
                         router.replace('/');
                       } catch (error) {
                         console.error('Error deleting account:', error);
-                        Alert.alert("Error", "Failed to delete account. Please try again.");
+                        Alert.alert("Error", "Failed to delete account: " + (error?.message || 'Unknown error'));
                       } finally {
                         setLoading(false);
                       }
@@ -333,12 +417,18 @@ export default function Settings() {
   const clearChatHistory = async () => {
     try {
       setLoading(true);
+      
+      if (!functions || !functions.app) {
+        Alert.alert("Error", "Cloud functions not available. Please try again later.");
+        return;
+      }
+      
       const clearUserData = httpsCallable(functions, 'clearUserData');
       await clearUserData({ dataType: 'chatHistory' });
       Alert.alert("Success", "Chat history cleared successfully");
     } catch (error) {
       console.error('Error clearing chat history:', error);
-      Alert.alert("Error", "Failed to clear chat history");
+      Alert.alert("Error", "Failed to clear chat history: " + (error?.message || 'Unknown error'));
     } finally {
       setLoading(false);
     }
@@ -347,12 +437,18 @@ export default function Settings() {
   const clearSearchHistory = async () => {
     try {
       setLoading(true);
+      
+      if (!functions || !functions.app) {
+        Alert.alert("Error", "Cloud functions not available. Please try again later.");
+        return;
+      }
+      
       const clearUserData = httpsCallable(functions, 'clearUserData');
       await clearUserData({ dataType: 'searchHistory' });
       Alert.alert("Success", "Search history cleared successfully");
     } catch (error) {
       console.error('Error clearing search history:', error);
-      Alert.alert("Error", "Failed to clear search history");
+      Alert.alert("Error", "Failed to clear search history: " + (error?.message || 'Unknown error'));
     } finally {
       setLoading(false);
     }
@@ -383,8 +479,25 @@ export default function Settings() {
 
   const handleDateChange = (event: any, selectedDate?: Date) => {
     setShowDatePicker(Platform.OS === 'ios');
-    if (selectedDate) {
-      updateSetting('dateOfBirth', selectedDate);
+    
+    if (selectedDate && event.type !== 'dismissed') {
+      // Validate the date
+      const now = new Date();
+      const minDate = new Date(1900, 0, 1); // January 1, 1900
+      
+      if (selectedDate > now) {
+        Alert.alert("Invalid Date", "Date of birth cannot be in the future");
+        return;
+      }
+      
+      if (selectedDate < minDate) {
+        Alert.alert("Invalid Date", "Please enter a valid date of birth");
+        return;
+      }
+      
+      // Create a clean date object to avoid timezone issues
+      const cleanDate = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
+      updateSetting('dateOfBirth', cleanDate);
     }
   };
 
@@ -440,6 +553,15 @@ export default function Settings() {
             onPress={() => setShowDatePicker(true)}
             placeholder="Select your birth date"
             helperText="Used for age-based recommendations"
+            // Add a custom display format
+            displayValue={settings.dateOfBirth ? 
+              settings.dateOfBirth.toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+              }) : 
+              undefined
+            }
           />
 
           <SettingsItem
@@ -719,11 +841,12 @@ export default function Settings() {
         {/* Date Picker */}
         {showDatePicker && (
           <DateTimePicker
-            value={settings.dateOfBirth || new Date()}
+            value={settings.dateOfBirth || new Date(2000, 0, 1)} // Default to a reasonable date
             mode="date"
-            display="default"
+            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
             onChange={handleDateChange}
-            maximumDate={new Date()}
+            maximumDate={new Date()} // Today
+            minimumDate={new Date(1900, 0, 1)} // January 1, 1900
           />
         )}
       </ScrollView>
