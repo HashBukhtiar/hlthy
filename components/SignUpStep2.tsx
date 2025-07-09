@@ -298,20 +298,22 @@ export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin,
 
               {/* Error message container with fixed height */}
               <View style={styles.errorContainer}>
-                <Text style={[styles.errorText, { opacity: errorMessage ? 1 : 0 }]}>
+                <Text style={[styles.errorText, { opacity: errorMessage ? 1 : 0 }]}> 
                   {errorMessage || ' '}
-                </Text>
-              </View>
-
-              {/* Info Box */}
-              <View style={styles.infoBox}>
-                <Ionicons name="information-circle" size={20} color="rgba(255, 255, 255, 0.7)" />
-                <Text style={styles.infoText}>
-                  Your date of birth will not be visible to other users.
                 </Text>
               </View>
             </View>
           </Animated.View>
+
+          {/* Info Box - moved outside Animated.View so it does not move with keyboard */}
+          <View style={styles.infoBoxWrapperFixed}>
+            <View style={styles.infoBox}>
+              <Ionicons name="information-circle" size={20} color="rgba(255, 255, 255, 0.7)" />
+              <Text style={styles.infoText}>
+                Your date of birth will not be visible to other users.
+              </Text>
+            </View>
+          </View>
           
           {/* Footer buttons - locked at bottom */}
           {onShowLogin && (
@@ -423,6 +425,12 @@ const styles = StyleSheet.create({
     minHeight: 44,
     justifyContent: 'flex-start',
     alignItems: 'center',
+  },
+  infoBoxWrapperFixed: {
+    width: '100%',
+    alignItems: 'center',
+    marginTop: 10,
+    marginBottom: 30,
   },
   infoBox: {
     flexDirection: 'row',
