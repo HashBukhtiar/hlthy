@@ -78,7 +78,6 @@ export const importSettings = async (): Promise<Partial<UserSettings> | null> =>
     // Remove sensitive/non-transferable settings
     const sanitizedSettings = { ...importData.settings };
     delete sanitizedSettings.dateOfBirth; // Don't import personal data
-    delete sanitizedSettings.blockedUsers; // Don't import blocked users
     
     return sanitizedSettings;
   } catch (error) {

@@ -189,5 +189,11 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       allow write: if false;
     }
+
+    // Analytics collection
+    match /analytics/{document} {
+      allow read: if false;
+      allow write: if isAuthenticated();
+    }
   }
 }

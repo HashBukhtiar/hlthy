@@ -126,11 +126,12 @@ export default function Settings() {
     { id: 'notifications', title: 'Notifications', icon: 'notifications', expanded: false },
     { id: 'preferences', title: 'UI/UX Preferences', icon: 'settings', expanded: false },
     { id: 'misc', title: 'Miscellaneous', icon: 'ellipsis-horizontal', expanded: false },
+    { id: 'advanced', title: 'Advanced', icon: 'cog', expanded: false }, // Add this line
   ]);
 
   const [profileImage, setProfileImage] = useState(userProfile?.profileImageUrl);
   const [archetypeModalVisible, setArchetypeModalVisible] = useState(false);
-  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [dateModalVisible, setDateModalVisible] = useState(false);
   const [loading, setLoading] = useState(false);
   const [privacyModalVisible, setPrivacyModalVisible] = useState(false);
   const [followModalVisible, setFollowModalVisible] = useState(false);
@@ -279,9 +280,12 @@ export default function Settings() {
       }
     });
 
-    // Track the change for analytics
+    // Track the change for analytics - make it safer
     if (currentUser) {
-      trackSettingsChange(currentUser.uid, key, oldValue, value);
+      trackSettingsChange(currentUser.uid, key, oldValue, value).catch(error => {
+        console.log('Analytics tracking failed (non-critical):', error.message);
+        // Don't show error to user - analytics failure is not critical
+      });
     }
   };
 
@@ -669,7 +673,11 @@ export default function Settings() {
   };
 
   const handleDateChange = (event: any, selectedDate?: Date) => {
-    setShowDatePicker(Platform.OS === 'ios');
+    console.log('Date picker event:', event, 'Selected date:', selectedDate);
+    
+    if (Platform.OS === 'android') {
+      setShowDatePicker(false);
+    }
     
     if (selectedDate && event.type !== 'dismissed') {
       // Validate the date
@@ -688,7 +696,12 @@ export default function Settings() {
       
       // Create a clean date object to avoid timezone issues
       const cleanDate = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
+      console.log('Setting date to:', cleanDate);
       updateSetting('dateOfBirth', cleanDate);
+    }
+    
+    if (Platform.OS === 'ios') {
+      setShowDatePicker(false);
     }
   };
 
@@ -738,20 +751,22 @@ export default function Settings() {
           />
 
           <SettingsItem
-            type="date"
+            type="select"
             label="Date of Birth"
             value={settings.dateOfBirth}
-            onPress={() => setShowDatePicker(true)}
+            onPress={() => {
+              console.log('Date picker button pressed');
+              setDateModalVisible(true);
+            }}
             placeholder="Select your birth date"
             helperText="Used for age-based recommendations"
-            // Add a custom display format
             displayValue={settings.dateOfBirth ? 
               settings.dateOfBirth.toLocaleDateString('en-US', {
                 year: 'numeric',
                 month: 'long',
                 day: 'numeric'
               }) : 
-              undefined
+              'Select your birth date'
             }
           />
 
@@ -1097,15 +1112,55 @@ export default function Settings() {
         </View>
 
         {/* Date Picker */}
-        {showDatePicker && (
-          <DateTimePicker
-            value={settings.dateOfBirth || new Date(2000, 0, 1)} // Default to a reasonable date
-            mode="date"
-            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-            onChange={handleDateChange}
-            maximumDate={new Date()} // Today
-            minimumDate={new Date(1900, 0, 1)} // January 1, 1900
-          />
+        {dateModalVisible && (
+          <View style={styles.modalOverlay}>
+            <View style={styles.dateModal}>
+              <View style={styles.dateModalHeader}>
+                <Text style={styles.dateModalTitle}>Select Date of Birth</Text>
+                <TouchableOpacity onPress={() => setDateModalVisible(false)}>
+                  <Text style={styles.closeButton}>✕</Text>
+                </TouchableOpacity>
+              </View>
+              
+              <DateTimePicker
+                value={settings.dateOfBirth || new Date(2000, 0, 1)}
+                mode="date"
+                display="spinner"
+                onChange={(event, selectedDate) => {
+                  console.log('Date picker event:', event, 'Selected date:', selectedDate);
+                  
+                  if (selectedDate && event.type !== 'dismissed') {
+                    const now = new Date();
+                    const minDate = new Date(1900, 0, 1);
+                    
+                    if (selectedDate > now) {
+                      Alert.alert("Invalid Date", "Date of birth cannot be in the future");
+                      return;
+                    }
+                    
+                    if (selectedDate < minDate) {
+                      Alert.alert("Invalid Date", "Please enter a valid date of birth");
+                      return;
+                    }
+                    
+                    const cleanDate = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
+                    console.log('Setting date to:', cleanDate);
+                    updateSetting('dateOfBirth', cleanDate);
+                  }
+                }}
+                maximumDate={new Date()}
+                minimumDate={new Date(1900, 0, 1)}
+                style={{ backgroundColor: '#1C1C1E' }}
+              />
+              
+              <TouchableOpacity 
+                style={styles.dateModalDoneButton}
+                onPress={() => setDateModalVisible(false)}
+              >
+                <Text style={styles.dateModalDoneText}>Done</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         )}
       </ScrollView>
 
@@ -1493,5 +1548,75 @@ const styles = StyleSheet.create({
   saveButtonHighlighted: {
     backgroundColor: '#FF9500',
     transform: [{ scale: 1.02 }],
+  },
+  iosDatePickerContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#1C1C1E',
+    paddingTop: 20,
+    paddingBottom: 40,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    zIndex: 1000,
+  },
+  iosDatePicker: {
+    backgroundColor: '#1C1C1E',
+  },
+  iosDatePickerButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 10,
+  },
+  datePickerButton: {
+    backgroundColor: '#2C2C2E',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+    minWidth: 80,
+    alignItems: 'center',
+  },
+  datePickerDoneButton: {
+    backgroundColor: '#007AFF',
+  },
+  datePickerButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  datePickerDoneText: {
+    color: '#fff',
+  },
+  dateModal: {
+    backgroundColor: '#1C1C1E',
+    borderRadius: 16,
+    padding: 20,
+    margin: 20,
+    width: '90%',
+  },
+  dateModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  dateModalTitle: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  dateModalDoneButton: {
+    backgroundColor: '#007AFF',
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  dateModalDoneText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '500',
   },
 });
