@@ -142,12 +142,11 @@ export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin,
     onBackPress();
   }, [onBackPress]);
 
-  // Username input always starts with '@'
-  const getUsernameValue = () => (username.startsWith('@') ? username : '@' + username);
+  // Username input (no longer prepends '@')
+  const getUsernameValue = () => username;
   const handleUsernameChange = (text: string) => {
-    // Remove all leading @'s, then prepend one
-    const sanitized = text.replace(/^@+/, '');
-    setUsername('@' + sanitized);
+    // Remove all leading @'s, just use the text as is
+    setUsername(text.replace(/^@+/, ''));
   };
 
   // Date picker state
@@ -207,7 +206,7 @@ export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin,
               <View style={styles.inputContainer}>
                 <TextInput
                   label="Username"
-                  value={getUsernameValue()}
+                  value={username}
                   onChangeText={handleUsernameChange}
                   onFocus={() => setUsernameFocused(true)}
                   onBlur={() => setUsernameFocused(false)}
@@ -229,9 +228,8 @@ export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin,
                   activeUnderlineColor="#FFFFFF"
                   autoCapitalize="none"
                   left={null}
-                  // Hide the left icon, since @ is now part of the value
                   selectionColor="#FFFFFF"
-                  selection={{ start: Math.max(1, username.length), end: Math.max(1, username.length) }}
+                  // Remove selection prop, not needed for plain username
                 />
               </View>
 
