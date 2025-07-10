@@ -404,7 +404,7 @@ export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin,
           </Animated.View>
 
           {/* Info Box - moved outside Animated.View so it does not move with keyboard */}
-          <View style={styles.infoBoxWrapperFixed}>
+          <View style={{ width: '100%', alignItems: 'center', marginBottom: 0 }}>
             <View style={styles.infoBox}>
               <Ionicons name="information-circle" size={20} color="rgba(255, 255, 255, 0.7)" />
               <Text style={styles.infoText}>
