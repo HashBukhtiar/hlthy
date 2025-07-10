@@ -23,7 +23,6 @@ import { trackSettingsChange, generateSettingsInsights, calculatePrivacyLevel } 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 
-// Data constants
 const archetypeData: SelectorItem[] = [
   { 
     label: 'Athlete', 
@@ -764,8 +763,6 @@ export default function Settings() {
       ]
     );
   };
-
-  console.log('archetypeModalVisible:', archetypeModalVisible);
 
   return (
     <>
