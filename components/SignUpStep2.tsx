@@ -39,6 +39,10 @@ export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin,
   // Animation for keyboard
   const contentPaddingAnim = useRef(new Animated.Value(80)).current;
 
+  // Animation for floating label and input value
+  const floatingLabelAnim = useRef(new Animated.Value(0)).current;
+  const inputValueAnim = useRef(new Animated.Value(0)).current;
+
   useEffect(() => {
     const keyboardDidShowListener = Keyboard.addListener(
       'keyboardDidShow',
@@ -66,6 +70,37 @@ export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin,
       keyboardDidShowListener?.remove();
     };
   }, [contentPaddingAnim]);
+
+  useEffect(() => {
+    // Animate label and input in/out
+    if (dateFocused || dateOfBirth) {
+      Animated.parallel([
+        Animated.timing(floatingLabelAnim, {
+          toValue: 1,
+          duration: 220,
+          useNativeDriver: true,
+        }),
+        Animated.timing(inputValueAnim, {
+          toValue: 1,
+          duration: 220,
+          useNativeDriver: true,
+        })
+      ]).start();
+    } else {
+      Animated.parallel([
+        Animated.timing(floatingLabelAnim, {
+          toValue: 0,
+          duration: 220,
+          useNativeDriver: true,
+        }),
+        Animated.timing(inputValueAnim, {
+          toValue: 0,
+          duration: 220,
+          useNativeDriver: true,
+        })
+      ]).start();
+    }
+  }, [dateFocused, dateOfBirth]);
 
   const validateUsername = (username: string): boolean => {
     // Username should be 3-20 characters, alphanumeric and underscores only
@@ -233,12 +268,41 @@ export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin,
               </View>
 
               <View style={styles.inputContainer}>
-                {/* Floating label for Date of Birth */}
-                {(dateFocused || dateOfBirthFormatted) && (
-                  <Text style={styles.floatingLabel}>
+                {/* Animated Floating label for Date of Birth (always rendered, animates between states) */}
+                <View style={styles.floatingLabelWrapper} pointerEvents="none">
+                  {/* Large label (resting) */}
+                  <Animated.Text
+                    style={[
+                      styles.floatingLabelLarge,
+                      {
+                        opacity: floatingLabelAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }),
+                        transform: [
+                          {
+                            translateY: floatingLabelAnim.interpolate({ inputRange: [0, 1], outputRange: [0, -18] }),
+                          },
+                        ],
+                      },
+                    ]}
+                  >
                     Date of Birth
-                  </Text>
-                )}
+                  </Animated.Text>
+                  {/* Small label (floating) */}
+                  <Animated.Text
+                    style={[
+                      styles.floatingLabelSmall,
+                      {
+                        opacity: floatingLabelAnim,
+                        transform: [
+                          {
+                            translateY: floatingLabelAnim.interpolate({ inputRange: [0, 1], outputRange: [18, 0] }),
+                          },
+                        ],
+                      },
+                    ]}
+                  >
+                    Date of Birth
+                  </Animated.Text>
+                </View>
                 <TouchableOpacity
                   onPress={() => setShowDatePicker(true)}
                   onFocus={() => setDateFocused(true)}
@@ -249,13 +313,24 @@ export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin,
                   ]}
                   activeOpacity={0.8}
                 >
-                  <Text style={{
-                    color: dateFocused || dateOfBirthFormatted ? '#fff' : 'rgba(255,255,255,0.7)',
-                    fontSize: 16,
-                    flex: 1
-                  }}>
+                  <Animated.Text
+                    style={{
+                      color: dateFocused || dateOfBirthFormatted ? '#fff' : 'rgba(255,255,255,0.7)',
+                      fontSize: 16,
+                      flex: 1,
+                      opacity: inputValueAnim,
+                      transform: [
+                        {
+                          translateY: inputValueAnim.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [10, 0],
+                          }),
+                        },
+                      ],
+                    }}
+                  >
                     {dateOfBirthFormatted || (!dateFocused ? 'Date of Birth' : '')}
-                  </Text>
+                  </Animated.Text>
                   {dateOfBirthFormatted ? (
                     <TouchableOpacity
                       onPress={(e) => { e.stopPropagation && e.stopPropagation(); setDateOfBirth(''); setDateOfBirthFormatted(''); }}
@@ -512,12 +587,23 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: 'bold',
   },
-  floatingLabel: {
+  floatingLabelWrapper: {
     position: 'absolute',
     left: 5,
-    fontSize: 12,
+    width: '100%',
+    height: 40,
+    justifyContent: 'center',
+  },
+  floatingLabelLarge: {
+    position: 'absolute',
     color: 'rgba(255,255,255,0.7)',
-    zIndex: 2,
-    backgroundColor: 'transparent',
+    fontSize: 16,
+    top: 23
+  },
+  floatingLabelSmall: {
+    position: 'absolute',
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 12,
+    top: 0
   },
 });
