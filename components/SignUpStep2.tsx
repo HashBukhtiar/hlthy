@@ -213,10 +213,11 @@ export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin,
         style={styles.container} 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <ScrollView 
+        <ScrollView
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
+          scrollEnabled={false}
         >
           {/* Back button - positioned absolutely like LoginForm */}
           <TouchableOpacity 
@@ -232,7 +233,7 @@ export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin,
           </View>
 
           {/* Content */}
-          <Animated.View style={[styles.content, { paddingTop: contentPaddingAnim }]}>
+          <Animated.View style={[styles.content, { paddingTop: contentPaddingAnim }]}> 
             <Text style={styles.title}>Welcome, {firstName || 'there'}</Text>
             <Text style={styles.subtitle}>Pick a username and enter your birthdate</Text>
 

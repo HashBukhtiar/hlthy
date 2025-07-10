@@ -119,10 +119,11 @@ export default function SignUpStep1({ visible, onBackPress, onNext, onShowLogin 
         style={styles.container} 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <ScrollView 
+        <ScrollView
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
+          scrollEnabled={false}
         >
           {/* Back button - positioned absolutely like LoginForm */}
           <TouchableOpacity 
