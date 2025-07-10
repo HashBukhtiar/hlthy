@@ -672,39 +672,6 @@ export default function Settings() {
     );
   };
 
-  const handleDateChange = (event: any, selectedDate?: Date) => {
-    console.log('Date picker event:', event, 'Selected date:', selectedDate);
-    
-    if (Platform.OS === 'android') {
-      setShowDatePicker(false);
-    }
-    
-    if (selectedDate && event.type !== 'dismissed') {
-      // Validate the date
-      const now = new Date();
-      const minDate = new Date(1900, 0, 1); // January 1, 1900
-      
-      if (selectedDate > now) {
-        Alert.alert("Invalid Date", "Date of birth cannot be in the future");
-        return;
-      }
-      
-      if (selectedDate < minDate) {
-        Alert.alert("Invalid Date", "Please enter a valid date of birth");
-        return;
-      }
-      
-      // Create a clean date object to avoid timezone issues
-      const cleanDate = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
-      console.log('Setting date to:', cleanDate);
-      updateSetting('dateOfBirth', cleanDate);
-    }
-    
-    if (Platform.OS === 'ios') {
-      setShowDatePicker(false);
-    }
-  };
-
   console.log('archetypeModalVisible:', archetypeModalVisible);
 
   return (

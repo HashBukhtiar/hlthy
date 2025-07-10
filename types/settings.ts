@@ -57,3 +57,68 @@ export interface SettingsItem {
   destructive?: boolean;
   disabled?: boolean;
 }
+
+// Add these helpful type aliases and interfaces:
+
+export type SettingsSectionType = SettingsSection;
+
+// For validation results
+export interface ValidationResult {
+  isValid: boolean;
+  errors: string[];
+  warnings: string[];
+}
+
+// For backup functionality
+export interface SettingsBackup {
+  timestamp: string;
+  settings: Partial<UserSettings>;
+  version: string;
+}
+
+// For export functionality
+export interface SettingsExport {
+  exportedAt: string;
+  appVersion: string;
+  settings: Partial<UserSettings>;
+  metadata: {
+    userId: string;
+    username: string;
+    exportVersion: string;
+  };
+}
+
+// For analytics
+export interface SettingsUsageStats {
+  lastSettingsUpdate: Date;
+  settingsUpdateCount: number;
+  mostChangedSettings: Record<string, number>;
+  averageSessionLength: number;
+  privacyLevel: 'open' | 'moderate' | 'strict';
+}
+
+// For privacy level calculation
+export type PrivacyLevel = 'open' | 'moderate' | 'strict';
+
+// Constants for validation
+export const VALIDATION_RULES = {
+  displayName: {
+    minLength: 2,
+    maxLength: 50,
+    pattern: /^[a-zA-Z0-9\s\-_\.]+$/
+  },
+  bio: {
+    maxLength: 500
+  },
+  minAge: 13,
+  maxAge: 120
+} as const;
+
+// Available themes
+export const THEMES = ['light', 'dark', 'system'] as const;
+
+// Available languages (expand as needed)
+export const LANGUAGES = ['en', 'es', 'fr', 'de', 'it', 'nl'] as const;
+
+// Unit systems
+export const UNIT_SYSTEMS = ['metric', 'imperial'] as const;

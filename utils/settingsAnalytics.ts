@@ -18,36 +18,18 @@ export const trackSettingsChange = async (
   newValue: any
 ): Promise<void> => {
   try {
-    // Only track anonymized analytics
-    const analyticsRef = doc(db, 'analytics', 'settings');
+    // Make analytics safer - use user document instead of shared analytics
+    const userRef = doc(db, 'users', userId);
     
-    // Use a transaction for better reliability
-    await runTransaction(db, async (transaction) => {
-      const analyticsDoc = await transaction.get(analyticsRef);
-      
-      if (!analyticsDoc.exists()) {
-        // Create the document if it doesn't exist
-        transaction.set(analyticsRef, {
-          [`changes.${settingKey}`]: 1,
-          totalChanges: 1,
-          lastUpdate: new Date()
-        });
-      } else {
-        // Update existing document
-        const currentChanges = analyticsDoc.data()[`changes.${settingKey}`] || 0;
-        const totalChanges = analyticsDoc.data().totalChanges || 0;
-        
-        transaction.update(analyticsRef, {
-          [`changes.${settingKey}`]: currentChanges + 1,
-          totalChanges: totalChanges + 1,
-          lastUpdate: new Date()
-        });
-      }
+    await updateDoc(userRef, {
+      'analytics.settingsUpdateCount': increment(1),
+      'analytics.lastSettingsUpdate': new Date(),
+      [`analytics.changedSettings.${settingKey}`]: increment(1)
     });
   } catch (error) {
     // Silently fail - analytics is not critical
-    console.warn('Analytics tracking failed:', error);
-    throw error; // Re-throw so the caller can handle it
+    console.log('Analytics tracking failed (non-critical):', error.message);
+    // Don't re-throw - this prevents analytics from breaking the settings flow
   }
 };
 

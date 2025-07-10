@@ -21,6 +21,7 @@ export default function BlockedUsers() {
   const { currentUser, userProfile } = useAuth();
   const [blockedUsers, setBlockedUsers] = useState<BlockedUser[]>([]);
   const [loading, setLoading] = useState(true);
+  const [unblockingUserId, setUnblockingUserId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchBlockedUsers();
@@ -40,27 +41,35 @@ export default function BlockedUsers() {
         return;
       }
 
-      // Fetch user details for blocked users
-      const usersRef = collection(db, 'users');
-      const q = query(usersRef, where('__name__', 'in', blockedUserIds));
-      const querySnapshot = await getDocs(q);
+      // Handle Firestore 'in' query limit (max 10 items)
+      const chunks = [];
+      for (let i = 0; i < blockedUserIds.length; i += 10) {
+        chunks.push(blockedUserIds.slice(i, i + 10));
+      }
 
       const users: BlockedUser[] = [];
-      querySnapshot.forEach((doc) => {
-        const userData = doc.data();
-        users.push({
-          id: doc.id,
-          username: userData.username,
-          displayName: userData.displayName,
-          profileImageUrl: userData.profileImageUrl,
-          profileThumbnailUrl: userData.profileThumbnailUrl,
+      const usersRef = collection(db, 'users');
+
+      for (const chunk of chunks) {
+        const q = query(usersRef, where('__name__', 'in', chunk));
+        const querySnapshot = await getDocs(q);
+
+        querySnapshot.forEach((doc) => {
+          const userData = doc.data();
+          users.push({
+            id: doc.id,
+            username: userData.username || 'Unknown',
+            displayName: userData.displayName || 'Unknown User',
+            profileImageUrl: userData.profileImageUrl,
+            profileThumbnailUrl: userData.profileThumbnailUrl,
+          });
         });
-      });
+      }
 
       setBlockedUsers(users);
     } catch (error) {
       console.error('Error fetching blocked users:', error);
-      Alert.alert('Error', 'Failed to load blocked users');
+      Alert.alert('Error', 'Failed to load blocked users. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -76,19 +85,19 @@ export default function BlockedUsers() {
           text: 'Unblock',
           style: 'default',
           onPress: async () => {
+            setUnblockingUserId(userId);
             try {
-              // Remove from blocked users array in Firestore
               await updateDoc(doc(db, 'users', currentUser!.uid), {
                 blockedUsers: arrayRemove(userId)
               });
 
-              // Update local state
               setBlockedUsers(prev => prev.filter(user => user.id !== userId));
-              
               Alert.alert('Success', `@${username} has been unblocked`);
             } catch (error) {
               console.error('Error unblocking user:', error);
               Alert.alert('Error', 'Failed to unblock user');
+            } finally {
+              setUnblockingUserId(null);
             }
           }
         }
@@ -110,10 +119,18 @@ export default function BlockedUsers() {
         <Text style={styles.username}>@{item.username}</Text>
       </View>
       <TouchableOpacity
-        style={styles.unblockButton}
+        style={[
+          styles.unblockButton, 
+          unblockingUserId === item.id && styles.unblockButtonDisabled
+        ]}
         onPress={() => handleUnblockUser(item.id, item.username)}
+        disabled={unblockingUserId === item.id}
       >
-        <Text style={styles.unblockButtonText}>Unblock</Text>
+        {unblockingUserId === item.id ? (
+          <ActivityIndicator size="small" color="#fff" />
+        ) : (
+          <Text style={styles.unblockButtonText}>Unblock</Text>
+        )}
       </TouchableOpacity>
     </View>
   );
@@ -246,5 +263,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
     lineHeight: 20,
+  },
+  unblockButtonDisabled: {
+    opacity: 0.6,
   },
 });
