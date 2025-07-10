@@ -21,6 +21,7 @@ import { createSettingsBackup, restoreSettingsBackup, getSettingsHistory } from 
 import { exportSettings, importSettings } from '@/utils/settingsExport';
 import { trackSettingsChange, generateSettingsInsights, calculatePrivacyLevel } from '@/utils/settingsAnalytics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Ionicons } from '@expo/vector-icons';
 
 // Data constants
 const archetypeData: SelectorItem[] = [
@@ -208,46 +209,136 @@ export default function Settings() {
   }, [userProfile]);
 
   useEffect(() => {
-    // Generate insights when settings change
-    const newInsights = generateSettingsInsights(settings);
-    setInsights(newInsights);
-    setPrivacyLevel(calculatePrivacyLevel(settings));
-    
-    // Check for unsaved changes
-    const hasChanges = JSON.stringify(settings) !== JSON.stringify(originalSettings);
-    setHasUnsavedChanges(hasChanges);
-  }, [settings, originalSettings]);
-
-  useEffect(() => {
     if (userProfile && Object.keys(originalSettings).length === 0) {
-      setOriginalSettings({
+      const parseDateOfBirth = (dateValue: any) => {
+        if (!dateValue) return undefined;
+        
+        try {
+          if (dateValue instanceof Date) {
+            return isNaN(dateValue.getTime()) ? undefined : dateValue;
+          }
+          
+          if (dateValue.toDate && typeof dateValue.toDate === 'function') {
+            return dateValue.toDate();
+          }
+          
+          if (typeof dateValue === 'string') {
+            const parsed = new Date(dateValue);
+            return isNaN(parsed.getTime()) ? undefined : parsed;
+          }
+          
+          return undefined;
+        } catch (error) {
+          console.error('Error parsing date of birth:', error);
+          return undefined;
+        }
+      };
+
+      // Set originalSettings with the exact same structure as settings
+      const originalSettingsData = {
         displayName: userProfile.displayName || '',
         bio: userProfile.bio || '',
         archetype: userProfile.archetype || '',
-        // ... add all other settings
-      });
+        profileVisibility: userProfile.profileVisibility || 'public',
+        followPermission: userProfile.followPermission || 'anyone',
+        commentPermission: userProfile.commentPermission || 'everyone',
+        messagePermission: userProfile.messagePermission || 'everyone',
+        theme: userProfile.theme || 'dark',
+        language: userProfile.language || 'en',
+        units: {
+          weight: userProfile.units?.weight || 'metric',
+          distance: userProfile.units?.distance || 'metric',
+        },
+        notifications: {
+          newFollowers: userProfile.notifications?.newFollowers ?? true,
+          likesAndComments: userProfile.notifications?.likesAndComments ?? true,
+          directMessages: userProfile.notifications?.directMessages ?? true,
+          followRequestAccepted: userProfile.notifications?.followRequestAccepted ?? true,
+          taggedInComments: userProfile.notifications?.taggedInComments ?? true,
+          mentionedInReplies: userProfile.notifications?.mentionedInReplies ?? true,
+        },
+        twoFactorEnabled: userProfile.twoFactorEnabled || false,
+        dateOfBirth: parseDateOfBirth(userProfile.dateOfBirth),
+      };
+
+      setOriginalSettings(originalSettingsData);
     }
   }, [userProfile, originalSettings]);
 
   useEffect(() => {
-    const unsubscribe = router.canGoBack() ? (() => {
-      if (hasUnsavedChanges) {
-        Alert.alert(
-          "Unsaved Changes",
-          "You have unsaved changes. Do you want to save them before leaving?",
-          [
-            { text: "Discard", style: "destructive", onPress: () => router.back() },
-            { text: "Cancel", style: "cancel" },
-            { text: "Save", onPress: handleSaveSettings }
-          ]
-        );
-        return false; // Prevent navigation
-      }
-      return true; // Allow navigation
-    }) : undefined;
+    // Only check for changes if we have original settings
+    if (Object.keys(originalSettings).length > 0) {
+      // Generate insights when settings change
+      const newInsights = generateSettingsInsights(settings);
+      setInsights(newInsights);
+      setPrivacyLevel(calculatePrivacyLevel(settings));
+      
+      // Deep comparison function to properly compare objects
+      const deepEqual = (obj1: any, obj2: any): boolean => {
+        if (obj1 === obj2) return true;
+        
+        if (obj1 == null || obj2 == null) return obj1 === obj2;
+        
+        if (typeof obj1 !== typeof obj2) return false;
+        
+        if (typeof obj1 !== 'object') return obj1 === obj2;
+        
+        // Handle Date objects
+        if (obj1 instanceof Date && obj2 instanceof Date) {
+          return obj1.getTime() === obj2.getTime();
+        }
+        
+        if (obj1 instanceof Date || obj2 instanceof Date) {
+          return false;
+        }
+        
+        const keys1 = Object.keys(obj1);
+        const keys2 = Object.keys(obj2);
+        
+        if (keys1.length !== keys2.length) return false;
+        
+        for (let key of keys1) {
+          if (!keys2.includes(key)) return false;
+          if (!deepEqual(obj1[key], obj2[key])) return false;
+        }
+        
+        return true;
+      };
+      
+      // Check for unsaved changes using deep comparison
+      const hasChanges = !deepEqual(settings, originalSettings);
+      setHasUnsavedChanges(hasChanges);
+    }
+  }, [settings, originalSettings]);
 
-    return unsubscribe;
-  }, [hasUnsavedChanges, router]);
+  const handleBackPress = () => {
+    if (hasUnsavedChanges) {
+      Alert.alert(
+        "Unsaved Changes",
+        "You have unsaved changes. Do you want to save them before leaving?",
+        [
+          { 
+            text: "Discard", 
+            style: "destructive", 
+            onPress: () => {
+              setHasUnsavedChanges(false);
+              router.back();
+            }
+          },
+          { text: "Cancel", style: "cancel" },
+          { 
+            text: "Save", 
+            onPress: async () => {
+              await handleSaveSettings();
+              router.back();
+            }
+          }
+        ]
+      );
+    } else {
+      router.back();
+    }
+  };
 
   const toggleSection = (sectionId: string) => {
     setSections(prev => prev.map(section => 
@@ -440,7 +531,9 @@ export default function Settings() {
       }
       
       await refreshUserProfile();
-      setOriginalSettings(settings); // Update original settings
+      
+      // Update original settings to current settings after successful save
+      setOriginalSettings({ ...settings }); // This will clear the unsaved changes indicator
       setHasUnsavedChanges(false);
       
       Alert.alert("Success", "Settings updated successfully");
@@ -678,7 +771,13 @@ export default function Settings() {
     <>
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <Text style={styles.title}>Settings</Text>
+          <View style={styles.headerRow}>
+            <TouchableOpacity style={styles.backButton} onPress={handleBackPress}>
+              <Ionicons name="chevron-back" size={24} color="#fff" />
+            </TouchableOpacity>
+            <Text style={styles.title}>Settings</Text>
+            <View style={styles.placeholder} />
+          </View>
         </View>
 
         {/* Profile Information Section */}
@@ -1585,5 +1684,17 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '500',
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  backButton: {
+    padding: 8,
+    marginLeft: -8,
+  },
+  placeholder: {
+    width: 40,
   },
 });
