@@ -853,6 +853,7 @@ export default function ChatScreen() {
             autoCorrect={true}
             spellCheck={true}
             autoCapitalize="sentences"
+            multiline={true}
           />
           <TouchableOpacity style={styles.sendButton} onPress={handleSend}>
             <Ionicons name="send" size={24} color="white" />
@@ -954,6 +955,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     borderRadius: 25,
     marginRight: 10,
+    maxHeight: 120,
   },
   sendButton: {
     backgroundColor: '#007AFF',
