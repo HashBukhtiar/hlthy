@@ -405,11 +405,8 @@ const MessageItem = React.memo<{ item: Message; onLongPress: (m: Message) => voi
   }
 );
 
-function addDateHeaders(msgs: Message[]): Message[] {
-  const out: Message[] = [];
-  if (!msgs || msgs.length === 0) {
-    return out;
-  }
+function addDateHeaders(messages: Message[]): Message[] {
+  if (!messages.length) return [];
 
   const dateOptions: Intl.DateTimeFormatOptions = {
     year: 'numeric',
@@ -417,55 +414,29 @@ function addDateHeaders(msgs: Message[]): Message[] {
     day: 'numeric',
   };
 
-  let currentDayMessages: Message[] = [];
-  let currentDayStr: string | null = msgs[0].createdAt
-    ? msgs[0].createdAt.toLocaleDateString(undefined, dateOptions)
-    : null;
+  return messages.reduce((acc: Message[], message, index) => {
+    // Add the message itself to the accumulator
+    acc.push(message);
 
-  for (let i = 0; i < msgs.length; i++) {
-    const msg = msgs[i];
-    const msgDayStr = msg.createdAt ? msg.createdAt.toLocaleDateString(undefined, dateOptions) : null;
+    const currentMessageDate = message.createdAt;
+    const nextMessage = messages[index + 1];
+    const nextMessageDate = nextMessage?.createdAt;
 
-    if (msgDayStr !== currentDayStr) {
-      if (currentDayMessages.length > 0) {
-        out.push(...currentDayMessages);
-      }
-      if (currentDayStr) {
-        out.push({
-          id: `date-${currentDayStr}`,
-          text: currentDayStr,
-          type: 'dateHeader',
-          user: 'other',
-          createdAt: currentDayMessages.length > 0 ? currentDayMessages[currentDayMessages.length-1].createdAt : undefined
-        });
-      }
-      currentDayMessages = [];
-      currentDayStr = msgDayStr;
+    const currentDateString = currentMessageDate?.toLocaleDateString(undefined, dateOptions);
+    const nextDateString = nextMessageDate?.toLocaleDateString(undefined, dateOptions);
+
+    // Add a header if this is the last message OR if the next message is on a different day.
+    if (currentDateString && (index === messages.length - 1 || currentDateString !== nextDateString)) {
+      acc.push({
+        id: `date-${currentDateString}`,
+        text: currentDateString,
+        type: 'dateHeader',
+        user: 'other',
+        createdAt: currentMessageDate,
+      });
     }
-
-    // Add current message to its day's collection, if it has a date
-    if (msgDayStr) {
-      currentDayMessages.push(msg);
-    } else {
-      out.push(msg);
-    }
-  }
-
-  // After the loop, add any remaining messages and their header
-  if (currentDayMessages.length > 0) {
-    out.push(...currentDayMessages);
-  }
-  if (currentDayStr && currentDayMessages.length > 0) {
-    out.push({
-      id: `date-${currentDayStr}`,
-      text: currentDayStr,
-      type: 'dateHeader',
-      user: 'other',
-      createdAt: currentDayMessages.length > 0 ? currentDayMessages[currentDayMessages.length-1].createdAt : undefined
-    });
-  }
-  
-  return out;
+    return acc;
+  }, []);
 }
 
 export default function ChatScreen() {
@@ -494,8 +465,6 @@ export default function ChatScreen() {
       setHasMoreMessages(false);
       return;
     }
-    // setLoading(true); // Handled by the effect above or initial state
-    // setHasMoreMessages(true); // Reset when conversationId changes
 
     const messagesRef = collection(db, "conversations", conversationId, "messages");
 
@@ -627,7 +596,6 @@ export default function ChatScreen() {
 
 
   const handleSend = async () => {
-    Keyboard.dismiss();
     if (!input.trim() || !currentUser || !conversationId) return;
 
     const textToSend = input.trim();
@@ -640,7 +608,7 @@ export default function ChatScreen() {
     };
 
     setInput('');
-    setMessages(previousMessages => [...previousMessages, newMessage]);
+    setMessages(previousMessages => [newMessage, ...previousMessages]);
 
     if (conversationId === 'ai_conversation') {
       // AI conversation handling
@@ -659,106 +627,29 @@ export default function ChatScreen() {
     } else {
       try {
         const conversationRef = doc(db, "conversations", conversationId);
-        const conversationSnap = await getDoc(conversationRef);
-        
-        if (!conversationSnap.exists()) {
-          console.log("Conversation document not found, recreating...");
-          const userConvRef = doc(db, `users/${currentUser.uid}/conversations`, conversationId);
-          const userConvSnap = await getDoc(userConvRef);
-          
-          if (userConvSnap.exists()) {
-            const userData = userConvSnap.data();
-            const otherUserId = userData.otherParticipantId;
-            
-            if (otherUserId) {
-              const otherUserRef = doc(db, 'users', otherUserId);
-              const otherUserSnap = await getDoc(otherUserRef);
-              let otherUsername = userData.otherParticipantUsername || 'User';
-              let otherProfileImg = userData.otherParticipantProfileImage || '';
-              if (otherUserSnap.exists()) {
-                const otherUserData = otherUserSnap.data();
-                if (otherUserData.username) otherUsername = otherUserData.username;
-                if (otherUserData.profileImageUrl) otherProfileImg = otherUserData.profileImageUrl;
-              }
-              
-              await setDoc(conversationRef, {
-                participants: [currentUser.uid, otherUserId],
-                lastMessageAt: serverTimestamp(),
-                lastMessageText: textToSend,
-                lastMessageSenderId: currentUser.uid,
-                participantUsernames: {
-                  [currentUser.uid]: currentUser.displayName || currentUser.email || 'User',
-                  [otherUserId]: otherUsername,
-                },
-                participantProfileImages: {
-                  [currentUser.uid]: currentUser.photoURL || '',
-                  [otherUserId]: otherProfileImg,
-                },
-              });
-            } else { throw new Error("Could not find other participant ID"); }
-          } else { throw new Error("User conversation reference not found"); }
-        }
-        
         const messagesRef = collection(db, "conversations", conversationId, "messages");
+        
+        // The only write the client needs to do for the message itself
         await addDoc(messagesRef, {
           text: textToSend,
           createdAt: serverTimestamp(),
           senderId: currentUser.uid,
         });
 
+        // Update the main conversation document's last message details
         await updateDoc(conversationRef, {
           lastMessageAt: serverTimestamp(),
           lastMessageText: textToSend,
           lastMessageSenderId: currentUser.uid,
         });
 
-        // Update user conversation refs (userConvRef1 for current user)
+        // Update the current user's own conversation reference
         const userConvRef1 = doc(db, `users/${currentUser.uid}/conversations`, conversationId);
-        const userConvSnap1 = await getDoc(userConvRef1);
-        const conversationDataForUserRef = (await getDoc(conversationRef)).data(); // Re-fetch to ensure data consistency
+        await updateDoc(userConvRef1, {
+          lastMessageAt: serverTimestamp(),
+          lastMessageText: textToSend,
+        });
 
-        if (!userConvSnap1.exists()) {
-          const otherParticipantForUserRef = conversationDataForUserRef?.participants?.find((uid: string) => uid !== currentUser.uid);
-          if (otherParticipantForUserRef) {
-            await setDoc(userConvRef1, {
-              otherParticipantId: otherParticipantForUserRef,
-              otherParticipantUsername: conversationDataForUserRef?.participantUsernames?.[otherParticipantForUserRef] || 'User',
-              otherParticipantProfileImage: conversationDataForUserRef?.participantProfileImages?.[otherParticipantForUserRef] || '',
-              lastMessageAt: serverTimestamp(),
-              lastMessageText: textToSend,
-            });
-          }
-        } else {
-          await updateDoc(userConvRef1, {
-            lastMessageAt: serverTimestamp(),
-            lastMessageText: textToSend,
-          });
-        }
-
-        // Update other user's conversation reference (userConvRef2)
-        const otherUserId = conversationDataForUserRef?.participants?.find((uid: string) => uid !== currentUser.uid);
-        if (otherUserId) {
-          const userConvRef2 = doc(db, `users/${otherUserId}/conversations`, conversationId);
-          const userConvSnap2 = await getDoc(userConvRef2);
-          const currentUserDataForOtherUserRef = (await getDoc(doc(db, 'users', currentUser.uid))).data();
-
-          if (!userConvSnap2.exists()) {
-             if (currentUserDataForOtherUserRef) {
-                await setDoc(userConvRef2, {
-                    otherParticipantId: currentUser.uid,
-                    otherParticipantUsername: currentUserDataForOtherUserRef?.username || currentUser.displayName || 'User',
-                    otherParticipantProfileImage: currentUserDataForOtherUserRef?.profileImageUrl || currentUser.photoURL || '',
-                    lastMessageAt: serverTimestamp(),
-                    lastMessageText: textToSend,
-                });
-             }
-          } else {
-            await updateDoc(userConvRef2, {
-              lastMessageAt: serverTimestamp(),
-              lastMessageText: textToSend,
-            });
-          }
-        }
       } catch (error) {
         console.error('Error sending message to Firestore:', error);
         Alert.alert(
