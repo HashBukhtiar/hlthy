@@ -8,6 +8,7 @@ import { collection, getDocs, doc, updateDoc, getDoc, Timestamp, query, where, l
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
+import { getOptimalImageUrl } from '@/utils/imageUtils';
 
 interface UserConversationData {
     // Fields from /users/{userId}/conversations/{conversationId}
@@ -163,96 +164,68 @@ export default function DMs() {
         }
         setLoading(true);
         try {
+            // 1. Fetch all of the current user's conversation references
             const userConversationsRef = collection(db, `users/${currentUser.uid}/conversations`);
             const userConversationsSnap = await getDocs(userConversationsRef);
+            if (userConversationsSnap.empty) {
+                setConversations([]);
+                setLoading(false);
+                return;
+            }
 
+            // 2. Collect all other participant IDs
+            const participantIds = new Set<string>();
+            userConversationsSnap.docs.forEach(doc => {
+                const otherId = doc.data().otherParticipantId;
+                if (otherId) participantIds.add(otherId);
+            });
+
+            // 3. Fetch all participant profiles in a single batched query
+            const profiles: Record<string, UserData> = {};
+            if (participantIds.size > 0) {
+                const usersQuery = query(collection(db, 'users'), where('__name__', 'in', Array.from(participantIds)));
+                const usersSnapshot = await getDocs(usersQuery);
+                usersSnapshot.forEach(userDoc => {
+                    const data = userDoc.data();
+                    profiles[userDoc.id] = {
+                        id: userDoc.id,
+                        username: data.username,
+                        profileImageUrl: data.profileImageUrl,
+                    };
+                });
+            }
+
+            // 4. Fetch conversation metadata and combine with fresh profile data
             const combinedDataPromises = userConversationsSnap.docs.map(async (userConvDoc) => {
                 const userConvData = userConvDoc.data() as UserConversationData;
                 const conversationId = userConvDoc.id;
+                const otherParticipantId = userConvData.otherParticipantId;
 
                 const conversationMetaRef = doc(db, 'conversations', conversationId);
                 const conversationMetaSnap = await getDoc(conversationMetaRef);
 
-                if (conversationMetaSnap.exists()) {
+                if (conversationMetaSnap.exists() && otherParticipantId) {
                     const conversationMetaData = conversationMetaSnap.data() as ConversationMetadata;
-                    
-                    // Determine if the conversation is unread
+                    const otherUserProfile = profiles[otherParticipantId];
+
                     const isUnread = conversationMetaData.lastMessageAt &&
-                                    userConvData.otherParticipantId &&
                                     !conversationMetaData.isPinnedAI &&
                                     conversationMetaData.lastMessageSenderId !== currentUser.uid &&
-                                    (
-                                        !userConvData.lastRead || 
-                                        (userConvData.lastRead && conversationMetaData.lastMessageAt.toMillis() > userConvData.lastRead.toMillis())
-                                    );
+                                    (!userConvData.lastRead || (userConvData.lastRead && conversationMetaData.lastMessageAt.toMillis() > userConvData.lastRead.toMillis()));
 
-                    // Get the other participant's ID
-                    const otherParticipantId = userConvData.otherParticipantId;
-                    
-                    // Check if profile image is missing or empty
-                    if ((!userConvData.otherParticipantProfileImage || userConvData.otherParticipantProfileImage === '') 
-                        && otherParticipantId) {
-                        
-                        let profileImageUrl = '';
-                        
-                        // First try to get it from conversation metadata
-                        if (conversationMetaData.participantProfileImages && 
-                            conversationMetaData.participantProfileImages[otherParticipantId]) {
-                            profileImageUrl = conversationMetaData.participantProfileImages[otherParticipantId];
-                        }
-                        
-                        // If still empty, fetch directly from the user's profile
-                        if (!profileImageUrl) {
-                            try {
-                                const otherUserRef = doc(db, 'users', otherParticipantId);
-                                const otherUserSnap = await getDoc(otherUserRef);
-                                
-                                if (otherUserSnap.exists() && otherUserSnap.data().profileImageUrl) {
-                                    profileImageUrl = otherUserSnap.data().profileImageUrl;
-                                    
-                                    // Also update the conversation metadata for future reference
-                                    if (conversationMetaData.participantProfileImages) {
-                                        const updatedProfileImages = {
-                                            ...conversationMetaData.participantProfileImages,
-                                            [otherParticipantId]: profileImageUrl
-                                        };
-                                        
-                                        await updateDoc(conversationMetaRef, {
-                                            participantProfileImages: updatedProfileImages
-                                        });
-                                    }
-                                }
-                            } catch (e) {
-                                console.log("Error fetching other user profile:", e);
-                            }
-                        }
-                        
-                        // If we found a profile image, update the conversation document
-                        if (profileImageUrl) {
-                            userConvData.otherParticipantProfileImage = profileImageUrl;
-                            
-                            try {
-                                const userConvRef = doc(db, `users/${currentUser.uid}/conversations`, conversationId);
-                                await updateDoc(userConvRef, {
-                                    otherParticipantProfileImage: profileImageUrl
-                                });
-                            } catch (e) {
-                                console.log("Error updating profile image:", e);
-                            }
-                        }
-                    }
-                    
                     return {
                         id: conversationId,
                         ...userConvData,
                         ...conversationMetaData,
+                        // Always use the fresh profile data
+                        otherParticipantUsername: otherUserProfile?.username || userConvData.otherParticipantUsername || 'User',
+                        otherParticipantProfileImage: otherUserProfile?.profileImageUrl,
                         isUnread,
                     };
                 }
                 return null;
             });
 
-            // Rest of your function remains the same
             const fetchedConversations = (await Promise.all(combinedDataPromises))
                 .filter(conv => conv !== null) as CombinedConversationItem[];
 

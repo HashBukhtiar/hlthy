@@ -587,18 +587,43 @@ export default function ChatScreen() {
   }, [loading]);
 
   useEffect(() => {
-  if (!currentUser || conversationId === 'ai_conversation') return;
-  const convRef = doc(db, "conversations", conversationId);
-  getDoc(convRef).then(snap => {
-    if (!snap.exists()) return;
-    const data = snap.data() as any;
-    const otherId = data.participants.find((uid: string) => uid !== currentUser.uid);
-    if (!otherId) return;
-    setOtherParticipantId(otherId);
-    setChatTitle(data.participantUsernames[otherId]);
-    setProfileImageUrl(data.participantProfileImages[otherId]);
-  });
-}, [currentUser, conversationId]);
+    if (!currentUser || conversationId === 'ai_conversation') return;
+    
+    const fetchHeaderData = async () => {
+      const convRef = doc(db, "conversations", conversationId);
+      const convSnap = await getDoc(convRef);
+
+      if (!convSnap.exists()) return;
+
+      const data = convSnap.data();
+      const otherId = data.participants?.find((uid: string) => uid !== currentUser.uid);
+
+      if (!otherId) return;
+
+      setOtherParticipantId(otherId);
+      setChatTitle(data.participantUsernames?.[otherId] || 'Chat');
+
+      // Fetch the user document for the latest profile image
+      try {
+        const userRef = doc(db, 'users', otherId);
+        const userSnap = await getDoc(userRef);
+        if (userSnap.exists()) {
+          const userData = userSnap.data();
+          // Use getOptimalImageUrl to handle thumbnails if they exist
+          const optimalImageUrl = getOptimalImageUrl(userData.profileThumbnailUrl, userData.profileImageUrl);
+          setProfileImageUrl(optimalImageUrl);
+        } else {
+          // Fallback to the potentially outdated image if the user doc is not found
+          setProfileImageUrl(data.participantProfileImages?.[otherId] || null);
+        }
+      } catch (error) {
+        console.error("Error fetching user profile for chat header:", error);
+        setProfileImageUrl(data.participantProfileImages?.[otherId] || null);
+      }
+    };
+
+    fetchHeaderData();
+  }, [currentUser, conversationId]);
 
 
   const handleSend = async () => {
