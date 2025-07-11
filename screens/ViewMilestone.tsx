@@ -10,6 +10,7 @@ import { useAuth } from '@/context/AuthContext';
 import { doc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '@/firebaseConfig';
 import { calculateImprovementPercentage } from '@/logic/milesonteUtils';
+import { getOptimalImageUrl } from '@/utils/imageUtils';
 
 // Define interfaces for milestone data
 export interface MilestoneStats {
@@ -80,12 +81,28 @@ export default function ViewMilestone() {
             return;
           }
 
+          // Fetch the author's profile to get the latest profile image
+          let authorProfileImageUrl = 'https://via.placeholder.com/150';
+          let authorProfileThumbnailUrl = null;
+          let authorFullName = data.authorUsername;
+
+          if (data.authorId) {
+            const userRef = doc(db, 'users', data.authorId);
+            const userSnap = await getDoc(userRef);
+            if (userSnap.exists()) {
+              const userData = userSnap.data();
+              authorProfileImageUrl = userData.profileImageUrl || authorProfileImageUrl;
+              authorProfileThumbnailUrl = userData.profileThumbnailUrl || null;
+              authorFullName = userData.displayName || authorFullName;
+            }
+          }
+
           const milestoneData: Milestone = {
             id: milestoneSnap.id,
             userId: data.authorId,
             username: data.authorUsername,
-            fullName: data.authorFullName || data.authorUsername,
-            profileImageUrl: data.authorProfileImageUrl,
+            fullName: authorFullName,
+            profileImageUrl: getOptimalImageUrl(authorProfileThumbnailUrl, authorProfileImageUrl),
             createdAt: data.createdAt.toDate(),
             milestoneType: data.milestoneDetails?.type,
             details: {
