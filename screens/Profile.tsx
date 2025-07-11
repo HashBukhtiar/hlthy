@@ -582,11 +582,13 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
           <Image
             source={{ 
               uri: getOptimalImageUrl(
-                displayProfileData?.profileThumbnailUrl, 
-                displayProfileData?.profileImageUrl
-              ) || 'https://thumbs.dreamstime.com/b/creative-illustration-default-avatar-profile-placeholder-isolated-background-art-design-grey-photo-blank-template-mockup-144855718.jpg' 
+                processedProfileData?.profileThumbnailUrl, 
+                processedProfileData?.profileImageUrl
+              ) || 'https://thumbs.dreamstime.com/b/creative-illustration-default-avatar-profile-placeholder-isolated-background-art-design-grey-photo-blank-template-mockup-144855718.jpg',
+              cache: 'reload'
             }}
             style={styles.profileImage}
+            key={processedProfileData?.profileImageUrl || 'default-profile'}
           />
           <Text style={styles.profileName}>{currentUserProfile?.displayName || 'User'}</Text>
           <Text style={styles.profileBio}>Error loading complete profile data</Text>
@@ -669,9 +671,11 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
             uri: getOptimalImageUrl(
               processedProfileData?.profileThumbnailUrl, 
               processedProfileData?.profileImageUrl
-            ) || 'https://thumbs.dreamstime.com/b/creative-illustration-default-avatar-profile-placeholder-isolated-background-art-design-grey-photo-blank-template-mockup-144855718.jpg' 
+            ) || 'https://thumbs.dreamstime.com/b/creative-illustration-default-avatar-profile-placeholder-isolated-background-art-design-grey-photo-blank-template-mockup-144855718.jpg',
+            cache: 'reload'
           }}
           style={styles.profileImage}
+          key={processedProfileData?.profileImageUrl || 'default-profile'}
         />
         <Text style={styles.profileName}>{processedProfileData?.displayName || 'User'}</Text>
         <Text style={styles.profileUsername}>@{processedProfileData?.username || 'username'}</Text>

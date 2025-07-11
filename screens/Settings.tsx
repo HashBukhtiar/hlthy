@@ -146,11 +146,12 @@ export default function Settings() {
   const [privacyLevel, setPrivacyLevel] = useState<'open' | 'moderate' | 'strict'>('moderate');
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [originalSettings, setOriginalSettings] = useState<Partial<UserSettings>>({});
-
+  const [isSaving, setIsSaving] = useState(false);
+  const [imageManuallyChanged, setImageManuallyChanged] = useState(false);
 
   // Update settings when userProfile changes
   useEffect(() => {
-    if (userProfile) {
+    if (userProfile && !isSaving) {
       const parseDateOfBirth = (dateValue: any) => {
         if (!dateValue) return undefined;
         
@@ -203,9 +204,11 @@ export default function Settings() {
         twoFactorEnabled: userProfile.twoFactorEnabled || false,
         dateOfBirth: parseDateOfBirth(userProfile.dateOfBirth),
       }));
-      setProfileImage(userProfile.profileImageUrl);
+      if (!imageManuallyChanged) {
+        setProfileImage(userProfile.profileImageUrl);
+      }
     }
-  }, [userProfile]);
+  }, [userProfile, isSaving]);
 
   useEffect(() => {
     if (userProfile && Object.keys(originalSettings).length === 0) {
@@ -306,9 +309,20 @@ export default function Settings() {
       
       // Check for unsaved changes using deep comparison
       const hasChanges = !deepEqual(settings, originalSettings);
-      setHasUnsavedChanges(hasChanges);
+      const profileImageChanged = profileImage !== userProfile?.profileImageUrl;
+      
+      setHasUnsavedChanges(hasChanges || profileImageChanged);
     }
-  }, [settings, originalSettings]);
+  }, [settings, originalSettings, profileImage, userProfile?.profileImageUrl]);
+
+  useEffect(() => {
+    console.log('🖼️ Profile Image State:', {
+      profileImage,
+      userProfileImage: userProfile?.profileImageUrl,
+      isSaving,
+      hasUnsavedChanges
+    });
+  }, [profileImage, userProfile?.profileImageUrl, isSaving, hasUnsavedChanges]);
 
   const handleBackPress = () => {
     if (hasUnsavedChanges) {
@@ -427,11 +441,9 @@ export default function Settings() {
         const downloadURL = await getDownloadURL(storageRef);
         
         setProfileImage(downloadURL);
+        setImageManuallyChanged(true);
         
-        await updateDoc(doc(db, "users", currentUser.uid), {
-          profileImageUrl: downloadURL,
-        });
-        
+        Alert.alert("Success", "Profile photo updated! Don't forget to save your changes.");
       } catch (error) {
         console.error("Image upload failed:", error);
         Alert.alert("Upload Failed", "Could not upload image. Please try again later.");
@@ -485,17 +497,22 @@ export default function Settings() {
 
   const saveSettingsAfterValidation = async () => {
     try {
-      // Sanitize settings
+      setIsSaving(true);
       const sanitizedSettings = sanitizeSettings(settings);
       
       // Create backup before saving
       await createSettingsBackup(sanitizedSettings);
       
-      // Prepare settings for saving
       const settingsToSave = {
         ...sanitizedSettings,
         dateOfBirth: sanitizedSettings.dateOfBirth ? sanitizedSettings.dateOfBirth.toISOString() : null,
+        profileImageUrl: profileImage,
       };
+      
+      console.log('🔄 Saving settings with profile image:', {
+        profileImageUrl: profileImage,
+        settingsKeys: Object.keys(settingsToSave)
+      });
       
       // Save using existing logic...
       if (!functions || !functions.app) {
@@ -509,6 +526,12 @@ export default function Settings() {
       } else {
         try {
           const updateUserSettings = httpsCallable(functions, 'updateUserSettings');
+          
+          console.log('📤 Sending to Cloud Function:', {
+            profileImageUrl: settingsToSave.profileImageUrl,
+            userId: currentUser!.uid
+          });
+          
           await updateUserSettings({ settings: settingsToSave });
           console.log('Settings updated via Cloud Function');
         } catch (functionError) {
@@ -522,18 +545,13 @@ export default function Settings() {
         }
       }
       
-      // Update profile image if changed
-      if (profileImage !== userProfile?.profileImageUrl) {
-        await updateDoc(doc(db, "users", currentUser!.uid), {
-          profileImageUrl: profileImage,
-        });
-      }
+      await new Promise(resolve => setTimeout(resolve, 1000));
       
       await refreshUserProfile();
       
-      // Update original settings to current settings after successful save
-      setOriginalSettings({ ...settings }); // This will clear the unsaved changes indicator
+      setOriginalSettings({ ...settings });
       setHasUnsavedChanges(false);
+      setImageManuallyChanged(false);
       
       Alert.alert("Success", "Settings updated successfully");
     } catch (error) {
@@ -541,6 +559,7 @@ export default function Settings() {
       Alert.alert("Error", "Failed to update settings: " + (error?.message || 'Unknown error'));
     } finally {
       setLoading(false);
+      setIsSaving(false);
     }
   };
 
@@ -787,10 +806,13 @@ export default function Settings() {
           <View style={styles.profileImageSection}>
             <Image 
               source={{ 
-                uri: getOptimalImageUrl(userProfile?.profileThumbnailUrl, profileImage) || 
-                    'https://thumbs.dreamstime.com/b/creative-illustration-default-avatar-profile-placeholder-isolated-background-art-design-grey-photo-blank-template-mockup-144855718.jpg' 
+                uri: profileImage || 
+                    getOptimalImageUrl(userProfile?.profileThumbnailUrl, userProfile?.profileImageUrl) || 
+                    'https://thumbs.dreamstime.com/b/creative-illustration-default-avatar-profile-placeholder-isolated-background-art-design-grey-photo-blank-template-mockup-144855718.jpg',
+                cache: 'reload'
               }} 
-              style={styles.profileImage} 
+              style={styles.profileImage}
+              key={profileImage || 'default'}
             />
             <TouchableOpacity style={styles.changePhotoButton} onPress={pickImage}>
               <Text style={styles.changePhotoText}>Change Photo</Text>

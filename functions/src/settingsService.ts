@@ -1,9 +1,5 @@
 import {onCall, HttpsError} from "firebase-functions/v2/https";
-import {getFirestore, FieldValue} from "firebase-admin/firestore";
-import {getAuth} from "firebase-admin/auth";
-
-const db = getFirestore();
-const auth = getAuth();
+import {admin, getDb, getAuth} from "./firebaseAdmin";
 
 // Update user settings
 export const updateUserSettings = onCall(
@@ -21,9 +17,14 @@ export const updateUserSettings = onCall(
     }
 
     try {
+      const db = getDb();
+      if (!db) {
+        throw new HttpsError("internal", "Database not initialized");
+      }
+
       // Validate settings structure
       const allowedFields = [
-        "displayName", "bio", "archetype", "dateOfBirth",
+        "displayName", "bio", "archetype", "dateOfBirth", "profileImageUrl",
         "profileVisibility", "followPermission", "commentPermission", "messagePermission",
         "theme", "language", "units", "notifications", "twoFactorEnabled",
       ];
@@ -36,12 +37,13 @@ export const updateUserSettings = onCall(
       }
 
       // Add metadata
-      sanitizedSettings.lastModified = new Date();
+      sanitizedSettings.lastModified = admin.firestore.FieldValue.serverTimestamp();
       sanitizedSettings.version = 1;
 
       // Update user document
       await db.collection("users").doc(userId).update(sanitizedSettings);
 
+      console.log(`Settings updated successfully for user ${userId}`);
       return {success: true, message: "Settings updated successfully"};
     } catch (error) {
       console.error("Error updating user settings:", error);
@@ -70,12 +72,17 @@ export const blockUser = onCall(
     }
 
     try {
+      const db = getDb();
+      if (!db) {
+        throw new HttpsError("internal", "Database not initialized");
+      }
+
       const batch = db.batch();
 
       // Add to current user's blocked list
       const currentUserRef = db.collection("users").doc(currentUserId);
       batch.update(currentUserRef, {
-        blockedUsers: FieldValue.arrayUnion(targetUserId),
+        blockedUsers: admin.firestore.FieldValue.arrayUnion(targetUserId),
       });
 
       // Remove any existing follow relationships
@@ -87,10 +94,10 @@ export const blockUser = onCall(
 
       // Update follower/following counts
       batch.update(currentUserRef, {
-        followingCount: FieldValue.increment(-1),
+        followingCount: admin.firestore.FieldValue.increment(-1),
       });
       batch.update(db.collection("users").doc(targetUserId), {
-        followerCount: FieldValue.increment(-1),
+        followerCount: admin.firestore.FieldValue.increment(-1),
       });
 
       await batch.commit();
@@ -119,8 +126,13 @@ export const unblockUser = onCall(
     }
 
     try {
+      const db = getDb();
+      if (!db) {
+        throw new HttpsError("internal", "Database not initialized");
+      }
+
       await db.collection("users").doc(currentUserId).update({
-        blockedUsers: FieldValue.arrayRemove(targetUserId),
+        blockedUsers: admin.firestore.FieldValue.arrayRemove(targetUserId),
       });
 
       return {success: true, message: "User unblocked successfully"};
@@ -148,13 +160,19 @@ export const deleteUserAccount = onCall(
     }
 
     try {
+      const db = getDb();
+      const auth = getAuth();
+      if (!db || !auth) {
+        throw new HttpsError("internal", "Database or Auth not initialized");
+      }
+
       const batch = db.batch();
 
       // Delete user document
       batch.delete(db.collection("users").doc(userId));
 
       // Delete user's posts
-      const postsSnapshot = await db.collection("posts").where("userId", "==", userId).get();
+      const postsSnapshot = await db.collection("posts").where("authorId", "==", userId).get();
       postsSnapshot.docs.forEach((doc) => {
         batch.delete(doc.ref);
       });
@@ -205,19 +223,32 @@ export const clearUserData = onCall(
     }
 
     try {
+      const db = getDb();
+      if (!db) {
+        throw new HttpsError("internal", "Database not initialized");
+      }
+
       const userRef = db.collection("users").doc(userId);
 
       if (dataType === "chatHistory") {
-        // Clear chat messages
-        const chatsSnapshot = await db.collection("chats").where("participants", "array-contains", userId).get();
+        // Clear chat messages - updated to match your conversation structure
+        const conversationsSnapshot = await db.collection("conversations")
+          .where("participants", "array-contains", userId).get();
         const batch = db.batch();
-        chatsSnapshot.docs.forEach((doc) => {
+        conversationsSnapshot.docs.forEach((doc) => {
           batch.update(doc.ref, {
-            messages: [],
             lastMessage: null,
-            lastMessageTime: null,
+            lastMessageAt: null,
           });
         });
+
+        // Also delete messages subcollection
+        for (const convDoc of conversationsSnapshot.docs) {
+          const messagesSnapshot = await convDoc.ref.collection("messages").get();
+          messagesSnapshot.docs.forEach((msgDoc) => {
+            batch.delete(msgDoc.ref);
+          });
+        }
 
         await batch.commit();
       } else if (dataType === "searchHistory") {
