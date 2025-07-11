@@ -240,7 +240,16 @@ export function useProfileData(userId = null, contextUserProfile: UserProfile | 
           orderBy("createdAt", "desc")
         );
         const postsSnapshot = await getDocs(postsQuery);
-        userPosts = postsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        // Attach the fresh profile image URL from the already-fetched user profile
+        userPosts = postsSnapshot.docs.map(doc => {
+          const postData = doc.data();
+          return {
+            ...postData,
+            id: doc.id,
+            authorProfileImageUrl: userData.profileImageUrl,
+            authorProfileThumbnailUrl: userData.profileThumbnailUrl,
+          };
+        });
         console.log(`Retrieved ${userPosts.length} user posts for:`, profileIdToFetch);
       } catch (postsError) {
         console.error("Error fetching posts:", postsError);
