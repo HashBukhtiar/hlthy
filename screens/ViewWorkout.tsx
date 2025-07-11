@@ -55,7 +55,7 @@ export default function ViewWorkout() {
   const [favoriteLoading, setFavoriteLoading] = useState(false);
   const [shareModalVisible, setShareModalVisible] = useState(false);
   const [searchText, setSearchText] = useState('');
-  const [searchResults, setSearchResults] = useState<{ id: string; username: string; profileImageUrl?: string }[]>([]);
+  const [searchResults, setSearchResults] = useState<{ id: string; username: string; profileImageUrl?: string; profileThumbnailUrl?: string }[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
 
   const handleSearchUsers = async (text: string) => {
@@ -82,6 +82,7 @@ export default function ViewWorkout() {
           id: docSnap.id,
           username: userData.username,
           profileImageUrl: userData.profileImageUrl,
+          profileThumbnailUrl: userData.profileThumbnailUrl,
         });
       });
       setSearchResults(results);
@@ -227,7 +228,7 @@ export default function ViewWorkout() {
   
   const displayWorkoutLength = calculateTotalLength(workoutData.segments);
 
-  const shareWorkoutWithUser = async (userId: string, username: string, profileImageUrl?: string) => {
+  const shareWorkoutWithUser = async (userId: string, username: string, profileImageUrl?: string, profileThumbnailUrl?: string) => {
     if (!currentUser || !workoutData) return;
     
     try {
@@ -236,11 +237,12 @@ export default function ViewWorkout() {
         userId,
         username,
         profileImageUrl,
+        profileThumbnailUrl,
         {
           id: workoutData.id,
           title: workoutData.title,
           coverImageUrl: workoutData.coverImageUrl || null,
-          thumbnailUrl: workoutData.thumbnailUrl || null, // Add this
+          thumbnailUrl: workoutData.thumbnailUrl || null,
           creatorUsername: workoutData.creatorUsername,
           description: workoutData.description
         }

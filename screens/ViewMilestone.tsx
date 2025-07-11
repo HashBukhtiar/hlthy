@@ -189,7 +189,7 @@ export default function ViewMilestone() {
     setShareModalVisible(true);
   };
 
-  const shareMilestoneWithUser = async (userId: string, username: string, profileImageUrl?: string) => {
+  const shareMilestoneWithUser = async (userId: string, username: string, profileImageUrl?: string, profileThumbnailUrl?: string) => {
     if (!currentUser || !milestone) return;
     
     try {
@@ -198,6 +198,7 @@ export default function ViewMilestone() {
         userId,
         username,
         profileImageUrl,
+        profileThumbnailUrl,
         {
           id: milestone.id,
           milestoneType: milestone.milestoneType,

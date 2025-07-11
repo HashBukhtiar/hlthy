@@ -47,7 +47,7 @@ export default function ViewPost() {
 
   const [shareModalVisible, setShareModalVisible] = useState(false);
   const [searchText, setSearchText] = useState('');
-  const [searchResults, setSearchResults] = useState<{id: string, username: string, profileImageUrl?: string}[]>([]);
+  const [searchResults, setSearchResults] = useState<{id: string, username: string, profileImageUrl?: string, profileThumbnailUrl?: string}[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
 
   const [replyingToCommentId, setReplyingToCommentId] = useState<string | null>(null);
@@ -197,13 +197,14 @@ export default function ViewPost() {
       );
 
       const querySnapshot = await getDocs(q);
-      const users: {id: string, username: string, profileImageUrl?: string}[] = [];
+      const users: {id: string, username: string, profileImageUrl?: string, profileThumbnailUrl?: string}[] = [];
       querySnapshot.forEach(doc => {
         if (doc.id !== currentUser?.uid) {
           users.push({
             id: doc.id,
             username: doc.data().username,
             profileImageUrl: doc.data().profileImageUrl,
+            profileThumbnailUrl: doc.data().profileThumbnailUrl,
           });
         }
       });
@@ -215,15 +216,15 @@ export default function ViewPost() {
     }
   };
 
-useEffect(() => {
-  const delayDebounceFn = setTimeout(() => {
-    searchUsers();
-  }, 500);
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      searchUsers();
+    }, 500);
 
-  return () => clearTimeout(delayDebounceFn);
+    return () => clearTimeout(delayDebounceFn);
 }, [searchText]);
 
-  const sharePostWithUser = async (userId: string, username: string, profileImageUrl?: string) => {
+  const sharePostWithUser = async (userId: string, username: string, profileImageUrl?: string, profileThumbnailUrl?: string) => {
     if (!currentUser || !post) return;
     
     try {
@@ -232,6 +233,7 @@ useEffect(() => {
         userId,
         username,
         profileImageUrl,
+        profileThumbnailUrl,
         {
           id: post.id,
           caption: post.caption,
