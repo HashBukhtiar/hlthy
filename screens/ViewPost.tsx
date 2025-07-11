@@ -7,10 +7,11 @@ import ShareModal from '@/components/ShareModal';
 import { sharePost } from '@/services/ShareService';
 import { usePostsData, Post, Comment, Reply } from '@/hooks/usePostsData';
 import { useAuth } from '@/context/AuthContext';
-import { collection } from 'firebase/firestore';
+import { collection, doc, getDoc } from 'firebase/firestore';
 import { db } from '@/firebaseConfig';
 import { query, where, limit, getDocs } from 'firebase/firestore';
-import { deleteImageFromStorage, deleteMilestoneFromFirestore } from '@/utils/imageUtils';
+import { deleteImageFromStorage, deleteMilestoneFromFirestore, getOptimalImageUrl } from '@/utils/imageUtils';
+import { UserProfile } from '@/types';
 
 export default function ViewPost() {
   const [menuVisible, setMenuVisible] = useState(false);
@@ -71,12 +72,52 @@ export default function ViewPost() {
         setLoading(true);
         
         // Get post data
-        const fetchedPost = await getPostById(postId);
-        setPost(fetchedPost);
+        let fetchedPost = await getPostById(postId);
+        if (!fetchedPost) {
+          setPost(null);
+          setLoading(false);
+          return;
+        }
         
         // Get comments
-        const fetchedComments = await getPostComments(postId);
+        let fetchedComments = await getPostComments(postId);
+
+        // --- NEW LOGIC TO FETCH PROFILES ---
+        const authorIds = new Set<string>();
+        if (fetchedPost.authorId) {
+          authorIds.add(fetchedPost.authorId);
+        }
+        fetchedComments.forEach(comment => {
+          if (comment.authorId) authorIds.add(comment.authorId);
+        });
+
+        const profiles: Record<string, UserProfile> = {};
+        if (authorIds.size > 0) {
+          const userDocs = await getDocs(query(collection(db, 'users'), where('__name__', 'in', Array.from(authorIds))));
+          userDocs.forEach(userDoc => {
+            profiles[userDoc.id] = userDoc.data() as UserProfile;
+          });
+        }
+
+        // Attach fresh profile data to post and comments
+        const postAuthorProfile = profiles[fetchedPost.authorId];
+        if (postAuthorProfile) {
+          fetchedPost.authorProfileImageUrl = postAuthorProfile.profileImageUrl;
+          fetchedPost.authorProfileThumbnailUrl = postAuthorProfile.profileThumbnailUrl;
+        }
+
+        fetchedComments = fetchedComments.map(comment => {
+          const commentAuthorProfile = profiles[comment.authorId];
+          return {
+            ...comment,
+            authorProfileImageUrl: commentAuthorProfile?.profileImageUrl,
+          };
+        });
+        // --- END NEW LOGIC ---
+
+        setPost(fetchedPost);
         setComments(fetchedComments);
+
       } catch (error) {
         console.error("Error fetching post:", error);
       } finally {
@@ -723,7 +764,12 @@ useEffect(() => {
               style={styles.userInfoContainer}
               onPress={() => navigateToProfile(post.authorId)}
             >
-              <Image source={{ uri: post.authorProfileImageUrl || 'https://via.placeholder.com/150' }} style={styles.profilePic} />
+              <Image 
+                source={{ 
+                  uri: getOptimalImageUrl(post.authorProfileThumbnailUrl, post.authorProfileImageUrl) || 'https://via.placeholder.com/150' 
+                }} 
+                style={styles.profilePic} 
+              />
               <View>
                 <Text style={styles.username}>{post.authorUsername}</Text>
                 <Text style={styles.location}>{formatDate(post.createdAt)}</Text>
