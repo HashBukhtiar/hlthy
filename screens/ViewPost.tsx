@@ -50,8 +50,7 @@ export default function ViewPost() {
   const [searchResults, setSearchResults] = useState<{id: string, username: string, profileImageUrl?: string, profileThumbnailUrl?: string}[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
 
-  const [replyingToCommentId, setReplyingToCommentId] = useState<string | null>(null);
-  const [replyText, setReplyText] = useState('');
+  const [replyingTo, setReplyingTo] = useState<{ commentId: string; username: string } | null>(null);
   const [loadingReplies, setLoadingReplies] = useState<Record<string, boolean>>({});
 
   const [selectedCommentForAction, setSelectedCommentForAction] = useState<Comment | null>(null);
@@ -277,6 +276,52 @@ export default function ViewPost() {
       console.error("Error toggling bookmark:", error);
     }
   };
+
+  const handlePostSubmission = async () => {
+    if (!post || !currentUser || !commentText.trim() || isSubmitting) return;
+
+    setIsSubmitting(true);
+
+    try {
+      if (replyingTo) {
+        // Logic for submitting a reply
+        const newReply = await addReplyToComment(post.id, replyingTo.commentId, commentText.trim());
+        setComments(prevComments => prevComments.map(c => {
+          if (c.id === replyingTo.commentId) {
+            const enrichedReply = {
+              ...newReply,
+              authorProfileImageUrl: userProfile?.profileImageUrl,
+              authorProfileThumbnailUrl: userProfile?.profileThumbnailUrl,
+            };
+            return {
+              ...c,
+              replies: [enrichedReply, ...(c.replies || [])],
+              replyCount: (c.replyCount || 0) + 1,
+            };
+          }
+          return c;
+        }));
+        setReplyingTo(null); // Exit reply mode
+      } else {
+        // Logic for submitting a new comment
+        const newComment = await addComment(post.id, commentText.trim());
+        const enrichedComment = { 
+          ...newComment, 
+          replies: [],
+          authorProfileImageUrl: userProfile?.profileImageUrl,
+          authorProfileThumbnailUrl: userProfile?.profileThumbnailUrl,
+        };
+        setComments([enrichedComment, ...comments]);
+        setPost(prevPost => prevPost ? {...prevPost, commentCount: (prevPost.commentCount || 0) + 1} : null);
+      }
+      setCommentText(''); // Clear input after submission
+    } catch (error) {
+      console.error("Error submitting comment/reply:", error);
+      Alert.alert("Error", "Could not post. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
   
   const handleAddComment = async () => {
     if (!post || !currentUser || !commentText.trim() || isSubmitting) return;
@@ -347,6 +392,17 @@ export default function ViewPost() {
           }
         ]
       );
+
+      setComments(originalComments);
+      Alert.alert("Error", "Could not update like status. Please try again.");
+    }
+  };
+
+  const handleSetReplyMode = (comment: Comment) => {
+    if (replyingTo?.commentId === comment.id) {
+      setReplyingTo(null);
+    } else {
+      setReplyingTo({ commentId: comment.id, username: comment.authorUsername });
     }
   };
 
@@ -945,7 +1001,7 @@ export default function ViewPost() {
                         </View>
                         <Text style={styles.commentText}>{comment.text}</Text>
                         <View style={styles.commentActions}>
-                          <TouchableOpacity onPress={() => handleToggleReplyInput(comment.id)} style={styles.replyButton}>
+                          <TouchableOpacity onPress={() => handleSetReplyMode(comment)} style={styles.replyButton}>
                             <Text style={styles.replyButtonText}>Reply</Text>
                           </TouchableOpacity>
                         </View>
@@ -971,45 +1027,6 @@ export default function ViewPost() {
                     </View>
                   </View>
                 </TouchableOpacity>
-                {/* Reply Input Area */}
-                {replyingToCommentId === comment.id && (
-                  <View style={styles.replyInputContainer}>
-                    <Image 
-                      source={{ uri: userProfile?.profileImageUrl || 'https://via.placeholder.com/150' }} 
-                      style={styles.replyInputProfilePic} 
-                    />
-                    <TextInput
-                      style={styles.replyInput}
-                      placeholder={`Replying to ${comment.authorUsername}...`}
-                      placeholderTextColor="#666"
-                      value={replyText}
-                      onChangeText={setReplyText}
-                      autoFocus={true}
-                      autoCorrect={true}
-                      spellCheck={true}
-                    />
-                    <TouchableOpacity 
-                      style={[
-                        styles.postReplyButton, 
-                        (replyText.trim() === '' || isSubmittingReply) && styles.disabledButton
-                      ]}
-                      onPress={() => handleAddReply(comment.id)}
-                      disabled={replyText.trim() === '' || isSubmittingReply}
-                    >
-                      {isSubmittingReply ? (
-                        <ActivityIndicator size="small" color="#0A84FF" />
-                      ) : (
-                        <Text style={[
-                          styles.postButtonText, 
-                          replyText.trim() === '' && styles.disabledButtonText
-                        ]}>
-                          Post
-                        </Text>
-                      )}
-                    </TouchableOpacity>
-                  </View>
-                )}
-
                 {/* Display Replies */}
                 {(comment.replyCount || 0) > 0 && !comment.replies?.length && !loadingReplies[comment.id] && (
                   <TouchableOpacity 
@@ -1046,38 +1063,50 @@ export default function ViewPost() {
         </ScrollView>
 
         <View style={[styles.commentInputContainer, { paddingBottom: Math.max(insets.bottom, 10) }]}>
-          <Image 
-            source={{ uri: userProfile?.profileImageUrl || 'https://via.placeholder.com/150' }} 
-            style={styles.commentInputProfilePic} 
-          />
-          <TextInput
-            style={styles.commentInput}
-            placeholder="Add a comment..."
-            placeholderTextColor="#666"
-            value={commentText}
-            onChangeText={setCommentText}
-            autoCorrect={true}
-            spellCheck={true}
-          />
-          <TouchableOpacity 
-            style={[
-              styles.postButton, 
-              (commentText.trim() === '' || isSubmitting) && styles.disabledButton
-            ]}
-            onPress={handleAddComment}
-            disabled={commentText.trim() === '' || isSubmitting}
-          >
-            {isSubmitting ? (
-              <ActivityIndicator size="small" color="#0A84FF" />
-            ) : (
-              <Text style={[
-                styles.postButtonText, 
-                commentText.trim() === '' && styles.disabledButtonText
-              ]}>
-                Post
+          {replyingTo && (
+            <View style={styles.replyingToContainer}>
+              <Text style={styles.replyingToText}>
+                Replying to {replyingTo.username}
               </Text>
-            )}
-          </TouchableOpacity>
+              <TouchableOpacity onPress={() => setReplyingTo(null)}>
+                <Ionicons name="close-circle" size={18} color="#999" />
+              </TouchableOpacity>
+            </View>
+          )}
+          <View style={styles.mainInputRow}>
+            <Image 
+              source={{ uri: getOptimalImageUrl(userProfile?.profileThumbnailUrl, userProfile?.profileImageUrl) }} 
+              style={styles.commentInputProfilePic} 
+            />
+            <TextInput
+              style={styles.commentInput}
+              placeholder={replyingTo ? `Reply to ${replyingTo.username}...` : "Add a comment..."}
+              placeholderTextColor="#666"
+              value={commentText}
+              onChangeText={setCommentText}
+              autoCorrect={true}
+              spellCheck={true}
+            />
+            <TouchableOpacity 
+              style={[
+                styles.postButton, 
+                (commentText.trim() === '' || isSubmitting) && styles.disabledButton
+              ]}
+              onPress={handlePostSubmission}
+              disabled={commentText.trim() === '' || isSubmitting}
+            >
+              {isSubmitting ? (
+                <ActivityIndicator size="small" color="#0A84FF" />
+              ) : (
+                <Text style={[
+                  styles.postButtonText, 
+                  commentText.trim() === '' && styles.disabledButtonText
+                ]}>
+                  Post
+                </Text>
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
 
         <Modal
@@ -1548,13 +1577,26 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   commentInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
     paddingHorizontal: 15,
-    paddingVertical: 10,
+    paddingTop: 10,
     borderTopColor: '#222',
     borderTopWidth: 1,
     backgroundColor: '#000',
+  },
+  mainInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  replyingToContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingBottom: 8,
+    paddingHorizontal: 5,
+  },
+  replyingToText: {
+    color: '#999',
+    fontSize: 13,
   },
   commentInputProfilePic: {
     width: 30,
