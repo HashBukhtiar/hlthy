@@ -82,7 +82,6 @@ export default function ViewPost() {
         // Get comments
         let fetchedComments = await getPostComments(postId);
 
-        // --- NEW LOGIC TO FETCH PROFILES ---
         const authorIds = new Set<string>();
         if (fetchedPost.authorId) {
           authorIds.add(fetchedPost.authorId);
@@ -111,9 +110,9 @@ export default function ViewPost() {
           return {
             ...comment,
             authorProfileImageUrl: commentAuthorProfile?.profileImageUrl,
+            authorProfileThumbnailUrl: commentAuthorProfile?.profileThumbnailUrl,
           };
         });
-        // --- END NEW LOGIC ---
 
         setPost(fetchedPost);
         setComments(fetchedComments);
@@ -285,7 +284,13 @@ export default function ViewPost() {
     try {
       setIsSubmitting(true);
       const newComment = await addComment(post.id, commentText.trim());
-      setComments([{ ...newComment, replies: [] }, ...comments]);
+      const enrichedComment = { 
+        ...newComment, 
+        replies: [],
+        authorProfileImageUrl: userProfile?.profileImageUrl,
+        authorProfileThumbnailUrl: userProfile?.profileThumbnailUrl,
+      };
+      setComments([enrichedComment, ...comments]);
       setCommentText('');
       setPost(prevPost => prevPost ? {...prevPost, commentCount: (prevPost.commentCount || 0) + 1} : null);
     } catch (error) {
@@ -467,8 +472,31 @@ export default function ViewPost() {
     setLoadingReplies(prev => ({ ...prev, [commentId]: true }));
     try {
       const fetchedReplies = await getCommentReplies(post.id, commentId);
+
+      // Get unique author IDs from replies
+      const replyAuthorIds = [...new Set(fetchedReplies.map(reply => reply.authorId))];
+      
+      // Fetch author profiles
+      const profiles: Record<string, UserProfile> = {};
+      if (replyAuthorIds.length > 0) {
+        const userDocs = await getDocs(query(collection(db, 'users'), where('__name__', 'in', replyAuthorIds)));
+        userDocs.forEach(userDoc => {
+          profiles[userDoc.id] = userDoc.data() as UserProfile;
+        });
+      }
+
+      // Enrich replies with fresh profile data
+      const enrichedReplies = fetchedReplies.map(reply => {
+        const authorProfile = profiles[reply.authorId];
+        return {
+          ...reply,
+          authorProfileImageUrl: authorProfile?.profileImageUrl,
+          authorProfileThumbnailUrl: authorProfile?.profileThumbnailUrl,
+        };
+      });
+
       setComments(prevComments => prevComments.map(c => 
-        c.id === commentId ? { ...c, replies: fetchedReplies } : c
+        c.id === commentId ? { ...c, replies: enrichedReplies } : c
       ));
     } catch (error) {
       console.error("Error loading replies:", error);
@@ -486,9 +514,15 @@ export default function ViewPost() {
       const newReply = await addReplyToComment(post.id, parentCommentId, replyText.trim());
       setComments(prevComments => prevComments.map(c => {
         if (c.id === parentCommentId) {
+          // Enrich new reply with current user's profile for optimistic update
+          const enrichedReply = {
+            ...newReply,
+            authorProfileImageUrl: userProfile?.profileImageUrl,
+            authorProfileThumbnailUrl: userProfile?.profileThumbnailUrl,
+          };
           return {
             ...c,
-            replies: [newReply, ...(c.replies || [])],
+            replies: [enrichedReply, ...(c.replies || [])],
             replyCount: (c.replyCount || 0) + 1,
           };
         }
@@ -717,7 +751,10 @@ export default function ViewPost() {
   const renderReplyItem = (reply: Reply, commentId: string) => (
     <View key={reply.id} style={styles.replyItem}>
       <View style={styles.commentLeftSection}>
-        <Image source={{ uri: reply.authorProfileImageUrl || 'https://via.placeholder.com/150' }} style={styles.replyProfilePic} />
+        <Image 
+          source={{ uri: getOptimalImageUrl(reply.authorProfileThumbnailUrl, reply.authorProfileImageUrl) }} 
+          style={styles.replyProfilePic} 
+        />
         <View style={styles.commentContent}>
           <View style={styles.commentHeader}>
             <Text style={styles.commentUsername}>{reply.authorUsername}</Text>
@@ -897,7 +934,10 @@ export default function ViewPost() {
                 >
                   <View style={styles.commentItem}>
                     <View style={styles.commentLeftSection}>
-                      <Image source={{ uri: comment.authorProfileImageUrl || 'https://via.placeholder.com/150' }} style={styles.commentProfilePic} />
+                      <Image 
+                        source={{ uri: getOptimalImageUrl(comment.authorProfileThumbnailUrl, comment.authorProfileImageUrl) }} 
+                        style={styles.commentProfilePic} 
+                      />
                       <View style={styles.commentContent}>
                         <View style={styles.commentHeader}>
                           <Text style={styles.commentUsername}>{comment.authorUsername}</Text>

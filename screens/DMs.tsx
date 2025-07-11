@@ -39,6 +39,7 @@ interface UserData {
     id: string;
     username: string;
     profileImageUrl?: string;
+    profileThumbnailUrl?: string;
 }
 
 const ChatItem = ({ 
@@ -114,7 +115,7 @@ const ChatItem = ({
                 ]}
             >
                 <Image
-                    source={item.isPinnedAI ? require('@/assets/images/icon.png') : item.otherParticipantProfileImage ? { uri: item.otherParticipantProfileImage } : require('@/assets/images/profile-icon.png')}
+                    source={item.isPinnedAI ? require('@/assets/images/icon.png') : { uri: getOptimalImageUrl(item.otherParticipantThumbnailUrl, item.otherParticipantProfileImage) || require('@/assets/images/profile-icon.png')}}
                     style={styles.profilePic}
                 />
                 <View style={styles.textContainer}>
@@ -191,6 +192,7 @@ export default function DMs() {
                         id: userDoc.id,
                         username: data.username,
                         profileImageUrl: data.profileImageUrl,
+                        profileThumbnailUrl: data.profileThumbnailUrl,
                     };
                 });
             }
@@ -220,6 +222,7 @@ export default function DMs() {
                         // Always use the fresh profile data
                         otherParticipantUsername: otherUserProfile?.username || userConvData.otherParticipantUsername || 'User',
                         otherParticipantProfileImage: otherUserProfile?.profileImageUrl,
+                        otherParticipantThumbnailUrl: otherUserProfile?.profileThumbnailUrl,
                         isUnread,
                     };
                 }

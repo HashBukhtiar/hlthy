@@ -2,13 +2,15 @@ import { ref, deleteObject } from 'firebase/storage';
 import { storage, db } from '@/firebaseConfig';
 import { doc, deleteDoc } from 'firebase/firestore';
 
+const DEFAULT_PROFILE_PICTURE = 'https://thumbs.dreamstime.com/b/creative-illustration-default-avatar-profile-placeholder-isolated-background-art-design-grey-photo-blank-template-mockup-144855718.jpg';
+
 /**
- * Gets the appropriate image URL, preferring thumbnail over original
+ * Gets the appropriate image URL, preferring thumbnail over original, with a fallback to a default.
  * @param thumbnailUrl - The thumbnail URL from Firestore
  * @param originalUrl - The original image URL
- * @returns The URL to use for display
+ * @returns The URL to use for display. Returns a default image if none are provided.
  */
-export const getOptimalImageUrl = (thumbnailUrl?: string | null, originalUrl?: string | null): string | null => {
+export const getOptimalImageUrl = (thumbnailUrl?: string | null, originalUrl?: string | null): string => {
   if (thumbnailUrl && thumbnailUrl.trim() !== '') {
     return thumbnailUrl;
   }
@@ -17,7 +19,7 @@ export const getOptimalImageUrl = (thumbnailUrl?: string | null, originalUrl?: s
     return originalUrl;
   }
   
-  return null;
+  return DEFAULT_PROFILE_PICTURE;
 };
 
 /**

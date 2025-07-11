@@ -581,10 +581,9 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
         <View style={styles.profileHeader}>
           <Image
             source={{ 
-              uri: getOptimalImageUrl(
-                processedProfileData?.profileThumbnailUrl, 
-                processedProfileData?.profileImageUrl
-              ) || 'https://thumbs.dreamstime.com/b/creative-illustration-default-avatar-profile-placeholder-isolated-background-art-design-grey-photo-blank-template-mockup-144855718.jpg',
+              uri: processedProfileData?.profileImageUrl || 
+                  processedProfileData?.profileThumbnailUrl || 
+                  'https://thumbs.dreamstime.com/b/creative-illustration-default-avatar-profile-placeholder-isolated-background-art-design-grey-photo-blank-template-mockup-144855718.jpg',
               cache: 'reload'
             }}
             style={styles.profileImage}
@@ -668,10 +667,9 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
 
         <Image
           source={{ 
-            uri: getOptimalImageUrl(
-              processedProfileData?.profileThumbnailUrl, 
-              processedProfileData?.profileImageUrl
-            ) || 'https://thumbs.dreamstime.com/b/creative-illustration-default-avatar-profile-placeholder-isolated-background-art-design-grey-photo-blank-template-mockup-144855718.jpg',
+            uri: processedProfileData?.profileImageUrl || 
+                 processedProfileData?.profileThumbnailUrl || 
+                 'https://thumbs.dreamstime.com/b/creative-illustration-default-avatar-profile-placeholder-isolated-background-art-design-grey-photo-blank-template-mockup-144855718.jpg',
             cache: 'reload'
           }}
           style={styles.profileImage}
