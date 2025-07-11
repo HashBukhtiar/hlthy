@@ -79,7 +79,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
     unfollowUser,
     followActionLoading,
     viewedProfileId,
-  } = useProfileData(routeUserId);
+  } = useProfileData(routeUserId, currentUserProfile);
   const createdWorkouts = workouts || [];
 
   const displayablePosts = useMemo(() => {
@@ -100,7 +100,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
 
   const isOwnProfile = !routeUserId || routeUserId === currentUser?.uid;
   const displayProfileData = isOwnProfile ? (profileData || currentUserProfile) : profileData;
-
+  
   // Process profile data to ensure consistent count structure
   const processedProfileData = useMemo(() => {
     if (!displayProfileData) return null;

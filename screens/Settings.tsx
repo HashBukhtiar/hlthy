@@ -8,7 +8,7 @@ import { httpsCallable } from 'firebase/functions';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { getOptimalImageUrl } from '@/utils/imageUtils';
+import { getOptimalImageUrl, deleteImageFromStorage } from '@/utils/imageUtils';
 import { CustomSelector, SelectorItem } from '@/components/CustomSelector';
 import { generateUniqueFilename } from '@/logic/idGenerator';
 import { SettingsSection } from '@/components/settings/SettingsSection';
@@ -425,7 +425,7 @@ export default function Settings() {
         }
       };
       const filename = generateUniqueFilename('profile', 'jpg');
-      const storageRef = ref(storage, `profileImages/${filename}`);
+      const storageRef = ref(storage, `profileImages/${currentUser.uid}/${filename}`);
       
       try {
         const response = await fetch(uri);
@@ -500,16 +500,21 @@ export default function Settings() {
       setIsSaving(true);
       const sanitizedSettings = sanitizeSettings(settings);
       
+      // Keep track of the old image URL to delete it after a successful update
+      const oldImageUrl = userProfile?.profileImageUrl;
+      const newImageUrl = profileImage;
+      const imageHasChanged = oldImageUrl && oldImageUrl !== newImageUrl;
+
       // Create backup before saving
       await createSettingsBackup(sanitizedSettings);
       
       const settingsToSave = {
         ...sanitizedSettings,
         dateOfBirth: sanitizedSettings.dateOfBirth ? sanitizedSettings.dateOfBirth.toISOString() : null,
-        profileImageUrl: profileImage,
+        profileImageUrl: newImageUrl,
       };
       
-      console.log('🔄 Saving settings with profile image:', {
+      console.log('Saving settings with profile image:', {
         profileImageUrl: profileImage,
         settingsKeys: Object.keys(settingsToSave)
       });
@@ -542,6 +547,16 @@ export default function Settings() {
             lastModified: new Date(),
             version: 1,
           });
+        }
+      }
+      
+      if (imageHasChanged) {
+        console.log(`Settings saved. Deleting old profile image: ${oldImageUrl}`);
+        try {
+          await deleteImageFromStorage(oldImageUrl);
+        } catch (deleteError) {
+          // Log the error but don't block the user flow, as the primary operation (saving settings) was successful.
+          console.error("Non-critical error: Failed to delete old profile image.", deleteError);
         }
       }
       

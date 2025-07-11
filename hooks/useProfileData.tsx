@@ -27,7 +27,7 @@ interface WorkoutItemData {
   thumbnailUrl?: string | null;
 }
 
-export function useProfileData(userId = null) {
+export function useProfileData(userId = null, contextUserProfile: UserProfile | null = null) {
   const { currentUser } = useAuth();
   const profileIdToFetch = userId || currentUser?.uid;
   const functions = getFunctions(app, 'northamerica-northeast2');
@@ -573,6 +573,13 @@ export function useProfileData(userId = null) {
       console.log("profileIdToFetch is null/undefined in useEffect, not fetching.");
     }
   }, [fetchProfileData]);
+
+  useEffect(() => {
+    if (isOwnProfile && contextUserProfile && profileData && contextUserProfile.profileImageUrl !== profileData.profileImageUrl) {
+      console.log("Profile image URL mismatch detected in hook, refreshing profile data...");
+      fetchProfileData();
+    }
+  }, [contextUserProfile?.profileImageUrl, isOwnProfile, profileData, fetchProfileData]);
 
   return {
     loading,
