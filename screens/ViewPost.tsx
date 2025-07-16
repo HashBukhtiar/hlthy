@@ -60,6 +60,7 @@ export default function ViewPost() {
   // Visual feedback state for double-tap
   const [animatingComments, setAnimatingComments] = useState<Record<string, boolean>>({});
   const [animatingReplies, setAnimatingReplies] = useState<Record<string, boolean>>({});
+  const [animatingPost, setAnimatingPost] = useState<boolean>(false);
 
   // Visual feedback helper functions
   const triggerCommentAnimation = (commentId: string) => {
@@ -73,6 +74,13 @@ export default function ViewPost() {
     setAnimatingReplies(prev => ({ ...prev, [replyId]: true }));
     setTimeout(() => {
       setAnimatingReplies(prev => ({ ...prev, [replyId]: false }));
+    }, 300);
+  };
+
+  const triggerPostAnimation = () => {
+    setAnimatingPost(true);
+    setTimeout(() => {
+      setAnimatingPost(false);
     }, 300);
   };
   
@@ -1045,7 +1053,24 @@ export default function ViewPost() {
           </View>
 
           {post.imageUrl && (
-            <Image source={{ uri: post.imageUrl }} style={styles.postImage} />
+            <TouchableOpacity
+              onPress={createDoubleTapHandler(() => {
+                triggerPostAnimation();
+                handleLike();
+              })}
+              activeOpacity={1}
+              accessible={true}
+              accessibilityRole="button"
+              accessibilityLabel={`Post image. Double tap to ${post.isLiked ? 'unlike' : 'like'}.`}
+              accessibilityHint="Double tap to like this post"
+            >
+              <View style={[
+                styles.postImageContainer,
+                animatingPost && styles.postImageAnimated
+              ]}>
+                <Image source={{ uri: post.imageUrl }} style={styles.postImage} />
+              </View>
+            </TouchableOpacity>
           )}
 
           <View style={styles.actionButtons}>
@@ -1074,7 +1099,9 @@ export default function ViewPost() {
           </View>
 
           <TouchableOpacity onPress={navigateToLikers}>
-            <Text style={styles.likes}>{post.reactionCount || 0} likes</Text>
+            <Text style={styles.likes}>
+              {post.reactionCount || 0} {(post.reactionCount || 0) === 1 ? 'like' : 'likes'}
+            </Text>
           </TouchableOpacity>
 
           <View style={styles.captionContainer}>
@@ -1913,5 +1940,21 @@ const styles = StyleSheet.create({
   replyItemAnimated: {
     backgroundColor: 'rgba(255, 45, 85, 0.1)',
     transform: [{ scale: 0.98 }],
+  },
+  postImageContainer: {
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  postImageAnimated: {
+    transform: [{ scale: 0.97 }],
+    borderRadius: 8,
+    shadowColor: '#FF2D55',
+    shadowOffset: {
+      width: 0,
+      height: 0,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
 });
