@@ -12,6 +12,7 @@ import { db } from '@/firebaseConfig';
 import { query, where, limit, getDocs } from 'firebase/firestore';
 import { deleteImageFromStorage, deleteMilestoneFromFirestore, getOptimalImageUrl } from '@/utils/imageUtils';
 import { UserProfile } from '@/types';
+import { useDoubleTap } from '@/hooks/useDoubleTap';
 
 export default function ViewPost() {
   const [menuVisible, setMenuVisible] = useState(false);
@@ -55,6 +56,25 @@ export default function ViewPost() {
 
   const [selectedCommentForAction, setSelectedCommentForAction] = useState<Comment | null>(null);
   const [commentActionModalVisible, setCommentActionModalVisible] = useState(false);
+  
+  // Visual feedback state for double-tap
+  const [animatingComments, setAnimatingComments] = useState<Record<string, boolean>>({});
+  const [animatingReplies, setAnimatingReplies] = useState<Record<string, boolean>>({});
+
+  // Visual feedback helper functions
+  const triggerCommentAnimation = (commentId: string) => {
+    setAnimatingComments(prev => ({ ...prev, [commentId]: true }));
+    setTimeout(() => {
+      setAnimatingComments(prev => ({ ...prev, [commentId]: false }));
+    }, 300);
+  };
+
+  const triggerReplyAnimation = (replyId: string) => {
+    setAnimatingReplies(prev => ({ ...prev, [replyId]: true }));
+    setTimeout(() => {
+      setAnimatingReplies(prev => ({ ...prev, [replyId]: false }));
+    }, 300);
+  };
   
   // Fetch post and comments
   useEffect(() => {
@@ -804,42 +824,189 @@ export default function ViewPost() {
     }
   };
 
-  const renderReplyItem = (reply: Reply, commentId: string) => (
-    <View key={reply.id} style={styles.replyItem}>
-      <View style={styles.commentLeftSection}>
-        <Image 
-          source={{ uri: getOptimalImageUrl(reply.authorProfileThumbnailUrl, reply.authorProfileImageUrl) }} 
-          style={styles.replyProfilePic} 
-        />
-        <View style={styles.commentContent}>
-          <View style={styles.commentHeader}>
-            <Text style={styles.commentUsername}>{reply.authorUsername}</Text>
-            <Text style={styles.commentTimestamp}>{formatDate(reply.createdAt)}</Text>
-          </View>
-          <Text style={styles.commentText}>{reply.text}</Text>
-          {/* Reply Actions (e.g., like for reply) can go here */}
-        </View>
-      </View>
-      <View style={styles.commentLikeContainer}>
+  // Create a custom double-tap handler that doesn't use hooks
+  const createDoubleTapHandler = (onDoubleTap: () => void) => {
+    let lastTap = 0;
+    let tapCount = 0;
+    let singleTapTimeout: NodeJS.Timeout | null = null;
+
+    return () => {
+      const now = Date.now();
+      const timeSinceLastTap = now - lastTap;
+
+      if (singleTapTimeout) {
+        clearTimeout(singleTapTimeout);
+        singleTapTimeout = null;
+      }
+
+      if (timeSinceLastTap < 300) {
+        // Double tap detected
+        tapCount = 0;
+        lastTap = 0;
+        
+        // Trigger haptic feedback
+        try {
+          import('expo-haptics').then(({ Haptics }) => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          });
+        } catch (error) {
+          // Haptics not available
+        }
+        
+        onDoubleTap();
+      } else {
+        // Single tap - do nothing for now
+        tapCount = 1;
+        lastTap = now;
+      }
+    };
+  };
+
+  const renderCommentItem = (comment: Comment) => {
+    const handleCommentDoubleTap = createDoubleTapHandler(() => {
+      triggerCommentAnimation(comment.id);
+      handleCommentLike(comment.id);
+    });
+
+    return (
+      <View key={comment.id}>
         <TouchableOpacity 
-          style={styles.commentLikeButton}
-          onPress={() => handleReplyLike(commentId, reply.id)}
+          onPress={handleCommentDoubleTap}
+          onLongPress={() => handleLongPressComment(comment)}
+          delayLongPress={500}
+          activeOpacity={1}
+          accessible={true}
+          accessibilityRole="button"
+          accessibilityLabel={`Comment by ${comment.authorUsername}. Double tap to like. ${comment.isLiked ? 'Liked' : 'Not liked'}.`}
+          accessibilityHint="Double tap to like this comment, or long press for more options"
         >
-          <Ionicons 
-            name={reply.isLiked ? "heart" : "heart-outline"} 
-            size={14} 
-            color={reply.isLiked ? "#FF3B30" : "#999"}
-          />
+          <View style={[
+            styles.commentItem,
+            animatingComments[comment.id] && styles.commentItemAnimated
+          ]}>
+            <View style={styles.commentLeftSection}>
+              <Image 
+                source={{ uri: getOptimalImageUrl(comment.authorProfileThumbnailUrl, comment.authorProfileImageUrl) }} 
+                style={styles.commentProfilePic} 
+              />
+              <View style={styles.commentContent}>
+                <View style={styles.commentHeader}>
+                  <Text style={styles.commentUsername}>{comment.authorUsername}</Text>
+                  <Text style={styles.commentTimestamp}>{formatDate(comment.createdAt)}</Text>
+                </View>
+                <Text style={styles.commentText}>{comment.text}</Text>
+                <View style={styles.commentActions}>
+                  <TouchableOpacity onPress={() => handleSetReplyMode(comment)} style={styles.replyButton}>
+                    <Text style={styles.replyButtonText}>Reply</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+            <View style={styles.commentLikeContainer}>
+              <TouchableOpacity 
+                style={styles.commentLikeButton}
+                onPress={() => handleCommentLike(comment.id)}
+              >
+                <Ionicons 
+                  name={comment.isLiked ? "heart" : "heart-outline"} 
+                  size={14} 
+                  color={comment.isLiked ? "#FF3B30" : "#999"}
+                />
+              </TouchableOpacity>
+              <Text style={[
+                styles.commentLikeCount,
+                comment.isLiked && styles.commentLikedCount
+              ]}>
+                {comment.likes || 0}
+              </Text>
+            </View>
+          </View>
         </TouchableOpacity>
-        <Text style={[
-          styles.commentLikeCount,
-          reply.isLiked && styles.commentLikedCount
-        ]}>
-          {reply.likes || 0}
-        </Text>
+        {/* Display Replies */}
+        {(comment.replyCount || 0) > 0 && !comment.replies?.length && !loadingReplies[comment.id] && (
+          <TouchableOpacity 
+            style={styles.viewRepliesButton} 
+            onPress={() => handleLoadReplies(comment.id)}
+          >
+            <Text style={styles.viewRepliesText}>
+              View {comment.replyCount} {comment.replyCount === 1 ? 'reply' : 'replies'}
+            </Text>
+          </TouchableOpacity>
+        )}
+        {loadingReplies[comment.id] && (
+          <ActivityIndicator size="small" color="#0A84FF" style={{alignSelf: 'flex-start', marginLeft: 50, marginVertical: 5}}/>
+        )}
+
+        {comment.replies && comment.replies.length > 0 && (
+          <View style={styles.repliesContainer}>
+            {comment.replies.map(reply => renderReplyItem(reply, comment.id))}
+            {(comment.replyCount || 0) > comment.replies.length && !loadingReplies[comment.id] && (
+              <TouchableOpacity 
+                  style={styles.viewRepliesButton} 
+                  onPress={() => handleLoadReplies(comment.id)} // Could be "load more" in future
+                >
+                  <Text style={styles.viewRepliesText}>
+                    View more replies
+                  </Text>
+                </TouchableOpacity>
+            )}
+          </View>
+        )}
       </View>
-    </View>
-  );
+    );
+  };
+
+  const renderReplyItem = (reply: Reply, commentId: string) => {
+    const handleReplyDoubleTap = createDoubleTapHandler(() => {
+      triggerReplyAnimation(reply.id);
+      handleReplyLike(commentId, reply.id);
+    });
+
+    return (
+      <TouchableOpacity
+        key={reply.id}
+        onPress={handleReplyDoubleTap}
+        activeOpacity={1}
+      >
+        <View style={[
+          styles.replyItem,
+          animatingReplies[reply.id] && styles.replyItemAnimated
+        ]}>
+          <View style={styles.commentLeftSection}>
+            <Image 
+              source={{ uri: getOptimalImageUrl(reply.authorProfileThumbnailUrl, reply.authorProfileImageUrl) }} 
+              style={styles.replyProfilePic} 
+            />
+            <View style={styles.commentContent}>
+              <View style={styles.commentHeader}>
+                <Text style={styles.commentUsername}>{reply.authorUsername}</Text>
+                <Text style={styles.commentTimestamp}>{formatDate(reply.createdAt)}</Text>
+              </View>
+              <Text style={styles.commentText}>{reply.text}</Text>
+            </View>
+          </View>
+          <View style={styles.commentLikeContainer}>
+            <TouchableOpacity 
+              style={styles.commentLikeButton}
+              onPress={() => handleReplyLike(commentId, reply.id)}
+            >
+              <Ionicons 
+                name={reply.isLiked ? "heart" : "heart-outline"} 
+                size={14} 
+                color={reply.isLiked ? "#FF3B30" : "#999"}
+              />
+            </TouchableOpacity>
+            <Text style={[
+              styles.commentLikeCount,
+              reply.isLiked && styles.commentLikedCount
+            ]}>
+              {reply.likes || 0}
+            </Text>
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <KeyboardAvoidingView 
@@ -982,83 +1149,7 @@ export default function ViewPost() {
               </Text>
             )}
             
-            {comments.map(comment => (
-              <View key={comment.id}>
-                <TouchableOpacity 
-                  onLongPress={() => handleLongPressComment(comment)}
-                  delayLongPress={500}
-                >
-                  <View style={styles.commentItem}>
-                    <View style={styles.commentLeftSection}>
-                      <Image 
-                        source={{ uri: getOptimalImageUrl(comment.authorProfileThumbnailUrl, comment.authorProfileImageUrl) }} 
-                        style={styles.commentProfilePic} 
-                      />
-                      <View style={styles.commentContent}>
-                        <View style={styles.commentHeader}>
-                          <Text style={styles.commentUsername}>{comment.authorUsername}</Text>
-                          <Text style={styles.commentTimestamp}>{formatDate(comment.createdAt)}</Text>
-                        </View>
-                        <Text style={styles.commentText}>{comment.text}</Text>
-                        <View style={styles.commentActions}>
-                          <TouchableOpacity onPress={() => handleSetReplyMode(comment)} style={styles.replyButton}>
-                            <Text style={styles.replyButtonText}>Reply</Text>
-                          </TouchableOpacity>
-                        </View>
-                      </View>
-                    </View>
-                    <View style={styles.commentLikeContainer}>
-                      <TouchableOpacity 
-                        style={styles.commentLikeButton}
-                        onPress={() => handleCommentLike(comment.id)}
-                      >
-                        <Ionicons 
-                          name={comment.isLiked ? "heart" : "heart-outline"} 
-                          size={14} 
-                          color={comment.isLiked ? "#FF3B30" : "#999"}
-                        />
-                      </TouchableOpacity>
-                      <Text style={[
-                        styles.commentLikeCount,
-                        comment.isLiked && styles.commentLikedCount
-                      ]}>
-                        {comment.likes || 0}
-                      </Text>
-                    </View>
-                  </View>
-                </TouchableOpacity>
-                {/* Display Replies */}
-                {(comment.replyCount || 0) > 0 && !comment.replies?.length && !loadingReplies[comment.id] && (
-                  <TouchableOpacity 
-                    style={styles.viewRepliesButton} 
-                    onPress={() => handleLoadReplies(comment.id)}
-                  >
-                    <Text style={styles.viewRepliesText}>
-                      View {comment.replyCount} {comment.replyCount === 1 ? 'reply' : 'replies'}
-                    </Text>
-                  </TouchableOpacity>
-                )}
-                {loadingReplies[comment.id] && (
-                  <ActivityIndicator size="small" color="#0A84FF" style={{alignSelf: 'flex-start', marginLeft: 50, marginVertical: 5}}/>
-                )}
-
-                {comment.replies && comment.replies.length > 0 && (
-                  <View style={styles.repliesContainer}>
-                    {comment.replies.map(reply => renderReplyItem(reply, comment.id))}
-                    {(comment.replyCount || 0) > comment.replies.length && !loadingReplies[comment.id] && (
-                      <TouchableOpacity 
-                          style={styles.viewRepliesButton} 
-                          onPress={() => handleLoadReplies(comment.id)} // Could be "load more" in future
-                        >
-                          <Text style={styles.viewRepliesText}>
-                            View more replies
-                          </Text>
-                        </TouchableOpacity>
-                    )}
-                  </View>
-                )}
-              </View>
-            ))}
+            {comments.map(comment => renderCommentItem(comment))}
           </View>
         </ScrollView>
 
@@ -1814,5 +1905,13 @@ const styles = StyleSheet.create({
   commentActionText: {
     color: '#FFF',
     fontSize: 17,
+  },
+  commentItemAnimated: {
+    backgroundColor: 'rgba(255, 45, 85, 0.1)',
+    transform: [{ scale: 0.98 }],
+  },
+  replyItemAnimated: {
+    backgroundColor: 'rgba(255, 45, 85, 0.1)',
+    transform: [{ scale: 0.98 }],
   },
 });
