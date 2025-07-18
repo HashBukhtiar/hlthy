@@ -1,5 +1,6 @@
 import {admin, getDb} from "./firebaseAdmin";
 import {onCall, HttpsError} from "firebase-functions/v2/https";
+import {FieldValue} from "firebase-admin/firestore";
 
 // Useful for troubleshooting and debugging
 export const minimaltestfunction = onCall(
@@ -370,5 +371,75 @@ export const createMilestonePost = onCall(
       console.error("Error creating milestone post:", error);
       throw new HttpsError("internal", "Failed to create milestone post.", error);
     }
+  }
+);
+
+export const followUser = onCall(
+  {region: "northamerica-northeast2"},
+  async (req) => {
+    const uid = req.auth?.uid;
+    const {targetUserId} = req.data;
+    if (!uid || !targetUserId || uid === targetUserId) {
+      throw new HttpsError("invalid-argument", "Invalid follow request");
+    }
+    const db = getDb();
+    const batch = db.batch();
+
+    // 1) subcollection writes
+    batch.set(
+      db.collection("users").doc(targetUserId).collection("followers").doc(uid),
+      {followedAt: admin.firestore.FieldValue.serverTimestamp()}
+    );
+    batch.set(
+      db.collection("users").doc(uid).collection("following").doc(targetUserId),
+      {followedAt: admin.firestore.FieldValue.serverTimestamp()}
+    );
+
+    // 2) top-level counts
+    batch.update(db.collection("users").doc(targetUserId), {
+      "followerCount": FieldValue.increment(1),
+      "stats.followerCount": FieldValue.increment(1),
+    });
+    batch.update(db.collection("users").doc(uid), {
+      "followingCount": FieldValue.increment(1),
+      "stats.followingCount": FieldValue.increment(1),
+    });
+
+    await batch.commit();
+    return {success: true};
+  }
+);
+
+export const unfollowUser = onCall(
+  {region: "northamerica-northeast2"},
+  async (req) => {
+    const uid = req.auth?.uid;
+    const {targetUserId} = req.data;
+    if (!uid || !targetUserId || uid === targetUserId) {
+      throw new HttpsError("invalid-argument", "Invalid unfollow request");
+    }
+    const db = getDb();
+    const batch = db.batch();
+
+    // 1) remove subcollection docs
+    batch.delete(
+      db.collection("users").doc(targetUserId).collection("followers").doc(uid)
+    );
+    batch.delete(
+      db.collection("users").doc(uid).collection("following").doc(targetUserId)
+    );
+
+    // 2) decrement top-level counts
+    batch.update(db.collection("users").doc(targetUserId), {
+      "followerCount": FieldValue.increment(-1),
+      "stats.followerCount": FieldValue.increment(-1),
+    });
+    batch.update(db.collection("users").doc(uid), {
+      "followingCount": FieldValue.increment(-1),
+      "stats.followingCount": FieldValue.increment(-1),
+    });
+
+    await batch.commit();
+    return {success: true};
   }
 );

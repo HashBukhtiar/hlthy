@@ -40,46 +40,33 @@ service cloud.firestore {
 
     // Users collection
     match /users/{userId} {
-      allow read: if isAuthenticated() && 
-        canViewProfile(userId, request.auth.uid) && 
-        !isBlocked(userId, request.auth.uid) &&
-        !isBlocked(request.auth.uid, userId);
-      
-      allow create: if isOwner(userId) &&
-        request.resource.data.keys().hasAll(['displayName', 'username', 'email']) &&
-        request.resource.data.username is string &&
-        request.resource.data.username.size() >= 3 &&
-        request.resource.data.username.size() <= 30;
-      
       allow update: if isOwner(userId);
-      
-      // User subcollections
-      match /following/{followedUserId} {
-        allow read, write: if isOwner(userId);
-      }
-      
-      match /followers/{followerId} {
-        allow read: if isOwner(userId) || isOwner(followerId);
-        allow create: if isAuthenticated() && request.auth.uid == followerId;
-        allow delete: if isOwner(userId) || isOwner(followerId);
-      }
-      
-      match /pendingFollowers/{requesterId} {
-        allow read: if isOwner(userId);
-        allow create: if isAuthenticated() && request.auth.uid == requesterId;
-        allow delete: if isOwner(userId) || isOwner(requesterId);
-      }
-      
-      match /savedWorkouts/{workoutId} {
-        allow read, write: if isOwner(userId);
-      }
-      
-      match /conversations/{conversationId} {
-        allow read: if isOwner(userId);
-        // Allow any participant to update specific fields, but only if they are a participant
-        allow write: if isAuthenticated() &&
-          get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants.hasAny([request.auth.uid]);
-      }
+    }
+
+    // User subcollections (move these OUTSIDE the match /users/{userId} block)
+    match /users/{userId}/followers/{followerId} {
+      allow read:   if isOwner(userId) || isOwner(followerId);
+      // only the *follower* should ever add themselves—no need to let the target user write here
+      allow create: if isAuthenticated() && request.auth.uid == followerId;
+      allow delete: if isOwner(userId) || isOwner(followerId);
+    }
+    match /users/{userId}/following/{followedUserId} {
+      allow read: if isOwner(userId);
+      // only the *owner* of this list (i.e. the follower) should add/remove entries
+      allow write: if isOwner(userId);
+    }
+    match /users/{userId}/pendingFollowers/{requesterId} {
+      allow read: if isOwner(userId);
+      allow create: if isAuthenticated() && request.auth.uid == requesterId;
+      allow delete: if isOwner(userId) || isOwner(requesterId);
+    }
+    match /users/{userId}/savedWorkouts/{workoutId} {
+      allow read, write: if isOwner(userId);
+    }
+    match /users/{userId}/conversations/{conversationId} {
+      allow read: if isOwner(userId);
+      allow write: if isAuthenticated() &&
+        get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants.hasAny([request.auth.uid]);
     }
 
     // Usernames collection
