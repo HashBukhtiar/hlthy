@@ -127,6 +127,11 @@ export default function SignUpStep1({ visible, onBackPress, onNext, onShowLogin 
     onBackPress();
   }, [onBackPress]);
 
+  const handleEmailChange = (text: string) => {
+    setEmail(text);
+    setIsEmailValid(text === '' || validateEmail(text));
+  };
+
   if (!visible) return null;
 
   return (
@@ -267,35 +272,32 @@ export default function SignUpStep1({ visible, onBackPress, onNext, onShowLogin 
                   <TextInput
                     label="Email Address"
                     value={email}
-                    onChangeText={setEmail}
+                    onChangeText={handleEmailChange}
                     onFocus={() => setEmailFocused(true)}
-                    onBlur={() => {
-                      setEmailFocused(false);
-                      setIsEmailValid(email === '' || validateEmail(email));
-                    }}
+                    onBlur={() => setEmailFocused(false)}
                     style={[
-                      (email || emailFocused) ? styles.modernInput : styles.modernInputCompact, 
-                      !isEmailValid && styles.modernInputError
+                      (email || emailFocused) ? styles.modernInput : styles.modernInputCompact,
+                      !isEmailValid && styles.modernInputError,
                     ]}
                     contentStyle={(email || emailFocused) ? styles.inputContentStyle : styles.inputContentStyleCompact}
                     dense={!email && !emailFocused}
                     mode="flat"
-                    theme={{ 
-                      colors: { 
-                        primary: '#FFFFFF', 
+                    theme={{
+                      colors: {
+                        primary: '#FFFFFF',
                         background: 'transparent',
                         surface: 'transparent',
                         onSurfaceVariant: '#AAAAAA',
                         outline: 'transparent',
-                        error: '#FF5555'
-                      }
+                        error: '#FF5555',
+                      },
                     }}
                     autoCapitalize='none'
                     keyboardType="email-address"
                     textColor='#FFFFFF'
                     error={!isEmailValid}
-                    underlineColor={!isEmailValid ? "#FF5555" : "rgba(255, 255, 255, 0.3)"}
-                    activeUnderlineColor={!isEmailValid ? "#FF5555" : "#FFFFFF"}
+                    underlineColor={!isEmailValid ? '#FF5555' : 'rgba(255, 255, 255, 0.3)'}
+                    activeUnderlineColor={!isEmailValid ? '#FF5555' : '#FFFFFF'}
                   />
                 </Animated.View>
               </View>
