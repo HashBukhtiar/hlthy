@@ -16,13 +16,14 @@ import ForgotPasswordForm from '@/components/ForgotPasswordForm';
 import SignUpStep1 from '@/components/SignUpStep1';
 import SignUpStep2 from '@/components/SignUpStep2';
 import SignUpStep3 from '@/components/SignUpStep3';
+import SignUpStep4 from '@/components/SignUpStep4';
 
 export default function Landing() {
   const router = useRouter();
   const { width } = Dimensions.get('window');
   
   // State for current active screen
-  const [currentScreen, setCurrentScreen] = useState<'landing' | 'signup-step1' | 'signup-step2' | 'signup-step3' | 'login' | 'forgot'>('landing');
+  const [currentScreen, setCurrentScreen] = useState<'landing' | 'signup-step1' | 'signup-step2' | 'signup-step3' | 'signup-step4' | 'login' | 'forgot'>('landing');
   
   // State for storing signup data across steps
   const [signupData, setSignupData] = useState({
@@ -40,6 +41,7 @@ export default function Landing() {
   const signUpStep1Anim = useRef(new Animated.Value(width)).current;
   const signUpStep2Anim = useRef(new Animated.Value(width)).current;
   const signUpStep3Anim = useRef(new Animated.Value(width)).current;
+  const signUpStep4Anim = useRef(new Animated.Value(width)).current;
   const loginAnim = useRef(new Animated.Value(width)).current;
   const forgotPasswordAnim = useRef(new Animated.Value(width)).current;
 
@@ -50,13 +52,14 @@ export default function Landing() {
     signUpStep1Anim.setValue(width);
     signUpStep2Anim.setValue(width);
     signUpStep3Anim.setValue(width);
+    signUpStep4Anim.setValue(width);
     loginAnim.setValue(width);
     forgotPasswordAnim.setValue(width);
   }, []);
 
   // Helper function to animate screen transitions with position restoration
   const animateToScreen = useCallback((
-    targetScreen: 'landing' | 'signup-step1' | 'signup-step2' | 'signup-step3' | 'login' | 'forgot', 
+    targetScreen: 'landing' | 'signup-step1' | 'signup-step2' | 'signup-step3' | 'signup-step4' | 'login' | 'forgot', 
     direction: 'forward' | 'backward' = 'forward'
   ) => {
     if (targetScreen === currentScreen) return;
@@ -67,6 +70,7 @@ export default function Landing() {
         case 'signup-step1': return signUpStep1Anim;
         case 'signup-step2': return signUpStep2Anim;
         case 'signup-step3': return signUpStep3Anim;
+        case 'signup-step4': return signUpStep4Anim;
         case 'login': return loginAnim;
         case 'forgot': return forgotPasswordAnim;
       }
@@ -120,7 +124,7 @@ export default function Landing() {
     }
 
     setCurrentScreen(targetScreen);
-  }, [currentScreen, landingAnim, signUpStep1Anim, signUpStep2Anim, signUpStep3Anim, loginAnim, forgotPasswordAnim, width]);
+  }, [currentScreen, landingAnim, signUpStep1Anim, signUpStep2Anim, signUpStep3Anim, signUpStep4Anim, loginAnim, forgotPasswordAnim, width]);
 
   const handleShowSignUp = useCallback(() => {
     animateToScreen('signup-step1', 'forward');
@@ -159,6 +163,10 @@ export default function Landing() {
     animateToScreen('signup-step2', 'backward');
   }, [animateToScreen]);
 
+  const handleSignUpStep4Back = useCallback(() => {
+    animateToScreen('signup-step3', 'backward');
+  }, [animateToScreen]);
+
   // Signup step data handlers
   const handleSignUpStep1Data = useCallback((data: { firstName: string; lastName: string; email: string }) => {
     setSignupData(prev => ({ ...prev, ...data }));
@@ -168,6 +176,11 @@ export default function Landing() {
   const handleSignUpStep2Data = useCallback((data: { username: string; dateOfBirth: string }) => {
     setSignupData(prev => ({ ...prev, ...data }));
     animateToScreen('signup-step3', 'forward');
+  }, [animateToScreen]);
+
+  const handleSignUpStep3Data = useCallback((data: { password: string; confirmPassword: string }) => {
+    setSignupData(prev => ({ ...prev, password: data.password }));
+    animateToScreen('signup-step4', 'forward');
   }, [animateToScreen]);
 
   const handleSignUpComplete = useCallback(async (data: { password: string; confirmPassword: string }) => {
@@ -191,6 +204,29 @@ export default function Landing() {
         password: '',
       });
       
+      animateToScreen('landing', 'backward');
+    } catch (error) {
+      console.error('Signup error:', error);
+    } finally {
+      setSignupLoading(false);
+    }
+  }, [signupData, animateToScreen]);
+
+  const handleSignUpStep4Complete = useCallback(async (data: { bio: string }) => {
+    setSignupLoading(true);
+    try {
+      const finalData = { ...signupData, bio: data.bio };
+      // TODO: Implement actual signup logic here
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      console.log('Signup completed with data:', finalData);
+      setSignupData({
+        firstName: '',
+        lastName: '',
+        email: '',
+        username: '',
+        dateOfBirth: '',
+        password: '',
+      });
       animateToScreen('landing', 'backward');
     } catch (error) {
       console.error('Signup error:', error);
@@ -281,7 +317,20 @@ export default function Landing() {
             <SignUpStep3 
               visible={true} 
               onBackPress={handleSignUpStep3Back}
-              onComplete={handleSignUpComplete}
+              onComplete={handleSignUpStep3Data}
+              onShowLogin={handleShowLogin}
+              loading={signupLoading}
+            />
+          </Animated.View>
+
+          <Animated.View style={[
+            styles.slideView, 
+            { transform: [{ translateX: signUpStep4Anim }] }
+          ]}>
+            <SignUpStep4
+              visible={true}
+              onBackPress={handleSignUpStep4Back}
+              onComplete={handleSignUpStep4Complete}
               onShowLogin={handleShowLogin}
               loading={signupLoading}
             />
