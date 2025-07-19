@@ -166,8 +166,8 @@ export default function SignUpStep3({ visible, onBackPress, onComplete, onShowLo
 
           {/* Content */}
           <Animated.View style={[styles.content, { paddingTop: contentPaddingAnim }]}> 
-            <Text style={styles.title}>Secure your account</Text>
-            <Text style={styles.subtitle}>Choose a strong password to protect your account</Text>
+            <Text style={styles.title}>Protect your account</Text>
+            <Text style={styles.subtitle}>Create and confirm a secure password</Text>
 
             {/* Form */}
             <View style={styles.form}>
@@ -204,27 +204,6 @@ export default function SignUpStep3({ visible, onBackPress, onComplete, onShowLo
                   textContentType="none"
                   autoComplete="off"
                 />
-                {/* Password Strength Indicator */}
-                {passwordStrength && (
-                  <View style={styles.passwordStrength}>
-                    <View style={styles.strengthBars}>
-                      {[1, 2, 3, 4, 5].map((bar) => (
-                        <View
-                          key={bar}
-                          style={[
-                            styles.strengthBar,
-                            {
-                              backgroundColor: bar <= passwordStrength.strength 
-                                ? passwordStrength.color 
-                                : 'rgba(255, 255, 255, 0.2)'
-                            }
-                          ]}
-                        />
-                      ))}
-                    </View>
-                    <Text style={[styles.strengthLabel, { color: passwordStrength.color }]}> {passwordStrength.label} </Text>
-                  </View>
-                )}
               </View>
               <View style={styles.inputContainer}>
                 <TextInput
@@ -260,6 +239,27 @@ export default function SignUpStep3({ visible, onBackPress, onComplete, onShowLo
                   autoComplete="off"
                 />
               </View>
+                {/* Password Strength Indicator */}
+                {passwordStrength && (
+                  <View style={styles.passwordStrength}>
+                    <View style={styles.strengthBars}>
+                      {[1, 2, 3, 4, 5].map((bar) => (
+                        <View
+                          key={bar}
+                          style={[
+                            styles.strengthBar,
+                            {
+                              backgroundColor: bar <= passwordStrength.strength 
+                                ? passwordStrength.color 
+                                : 'rgba(255, 255, 255, 0.2)'
+                            }
+                          ]}
+                        />
+                      ))}
+                    </View>
+                    <Text style={[styles.strengthLabel, { color: passwordStrength.color }]}> {passwordStrength.label} </Text>
+                  </View>
+                )}
             </View>
 
             {/* Buttons */}
@@ -365,7 +365,6 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     justifyContent: 'flex-start',
-    paddingTop: 80,
   },
   title: {
     fontSize: 32,
@@ -378,13 +377,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: 'rgba(255, 255, 255, 0.7)',
     textAlign: 'center',
-    marginBottom: 40,
+    marginBottom: 30,
   },
   form: {
-    marginBottom: 20,
+    marginBottom: 10,
   },
   inputContainer: {
-    marginBottom: 20,
+    marginBottom: 10,
   },
   modernInput: {
     marginBottom: 10,
@@ -412,7 +411,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   passwordStrength: {
-    marginTop: 8,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
