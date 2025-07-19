@@ -93,19 +93,19 @@ export default function SignUpStep4({ visible, onBackPress, onComplete, onShowLo
           {archetype && (
             <View style={styles.previewContainer}>
               <Text style={styles.previewTitle}>Selected Archetype</Text>
-              <View style={styles.previewCard}>
-                <View style={styles.previewHeader}>
-                  <Image 
-                    source={archetypes.find(a => a.value === archetype)?.image} 
-                    style={styles.previewIcon}
-                  />
-                  <Text style={styles.previewName}>
+              <View style={styles.previewCardCleaned}>
+                <Image 
+                  source={archetypes.find(a => a.value === archetype)?.image} 
+                  style={styles.previewIconCleaned}
+                />
+                <View style={styles.previewTextBlock}>
+                  <Text style={styles.previewNameCleaned}>
                     {archetypes.find(a => a.value === archetype)?.label}
                   </Text>
+                  <Text style={styles.previewDescriptionCleaned}>
+                    {archetypes.find(a => a.value === archetype)?.description}
+                  </Text>
                 </View>
-                <Text style={styles.previewDescription}>
-                  {archetypes.find(a => a.value === archetype)?.description}
-                </Text>
               </View>
             </View>
           )}
@@ -120,7 +120,7 @@ export default function SignUpStep4({ visible, onBackPress, onComplete, onShowLo
             activeOpacity={0.8}
             disabled={!archetype || loading}
           >
-            <Text style={styles.completeButtonText}>Save and Continue</Text>
+            <Text style={styles.completeButtonText}>Create Account</Text>
           </TouchableOpacity>
         </View>
       </Animated.View>
@@ -269,34 +269,37 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     marginBottom: 10,
   },
-  previewCard: {
+  previewCardCleaned: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 10,
-    borderRadius: 10,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    padding: 16,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.07)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderColor: 'rgba(255,255,255,0.15)',
+    gap: 16,
   },
-  previewHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 5,
+  previewIconCleaned: {
+    width: 48,
+    height: 48,
+    borderRadius: 0,
+    marginRight: 0,
   },
-  previewIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    marginRight: 10,
+  previewTextBlock: {
+    flex: 1,
+    flexDirection: 'column',
+    justifyContent: 'center',
+    gap: 4,
   },
-  previewName: {
+  previewNameCleaned: {
     fontSize: 18,
-    fontWeight: '500',
+    fontWeight: 'bold',
     color: '#FFFFFF',
+    marginBottom: 2,
   },
-  previewDescription: {
+  previewDescriptionCleaned: {
     fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.7)',
+    color: 'rgba(255,255,255,0.7)',
   },
   infoBox: {
     flexDirection: 'row',

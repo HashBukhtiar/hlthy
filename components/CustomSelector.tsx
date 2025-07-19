@@ -200,7 +200,7 @@ export const CustomSelector = ({
                             <View style={styles.handleBar} />
                         </View>
                         
-                        <Text style={styles.modalTitle}>{title}</Text>
+                        <Text style={styles.modalTitle}>Select {title}</Text>
                         
                         {items.map((item) => (
                             <TouchableOpacity

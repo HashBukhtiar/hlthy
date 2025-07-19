@@ -363,7 +363,7 @@ export default function SignUpStep3({ visible, onBackPress, onComplete, onShowLo
                   <CustomSpinner size={20} />
                 ) : (
                   <>
-                    <Text style={styles.completeButtonText}>Create Account</Text>
+                    <Text style={styles.completeButtonText}>Save and Continue</Text>
                     <Ionicons name="chevron-forward" size={20} color="#000000" />
                   </>
                 )}
