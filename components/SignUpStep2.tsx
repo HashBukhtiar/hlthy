@@ -268,7 +268,7 @@ export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin,
                 />
               </View>
 
-              <View style={styles.inputContainer}>
+              <View style={[styles.inputContainer, { marginTop: 10 }]}>
                 {/* Animated Floating label for Date of Birth (always rendered, animates between states) */}
                 <View style={styles.floatingLabelWrapper} pointerEvents="none">
                   {/* Large label (resting) */}

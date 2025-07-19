@@ -151,6 +151,7 @@ export default function SignUpStep3({ visible, onBackPress, onComplete, onShowLo
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
+          scrollEnabled={false}
         >
           {/* Back button - positioned absolutely like LoginForm */}
           <TouchableOpacity 
@@ -201,8 +202,8 @@ export default function SignUpStep3({ visible, onBackPress, onComplete, onShowLo
                       onPress={() => setShowPassword(!showPassword)}
                     />
                   }
-                  textContentType="none"
-                  autoComplete="off"
+                  textContentType="newPassword"
+                  autoComplete="new-password"
                 />
               </View>
               <View style={styles.inputContainer}>
@@ -235,8 +236,8 @@ export default function SignUpStep3({ visible, onBackPress, onComplete, onShowLo
                       onPress={() => setShowConfirmPassword(!showConfirmPassword)}
                     />
                   }
-                  textContentType="none"
-                  autoComplete="off"
+                  textContentType="newPassword"
+                  autoComplete="new-password"
                 />
               </View>
                 {/* Password Strength Indicator */}
@@ -285,45 +286,44 @@ export default function SignUpStep3({ visible, onBackPress, onComplete, onShowLo
                 <Text style={[styles.errorText, { opacity: errorMessage ? 1 : 0 }]}> {errorMessage || ' '} </Text>
               </View>
             </View>
-
-            {/* Password Requirements - moved below button */}
-            <View style={styles.requirementsBox}>
-              <Text style={styles.requirementsTitle}>Password must contain:</Text>
-              <View style={styles.requirement}>
-                <Ionicons 
-                  name={password.length >= 8 ? "checkmark-circle" : "ellipse-outline"} 
-                  size={16} 
-                  color={password.length >= 8 ? '#90EE90' : 'rgba(255, 255, 255, 0.5)'} 
-                />
-                <Text style={styles.requirementText}>At least 8 characters</Text>
-              </View>
-              <View style={styles.requirement}>
-                <Ionicons 
-                  name={/[A-Z]/.test(password) ? "checkmark-circle" : "ellipse-outline"} 
-                  size={16} 
-                  color={/[A-Z]/.test(password) ? '#90EE90' : 'rgba(255, 255, 255, 0.5)'} 
-                />
-                <Text style={styles.requirementText}>One uppercase letter</Text>
-              </View>
-              <View style={styles.requirement}>
-                <Ionicons 
-                  name={/[a-z]/.test(password) ? "checkmark-circle" : "ellipse-outline"} 
-                  size={16} 
-                  color={/[a-z]/.test(password) ? '#90EE90' : 'rgba(255, 255, 255, 0.5)'} 
-                />
-                <Text style={styles.requirementText}>One lowercase letter</Text>
-              </View>
-              <View style={styles.requirement}>
-                <Ionicons 
-                  name={/\d/.test(password) ? "checkmark-circle" : "ellipse-outline"} 
-                  size={16} 
-                  color={/\d/.test(password) ? '#90EE90' : 'rgba(255, 255, 255, 0.5)'} 
-                />
-                <Text style={styles.requirementText}>One number</Text>
-              </View>
-            </View>
           </Animated.View>
         </ScrollView>
+        {/* Password Requirements - fixed at bottom, outside ScrollView */}
+        <View style={styles.requirementsBoxFixed}>
+          <Text style={styles.requirementsTitle}>Password must contain:</Text>
+          <View style={styles.requirement}>
+            <Ionicons 
+              name={password.length >= 8 ? "checkmark-circle" : "ellipse-outline"} 
+              size={16} 
+              color={password.length >= 8 ? '#90EE90' : 'rgba(255, 255, 255, 0.5)'} 
+            />
+            <Text style={styles.requirementText}>At least 8 characters</Text>
+          </View>
+          <View style={styles.requirement}>
+            <Ionicons 
+              name={/[A-Z]/.test(password) ? "checkmark-circle" : "ellipse-outline"} 
+              size={16} 
+              color={/[A-Z]/.test(password) ? '#90EE90' : 'rgba(255, 255, 255, 0.5)'} 
+            />
+            <Text style={styles.requirementText}>One uppercase letter</Text>
+          </View>
+          <View style={styles.requirement}>
+            <Ionicons 
+              name={/[a-z]/.test(password) ? "checkmark-circle" : "ellipse-outline"} 
+              size={16} 
+              color={/[a-z]/.test(password) ? '#90EE90' : 'rgba(255, 255, 255, 0.5)'} 
+            />
+            <Text style={styles.requirementText}>One lowercase letter</Text>
+          </View>
+          <View style={styles.requirement}>
+            <Ionicons 
+              name={/\d/.test(password) ? "checkmark-circle" : "ellipse-outline"} 
+              size={16} 
+              color={/\d/.test(password) ? '#90EE90' : 'rgba(255, 255, 255, 0.5)'} 
+            />
+            <Text style={styles.requirementText}>One number</Text>
+          </View>
+        </View>
       </KeyboardAvoidingView>
     </TouchableWithoutFeedback>
   );
@@ -434,7 +434,7 @@ const styles = StyleSheet.create({
     color: '#FF5555',
     fontSize: 14,
     textAlign: 'center',
-    marginTop: 10,
+    marginTop: 0,
   },
   errorContainer: {
     minHeight: 44,
@@ -446,6 +446,15 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     marginBottom: 30,
+  },
+  requirementsBoxFixed: {
+    position: 'absolute',
+    left: 20,
+    right: 20,
+    bottom: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 12,
+    padding: 16,
   },
   requirementsTitle: {
     color: '#FFFFFF',
