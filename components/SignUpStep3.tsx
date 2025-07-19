@@ -201,6 +201,8 @@ export default function SignUpStep3({ visible, onBackPress, onComplete, onShowLo
                       onPress={() => setShowPassword(!showPassword)}
                     />
                   }
+                  textContentType="none"
+                  autoComplete="off"
                 />
                 {/* Password Strength Indicator */}
                 {passwordStrength && (
@@ -254,6 +256,8 @@ export default function SignUpStep3({ visible, onBackPress, onComplete, onShowLo
                       onPress={() => setShowConfirmPassword(!showConfirmPassword)}
                     />
                   }
+                  textContentType="none"
+                  autoComplete="off"
                 />
               </View>
             </View>
