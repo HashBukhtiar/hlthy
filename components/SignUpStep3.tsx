@@ -442,6 +442,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    paddingHorizontal: 5,
   },
   strengthBars: {
     flexDirection: 'row',
@@ -457,6 +458,8 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: 'bold',
     marginLeft: 8,
+    minWidth: 50,
+    textAlign: 'center',
   },
   errorText: {
     color: '#FF5555',
