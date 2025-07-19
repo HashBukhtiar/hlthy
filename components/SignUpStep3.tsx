@@ -119,17 +119,38 @@ export default function SignUpStep3({ visible, onBackPress, onComplete, onShowLo
     setErrorMessage('');
   }, [password, confirmPassword, submitted]);
 
+  // Shake animations for password and confirm password fields
+  const passwordShakeAnim = useRef(new Animated.Value(0)).current;
+  const confirmPasswordShakeAnim = useRef(new Animated.Value(0)).current;
+
+  const triggerShake = useCallback((field: 'password' | 'confirm') => {
+    const anim = field === 'password' ? passwordShakeAnim : confirmPasswordShakeAnim;
+    anim.setValue(0);
+    Animated.sequence([
+      Animated.timing(anim, { toValue: 1, duration: 50, useNativeDriver: true }),
+      Animated.timing(anim, { toValue: -1, duration: 50, useNativeDriver: true }),
+      Animated.timing(anim, { toValue: 1, duration: 50, useNativeDriver: true }),
+      Animated.timing(anim, { toValue: 0, duration: 50, useNativeDriver: true }),
+    ]).start();
+  }, [passwordShakeAnim, confirmPasswordShakeAnim]);
+
   const handleComplete = useCallback(() => {
     Keyboard.dismiss();
     setSubmitted(true);
-    // Validation will run in useEffect
-    // Only proceed if no error
     const isStrong = password.length >= 8 && /[A-Z]/.test(password) && /[a-z]/.test(password) && /\d/.test(password);
-    if (!isStrong || !confirmPassword.trim() || password !== confirmPassword) {
+    if (!isStrong) {
+      setErrorMessage('Password is not strong enough');
+      triggerShake('password');
       return;
     }
+    if (!confirmPassword.trim() || password !== confirmPassword) {
+      setErrorMessage('Passwords do not match');
+      triggerShake('confirm');
+      return;
+    }
+    setErrorMessage('');
     onComplete({ password, confirmPassword });
-  }, [password, confirmPassword, onComplete]);
+  }, [password, confirmPassword, onComplete, triggerShake]);
 
   const handleBackPress = useCallback(() => {
     Keyboard.dismiss();
@@ -191,82 +212,108 @@ export default function SignUpStep3({ visible, onBackPress, onComplete, onShowLo
             {/* Form */}
             <View style={styles.form}>
               <View style={styles.inputContainer}>
-                <TextInput
-                  label="Password"
-                  value={password}
-                  onChangeText={setPassword}
-                  onFocus={() => setPasswordFocused(true)}
-                  onBlur={() => setPasswordFocused(false)}
-                  secureTextEntry={!showPassword}
-                  style={[
-                    (password || passwordFocused) ? styles.modernInput : styles.modernInputCompact,
-                    submitted && errorMessage === 'Password is not strong enough' && styles.modernInputError
-                  ]}
-                  contentStyle={(password || passwordFocused) ? styles.inputContentStyle : styles.inputContentStyleCompact}
-                  dense={!password && !passwordFocused}
-                  mode="flat"
-                  theme={{ 
-                    colors: { 
-                      primary: '#FFFFFF', 
-                      background: 'transparent',
-                      surface: 'transparent',
-                      onSurfaceVariant: '#AAAAAA',
-                      outline: 'transparent',
-                      error: '#FF5555'
-                    }
+                <Animated.View
+                  style={{
+                    transform: [
+                      {
+                        translateX:
+                          submitted && errorMessage === 'Password is not strong enough'
+                            ? passwordShakeAnim.interpolate({ inputRange: [-1, 1], outputRange: [-5, 5] })
+                            : 0,
+                      },
+                    ],
                   }}
-                  textColor='#FFFFFF'
-                  error={submitted && errorMessage === 'Password is not strong enough'}
-                  underlineColor={submitted && errorMessage === 'Password is not strong enough' ? "#FF5555" : "rgba(255, 255, 255, 0.3)"}
-                  activeUnderlineColor={submitted && errorMessage === 'Password is not strong enough' ? "#FF5555" : "#FFFFFF"}
-                  right={
-                    <TextInput.Icon 
-                      icon={showPassword ? "eye-off" : "eye"} 
-                      onPress={() => setShowPassword(!showPassword)}
-                    />
-                  }
-                  textContentType="newPassword"
-                  autoComplete="new-password"
-                />
+                >
+                  <TextInput
+                    label="Password"
+                    value={password}
+                    onChangeText={setPassword}
+                    onFocus={() => setPasswordFocused(true)}
+                    onBlur={() => setPasswordFocused(false)}
+                    secureTextEntry={!showPassword}
+                    style={[
+                      (password || passwordFocused) ? styles.modernInput : styles.modernInputCompact,
+                      submitted && errorMessage === 'Password is not strong enough' && styles.modernInputError,
+                    ]}
+                    contentStyle={(password || passwordFocused) ? styles.inputContentStyle : styles.inputContentStyleCompact}
+                    dense={!password && !passwordFocused}
+                    mode="flat"
+                    theme={{
+                      colors: {
+                        primary: '#FFFFFF',
+                        background: 'transparent',
+                        surface: 'transparent',
+                        onSurfaceVariant: '#AAAAAA',
+                        outline: 'transparent',
+                        error: '#FF5555',
+                      },
+                    }}
+                    textColor="#FFFFFF"
+                    error={submitted && errorMessage === 'Password is not strong enough'}
+                    underlineColor={submitted && errorMessage === 'Password is not strong enough' ? '#FF5555' : 'rgba(255, 255, 255, 0.3)'}
+                    activeUnderlineColor={submitted && errorMessage === 'Password is not strong enough' ? '#FF5555' : '#FFFFFF'}
+                    right={
+                      <TextInput.Icon
+                        icon={showPassword ? 'eye-off' : 'eye'}
+                        onPress={() => setShowPassword(!showPassword)}
+                      />
+                    }
+                    textContentType="newPassword"
+                    autoComplete="new-password"
+                  />
+                </Animated.View>
               </View>
               <View style={styles.inputContainer}>
-                <TextInput
-                  label="Confirm Password"
-                  value={confirmPassword}
-                  onChangeText={setConfirmPassword}
-                  onFocus={() => setConfirmPasswordFocused(true)}
-                  onBlur={() => setConfirmPasswordFocused(false)}
-                  secureTextEntry={!showConfirmPassword}
-                  style={[
-                    (confirmPassword || confirmPasswordFocused) ? styles.modernInput : styles.modernInputCompact,
-                    errorMessage === 'Passwords do not match' && styles.modernInputError
-                  ]}
-                  contentStyle={(confirmPassword || confirmPasswordFocused) ? styles.inputContentStyle : styles.inputContentStyleCompact}
-                  dense={!confirmPassword && !confirmPasswordFocused}
-                  mode="flat"
-                  theme={{ 
-                    colors: { 
-                      primary: '#FFFFFF', 
-                      background: 'transparent',
-                      surface: 'transparent',
-                      onSurfaceVariant: '#AAAAAA',
-                      outline: 'transparent',
-                      error: '#FF5555'
-                    }
+                <Animated.View
+                  style={{
+                    transform: [
+                      {
+                        translateX:
+                          submitted && errorMessage === 'Passwords do not match'
+                            ? confirmPasswordShakeAnim.interpolate({ inputRange: [-1, 1], outputRange: [-5, 5] })
+                            : 0,
+                      },
+                    ],
                   }}
-                  textColor='#FFFFFF'
-                  error={errorMessage === 'Passwords do not match'}
-                  underlineColor={errorMessage === 'Passwords do not match' ? "#FF5555" : "rgba(255, 255, 255, 0.3)"}
-                  activeUnderlineColor={errorMessage === 'Passwords do not match' ? "#FF5555" : "#FFFFFF"}
-                  right={
-                    <TextInput.Icon 
-                      icon={showConfirmPassword ? "eye-off" : "eye"} 
-                      onPress={() => setShowConfirmPassword(!showConfirmPassword)}
-                    />
-                  }
-                  textContentType="newPassword"
-                  autoComplete="new-password"
-                />
+                >
+                  <TextInput
+                    label="Confirm Password"
+                    value={confirmPassword}
+                    onChangeText={setConfirmPassword}
+                    onFocus={() => setConfirmPasswordFocused(true)}
+                    onBlur={() => setConfirmPasswordFocused(false)}
+                    secureTextEntry={!showConfirmPassword}
+                    style={[
+                      (confirmPassword || confirmPasswordFocused) ? styles.modernInput : styles.modernInputCompact,
+                      errorMessage === 'Passwords do not match' && styles.modernInputError,
+                    ]}
+                    contentStyle={(confirmPassword || confirmPasswordFocused) ? styles.inputContentStyle : styles.inputContentStyleCompact}
+                    dense={!confirmPassword && !confirmPasswordFocused}
+                    mode="flat"
+                    theme={{
+                      colors: {
+                        primary: '#FFFFFF',
+                        background: 'transparent',
+                        surface: 'transparent',
+                        onSurfaceVariant: '#AAAAAA',
+                        outline: 'transparent',
+                        error: '#FF5555',
+                      },
+                    }}
+                    textColor="#FFFFFF"
+                    error={errorMessage === 'Passwords do not match'}
+                    underlineColor={errorMessage === 'Passwords do not match' ? '#FF5555' : 'rgba(255, 255, 255, 0.3)'}
+                    activeUnderlineColor={errorMessage === 'Passwords do not match' ? '#FF5555' : '#FFFFFF'}
+                    right={
+                      <TextInput.Icon
+                        icon={showConfirmPassword ? 'eye-off' : 'eye'}
+                        onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                      />
+                    }
+                    textContentType="newPassword"
+                    autoComplete="new-password"
+                  />
+                </Animated.View>
               </View>
               {/* Password Strength Indicator with animation */}
               <Animated.View
