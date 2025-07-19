@@ -32,6 +32,7 @@ export default function SignUpStep3({ visible, onBackPress, onComplete, onShowLo
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
+  const [submitted, setSubmitted] = useState(false);
   
   // Focus states
   const [passwordFocused, setPasswordFocused] = useState<boolean>(false);
@@ -102,22 +103,29 @@ export default function SignUpStep3({ visible, onBackPress, onComplete, onShowLo
     return { strength: score, label: 'Strong', color: '#90EE90' };
   };
 
-  const handleComplete = useCallback(() => {
-    Keyboard.dismiss();
-    setErrorMessage('');
-
+  // Live validation after first submit
+  useEffect(() => {
+    if (!submitted) return;
     // Check password requirements
     const isStrong = password.length >= 8 && /[A-Z]/.test(password) && /[a-z]/.test(password) && /\d/.test(password);
     if (!isStrong) {
       setErrorMessage('Password is not strong enough');
       return;
     }
-    if (!confirmPassword.trim()) {
+    if (!confirmPassword.trim() || password !== confirmPassword) {
       setErrorMessage('Passwords do not match');
       return;
     }
-    if (password !== confirmPassword) {
-      setErrorMessage('Passwords do not match');
+    setErrorMessage('');
+  }, [password, confirmPassword, submitted]);
+
+  const handleComplete = useCallback(() => {
+    Keyboard.dismiss();
+    setSubmitted(true);
+    // Validation will run in useEffect
+    // Only proceed if no error
+    const isStrong = password.length >= 8 && /[A-Z]/.test(password) && /[a-z]/.test(password) && /\d/.test(password);
+    if (!isStrong || !confirmPassword.trim() || password !== confirmPassword) {
       return;
     }
     onComplete({ password, confirmPassword });
@@ -190,7 +198,10 @@ export default function SignUpStep3({ visible, onBackPress, onComplete, onShowLo
                   onFocus={() => setPasswordFocused(true)}
                   onBlur={() => setPasswordFocused(false)}
                   secureTextEntry={!showPassword}
-                  style={(password || passwordFocused) ? styles.modernInput : styles.modernInputCompact}
+                  style={[
+                    (password || passwordFocused) ? styles.modernInput : styles.modernInputCompact,
+                    submitted && errorMessage === 'Password is not strong enough' && styles.modernInputError
+                  ]}
                   contentStyle={(password || passwordFocused) ? styles.inputContentStyle : styles.inputContentStyleCompact}
                   dense={!password && !passwordFocused}
                   mode="flat"
@@ -200,12 +211,14 @@ export default function SignUpStep3({ visible, onBackPress, onComplete, onShowLo
                       background: 'transparent',
                       surface: 'transparent',
                       onSurfaceVariant: '#AAAAAA',
-                      outline: 'transparent'
+                      outline: 'transparent',
+                      error: '#FF5555'
                     }
                   }}
                   textColor='#FFFFFF'
-                  underlineColor="rgba(255, 255, 255, 0.3)"
-                  activeUnderlineColor="#FFFFFF"
+                  error={submitted && errorMessage === 'Password is not strong enough'}
+                  underlineColor={submitted && errorMessage === 'Password is not strong enough' ? "#FF5555" : "rgba(255, 255, 255, 0.3)"}
+                  activeUnderlineColor={submitted && errorMessage === 'Password is not strong enough' ? "#FF5555" : "#FFFFFF"}
                   right={
                     <TextInput.Icon 
                       icon={showPassword ? "eye-off" : "eye"} 
@@ -224,7 +237,10 @@ export default function SignUpStep3({ visible, onBackPress, onComplete, onShowLo
                   onFocus={() => setConfirmPasswordFocused(true)}
                   onBlur={() => setConfirmPasswordFocused(false)}
                   secureTextEntry={!showConfirmPassword}
-                  style={(confirmPassword || confirmPasswordFocused) ? styles.modernInput : styles.modernInputCompact}
+                  style={[
+                    (confirmPassword || confirmPasswordFocused) ? styles.modernInput : styles.modernInputCompact,
+                    errorMessage === 'Passwords do not match' && styles.modernInputError
+                  ]}
                   contentStyle={(confirmPassword || confirmPasswordFocused) ? styles.inputContentStyle : styles.inputContentStyleCompact}
                   dense={!confirmPassword && !confirmPasswordFocused}
                   mode="flat"
@@ -234,12 +250,14 @@ export default function SignUpStep3({ visible, onBackPress, onComplete, onShowLo
                       background: 'transparent',
                       surface: 'transparent',
                       onSurfaceVariant: '#AAAAAA',
-                      outline: 'transparent'
+                      outline: 'transparent',
+                      error: '#FF5555'
                     }
                   }}
                   textColor='#FFFFFF'
-                  underlineColor="rgba(255, 255, 255, 0.3)"
-                  activeUnderlineColor="#FFFFFF"
+                  error={errorMessage === 'Passwords do not match'}
+                  underlineColor={errorMessage === 'Passwords do not match' ? "#FF5555" : "rgba(255, 255, 255, 0.3)"}
+                  activeUnderlineColor={errorMessage === 'Passwords do not match' ? "#FF5555" : "#FFFFFF"}
                   right={
                     <TextInput.Icon 
                       icon={showConfirmPassword ? "eye-off" : "eye"} 
@@ -418,6 +436,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 0,
     height: 45, // Smaller height when unfocused and empty
   },
+  modernInputError: {
+    borderBottomColor: '#FF5555',
+    borderBottomWidth: 2,
+  },
   inputContentStyle: {
     // nothing right now.
   },
@@ -458,10 +480,10 @@ const styles = StyleSheet.create({
     marginTop: 0, // Remove any top margin
   },
   errorContainer: {
-    minHeight: 24, // Reduced from 44 to 24 for tighter spacing
+    minHeight: 24,
     justifyContent: 'flex-start',
     alignItems: 'center',
-    marginTop: 0, // Ensure no extra margin
+    marginTop: 0,
   },
   requirementsBox: {
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
