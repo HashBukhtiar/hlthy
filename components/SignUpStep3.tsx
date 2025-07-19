@@ -137,6 +137,25 @@ export default function SignUpStep3({ visible, onBackPress, onComplete, onShowLo
     onBackPress();
   }, [onBackPress]);
 
+  // Animation for password strength indicator
+  const strengthAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (password) {
+      Animated.timing(strengthAnim, {
+        toValue: 1,
+        duration: 250,
+        useNativeDriver: false,
+      }).start();
+    } else {
+      Animated.timing(strengthAnim, {
+        toValue: 0,
+        duration: 250,
+        useNativeDriver: false,
+      }).start();
+    }
+  }, [password]);
+
   const passwordStrength = password ? getPasswordStrength(password) : null;
 
   if (!visible) return null;
@@ -240,7 +259,15 @@ export default function SignUpStep3({ visible, onBackPress, onComplete, onShowLo
                   autoComplete="new-password"
                 />
               </View>
-                {/* Password Strength Indicator */}
+              {/* Password Strength Indicator with animation */}
+              <Animated.View
+                style={{
+                  opacity: strengthAnim,
+                  height: strengthAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 15] }),
+                  marginBottom: strengthAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 5] }),
+                  overflow: 'hidden',
+                }}
+              >
                 {passwordStrength && (
                   <View style={styles.passwordStrength}>
                     <View style={styles.strengthBars}>
@@ -261,6 +288,7 @@ export default function SignUpStep3({ visible, onBackPress, onComplete, onShowLo
                     <Text style={[styles.strengthLabel, { color: passwordStrength.color }]}> {passwordStrength.label} </Text>
                   </View>
                 )}
+              </Animated.View>
             </View>
 
             {/* Buttons */}
@@ -276,7 +304,7 @@ export default function SignUpStep3({ visible, onBackPress, onComplete, onShowLo
                 ) : (
                   <>
                     <Text style={styles.completeButtonText}>Create Account</Text>
-                    <Ionicons name="checkmark" size={20} color="#000000" />
+                    <Ionicons name="chevron-forward" size={20} color="#000000" />
                   </>
                 )}
               </TouchableOpacity>
