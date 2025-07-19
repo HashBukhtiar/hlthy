@@ -103,32 +103,23 @@ export default function SignUpStep3({ visible, onBackPress, onComplete, onShowLo
   };
 
   const handleComplete = useCallback(() => {
-    // Dismiss keyboard first
     Keyboard.dismiss();
-    
     setErrorMessage('');
-    
-    if (!password.trim()) {
-      setErrorMessage('Please enter a password');
+
+    // Check password requirements
+    const isStrong = password.length >= 8 && /[A-Z]/.test(password) && /[a-z]/.test(password) && /\d/.test(password);
+    if (!isStrong) {
+      setErrorMessage('Password is not strong enough');
       return;
     }
-    
-    const validation = validatePassword(password);
-    if (!validation.isValid) {
-      setErrorMessage(validation.message || '');
-      return;
-    }
-    
     if (!confirmPassword.trim()) {
-      setErrorMessage('Please confirm your password');
+      setErrorMessage('Passwords do not match');
       return;
     }
-    
     if (password !== confirmPassword) {
       setErrorMessage('Passwords do not match');
       return;
     }
-    
     onComplete({ password, confirmPassword });
   }, [password, confirmPassword, onComplete]);
 
@@ -308,8 +299,7 @@ export default function SignUpStep3({ visible, onBackPress, onComplete, onShowLo
                   </>
                 )}
               </TouchableOpacity>
-
-              {/* Error message container with fixed height */}
+              {/* Error message only for strong password or mismatch */}
               <View style={styles.errorContainer}>
                 <Text style={[styles.errorText, { opacity: errorMessage ? 1 : 0 }]}> {errorMessage || ' '} </Text>
               </View>
@@ -321,33 +311,33 @@ export default function SignUpStep3({ visible, onBackPress, onComplete, onShowLo
           <Text style={styles.requirementsTitle}>Password must contain:</Text>
           <View style={styles.requirement}>
             <Ionicons 
-              name={password.length >= 8 ? "checkmark-circle" : "ellipse-outline"} 
+              name={password.length >= 8 ? "checkmark-circle" : password.length > 0 ? "close-circle" : "ellipse-outline"} 
               size={16} 
-              color={password.length >= 8 ? '#90EE90' : 'rgba(255, 255, 255, 0.5)'} 
+              color={password.length >= 8 ? '#90EE90' : password.length > 0 ? '#FF5555' : 'rgba(255, 255, 255, 0.5)'} 
             />
             <Text style={styles.requirementText}>At least 8 characters</Text>
           </View>
           <View style={styles.requirement}>
             <Ionicons 
-              name={/[A-Z]/.test(password) ? "checkmark-circle" : "ellipse-outline"} 
+              name={/[A-Z]/.test(password) ? "checkmark-circle" : password.length > 0 ? "close-circle" : "ellipse-outline"} 
               size={16} 
-              color={/[A-Z]/.test(password) ? '#90EE90' : 'rgba(255, 255, 255, 0.5)'} 
+              color={/[A-Z]/.test(password) ? '#90EE90' : password.length > 0 ? '#FF5555' : 'rgba(255, 255, 255, 0.5)'} 
             />
             <Text style={styles.requirementText}>One uppercase letter</Text>
           </View>
           <View style={styles.requirement}>
             <Ionicons 
-              name={/[a-z]/.test(password) ? "checkmark-circle" : "ellipse-outline"} 
+              name={/[a-z]/.test(password) ? "checkmark-circle" : password.length > 0 ? "close-circle" : "ellipse-outline"} 
               size={16} 
-              color={/[a-z]/.test(password) ? '#90EE90' : 'rgba(255, 255, 255, 0.5)'} 
+              color={/[a-z]/.test(password) ? '#90EE90' : password.length > 0 ? '#FF5555' : 'rgba(255, 255, 255, 0.5)'} 
             />
             <Text style={styles.requirementText}>One lowercase letter</Text>
           </View>
           <View style={styles.requirement}>
             <Ionicons 
-              name={/\d/.test(password) ? "checkmark-circle" : "ellipse-outline"} 
+              name={/\d/.test(password) ? "checkmark-circle" : password.length > 0 ? "close-circle" : "ellipse-outline"} 
               size={16} 
-              color={/\d/.test(password) ? '#90EE90' : 'rgba(255, 255, 255, 0.5)'} 
+              color={/\d/.test(password) ? '#90EE90' : password.length > 0 ? '#FF5555' : 'rgba(255, 255, 255, 0.5)'} 
             />
             <Text style={styles.requirementText}>One number</Text>
           </View>
@@ -465,12 +455,13 @@ const styles = StyleSheet.create({
     color: '#FF5555',
     fontSize: 14,
     textAlign: 'center',
-    marginTop: 0,
+    marginTop: 0, // Remove any top margin
   },
   errorContainer: {
-    minHeight: 44,
+    minHeight: 24, // Reduced from 44 to 24 for tighter spacing
     justifyContent: 'flex-start',
     alignItems: 'center',
+    marginTop: 0, // Ensure no extra margin
   },
   requirementsBox: {
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
@@ -504,7 +495,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   buttonContainer: {
-    gap: 20,
+    gap: 15,
   },
   completeButton: {
     backgroundColor: '#FFFFFF',
