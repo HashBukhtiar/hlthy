@@ -29,6 +29,7 @@ export default function SignUpStep1({ visible, onBackPress, onNext, onShowLogin 
   const [lastName, setLastName] = useState<string>('');
   const [email, setEmail] = useState<string>('');
   const [errorMessage, setErrorMessage] = useState<string>('');
+  const [submitted, setSubmitted] = useState(false); // Track first submit
   
   // Focus states
   const [firstNameFocused, setFirstNameFocused] = useState<boolean>(false);
@@ -91,33 +92,28 @@ export default function SignUpStep1({ visible, onBackPress, onNext, onShowLogin 
   const handleNext = useCallback(() => {
     // Dismiss keyboard first
     Keyboard.dismiss();
-    
+    setSubmitted(true);
     setErrorMessage('');
-    
     if (!firstName.trim()) {
       setErrorMessage('Please enter your first name');
       triggerShake('first');
       return;
     }
-    
     if (!lastName.trim()) {
       setErrorMessage('Please enter your last name');
       triggerShake('last');
       return;
     }
-    
     if (!email.trim()) {
       setErrorMessage('Please enter your email address');
       triggerShake('email');
       return;
     }
-    
     if (!validateEmail(email)) {
       setErrorMessage('Please provide a valid email.');
       triggerShake('email');
       return;
     }
-    
     onNext({ firstName, lastName, email });
   }, [firstName, lastName, email, onNext, triggerShake]);
 
@@ -185,22 +181,26 @@ export default function SignUpStep1({ visible, onBackPress, onNext, onShowLogin 
                       onChangeText={setFirstName}
                       onFocus={() => setFirstNameFocused(true)}
                       onBlur={() => setFirstNameFocused(false)}
-                      style={(firstName || firstNameFocused) ? styles.modernInput : styles.modernInputCompact}
+                      style={[
+                        (firstName || firstNameFocused) ? styles.modernInput : styles.modernInputCompact,
+                        submitted && !firstName.trim() && styles.modernInputError,
+                      ]}
                       contentStyle={(firstName || firstNameFocused) ? styles.inputContentStyle : styles.inputContentStyleCompact}
                       dense={!firstName && !firstNameFocused}
                       mode="flat"
-                      theme={{ 
-                        colors: { 
-                          primary: '#FFFFFF', 
+                      theme={{
+                        colors: {
+                          primary: '#FFFFFF',
                           background: 'transparent',
                           surface: 'transparent',
                           onSurfaceVariant: '#AAAAAA',
-                          outline: 'transparent'
-                        }
+                          outline: 'transparent',
+                          error: '#FF5555',
+                        },
                       }}
-                      textColor='#FFFFFF'
-                      underlineColor="rgba(255, 255, 255, 0.3)"
-                      activeUnderlineColor="#FFFFFF"
+                      textColor="#FFFFFF"
+                      underlineColor={submitted && !firstName.trim() ? '#FF5555' : 'rgba(255, 255, 255, 0.3)'}
+                      activeUnderlineColor={submitted && !firstName.trim() ? '#FF5555' : '#FFFFFF'}
                       autoCapitalize="words"
                     />
                   </Animated.View>
@@ -225,22 +225,26 @@ export default function SignUpStep1({ visible, onBackPress, onNext, onShowLogin 
                       onChangeText={setLastName}
                       onFocus={() => setLastNameFocused(true)}
                       onBlur={() => setLastNameFocused(false)}
-                      style={(lastName || lastNameFocused) ? styles.modernInput : styles.modernInputCompact}
+                      style={[
+                        (lastName || lastNameFocused) ? styles.modernInput : styles.modernInputCompact,
+                        submitted && !lastName.trim() && styles.modernInputError,
+                      ]}
                       contentStyle={(lastName || lastNameFocused) ? styles.inputContentStyle : styles.inputContentStyleCompact}
                       dense={!lastName && !lastNameFocused}
                       mode="flat"
-                      theme={{ 
-                        colors: { 
-                          primary: '#FFFFFF', 
+                      theme={{
+                        colors: {
+                          primary: '#FFFFFF',
                           background: 'transparent',
                           surface: 'transparent',
                           onSurfaceVariant: '#AAAAAA',
-                          outline: 'transparent'
-                        }
+                          outline: 'transparent',
+                          error: '#FF5555',
+                        },
                       }}
-                      textColor='#FFFFFF'
-                      underlineColor="rgba(255, 255, 255, 0.3)"
-                      activeUnderlineColor="#FFFFFF"
+                      textColor="#FFFFFF"
+                      underlineColor={submitted && !lastName.trim() ? '#FF5555' : 'rgba(255, 255, 255, 0.3)'}
+                      activeUnderlineColor={submitted && !lastName.trim() ? '#FF5555' : '#FFFFFF'}
                       autoCapitalize="words"
                     />
                   </Animated.View>
