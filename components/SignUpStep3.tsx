@@ -206,7 +206,7 @@ export default function SignUpStep3({ visible, onBackPress, onComplete, onShowLo
 
           {/* Content */}
           <Animated.View style={[styles.content, { paddingTop: contentPaddingAnim }]}> 
-            <Text style={styles.title}>Protect your account</Text>
+            <Text style={styles.title}>Protect Your Account</Text>
             <Text style={styles.subtitle}>Create and confirm a secure password</Text>
 
             {/* Form */}

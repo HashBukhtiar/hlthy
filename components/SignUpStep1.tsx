@@ -163,7 +163,7 @@ export default function SignUpStep1({ visible, onBackPress, onNext, onShowLogin 
 
           {/* Content */}
           <Animated.View style={[styles.content, { paddingTop: contentPaddingAnim }]}>
-            <Text style={styles.title}>Let's get started</Text>
+            <Text style={styles.title}>Let's Get Started</Text>
             <Text style={styles.subtitle}>Tell us a bit about yourself</Text>
 
             {/* Form */}

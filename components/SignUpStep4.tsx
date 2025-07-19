@@ -63,7 +63,7 @@ export default function SignUpStep4({ visible, onBackPress, onComplete, onShowLo
   if (!visible) return null;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingHorizontal: 20 }]}>
       <TouchableOpacity 
         style={styles.backButtonTop} 
         onPress={handleBackPress}
@@ -73,8 +73,8 @@ export default function SignUpStep4({ visible, onBackPress, onComplete, onShowLo
       </TouchableOpacity>
       <View style={styles.header} />
       <Animated.View style={[styles.content, { paddingTop: 80 }]}> 
-        <Text style={styles.title}>Choose your fitness archetype</Text>
-        <Text style={styles.subtitle}>Select the option that best describes your fitness goals</Text>
+        <Text style={styles.title}>Your Fitness Identity</Text>
+        <Text style={styles.subtitle}>Personalize your hlthy experience to your fitness journey</Text>
         <View style={styles.form}>
           <View style={styles.inputContainer}>
             <CustomSelector
@@ -124,6 +124,15 @@ export default function SignUpStep4({ visible, onBackPress, onComplete, onShowLo
           </TouchableOpacity>
         </View>
       </Animated.View>
+
+      <View style={{ width: '100%', alignItems: 'center', marginBottom: 20 }}>
+        <View style={styles.infoBox}>
+          <Ionicons name="information-circle" size={20} color="rgba(255, 255, 255, 0.7)" />
+          <Text style={styles.infoText}>
+            You can change your archetype later in your profile settings.
+          </Text>
+        </View>
+      </View>
     </View>
   );
 }
@@ -288,5 +297,24 @@ const styles = StyleSheet.create({
   previewDescription: {
     fontSize: 14,
     color: 'rgba(255, 255, 255, 0.7)',
+  },
+  infoBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 15,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    marginTop: 10,
+    width: '100%',
+    maxWidth: 600,
+  },
+  infoText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    marginLeft: 10,
+    flex: 1,
+    textAlign: 'left',
   },
 });
