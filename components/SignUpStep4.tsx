@@ -2,205 +2,129 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, KeyboardAvoidingView, ScrollView, StyleSheet, Dimensions, Keyboard, TouchableWithoutFeedback, Animated, Platform } from 'react-native';
 import { TextInput } from 'react-native-paper';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import { CustomSelector, SelectorItem } from '@/components/CustomSelector';
+import { Image } from 'react-native';
 
 interface SignUpStep4Props {
   visible: boolean;
   onBackPress: () => void;
-  onComplete: (data: { bio: string }) => void;
+  onComplete: (data: { archetype: string }) => void;
   onShowLogin?: () => void;
   loading?: boolean;
 }
 
 export default function SignUpStep4({ visible, onBackPress, onComplete, onShowLogin, loading = false }: SignUpStep4Props) {
   const { width } = Dimensions.get('window');
-  const [bio, setBio] = useState<string>('');
+
+  // Archetype options
+  const archetypes: SelectorItem[] = [
+    { label: 'Athlete', value: 'athlete', image: require('@/assets/images/athlete.png'), description: 'Focused on athletic performance and competition' },
+    { label: 'Bodybuilder', value: 'bodybuilder', image: require('@/assets/images/bodybuilder.png'), description: 'Building muscle mass and definition' },
+    { label: 'Crossfitter', value: 'crossfitter', image: require('@/assets/images/crossfitter.png'), description: 'Functional fitness and varied workouts' },
+    { label: 'Generalist', value: 'generalist', image: require('@/assets/images/generalist.png'), description: 'Well-rounded fitness approach' },
+    { label: 'Powerlifter', value: 'powerlifter', image: require('@/assets/images/powerlifter.png'), description: 'Maximum strength in core lifts' },
+  ];
+
+  const [archetype, setArchetype] = useState<string | null>(null);
+  const [modalVisible, setModalVisible] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [submitted, setSubmitted] = useState(false);
-  const [bioFocused, setBioFocused] = useState<boolean>(false);
 
-  // Animated padding for keyboard
-  const contentPaddingAnim = useRef(new Animated.Value(80)).current;
-
-  useEffect(() => {
-    const keyboardDidShowListener = Keyboard.addListener(
-      'keyboardDidShow',
-      () => {
-        Animated.timing(contentPaddingAnim, {
-          toValue: 20,
-          duration: 250,
-          useNativeDriver: false,
-        }).start();
-      }
-    );
-    const keyboardDidHideListener = Keyboard.addListener(
-      'keyboardDidHide',
-      () => {
-        Animated.timing(contentPaddingAnim, {
-          toValue: 80,
-          duration: 250,
-          useNativeDriver: false,
-        }).start();
-      }
-    );
-    return () => {
-      keyboardDidHideListener?.remove();
-      keyboardDidShowListener?.remove();
-    };
-  }, [contentPaddingAnim]);
-
-  // Shake animation for bio field
-  const bioShakeAnim = useRef(new Animated.Value(0)).current;
-  const triggerShake = useCallback(() => {
-    bioShakeAnim.setValue(0);
-    Animated.sequence([
-      Animated.timing(bioShakeAnim, { toValue: 1, duration: 50, useNativeDriver: true }),
-      Animated.timing(bioShakeAnim, { toValue: -1, duration: 50, useNativeDriver: true }),
-      Animated.timing(bioShakeAnim, { toValue: 1, duration: 50, useNativeDriver: true }),
-      Animated.timing(bioShakeAnim, { toValue: 0, duration: 50, useNativeDriver: true }),
-    ]).start();
-  }, [bioShakeAnim]);
-
-  const validateBio = (bio: string): string | null => {
-    if (!bio.trim()) return 'Please enter a bio.';
-    if (bio.length < 10) return 'Bio must be at least 10 characters.';
-    if (bio.length > 200) return 'Bio must be at most 200 characters.';
+  const validateArchetype = (value: string | null): string | null => {
+    if (!value) return 'Please select an archetype.';
     return null;
   };
 
   useEffect(() => {
     if (!submitted) return;
-    const bioErr = validateBio(bio);
-    if (bioErr) {
-      setErrorMessage(bioErr);
+    const err = validateArchetype(archetype);
+    if (err) {
+      setErrorMessage(err);
       return;
     }
     setErrorMessage('');
-  }, [bio, submitted]);
+  }, [archetype, submitted]);
 
   const handleComplete = useCallback(() => {
-    Keyboard.dismiss();
     setSubmitted(true);
-    const bioErr = validateBio(bio);
-    if (bioErr) {
-      setErrorMessage(bioErr);
-      triggerShake();
+    const err = validateArchetype(archetype);
+    if (err) {
+      setErrorMessage(err);
       return;
     }
     setErrorMessage('');
-    onComplete({ bio });
-  }, [bio, onComplete, triggerShake]);
+    onComplete({ archetype });
+  }, [archetype, onComplete]);
 
   const handleBackPress = useCallback(() => {
-    Keyboard.dismiss();
     onBackPress();
   }, [onBackPress]);
 
   if (!visible) return null;
 
   return (
-    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-      <KeyboardAvoidingView 
-        style={styles.container} 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    <View style={styles.container}>
+      <TouchableOpacity 
+        style={styles.backButtonTop} 
+        onPress={handleBackPress}
+        activeOpacity={0.7}
       >
-        <ScrollView 
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          scrollEnabled={false}
-        >
-          {/* Back button */}
-          <TouchableOpacity 
-            style={styles.backButtonTop} 
-            onPress={handleBackPress}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.backButtonText}>←</Text>
-          </TouchableOpacity>
-
-          {/* Header */}
-          <View style={styles.header} />
-
-          {/* Content */}
-          <Animated.View style={[styles.content, { paddingTop: contentPaddingAnim }]}> 
-            <Text style={styles.title}>Tell us about yourself</Text>
-            <Text style={styles.subtitle}>Write a short bio (10-200 characters)</Text>
-
-            {/* Form */}
-            <View style={styles.form}>
-              <View style={styles.inputContainer}>
-                <Animated.View
-                  style={{
-                    transform: [
-                      {
-                        translateX:
-                          submitted && errorMessage
-                            ? bioShakeAnim.interpolate({ inputRange: [-1, 1], outputRange: [-5, 5] })
-                            : 0,
-                      },
-                    ],
-                  }}
-                >
-                  <TextInput
-                    label="Bio"
-                    value={bio}
-                    onChangeText={setBio}
-                    onFocus={() => setBioFocused(true)}
-                    onBlur={() => setBioFocused(false)}
-                    style={
-                      [
-                        (bio || bioFocused) ? styles.modernInput : styles.modernInputCompact,
-                        submitted && errorMessage && styles.modernInputError,
-                      ]
-                    }
-                    contentStyle={
-                      (bio || bioFocused) ? styles.inputContentStyle : styles.inputContentStyleCompact
-                    }
-                    dense={!bio && !bioFocused}
-                    mode="flat"
-                    theme={{
-                      colors: {
-                        primary: '#FFFFFF',
-                        background: 'transparent',
-                        surface: 'transparent',
-                        onSurfaceVariant: '#AAAAAA',
-                        outline: 'transparent',
-                        error: '#FF5555',
-                      },
-                    }}
-                    textColor="#FFFFFF"
-                    error={!!errorMessage}
-                    underlineColor={errorMessage ? '#FF5555' : 'rgba(255, 255, 255, 0.3)'}
-                    activeUnderlineColor={errorMessage ? '#FF5555' : '#FFFFFF'}
-                    multiline
-                    numberOfLines={4}
-                    maxLength={200}
-                    textContentType="none"
-                    autoComplete="off"
+        <Text style={styles.backButtonText}>←</Text>
+      </TouchableOpacity>
+      <View style={styles.header} />
+      <Animated.View style={[styles.content, { paddingTop: 80 }]}> 
+        <Text style={styles.title}>Choose your fitness archetype</Text>
+        <Text style={styles.subtitle}>Select the option that best describes your fitness goals</Text>
+        <View style={styles.form}>
+          <View style={styles.inputContainer}>
+            <CustomSelector
+              items={archetypes}
+              value={archetype}
+              onSelect={setArchetype}
+              placeholder="Choose your archetype"
+              title="Archetype"
+              icon="body"
+              modalVisible={modalVisible}
+              setModalVisible={setModalVisible}
+              variant="fullWidth"
+            />
+          </View>
+          {/* Selected Archetype Preview */}
+          {archetype && (
+            <View style={styles.previewContainer}>
+              <Text style={styles.previewTitle}>Selected Archetype</Text>
+              <View style={styles.previewCard}>
+                <View style={styles.previewHeader}>
+                  <Image 
+                    source={archetypes.find(a => a.value === archetype)?.image} 
+                    style={styles.previewIcon}
                   />
-                </Animated.View>
-              </View>
-              <View style={styles.errorContainer}>
-                {!!errorMessage && <Text style={styles.errorText}>{errorMessage}</Text>}
+                  <Text style={styles.previewName}>
+                    {archetypes.find(a => a.value === archetype)?.label}
+                  </Text>
+                </View>
+                <Text style={styles.previewDescription}>
+                  {archetypes.find(a => a.value === archetype)?.description}
+                </Text>
               </View>
             </View>
-
-            {/* Buttons */}
-            <View style={styles.buttonContainer}>
-              <TouchableOpacity
-                style={[styles.completeButton, loading && styles.disabledButton]}
-                onPress={handleComplete}
-                activeOpacity={0.8}
-                disabled={loading}
-              >
-                <Text style={styles.completeButtonText}>Finish</Text>
-                <Ionicons name="checkmark" size={20} color="#000000" />
-              </TouchableOpacity>
-            </View>
-          </Animated.View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </TouchableWithoutFeedback>
+          )}
+          <View style={styles.errorContainer}>
+            <Text style={[styles.errorText, { opacity: errorMessage ? 1 : 0 }]}>{errorMessage || ' '}</Text>
+          </View>
+        </View>
+        <View style={styles.buttonContainer}>
+          <TouchableOpacity
+            style={[styles.completeButton, !archetype && styles.disabledButton]}
+            onPress={handleComplete}
+            activeOpacity={0.8}
+            disabled={!archetype || loading}
+          >
+            <Text style={styles.completeButtonText}>Save and Continue</Text>
+          </TouchableOpacity>
+        </View>
+      </Animated.View>
+    </View>
   );
 }
 
@@ -320,5 +244,49 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     marginRight: 8,
+  },
+  previewContainer: {
+    marginTop: 20,
+    marginBottom: 10,
+    padding: 15,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  previewTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginBottom: 10,
+  },
+  previewCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 10,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  previewHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 5,
+  },
+  previewIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 10,
+  },
+  previewName: {
+    fontSize: 18,
+    fontWeight: '500',
+    color: '#FFFFFF',
+  },
+  previewDescription: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.7)',
   },
 });
