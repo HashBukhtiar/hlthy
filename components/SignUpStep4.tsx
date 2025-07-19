@@ -50,7 +50,7 @@ export default function SignUpStep4({ visible, onBackPress, onComplete, onShowLo
         <Text style={styles.backButtonText}>←</Text>
       </TouchableOpacity>
       <View style={styles.header} />
-      <Animated.View style={[styles.content, { paddingTop: 80 }]}> 
+      <Animated.View style={[styles.content, { paddingTop: !archetype ? Math.round(width * 0.375) : Math.round(width * 0.11) }]}> 
         <Text style={styles.title}>Your Fitness Identity</Text>
         <Text style={styles.subtitle}>Personalize your hlthy experience to your fitness journey</Text>
         <View style={styles.form}>
@@ -68,7 +68,29 @@ export default function SignUpStep4({ visible, onBackPress, onComplete, onShowLo
             />
           </View>
         </View>
+
+        {/* Selected Archetype Preview */}
+        {archetype && (
+        <View style={styles.previewContainer}>
+            <Text style={styles.previewTitle}>Selected Archetype</Text>
+            <View style={styles.previewCardCleaned}>
+            <Image 
+                source={archetypes.find(a => a.value === archetype)?.image} 
+                style={styles.previewIconCleaned}
+            />
+            <View style={styles.previewTextBlock}>
+                <Text style={styles.previewNameCleaned}>
+                {archetypes.find(a => a.value === archetype)?.label}
+                </Text>
+                <Text style={styles.previewDescriptionCleaned}>
+                {archetypes.find(a => a.value === archetype)?.description}
+                </Text>
+            </View>
+            </View>
+        </View>
+        )}
         
+        {/* Action Button */}
         <View style={styles.buttonContainer}>
           <TouchableOpacity
             style={[styles.completeButton, !archetype && styles.disabledButton]}
@@ -80,26 +102,6 @@ export default function SignUpStep4({ visible, onBackPress, onComplete, onShowLo
           </TouchableOpacity>
         </View>
 
-          {/* Selected Archetype Preview */}
-          {archetype && (
-            <View style={styles.previewContainer}>
-              <Text style={styles.previewTitle}>Selected Archetype</Text>
-              <View style={styles.previewCardCleaned}>
-                <Image 
-                  source={archetypes.find(a => a.value === archetype)?.image} 
-                  style={styles.previewIconCleaned}
-                />
-                <View style={styles.previewTextBlock}>
-                  <Text style={styles.previewNameCleaned}>
-                    {archetypes.find(a => a.value === archetype)?.label}
-                  </Text>
-                  <Text style={styles.previewDescriptionCleaned}>
-                    {archetypes.find(a => a.value === archetype)?.description}
-                  </Text>
-                </View>
-              </View>
-            </View>
-          )}
       </Animated.View>
 
       <View style={{ width: '100%', alignItems: 'center', marginBottom: 20 }}>
