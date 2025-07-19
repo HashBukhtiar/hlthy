@@ -6,7 +6,8 @@ import {
   TouchableOpacity,
   Dimensions,
   TouchableWithoutFeedback,
-  Keyboard
+  Keyboard,
+  Animated
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { TextInput } from 'react-native-paper';
@@ -29,11 +30,23 @@ export default function ForgotPasswordForm({ visible, onBackPress, onBackToLogin
   const [submitted, setSubmitted] = useState<boolean>(false);
   const [emailFocused, setEmailFocused] = useState<boolean>(false);
 
+  const emailShakeAnim = React.useRef(new Animated.Value(0)).current;
+
   // Check if the email is valid
   const isValidEmail = (email: string): boolean => {
     const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return re.test(email);
   };
+
+  const triggerEmailShake = useCallback(() => {
+    emailShakeAnim.setValue(0);
+    Animated.sequence([
+      Animated.timing(emailShakeAnim, { toValue: 1, duration: 50, useNativeDriver: true }),
+      Animated.timing(emailShakeAnim, { toValue: -1, duration: 50, useNativeDriver: true }),
+      Animated.timing(emailShakeAnim, { toValue: 1, duration: 50, useNativeDriver: true }),
+      Animated.timing(emailShakeAnim, { toValue: 0, duration: 50, useNativeDriver: true }),
+    ]).start();
+  }, [emailShakeAnim]);
 
   const handleBackToLanding = useCallback(() => {
     // Dismiss keyboard first
@@ -65,8 +78,11 @@ export default function ForgotPasswordForm({ visible, onBackPress, onBackToLogin
       // Validate form data
       if (!isValidEmail(emailAddress)) {
         setErrorMessage("Please provide a valid email address.");
+        setIsEmailValid(false);
+        triggerEmailShake();
         return;
       }
+      setIsEmailValid(true);
       
       // Show loading indicator
       setLoading(true);
@@ -131,39 +147,51 @@ export default function ForgotPasswordForm({ visible, onBackPress, onBackToLogin
             
               <View style={styles.formContainer}>
 
-                <TextInput
-                  label="Email Address"
-                  value={emailAddress}
-                  onChangeText={setEmailAddress}
-                  onFocus={() => setEmailFocused(true)}
-                  onBlur={() => {
-                    setEmailFocused(false);
-                    setIsEmailValid(emailAddress === '' || isValidEmail(emailAddress));
+                <Animated.View
+                  style={{
+                    transform: [
+                      {
+                        translateX: !isEmailValid ? emailShakeAnim.interpolate({ inputRange: [-1, 1], outputRange: [-5, 5] }) : 0,
+                      },
+                    ],
                   }}
-                  style={[
-                    (emailAddress || emailFocused) ? styles.modernInput : styles.modernInputCompact, 
-                    !isEmailValid && styles.modernInputError
-                  ]}
-                  contentStyle={(emailAddress || emailFocused) ? styles.inputContentStyle : styles.inputContentStyleCompact}
-                  dense={!emailAddress && !emailFocused}
-                  mode="flat"
-                  theme={{ 
-                    colors: { 
-                      primary: '#FFFFFF', 
-                      background: 'transparent',
-                      surface: 'transparent',
-                      onSurfaceVariant: '#AAAAAA',
-                      outline: 'transparent',
-                      error: '#FF5555'
+                >
+                  <TextInput
+                    label="Email Address"
+                    value={emailAddress}
+                    onChangeText={setEmailAddress}
+                    onFocus={() => setEmailFocused(true)}
+                    onBlur={() => {
+                      setEmailFocused(false);
+                      setIsEmailValid(emailAddress === '' || isValidEmail(emailAddress));
+                    }}
+                    style={
+                      [
+                        (emailAddress || emailFocused) ? styles.modernInput : styles.modernInputCompact, 
+                        !isEmailValid && styles.modernInputError
+                      ]
                     }
-                  }}
-                  autoCapitalize='none'
-                  keyboardType="email-address"
-                  textColor='#FFFFFF'
-                  error={!isEmailValid}
-                  underlineColor={!isEmailValid ? "#FF5555" : "rgba(255, 255, 255, 0.3)"}
-                  activeUnderlineColor={!isEmailValid ? "#FF5555" : "#FFFFFF"}
-                />
+                    contentStyle={(emailAddress || emailFocused) ? styles.inputContentStyle : styles.inputContentStyleCompact}
+                    dense={!emailAddress && !emailFocused}
+                    mode="flat"
+                    theme={{ 
+                      colors: { 
+                        primary: '#FFFFFF', 
+                        background: 'transparent',
+                        surface: 'transparent',
+                        onSurfaceVariant: '#AAAAAA',
+                        outline: 'transparent',
+                        error: '#FF5555'
+                      }
+                    }}
+                    autoCapitalize='none'
+                    keyboardType="email-address"
+                    textColor='#FFFFFF'
+                    error={!isEmailValid}
+                    underlineColor={!isEmailValid ? "#FF5555" : "rgba(255, 255, 255, 0.3)"}
+                    activeUnderlineColor={!isEmailValid ? "#FF5555" : "#FFFFFF"}
+                  />
+                </Animated.View>
                 
                 <TouchableOpacity
                   style={[

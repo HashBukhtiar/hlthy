@@ -231,11 +231,15 @@ export default function SignUpStep3({ visible, onBackPress, onComplete, onShowLo
                     onFocus={() => setPasswordFocused(true)}
                     onBlur={() => setPasswordFocused(false)}
                     secureTextEntry={!showPassword}
-                    style={[
-                      (password || passwordFocused) ? styles.modernInput : styles.modernInputCompact,
-                      submitted && errorMessage === 'Password is not strong enough' && styles.modernInputError,
-                    ]}
-                    contentStyle={(password || passwordFocused) ? styles.inputContentStyle : styles.inputContentStyleCompact}
+                    style={
+                      [
+                        (password || passwordFocused) ? styles.modernInput : styles.modernInputCompact,
+                        submitted && errorMessage === 'Password is not strong enough' && styles.modernInputError,
+                      ]
+                    }
+                    contentStyle={
+                      (password || passwordFocused) ? styles.inputContentStyle : styles.inputContentStyleCompact
+                    }
                     dense={!password && !passwordFocused}
                     mode="flat"
                     theme={{
@@ -258,8 +262,8 @@ export default function SignUpStep3({ visible, onBackPress, onComplete, onShowLo
                         onPress={() => setShowPassword(!showPassword)}
                       />
                     }
-                    textContentType="password"
-                    autoComplete="password"
+                    textContentType="none"
+                    autoComplete="off"
                   />
                 </Animated.View>
               </View>
