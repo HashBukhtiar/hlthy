@@ -31,7 +31,8 @@ export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin,
   const [username, setUsername] = useState<string>('');
   const [dateOfBirth, setDateOfBirth] = useState<string>('');
   const [errorMessage, setErrorMessage] = useState<string>('');
-  
+  const [submitted, setSubmitted] = useState(false); // Track first submit
+
   // Focus states
   const [usernameFocused, setUsernameFocused] = useState<boolean>(false);
   const [dateFocused, setDateFocused] = useState<boolean>(false);
@@ -42,6 +43,19 @@ export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin,
   // Animation for floating label and input value
   const floatingLabelAnim = useRef(new Animated.Value(0)).current;
   const inputValueAnim = useRef(new Animated.Value(0)).current;
+
+  // Shake animation for username field
+  const usernameShakeAnim = useRef(new Animated.Value(0)).current;
+
+  const triggerUsernameShake = useCallback(() => {
+    usernameShakeAnim.setValue(0);
+    Animated.sequence([
+      Animated.timing(usernameShakeAnim, { toValue: 1, duration: 50, useNativeDriver: true }),
+      Animated.timing(usernameShakeAnim, { toValue: -1, duration: 50, useNativeDriver: true }),
+      Animated.timing(usernameShakeAnim, { toValue: 1, duration: 50, useNativeDriver: true }),
+      Animated.timing(usernameShakeAnim, { toValue: 0, duration: 50, useNativeDriver: true }),
+    ]).start();
+  }, [usernameShakeAnim]);
 
   useEffect(() => {
     const keyboardDidShowListener = Keyboard.addListener(
@@ -102,6 +116,15 @@ export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin,
     }
   }, [dateFocused, dateOfBirth]);
 
+  // Improved username validation with specific error messages
+  const getUsernameError = (username: string): string | null => {
+    if (!username.trim()) return 'Please enter a username';
+    if (username.length < 3) return 'Username must be at least 3 characters';
+    if (username.length > 20) return 'Username must be at most 20 characters';
+    if (!/^[a-zA-Z0-9_]+$/.test(username)) return 'Only letters, numbers, and underscores allowed';
+    return null;
+  };
+
   const validateUsername = (username: string): boolean => {
     // Username should be 3-20 characters, alphanumeric and underscores only
     const usernameRegex = /^[a-zA-Z0-9_]{3,20}$/;
@@ -146,31 +169,42 @@ export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin,
   const handleNext = useCallback(() => {
     // Dismiss keyboard first
     Keyboard.dismiss();
-    
-    setErrorMessage('');
-    
-    if (!username.trim()) {
-      setErrorMessage('Please enter a username');
+    setSubmitted(true);
+    const usernameErr = getUsernameError(username);
+    if (usernameErr) {
+      setErrorMessage(usernameErr);
+      triggerUsernameShake(); // Shake on error
       return;
     }
-    
-    if (!validateUsername(username)) {
-      setErrorMessage('Username must be 3-20 characters and contain only letters, numbers, and underscores');
-      return;
-    }
-    
     if (!dateOfBirth.trim()) {
       setErrorMessage('Please enter your date of birth');
       return;
     }
-    
     if (!validateDate(dateOfBirth)) {
       setErrorMessage('Please enter a valid date of birth (MM/DD/YYYY). You must be at least 13 years old.');
       return;
     }
-    
+    setErrorMessage('');
     onNext({ username, dateOfBirth });
-  }, [username, dateOfBirth, onNext]);
+  }, [username, dateOfBirth, onNext, triggerUsernameShake]);
+
+  useEffect(() => {
+    if (!submitted) return;
+    const usernameErr = getUsernameError(username);
+    if (usernameErr) {
+      setErrorMessage(usernameErr);
+      return;
+    }
+    if (!dateOfBirth.trim()) {
+      setErrorMessage('Please enter your date of birth');
+      return;
+    }
+    if (!validateDate(dateOfBirth)) {
+      setErrorMessage('Please enter a valid date of birth (MM/DD/YYYY). You must be at least 13 years old.');
+      return;
+    }
+    setErrorMessage('');
+  }, [username, dateOfBirth, submitted]);
 
   const handleBackPress = useCallback(() => {
     Keyboard.dismiss();
@@ -180,8 +214,12 @@ export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin,
   // Username input (no longer prepends '@')
   const getUsernameValue = () => username;
   const handleUsernameChange = (text: string) => {
-    // Remove all leading @'s, just use the text as is
     setUsername(text.replace(/^@+/, ''));
+    if (submitted) {
+      // Live validation after first submit
+      const usernameErr = getUsernameError(text.replace(/^@+/, ''));
+      setErrorMessage(usernameErr || '');
+    }
   };
 
   // Date picker state
@@ -240,32 +278,49 @@ export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin,
             {/* Form */}
             <View style={styles.form}>
               <View style={styles.inputContainer}>
-                <TextInput
-                  label="Username"
-                  value={username}
-                  onChangeText={handleUsernameChange}
-                  onFocus={() => setUsernameFocused(true)}
-                  onBlur={() => setUsernameFocused(false)}
-                  style={(username || usernameFocused) ? styles.modernInput : styles.modernInputCompact}
-                  contentStyle={(username || usernameFocused) ? styles.inputContentStyle : styles.inputContentStyleCompact}
-                  dense={!username && !usernameFocused}
-                  mode="flat"
-                  theme={{ 
-                    colors: { 
-                      primary: '#FFFFFF', 
-                      background: 'transparent',
-                      surface: 'transparent',
-                      onSurfaceVariant: '#AAAAAA',
-                      outline: 'transparent'
-                    }
+                <Animated.View
+                  style={{
+                    transform: [
+                      {
+                        translateX: submitted && getUsernameError(username)
+                          ? usernameShakeAnim.interpolate({ inputRange: [-1, 1], outputRange: [-5, 5] })
+                          : 0,
+                      },
+                    ],
                   }}
-                  textColor='#FFFFFF'
-                  underlineColor="rgba(255, 255, 255, 0.3)"
-                  activeUnderlineColor="#FFFFFF"
-                  autoCapitalize="none"
-                  left={null}
-                  selectionColor="#FFFFFF"
-                />
+                >
+                  <TextInput
+                    label="Username"
+                    value={username}
+                    onChangeText={handleUsernameChange}
+                    onFocus={() => setUsernameFocused(true)}
+                    onBlur={() => setUsernameFocused(false)}
+                    style={[
+                      (username || usernameFocused) ? styles.modernInput : styles.modernInputCompact,
+                      submitted && getUsernameError(username) && styles.modernInputError,
+                    ]}
+                    contentStyle={(username || usernameFocused) ? styles.inputContentStyle : styles.inputContentStyleCompact}
+                    dense={!username && !usernameFocused}
+                    mode="flat"
+                    theme={{
+                      colors: {
+                        primary: '#FFFFFF',
+                        background: 'transparent',
+                        surface: 'transparent',
+                        onSurfaceVariant: '#AAAAAA',
+                        outline: 'transparent',
+                        error: '#FF5555',
+                      },
+                    }}
+                    textColor="#FFFFFF"
+                    error={!!(submitted && getUsernameError(username))}
+                    underlineColor={submitted && getUsernameError(username) ? '#FF5555' : 'rgba(255, 255, 255, 0.3)'}
+                    activeUnderlineColor={submitted && getUsernameError(username) ? '#FF5555' : '#FFFFFF'}
+                    autoCapitalize="none"
+                    left={null}
+                    selectionColor="#FFFFFF"
+                  />
+                </Animated.View>
               </View>
 
               <View style={[styles.inputContainer, { marginTop: 10 }]}>
@@ -607,5 +662,8 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.7)',
     fontSize: 12,
     top: 0
+  },
+  modernInputError: {
+    // Remove border styling, rely on underline color for error indication
   },
 });
