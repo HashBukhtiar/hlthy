@@ -275,7 +275,7 @@ export default function LoginForm({ visible, onBackPress, onForgotPasswordPress,
                   secureTextEntry
                   style={[
                     (password || passwordFocused) ? styles.modernInput : styles.modernInputCompact,
-                    ((getActiveError() === 'Incorrect password.' || getActiveError() === 'Please enter your password.') && submitted) && styles.modernInputError,
+                    (!password && submitted) && styles.modernInputError,
                   ]}
                   contentStyle={(password || passwordFocused) ? styles.inputContentStyle : styles.inputContentStyleCompact}
                   dense={!password && !passwordFocused}
@@ -291,9 +291,9 @@ export default function LoginForm({ visible, onBackPress, onForgotPasswordPress,
                     }
                   }}
                   textColor="#FFFFFF"
-                  error={(getActiveError() === 'Incorrect password.' || getActiveError() === 'Please enter your password.') && submitted}
-                  underlineColor={(getActiveError() === 'Incorrect password.' || getActiveError() === 'Please enter your password.') && submitted ? '#FF5555' : 'rgba(255, 255, 255, 0.3)'}
-                  activeUnderlineColor={(getActiveError() === 'Incorrect password.' || getActiveError() === 'Please enter your password.') && submitted ? '#FF5555' : '#FFFFFF'}
+                  error={!password && submitted}
+                  underlineColor={!password && submitted ? '#FF5555' : 'rgba(255, 255, 255, 0.3)'}
+                  activeUnderlineColor={!password && submitted ? '#FF5555' : '#FFFFFF'}
                 />
                 <TouchableOpacity
                   style={[
