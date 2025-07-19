@@ -30,6 +30,7 @@ export default function ForgotPasswordForm({ visible, onBackPress, onBackToLogin
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const [submitted, setSubmitted] = useState<boolean>(false);
+  const [success, setSuccess] = useState<boolean>(false);
   const [emailFocused, setEmailFocused] = useState<boolean>(false);
 
   const emailShakeAnim = React.useRef(new Animated.Value(0)).current;
@@ -61,6 +62,7 @@ export default function ForgotPasswordForm({ visible, onBackPress, onBackToLogin
     setIsEmailValid(true);
     setEmailFocused(false);
     setSubmitted(false);
+    setSuccess(false);
     
     // Use onBackToLogin if available, otherwise onBackPress
     if (onBackToLogin) {
@@ -70,35 +72,47 @@ export default function ForgotPasswordForm({ visible, onBackPress, onBackToLogin
     }
   }, [onBackPress, onBackToLogin]);
 
-  const handleSubmit = async () => {
-    try {
-      // Dismiss keyboard first
-      Keyboard.dismiss();
-      
-      // Clear previous errors
-      setErrorMessage("");
-      
-      // Validate form data
-      if (!isValidEmail(emailAddress)) {
-        setErrorMessage("Please provide a valid email address.");
-        setIsEmailValid(false);
-        triggerEmailShake();
-        return;
+  const handleEmailChange = (text: string) => {
+    setEmailAddress(text);
+    if (submitted) {
+      setIsEmailValid(text === '' || isValidEmail(text));
+      if (text !== '' && !isValidEmail(text)) {
+        setErrorMessage('Please provide a valid email address.');
+      } else {
+        setErrorMessage('');
       }
-      setIsEmailValid(true);
-      
-      // Show loading indicator
-      setLoading(true);
-      
+    }
+  };
+
+  const handleSubmit = async () => {
+    // Dismiss keyboard first
+    Keyboard.dismiss();
+    // Clear previous errors
+    setErrorMessage("");
+    setSubmitted(true);
+    // Require non-empty and valid email
+    if (!emailAddress.trim()) {
+      setErrorMessage("Please enter your email address.");
+      setIsEmailValid(false);
+      triggerEmailShake();
+      return;
+    }
+    if (!isValidEmail(emailAddress)) {
+      setErrorMessage("Please provide a valid email address.");
+      setIsEmailValid(false);
+      triggerEmailShake();
+      return;
+    }
+    setIsEmailValid(true);
+    // Show loading indicator
+    setLoading(true);
+    try {
       // Simulate API call delay (replace with actual API call in functionality implementation)
       await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Set submitted state to show success message
-      setSubmitted(true);
-      
-    } catch (error: any) {
-      console.error("Forgot password error:", error);
+      setSuccess(true); // Only show success if email is valid and API call succeeds
+    } catch (error) {
       setErrorMessage("An error occurred. Please try again later.");
+      setIsEmailValid(false);
     } finally {
       setLoading(false);
     }
@@ -158,7 +172,7 @@ export default function ForgotPasswordForm({ visible, onBackPress, onBackToLogin
       >
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
           <Animated.View style={[styles.forgotPasswordFullContainer, { transform: [{ translateY: contentTranslateY }] }]}> 
-            {submitted ? (
+            {success ? (
               // Success State
               <View style={styles.forgotPasswordCenteredContent}>
                 <View style={styles.successHeader}>
@@ -183,7 +197,7 @@ export default function ForgotPasswordForm({ visible, onBackPress, onBackToLogin
                     style={{
                       transform: [
                         {
-                          translateX: !isEmailValid ? emailShakeAnim.interpolate({ inputRange: [-1, 1], outputRange: [-5, 5] }) : 0,
+                          translateX: submitted && !isEmailValid ? emailShakeAnim.interpolate({ inputRange: [-1, 1], outputRange: [-5, 5] }) : 0,
                         },
                       ],
                     }}
@@ -191,16 +205,23 @@ export default function ForgotPasswordForm({ visible, onBackPress, onBackToLogin
                     <TextInput
                       label="Email Address"
                       value={emailAddress}
-                      onChangeText={setEmailAddress}
+                      onChangeText={handleEmailChange}
                       onFocus={() => setEmailFocused(true)}
                       onBlur={() => {
                         setEmailFocused(false);
-                        setIsEmailValid(emailAddress === '' || isValidEmail(emailAddress));
+                        if (submitted) {
+                          setIsEmailValid(emailAddress === '' || isValidEmail(emailAddress));
+                          if (emailAddress !== '' && !isValidEmail(emailAddress)) {
+                            setErrorMessage('Please provide a valid email address.');
+                          } else {
+                            setErrorMessage('');
+                          }
+                        }
                       }}
                       style={
                         [
                           (emailAddress || emailFocused) ? styles.modernInput : styles.modernInputCompact, 
-                          !isEmailValid && styles.modernInputError
+                          submitted && !isEmailValid && styles.modernInputError
                         ]
                       }
                       contentStyle={(emailAddress || emailFocused) ? styles.inputContentStyle : styles.inputContentStyleCompact}
@@ -219,9 +240,9 @@ export default function ForgotPasswordForm({ visible, onBackPress, onBackToLogin
                       autoCapitalize='none'
                       keyboardType="email-address"
                       textColor='#FFFFFF'
-                      error={!isEmailValid}
-                      underlineColor={!isEmailValid ? "#FF5555" : "rgba(255, 255, 255, 0.3)"}
-                      activeUnderlineColor={!isEmailValid ? "#FF5555" : "#FFFFFF"}
+                      error={submitted && !isEmailValid}
+                      underlineColor={submitted && !isEmailValid ? "#FF5555" : "rgba(255, 255, 255, 0.3)"}
+                      activeUnderlineColor={submitted && !isEmailValid ? "#FF5555" : "#FFFFFF"}
                     />
                   </Animated.View>
                   <TouchableOpacity
@@ -242,7 +263,6 @@ export default function ForgotPasswordForm({ visible, onBackPress, onBackToLogin
                       {errorMessage || ' '}
                     </Text>
                   </View>
-                  <View style={{ height: '5%' }} />
                 </View>
               </View>
             )}
