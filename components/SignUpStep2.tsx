@@ -375,6 +375,7 @@ export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin,
                           maximumDate={new Date(new Date().getFullYear() - 13, new Date().getMonth(), new Date().getDate())}
                           minimumDate={new Date(1900, 0, 1)}
                           style={{backgroundColor:'#222'}}
+                          {...(Platform.OS === 'ios' ? { textColor: '#fff' } : {})}
                         />
                       </View>
                     </View>

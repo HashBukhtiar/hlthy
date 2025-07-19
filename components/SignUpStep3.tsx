@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { 
   View, 
   StyleSheet, 
@@ -9,7 +9,8 @@ import {
   Keyboard,
   ScrollView,
   KeyboardAvoidingView,
-  Platform
+  Platform,
+  Animated
 } from 'react-native';
 import { TextInput } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
@@ -35,6 +36,36 @@ export default function SignUpStep3({ visible, onBackPress, onComplete, onShowLo
   // Focus states
   const [passwordFocused, setPasswordFocused] = useState<boolean>(false);
   const [confirmPasswordFocused, setConfirmPasswordFocused] = useState<boolean>(false);
+
+  // Animated padding for keyboard
+  const contentPaddingAnim = useRef(new Animated.Value(80)).current;
+
+  useEffect(() => {
+    const keyboardDidShowListener = Keyboard.addListener(
+      'keyboardDidShow',
+      () => {
+        Animated.timing(contentPaddingAnim, {
+          toValue: 20,
+          duration: 250,
+          useNativeDriver: false,
+        }).start();
+      }
+    );
+    const keyboardDidHideListener = Keyboard.addListener(
+      'keyboardDidHide',
+      () => {
+        Animated.timing(contentPaddingAnim, {
+          toValue: 80,
+          duration: 250,
+          useNativeDriver: false,
+        }).start();
+      }
+    );
+    return () => {
+      keyboardDidHideListener?.remove();
+      keyboardDidShowListener?.remove();
+    };
+  }, [contentPaddingAnim]);
 
   const validatePassword = (password: string): { isValid: boolean; message?: string } => {
     if (password.length < 8) {
@@ -131,11 +162,10 @@ export default function SignUpStep3({ visible, onBackPress, onComplete, onShowLo
           </TouchableOpacity>
 
           {/* Header */}
-          <View style={styles.header}>
-          </View>
+          <View style={styles.header} />
 
           {/* Content */}
-          <View style={styles.content}>
+          <Animated.View style={[styles.content, { paddingTop: contentPaddingAnim }]}> 
             <Text style={styles.title}>Secure your account</Text>
             <Text style={styles.subtitle}>Choose a strong password to protect your account</Text>
 
@@ -172,7 +202,6 @@ export default function SignUpStep3({ visible, onBackPress, onComplete, onShowLo
                     />
                   }
                 />
-                
                 {/* Password Strength Indicator */}
                 {passwordStrength && (
                   <View style={styles.passwordStrength}>
@@ -191,13 +220,10 @@ export default function SignUpStep3({ visible, onBackPress, onComplete, onShowLo
                         />
                       ))}
                     </View>
-                    <Text style={[styles.strengthLabel, { color: passwordStrength.color }]}>
-                      {passwordStrength.label}
-                    </Text>
+                    <Text style={[styles.strengthLabel, { color: passwordStrength.color }]}> {passwordStrength.label} </Text>
                   </View>
                 )}
               </View>
-
               <View style={styles.inputContainer}>
                 <TextInput
                   label="Confirm Password"
@@ -232,7 +258,31 @@ export default function SignUpStep3({ visible, onBackPress, onComplete, onShowLo
               </View>
             </View>
 
-            {/* Password Requirements */}
+            {/* Buttons */}
+            <View style={styles.buttonContainer}>
+              <TouchableOpacity
+                style={[styles.completeButton, loading && styles.disabledButton]}
+                onPress={handleComplete}
+                activeOpacity={0.8}
+                disabled={loading}
+              >
+                {loading ? (
+                  <CustomSpinner size={20} />
+                ) : (
+                  <>
+                    <Text style={styles.completeButtonText}>Create Account</Text>
+                    <Ionicons name="checkmark" size={20} color="#000000" />
+                  </>
+                )}
+              </TouchableOpacity>
+
+              {/* Error message container with fixed height */}
+              <View style={styles.errorContainer}>
+                <Text style={[styles.errorText, { opacity: errorMessage ? 1 : 0 }]}> {errorMessage || ' '} </Text>
+              </View>
+            </View>
+
+            {/* Password Requirements - moved below button */}
             <View style={styles.requirementsBox}>
               <Text style={styles.requirementsTitle}>Password must contain:</Text>
               <View style={styles.requirement}>
@@ -268,34 +318,8 @@ export default function SignUpStep3({ visible, onBackPress, onComplete, onShowLo
                 <Text style={styles.requirementText}>One number</Text>
               </View>
             </View>
+          </Animated.View>
 
-            {/* Buttons */}
-            <View style={styles.buttonContainer}>
-              <TouchableOpacity
-                style={[styles.completeButton, loading && styles.disabledButton]}
-                onPress={handleComplete}
-                activeOpacity={0.8}
-                disabled={loading}
-              >
-                {loading ? (
-                  <CustomSpinner size={20} />
-                ) : (
-                  <>
-                    <Text style={styles.completeButtonText}>Create Account</Text>
-                    <Ionicons name="checkmark" size={20} color="#000000" />
-                  </>
-                )}
-              </TouchableOpacity>
-
-              {/* Error message container with fixed height */}
-              <View style={styles.errorContainer}>
-                <Text style={[styles.errorText, { opacity: errorMessage ? 1 : 0 }]}>
-                  {errorMessage || ' '}
-                </Text>
-              </View>
-            </View>
-          </View>
-          
           {/* Footer buttons - locked at bottom */}
           {onShowLogin && (
             <View style={styles.loginFooterFixed}>
