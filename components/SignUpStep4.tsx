@@ -27,32 +27,10 @@ export default function SignUpStep4({ visible, onBackPress, onComplete, onShowLo
 
   const [archetype, setArchetype] = useState<string | null>(null);
   const [modalVisible, setModalVisible] = useState<boolean>(false);
-  const [errorMessage, setErrorMessage] = useState<string>('');
   const [submitted, setSubmitted] = useState(false);
-
-  const validateArchetype = (value: string | null): string | null => {
-    if (!value) return 'Please select an archetype.';
-    return null;
-  };
-
-  useEffect(() => {
-    if (!submitted) return;
-    const err = validateArchetype(archetype);
-    if (err) {
-      setErrorMessage(err);
-      return;
-    }
-    setErrorMessage('');
-  }, [archetype, submitted]);
 
   const handleComplete = useCallback(() => {
     setSubmitted(true);
-    const err = validateArchetype(archetype);
-    if (err) {
-      setErrorMessage(err);
-      return;
-    }
-    setErrorMessage('');
     onComplete({ archetype });
   }, [archetype, onComplete]);
 
@@ -83,12 +61,25 @@ export default function SignUpStep4({ visible, onBackPress, onComplete, onShowLo
               onSelect={setArchetype}
               placeholder="Choose your archetype"
               title="Archetype"
-              icon="body"
+              icon="aperture-outline"
               modalVisible={modalVisible}
               setModalVisible={setModalVisible}
               variant="fullWidth"
             />
           </View>
+        </View>
+        
+        <View style={styles.buttonContainer}>
+          <TouchableOpacity
+            style={[styles.completeButton, !archetype && styles.disabledButton]}
+            onPress={handleComplete}
+            activeOpacity={0.8}
+            disabled={!archetype || loading}
+          >
+            <Text style={styles.completeButtonText}>Create Account</Text>
+          </TouchableOpacity>
+        </View>
+
           {/* Selected Archetype Preview */}
           {archetype && (
             <View style={styles.previewContainer}>
@@ -109,20 +100,6 @@ export default function SignUpStep4({ visible, onBackPress, onComplete, onShowLo
               </View>
             </View>
           )}
-          <View style={styles.errorContainer}>
-            <Text style={[styles.errorText, { opacity: errorMessage ? 1 : 0 }]}>{errorMessage || ' '}</Text>
-          </View>
-        </View>
-        <View style={styles.buttonContainer}>
-          <TouchableOpacity
-            style={[styles.completeButton, !archetype && styles.disabledButton]}
-            onPress={handleComplete}
-            activeOpacity={0.8}
-            disabled={!archetype || loading}
-          >
-            <Text style={styles.completeButtonText}>Create Account</Text>
-          </TouchableOpacity>
-        </View>
       </Animated.View>
 
       <View style={{ width: '100%', alignItems: 'center', marginBottom: 20 }}>
@@ -215,22 +192,6 @@ const styles = StyleSheet.create({
   },
   inputContentStyleCompact: {
     // nothing right now.
-  },
-  modernInputError: {
-    borderBottomColor: '#FF5555',
-    borderBottomWidth: 2,
-  },
-  errorText: {
-    color: '#FF5555',
-    fontSize: 14,
-    textAlign: 'center',
-    marginTop: 0,
-  },
-  errorContainer: {
-    minHeight: 24,
-    justifyContent: 'flex-start',
-    alignItems: 'center',
-    marginTop: 0,
   },
   buttonContainer: {
     gap: 15,
