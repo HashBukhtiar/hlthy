@@ -36,6 +36,8 @@ export default function LoginForm({ visible, onBackPress, onForgotPasswordPress,
   const [emailFocused, setEmailFocused] = useState<boolean>(false);
   const [passwordFocused, setPasswordFocused] = useState<boolean>(false);
   const [submitted, setSubmitted] = useState<boolean>(false);
+  const [emailError, setEmailError] = useState<string>('');
+  const [passwordError, setPasswordError] = useState<string>('');
   
   // Animation values
   const slideAnim = useRef(new Animated.Value(0)).current;
@@ -64,13 +66,17 @@ export default function LoginForm({ visible, onBackPress, onForgotPasswordPress,
 
   const handleEmailChange = (text: string) => {
     setEmailAddress(text);
+    // Validate email format on every keystroke
+    if (text && !isValidEmail(text)) {
+      setEmailError('Please provide a valid email.');
+      setIsEmailValid(false);
+    } else {
+      setEmailError('');
+      setIsEmailValid(true);
+    }
+    // Do not check if email exists in DB here
     if (submitted) {
-      setIsEmailValid(text === '' || isValidEmail(text));
-      if (text !== '' && !isValidEmail(text)) {
-        setErrorMessage('Please provide a valid email.');
-      } else {
-        setErrorMessage('');
-      }
+      setErrorMessage('');
     }
   };
 
@@ -87,48 +93,59 @@ export default function LoginForm({ visible, onBackPress, onForgotPasswordPress,
 
   const handleLogin = async () => {
     setSubmitted(true);
-    // Dismiss keyboard first
     Keyboard.dismiss();
-    // Clear previous errors
     setErrorMessage("");
-    // Validate form data
+    setEmailError('');
+    setPasswordError('');
     let valid = true;
+    // Only check format here, DB check happens in Firebase sign-in
     if (!isValidEmail(emailAddress)) {
-      setErrorMessage("Please provide a valid email.");
+      setEmailError("Please provide a valid email.");
       setIsEmailValid(false);
       valid = false;
     } else {
       setIsEmailValid(true);
     }
     if (!password) {
-      setErrorMessage("Please enter your password.");
+      setPasswordError("Please enter your password.");
       valid = false;
     }
     if (!valid) return;
-    // Show loading indicator
     setLoading(true);
     try {
       // Sign in with Firebase Authentication
       await signInWithEmailAndPassword(auth, emailAddress, password);
-      // Navigate to root where index.tsx will handle the redirect
       router.replace('/');
     } catch (error: any) {
       // Handle specific Firebase errors
       let errorMsg = "Incorrect credentials. Please try again.";
-      
-      console.log("Error code:", error.code);
-      
-      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
-        errorMsg = "Invalid email or password.";
+      setIsEmailValid(true);
+      if (error.code === 'auth/user-not-found') {
+        errorMsg = "User not found.";
+        setEmailError(errorMsg);
+        setIsEmailValid(false);
+        setPasswordError('');
+      } else if (error.code === 'auth/wrong-password') {
+        errorMsg = "Incorrect password.";
+        setPasswordError(errorMsg);
+        setEmailError('');
       } else if (error.code === 'auth/invalid-email') {
         errorMsg = "Please enter a valid email address.";
+        setEmailError(errorMsg);
+        setIsEmailValid(false);
+        setPasswordError('');
       } else if (error.code === 'auth/too-many-requests') {
         errorMsg = "Too many failed login attempts. Please try again later.";
+        setEmailError('');
+        setPasswordError('');
       } else if (error.code === 'auth/user-disabled') {
         errorMsg = "This account has been disabled.";
+        setEmailError('');
+        setPasswordError('');
+      } else {
+        setEmailError('');
+        setPasswordError('');
       }
-      
-    //   console.error("Login error:", error);
       setErrorMessage(errorMsg);
     } finally {
       setLoading(false);
@@ -161,6 +178,16 @@ export default function LoginForm({ visible, onBackPress, onForgotPasswordPress,
       keyboardDidShowListener?.remove();
     };
   }, [contentTranslateY]);
+
+  // Helper to determine which error to show
+  const getActiveError = () => {
+    if (emailError) return emailError;
+    if (passwordError) return passwordError;
+    if (errorMessage) return errorMessage;
+    return '';
+  };
+  const showEmailError = !!emailError;
+  const showPasswordError = !emailError && !!passwordError;
 
   if (!visible) return null;
 
@@ -206,16 +233,17 @@ export default function LoginForm({ visible, onBackPress, onForgotPasswordPress,
                     if (submitted) {
                       setIsEmailValid(emailAddress === '' || isValidEmail(emailAddress));
                       if (emailAddress !== '' && !isValidEmail(emailAddress)) {
-                        setErrorMessage('Please provide a valid email.');
+                        setEmailError('Please provide a valid email.');
+                        setPasswordError('');
                       } else {
-                        setErrorMessage('');
+                        setEmailError('');
                       }
                     }
                   }}
                   style={
                     [
                       (emailAddress || emailFocused) ? styles.modernInput : styles.modernInputCompact, 
-                      (!isEmailValid && submitted) && styles.modernInputError
+                      (showEmailError && submitted) && styles.modernInputError
                     ]
                   }
                   contentStyle={(emailAddress || emailFocused) ? styles.inputContentStyle : styles.inputContentStyleCompact}
@@ -234,9 +262,9 @@ export default function LoginForm({ visible, onBackPress, onForgotPasswordPress,
                   autoCapitalize='none'
                   keyboardType="email-address"
                   textColor='#FFFFFF'
-                  error={!isEmailValid && submitted}
-                  underlineColor={!isEmailValid && submitted ? "#FF5555" : "rgba(255, 255, 255, 0.3)"}
-                  activeUnderlineColor={!isEmailValid && submitted ? "#FF5555" : "#FFFFFF"}
+                  error={showEmailError && submitted}
+                  underlineColor={showEmailError && submitted ? "#FF5555" : "rgba(255, 255, 255, 0.3)"}
+                  activeUnderlineColor={showEmailError && submitted ? "#FF5555" : "#FFFFFF"}
                 />
                 <TextInput
                   label="Password"
@@ -245,12 +273,10 @@ export default function LoginForm({ visible, onBackPress, onForgotPasswordPress,
                   onFocus={() => setPasswordFocused(true)}
                   onBlur={() => setPasswordFocused(false)}
                   secureTextEntry
-                  style={
-                    [
-                      (password || passwordFocused) ? styles.modernInput : styles.modernInputCompact,
-                      (!password && submitted) && styles.modernInputError
-                    ]
-                  }
+                  style={[
+                    (password || passwordFocused) ? styles.modernInput : styles.modernInputCompact,
+                    ((getActiveError() === 'Incorrect password.' || getActiveError() === 'Please enter your password.') && submitted) && styles.modernInputError,
+                  ]}
                   contentStyle={(password || passwordFocused) ? styles.inputContentStyle : styles.inputContentStyleCompact}
                   dense={!password && !passwordFocused}
                   mode="flat"
@@ -260,13 +286,14 @@ export default function LoginForm({ visible, onBackPress, onForgotPasswordPress,
                       background: 'transparent',
                       surface: 'transparent',
                       onSurfaceVariant: '#AAAAAA',
-                      outline: 'transparent'
+                      outline: 'transparent',
+                      error: '#FF5555',
                     }
                   }}
-                  textColor='#FFFFFF'
-                  underlineColor={!password && submitted ? "#FF5555" : "rgba(255, 255, 255, 0.3)"}
-                  activeUnderlineColor={!password && submitted ? "#FF5555" : "#FFFFFF"}
-                  error={!password && submitted}
+                  textColor="#FFFFFF"
+                  error={(getActiveError() === 'Incorrect password.' || getActiveError() === 'Please enter your password.') && submitted}
+                  underlineColor={(getActiveError() === 'Incorrect password.' || getActiveError() === 'Please enter your password.') && submitted ? '#FF5555' : 'rgba(255, 255, 255, 0.3)'}
+                  activeUnderlineColor={(getActiveError() === 'Incorrect password.' || getActiveError() === 'Please enter your password.') && submitted ? '#FF5555' : '#FFFFFF'}
                 />
                 <TouchableOpacity
                   style={[
@@ -282,8 +309,8 @@ export default function LoginForm({ visible, onBackPress, onForgotPasswordPress,
                   </Text>
                 </TouchableOpacity>
                 <View style={styles.errorContainer}>
-                  <Text style={[styles.errorText, { opacity: errorMessage ? 1 : 0 }]}> 
-                    {errorMessage || ' '}
+                  <Text style={[styles.errorText, { opacity: getActiveError() ? 1 : 0 }]}> 
+                    {getActiveError() || ' '}
                   </Text>
                 </View>
               </View>
@@ -348,7 +375,7 @@ const styles = StyleSheet.create({
   loginHeader: {
     alignItems: 'center',
     marginTop: 30,
-    marginBottom: 40,
+    marginBottom: 30,
   },
   loginTitle: {
     fontSize: 28,
