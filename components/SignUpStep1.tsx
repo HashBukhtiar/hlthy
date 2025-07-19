@@ -129,7 +129,9 @@ export default function SignUpStep1({ visible, onBackPress, onNext, onShowLogin 
 
   const handleEmailChange = (text: string) => {
     setEmail(text);
-    setIsEmailValid(text === '' || validateEmail(text));
+    if (submitted) {
+      setIsEmailValid(text === '' || validateEmail(text));
+    }
   };
 
   if (!visible) return null;
@@ -274,7 +276,10 @@ export default function SignUpStep1({ visible, onBackPress, onNext, onShowLogin 
                     value={email}
                     onChangeText={handleEmailChange}
                     onFocus={() => setEmailFocused(true)}
-                    onBlur={() => setEmailFocused(false)}
+                    onBlur={() => {
+                      setEmailFocused(false);
+                      setIsEmailValid(email === '' || validateEmail(email));
+                    }}
                     style={[
                       (email || emailFocused) ? styles.modernInput : styles.modernInputCompact,
                       !isEmailValid && styles.modernInputError,

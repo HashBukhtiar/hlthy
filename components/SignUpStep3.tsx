@@ -258,8 +258,8 @@ export default function SignUpStep3({ visible, onBackPress, onComplete, onShowLo
                         onPress={() => setShowPassword(!showPassword)}
                       />
                     }
-                    textContentType="newPassword"
-                    autoComplete="new-password"
+                    textContentType="password"
+                    autoComplete="password"
                   />
                 </Animated.View>
               </View>
@@ -310,8 +310,8 @@ export default function SignUpStep3({ visible, onBackPress, onComplete, onShowLo
                         onPress={() => setShowConfirmPassword(!showConfirmPassword)}
                       />
                     }
-                    textContentType="newPassword"
-                    autoComplete="new-password"
+                    textContentType="password"
+                    autoComplete="password"
                   />
                 </Animated.View>
               </View>
