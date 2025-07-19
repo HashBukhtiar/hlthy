@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import { 
   View, 
   StyleSheet, 
@@ -7,7 +7,8 @@ import {
   Dimensions,
   Animated,
   TouchableWithoutFeedback,
-  Keyboard
+  Keyboard,
+  ScrollView
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { TextInput } from 'react-native-paper';
@@ -37,6 +38,7 @@ export default function LoginForm({ visible, onBackPress, onForgotPasswordPress,
   
   // Animation values
   const slideAnim = useRef(new Animated.Value(0)).current;
+  const contentTranslateY = useRef(new Animated.Value(0)).current;
   
   // Check if the email is valid
   const isValidEmail = (email: string): boolean => {
@@ -110,6 +112,33 @@ export default function LoginForm({ visible, onBackPress, onForgotPasswordPress,
     }
   };
 
+  useEffect(() => {
+    const keyboardDidShowListener = Keyboard.addListener(
+      'keyboardDidShow',
+      () => {
+        Animated.timing(contentTranslateY, {
+          toValue: -60, // Move up by 60px (adjust as needed)
+          duration: 250,
+          useNativeDriver: true,
+        }).start();
+      }
+    );
+    const keyboardDidHideListener = Keyboard.addListener(
+      'keyboardDidHide',
+      () => {
+        Animated.timing(contentTranslateY, {
+          toValue: 0,
+          duration: 350, // Slightly longer for graceful return
+          useNativeDriver: true,
+        }).start();
+      }
+    );
+    return () => {
+      keyboardDidHideListener?.remove();
+      keyboardDidShowListener?.remove();
+    };
+  }, [contentTranslateY]);
+
   if (!visible) return null;
 
   return (
@@ -121,7 +150,6 @@ export default function LoginForm({ visible, onBackPress, onForgotPasswordPress,
           <Text style={styles.loadingText}>Logging in...</Text>
         </View>
       )}
-      
       {/* Back button */}
       <TouchableOpacity 
         style={styles.backButtonTop}
@@ -130,16 +158,20 @@ export default function LoginForm({ visible, onBackPress, onForgotPasswordPress,
       >
         <Text style={styles.backButtonText}>←</Text>
       </TouchableOpacity>
-
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <View style={styles.loginFullContainer}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        scrollEnabled={false}
+      >
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <Animated.View style={[styles.loginFullContainer, { transform: [{ translateY: contentTranslateY }] }]}> 
             {/* Centered login content */}
             <View style={styles.loginCenteredContent}>
               <View style={styles.loginHeader}>
                 <Text style={styles.loginTitle}>Welcome Back</Text>
                 <Text style={styles.loginSubtitle}>Sign in to continue your fitness journey</Text>
               </View>
-            
               <View style={styles.formContainer}>
                 <TextInput
                   label="Email Address"
@@ -150,10 +182,12 @@ export default function LoginForm({ visible, onBackPress, onForgotPasswordPress,
                     setEmailFocused(false);
                     setIsEmailValid(emailAddress === '' || isValidEmail(emailAddress));
                   }}
-                  style={[
-                    (emailAddress || emailFocused) ? styles.modernInput : styles.modernInputCompact, 
-                    !isEmailValid && styles.modernInputError
-                  ]}
+                  style={
+                    [
+                      (emailAddress || emailFocused) ? styles.modernInput : styles.modernInputCompact, 
+                      !isEmailValid && styles.modernInputError
+                    ]
+                  }
                   contentStyle={(emailAddress || emailFocused) ? styles.inputContentStyle : styles.inputContentStyleCompact}
                   dense={!emailAddress && !emailFocused}
                   mode="flat"
@@ -174,7 +208,6 @@ export default function LoginForm({ visible, onBackPress, onForgotPasswordPress,
                   underlineColor={!isEmailValid ? "#FF5555" : "rgba(255, 255, 255, 0.3)"}
                   activeUnderlineColor={!isEmailValid ? "#FF5555" : "#FFFFFF"}
                 />
-                
                 <TextInput
                   label="Password"
                   value={password}
@@ -199,7 +232,6 @@ export default function LoginForm({ visible, onBackPress, onForgotPasswordPress,
                   underlineColor="rgba(255, 255, 255, 0.3)"
                   activeUnderlineColor="#FFFFFF"
                 />
-                
                 <TouchableOpacity
                   style={[
                     styles.modernLoginButton,
@@ -213,35 +245,29 @@ export default function LoginForm({ visible, onBackPress, onForgotPasswordPress,
                     {loading ? 'Signing In...' : 'Sign In'}
                   </Text>
                 </TouchableOpacity>
-                
                 <View style={styles.errorContainer}>
-                  <Text style={[styles.errorText, { opacity: errorMessage ? 1 : 0 }]}>
+                  <Text style={[styles.errorText, { opacity: errorMessage ? 1 : 0 }]}> 
                     {errorMessage || ' '}
                   </Text>
                 </View>
               </View>
-
-              <View>
-                <View style={{ height: '25%' }} />
-              </View>
             </View>
-            
-            {/* Footer buttons - locked at bottom */}
-            <View style={styles.loginFooterFixed}>
-              <TouchableOpacity onPress={onShowSignUp || (() => router.push('/landing'))} activeOpacity={0.7}>
-                <Text style={styles.linkText}>Don't have an account? <Text style={styles.linkTextBold}>Sign Up</Text></Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={styles.forgotPasswordButton}
-                onPress={onForgotPasswordPress}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
+          </Animated.View>
         </TouchableWithoutFeedback>
+      </ScrollView>
+      {/* Footer buttons - locked at bottom */}
+      <View style={styles.loginFooterFixed}>
+        <TouchableOpacity onPress={onShowSignUp || (() => router.push('/landing'))} activeOpacity={0.7}>
+          <Text style={styles.linkText}>Don't have an account? <Text style={styles.linkTextBold}>Sign Up</Text></Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={styles.forgotPasswordButton}
+          onPress={onForgotPasswordPress}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -405,5 +431,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
     textAlign: 'center',
+  },
+  // Add scrollContent style for consistent padding
+  scrollContent: {
+    flexGrow: 1,
+    // paddingHorizontal: 20,
   },
 });
