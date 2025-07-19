@@ -28,11 +28,21 @@ export default function SignUpStep4({ visible, onBackPress, onComplete, onShowLo
   const [archetype, setArchetype] = useState<string | null>(null);
   const [modalVisible, setModalVisible] = useState<boolean>(false);
   const [submitted, setSubmitted] = useState(false);
+  const shakeAnim = useRef(new Animated.Value(0)).current;
 
   const handleComplete = useCallback(() => {
     setSubmitted(true);
+    if (!archetype) {
+      Animated.sequence([
+        Animated.timing(shakeAnim, { toValue: 1, duration: 50, useNativeDriver: true }),
+        Animated.timing(shakeAnim, { toValue: -1, duration: 50, useNativeDriver: true }),
+        Animated.timing(shakeAnim, { toValue: 1, duration: 50, useNativeDriver: true }),
+        Animated.timing(shakeAnim, { toValue: 0, duration: 50, useNativeDriver: true }),
+      ]).start();
+      return;
+    }
     onComplete({ archetype });
-  }, [archetype, onComplete]);
+  }, [archetype, onComplete, shakeAnim]);
 
   const handleBackPress = useCallback(() => {
     onBackPress();
@@ -55,6 +65,11 @@ export default function SignUpStep4({ visible, onBackPress, onComplete, onShowLo
         <Text style={styles.subtitle}>Personalize your hlthy experience to your fitness journey</Text>
         <View style={styles.form}>
           <View style={styles.inputContainer}>
+          <Animated.View style={{
+            transform: [
+              { translateX: shakeAnim.interpolate({ inputRange: [-1, 1], outputRange: [-8, 8] }) }
+            ]
+          }}>
             <CustomSelector
               items={archetypes}
               value={archetype}
@@ -66,6 +81,7 @@ export default function SignUpStep4({ visible, onBackPress, onComplete, onShowLo
               setModalVisible={setModalVisible}
               variant="fullWidth"
             />
+          </Animated.View>
           </View>
         </View>
 
@@ -96,7 +112,7 @@ export default function SignUpStep4({ visible, onBackPress, onComplete, onShowLo
             style={[styles.completeButton, !archetype && styles.disabledButton]}
             onPress={handleComplete}
             activeOpacity={0.8}
-            disabled={!archetype || loading}
+            disabled={false} // {!archetype || loading}
           >
             <Text style={styles.completeButtonText}>Create Account</Text>
           </TouchableOpacity>
@@ -218,8 +234,8 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   previewContainer: {
-    marginTop: 20,
-    marginBottom: 10,
+    marginTop: 0,
+    marginBottom: 20,
     padding: 15,
     borderRadius: 12,
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
