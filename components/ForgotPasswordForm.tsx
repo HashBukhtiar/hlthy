@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { 
   View, 
   StyleSheet, 
@@ -7,7 +7,9 @@ import {
   Dimensions,
   TouchableWithoutFeedback,
   Keyboard,
-  Animated
+  Animated,
+  ScrollView,
+  Platform
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { TextInput } from 'react-native-paper';
@@ -31,6 +33,7 @@ export default function ForgotPasswordForm({ visible, onBackPress, onBackToLogin
   const [emailFocused, setEmailFocused] = useState<boolean>(false);
 
   const emailShakeAnim = React.useRef(new Animated.Value(0)).current;
+  const contentTranslateY = useRef(new Animated.Value(0)).current;
 
   // Check if the email is valid
   const isValidEmail = (email: string): boolean => {
@@ -101,6 +104,33 @@ export default function ForgotPasswordForm({ visible, onBackPress, onBackToLogin
     }
   };
 
+  useEffect(() => {
+    const keyboardDidShowListener = Keyboard.addListener(
+      'keyboardDidShow',
+      () => {
+        Animated.timing(contentTranslateY, {
+          toValue: -60, // Move up by 60px (adjust as needed)
+          duration: 250,
+          useNativeDriver: true,
+        }).start();
+      }
+    );
+    const keyboardDidHideListener = Keyboard.addListener(
+      'keyboardDidHide',
+      () => {
+        Animated.timing(contentTranslateY, {
+          toValue: 0,
+          duration: 350, // Slightly longer for graceful return
+          useNativeDriver: true,
+        }).start();
+      }
+    );
+    return () => {
+      keyboardDidHideListener?.remove();
+      keyboardDidShowListener?.remove();
+    };
+  }, [contentTranslateY]);
+
   if (!visible) return null;
 
   return (
@@ -112,7 +142,6 @@ export default function ForgotPasswordForm({ visible, onBackPress, onBackToLogin
           <Text style={styles.loadingText}>Sending password reset link...</Text>
         </View>
       )}
-      
       {/* Back button */}
       <TouchableOpacity 
         style={styles.backButtonTop}
@@ -121,111 +150,111 @@ export default function ForgotPasswordForm({ visible, onBackPress, onBackToLogin
       >
         <Text style={styles.backButtonText}>←</Text>
       </TouchableOpacity>
-
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <View style={styles.forgotPasswordFullContainer}>
-          {submitted ? (
-            // Success State
-            <View style={styles.forgotPasswordCenteredContent}>
-              <View style={styles.successHeader}>
-                <Text style={styles.successTitle}>Check Your Email</Text>
-                <Text style={styles.successMessage}>
-                  We've sent a password reset link to {emailAddress}
-                </Text>
-                <Text style={styles.instructionText}>
-                  Click the link in your email to reset your password, then return to login.
-                </Text>
-              </View>
-            </View>
-          ) : (
-            // Form State
-            <View style={styles.forgotPasswordCenteredContent}>
-              <View style={styles.forgotPasswordHeader}>
-                <Text style={styles.forgotPasswordTitle}>Forgot Password</Text>
-                <Text style={styles.forgotPasswordSubtitle}>Enter your email address to reset password</Text>
-              </View>
-            
-              <View style={styles.formContainer}>
-
-                <Animated.View
-                  style={{
-                    transform: [
-                      {
-                        translateX: !isEmailValid ? emailShakeAnim.interpolate({ inputRange: [-1, 1], outputRange: [-5, 5] }) : 0,
-                      },
-                    ],
-                  }}
-                >
-                  <TextInput
-                    label="Email Address"
-                    value={emailAddress}
-                    onChangeText={setEmailAddress}
-                    onFocus={() => setEmailFocused(true)}
-                    onBlur={() => {
-                      setEmailFocused(false);
-                      setIsEmailValid(emailAddress === '' || isValidEmail(emailAddress));
-                    }}
-                    style={
-                      [
-                        (emailAddress || emailFocused) ? styles.modernInput : styles.modernInputCompact, 
-                        !isEmailValid && styles.modernInputError
-                      ]
-                    }
-                    contentStyle={(emailAddress || emailFocused) ? styles.inputContentStyle : styles.inputContentStyleCompact}
-                    dense={!emailAddress && !emailFocused}
-                    mode="flat"
-                    theme={{ 
-                      colors: { 
-                        primary: '#FFFFFF', 
-                        background: 'transparent',
-                        surface: 'transparent',
-                        onSurfaceVariant: '#AAAAAA',
-                        outline: 'transparent',
-                        error: '#FF5555'
-                      }
-                    }}
-                    autoCapitalize='none'
-                    keyboardType="email-address"
-                    textColor='#FFFFFF'
-                    error={!isEmailValid}
-                    underlineColor={!isEmailValid ? "#FF5555" : "rgba(255, 255, 255, 0.3)"}
-                    activeUnderlineColor={!isEmailValid ? "#FF5555" : "#FFFFFF"}
-                  />
-                </Animated.View>
-                
-                <TouchableOpacity
-                  style={[
-                    styles.modernSubmitButton,
-                    loading && styles.modernSubmitButtonDisabled
-                  ]}
-                  onPress={handleSubmit}
-                  disabled={loading}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.modernSubmitButtonText}>
-                    {loading ? 'Sending...' : 'Send Reset Link'}
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        scrollEnabled={false}
+      >
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <Animated.View style={[styles.forgotPasswordFullContainer, { transform: [{ translateY: contentTranslateY }] }]}> 
+            {submitted ? (
+              // Success State
+              <View style={styles.forgotPasswordCenteredContent}>
+                <View style={styles.successHeader}>
+                  <Text style={styles.successTitle}>Check Your Email</Text>
+                  <Text style={styles.successMessage}>
+                    {`We've sent a password reset link to ${emailAddress}`}
                   </Text>
-                </TouchableOpacity>
-                
-                <View style={styles.errorContainer}>
-                  <Text style={[styles.errorText, { opacity: errorMessage ? 1 : 0 }]}>
-                    {errorMessage || ' '}
+                  <Text style={styles.instructionText}>
+                    Click the link in your email to reset your password, then return to login.
                   </Text>
                 </View>
-
-                <View style={{ height: '15%' }} />
               </View>
-            </View>
-          )}
-          
-          {/* Footer buttons - locked at bottom */}
-          <View style={styles.forgotPasswordFooterFixed}>
-            <TouchableOpacity onPress={onShowSignUp || (() => router.push('/landing'))} activeOpacity={0.7}>
-              <Text style={styles.linkText}>Don't have an account? <Text style={styles.linkTextBold}>Sign Up</Text></Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </TouchableWithoutFeedback>
+            ) : (
+              // Form State
+              <View style={styles.forgotPasswordCenteredContent}>
+                <View style={styles.forgotPasswordHeader}>
+                  <Text style={styles.forgotPasswordTitle}>Forgot Password</Text>
+                  <Text style={styles.forgotPasswordSubtitle}>Enter your email address to reset password</Text>
+                </View>
+                <View style={styles.formContainer}>
+                  <Animated.View
+                    style={{
+                      transform: [
+                        {
+                          translateX: !isEmailValid ? emailShakeAnim.interpolate({ inputRange: [-1, 1], outputRange: [-5, 5] }) : 0,
+                        },
+                      ],
+                    }}
+                  >
+                    <TextInput
+                      label="Email Address"
+                      value={emailAddress}
+                      onChangeText={setEmailAddress}
+                      onFocus={() => setEmailFocused(true)}
+                      onBlur={() => {
+                        setEmailFocused(false);
+                        setIsEmailValid(emailAddress === '' || isValidEmail(emailAddress));
+                      }}
+                      style={
+                        [
+                          (emailAddress || emailFocused) ? styles.modernInput : styles.modernInputCompact, 
+                          !isEmailValid && styles.modernInputError
+                        ]
+                      }
+                      contentStyle={(emailAddress || emailFocused) ? styles.inputContentStyle : styles.inputContentStyleCompact}
+                      dense={!emailAddress && !emailFocused}
+                      mode="flat"
+                      theme={{ 
+                        colors: { 
+                          primary: '#FFFFFF', 
+                          background: 'transparent',
+                          surface: 'transparent',
+                          onSurfaceVariant: '#AAAAAA',
+                          outline: 'transparent',
+                          error: '#FF5555'
+                        }
+                      }}
+                      autoCapitalize='none'
+                      keyboardType="email-address"
+                      textColor='#FFFFFF'
+                      error={!isEmailValid}
+                      underlineColor={!isEmailValid ? "#FF5555" : "rgba(255, 255, 255, 0.3)"}
+                      activeUnderlineColor={!isEmailValid ? "#FF5555" : "#FFFFFF"}
+                    />
+                  </Animated.View>
+                  <TouchableOpacity
+                    style={[
+                      styles.modernSubmitButton,
+                      loading && styles.modernSubmitButtonDisabled
+                    ]}
+                    onPress={handleSubmit}
+                    disabled={loading}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.modernSubmitButtonText}>
+                      {loading ? 'Sending...' : 'Send Reset Link'}
+                    </Text>
+                  </TouchableOpacity>
+                  <View style={styles.errorContainer}>
+                    <Text style={[styles.errorText, { opacity: errorMessage ? 1 : 0 }]}>
+                      {errorMessage || ' '}
+                    </Text>
+                  </View>
+                  <View style={{ height: '5%' }} />
+                </View>
+              </View>
+            )}
+          </Animated.View>
+        </TouchableWithoutFeedback>
+      </ScrollView>
+      {/* Footer buttons - locked at bottom */}
+      <View style={styles.forgotPasswordFooterFixed}>
+        <TouchableOpacity onPress={onShowSignUp || (() => router.push('/landing'))} activeOpacity={0.7}>
+          <Text style={styles.linkText}>Don't have an account? <Text style={styles.linkTextBold}>Sign Up</Text></Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -407,5 +436,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
     textAlign: 'center',
+  },
+  // Add scrollContent style for consistent padding
+  scrollContent: {
+    flexGrow: 1,
+    // paddingHorizontal: 20,
   },
 });
