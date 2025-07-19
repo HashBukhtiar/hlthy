@@ -319,20 +319,6 @@ export default function SignUpStep3({ visible, onBackPress, onComplete, onShowLo
               </View>
             </View>
           </Animated.View>
-
-          {/* Footer buttons - locked at bottom */}
-          {onShowLogin && (
-            <View style={styles.loginFooterFixed}>
-              <TouchableOpacity
-                onPress={onShowLogin}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.linkText}>
-                  Already have an account? <Text style={styles.linkTextBold}>Sign In</Text>
-                </Text>
-              </TouchableOpacity>
-            </View>
-          )}
         </ScrollView>
       </KeyboardAvoidingView>
     </TouchableWithoutFeedback>
