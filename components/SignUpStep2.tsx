@@ -305,6 +305,7 @@ export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin,
             style={styles.backButtonTop} 
             onPress={handleBackPress}
             activeOpacity={0.7}
+            disabled={loading} // Disable back button when loading
           >
             <Text style={styles.backButtonText}>←</Text>
           </TouchableOpacity>
@@ -485,9 +486,10 @@ export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin,
             {/* Buttons */}
             <View style={styles.buttonContainer}>
               <TouchableOpacity
-                style={styles.nextButton}
+                style={[styles.nextButton, loading && styles.disabledButton]}
                 onPress={handleNext}
                 activeOpacity={0.8}
+                disabled={loading}
               >
                 <Text style={styles.nextButtonText}>Continue</Text>
                 <Ionicons name="chevron-forward" size={20} color="#000000" />
@@ -499,17 +501,6 @@ export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin,
                   {errorMessage || ' '}
                 </Text>
               </View>
-
-              {/* Loading spinner - appears over the content */}
-              {(loading || spinnerFadeAnim._value > 0) && (
-                <>
-                  <View style={styles.loadingBlocker} pointerEvents="auto" />
-                  <Animated.View style={[styles.loadingOverlay, { opacity: spinnerFadeAnim }]} pointerEvents="auto">
-                    <CustomSpinner size={48} />
-                    <Text style={styles.loadingText}>Checking username...</Text>
-                  </Animated.View>
-                </>
-              )}
             </View>
           </Animated.View>
 
@@ -525,10 +516,11 @@ export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin,
           
           {/* Footer buttons - locked at bottom */}
           {onShowLogin && (
-            <View style={styles.loginFooterFixed}>
+            <View style={styles.loginFooterFixed} pointerEvents={loading ? "none" : "auto"}>
               <TouchableOpacity
                 onPress={onShowLogin}
                 activeOpacity={0.7}
+                disabled={loading}
               >
                 <Text style={styles.linkText}>
                   Already have an account? <Text style={styles.linkTextBold}>Sign In</Text>
@@ -537,6 +529,17 @@ export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin,
             </View>
           )}
         </ScrollView>
+
+        {/* Loader widget centered on page, above all content */}
+        {(loading || spinnerFadeAnim._value > 0) && (
+          <>
+            <View style={styles.loadingBlocker} pointerEvents="auto" />
+            <Animated.View style={[styles.loadingOverlay, { opacity: spinnerFadeAnim }]} pointerEvents="auto">
+              <CustomSpinner size={48} />
+              <Text style={styles.loadingText}>Checking username...</Text>
+            </Animated.View>
+          </>
+        )}
       </KeyboardAvoidingView>
     </TouchableWithoutFeedback>
   );
@@ -666,6 +669,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     gap: 8,
+  },
+  disabledButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.5)',
   },
   nextButtonText: {
     color: '#000000',
