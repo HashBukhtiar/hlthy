@@ -364,7 +364,7 @@ const styles = StyleSheet.create({
   },
   loadingOverlay: {
     position: 'absolute',
-    top: '50%',
+    top: '60%',
     left: '50%',
     width: 180,
     height: 180,

@@ -83,6 +83,8 @@ export default function LoginForm({ visible, onBackPress, onForgotPasswordPress,
 
   const handlePasswordChange = (text: string) => {
     setPassword(text);
+    // Remove error styling when user types
+    if (passwordError) setPasswordError('');
     if (submitted) {
       if (!text) {
         setErrorMessage('Please enter your password.');
@@ -114,40 +116,83 @@ export default function LoginForm({ visible, onBackPress, onForgotPasswordPress,
     if (!valid) return;
     setLoading(true);
     try {
-      // Sign in with Firebase Authentication
+      // Try to sign in with Firebase Authentication
       await signInWithEmailAndPassword(auth, emailAddress, password);
+      console.log('[Login] Success for', emailAddress);
       router.replace('/');
     } catch (error: any) {
-      // Handle specific Firebase errors
-      let errorMsg = "Incorrect credentials. Please try again.";
-      setIsEmailValid(true);
-      if (error.code === 'auth/user-not-found') {
-        errorMsg = "User not found.";
-        setEmailError(errorMsg);
-        setIsEmailValid(false);
-        setPasswordError('');
-      } else if (error.code === 'auth/wrong-password') {
-        errorMsg = "Incorrect password.";
-        setPasswordError(errorMsg);
-        setEmailError('');
-      } else if (error.code === 'auth/invalid-email') {
-        errorMsg = "Please enter a valid email address.";
-        setEmailError(errorMsg);
-        setIsEmailValid(false);
-        setPasswordError('');
-      } else if (error.code === 'auth/too-many-requests') {
-        errorMsg = "Too many failed login attempts. Please try again later.";
-        setEmailError('');
-        setPasswordError('');
-      } else if (error.code === 'auth/user-disabled') {
-        errorMsg = "This account has been disabled.";
-        setEmailError('');
-        setPasswordError('');
-      } else {
-        setEmailError('');
-        setPasswordError('');
+      console.log('[Login] Failed for', emailAddress, error);
+      // If login fails, check if email exists by trying to create a dummy account
+      let emailExists = false;
+      let dummyUserCreated = false;
+      let dummyUserDeleted = false;
+      let randomPassword = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36) + Date.now();
+      try {
+        const userCredential = await signInWithEmailAndPassword(auth, emailAddress, randomPassword);
+        // If this succeeds, the password was correct (should not happen)
+        console.log('[Login] Unexpected: dummy login succeeded for', emailAddress);
+      } catch (dummyErr: any) {
+        if (dummyErr.code === 'auth/user-not-found') {
+          // Email does not exist
+          emailExists = false;
+          console.log('[Login] Email does not exist:', emailAddress);
+          setEmailError('User not found.');
+          setIsEmailValid(false);
+          setPasswordError('');
+          setErrorMessage('User not found.');
+        } else if (dummyErr.code === 'auth/wrong-password' || dummyErr.code === 'auth/email-already-in-use') {
+          // Email exists, password is wrong
+          emailExists = true;
+          console.log('[Login] Email exists, password incorrect:', emailAddress);
+          setPasswordError('Incorrect password.');
+          setEmailError('');
+          setErrorMessage('Incorrect password.');
+        } else if (dummyErr.code === 'auth/invalid-email') {
+          setEmailError('Please enter a valid email address.');
+          setIsEmailValid(false);
+          setPasswordError('');
+          setErrorMessage('Please enter a valid email address.');
+        } else {
+          setEmailError('');
+          setPasswordError('');
+          // setErrorMessage('Incorrect credentials. Please try again.');
+        }
       }
-      setErrorMessage(errorMsg);
+      // Try to create dummy account to check existence (like SignUpStep1)
+      try {
+        const { getAuth, createUserWithEmailAndPassword } = await import('firebase/auth');
+        const authInstance = getAuth();
+        const userCredential = await createUserWithEmailAndPassword(authInstance, emailAddress, randomPassword);
+        dummyUserCreated = true;
+        // Immediately delete dummy account
+        if (userCredential && authInstance.currentUser) {
+          try {
+            await authInstance.currentUser.delete();
+            dummyUserDeleted = true;
+            console.log('[Login] Dummy account created and deleted for', emailAddress);
+          } catch (deleteErr) {
+            console.warn('[Login] Failed to delete dummy account for', emailAddress, deleteErr);
+          }
+        }
+        // If dummy account was created, email does not exist
+        if (dummyUserCreated) {
+          setEmailError('User not found.');
+          setIsEmailValid(false);
+          setPasswordError('');
+          setErrorMessage('User not found.');
+        }
+      } catch (err: any) {
+        // If account creation is blocked, email exists
+        if (err.code === 'auth/email-already-in-use') {
+          emailExists = true;
+          console.log('[Login] Email exists, password incorrect (dummy creation blocked):', emailAddress);
+          setPasswordError('Incorrect password.');
+          setEmailError('');
+          setErrorMessage('Incorrect password.');
+        } else {
+          console.warn('[Login] Error during dummy account creation for', emailAddress, err);
+        }
+      }
     } finally {
       setLoading(false);
     }
@@ -303,7 +348,7 @@ export default function LoginForm({ visible, onBackPress, onForgotPasswordPress,
                   secureTextEntry
                   style={[
                     (password || passwordFocused) ? styles.modernInput : styles.modernInputCompact,
-                    (!password && submitted) && styles.modernInputError,
+                    ((showPasswordError && submitted) || (!password && submitted)) && styles.modernInputError,
                   ]}
                   contentStyle={(password || passwordFocused) ? styles.inputContentStyle : styles.inputContentStyleCompact}
                   dense={!password && !passwordFocused}
@@ -319,9 +364,9 @@ export default function LoginForm({ visible, onBackPress, onForgotPasswordPress,
                     }
                   }}
                   textColor="#FFFFFF"
-                  error={!password && submitted}
-                  underlineColor={!password && submitted ? '#FF5555' : 'rgba(255, 255, 255, 0.3)'}
-                  activeUnderlineColor={!password && submitted ? '#FF5555' : '#FFFFFF'}
+                  error={(showPasswordError && submitted) || (!password && submitted)}
+                  underlineColor={(showPasswordError && submitted) || (!password && submitted) ? '#FF5555' : 'rgba(255, 255, 255, 0.3)'}
+                  activeUnderlineColor={(showPasswordError && submitted) || (!password && submitted) ? '#FF5555' : '#FFFFFF'}
                   editable={!loading}
                 />
                 <TouchableOpacity
