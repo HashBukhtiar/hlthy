@@ -1,6 +1,8 @@
+import { ImageSourcePropType } from 'react-native';
 import { ref, deleteObject } from 'firebase/storage';
 import { storage, db } from '@/firebaseConfig';
 import { doc, deleteDoc } from 'firebase/firestore';
+import hlthyLogo from '@/assets/images/icon.png';
 
 const DEFAULT_PROFILE_PICTURE = 'https://thumbs.dreamstime.com/b/creative-illustration-default-avatar-profile-placeholder-isolated-background-art-design-grey-photo-blank-template-mockup-144855718.jpg';
 
@@ -21,6 +23,15 @@ export const getOptimalImageUrl = (thumbnailUrl?: string | null, originalUrl?: s
   
   return DEFAULT_PROFILE_PICTURE;
 };
+
+export const getCoverImageSource = (
+  thumbnailUrl?: string | null,
+  originalUrl?: string | null
+): ImageSourcePropType => {
+  if (originalUrl?.trim())   return { uri: originalUrl }
+  if (thumbnailUrl?.trim())  return { uri: thumbnailUrl }
+  return hlthyLogo
+}
 
 /**
  * Gets the storage bucket name from the Firebase config

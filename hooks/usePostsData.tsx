@@ -529,7 +529,6 @@ export function usePostsData() {
     if (!currentUser || !userProfile) throw new Error("User not authenticated");
     if (!text.trim())      throw new Error("Comment text cannot be empty");
 
-    // 1) just write the comment
     const newCommentRef = await addDoc(
       collection(db, "posts", postId, "comments"),
       {
@@ -543,10 +542,6 @@ export function usePostsData() {
       }
     );
 
-    // → NO more updateDoc() here! 
-    //    your bumpCommentCount trigger will fire automatically.
-
-    // return a client copy
     return {
       id: newCommentRef.id,
       text,

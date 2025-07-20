@@ -19,7 +19,8 @@ import { BlurView } from 'expo-blur';
 import { useAuth } from '@/context/AuthContext';
 import { db } from '@/firebaseConfig';
 import { collection, query, where, getDocs, orderBy, limit, doc, getDoc as getFirestoreDoc } from 'firebase/firestore';
-import { getOptimalImageUrl } from '@/utils/imageUtils';
+import { getCoverImageSource } from '@/utils/imageUtils';
+import { icon } from '@/assets/images';
 
 interface WorkoutItemData {
     id: string;
@@ -70,7 +71,18 @@ export default function Workouts() {
                 orderBy('createdAt', 'desc')
             );
             const querySnapshot = await getDocs(q);
-            const workoutsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as WorkoutItemData));
+            const workoutsData = querySnapshot.docs.map(docSnap => {
+                const d = docSnap.data() as any;
+                return {
+                    id:              docSnap.id,
+                    title:           d.title,
+                    creatorId:       d.creatorId,
+                    creatorUsername: d.creatorUsername,
+                    coverImageUrl:   d.coverImageUrl ?? null,
+                    thumbnailUrl:    d.thumbnailUrl  ?? null,
+                    savedCount:      d.savedCount   ?? 0,
+                };
+            });
             setMyWorkouts(workoutsData);
         } catch (error) {
             console.error("Error fetching my workouts: ", error);
@@ -95,14 +107,21 @@ export default function Workouts() {
             }
             
             const favWorkoutsData: WorkoutItemData[] = [];
-            for (const id of workoutIds.slice(0, 30)) { 
-                const workoutDocRef = doc(db, 'workouts', id);
-                const workoutDocSnap = await getFirestoreDoc(workoutDocRef);
-                if (workoutDocSnap.exists()) {
-                    favWorkoutsData.push({ id: workoutDocSnap.id, ...workoutDocSnap.data() } as WorkoutItemData);
+                for (const id of workoutIds.slice(0, 30)) {
+                  const snap = await getFirestoreDoc(doc(db, 'workouts', id));
+                  if (!snap.exists()) continue;
+                  const d = snap.data() as any;
+                  favWorkoutsData.push({
+                    id:               snap.id,
+                    title:            d.title,
+                    creatorId:        d.creatorId,
+                    creatorUsername:  d.creatorUsername,
+                    coverImageUrl:    d.coverImageUrl ?? null,
+                    thumbnailUrl:     d.thumbnailUrl  ?? null,
+                    savedCount:       d.savedCount   ?? 0,
+                  });
                 }
-            }
-            setFavoriteWorkouts(favWorkoutsData); 
+                setFavoriteWorkouts(favWorkoutsData);
         } catch (error) {
             console.error("Error fetching favorite workouts: ", error);
             setFavoriteWorkouts([]);
@@ -133,7 +152,18 @@ export default function Workouts() {
                 orderBy('createdAt', 'desc')
             );
             const querySnapshot = await getDocs(q);
-            const workoutsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as WorkoutItemData));
+            const workoutsData: WorkoutItemData[] = querySnapshot.docs.map(docSnap => {
+                const d = docSnap.data() as any;
+                return {
+                    id:              docSnap.id,
+                    title:           d.title,
+                    creatorId:       d.creatorId,
+                    creatorUsername: d.creatorUsername,
+                    coverImageUrl:   d.coverImageUrl ?? null,
+                    thumbnailUrl:    d.thumbnailUrl  ?? null,
+                    savedCount:      d.savedCount   ?? 0,
+                };
+            });
             setFollowingWorkouts(workoutsData);
         } catch (error) {
             console.error("Error fetching workouts from people you follow: ", error);
@@ -153,7 +183,18 @@ export default function Workouts() {
                 limit(50) 
             );
             const querySnapshot = await getDocs(q);
-            const workoutsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as WorkoutItemData));
+            const workoutsData: WorkoutItemData[] = querySnapshot.docs.map(docSnap => {
+                const d = docSnap.data() as any;
+                return {
+                    id:              docSnap.id,
+                    title:           d.title,
+                    creatorId:       d.creatorId,
+                    creatorUsername: d.creatorUsername,
+                    coverImageUrl:   d.coverImageUrl ?? null,
+                    thumbnailUrl:    d.thumbnailUrl  ?? null,
+                    savedCount:      d.savedCount   ?? 0,
+                };
+        });
             setTrendingWorkouts(workoutsData); 
         } catch (error) {
             console.error("Error fetching trending workouts: ", error);
@@ -232,43 +273,55 @@ export default function Workouts() {
         );
     }
 
-    const renderWorkoutCarouselItem = (item: WorkoutItemData, itemStyle: any, blurStyle: any) => (
-        <TouchableOpacity 
-            key={item.id}
-            style={itemStyle}
-            onPress={() => {
+    const renderWorkoutCarouselItem = (item: WorkoutItemData, itemStyle: any, blurStyle: any) => {
+        const hasCover = Boolean(
+            item.thumbnailUrl?.trim() ||
+            item.coverImageUrl?.trim()
+            );
+
+        return (
+            <TouchableOpacity
+                key={item.id}
+                style={itemStyle}
+                onPress={() => {
                 router.push(`/view-workout/${item.id}`);
                 setSearchQuery('');
-            }}
-        >
-            {getOptimalImageUrl(item.thumbnailUrl, item.coverImageUrl) ? (
+                }}
+            >
+                {hasCover ? (
                 <>
-                    <Image 
-                        source={{ uri: getOptimalImageUrl(item.thumbnailUrl, item.coverImageUrl)! }}
-                        style={[StyleSheet.absoluteFill, { backgroundColor: '#333', resizeMode: 'cover' }]}
+                    <Image
+                    source={getCoverImageSource(item.thumbnailUrl, item.coverImageUrl)}
+                    style={[StyleSheet.absoluteFill, { backgroundColor: '#333', resizeMode: 'cover' }]}
                     />
                     <BlurView intensity={25} tint="dark" style={blurStyle}>
-                        <Text style={styles.workoutNameText} numberOfLines={1}>{item.title}</Text>
-                        <Text style={styles.workoutAuthorText} numberOfLines={1}>by {item.creatorUsername}</Text>
+                    <Text style={styles.workoutNameText} numberOfLines={1}>{item.title}</Text>
+                    <Text style={styles.workoutAuthorText} numberOfLines={1}>by {item.creatorUsername}</Text>
                     </BlurView>
                 </>
-            ) : (
-                // If no cover image, show the icon without blur but still with text overlay
+                ) : (
                 <>
-                    <View style={[StyleSheet.absoluteFill, { backgroundColor: '#222', justifyContent: 'center', alignItems: 'center' }]}>
-                        <Image 
-                            source={require('@/assets/images/icon.png')}
-                            style={{ width: '90%', height: '90%', resizeMode: 'contain' }}
-                        />
+                    {/* placeholder icon, no blur */}
+                    <View style={[StyleSheet.absoluteFill, {
+                    backgroundColor: '#222',
+                    justifyContent: 'center',
+                    alignItems: 'center'
+                    }]}>
+                    <Image
+                        source={icon}
+                        style={{ width: '60%', height: '60%', resizeMode: 'contain' }}
+                    />
                     </View>
-                    <View style={[blurStyle]}>
-                        <Text style={styles.workoutNameText} numberOfLines={1}>{item.title}</Text>
-                        <Text style={styles.workoutAuthorText} numberOfLines={1}>by {item.creatorUsername}</Text>
+                    {/* text container without blur */}
+                    <View style={blurStyle}>
+                    <Text style={styles.workoutNameText} numberOfLines={1}>{item.title}</Text>
+                    <Text style={styles.workoutAuthorText} numberOfLines={1}>by {item.creatorUsername}</Text>
                     </View>
                 </>
-            )}
-        </TouchableOpacity>
-    );
+                )}
+            </TouchableOpacity>
+        );
+    };
 
     // New item renderer for search results list
     const renderSearchResultItem = ({ item }: { item: WorkoutItemData }) => (
@@ -280,11 +333,7 @@ export default function Workouts() {
             }}
         >
             <Image 
-                source={
-                    getOptimalImageUrl(item.thumbnailUrl, item.coverImageUrl) 
-                        ? { uri: getOptimalImageUrl(item.thumbnailUrl, item.coverImageUrl)! } 
-                        : require('@/assets/images/icon.png')
-                }
+                source={getCoverImageSource(item.thumbnailUrl, item.coverImageUrl)}
                 style={styles.searchResultImage}
             />
             <View style={styles.searchResultTextContainer}>
@@ -401,11 +450,7 @@ export default function Workouts() {
                                         }}
                                     >
                                         <Image 
-                                            source={
-                                                getOptimalImageUrl(item.thumbnailUrl, item.coverImageUrl) 
-                                                    ? { uri: getOptimalImageUrl(item.thumbnailUrl, item.coverImageUrl)! } 
-                                                    : require('@/assets/images/icon.png')
-                                            }
+                                            source={getCoverImageSource(item.thumbnailUrl, item.coverImageUrl)}
                                             style={styles.trendingColumnItemImage}
                                         />
                                         <View style={styles.trendingColumnItemTextContainer}>
