@@ -212,28 +212,11 @@ export default function Landing() {
     }
   }, [signupData, animateToScreen]);
 
-  const handleSignUpStep4Complete = useCallback(async (data: { bio: string }) => {
-    setSignupLoading(true);
-    try {
-      const finalData = { ...signupData, bio: data.bio };
-      // TODO: Implement actual signup logic here
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      console.log('Signup completed with data:', finalData);
-      setSignupData({
-        firstName: '',
-        lastName: '',
-        email: '',
-        username: '',
-        dateOfBirth: '',
-        password: '',
-      });
-      animateToScreen('landing', 'backward');
-    } catch (error) {
-      console.error('Signup error:', error);
-    } finally {
-      setSignupLoading(false);
-    }
-  }, [signupData, animateToScreen]);
+  const handleSignUpStep4Complete = useCallback((data: { archetype: string }) => {
+    // Combine all signup data and archetype
+    const finalData = { ...signupData, archetype: data.archetype };
+    return finalData;
+  }, [signupData]);
 
   return (
     <AuthBackground>

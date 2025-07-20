@@ -306,7 +306,7 @@ export default function Settings() {
           onSelect={setArchetype}
           placeholder="Select archetype"
           title="Archetype"
-          icon="body"
+          icon="aperture-outline"
           modalVisible={archetypeModalVisible}
           setModalVisible={setArchetypeModalVisible}
           variant="fullWidth"

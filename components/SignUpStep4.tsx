@@ -4,6 +4,10 @@ import { TextInput } from 'react-native-paper';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { CustomSelector, SelectorItem } from '@/components/CustomSelector';
 import { Image } from 'react-native';
+import { auth, db } from '@/firebaseConfig';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { doc, setDoc } from 'firebase/firestore';
+import { useRouter } from 'expo-router';
 
 interface SignUpStep4Props {
   visible: boolean;
@@ -15,6 +19,7 @@ interface SignUpStep4Props {
 
 export default function SignUpStep4({ visible, onBackPress, onComplete, onShowLogin, loading = false }: SignUpStep4Props) {
   const { width } = Dimensions.get('window');
+  const router = useRouter();
 
   // Archetype options
   const archetypes: SelectorItem[] = [
@@ -30,7 +35,7 @@ export default function SignUpStep4({ visible, onBackPress, onComplete, onShowLo
   const [submitted, setSubmitted] = useState(false);
   const shakeAnim = useRef(new Animated.Value(0)).current;
 
-  const handleComplete = useCallback(() => {
+  const handleComplete = useCallback(async () => {
     setSubmitted(true);
     if (!archetype) {
       Animated.sequence([
@@ -41,8 +46,30 @@ export default function SignUpStep4({ visible, onBackPress, onComplete, onShowLo
       ]).start();
       return;
     }
-    onComplete({ archetype });
-  }, [archetype, onComplete, shakeAnim]);
+    try {
+      const signupData = await onComplete({ archetype });
+      console.log('[SignUpStep4] Received signup data:', signupData);
+      if (!signupData) return;
+      const { email, password, firstName, lastName, username, dateOfBirth } = signupData;
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+      console.log('[SignUpStep4] Firebase Auth user created:', user.uid);
+      await setDoc(doc(db, 'users', user.uid), {
+        uid: user.uid,
+        email,
+        firstName,
+        lastName,
+        username,
+        dateOfBirth,
+        archetype,
+        createdAt: new Date().toISOString(),
+      });
+      console.log('[SignUpStep4] Firestore user profile created for:', user.uid);
+      router.replace('/profile');
+    } catch (error) {
+      console.error('[SignUpStep4] Signup error:', error);
+    }
+  }, [archetype, onComplete, shakeAnim, router]);
 
   const handleBackPress = useCallback(() => {
     onBackPress();
@@ -112,7 +139,6 @@ export default function SignUpStep4({ visible, onBackPress, onComplete, onShowLo
             style={[styles.completeButton, !archetype && styles.disabledButton]}
             onPress={handleComplete}
             activeOpacity={0.8}
-            disabled={false} // {!archetype || loading}
           >
             <Text style={styles.completeButtonText}>Create Account</Text>
           </TouchableOpacity>
