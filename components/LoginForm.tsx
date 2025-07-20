@@ -32,7 +32,7 @@ export default function LoginForm({ visible, onBackPress, onForgotPasswordPress,
   const [password, setPassword] = useState<string>('');
   const [isEmailValid, setIsEmailValid] = useState<boolean>(true);
   const [errorMessage, setErrorMessage] = useState<string>('');
-  const [loading, setLoading] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(true);
   const [emailFocused, setEmailFocused] = useState<boolean>(false);
   const [passwordFocused, setPasswordFocused] = useState<boolean>(false);
   const [submitted, setSubmitted] = useState<boolean>(false);
@@ -193,7 +193,11 @@ export default function LoginForm({ visible, onBackPress, onForgotPasswordPress,
 
   return (
     <View style={styles.slideView}>
-      {/* Loading overlay - positioned at slideView level to cover entire screen */}
+      {/* Block all interactions when loading */}
+      {loading && (
+        <View style={styles.loadingBlocker} pointerEvents="auto" />
+      )}
+      {/* Loading overlay - centered square */}
       {loading && (
         <View style={styles.loadingOverlay}>
           <CustomSpinner size={80} />
@@ -205,6 +209,7 @@ export default function LoginForm({ visible, onBackPress, onForgotPasswordPress,
         style={styles.backButtonTop}
         onPress={handleBackToLanding}
         activeOpacity={0.7}
+        disabled={loading}
       >
         <Text style={styles.backButtonText}>←</Text>
       </TouchableOpacity>
@@ -214,7 +219,7 @@ export default function LoginForm({ visible, onBackPress, onForgotPasswordPress,
         keyboardShouldPersistTaps="handled"
         scrollEnabled={false}
       >
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss} disabled={loading}>
           <Animated.View style={[styles.loginFullContainer, { transform: [{ translateY: contentTranslateY }] }]}> 
             {/* Centered login content */}
             <View style={styles.loginCenteredContent}>
@@ -265,6 +270,7 @@ export default function LoginForm({ visible, onBackPress, onForgotPasswordPress,
                   error={showEmailError && submitted}
                   underlineColor={showEmailError && submitted ? "#FF5555" : "rgba(255, 255, 255, 0.3)"}
                   activeUnderlineColor={showEmailError && submitted ? "#FF5555" : "#FFFFFF"}
+                  editable={!loading}
                 />
                 <TextInput
                   label="Password"
@@ -294,6 +300,7 @@ export default function LoginForm({ visible, onBackPress, onForgotPasswordPress,
                   error={!password && submitted}
                   underlineColor={!password && submitted ? '#FF5555' : 'rgba(255, 255, 255, 0.3)'}
                   activeUnderlineColor={!password && submitted ? '#FF5555' : '#FFFFFF'}
+                  editable={!loading}
                 />
                 <TouchableOpacity
                   style={[
@@ -319,14 +326,15 @@ export default function LoginForm({ visible, onBackPress, onForgotPasswordPress,
         </TouchableWithoutFeedback>
       </ScrollView>
       {/* Footer buttons - locked at bottom */}
-      <View style={styles.loginFooterFixed}>
-        <TouchableOpacity onPress={onShowSignUp || (() => router.push('/landing'))} activeOpacity={0.7}>
+      <View style={styles.loginFooterFixed} pointerEvents={loading ? "none" : "auto"}>
+        <TouchableOpacity onPress={onShowSignUp || (() => router.push('/landing'))} activeOpacity={0.7} disabled={loading}>
           <Text style={styles.linkText}>Don't have an account? <Text style={styles.linkTextBold}>Sign Up</Text></Text>
         </TouchableOpacity>
         <TouchableOpacity 
           style={styles.forgotPasswordButton}
           onPress={onForgotPasswordPress}
           activeOpacity={0.7}
+          disabled={loading}
         >
           <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
         </TouchableOpacity>
@@ -479,14 +487,22 @@ const styles = StyleSheet.create({
   },
   loadingOverlay: {
     position: 'absolute',
-    top: -200, // Extend well beyond the top
-    left: -200, // Extend well beyond the left
-    right: -200, // Extend well beyond the right
-    bottom: -200, // Extend well beyond the bottom
-    backgroundColor: 'rgba(0, 0, 0, 0.95)',
+    top: '50%',
+    left: '50%',
+    width: 180,
+    height: 180,
+    marginLeft: -90, // half of width
+    marginTop: -90, // half of height
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    borderRadius: 24,
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 1000,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 10,
   },
   loadingText: {
     color: '#FFFFFF',
@@ -499,5 +515,14 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     // paddingHorizontal: 20,
+  },
+  loadingBlocker: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'transparent',
+    zIndex: 999,
   },
 });

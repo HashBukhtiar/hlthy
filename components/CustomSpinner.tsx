@@ -119,7 +119,7 @@ const styles = StyleSheet.create({
   },
   innerCircle: {
     position: 'absolute',
-    backgroundColor: '#242424', // Dark background matching the theme
+    backgroundColor: '#000', // Dark background matching the theme
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
