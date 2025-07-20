@@ -14,17 +14,15 @@ import {
 } from 'react-native';
 import { TextInput } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
-import CustomSpinner from '@/components/CustomSpinner';
 
 interface SignUpStep3Props {
   visible: boolean;
   onBackPress: () => void;
   onComplete: (data: { password: string; confirmPassword: string }) => void;
   onShowLogin?: () => void;
-  loading?: boolean;
 }
 
-export default function SignUpStep3({ visible, onBackPress, onComplete, onShowLogin, loading = false }: SignUpStep3Props) {
+export default function SignUpStep3({ visible, onBackPress, onComplete, onShowLogin }: SignUpStep3Props) {
   const { width, height } = Dimensions.get('window');
   
   const [password, setPassword] = useState<string>('');
@@ -354,19 +352,12 @@ export default function SignUpStep3({ visible, onBackPress, onComplete, onShowLo
             {/* Buttons */}
             <View style={styles.buttonContainer}>
               <TouchableOpacity
-                style={[styles.completeButton, loading && styles.disabledButton]}
+                style={styles.completeButton}
                 onPress={handleComplete}
                 activeOpacity={0.8}
-                disabled={loading}
               >
-                {loading ? (
-                  <CustomSpinner size={20} />
-                ) : (
-                  <>
-                    <Text style={styles.completeButtonText}>Save and Continue</Text>
-                    <Ionicons name="chevron-forward" size={20} color="#000000" />
-                  </>
-                )}
+                <Text style={styles.completeButtonText}>Save and Continue</Text>
+                <Ionicons name="chevron-forward" size={20} color="#000000" />
               </TouchableOpacity>
               {/* Error message only for strong password or mismatch */}
               <View style={styles.errorContainer}>
