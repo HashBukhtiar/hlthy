@@ -42,6 +42,7 @@ export default function LoginForm({ visible, onBackPress, onForgotPasswordPress,
   // Animation values
   const slideAnim = useRef(new Animated.Value(0)).current;
   const contentTranslateY = useRef(new Animated.Value(0)).current;
+  const loaderFadeAnim = useRef(new Animated.Value(0)).current;
   
   // Check if the email is valid
   const isValidEmail = (email: string): boolean => {
@@ -179,6 +180,22 @@ export default function LoginForm({ visible, onBackPress, onForgotPasswordPress,
     };
   }, [contentTranslateY]);
 
+  useEffect(() => {
+    if (loading) {
+      Animated.timing(loaderFadeAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
+    } else {
+      Animated.timing(loaderFadeAnim, {
+        toValue: 0,
+        duration: 250,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [loading, loaderFadeAnim]);
+
   // Helper to determine which error to show
   const getActiveError = () => {
     if (emailError) return emailError;
@@ -197,13 +214,18 @@ export default function LoginForm({ visible, onBackPress, onForgotPasswordPress,
       {loading && (
         <View style={styles.loadingBlocker} pointerEvents="auto" />
       )}
-      {/* Loading overlay - centered square */}
-      {loading && (
-        <View style={styles.loadingOverlay}>
-          <CustomSpinner size={80} />
-          <Text style={styles.loadingText}>Logging in...</Text>
-        </View>
-      )}
+      {/* Loading overlay - animated fade-in */}
+      <Animated.View
+        pointerEvents={loading ? "auto" : "none"}
+        style={[styles.loadingOverlay, { opacity: loaderFadeAnim }]}
+      >
+        {loading && (
+          <>
+            <CustomSpinner size={80} />
+            <Text style={styles.loadingText}>Signing in...</Text>
+          </>
+        )}
+      </Animated.View>
       {/* Back button */}
       <TouchableOpacity 
         style={styles.backButtonTop}
