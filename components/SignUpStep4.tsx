@@ -82,7 +82,20 @@ export default function SignUpStep4({ visible, onBackPress, onComplete, onShowLo
         username,
         dateOfBirth,
         archetype,
+        version: 1,
+        units: {weight: "metric", distance: "metric"},
+        stats: {postCount: 0, followingCount: 0, followerCount: 1},
+        notifications: {mentionedInReplies: true, likesAndComments: true, taggedInComments: true, directMessages: true, newFollowers: true, followRequestAccepted: true},
+        messagePermission: 'everyone',
+        profileVisibility: 'public',
         createdAt: new Date().toISOString(),
+        lastUpdated: new Date().toISOString(),
+        language: 'en',
+        followPermission: 'anyone',
+        followerCount: 0,
+        followingCount: 0,
+        displayName: `${firstName} ${lastName}`,
+        commentPermission: 'everyone',
       });
       // Update usersPublic document
       await setDoc(doc(db, 'usersPublic', user.uid), {

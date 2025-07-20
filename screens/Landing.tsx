@@ -183,35 +183,6 @@ export default function Landing() {
     animateToScreen('signup-step4', 'forward');
   }, [animateToScreen]);
 
-  const handleSignUpComplete = useCallback(async (data: { password: string; confirmPassword: string }) => {
-    setSignupLoading(true);
-    try {
-      const finalData = { ...signupData, password: data.password };
-      
-      // TODO: Implement actual signup logic here
-      // For now, just simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      console.log('Signup completed with data:', finalData);
-      
-      // Reset data and navigate back to landing
-      setSignupData({
-        firstName: '',
-        lastName: '',
-        email: '',
-        username: '',
-        dateOfBirth: '',
-        password: '',
-      });
-      
-      animateToScreen('landing', 'backward');
-    } catch (error) {
-      console.error('Signup error:', error);
-    } finally {
-      setSignupLoading(false);
-    }
-  }, [signupData, animateToScreen]);
-
   const handleSignUpStep4Complete = useCallback((data: { archetype: string }) => {
     // Combine all signup data and archetype
     const finalData = { ...signupData, archetype: data.archetype };
