@@ -15,6 +15,7 @@ import {
 import { TextInput } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
+import CustomSpinner from '@/components/CustomSpinner';
 
 interface SignUpStep1Props {
   visible: boolean;
@@ -31,7 +32,8 @@ export default function SignUpStep1({ visible, onBackPress, onNext, onShowLogin 
   const [email, setEmail] = useState<string>('');
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [submitted, setSubmitted] = useState(false); // Track first submit
-  
+  const [loading, setLoading] = useState(false);
+
   // Focus states
   const [firstNameFocused, setFirstNameFocused] = useState<boolean>(false);
   const [lastNameFocused, setLastNameFocused] = useState<boolean>(false);
@@ -95,26 +97,31 @@ export default function SignUpStep1({ visible, onBackPress, onNext, onShowLogin 
     Keyboard.dismiss();
     setSubmitted(true);
     setErrorMessage('');
+    setLoading(true);
     const trimmedEmail = email.trim().toLowerCase();
     if (!firstName.trim()) {
       setErrorMessage('Please enter your first name');
       triggerShake('first');
+      setLoading(false);
       return;
     }
     if (!lastName.trim()) {
       setErrorMessage('Please enter your last name');
       triggerShake('last');
+      setLoading(false);
       return;
     }
     if (!trimmedEmail) {
       setErrorMessage('Please enter your email address');
       triggerShake('email');
+      setLoading(false);
       return;
     }
     if (!validateEmail(trimmedEmail)) {
       setErrorMessage('Please provide a valid email.');
       setIsEmailValid(false);
       triggerShake('email');
+      setLoading(false);
       return;
     }
     setIsEmailValid(true);
@@ -126,10 +133,11 @@ export default function SignUpStep1({ visible, onBackPress, onNext, onShowLogin 
       if (userCredential && auth.currentUser) {
         try {
           await auth.currentUser.delete();
-          // Allow user to continue since email is available and dummy account was deleted
+          setLoading(false);
           onNext({ firstName, lastName, email: trimmedEmail });
           return;
         } catch (deleteErr) {
+          setLoading(false);
           setErrorMessage('Something went wrong. Please try again.');
           setIsEmailValid(false);
           triggerShake('email');
@@ -138,6 +146,7 @@ export default function SignUpStep1({ visible, onBackPress, onNext, onShowLogin 
         }
       }
     } catch (err: any) {
+      setLoading(false);
       if (err.code === 'auth/email-already-in-use') {
         setErrorMessage('This email is already registered. Try signing in.');
         setIsEmailValid(false);
@@ -377,6 +386,19 @@ export default function SignUpStep1({ visible, onBackPress, onNext, onShowLogin 
             </View>
           )}
         </ScrollView>
+
+        {/* Loading spinner overlay */}
+        {loading && (
+          <>
+            {/* Block all interactions when loading */}
+            <View style={styles.loadingBlocker} pointerEvents="auto" />
+            {/* Centered square spinner widget */}
+            <View style={styles.loadingOverlay} pointerEvents="auto">
+              <CustomSpinner size={48} />
+              <Text style={styles.loadingText}>Checking email...</Text>
+            </View>
+          </>
+        )}
       </KeyboardAvoidingView>
     </TouchableWithoutFeedback>
   );
@@ -529,5 +551,40 @@ const styles = StyleSheet.create({
   loginLinkBold: {
     color: '#FFFFFF',
     fontWeight: 'bold',
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    width: 180,
+    height: 180,
+    marginLeft: -90,
+    marginTop: -90,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 10,
+  },
+  loadingText: {
+    color: '#FFFFFF',
+    marginTop: 24,
+    fontSize: 16,
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+  loadingBlocker: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'transparent',
+    zIndex: 999,
   },
 });
