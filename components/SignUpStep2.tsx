@@ -50,6 +50,9 @@ export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin,
   // Shake animation for username field
   const usernameShakeAnim = useRef(new Animated.Value(0)).current;
 
+  // Spinner fade animation
+  const spinnerFadeAnim = useRef(new Animated.Value(0)).current;
+
   const triggerUsernameShake = useCallback(() => {
     usernameShakeAnim.setValue(0);
     Animated.sequence([
@@ -267,6 +270,22 @@ export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin,
     }
   };
 
+  useEffect(() => {
+    if (loading) {
+      Animated.timing(spinnerFadeAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
+    } else {
+      Animated.timing(spinnerFadeAnim, {
+        toValue: 0,
+        duration: 250,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [loading, spinnerFadeAnim]);
+
   if (!visible) return null;
 
   return (
@@ -482,10 +501,10 @@ export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin,
               </View>
 
               {/* Loading spinner - appears over the content */}
-              {(loading) && (
+              {(loading || spinnerFadeAnim._value > 0) && (
                 <>
                   <View style={styles.loadingBlocker} pointerEvents="auto" />
-                  <Animated.View style={[styles.loadingOverlay, { opacity: 1 }]} pointerEvents="auto">
+                  <Animated.View style={[styles.loadingOverlay, { opacity: spinnerFadeAnim }]} pointerEvents="auto">
                     <CustomSpinner size={48} />
                     <Text style={styles.loadingText}>Checking username...</Text>
                   </Animated.View>
