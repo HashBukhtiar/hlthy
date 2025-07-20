@@ -241,10 +241,10 @@ export function useFeedData() {
   }, [fetchFeedData]);
 
   const loadMorePosts = useCallback(() => {
-    if (!loadingMore && hasMore) {
+    if (!loadingMore && hasMore && lastVisible) {
       fetchFeedData(false, true);
     }
-  }, [fetchFeedData, loadingMore, hasMore]);
+  }, [fetchFeedData, loadingMore, hasMore, lastVisible]);
 
   // Initial load with real-time listener
   useEffect(() => {
@@ -283,6 +283,11 @@ export function useFeedData() {
         setMilestones(uniqueFeedPosts.filter(post => post.isMilestone));
         setLoading(false);
         setError(null);
+
+        if (snapshot.docs.length > 0) {
+          setLastVisible(snapshot.docs[snapshot.docs.length - 1]);
+          setHasMore(snapshot.docs.length === BATCH_SIZE);
+        }
       },
       (error) => {
         console.error('Feed listener error:', error);
