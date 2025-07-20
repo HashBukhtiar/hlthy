@@ -269,3 +269,15 @@ export const createactivityonworkoutsave = onDocumentCreated(
     }
   }
 );
+
+export const bumpCommentCount = onDocumentCreated({
+  document: "posts/{postId}/comments/{commentId}",
+  region: "northamerica-northeast2",
+}, async (event) => {
+  const db = getDb();
+  const {postId} = event.params;
+
+  await db.collection("posts").doc(postId).update({
+    commentCount: admin.firestore.FieldValue.increment(1),
+  });
+});

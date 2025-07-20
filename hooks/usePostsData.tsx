@@ -527,66 +527,37 @@ export function usePostsData() {
   // Add comment to a post
   const addComment = async (postId: string, text: string): Promise<Comment> => {
     if (!currentUser || !userProfile) throw new Error("User not authenticated");
-    if (!text.trim()) throw new Error("Comment text cannot be empty");
+    if (!text.trim())      throw new Error("Comment text cannot be empty");
 
-    const postRef = doc(db, "posts", postId);
-    const commentsCollectionRef = collection(db, "posts", postId, "comments");
+    // 1) just write the comment
+    const newCommentRef = await addDoc(
+      collection(db, "posts", postId, "comments"),
+      {
+        text,
+        authorId:       currentUser.uid,
+        authorUsername: userProfile.username || "Anonymous",
+        createdAt:      serverTimestamp(),
+        likes:          0,
+        likedBy:        [],
+        replyCount:     0,
+      }
+    );
 
-    try {
-      const postDocSnap = await getDoc(postRef);
-      if (!postDocSnap.exists()) throw new Error("Post not found");
-      const postData = postDocSnap.data() as Post;
+    // → NO more updateDoc() here! 
+    //    your bumpCommentCount trigger will fire automatically.
 
-      const newCommentRef = doc(commentsCollectionRef);
-
-      const newCommentData: Omit<Comment, 'id' | 'isLiked' | 'replies'> = {
-        text: text.trim(),
-        authorId: currentUser.uid,
-        authorUsername: userProfile?.username || currentUser.displayName || "Anonymous",
-        createdAt: serverTimestamp(),
-        likes: 0,
-        likedBy: [],
-        replyCount: 0,
-      };
-
-      await runTransaction(db, async (transaction) => {
-        transaction.set(newCommentRef, newCommentData);
-        transaction.update(postRef, {
-          commentCount: increment(1)
-        });
-
-        // Activity for post author
-        if (postData.authorId !== currentUser.uid) {
-          const authorActivityColRef = collection(db, 'activity', postData.authorId, 'userActivity');
-          const newActivityRef = doc(authorActivityColRef);
-          transaction.set(newActivityRef, {
-            type: 'post_comment',
-            fromUserId: currentUser.uid,
-            fromUsername: userProfile?.username || currentUser.displayName || "Someone",
-            fromProfileImageUrl: userProfile?.profileImageUrl || currentUser.photoURL || "",
-            postId: postId,
-            postImageUrl: postData.imageUrl?.startsWith("http") ? postData.imageUrl : undefined,
-            postCaption: postData.caption ? postData.caption.substring(0, 50) + (postData.caption.length > 50 ? "..." : "") : undefined,
-            commentId: newCommentRef.id,
-            commentText: text.trim().substring(0, 50) + (text.trim().length > 50 ? "..." : ""),
-            createdAt: serverTimestamp(),
-            status: 'unread',
-          } as Omit<ActivityItem, 'id'>);
-        }
-      });
-      
-      const clientTimestamp = Timestamp.now();
-      return { 
-        id: newCommentRef.id, 
-        ...newCommentData, 
-        createdAt: clientTimestamp, 
-        isLiked: false,
-      } as Comment;
-
-    } catch (error) {
-      console.error("Error adding comment: ", error);
-      throw error;
-    }
+    // return a client copy
+    return {
+      id: newCommentRef.id,
+      text,
+      authorId:             currentUser.uid,
+      authorUsername:       userProfile.username || "Anonymous",
+      authorProfileImageUrl: userProfile.profileImageUrl || "",
+      createdAt:            Timestamp.now(),
+      likes:                0,
+      likedBy:              [],
+      replyCount:           0,
+    };
   };
 
   const likeComment = async (postId: string, commentId: string) => {
