@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { TextInput } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
+import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
 
 interface SignUpStep1Props {
   visible: boolean;
@@ -89,11 +90,12 @@ export default function SignUpStep1({ visible, onBackPress, onNext, onShowLogin 
     ]).start();
   }, [firstNameShakeAnim, lastNameShakeAnim, emailShakeAnim]);
 
-  const handleNext = useCallback(() => {
+  const handleNext = useCallback(async () => {
     // Dismiss keyboard first
     Keyboard.dismiss();
     setSubmitted(true);
     setErrorMessage('');
+    const trimmedEmail = email.trim().toLowerCase();
     if (!firstName.trim()) {
       setErrorMessage('Please enter your first name');
       triggerShake('first');
@@ -104,17 +106,50 @@ export default function SignUpStep1({ visible, onBackPress, onNext, onShowLogin 
       triggerShake('last');
       return;
     }
-    if (!email.trim()) {
+    if (!trimmedEmail) {
       setErrorMessage('Please enter your email address');
       triggerShake('email');
       return;
     }
-    if (!validateEmail(email)) {
+    if (!validateEmail(trimmedEmail)) {
       setErrorMessage('Please provide a valid email.');
+      setIsEmailValid(false);
       triggerShake('email');
       return;
     }
-    onNext({ firstName, lastName, email });
+    setIsEmailValid(true);
+    const auth = getAuth();
+    const randomPassword = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36) + Date.now();
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, trimmedEmail, randomPassword);
+      // Unexpected: user did not exist, so we created a dummy account. Delete it immediately.
+      if (userCredential && auth.currentUser) {
+        try {
+          await auth.currentUser.delete();
+          // Allow user to continue since email is available and dummy account was deleted
+          onNext({ firstName, lastName, email: trimmedEmail });
+          return;
+        } catch (deleteErr) {
+          setErrorMessage('Something went wrong. Please try again.');
+          setIsEmailValid(false);
+          triggerShake('email');
+          console.warn('Failed to delete dummy account for', trimmedEmail, deleteErr);
+          return;
+        }
+      }
+    } catch (err: any) {
+      if (err.code === 'auth/email-already-in-use') {
+        setErrorMessage('This email is already registered. Try signing in.');
+        setIsEmailValid(false);
+        triggerShake('email');
+        return;
+      } else {
+        setErrorMessage('Error checking email. Please try again.');
+        setIsEmailValid(false);
+        triggerShake('email');
+        return;
+      }
+    }
   }, [firstName, lastName, email, onNext, triggerShake]);
 
   const handleBackPress = useCallback(() => {
