@@ -16,6 +16,8 @@ import {
 import { TextInput } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { getFirestore, collection, query, where, getDocs } from 'firebase/firestore';
+import CustomSpinner from '@/components/CustomSpinner';
 
 interface SignUpStep2Props {
   visible: boolean;
@@ -32,6 +34,7 @@ export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin,
   const [dateOfBirth, setDateOfBirth] = useState<string>('');
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [submitted, setSubmitted] = useState(false); // Track first submit
+  const [loading, setLoading] = useState(false);
 
   // Focus states
   const [usernameFocused, setUsernameFocused] = useState<boolean>(false);
@@ -166,7 +169,7 @@ export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin,
     setDateOfBirth(formatted);
   };
 
-  const handleNext = useCallback(() => {
+  const handleNext = useCallback(async () => {
     // Dismiss keyboard first
     Keyboard.dismiss();
     setSubmitted(true);
@@ -185,7 +188,28 @@ export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin,
       return;
     }
     setErrorMessage('');
-    onNext({ username, dateOfBirth });
+    setLoading(true);
+    try {
+      const db = getFirestore();
+      const usersRef = collection(db, 'usersPublic');
+      const q = query(usersRef, where('username', '==', username.trim()));
+      console.log('Checking username:', username.trim());
+      const querySnapshot = await getDocs(q);
+      if (!querySnapshot.empty) {
+        setErrorMessage('This username is already taken.');
+        setLoading(false);
+        triggerUsernameShake();
+        return;
+      }
+      setLoading(false);
+      onNext({ username, dateOfBirth });
+    } catch (err) {
+      console.error('Error checking username:', err);
+      setErrorMessage('Error checking username. Please try again.');
+      setLoading(false);
+      triggerUsernameShake();
+      return;
+    }
   }, [username, dateOfBirth, onNext, triggerUsernameShake]);
 
   useEffect(() => {
@@ -456,6 +480,17 @@ export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin,
                   {errorMessage || ' '}
                 </Text>
               </View>
+
+              {/* Loading spinner - appears over the content */}
+              {(loading) && (
+                <>
+                  <View style={styles.loadingBlocker} pointerEvents="auto" />
+                  <Animated.View style={[styles.loadingOverlay, { opacity: 1 }]} pointerEvents="auto">
+                    <CustomSpinner size={48} />
+                    <Text style={styles.loadingText}>Checking username...</Text>
+                  </Animated.View>
+                </>
+              )}
             </View>
           </Animated.View>
 
@@ -665,5 +700,40 @@ const styles = StyleSheet.create({
   },
   modernInputError: {
     // Remove border styling, rely on underline color for error indication
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    width: 180,
+    height: 180,
+    marginLeft: -90,
+    marginTop: -90,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 10,
+  },
+  loadingText: {
+    color: '#FFFFFF',
+    marginTop: 24,
+    fontSize: 16,
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+  loadingBlocker: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'transparent',
+    zIndex: 999,
   },
 });
