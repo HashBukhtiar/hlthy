@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, KeyboardAvoidingView, ScrollView, StyleSh
 import { TextInput } from 'react-native-paper';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { CustomSelector, SelectorItem } from '@/components/CustomSelector';
+import CustomSpinner from '@/components/CustomSpinner';
 import { Image } from 'react-native';
 import { auth, db } from '@/firebaseConfig';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
@@ -14,10 +15,9 @@ interface SignUpStep4Props {
   onBackPress: () => void;
   onComplete: (data: { archetype: string }) => void;
   onShowLogin?: () => void;
-  loading?: boolean;
 }
 
-export default function SignUpStep4({ visible, onBackPress, onComplete, onShowLogin, loading = false }: SignUpStep4Props) {
+export default function SignUpStep4({ visible, onBackPress, onComplete, onShowLogin }: SignUpStep4Props) {
   const { width } = Dimensions.get('window');
   const router = useRouter();
 
@@ -33,7 +33,25 @@ export default function SignUpStep4({ visible, onBackPress, onComplete, onShowLo
   const [archetype, setArchetype] = useState<string | null>(null);
   const [modalVisible, setModalVisible] = useState<boolean>(false);
   const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
   const shakeAnim = useRef(new Animated.Value(0)).current;
+  const spinnerFadeAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (loading) {
+      Animated.timing(spinnerFadeAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
+    } else {
+      Animated.timing(spinnerFadeAnim, {
+        toValue: 0,
+        duration: 250,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [loading, spinnerFadeAnim]);
 
   const handleComplete = useCallback(async () => {
     setSubmitted(true);
@@ -46,6 +64,7 @@ export default function SignUpStep4({ visible, onBackPress, onComplete, onShowLo
       ]).start();
       return;
     }
+    setLoading(true);
     try {
       const signupData = await onComplete({ archetype });
       console.log('[SignUpStep4] Received signup data:', signupData);
@@ -69,6 +88,7 @@ export default function SignUpStep4({ visible, onBackPress, onComplete, onShowLo
     } catch (error) {
       console.error('[SignUpStep4] Signup error:', error);
     }
+    setLoading(false);
   }, [archetype, onComplete, shakeAnim, router]);
 
   const handleBackPress = useCallback(() => {
@@ -78,11 +98,12 @@ export default function SignUpStep4({ visible, onBackPress, onComplete, onShowLo
   if (!visible) return null;
 
   return (
-    <View style={[styles.container, { paddingHorizontal: 20 }]}>
+    <View style={[styles.container, { paddingHorizontal: 20 }]}> 
       <TouchableOpacity 
         style={styles.backButtonTop} 
         onPress={handleBackPress}
         activeOpacity={0.7}
+        disabled={loading} // Disable back button when loading
       >
         <Text style={styles.backButtonText}>←</Text>
       </TouchableOpacity>
@@ -136,14 +157,24 @@ export default function SignUpStep4({ visible, onBackPress, onComplete, onShowLo
         {/* Action Button */}
         <View style={styles.buttonContainer}>
           <TouchableOpacity
-            style={[styles.completeButton, !archetype && styles.disabledButton]}
+            style={[styles.completeButton, (!archetype || loading) && styles.disabledButton]}
             onPress={handleComplete}
             activeOpacity={0.8}
+            disabled={loading}
           >
             <Text style={styles.completeButtonText}>Create Account</Text>
           </TouchableOpacity>
         </View>
-
+        {/* Loader overlay (fade-in/fade-out) */}
+        {(loading || spinnerFadeAnim._value > 0) && (
+          <>
+            <View style={styles.loadingBlocker} pointerEvents="auto" />
+            <Animated.View style={[styles.loadingOverlay, { opacity: spinnerFadeAnim }]} pointerEvents="auto">
+              <CustomSpinner size={48} />
+              <Text style={styles.loadingText}>Creating account...</Text>
+            </Animated.View>
+          </>
+        )}
       </Animated.View>
 
       <View style={{ width: '100%', alignItems: 'center', marginBottom: 20 }}>
@@ -324,5 +355,40 @@ const styles = StyleSheet.create({
     marginLeft: 10,
     flex: 1,
     textAlign: 'left',
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    width: 180,
+    height: 180,
+    marginLeft: -90,
+    marginTop: -90,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 10,
+  },
+  loadingText: {
+    color: '#FFFFFF',
+    marginTop: 24,
+    fontSize: 16,
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+  loadingBlocker: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'transparent',
+    zIndex: 999,
   },
 });
