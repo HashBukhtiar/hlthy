@@ -186,5 +186,11 @@ service cloud.firestore {
       allow read: if false;
       allow write: if isAuthenticated();
     }
+
+    // usersPublic collection: readable by unauthenticated users for username existence check
+    match /usersPublic/{userId} {
+      allow read: if true; // Anyone can read for username existence check
+      allow write: if false; // No public writes
+    }
   }
 }
