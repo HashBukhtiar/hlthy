@@ -107,10 +107,68 @@ export default function ForgotPasswordForm({ visible, onBackPress, onBackToLogin
     setIsEmailValid(true);
     // Show loading indicator
     setLoading(true);
+    let emailExists = false;
+    let dummyUserCreated = false;
+    let dummyUserDeleted = false;
+    let randomPassword = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36) + Date.now();
     try {
-      // Simulate API call delay (replace with actual API call in functionality implementation)
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      setSuccess(true); // Only show success if email is valid and API call succeeds
+      // Try to sign in with dummy password to check if user exists
+      const { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword } = await import('firebase/auth');
+      const authInstance = getAuth();
+      try {
+        await signInWithEmailAndPassword(authInstance, emailAddress, randomPassword);
+        // Should not succeed
+        console.log('[ForgotPassword] Unexpected: dummy login succeeded for', emailAddress);
+      } catch (dummyErr: any) {
+        if (dummyErr.code === 'auth/user-not-found') {
+          emailExists = false;
+          setErrorMessage('User not found.');
+          setIsEmailValid(false);
+          triggerEmailShake();
+          setLoading(false);
+          return;
+        } else if (dummyErr.code === 'auth/wrong-password' || dummyErr.code === 'auth/email-already-in-use') {
+          emailExists = true;
+        } else if (dummyErr.code === 'auth/invalid-email') {
+          setErrorMessage('Please provide a valid email address.');
+          setIsEmailValid(false);
+          triggerEmailShake();
+          setLoading(false);
+          return;
+        }
+      }
+      // Try to create dummy account to check existence (like SignUpStep1)
+      try {
+        const userCredential = await createUserWithEmailAndPassword(authInstance, emailAddress, randomPassword);
+        dummyUserCreated = true;
+        if (userCredential && authInstance.currentUser) {
+          try {
+            await authInstance.currentUser.delete();
+            dummyUserDeleted = true;
+            console.log('[ForgotPassword] Dummy account created and deleted for', emailAddress);
+          } catch (deleteErr) {
+            console.warn('[ForgotPassword] Failed to delete dummy account for', emailAddress, deleteErr);
+          }
+        }
+        if (dummyUserCreated) {
+          setErrorMessage('User not found.');
+          setIsEmailValid(false);
+          triggerEmailShake();
+          setLoading(false);
+          return;
+        }
+      } catch (err: any) {
+        if (err.code === 'auth/email-already-in-use') {
+          emailExists = true;
+        } else {
+          console.warn('[ForgotPassword] Error during dummy account creation for', emailAddress, err);
+        }
+      }
+      // If email exists, proceed with sending reset link (simulate API call)
+      if (emailExists) {
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        setSuccess(true);
+      }
     } catch (error) {
       setErrorMessage("An error occurred. Please try again later.");
       setIsEmailValid(false);
