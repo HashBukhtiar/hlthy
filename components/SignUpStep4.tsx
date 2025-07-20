@@ -73,6 +73,7 @@ export default function SignUpStep4({ visible, onBackPress, onComplete, onShowLo
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
       console.log('[SignUpStep4] Firebase Auth user created:', user.uid);
+      // Update users document
       await setDoc(doc(db, 'users', user.uid), {
         uid: user.uid,
         email,
@@ -82,6 +83,10 @@ export default function SignUpStep4({ visible, onBackPress, onComplete, onShowLo
         dateOfBirth,
         archetype,
         createdAt: new Date().toISOString(),
+      });
+      // Update usersPublic document
+      await setDoc(doc(db, 'usersPublic', user.uid), {
+        username,
       });
       console.log('[SignUpStep4] Firestore user profile created for:', user.uid);
       router.replace('/profile');
