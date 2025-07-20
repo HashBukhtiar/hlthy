@@ -35,6 +35,7 @@ export default function ForgotPasswordForm({ visible, onBackPress, onBackToLogin
 
   const emailShakeAnim = React.useRef(new Animated.Value(0)).current;
   const contentTranslateY = useRef(new Animated.Value(0)).current;
+  const loaderFadeAnim = useRef(new Animated.Value(0)).current;
 
   // Check if the email is valid
   const isValidEmail = (email: string): boolean => {
@@ -145,22 +146,48 @@ export default function ForgotPasswordForm({ visible, onBackPress, onBackToLogin
     };
   }, [contentTranslateY]);
 
+  useEffect(() => {
+    if (loading) {
+      Animated.timing(loaderFadeAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
+    } else {
+      Animated.timing(loaderFadeAnim, {
+        toValue: 0,
+        duration: 250,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [loading, loaderFadeAnim]);
+
   if (!visible) return null;
 
   return (
     <View style={styles.slideView}>
-      {/* Loading overlay - positioned at slideView level to cover entire screen */}
+      {/* Block all interactions when loading */}
       {loading && (
-        <View style={styles.loadingOverlay}>
-          <CustomSpinner size={80} />
-          <Text style={styles.loadingText}>Sending password reset link...</Text>
-        </View>
+        <View style={styles.loadingBlocker} pointerEvents="auto" />
       )}
+      {/* Loading overlay - animated fade-in */}
+      <Animated.View
+        pointerEvents={loading ? "auto" : "none"}
+        style={[styles.loadingOverlay, { opacity: loaderFadeAnim }]}
+      >
+        {loading && (
+          <>
+            <CustomSpinner size={80} />
+            <Text style={styles.loadingText}>Sending link...</Text>
+          </>
+        )}
+      </Animated.View>
       {/* Back button */}
       <TouchableOpacity 
         style={styles.backButtonTop}
         onPress={handleBackToLanding}
         activeOpacity={0.7}
+        disabled={loading}
       >
         <Text style={styles.backButtonText}>←</Text>
       </TouchableOpacity>
@@ -441,14 +468,22 @@ const styles = StyleSheet.create({
   },
   loadingOverlay: {
     position: 'absolute',
-    top: -200,
-    left: -200,
-    right: -200,
-    bottom: -200,
-    backgroundColor: 'rgba(0, 0, 0, 0.95)',
+    top: '50%',
+    left: '50%',
+    width: 180,
+    height: 180,
+    marginLeft: -90, // half of width
+    marginTop: -90, // half of height
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    borderRadius: 24,
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 1000,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 10,
   },
   loadingText: {
     color: '#FFFFFF',
@@ -461,5 +496,14 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     // paddingHorizontal: 20,
+  },
+  loadingBlocker: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'transparent',
+    zIndex: 999,
   },
 });
