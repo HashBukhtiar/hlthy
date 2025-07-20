@@ -190,7 +190,7 @@ service cloud.firestore {
     // usersPublic collection: readable by unauthenticated users for username existence check
     match /usersPublic/{userId} {
       allow read: if true; // Anyone can read for username existence check
-      allow write: if false; // No public writes
+      allow create, update: if isOwner(userId); // Only authenticated user can create/update their own doc
     }
   }
 }

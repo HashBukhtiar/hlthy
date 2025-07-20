@@ -86,6 +86,7 @@ export default function SignUpStep4({ visible, onBackPress, onComplete, onShowLo
       });
       // Update usersPublic document
       await setDoc(doc(db, 'usersPublic', user.uid), {
+        uid: user.uid,
         username,
       });
       console.log('[SignUpStep4] Firestore user profile created for:', user.uid);
