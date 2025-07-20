@@ -42,6 +42,7 @@ export default function SignUpStep1({ visible, onBackPress, onNext, onShowLogin 
   
   // Animation for keyboard
   const contentPaddingAnim = useRef(new Animated.Value(80)).current;
+  const spinnerFadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     const keyboardDidShowListener = Keyboard.addListener(
@@ -70,6 +71,22 @@ export default function SignUpStep1({ visible, onBackPress, onNext, onShowLogin 
       keyboardDidShowListener?.remove();
     };
   }, [contentPaddingAnim]);
+
+  useEffect(() => {
+    if (loading) {
+      Animated.timing(spinnerFadeAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
+    } else {
+      Animated.timing(spinnerFadeAnim, {
+        toValue: 0,
+        duration: 250,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [loading, spinnerFadeAnim]);
 
   const validateEmail = (email: string): boolean => {
     const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -388,17 +405,15 @@ export default function SignUpStep1({ visible, onBackPress, onNext, onShowLogin 
         </ScrollView>
 
         {/* Loading spinner overlay */}
-        {loading && (
+        {loading || spinnerFadeAnim._value > 0 ? (
           <>
-            {/* Block all interactions when loading */}
             <View style={styles.loadingBlocker} pointerEvents="auto" />
-            {/* Centered square spinner widget */}
-            <View style={styles.loadingOverlay} pointerEvents="auto">
+            <Animated.View style={[styles.loadingOverlay, { opacity: spinnerFadeAnim }]} pointerEvents="auto">
               <CustomSpinner size={48} />
               <Text style={styles.loadingText}>Checking email...</Text>
-            </View>
+            </Animated.View>
           </>
-        )}
+        ) : null}
       </KeyboardAvoidingView>
     </TouchableWithoutFeedback>
   );
