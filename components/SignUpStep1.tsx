@@ -26,30 +26,38 @@ interface SignUpStep1Props {
 
 export default function SignUpStep1({ visible, onBackPress, onNext, onShowLogin }: SignUpStep1Props) {
   const { width, height } = Dimensions.get('window');
-  
+
+  // Fitted sigmoid baby!
+  const getInitialContentPadding = () => {
+    let a = 0.07190;
+    let b = -0.03176;
+    let h = -836.3;
+    let k = 0.06967;
+    // console.log('height:', height, '| factor: ', a / (1 + Math.exp(b * (height + h))) + k, '| contentPadding: ', height * (a / (1 + Math.exp(b * (height + h))) + k));
+    return height * (a / (1 + Math.exp(b * (height + h))) + k);
+  };
+
+  // Animation for keyboard
+  const contentPaddingAnim = useRef(new Animated.Value(getInitialContentPadding())).current;
+  const spinnerFadeAnim = useRef(new Animated.Value(0)).current;
+
   const [firstName, setFirstName] = useState<string>('');
   const [lastName, setLastName] = useState<string>('');
   const [email, setEmail] = useState<string>('');
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [submitted, setSubmitted] = useState(false); // Track first submit
   const [loading, setLoading] = useState(false);
-
-  // Focus states
-  const [firstNameFocused, setFirstNameFocused] = useState<boolean>(false);
-  const [lastNameFocused, setLastNameFocused] = useState<boolean>(false);
-  const [emailFocused, setEmailFocused] = useState<boolean>(false);
-  const [isEmailValid, setIsEmailValid] = useState<boolean>(true);
-  
-  // Animation for keyboard
-  const contentPaddingAnim = useRef(new Animated.Value(80)).current;
-  const spinnerFadeAnim = useRef(new Animated.Value(0)).current;
+  const [firstNameFocused, setFirstNameFocused] = useState(false);
+  const [lastNameFocused, setLastNameFocused] = useState(false);
+  const [emailFocused, setEmailFocused] = useState(false);
+  const [isEmailValid, setIsEmailValid] = useState(true);
 
   useEffect(() => {
     const keyboardDidShowListener = Keyboard.addListener(
       'keyboardDidShow',
       () => {
         Animated.timing(contentPaddingAnim, {
-          toValue: 20,
+          toValue: getInitialContentPadding()-70,
           duration: 250,
           useNativeDriver: false,
         }).start();
@@ -59,7 +67,7 @@ export default function SignUpStep1({ visible, onBackPress, onNext, onShowLogin 
       'keyboardDidHide',
       () => {
         Animated.timing(contentPaddingAnim, {
-          toValue: 80,
+          toValue: getInitialContentPadding(),
           duration: 250,
           useNativeDriver: false,
         }).start();
