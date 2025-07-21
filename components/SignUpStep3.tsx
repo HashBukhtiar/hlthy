@@ -37,14 +37,24 @@ export default function SignUpStep3({ visible, onBackPress, onComplete, onShowLo
   const [confirmPasswordFocused, setConfirmPasswordFocused] = useState<boolean>(false);
 
   // Animated padding for keyboard
-  const contentPaddingAnim = useRef(new Animated.Value(80)).current;
+  const getInitialContentPadding = () => {
+    let a = -0.1531;
+    let b = 0.03216;
+    let h = -801.5;
+    let k = 0.1511;
+    // console.log('Height:', height, 'Calculated Padding:', height * (a / (1 + Math.exp(b * (height + h))) + k));
+    return height * (a / (1 + Math.exp(b * (height + h))) + k);
+  };
+
+  // Animation for keyboard
+  const contentPaddingAnim = useRef(new Animated.Value(getInitialContentPadding())).current;
 
   useEffect(() => {
     const keyboardDidShowListener = Keyboard.addListener(
       'keyboardDidShow',
       () => {
         Animated.timing(contentPaddingAnim, {
-          toValue: 20,
+          toValue: getInitialContentPadding() - 70,
           duration: 250,
           useNativeDriver: false,
         }).start();
@@ -54,7 +64,7 @@ export default function SignUpStep3({ visible, onBackPress, onComplete, onShowLo
       'keyboardDidHide',
       () => {
         Animated.timing(contentPaddingAnim, {
-          toValue: 80,
+          toValue: getInitialContentPadding(),
           duration: 250,
           useNativeDriver: false,
         }).start();
@@ -64,7 +74,7 @@ export default function SignUpStep3({ visible, onBackPress, onComplete, onShowLo
       keyboardDidHideListener?.remove();
       keyboardDidShowListener?.remove();
     };
-  }, [contentPaddingAnim]);
+  }, [contentPaddingAnim, height]);
 
   const validatePassword = (password: string): { isValid: boolean; message?: string } => {
     if (password.length < 8) {
@@ -419,7 +429,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingTop: 60,
+    paddingTop: 50,
     paddingBottom: 40,
   },
   backButtonTop: {
