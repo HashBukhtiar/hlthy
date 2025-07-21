@@ -43,7 +43,8 @@ export default function LoginForm({ visible, onBackPress, onForgotPasswordPress,
   const slideAnim = useRef(new Animated.Value(0)).current;
   const contentTranslateY = useRef(new Animated.Value(0)).current;
   const loaderFadeAnim = useRef(new Animated.Value(0)).current;
-  
+  const emailInputRef = useRef<any>(null);
+
   // Check if the email is valid
   const isValidEmail = (email: string): boolean => {
     const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -152,6 +153,10 @@ export default function LoginForm({ visible, onBackPress, onForgotPasswordPress,
           setIsEmailValid(false);
           setPasswordError('');
           setErrorMessage('Please enter a valid email address.');
+          // Trigger shake animation for email input
+          if (emailInputRef && emailInputRef.current && emailInputRef.current.shake) {
+            emailInputRef.current.shake();
+          }
         } else {
           setEmailError('');
           setPasswordError('');
@@ -189,6 +194,15 @@ export default function LoginForm({ visible, onBackPress, onForgotPasswordPress,
           setPasswordError('Incorrect password.');
           setEmailError('');
           setErrorMessage('Incorrect password.');
+        } else if (err.code === 'auth/invalid-email') {
+          setEmailError('Please enter a valid email address.');
+          setIsEmailValid(false);
+          setPasswordError('');
+          setErrorMessage('Please enter a valid email address.');
+          // Trigger shake animation for email input
+          if (emailInputRef && emailInputRef.current && emailInputRef.current.shake) {
+            emailInputRef.current.shake();
+          }
         } else {
           console.warn('[Login] Error during dummy account creation for', emailAddress, err);
         }
@@ -296,6 +310,7 @@ export default function LoginForm({ visible, onBackPress, onForgotPasswordPress,
               </View>
               <View style={styles.formContainer}>
                 <TextInput
+                  ref={emailInputRef}
                   label="Email Address"
                   value={emailAddress}
                   onChangeText={handleEmailChange}

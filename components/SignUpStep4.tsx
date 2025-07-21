@@ -89,7 +89,6 @@ export default function SignUpStep4({ visible, onBackPress, onComplete, onShowLo
         profileVisibility: 'public',
         createdAt: new Date().toISOString(),
         lastModified: new Date().toISOString(),
-        lastSeen: new Date().toISOString(),
         language: 'en',
         followPermission: 'anyone',
         followerCount: 0,
@@ -101,7 +100,7 @@ export default function SignUpStep4({ visible, onBackPress, onComplete, onShowLo
         commentPermission: 'everyone',
         theme: 'dark',
         twoFactorEnabled: false,
-        analytics: {},
+        analytics: {lastSeen: new Date().toISOString()},
         latestPRs: {},
         bio: '',
       });
