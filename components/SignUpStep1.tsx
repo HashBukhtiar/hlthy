@@ -169,6 +169,11 @@ export default function SignUpStep1({ visible, onBackPress, onNext, onShowLogin 
         setIsEmailValid(false);
         triggerShake('email');
         return;
+      } else if (err.code === 'auth/invalid-email') {
+        setErrorMessage('Please provide a valid email address.');
+        setIsEmailValid(false);
+        triggerShake('email');
+        return;
       } else {
         setErrorMessage('Error checking email. Please try again.');
         setIsEmailValid(false);
