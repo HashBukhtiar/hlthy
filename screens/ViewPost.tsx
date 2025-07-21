@@ -7,12 +7,11 @@ import ShareModal from '@/components/ShareModal';
 import { sharePost } from '@/services/ShareService';
 import { usePostsData, Post, Comment, Reply } from '@/hooks/usePostsData';
 import { useAuth } from '@/context/AuthContext';
-import { collection, doc, getDoc } from 'firebase/firestore';
+import { collection } from 'firebase/firestore';
 import { db } from '@/firebaseConfig';
 import { query, where, limit, getDocs } from 'firebase/firestore';
 import { deleteImageFromStorage, deleteMilestoneFromFirestore, getOptimalImageUrl } from '@/utils/imageUtils';
 import { UserProfile } from '@/types';
-import { useDoubleTap } from '@/hooks/useDoubleTap';
 
 export default function ViewPost() {
   const [menuVisible, setMenuVisible] = useState(false);
@@ -128,16 +127,16 @@ export default function ViewPost() {
         // Attach fresh profile data to post and comments
         const postAuthorProfile = profiles[fetchedPost.authorId];
         if (postAuthorProfile) {
-          fetchedPost.authorProfileImageUrl = postAuthorProfile.profileImageUrl;
-          fetchedPost.authorProfileThumbnailUrl = postAuthorProfile.profileThumbnailUrl;
+          fetchedPost.authorProfileImageUrl = postAuthorProfile.profileImageUrl ?? '';
+          fetchedPost.authorProfileThumbnailUrl = postAuthorProfile.profileThumbnailUrl ?? undefined;
         }
 
         fetchedComments = fetchedComments.map(comment => {
           const commentAuthorProfile = profiles[comment.authorId];
           return {
             ...comment,
-            authorProfileImageUrl: commentAuthorProfile?.profileImageUrl,
-            authorProfileThumbnailUrl: commentAuthorProfile?.profileThumbnailUrl,
+            authorProfileImageUrl: commentAuthorProfile?.profileImageUrl ?? '',
+            authorProfileThumbnailUrl: commentAuthorProfile?.profileThumbnailUrl ?? '',
           };
         });
 
@@ -318,8 +317,8 @@ export default function ViewPost() {
           if (c.id === replyingTo.commentId) {
             const enrichedReply = {
               ...newReply,
-              authorProfileImageUrl: userProfile?.profileImageUrl,
-              authorProfileThumbnailUrl: userProfile?.profileThumbnailUrl,
+              authorProfileImageUrl: userProfile?.profileImageUrl ?? '',
+              authorProfileThumbnailUrl: userProfile?.profileThumbnailUrl ?? '',
             };
             return {
               ...c,
@@ -336,8 +335,8 @@ export default function ViewPost() {
         const enrichedComment = { 
           ...newComment, 
           replies: [],
-          authorProfileImageUrl: userProfile?.profileImageUrl,
-          authorProfileThumbnailUrl: userProfile?.profileThumbnailUrl,
+          authorProfileImageUrl: userProfile?.profileImageUrl ?? '',
+          authorProfileThumbnailUrl: userProfile?.profileThumbnailUrl ?? '',
         };
         setComments([enrichedComment, ...comments]);
         setPost(prevPost => prevPost ? {...prevPost, commentCount: (prevPost.commentCount || 0) + 1} : null);
@@ -360,8 +359,8 @@ export default function ViewPost() {
       const enrichedComment = { 
         ...newComment, 
         replies: [],
-        authorProfileImageUrl: userProfile?.profileImageUrl,
-        authorProfileThumbnailUrl: userProfile?.profileThumbnailUrl,
+        authorProfileImageUrl: userProfile?.profileImageUrl ?? '',
+        authorProfileThumbnailUrl: userProfile?.profileThumbnailUrl ?? '',
       };
       setComments([enrichedComment, ...comments]);
       setCommentText('');
@@ -421,7 +420,6 @@ export default function ViewPost() {
         ]
       );
 
-      setComments(originalComments);
       Alert.alert("Error", "Could not update like status. Please try again.");
     }
   };
@@ -540,16 +538,6 @@ export default function ViewPost() {
       Alert.alert("Error", "Could not update like status. Please try again.");
     }
   };
-  
-  const handleToggleReplyInput = (commentId: string | null) => {
-    if (replyingToCommentId === commentId) {
-      setReplyingToCommentId(null);
-      setReplyText('');
-    } else {
-      setReplyingToCommentId(commentId);
-      setReplyText('');
-    }
-  };
 
   const handleLoadReplies = async (commentId: string) => {
     if (!post) return;
@@ -579,46 +567,25 @@ export default function ViewPost() {
         };
       });
 
-      setComments(prevComments => prevComments.map(c => 
-        c.id === commentId ? { ...c, replies: enrichedReplies } : c
-      ));
+      setComments(prevComments =>
+        prevComments.map(c =>
+          c.id === commentId
+            ? {
+                ...c,
+                replies: enrichedReplies.map(reply => ({
+                  ...reply,
+                  authorProfileImageUrl: reply.authorProfileImageUrl ?? '',
+                  authorProfileThumbnailUrl: reply.authorProfileThumbnailUrl ?? '',
+                })),
+              }
+            : c
+        )
+      );
     } catch (error) {
       console.error("Error loading replies:", error);
       Alert.alert("Error", "Could not load replies.");
     } finally {
       setLoadingReplies(prev => ({ ...prev, [commentId]: false }));
-    }
-  };
-
-  const handleAddReply = async (parentCommentId: string) => {
-    if (!post || !currentUser || !replyText.trim() || isSubmittingReply) return;
-
-    setIsSubmittingReply(true);
-    try {
-      const newReply = await addReplyToComment(post.id, parentCommentId, replyText.trim());
-      setComments(prevComments => prevComments.map(c => {
-        if (c.id === parentCommentId) {
-          // Enrich new reply with current user's profile for optimistic update
-          const enrichedReply = {
-            ...newReply,
-            authorProfileImageUrl: userProfile?.profileImageUrl,
-            authorProfileThumbnailUrl: userProfile?.profileThumbnailUrl,
-          };
-          return {
-            ...c,
-            replies: [enrichedReply, ...(c.replies || [])],
-            replyCount: (c.replyCount || 0) + 1,
-          };
-        }
-        return c;
-      }));
-      setReplyText('');
-      setReplyingToCommentId(null);
-    } catch (error) {
-      console.error("Error adding reply:", error);
-      Alert.alert("Error", "Could not add reply. Please try again.");
-    } finally {
-      setIsSubmittingReply(false);
     }
   };
 
