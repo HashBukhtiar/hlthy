@@ -40,8 +40,18 @@ export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin,
   const [usernameFocused, setUsernameFocused] = useState<boolean>(false);
   const [dateFocused, setDateFocused] = useState<boolean>(false);
 
+  // Fitted sigmoid baby!
+  const getInitialContentPadding = () => {
+    let a = 0.07190;
+    let b = -0.03176;
+    let h = -836.3;
+    let k = 0.06967;
+    // console.log('height:', height, '| factor: ', a / (1 + Math.exp(b * (height + h))) + k, '| contentPadding: ', Math.round(height * (a / (1 + Math.exp(b * (height + h))) + k)));
+    return Math.round(height * (a / (1 + Math.exp(b * (height + h))) + k));
+  };
+
   // Animation for keyboard
-  const contentPaddingAnim = useRef(new Animated.Value(80)).current;
+  const contentPaddingAnim = useRef(new Animated.Value(getInitialContentPadding())).current;
 
   // Animation for floating label and input value
   const floatingLabelAnim = useRef(new Animated.Value(0)).current;
@@ -68,7 +78,7 @@ export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin,
       'keyboardDidShow',
       () => {
         Animated.timing(contentPaddingAnim, {
-          toValue: 20,
+          toValue: getInitialContentPadding() - 70,
           duration: 250,
           useNativeDriver: false,
         }).start();
@@ -78,7 +88,7 @@ export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin,
       'keyboardDidHide',
       () => {
         Animated.timing(contentPaddingAnim, {
-          toValue: 80,
+          toValue: getInitialContentPadding(),
           duration: 250,
           useNativeDriver: false,
         }).start();
@@ -633,7 +643,7 @@ const styles = StyleSheet.create({
     marginTop: 0,
   },
   errorContainer: {
-    minHeight: 44,
+    minHeight: 24,
     justifyContent: 'flex-start',
     alignItems: 'center',
   },
