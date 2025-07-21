@@ -365,7 +365,7 @@ const styles = StyleSheet.create({
         paddingTop: 8,
         paddingHorizontal: 24,
         paddingBottom: 24,
-        maxHeight: '80%',
+        maxHeight: '92%',
     },
     modalTitle: {
         fontSize: 20,
@@ -398,7 +398,7 @@ const styles = StyleSheet.create({
     },
     selectedOptionText: {
         fontWeight: 'bold',
-        color: '#ff2d55',
+        color: '#fff',
     },
     optionDescription: {
         color: '#ccc',
