@@ -160,6 +160,12 @@ export default function ForgotPasswordForm({ visible, onBackPress, onBackToLogin
       } catch (err: any) {
         if (err.code === 'auth/email-already-in-use') {
           emailExists = true;
+        } else if (err.code === 'auth/invalid-email') {
+          setErrorMessage('Please provide a valid email address.');
+          setIsEmailValid(false);
+          triggerEmailShake();
+          setLoading(false);
+          return;
         } else {
           console.warn('[ForgotPassword] Error during dummy account creation for', emailAddress, err);
         }
