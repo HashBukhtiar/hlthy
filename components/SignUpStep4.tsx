@@ -18,7 +18,7 @@ interface SignUpStep4Props {
 }
 
 export default function SignUpStep4({ visible, onBackPress, onComplete, onShowLogin }: SignUpStep4Props) {
-  const { width } = Dimensions.get('window');
+  const { width, height } = Dimensions.get('window');
   const router = useRouter();
 
   // Archetype options
@@ -121,6 +121,25 @@ export default function SignUpStep4({ visible, onBackPress, onComplete, onShowLo
     onBackPress();
   }, [onBackPress]);
 
+  // Height-dependent padding function
+  const getInitialContentPadding = (hasArchetype: boolean) => {
+    if (hasArchetype) {
+      // Coefficients for when archetype is selected (preview showing)
+      let a = -0.1301;
+      let b = 0.06477;
+      let h = -834.2;
+      let k = 0.1300;
+      return height * (a / (1 + Math.exp(b * (height + h))) + k);
+    } else {
+      // Coefficients for when archetype is not selected
+      let a = -0.1100;
+      let b = 0.0647;
+      let h = -835.73;
+      let k = 0.2100;
+      return height * (a / (1 + Math.exp(b * (height + h))) + k);
+    }
+  };
+
   if (!visible) return null;
 
   return (
@@ -134,7 +153,7 @@ export default function SignUpStep4({ visible, onBackPress, onComplete, onShowLo
         <Text style={styles.backButtonText}>←</Text>
       </TouchableOpacity>
       <View style={styles.header} />
-      <Animated.View style={[styles.content, { paddingTop: !archetype ? Math.round(width * 0.375) : Math.round(width * 0.11) }]}> 
+      <Animated.View style={[styles.content, { paddingTop: getInitialContentPadding(!!archetype) }]}> 
         <Text style={styles.title}>Your Fitness Identity</Text>
         <Text style={styles.subtitle}>Personalize your hlthy experience to your fitness journey</Text>
         <View style={styles.form}>
@@ -192,7 +211,7 @@ export default function SignUpStep4({ visible, onBackPress, onComplete, onShowLo
           </TouchableOpacity>
         </View>
         {/* Loader overlay (fade-in/fade-out) */}
-        {(loading || spinnerFadeAnim._value > 0) && (
+        {loading && (
           <>
             <View style={styles.loadingBlocker} pointerEvents="auto" />
             <Animated.View style={[styles.loadingOverlay, { opacity: spinnerFadeAnim }]} pointerEvents="auto">
