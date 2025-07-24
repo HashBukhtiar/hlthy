@@ -8,7 +8,6 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
-  Keyboard,
   ListRenderItem,
   ActivityIndicator,
   SafeAreaView,
@@ -20,6 +19,7 @@ import { db } from '@/firebaseConfig';
 import { 
   doc, 
   getDoc,
+  setDoc,
   startAfter, 
   collection, 
   addDoc, 
@@ -30,8 +30,7 @@ import {
   Timestamp, 
   updateDoc, 
   deleteDoc, 
-  getDocs, 
-  setDoc, 
+  getDocs,
   limit,
   QueryDocumentSnapshot,
 } from 'firebase/firestore';
@@ -645,10 +644,17 @@ export default function ChatScreen() {
 
         // Update the current user's own conversation reference
         const userConvRef1 = doc(db, `users/${currentUser.uid}/conversations`, conversationId);
-        await updateDoc(userConvRef1, {
-          lastMessageAt: serverTimestamp(),
-          lastMessageText: textToSend,
-        });
+        await setDoc(
+          userConvRef1,
+          {
+            otherParticipantId,
+            otherParticipantUsername: chatTitle,
+            otherParticipantProfileImage: profileImageUrl || '',
+            lastMessageAt: serverTimestamp(),
+            lastMessageText: textToSend,
+          },
+          { merge: true }
+        );
 
       } catch (error) {
         console.error('Error sending message to Firestore:', error);
@@ -700,27 +706,36 @@ export default function ChatScreen() {
         lastMessageSenderId: newLastMessageSenderId,
         lastMessageAt: newLastMessageAt
       });
-        
+
       const userConvRef1 = doc(db, `users/${currentUser.uid}/conversations`, conversationId);
-      await updateDoc(userConvRef1, {
-        lastMessageText: newLastMessageText,
-        lastMessageAt: newLastMessageAt
-      });
+      await setDoc(
+        userConvRef1,
+        {
+          otherParticipantId,
+          otherParticipantUsername: chatTitle,
+          otherParticipantProfileImage: profileImageUrl || '',
+          lastMessageAt: newLastMessageAt,
+          lastMessageText: newLastMessageText,
+        },
+        { merge: true }
+      );
         
       const conversationSnap = await getDoc(conversationRef);
       const conversationData = conversationSnap.data();
-      const otherUserId = conversationData?.participants?.find((uid: string) => uid !== currentUser.uid);
-        
-      if (otherUserId) {
-        const userConvRef2 = doc(db, `users/${otherUserId}/conversations`, conversationId);
-        // Ensure the other user's ref exists before trying to update
-        const otherUserConvSnap = await getDoc(userConvRef2);
-        if (otherUserConvSnap.exists()) {
-            await updateDoc(userConvRef2, {
-                lastMessageText: newLastMessageText,
-                lastMessageAt: newLastMessageAt
-            });
-        }
+      const userConvRef2 = conversationData?.participants?.find((uid: string) => uid !== currentUser.uid);
+
+      if (userConvRef2) {
+        await setDoc(
+          userConvRef2,
+          {
+            otherParticipantId: currentUser.uid,
+            otherParticipantUsername: currentUser.displayName || currentUser.email || 'Current User',
+            otherParticipantProfileImage: currentUser.photoURL || '',
+            lastMessageAt: newLastMessageAt,
+            lastMessageText: newLastMessageText,
+          },
+          { merge: true }
+        );
       }
     } catch (error) {
       console.error("Error deleting message:", error);
