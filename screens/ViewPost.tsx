@@ -13,7 +13,7 @@ import { usePostsData, Post, Comment, Reply } from '@/hooks/usePostsData';
 import { useAuth } from '@/context/AuthContext';
 import { collection, query, where, limit, getDocs } from 'firebase/firestore';
 import { db } from '@/firebaseConfig';
-import { deleteImageFromStorage, deleteMilestoneFromFirestore } from '@/utils/imageUtils';
+import { getOptimalImageUrl, deleteImageFromStorage, deleteMilestoneFromFirestore } from '@/utils/imageUtils';
 
 export default function ViewPost() {
   const [menuVisible, setMenuVisible] = useState(false);
@@ -679,7 +679,10 @@ export default function ViewPost() {
   const renderReplyItem = (reply: Reply, commentId: string) => (
     <View key={reply.id} style={styles.replyItem}>
       <View style={styles.commentLeftSection}>
-        <Image source={{ uri: reply.authorProfileImageUrl || 'https://via.placeholder.com/150' }} style={styles.replyProfilePic} />
+        <Image
+          source={{ uri: getOptimalImageUrl(reply.authorProfileThumbnailUrl, reply.authorProfileImageUrl) || 'https://via.placeholder.com/150' }}
+          style={styles.replyProfilePic}
+        />
         <View style={styles.commentContent}>
           <View style={styles.commentHeader}>
             <Text style={styles.commentUsername}>{reply.authorUsername}</Text>
@@ -728,8 +731,11 @@ export default function ViewPost() {
               style={styles.userInfoContainer}
               onPress={() => navigateToProfile(post.authorId)}
             >
-              <Image source={{ uri: post.authorProfileImageUrl || 'https://via.placeholder.com/150' }} style={styles.profilePic} />
-              <View>
+            <Image
+              source={{ uri: getOptimalImageUrl(post.authorProfileThumbnailUrl, post.authorProfileImageUrl) || 'https://via.placeholder.com/150' }}
+              style={styles.profilePic}
+            />
+            <View>
                 <Text style={styles.username}>{post.authorUsername}</Text>
                 <Text style={styles.location}>{formatDate(post.createdAt)}</Text>
               </View>
@@ -854,7 +860,10 @@ export default function ViewPost() {
                 >
                   <View style={styles.commentItem}>
                     <View style={styles.commentLeftSection}>
-                      <Image source={{ uri: comment.authorProfileImageUrl || 'https://via.placeholder.com/150' }} style={styles.commentProfilePic} />
+                      <Image
+                        source={{ uri: getOptimalImageUrl(comment.authorProfileThumbnailUrl, comment.authorProfileImageUrl) || 'https://via.placeholder.com/150' }}
+                        style={styles.commentProfilePic}
+                      />
                       <View style={styles.commentContent}>
                         <View style={styles.commentHeader}>
                           <Text style={styles.commentUsername}>{comment.authorUsername}</Text>
@@ -891,9 +900,9 @@ export default function ViewPost() {
                 {/* Reply Input Area */}
                 {replyingToCommentId === comment.id && (
                   <View style={styles.replyInputContainer}>
-                    <Image 
-                      source={{ uri: userProfile?.profileImageUrl || 'https://via.placeholder.com/150' }} 
-                      style={styles.replyInputProfilePic} 
+                    <Image
+                      source={{ uri: getOptimalImageUrl(userProfile?.profileThumbnailUrl, userProfile?.profileImageUrl) || 'https://via.placeholder.com/150' }}
+                      style={styles.replyInputProfilePic}
                     />
                     <TextInput
                       style={styles.replyInput}
@@ -963,9 +972,9 @@ export default function ViewPost() {
         </ScrollView>
 
         <View style={[styles.commentInputContainer, { paddingBottom: Math.max(insets.bottom, 10) }]}>
-          <Image 
-            source={{ uri: userProfile?.profileImageUrl || 'https://via.placeholder.com/150' }} 
-            style={styles.commentInputProfilePic} 
+          <Image
+            source={{ uri: getOptimalImageUrl(userProfile?.profileThumbnailUrl, userProfile?.profileImageUrl) || 'https://via.placeholder.com/150' }}
+            style={styles.commentInputProfilePic}
           />
           <TextInput
             style={styles.commentInput}
