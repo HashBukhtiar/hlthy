@@ -47,6 +47,7 @@ export interface Milestone {
   authorId: string;
   authorUsername: string;
   authorProfileImageUrl: string;
+  authorProfileThumbnailUrl: string;
   createdAt: any;
   milestoneType: 'PR' | 'weightLoss' | 'weightGain' | string;
   milestoneDetails: MilestoneDetails;
@@ -113,6 +114,7 @@ export default function MilestonesFeed() {
   }, [router]);
 
   const handleShare = useCallback((milestone: Milestone) => {
+    console.log("🎯 sharing milestone payload:", milestone);
     if (!currentUser) {
       Alert.alert("Please log in", "You need to be logged in to share milestones.");
       return;
@@ -131,14 +133,14 @@ export default function MilestonesFeed() {
         userId,
         username,
         profileImageUrl,
+        milestoneToShare.current.authorProfileThumbnailUrl, 
         {
           id: milestoneToShare.current.id,
-          milestoneType: milestoneToShare.current.milestoneType,
+          milestoneType: milestoneToShare.current.milestoneType || 'PR',
           details: milestoneToShare.current.milestoneDetails,
           username: milestoneToShare.current.authorUsername,
         }
       );
-      
       setShareModalVisible(false);
       Alert.alert("Success", "Milestone shared successfully");
     } catch (error) {
