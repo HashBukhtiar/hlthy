@@ -230,9 +230,14 @@ const MessageItem = React.memo<{ item: Message; onLongPress: (m: Message) => voi
             </Text>
           </View>
           {item.sharedPost.imageUrl && (
-            <Image 
-              source={{ uri: getOptimalImageUrl(item.sharedPost.thumbnailUrl, item.sharedPost.imageUrl) }} 
-              style={styles.sharedPostImage} 
+            <Image
+              source={{
+                uri: getOptimalImageUrl(
+                  item.sharedPost.imageUrl,
+                  item.sharedPost.thumbnailUrl
+                )
+              }}
+              style={styles.sharedPostImage}
             />
           )}
           {item.sharedPost.caption && (
@@ -351,9 +356,14 @@ const MessageItem = React.memo<{ item: Message; onLongPress: (m: Message) => voi
             </Text>
           </View>
           {item.sharedWorkout.coverImageUrl && (
-            <Image 
-              source={{ uri: getOptimalImageUrl(item.sharedWorkout.thumbnailUrl, item.sharedWorkout.coverImageUrl) }} 
-              style={styles.sharedWorkoutImage} 
+            <Image
+              source={{
+                uri: getOptimalImageUrl(
+                  item.sharedWorkout.coverImageUrl,
+                  item.sharedWorkout.thumbnailUrl
+                )
+              }}
+              style={styles.sharedWorkoutImage}
             />
           )}
           <Text style={styles.sharedWorkoutTitle} numberOfLines={2}>
@@ -578,7 +588,7 @@ export default function ChatScreen() {
         if (userSnap.exists()) {
           const userData = userSnap.data();
           // Use getOptimalImageUrl to handle thumbnails if they exist
-          const optimalImageUrl = getOptimalImageUrl(userData.profileThumbnailUrl, userData.profileImageUrl);
+          const optimalImageUrl = getOptimalImageUrl(userData.profileImageUrl, userData.profileThumbnailUrl);
           setProfileImageUrl(optimalImageUrl);
         } else {
           // Fallback to the potentially outdated image if the user doc is not found

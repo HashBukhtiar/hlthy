@@ -164,7 +164,6 @@ export default function PostsFeed() {
               source={{ uri: item.imageUrl! }}
               style={styles.postImage}
               onError={({ nativeEvent }) => console.error('❌ post image failed to load:', item.imageUrl, nativeEvent)}
-              onLoad={() => console.log('✅ post image loaded:', item.imageUrl)}
             />
           </TouchableOpacity>
         )}
