@@ -33,6 +33,7 @@ interface CombinedConversationItem extends UserConversationData, ConversationMet
     id: string;
     isPinnedAI?: boolean;
     isUnread?: boolean;
+    otherParticipantThumbnailUrl?: string;
 }
 
 interface UserData {
@@ -42,17 +43,34 @@ interface UserData {
     profileThumbnailUrl?: string;
 }
 
-const ChatItem = ({ 
-    item, 
+const ChatItem = ({
+    item,
     setConversations,
-    currentUser 
-}: { 
-    item: CombinedConversationItem, 
+    currentUser
+}: {
+    item: CombinedConversationItem,
     setConversations: React.Dispatch<React.SetStateAction<CombinedConversationItem[]>>,
-    currentUser: any  
-}) => {    
+    currentUser: any
+}) => {
     const router = useRouter();
     const [isPressed, setIsPressed] = useState(false);
+
+    // static assets
+    const aiIcon   = require('@/assets/images/icon.png');
+    const fallback = require('@/assets/images/profile-icon.png');
+
+    // pick the best remote URL: full-size first, then thumbnail (or swap if your util is inverted)
+    const remoteUrl = getOptimalImageUrl(
+        item.otherParticipantProfileImage,
+        item.otherParticipantThumbnailUrl
+    );
+
+    // build your source prop
+    const source = item.isPinnedAI
+        ? aiIcon             // pinned AI uses bundled icon
+        : remoteUrl
+        ? { uri: remoteUrl } // real user → network image
+        : fallback;           // fallback → bundled default
 
     const handleDeleteConversation = async (conversationId: string, username: string) => {
         Alert.alert(
@@ -107,15 +125,13 @@ const ChatItem = ({
             onShowUnderlay={() => setIsPressed(true)}
             onHideUnderlay={() => setIsPressed(false)}
         >
-            <View
-                style={[
-                    styles.itemContainer,
-                    item.isPinnedAI ? styles.aiChatItem : null,
-                    isPressed ? styles.pressedItem : null, 
-                ]}
-            >
+            <View style={[
+                styles.itemContainer,
+                item.isPinnedAI ? styles.aiChatItem : null,
+                isPressed ? styles.pressedItem : null
+            ]}>
                 <Image
-                    source={item.isPinnedAI ? require('@/assets/images/icon.png') : { uri: getOptimalImageUrl(item.otherParticipantThumbnailUrl, item.otherParticipantProfileImage) || require('@/assets/images/profile-icon.png')}}
+                    source={source}
                     style={styles.profilePic}
                 />
                 <View style={styles.textContainer}>
@@ -392,18 +408,27 @@ export default function DMs() {
         );
     };
 
-    const renderSearchItem = ({ item }: { item: UserData }) => (
-        <TouchableOpacity
-            style={styles.userItem}
-            onPress={() => startConversation(item.id, item.username, item.profileImageUrl)}
-        >
-            <Image
-                source={item.profileImageUrl ? { uri: item.profileImageUrl } : require('@/assets/images/profile-icon.png')}
-                style={styles.profilePic}
-            />
-            <Text style={styles.username}>{item.username}</Text>
-        </TouchableOpacity>
-    );
+    const renderSearchItem = ({ item }: { item: UserData }) => {
+        // static fallback asset
+        const fallback = require('@/assets/images/profile-icon.png');
+        // pick the best remote URL: full-size first, then thumbnail
+        const remoteUrl = getOptimalImageUrl(item.profileImageUrl, item.profileThumbnailUrl);
+        // build your source prop
+        const source = remoteUrl ? { uri: remoteUrl } : fallback;
+
+        return (
+            <TouchableOpacity
+                style={styles.userItem}
+                onPress={() => startConversation(item.id, item.username, item.profileImageUrl)}
+            >
+                <Image
+                    source={source}
+                    style={styles.profilePic}
+                />
+                <Text style={styles.username}>{item.username}</Text>
+            </TouchableOpacity>
+        );
+    };
 
     return (
         <View style={{ flex: 1, backgroundColor: 'black' }}>

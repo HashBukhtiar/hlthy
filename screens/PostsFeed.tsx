@@ -141,7 +141,6 @@ export default function PostsFeed() {
               source={{ uri: item.authorProfileImageUrl || DEFAULT_PROFILE_IMAGE }}
               style={styles.profilePic}
               onError={({ nativeEvent }) => console.error('❌ profile failed to load:', item.authorProfileImageUrl, nativeEvent)}
-              onLoad={() => console.log('✅ profile loaded:', item.authorProfileImageUrl)}
             />
             <View>
               <Text style={styles.username}>{item.authorUsername}</Text>
