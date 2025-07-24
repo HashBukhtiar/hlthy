@@ -102,7 +102,7 @@ export default function ViewMilestone() {
             userId: data.authorId,
             username: data.authorUsername,
             fullName: authorFullName,
-            profileImageUrl: getOptimalImageUrl(authorProfileThumbnailUrl, authorProfileImageUrl),
+            profileImageUrl: getOptimalImageUrl(authorProfileImageUrl, authorProfileThumbnailUrl),
             createdAt: data.createdAt.toDate(),
             milestoneType: data.milestoneDetails?.type,
             details: {
@@ -130,6 +130,7 @@ export default function ViewMilestone() {
             top5Percent: data.top5Percent || false,
           };
           
+          // TODO: Implement pinned and top X%
           setMilestone(milestoneData);
           setIsPinned(milestoneData.pinned);
           setIsTop5Percent(milestoneData.top5Percent);

@@ -23,14 +23,7 @@ const archetypeDescriptions = {
   'generalist': 'Well-rounded fitness approach with balanced strength, cardio, and flexibility goals.',
   'powerlifter': 'Specialized in maximizing strength in the squat, bench press, and deadlift.',
 };
-import { getOptimalImageUrl } from '@/utils/imageUtils';
-
-interface Workout {
-  id: number;
-  name: string;
-  date: Date;
-  favorites: number;
-}
+import { getOptimalImageUrl, getCoverImageSource } from '@/utils/imageUtils';
 
 interface ProfileScreenProps {
   userId?: string;
@@ -282,13 +275,9 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
       style={styles.workoutItem} 
       onPress={() => router.push(`/view-workout/${item.id}`)}
     >
-      <Image 
-        source={
-          getOptimalImageUrl(item.thumbnailUrl, item.coverImageUrl) 
-            ? { uri: getOptimalImageUrl(item.thumbnailUrl, item.coverImageUrl)! } 
-            : require('@/assets/images/default_workout_cover.png')
-        } 
-        style={styles.workoutItemImage} 
+      <Image
+        source={getCoverImageSource(item.thumbnailUrl, item.coverImageUrl)}
+        style={styles.workoutItemImage}
       />
       <View style={styles.workoutItemTextContainer}>
         <Text style={styles.workoutItemTitle} numberOfLines={1}>{item.title}</Text>
@@ -328,7 +317,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
       data={displayablePosts}
       renderItem={({ item }) => (
         <TouchableOpacity onPress={() => handleImagePress(item)}>
-          <Image source={{ uri: item.thumbnailUrl || item.imageUrl }} style={styles.postImage} />
+          <Image source={{ uri: getOptimalImageUrl(item.imageUrl, item.thumbnailUrl) }} style={styles.postImage} />
         </TouchableOpacity>
       )}
       keyExtractor={(item) => item.id}
@@ -471,13 +460,9 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
               onPress={() => handleWorkoutPress(item.id)} 
               style={styles.workoutListItemRowStyle}
             >
-              <Image 
-                source={
-                  getOptimalImageUrl(item.thumbnailUrl, item.coverImageUrl) 
-                    ? { uri: getOptimalImageUrl(item.thumbnailUrl, item.coverImageUrl)! } 
-                    : require('@/assets/images/default_workout_cover.png')
-                } 
-                style={styles.workoutListItemImageStyle} 
+              <Image
+                source={getCoverImageSource(item.thumbnailUrl, item.coverImageUrl)}
+                style={styles.workoutListItemImageStyle}
               />
               <View style={styles.workoutListItemTextContainerStyle}>
                 <Text style={styles.workoutListItemTitleStyle} numberOfLines={2}>{item.title || 'Unnamed Workout'}</Text>
@@ -664,16 +649,12 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
             )}
           </TouchableOpacity>
         )}
-
         <Image
-          source={{ 
-            uri: processedProfileData?.profileImageUrl || 
-                 processedProfileData?.profileThumbnailUrl || 
-                 'https://thumbs.dreamstime.com/b/creative-illustration-default-avatar-profile-placeholder-isolated-background-art-design-grey-photo-blank-template-mockup-144855718.jpg',
-            cache: 'reload'
-          }}
+          source={getCoverImageSource(
+            processedProfileData?.profileThumbnailUrl,
+            processedProfileData?.profileImageUrl
+          )}
           style={styles.profileImage}
-          key={processedProfileData?.profileImageUrl || 'default-profile'}
         />
         <Text style={styles.profileName}>{processedProfileData?.displayName || 'User'}</Text>
         <Text style={styles.profileUsername}>@{processedProfileData?.username || 'username'}</Text>
