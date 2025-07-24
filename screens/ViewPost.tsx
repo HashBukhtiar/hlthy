@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet, Text, View, Image, ScrollView,
   TouchableOpacity, KeyboardAvoidingView, Platform,
@@ -21,7 +21,7 @@ export default function ViewPost() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { currentUser, userProfile } = useAuth();
-  const { 
+  const {
     getPostById, 
     getPostComments, 
     likePost, 

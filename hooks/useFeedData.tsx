@@ -64,7 +64,7 @@ export function useFeedData() {
         authorProfiles[doc.id] = doc.data() as UserProfile;
       });
     }
-
+    
     // 3. Map fresh profile data back to each post
     const enrichedPosts: FeedPost[] = [];
     for (const postData of postDocs) {
