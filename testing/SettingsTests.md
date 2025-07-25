@@ -30,7 +30,7 @@ Here's a comprehensive testing checklist for your Settings system. Test these sc
   - Test date picker on both iOS and Android
   - Test modal close without selecting
 
-- [ ] **Archetype Selection**
+- [X] **Archetype Selection**
   - Test selecting each archetype option
   - Test modal open/close
   - Verify selection persists
