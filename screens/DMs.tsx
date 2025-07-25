@@ -61,8 +61,8 @@ const ChatItem = ({
 
     // pick the best remote URL: full-size first, then thumbnail (or swap if your util is inverted)
     const remoteUrl = getOptimalImageUrl(
-        item.otherParticipantProfileImage,
-        item.otherParticipantThumbnailUrl
+        item.otherParticipantThumbnailUrl,
+        item.otherParticipantProfileImage
     );
 
     // build your source prop
@@ -311,6 +311,7 @@ export default function DMs() {
                         id: doc.id,
                         username: doc.data().username,
                         profileImageUrl: doc.data().profileImageUrl,
+                        profileThumbnailUrl: doc.data().profileThumbnailUrl,
                     });
                 }
             });
@@ -411,15 +412,15 @@ export default function DMs() {
     const renderSearchItem = ({ item }: { item: UserData }) => {
         // static fallback asset
         const fallback = require('@/assets/images/profile-icon.png');
-        // pick the best remote URL: full-size first, then thumbnail
-        const remoteUrl = getOptimalImageUrl(item.profileImageUrl, item.profileThumbnailUrl);
-        // build your source prop
+        // pick the best remote URL: thumbnail first then full size
+        const remoteUrl = getOptimalImageUrl(item.profileThumbnailUrl, item.profileImageUrl);
+        // build source prop
         const source = remoteUrl ? { uri: remoteUrl } : fallback;
 
         return (
             <TouchableOpacity
                 style={styles.userItem}
-                onPress={() => startConversation(item.id, item.username, item.profileImageUrl)}
+                onPress={() => startConversation(item.id, item.username, item.profileThumbnailUrl || item.profileImageUrl)}
             >
                 <Image
                     source={source}
