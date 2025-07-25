@@ -18,7 +18,7 @@ Here's a comprehensive testing checklist for your Settings system. Test these sc
   - Test with emojis
   - Test empty field
 
-- [ ] **Bio**
+- [X] **Bio**
   - Test with 500+ characters (should fail validation)
   - Test with emojis and special characters
   - Test empty bio
