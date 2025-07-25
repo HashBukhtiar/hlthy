@@ -138,9 +138,9 @@ export default function PostsFeed() {
             onPress={() => navigateToProfile(item.authorId)}
           >
             <Image 
-              source={{ uri: item.authorProfileImageUrl || DEFAULT_PROFILE_IMAGE }}
+              source={{ uri: getOptimalImageUrl(item.authorProfileThumbnailUrl, item.authorProfileImageUrl) || DEFAULT_PROFILE_IMAGE }}
               style={styles.profilePic}
-              onError={({ nativeEvent }) => console.error('❌ profile failed to load:', item.authorProfileImageUrl, nativeEvent)}
+              onError={({ nativeEvent }) => console.error('❌ profile failed to load:', item.authorProfileThumbnailUrl, nativeEvent)}
             />
             <View>
               <Text style={styles.username}>{item.authorUsername}</Text>

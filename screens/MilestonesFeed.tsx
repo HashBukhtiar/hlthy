@@ -329,7 +329,7 @@ export default function MilestonesFeed() {
             <View style={styles.milestoneIconContainer}>
               <TouchableOpacity onPress={() => navigateToProfile(item.authorId)}>
                 <Image 
-                  source={{ uri: getOptimalImageUrl(item.authorProfileImageUrl, item.authorProfileImageUrl) }} 
+                  source={{ uri: getOptimalImageUrl(item.authorProfileThumbnailUrl, item.authorProfileImageUrl) }} 
                   style={styles.profilePic}
                 />
               </TouchableOpacity>

@@ -163,7 +163,7 @@ export function usePostsData() {
         if (userSnap.exists()) {
           const u = userSnap.data() as any
           post.authorProfileImageUrl     = u.profileImageUrl     || ""
-          post.authorProfileThumbnailUrl = u.profileThumbnailUrl || null
+          post.authorProfileThumbnailUrl = u.profileThumbnailUrl || ""
         }
 
         // ► preserve like‐status
@@ -227,7 +227,7 @@ export function usePostsData() {
     if (userSnap.exists()) {
       const u = userSnap.data() as any
       post.authorProfileImageUrl     = u.profileImageUrl     || ""
-      post.authorProfileThumbnailUrl = u.profileThumbnailUrl || null
+      post.authorProfileThumbnailUrl = u.profileThumbnailUrl || ""
     }
 
     // ► preserve like‐status
@@ -269,6 +269,7 @@ export function usePostsData() {
       if (userSnap.exists()) {
         const u = userSnap.data() as any
         comment.authorProfileImageUrl = u.profileImageUrl || ""
+        comment.authorProfileThumbnailUrl = u.profileThumbnailUrl || ""
       }
 
       comments.push(comment)
@@ -724,6 +725,7 @@ export function usePostsData() {
       if (userSnap.exists()) {
         const u = userSnap.data() as any
         reply.authorProfileImageUrl = u.profileImageUrl || ""
+        reply.authorProfileThumbnailUrl = u.profileThumbnailUrl || ""
       }
 
       replies.push(reply)
