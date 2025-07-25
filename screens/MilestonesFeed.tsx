@@ -252,6 +252,7 @@ export default function MilestonesFeed() {
       authorId: item.authorId,
       authorUsername: item.authorUsername,
       authorProfileImageUrl: item.authorProfileImageUrl,
+      authorProfileThumbnailUrl: item.authorProfileThumbnailUrl,
       createdAt: item.createdAt,
       milestoneType: item.milestoneDetails?.type || 'PR',
       milestoneDetails: item.milestoneDetails as MilestoneDetails,
