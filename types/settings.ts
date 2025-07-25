@@ -10,7 +10,7 @@ export interface UserSettings {
   twoFactorEnabled: boolean;
   
   // Privacy & Visibility
-  profileVisibility: 'public' | 'followers' | 'private';
+  profileVisibility: 'public' | 'private';
   followPermission: 'anyone' | 'approval';
   commentPermission: 'everyone' | 'followers';
   messagePermission: 'everyone' | 'followers';

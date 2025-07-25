@@ -35,7 +35,7 @@ Here's a comprehensive testing checklist for your Settings system. Test these sc
   - Test modal open/close
   - Verify selection persists
 
-### **2. Account & Security Section**
+### **2. Account & Security Section** -- TODO ONCE EMAIL INTEGRATION HAS BEEN IMPLEMENTED
 - [ ] **Change Password**
   - Test with valid email
   - Test with invalid/non-existent email
@@ -52,7 +52,7 @@ Here's a comprehensive testing checklist for your Settings system. Test these sc
 
 ### **3. Privacy & Visibility Section**
 - [ ] **Profile Visibility**
-  - Test each option (Public, Followers, Private)
+  - Test each option (Public, Private)
   - Verify privacy level updates accordingly
 
 - [ ] **Follow Permissions**

@@ -57,9 +57,8 @@ const archetypeData: SelectorItem[] = [
 ];
 
 const privacyOptions = [
-  { label: 'Public', value: 'public', icon: 'earth' },
-  { label: 'Followers Only', value: 'followers', icon: 'people' },
-  { label: 'Private', value: 'private', icon: 'lock-closed' },
+  { label: 'Public', value: 'public', icon: 'earth', description: 'Anyone can see your profile' },
+  { label: 'Private', value: 'private', icon: 'lock-closed', description: 'Only your followers can see your profile' },
 ];
 
 const permissionOptions = [
@@ -886,7 +885,7 @@ export default function Settings() {
                 : 'Select your birth date'
             }
           />
-          
+
           <SettingsItem
             type="select"
             label="Archetype"
@@ -1299,15 +1298,8 @@ export default function Settings() {
       {/* Privacy Modals */}
       {privacyModalVisible && (
         <CustomSelector
-          items={privacyOptions.map(opt => ({ 
-            label: opt.label, 
-            value: opt.value,
-            icon: opt.icon,
-            description: opt.value === 'public' ? 'Anyone can see your profile' :
-                        opt.value === 'followers' ? 'Only your followers can see your profile' :
-                        'Only you can see your profile'
-          }))}
-          value={settings.profileVisibility}
+          items={privacyOptions}
+          value={settings.profileVisibility ?? 'public'}
           onSelect={(value) => updateSetting('profileVisibility', value)}
           placeholder="Select visibility"
           title="Profile Visibility"
