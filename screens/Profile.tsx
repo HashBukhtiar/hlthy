@@ -317,7 +317,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
       data={displayablePosts}
       renderItem={({ item }) => (
         <TouchableOpacity onPress={() => handleImagePress(item)}>
-          <Image source={{ uri: getOptimalImageUrl(item.imageUrl, item.thumbnailUrl) }} style={styles.postImage} />
+          <Image source={{ uri: getOptimalImageUrl(item.thumbnailUrl, item.imageUrl) }} style={styles.postImage} />
         </TouchableOpacity>
       )}
       keyExtractor={(item) => item.id}
