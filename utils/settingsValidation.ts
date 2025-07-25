@@ -23,6 +23,10 @@ export const validateSettings = (settings: Partial<UserSettings>): ValidationRes
     }
   }
 
+  if (!settings.displayName || settings.displayName.trim() === '') {
+    errors.push('Display name cannot be empty.');
+  }
+
   // Bio validation
   if (settings.bio && settings.bio.length > 500) {
     errors.push('Bio cannot exceed 500 characters');

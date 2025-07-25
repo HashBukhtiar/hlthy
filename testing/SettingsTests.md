@@ -3,7 +3,7 @@ Here's a comprehensive testing checklist for your Settings system. Test these sc
 ## **🔧 Core Functionality Tests**
 
 ### **1. Profile Information Section**
-- [ ] **Profile Image Upload**
+- [X] **Profile Image Upload**
   - Test image selection from gallery
   - Test image cropping/editing
   - Test with large images (>5MB) - should show error
@@ -11,7 +11,7 @@ Here's a comprehensive testing checklist for your Settings system. Test these sc
   - Verify image appears immediately after upload
   - Test without gallery permissions
 
-- [ ] **Display Name**
+- [X] **Display Name**
   - Test with 1 character (should fail validation)
   - Test with 50+ characters (should fail validation)
   - Test with special characters
