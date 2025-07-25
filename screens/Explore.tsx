@@ -6,6 +6,7 @@ import { collection, query, where, getDocs, limit, orderBy, startAfter, QueryDoc
 import { db } from '@/firebaseConfig';
 import { useAuth } from '@/context/AuthContext';
 import { LinearGradient } from 'expo-linear-gradient';
+import { getOptimalImageUrl } from '@/utils/imageUtils';
 
 interface ExplorePost {
   id: string;
@@ -21,6 +22,7 @@ interface UserSearchResult {
   username?: string;
   displayName?: string;
   profilePictureUrl?: string;
+  profileThumbnailUrl?: string;
 }
 
 // Fisher-Yates shuffle algorithm
@@ -145,6 +147,7 @@ export default function Explore() {
         username: doc.data().username,
         displayName: doc.data().displayName,
         profilePictureUrl: doc.data().profileImageUrl,
+        profileThumbnailUrl: doc.data().profileThumbnailUrl,
       }));
       setSearchResults(users);
     } catch (error) {
@@ -406,7 +409,7 @@ export default function Explore() {
       onPress={() => router.push(`/profile/${user.id}`)}
     >
       <Image
-        source={user.profilePictureUrl ? { uri: user.profilePictureUrl } : require('@/assets/images/profile-icon.png')}
+        source={{ uri: getOptimalImageUrl(user.profileThumbnailUrl || user.profilePictureUrl) }}
         style={styles.profilePic}
       />
       <View>
