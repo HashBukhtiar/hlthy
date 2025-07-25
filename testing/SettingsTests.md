@@ -23,7 +23,7 @@ Here's a comprehensive testing checklist for your Settings system. Test these sc
   - Test with emojis and special characters
   - Test empty bio
 
-- [ ] **Date of Birth**
+- [X] **Date of Birth**
   - Test selecting future dates (should fail)
   - Test selecting dates before 1900 (should fail)
   - Test valid dates

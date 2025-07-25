@@ -860,16 +860,33 @@ export default function Settings() {
             }}
             placeholder="Select your birth date"
             helperText="Used for age-based recommendations"
-            displayValue={settings.dateOfBirth ? 
-              settings.dateOfBirth.toLocaleDateString('en-US', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
-              }) : 
-              'Select your birth date'
+            displayValue={
+              settings.dateOfBirth
+                ? (() => {
+                    let dateObj = settings.dateOfBirth;
+                    if (typeof dateObj === 'string') {
+                      dateObj = new Date(dateObj);
+                    }
+                    if (
+                      dateObj &&
+                      typeof dateObj === 'object' &&
+                      typeof (dateObj as any).toDate === 'function' &&
+                      !(dateObj instanceof Date)
+                    ) {
+                      dateObj = (dateObj as any).toDate();
+                    }
+                    return dateObj instanceof Date && !isNaN(dateObj.getTime())
+                      ? dateObj.toLocaleDateString('en-US', {
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric'
+                        })
+                      : 'Select your birth date';
+                  })()
+                : 'Select your birth date'
             }
           />
-
+          
           <SettingsItem
             type="select"
             label="Archetype"
