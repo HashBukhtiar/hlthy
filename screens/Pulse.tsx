@@ -33,6 +33,7 @@ export interface ActivityItem {
     fromUserId: string;
     fromUsername: string;
     fromProfileImageUrl?: string;
+    fromProfileThumbnailUrl?: string;
     postId?: string;
     postImageUrl?: string;
     postThumbnailUrl?: string;
@@ -208,7 +209,11 @@ export default function Pulse() {
                             >
                                 <View style={activityStyles.activityPostImage}>
                                     <Image
-                                        source={request.fromProfileImageUrl ? { uri: request.fromProfileImageUrl } : profileIcon}
+                                        source={
+                                            getOptimalImageUrl(request.fromProfileThumbnailUrl, request.fromProfileImageUrl)
+                                            ? { uri: getOptimalImageUrl(request.fromProfileThumbnailUrl, request.fromProfileImageUrl) }
+                                            : profileIcon
+                                        }
                                         style={activityStyles.profileImage}
                                     />
                                 </View>
@@ -400,9 +405,9 @@ export default function Pulse() {
                                 >
                                     <Image
                                         source={
-                                            activity.fromProfileImageUrl 
-                                                ? { uri: activity.fromProfileImageUrl } 
-                                                : profileIcon
+                                            getOptimalImageUrl(activity.fromProfileThumbnailUrl, activity.fromProfileImageUrl)
+                                            ? { uri: getOptimalImageUrl(activity.fromProfileThumbnailUrl, activity.fromProfileImageUrl) }
+                                            : profileIcon
                                         }
                                         style={activityStyles.activityUserImageStyle}
                                     />
