@@ -383,9 +383,30 @@ export const followUser = onCall(
       throw new HttpsError("invalid-argument", "Invalid follow request");
     }
     const db = getDb();
+
+    // 1. Fetch the target user's profileVisibility
+    const targetUserDoc = await db.collection("users").doc(targetUserId).get();
+    if (!targetUserDoc.exists) {
+      throw new HttpsError("not-found", "Target user not found");
+    }
+    const targetUserData = targetUserDoc.data();
+    const isPrivate = targetUserData?.profileVisibility === "private";
+
+    if (isPrivate) {
+      // For private accounts, create a pending follow request instead
+      await db.collection("users").doc(targetUserId)
+        .collection("pendingFollowers").doc(uid)
+        .set({
+          requestedAt: admin.firestore.FieldValue.serverTimestamp(),
+          requesterUsername: req.auth?.token?.name || "", // or fetch username if needed
+          requesterProfileImageUrl: req.auth?.token?.picture || "",
+        });
+      return {success: true, message: "Follow request sent (pending approval)."};
+    }
+
+    // 2. Public account: proceed with follow as before
     const batch = db.batch();
 
-    // 1) subcollection writes
     batch.set(
       db.collection("users").doc(targetUserId).collection("followers").doc(uid),
       {followedAt: admin.firestore.FieldValue.serverTimestamp()}
@@ -395,7 +416,6 @@ export const followUser = onCall(
       {followedAt: admin.firestore.FieldValue.serverTimestamp()}
     );
 
-    // 2) top-level counts
     batch.update(db.collection("users").doc(targetUserId), {
       "followerCount": FieldValue.increment(1),
       "stats.followerCount": FieldValue.increment(1),
@@ -406,7 +426,7 @@ export const followUser = onCall(
     });
 
     await batch.commit();
-    return {success: true};
+    return {success: true, message: "Now following user."};
   }
 );
 
