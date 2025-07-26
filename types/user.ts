@@ -42,7 +42,7 @@ export interface UserProfile {
   };
   
   // Privacy & Settings
-  accountPrivacy?: 'public' | 'private';
+  profileVisibility: 'public' | 'private';
   
   // Fitness Data - Match Firebase structure
   latestPRs?: { [exerciseId: string]: LatestPR };

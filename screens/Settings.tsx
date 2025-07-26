@@ -511,6 +511,7 @@ export default function Settings() {
         ...sanitizedSettings,
         dateOfBirth: sanitizedSettings.dateOfBirth ? sanitizedSettings.dateOfBirth.toISOString() : null,
         profileImageUrl: newImageUrl,
+        profileVisibility: sanitizedSettings.profileVisibility,
       };
       
       console.log('Saving settings with profile image:', {

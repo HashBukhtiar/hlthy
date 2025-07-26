@@ -80,6 +80,9 @@ export function useProfileData(userId = null, contextUserProfile: UserProfile | 
       bio: userData.bio || '',
       archetype: userData.archetype || 'generalist',
       createdAt: userData.createdAt,
+
+      // Profile Settings
+      profileVisibility: userData.profileVisibility ?? 'public',
       
       // Optional fields with proper defaults
       dateOfBirth: userData.dateOfBirth || undefined,

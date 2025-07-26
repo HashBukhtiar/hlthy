@@ -115,6 +115,9 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
     };
   }, [displayProfileData]);
 
+  const isPrivate = processedProfileData?.profileVisibility === 'private';
+  const canViewContent = isOwnProfile || !isPrivate || isFollowingStatus;
+
   const indicatorPosition = tabIndicator.interpolate({
     inputRange: [0, screenWidth, screenWidth * 2],
     outputRange: [0, tabWidth, tabWidth * 2],
@@ -680,7 +683,11 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.statItem}
-            onPress={() => router.push(`/followers/${viewedProfileId || currentUser?.uid}`)}
+            onPress={() => {
+              if (isPrivate && !isOwnProfile) return;
+              router.push(`/followers/${viewedProfileId}`);
+            }}
+            disabled={isPrivate && !isOwnProfile}
           >
             <Text style={styles.statNumber}>
               {processedProfileData?.followerCount ?? followers.length}
@@ -689,7 +696,11 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.statItem}
-            onPress={() => router.push(`/following/${viewedProfileId || currentUser?.uid}`)}
+            onPress={() => {
+              if (isPrivate && !isOwnProfile) return;
+              router.push(`/following/${viewedProfileId}`);
+            }}
+            disabled={isPrivate && !isOwnProfile}
           >
             <Text style={styles.statNumber}>
               {processedProfileData?.followingCount ?? following.length}
@@ -737,24 +748,31 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
 
       {renderCustomTabBar()}
 
-      <View style={styles.tabContent}>
-        <FlatList
-          ref={flatListRef}
-          data={tabScenes}
-          horizontal
-          pagingEnabled
-          showsHorizontalScrollIndicator={false}
-          onScroll={handleScroll}
-          onMomentumScrollEnd={handleScrollEnd}
-          renderItem={({ item }) => (
-            <View style={[styles.tabContentContainer, { width: screenWidth }]}>
-              {item.component}
-            </View>
-          )}
-          keyExtractor={(item) => item.key}
-          initialScrollIndex={0}
-        />
-      </View>
+      {canViewContent ? (
+        <View style={styles.tabContent}>
+          <FlatList
+            ref={flatListRef}
+            data={tabScenes}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onScroll={handleScroll}
+            onMomentumScrollEnd={handleScrollEnd}
+            renderItem={({ item }) => (
+              <View style={[styles.tabContentContainer, { width: screenWidth }]}>
+                {item.component}
+              </View>
+            )}
+            keyExtractor={(item) => item.key}
+            initialScrollIndex={0}
+          />
+        </View>
+      ) : (
+        <View style={styles.lockedContainer}>
+          <Ionicons name="lock-closed" size={48} color="gray" />
+          <Text style={styles.lockedText}>This account is private</Text>
+        </View>
+      )}
     </SafeAreaView>
   );
 };
@@ -1199,6 +1217,17 @@ const styles = StyleSheet.create({
   gainValue: {
     color: '#FF9500',
     fontWeight: 'bold',
+  },
+  lockedContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  lockedText: {
+    color: 'gray',
+    fontSize: 16,
+    marginTop: 12,
   },
 });
 
