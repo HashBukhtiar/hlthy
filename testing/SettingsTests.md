@@ -51,17 +51,9 @@ Here's a comprehensive testing checklist for your Settings system. Test these sc
   - Test canceling at each step
 
 ### **3. Privacy & Visibility Section**
-- [ ] **Profile Visibility**
+- [X] **Profile Visibility**
   - Test each option (Public, Private)
   - Verify privacy level updates accordingly
-
-- [ ] **Follow Permissions**
-  - Test "Anyone" vs "Approval Required"
-  - Verify descriptions are accurate
-
-- [ ] **Comment/Message Permissions**
-  - Test "Everyone" vs "Followers Only"
-  - Test all combinations
 
 - [ ] **Blocked Users**
   - Test navigation to blocked users screen

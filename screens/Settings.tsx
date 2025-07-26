@@ -96,8 +96,6 @@ export default function Settings() {
     bio: '',
     archetype: '',
     profileVisibility: 'public',
-    followPermission: 'anyone',
-    commentPermission: 'everyone',
     messagePermission: 'everyone',
     theme: 'dark',
     language: 'en',
@@ -133,8 +131,6 @@ export default function Settings() {
   const [dateModalVisible, setDateModalVisible] = useState(false);
   const [loading, setLoading] = useState(false);
   const [privacyModalVisible, setPrivacyModalVisible] = useState(false);
-  const [followModalVisible, setFollowModalVisible] = useState(false);
-  const [commentModalVisible, setCommentModalVisible] = useState(false);
   const [messageModalVisible, setMessageModalVisible] = useState(false);
   const [themeModalVisible, setThemeModalVisible] = useState(false);
   const [languageModalVisible, setLanguageModalVisible] = useState(false);
@@ -183,8 +179,6 @@ export default function Settings() {
         bio: userProfile.bio || '',
         archetype: userProfile.archetype || '',
         profileVisibility: userProfile.profileVisibility || 'public',
-        followPermission: userProfile.followPermission || 'anyone',
-        commentPermission: userProfile.commentPermission || 'everyone',
         messagePermission: userProfile.messagePermission || 'everyone',
         theme: userProfile.theme || 'dark',
         language: userProfile.language || 'en',
@@ -241,8 +235,6 @@ export default function Settings() {
         bio: userProfile.bio || '',
         archetype: userProfile.archetype || '',
         profileVisibility: userProfile.profileVisibility || 'public',
-        followPermission: userProfile.followPermission || 'anyone',
-        commentPermission: userProfile.commentPermission || 'everyone',
         messagePermission: userProfile.messagePermission || 'everyone',
         theme: userProfile.theme || 'dark',
         language: userProfile.language || 'en',
@@ -644,8 +636,6 @@ export default function Settings() {
               bio: '',
               archetype: '',
               profileVisibility: 'public',
-              followPermission: 'anyone',
-              commentPermission: 'everyone',
               messagePermission: 'everyone',
               theme: 'dark',
               language: 'en',
@@ -951,22 +941,6 @@ export default function Settings() {
             value={settings.profileVisibility}
             options={privacyOptions}
             onPress={() => setPrivacyModalVisible(true)}
-          />
-
-          <SettingsItem
-            type="select"
-            label="Who Can Follow You"
-            value={settings.followPermission}
-            options={followOptions}
-            onPress={() => setFollowModalVisible(true)}
-          />
-
-          <SettingsItem
-            type="select"
-            label="Who Can Comment"
-            value={settings.commentPermission}
-            options={permissionOptions}
-            onPress={() => setCommentModalVisible(true)}
           />
 
           <SettingsItem
@@ -1307,44 +1281,6 @@ export default function Settings() {
           icon="eye"
           modalVisible={privacyModalVisible}
           setModalVisible={setPrivacyModalVisible}
-          variant="fullWidth"
-        />
-      )}
-
-      {followModalVisible && (
-        <CustomSelector
-          items={followOptions.map(opt => ({ 
-            label: opt.label, 
-            value: opt.value,
-            icon: opt.icon,
-            description: opt.value === 'anyone' ? 'Anyone can follow you' : 'You must approve follow requests'
-          }))}
-          value={settings.followPermission}
-          onSelect={(value) => updateSetting('followPermission', value)}
-          placeholder="Select follow permission"
-          title="Who Can Follow You"
-          icon="person-add"
-          modalVisible={followModalVisible}
-          setModalVisible={setFollowModalVisible}
-          variant="fullWidth"
-        />
-      )}
-
-      {commentModalVisible && (
-        <CustomSelector
-          items={permissionOptions.map(opt => ({ 
-            label: opt.label, 
-            value: opt.value,
-            icon: opt.icon,
-            description: opt.value === 'everyone' ? 'Anyone can comment on your posts' : 'Only followers can comment'
-          }))}
-          value={settings.commentPermission}
-          onSelect={(value) => updateSetting('commentPermission', value)}
-          placeholder="Select comment permission"
-          title="Who Can Comment"
-          icon="chatbubble"
-          modalVisible={commentModalVisible}
-          setModalVisible={setCommentModalVisible}
           variant="fullWidth"
         />
       )}

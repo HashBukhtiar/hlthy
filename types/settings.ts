@@ -11,8 +11,6 @@ export interface UserSettings {
   
   // Privacy & Visibility
   profileVisibility: 'public' | 'private';
-  followPermission: 'anyone' | 'approval';
-  commentPermission: 'everyone' | 'followers';
   messagePermission: 'everyone' | 'followers';
   blockedUsers: string[]; // Array of user IDs
   
