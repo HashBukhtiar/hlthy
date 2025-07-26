@@ -55,6 +55,10 @@ Here's a comprehensive testing checklist for your Settings system. Test these sc
   - Test each option (Public, Private)
   - Verify privacy level updates accordingly
 
+- [ ] ** Who Can Message You **
+  - Test each option (Everyone, Followers Only)
+  - Verify behaviour works accordingly
+
 - [ ] **Blocked Users**
   - Test navigation to blocked users screen
   - Test when no blocked users exist

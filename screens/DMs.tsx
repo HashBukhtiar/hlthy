@@ -166,6 +166,8 @@ export default function DMs() {
     const [searchLoading, setSearchLoading] = useState(false);
     const searchInputRef = useRef<TextInput>(null);
     const [refreshing, setRefreshing] = useState(false);
+    const [messageRequests, setMessageRequests] = useState<any[]>([]);
+    const [loadingRequests, setLoadingRequests] = useState(true);
     
     const handleComposePress = () => {
         setIsSearching(true);
@@ -280,6 +282,87 @@ export default function DMs() {
             fetchConversations();
         }, [fetchConversations])
     );
+
+    useEffect(() => {
+        if (!currentUser) {
+            setMessageRequests([]);
+            setLoadingRequests(false);
+            return;
+        }
+        setLoadingRequests(true);
+        const fetchRequests = async () => {
+            try {
+                const reqSnap = await getDocs(collection(db, "users", currentUser.uid, "messageRequests"));
+                setMessageRequests(reqSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+            } catch (error) {
+                console.error("Error fetching message requests:", error);
+                setMessageRequests([]);
+            } finally {
+                setLoadingRequests(false);
+            }
+        };
+        fetchRequests();
+    }, [currentUser]);
+
+    const handleApproveRequest = async (req: any) => {
+        try {
+            // Create conversation if it doesn't exist
+            const conversationRef = doc(db, "conversations", req.conversationId);
+            const conversationSnap = await getDoc(conversationRef);
+            if (!conversationSnap.exists()) {
+                await setDoc(conversationRef, {
+                    participants: [currentUser.uid, req.fromUserId],
+                    lastMessageAt: serverTimestamp(),
+                    lastMessageText: req.text,
+                    participantUsernames: {
+                        [currentUser.uid]: currentUser.displayName || currentUser.email || 'Current User',
+                        [req.fromUserId]: req.fromUserId, // You may want to fetch username
+                    },
+                    participantProfileImages: {
+                        [currentUser.uid]: currentUser.photoURL || '',
+                        [req.fromUserId]: '', // You may want to fetch image
+                    },
+                    isPinnedAI: false,
+                });
+            }
+            // Add both users' conversation refs
+            await setDoc(doc(db, `users/${currentUser.uid}/conversations`, req.conversationId), {
+                otherParticipantId: req.fromUserId,
+                otherParticipantUsername: req.fromUserId,
+                otherParticipantProfileImage: '',
+            }, { merge: true });
+            await setDoc(doc(db, `users/${req.fromUserId}/conversations`, req.conversationId), {
+                otherParticipantId: currentUser.uid,
+                otherParticipantUsername: currentUser.displayName || currentUser.email || 'Current User',
+                otherParticipantProfileImage: currentUser.photoURL || '',
+            }, { merge: true });
+
+            // Move the message to the conversation's messages subcollection
+            await addDoc(collection(db, "conversations", req.conversationId, "messages"), {
+                text: req.text,
+                createdAt: req.createdAt || serverTimestamp(),
+                senderId: req.fromUserId,
+            });
+
+            // Remove the request
+            await deleteDoc(doc(db, "users", currentUser.uid, "messageRequests", req.id));
+            setMessageRequests(msgs => msgs.filter(m => m.id !== req.id));
+            Alert.alert("Request approved", "You can now chat with this user.");
+        } catch (error) {
+            console.error("Error approving request:", error);
+            Alert.alert("Error", "Failed to approve request.");
+        }
+    };
+
+    const handleIgnoreRequest = async (req: any) => {
+        try {
+            await deleteDoc(doc(db, "users", currentUser.uid, "messageRequests", req.id));
+            setMessageRequests(msgs => msgs.filter(m => m.id !== req.id));
+        } catch (error) {
+            console.error("Error ignoring request:", error);
+            Alert.alert("Error", "Failed to ignore request.");
+        }
+    };
 
     const handleRefresh = useCallback(async () => {
         setRefreshing(true);
@@ -468,6 +551,31 @@ export default function DMs() {
                     </View>
                 </KeyboardAvoidingView>
             ) : null}
+            {(loadingRequests && !messageRequests.length) ? (
+                <View style={styles.centered}><ActivityIndicator size="small" color="#fff" /></View>
+            ) : messageRequests.length > 0 && (
+                <View style={{ padding: 10 }}>
+                    <Text style={{ color: 'white', fontWeight: 'bold', marginBottom: 8 }}>Message Requests</Text>
+                    {messageRequests.map(req => (
+                        <View key={req.id} style={{ backgroundColor: '#222', padding: 10, borderRadius: 8, marginBottom: 8 }}>
+                            <Text style={{ color: 'white', marginBottom: 8 }}>{req.text}</Text>
+                            <View style={{ flexDirection: 'row', justifyContent: 'flex-end' }}>
+                                <TouchableOpacity
+                                    style={{ marginRight: 16 }}
+                                    onPress={() => handleApproveRequest(req)}
+                                >
+                                    <Text style={{ color: '#4CD964', fontWeight: 'bold' }}>Approve</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    onPress={() => handleIgnoreRequest(req)}
+                                >
+                                    <Text style={{ color: '#FF3B30', fontWeight: 'bold' }}>Ignore</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    ))}
+                </View>
+            )}
             {loading ? (
                 <View style={styles.centered}><ActivityIndicator size="large" color="#fff" /></View>
             ) : isSearching ? (

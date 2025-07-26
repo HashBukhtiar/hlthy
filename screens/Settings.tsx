@@ -1291,7 +1291,7 @@ export default function Settings() {
             label: opt.label, 
             value: opt.value,
             icon: opt.icon,
-            description: opt.value === 'everyone' ? 'Anyone can message you' : 'Only followers can message you'
+            description: opt.value === 'everyone' ? 'Anyone can message you' : 'Only followers can message you, unless you allow others'
           }))}
           value={settings.messagePermission}
           onSelect={(value) => updateSetting('messagePermission', value)}

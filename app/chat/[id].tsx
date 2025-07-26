@@ -612,7 +612,7 @@ export default function ChatScreen() {
     const newMessage: Message = {
       id: generateId(),
       text: textToSend,
-      user: 'user', 
+      user: 'user',
       createdAt: new Date(),
     };
 
@@ -624,7 +624,7 @@ export default function ChatScreen() {
       try {
         const aiResponse = await sendMessage(textToSend);
         const aiMessage: Message = {
-          id: generateId(), 
+          id: generateId(),
           text: aiResponse,
           user: 'ai',
           createdAt: new Date(),
@@ -633,46 +633,79 @@ export default function ChatScreen() {
       } catch (error) {
         console.error('Error sending message to AI:', error);
       }
-    } else {
-      try {
-        const conversationRef = doc(db, "conversations", conversationId);
-        const messagesRef = collection(db, "conversations", conversationId, "messages");
-        
-        // The only write the client needs to do for the message itself
-        await addDoc(messagesRef, {
-          text: textToSend,
-          createdAt: serverTimestamp(),
-          senderId: currentUser.uid,
-        });
+      return;
+    }
 
-        // Update the main conversation document's last message details
-        await updateDoc(conversationRef, {
+    try {
+      // --- Message Permission Logic ---
+      if (otherParticipantId && currentUser.uid !== otherParticipantId) {
+        // Fetch recipient's messagePermission
+        const recipientDoc = await getDoc(doc(db, "users", otherParticipantId));
+        const recipientData = recipientDoc.data();
+        const messagePermission = recipientData?.messagePermission || "everyone";
+
+        // Check if sender is a follower
+        let isFollower = false;
+        if (messagePermission === "followers") {
+          const followerDoc = await getDoc(doc(db, "users", otherParticipantId, "followers", currentUser.uid));
+          isFollower = followerDoc.exists();
+        }
+
+        if (messagePermission === "followers" && !isFollower) {
+          // Store as message request
+          await setDoc(
+            doc(db, "users", otherParticipantId, "messageRequests", conversationId),
+            {
+              fromUserId: currentUser.uid,
+              text: textToSend,
+              createdAt: serverTimestamp(),
+              status: "pending",
+              conversationId,
+            }
+          );
+          Alert.alert(
+            "Message Request Sent",
+            "Your message was sent as a request. The user must approve it before you can continue messaging."
+          );
+          return;
+        }
+      }
+
+      // --- Normal Message Send Logic ---
+      const conversationRef = doc(db, "conversations", conversationId);
+      const messagesRef = collection(db, "conversations", conversationId, "messages");
+
+      await addDoc(messagesRef, {
+        text: textToSend,
+        createdAt: serverTimestamp(),
+        senderId: currentUser.uid,
+      });
+
+      await updateDoc(conversationRef, {
+        lastMessageAt: serverTimestamp(),
+        lastMessageText: textToSend,
+        lastMessageSenderId: currentUser.uid,
+      });
+
+      const userConvRef1 = doc(db, `users/${currentUser.uid}/conversations`, conversationId);
+      await setDoc(
+        userConvRef1,
+        {
+          otherParticipantId,
+          otherParticipantUsername: chatTitle,
+          otherParticipantProfileImage: profileImageUrl || '',
           lastMessageAt: serverTimestamp(),
           lastMessageText: textToSend,
-          lastMessageSenderId: currentUser.uid,
-        });
+        },
+        { merge: true }
+      );
 
-        // Update the current user's own conversation reference
-        const userConvRef1 = doc(db, `users/${currentUser.uid}/conversations`, conversationId);
-        await setDoc(
-          userConvRef1,
-          {
-            otherParticipantId,
-            otherParticipantUsername: chatTitle,
-            otherParticipantProfileImage: profileImageUrl || '',
-            lastMessageAt: serverTimestamp(),
-            lastMessageText: textToSend,
-          },
-          { merge: true }
-        );
-
-      } catch (error) {
-        console.error('Error sending message to Firestore:', error);
-        Alert.alert(
-          "Error", 
-          "Failed to send message. Please try again or restart the conversation."
-        );
-      }
+    } catch (error) {
+      console.error('Error sending message to Firestore:', error);
+      Alert.alert(
+        "Error",
+        "Failed to send message. Please try again or restart the conversation."
+      );
     }
   };
 
