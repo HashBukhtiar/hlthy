@@ -56,6 +56,11 @@ def chat():
         # Handle both 'message' and 'history' formats for backward compatibility
         message = data.get('message', '')
         history = data.get('history', [])
+        conversation_history = data.get('conversation_history', [])
+        
+        # Use the conversation_history if available, otherwise fall back to history
+        if conversation_history:
+            history = conversation_history
         
         # If we have a message but no history, create history from the message
         if message and not history:
@@ -63,6 +68,7 @@ def chat():
         
         print(f"Message: {message}")
         print(f"History length: {len(history) if history else 0}")
+        print(f"Full history: {history}")
         
         if not history or not isinstance(history, list):
             print("ERROR: Missing or invalid 'history' in request body")
@@ -83,24 +89,54 @@ def chat():
 def model_response_conversation(history):
     try:
         print('Using Vertex AI to generate response...')
+        print(f'History received: {history}')
         
-        # Get the last message from history
-        if history and len(history) > 0:
-            last_message = history[-1].get('text', '')
-            if not last_message:
-                # Try alternative formats
-                parts = history[-1].get('parts', [])
-                if isinstance(parts, list) and len(parts) > 0:
-                    last_message = parts[0]
-                else:
-                    last_message = str(history[-1])
+        # Get the current user message (should be the last message)
+        if not history or len(history) == 0:
+            return "Hello! How can I help you today?"
+        
+        # Find the last user message
+        current_message = None
+        for message in reversed(history):
+            role = message.get('role', 'user')
+            if role == 'user':
+                current_message = message.get('text', '')
+                break
+        
+        if not current_message:
+            current_message = history[-1].get('text', 'Hello')
+        
+        # Build conversation context as a single prompt
+        context_parts = []
+        for i, message in enumerate(history[:-1]):  # Exclude the last message
+            role = message.get('role', 'user')
+            text = message.get('text', '')
+            
+            if not text:
+                continue
+                
+            # Map roles properly
+            if role in ['assistant', 'model', 'ai']:
+                context_parts.append(f"Assistant: {text}")
+            elif role == 'user':
+                context_parts.append(f"User: {text}")
+        
+        # Create the full prompt with context
+        if context_parts:
+            context_text = "\n".join(context_parts)
+            full_prompt = f"""Previous conversation:
+{context_text}
+
+Current message: {current_message}
+
+Please respond as a helpful assistant, keeping in mind the previous conversation context."""
         else:
-            last_message = "Hello"
+            full_prompt = current_message
         
-        print(f"Sending message to Vertex AI: {last_message}")
+        print(f"Sending to Vertex AI: {full_prompt[:200]}...")
         
-        # Use Vertex AI to generate content
-        response = model.generate_content(last_message)
+        # Use generate_content instead of chat for better reliability
+        response = model.generate_content(full_prompt)
         
         print(f"Received response from Vertex AI: {response.text[:100] if response.text else 'None'}")
         
@@ -116,9 +152,9 @@ def model_response_conversation(history):
         if "permission" in error_msg.lower() or "403" in error_msg:
             return "Permission denied. Please check Vertex AI API permissions."
         elif "quota" in error_msg.lower():
-            return "API quota exceeded. Please try again later."
+            return "Quota exceeded. Please try again later."
         else:
-            return f"AI service error: {error_msg[:100]}..."
+            return f"Sorry, I'm having trouble connecting. Please try again later. ({str(e)[:50]})"
 
 if __name__ == "__main__":
     print("Starting Flask server with Vertex AI...")
