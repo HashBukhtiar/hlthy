@@ -5,6 +5,7 @@
  */
 
 import { Message } from "@/types";
+import { API_BASE_URL } from "@/config/api";
 
 /**
  * Send a message to the AI service and get a response
@@ -13,13 +14,15 @@ import { Message } from "@/types";
  */
 export async function sendMessage(history: Message[]): Promise<string> {
   try {
-    console.log("Sending request to Flask (Cloud Run):", history);
-    const response = await fetch('https://hlthy-ai-service-375457000023.northamerica-northeast2.run.app/api/chat', {
+    console.log("Sending request to AI service:", history);
+    console.log("Using API URL:", API_BASE_URL);
+    
+    const response = await fetch(`${API_BASE_URL}/api/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ history }),
     });
-    console.log("Response from Flask:", response.status, response.statusText);
+    console.log("Response from AI service:", response.status, response.statusText);
 
     if (!response.ok) {
       throw new Error(`Server error: ${response.status} ${response.statusText}`);

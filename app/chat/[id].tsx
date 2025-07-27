@@ -47,6 +47,7 @@ interface FirestoreMessageData {
   senderId: string;
   text: string;
   createdAt: Timestamp;
+  isAiResponse?: boolean; // Flag to identify AI responses
   sharedPost?: {
     id: string;
     imageUrl: string | null;
@@ -182,7 +183,7 @@ async function convertFirestoreDoc(
     }
   }
 
-  const userType = data.senderId === myUid ? "user" : (data.senderId === 'ai_conversation' ? 'ai' : 'other');
+  const userType = data.isAiResponse ? 'ai' : (data.senderId === myUid ? "user" : (data.senderId === 'ai_conversation' ? 'ai' : 'other'));
   const roleType = userType === 'user' ? 'user' : 'model';
 
   return {
@@ -616,76 +617,125 @@ export default function ChatScreen() {
 
   const handleSend = async () => {
     Keyboard.dismiss();
-    if (!input.trim() || !currentUser || !conversationId) return;
+    
+    console.log("Current user:", currentUser);
+    console.log("Current user UID:", currentUser?.uid);
+    console.log("Conversation ID:", conversationId);
+    
+    if (!input.trim() || !currentUser || !conversationId) {
+      console.log("Validation failed - input:", input.trim(), "currentUser:", !!currentUser, "conversationId:", conversationId);
+      return;
+    }
 
     const textToSend = input.trim();
     setInput('');
 
     const isAiChat = conversationId.endsWith('_ai_conversation');
-    const messagesRef = collection(db, "conversations", conversationId, "messages");
+    
+    try {
+      // Ensure conversation document exists for AI chats
+      if (isAiChat) {
+        const conversationRef = doc(db, "conversations", conversationId);
+        console.log("Checking if AI conversation exists for ID:", conversationId);
+        const conversationSnap = await getDoc(conversationRef);
+        
+        if (!conversationSnap.exists()) {
+          console.log("Creating AI conversation document");
+          const conversationData = {
+            participants: [currentUser.uid, 'ai_conversation'],
+            participantUsernames: {
+              [currentUser.uid]: currentUser.displayName || currentUser.email,
+              'ai_conversation': 'AI Assistant'
+            },
+            participantProfileImages: {
+              [currentUser.uid]: currentUser.photoURL || null,
+              'ai_conversation': null
+            },
+            createdAt: serverTimestamp(),
+            lastMessageAt: serverTimestamp(),
+            lastMessageText: textToSend,
+            lastMessageSenderId: currentUser.uid,
+          };
+          console.log("Conversation data to be saved:", conversationData);
+          await setDoc(conversationRef, conversationData);
+          console.log("AI conversation document created successfully");
+        } else {
+          console.log("AI conversation document already exists");
+        }
+      }
 
-    // Add user's message to Firestore. This will be picked up by the onSnapshot listener.
-    await addDoc(messagesRef, {
-      text: textToSend,
-      createdAt: serverTimestamp(),
-      senderId: currentUser.uid,
-    });
+      const messagesRef = collection(db, "conversations", conversationId, "messages");
 
-    if (isAiChat) {
-      try {
-        // The `messages` state is ordered descending. We need ascending for the API.
-        const historyForAPI = [...messages]
-          .reverse() // Create a reversed copy
-          .map(m => ({ text: m.text, role: m.role }));
+      // Add user's message to Firestore. This will be picked up by the onSnapshot listener.
+      console.log("Adding user message to Firestore:", textToSend);
+      await addDoc(messagesRef, {
+        text: textToSend,
+        createdAt: serverTimestamp(),
+        senderId: currentUser.uid,
+      });
+      console.log("User message added successfully");
 
-        // Add the new user message to the history for the API call
-        historyForAPI.push({ text: textToSend, role: 'user' });
+      if (isAiChat) {
+        try {
+          // The `messages` state is ordered descending. We need ascending for the API.
+          const historyForAPI = [...messages]
+            .reverse() // Create a reversed copy
+            .map(m => ({ text: m.text, role: m.role }));
 
-        const aiResponseText = await sendMessage(historyForAPI);
+          // Add the new user message to the history for the API call
+          historyForAPI.push({ text: textToSend, role: 'user' });
 
-        // Save AI's response to Firestore
-        await addDoc(messagesRef, {
-          text: aiResponseText,
-          createdAt: serverTimestamp(),
-          senderId: 'ai_conversation', // Static ID for the AI
-        });
-      } catch (error) {
-        console.error('Error sending message to AI:', error);
-        // Optionally add an error message to the chat
-        await addDoc(messagesRef, {
+          const aiResponseText = await sendMessage(historyForAPI);
+
+          // Save AI's response to Firestore using current user's ID with isAiResponse flag
+          await addDoc(messagesRef, {
+            text: aiResponseText,
+            createdAt: serverTimestamp(),
+            senderId: currentUser.uid, // Use current user's ID to avoid permission issues
+            isAiResponse: true, // Flag to identify this as an AI response
+          });
+        } catch (error) {
+          console.error('Error sending message to AI:', error);
+          // Add an error message to the chat
+          await addDoc(messagesRef, {
             text: "Sorry, I'm having trouble connecting. Please try again later.",
             createdAt: serverTimestamp(),
-            senderId: 'ai_conversation',
-        });
-      }
-    } else {
-      // Handle user-to-user chat metadata updates
-      try {
-        const conversationRef = doc(db, "conversations", conversationId);
-        await updateDoc(conversationRef, {
-          lastMessageAt: serverTimestamp(),
-          lastMessageText: textToSend,
-          lastMessageSenderId: currentUser.uid,
-        });
+            senderId: currentUser.uid,
+            isAiResponse: true,
+          });
+        }
+      } else {
+        // Handle user-to-user chat metadata updates
+        try {
+          const conversationRef = doc(db, "conversations", conversationId);
+          await updateDoc(conversationRef, {
+            lastMessageAt: serverTimestamp(),
+            lastMessageText: textToSend,
+            lastMessageSenderId: currentUser.uid,
+          });
 
-        const conversationSnap = await getDoc(conversationRef);
-        const participants = conversationSnap.data()?.participants;
-        if (participants) {
-          for (const userId of participants) {
-            const userConvRef = doc(db, `users/${userId}/conversations`, conversationId);
-            const userConvSnap = await getDoc(userConvRef);
-            if (userConvSnap.exists()) {
-              await updateDoc(userConvRef, {
-                lastMessageAt: serverTimestamp(),
-                lastMessageText: textToSend,
-              });
+          const conversationSnap = await getDoc(conversationRef);
+          const participants = conversationSnap.data()?.participants;
+          if (participants) {
+            for (const userId of participants) {
+              const userConvRef = doc(db, `users/${userId}/conversations`, conversationId);
+              const userConvSnap = await getDoc(userConvRef);
+              if (userConvSnap.exists()) {
+                await updateDoc(userConvRef, {
+                  lastMessageAt: serverTimestamp(),
+                  lastMessageText: textToSend,
+                });
+              }
             }
           }
+        } catch (error) {
+          console.error('Error updating conversation metadata:', error);
+          Alert.alert("Error", "Failed to update conversation. Please try again.");
         }
-      } catch (error) {
-        console.error('Error updating conversation metadata:', error);
-        Alert.alert("Error", "Failed to update conversation. Please try again.");
       }
+    } catch (error) {
+      console.error('Error in handleSend:', error);
+      Alert.alert("Error", "Failed to send message. Please try again.");
     }
   };
 
