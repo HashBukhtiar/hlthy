@@ -592,18 +592,26 @@ export default function ChatScreen() {
   }, [loading]);
 
   useEffect(() => {
-  if (!currentUser || conversationId === 'ai_conversation') return;
-  const convRef = doc(db, "conversations", conversationId);
-  getDoc(convRef).then(snap => {
-    if (!snap.exists()) return;
-    const data = snap.data() as any;
-    const otherId = data.participants.find((uid: string) => uid !== currentUser.uid);
-    if (!otherId) return;
-    setOtherParticipantId(otherId);
-    setChatTitle(data.participantUsernames[otherId]);
-    setProfileImageUrl(data.participantProfileImages[otherId]);
-  });
-}, [currentUser, conversationId]);
+    const isAiChat = conversationId.endsWith('_ai_conversation');
+    if (isAiChat) {
+      setChatTitle('AI Assistant');
+      setProfileImageUrl(null); // Or a specific AI avatar if you have one
+      return;
+    }
+
+    if (!currentUser || !conversationId) return;
+
+    const convRef = doc(db, "conversations", conversationId);
+    getDoc(convRef).then(snap => {
+      if (!snap.exists()) return;
+      const data = snap.data() as any;
+      const otherId = data.participants.find((uid: string) => uid !== currentUser.uid);
+      if (!otherId) return;
+      setOtherParticipantId(otherId);
+      setChatTitle(data.participantUsernames[otherId]);
+      setProfileImageUrl(data.participantProfileImages[otherId]);
+    });
+  }, [currentUser, conversationId]);
 
 
   const handleSend = async () => {
@@ -611,140 +619,72 @@ export default function ChatScreen() {
     if (!input.trim() || !currentUser || !conversationId) return;
 
     const textToSend = input.trim();
-
-    const newMessage: Message = {
-      id: generateId(),
-      text: textToSend,
-      user: 'user', 
-      createdAt: new Date(),
-    };
-
     setInput('');
-    setMessages(previousMessages => [...previousMessages, newMessage]);
 
-    if (conversationId === 'ai_conversation') {
-      // AI conversation handling
+    const isAiChat = conversationId.endsWith('_ai_conversation');
+    const messagesRef = collection(db, "conversations", conversationId, "messages");
+
+    // Add user's message to Firestore. This will be picked up by the onSnapshot listener.
+    await addDoc(messagesRef, {
+      text: textToSend,
+      createdAt: serverTimestamp(),
+      senderId: currentUser.uid,
+    });
+
+    if (isAiChat) {
       try {
-        const aiResponse = await sendMessage(textToSend);
-        const aiMessage: Message = {
-          id: generateId(), 
-          text: aiResponse,
-          user: 'ai',
-          createdAt: new Date(),
-        };
-        setMessages(prevMessages => [...prevMessages, aiMessage]);
+        // The `messages` state is ordered descending. We need ascending for the API.
+        const historyForAPI = [...messages]
+          .reverse() // Create a reversed copy
+          .map(m => ({ text: m.text, role: m.role }));
+
+        // Add the new user message to the history for the API call
+        historyForAPI.push({ text: textToSend, role: 'user' });
+
+        const aiResponseText = await sendMessage(historyForAPI);
+
+        // Save AI's response to Firestore
+        await addDoc(messagesRef, {
+          text: aiResponseText,
+          createdAt: serverTimestamp(),
+          senderId: 'ai_conversation', // Static ID for the AI
+        });
       } catch (error) {
         console.error('Error sending message to AI:', error);
+        // Optionally add an error message to the chat
+        await addDoc(messagesRef, {
+            text: "Sorry, I'm having trouble connecting. Please try again later.",
+            createdAt: serverTimestamp(),
+            senderId: 'ai_conversation',
+        });
       }
     } else {
+      // Handle user-to-user chat metadata updates
       try {
         const conversationRef = doc(db, "conversations", conversationId);
-        const conversationSnap = await getDoc(conversationRef);
-        
-        if (!conversationSnap.exists()) {
-          console.log("Conversation document not found, recreating...");
-          const userConvRef = doc(db, `users/${currentUser.uid}/conversations`, conversationId);
-          const userConvSnap = await getDoc(userConvRef);
-          
-          if (userConvSnap.exists()) {
-            const userData = userConvSnap.data();
-            const otherUserId = userData.otherParticipantId;
-            
-            if (otherUserId) {
-              const otherUserRef = doc(db, 'users', otherUserId);
-              const otherUserSnap = await getDoc(otherUserRef);
-              let otherUsername = userData.otherParticipantUsername || 'User';
-              let otherProfileImg = userData.otherParticipantProfileImage || '';
-              if (otherUserSnap.exists()) {
-                const otherUserData = otherUserSnap.data();
-                if (otherUserData.username) otherUsername = otherUserData.username;
-                if (otherUserData.profileImageUrl) otherProfileImg = otherUserData.profileImageUrl;
-              }
-              
-              await setDoc(conversationRef, {
-                participants: [currentUser.uid, otherUserId],
-                lastMessageAt: serverTimestamp(),
-                lastMessageText: textToSend,
-                lastMessageSenderId: currentUser.uid,
-                participantUsernames: {
-                  [currentUser.uid]: currentUser.displayName || currentUser.email || 'User',
-                  [otherUserId]: otherUsername,
-                },
-                participantProfileImages: {
-                  [currentUser.uid]: currentUser.photoURL || '',
-                  [otherUserId]: otherProfileImg,
-                },
-              });
-            } else { throw new Error("Could not find other participant ID"); }
-          } else { throw new Error("User conversation reference not found"); }
-        }
-        
-        const messagesRef = collection(db, "conversations", conversationId, "messages");
-        await addDoc(messagesRef, {
-          text: textToSend,
-          createdAt: serverTimestamp(),
-          senderId: currentUser.uid,
-        });
-
         await updateDoc(conversationRef, {
           lastMessageAt: serverTimestamp(),
           lastMessageText: textToSend,
           lastMessageSenderId: currentUser.uid,
         });
 
-        // Update user conversation refs (userConvRef1 for current user)
-        const userConvRef1 = doc(db, `users/${currentUser.uid}/conversations`, conversationId);
-        const userConvSnap1 = await getDoc(userConvRef1);
-        const conversationDataForUserRef = (await getDoc(conversationRef)).data(); // Re-fetch to ensure data consistency
-
-        if (!userConvSnap1.exists()) {
-          const otherParticipantForUserRef = conversationDataForUserRef?.participants?.find((uid: string) => uid !== currentUser.uid);
-          if (otherParticipantForUserRef) {
-            await setDoc(userConvRef1, {
-              otherParticipantId: otherParticipantForUserRef,
-              otherParticipantUsername: conversationDataForUserRef?.participantUsernames?.[otherParticipantForUserRef] || 'User',
-              otherParticipantProfileImage: conversationDataForUserRef?.participantProfileImages?.[otherParticipantForUserRef] || '',
-              lastMessageAt: serverTimestamp(),
-              lastMessageText: textToSend,
-            });
-          }
-        } else {
-          await updateDoc(userConvRef1, {
-            lastMessageAt: serverTimestamp(),
-            lastMessageText: textToSend,
-          });
-        }
-
-        // Update other user's conversation reference (userConvRef2)
-        const otherUserId = conversationDataForUserRef?.participants?.find((uid: string) => uid !== currentUser.uid);
-        if (otherUserId) {
-          const userConvRef2 = doc(db, `users/${otherUserId}/conversations`, conversationId);
-          const userConvSnap2 = await getDoc(userConvRef2);
-          const currentUserDataForOtherUserRef = (await getDoc(doc(db, 'users', currentUser.uid))).data();
-
-          if (!userConvSnap2.exists()) {
-             if (currentUserDataForOtherUserRef) {
-                await setDoc(userConvRef2, {
-                    otherParticipantId: currentUser.uid,
-                    otherParticipantUsername: currentUserDataForOtherUserRef?.username || currentUser.displayName || 'User',
-                    otherParticipantProfileImage: currentUserDataForOtherUserRef?.profileImageUrl || currentUser.photoURL || '',
-                    lastMessageAt: serverTimestamp(),
-                    lastMessageText: textToSend,
-                });
-             }
-          } else {
-            await updateDoc(userConvRef2, {
-              lastMessageAt: serverTimestamp(),
-              lastMessageText: textToSend,
-            });
+        const conversationSnap = await getDoc(conversationRef);
+        const participants = conversationSnap.data()?.participants;
+        if (participants) {
+          for (const userId of participants) {
+            const userConvRef = doc(db, `users/${userId}/conversations`, conversationId);
+            const userConvSnap = await getDoc(userConvRef);
+            if (userConvSnap.exists()) {
+              await updateDoc(userConvRef, {
+                lastMessageAt: serverTimestamp(),
+                lastMessageText: textToSend,
+              });
+            }
           }
         }
       } catch (error) {
-        console.error('Error sending message to Firestore:', error);
-        Alert.alert(
-          "Error", 
-          "Failed to send message. Please try again or restart the conversation."
-        );
+        console.error('Error updating conversation metadata:', error);
+        Alert.alert("Error", "Failed to update conversation. Please try again.");
       }
     }
   };
