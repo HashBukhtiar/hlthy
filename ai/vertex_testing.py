@@ -13,7 +13,7 @@ location = "us-central1"
 vertexai.init(project=project_id, location=location)
 
 # Initialize the model
-model = GenerativeModel("gemini-1.5-flash")
+model = GenerativeModel("gemini-2.5-pro")
 
 # Health check endpoint
 @app.route('/', methods=['GET'])
