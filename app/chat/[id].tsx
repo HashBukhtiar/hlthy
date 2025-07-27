@@ -86,6 +86,7 @@ interface Message {
   id: string;
   text: string;
   user: 'user' | 'other' | 'ai';
+  role: 'user' | 'model';
   createdAt?: Date;
   sharedPost?: {
     id: string;
@@ -181,10 +182,14 @@ async function convertFirestoreDoc(
     }
   }
 
+  const userType = data.senderId === myUid ? "user" : (data.senderId === 'ai_conversation' ? 'ai' : 'other');
+  const roleType = userType === 'user' ? 'user' : 'model';
+
   return {
     id: docSnap.id,
     text: data.text,
-    user: data.senderId === myUid ? "user" : "other",
+    user: userType,
+    role: roleType,
     createdAt: messageDate,
     sharedPost: resolvedSharedPost,
     sharedMilestone: resolvedSharedMilestone,
