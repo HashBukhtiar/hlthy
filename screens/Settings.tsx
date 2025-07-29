@@ -15,13 +15,12 @@ import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingsItem } from '@/components/settings/SettingsItem';
 import { UserSettings, SettingsSection as SettingsSectionType } from '@/types/settings';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { Platform } from 'react-native';
 import { validateSettings, sanitizeSettings } from '@/utils/settingsValidation';
-import { createSettingsBackup, restoreSettingsBackup, getSettingsHistory } from '@/utils/settingsBackup';
+import { createSettingsBackup, restoreSettingsBackup } from '@/utils/settingsBackup';
 import { exportSettings, importSettings } from '@/utils/settingsExport';
 import { trackSettingsChange, generateSettingsInsights, calculatePrivacyLevel } from '@/utils/settingsAnalytics';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
+import { uploadProfileThumbnail } from '@/services/profileStorage';
 
 const archetypeData: SelectorItem[] = [
   { 
@@ -387,12 +386,11 @@ export default function Settings() {
   const pickImage = async () => {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      
       if (status !== 'granted') {
-        Alert.alert('Permission Denied', 'We need access to your photos to update your profile picture.');
+        Alert.alert('Permission Denied', 'We need access to your photos …');
         return;
       }
-      
+
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
@@ -400,48 +398,31 @@ export default function Settings() {
         quality: 0.4,
         base64: true,
       });
-      
-      if (result.canceled || !result.assets || !result.assets.length) {
+      if (result.canceled || !result.assets?.length) return;
+
+      setLoading(true);
+      const { uri } = result.assets[0];
+      const response = await fetch(uri);
+      const blob = await response.blob();
+
+      if (blob.size > 5_000_000) {
+        Alert.alert('Image too large', 'Please select a smaller image');
+        setLoading(false);
         return;
       }
-      
-      setLoading(true);
-      
-      const uri = result.assets[0].uri;
-      const storage = getStorage();
-      const metadata = {
-        customMetadata: {
-          userId: currentUser.uid,
-          type: 'profileImage'
-        }
-      };
-      const filename = generateUniqueFilename('profile', 'jpg');
-      const storageRef = ref(storage, `profileImages/${currentUser.uid}/${filename}`);
-      
+
       try {
-        const response = await fetch(uri);
-        const blob = await response.blob();
-        
-        if (blob.size > 5000000) {
-          Alert.alert("Image too large", "Please select a smaller image or use lower quality");
-          setLoading(false);
-          return;
-        }
-        
-        await uploadBytes(storageRef, blob, metadata);
-        const downloadURL = await getDownloadURL(storageRef);
-        
+        const downloadURL = await uploadProfileThumbnail(currentUser.uid, blob);
         setProfileImage(downloadURL);
         setImageManuallyChanged(true);
-        
-        Alert.alert("Success", "Profile photo updated! Don't forget to save your changes.");
-      } catch (error) {
-        console.error("Image upload failed:", error);
-        Alert.alert("Upload Failed", "Could not upload image. Please try again later.");
+        Alert.alert('Success', "Profile photo updated! Don't forget to save.");
+      } catch (e) {
+        console.error('Thumbnail upload failed:', e);
+        Alert.alert('Upload Failed', 'Could not upload image. Try again later.');
       }
     } catch (error) {
-      console.error("Error in image picking process:", error);
-      Alert.alert("Error", "Failed to update profile picture");
+      console.error('Error in image picking process:', error);
+      Alert.alert('Error', 'Failed to update profile picture');
     } finally {
       setLoading(false);
     }
