@@ -708,8 +708,6 @@ export default function ViewPost() {
     }
   };
 
-  console.log('Profile image URL:', getOptimalImageUrl(post.authorProfileThumbnailUrl, post.authorProfileImageUrl));
-
   const renderReplyItem = (reply: Reply, commentId: string) => {
     const uri = getOptimalImageUrl(
       reply.authorProfileThumbnailUrl,
