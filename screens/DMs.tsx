@@ -4,7 +4,7 @@ import {
 } from 'react-native';
 import { useAuth } from '@/context/AuthContext';
 import { db } from '@/firebaseConfig';
-import { collection, getDocs, doc, updateDoc, getDoc, Timestamp, query, where, limit, setDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, updateDoc, addDoc, getDoc, Timestamp, query, where, limit, setDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
@@ -493,12 +493,7 @@ export default function DMs() {
     };
 
     const renderSearchItem = ({ item }: { item: UserData }) => {
-        // static fallback asset
-        const fallback = require('@/assets/images/profile-icon.png');
-        // pick the best remote URL: thumbnail first then full size
-        const remoteUrl = getOptimalImageUrl(item.profileThumbnailUrl, item.profileImageUrl);
-        // build source prop
-        const source = remoteUrl ? { uri: remoteUrl } : fallback;
+        const source = { uri: getOptimalImageUrl(item.profileThumbnailUrl, item.profileImageUrl) };
 
         return (
             <TouchableOpacity

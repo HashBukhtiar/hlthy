@@ -7,7 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { db } from '@/firebaseConfig'; 
 import { doc, getDoc, Timestamp, updateDoc, increment, setDoc, deleteDoc, collection, query, where, orderBy, getDocs, limit } from 'firebase/firestore';
 import { useAuth } from '@/context/AuthContext'; 
-import { getOptimalImageUrl, deleteImageFromStorage } from '@/utils/imageUtils';
+import { getCoverImageSource, deleteImageFromStorage } from '@/utils/imageUtils';
 
 // Interface for individual exercise within a segment
 interface WorkoutExercise {
@@ -363,13 +363,9 @@ export default function ViewWorkout() {
       
       <View style={styles.imageContainer}>
         <Image
-          source={
-            getOptimalImageUrl(workoutData.thumbnailUrl, workoutData.coverImageUrl) 
-              ? { uri: getOptimalImageUrl(workoutData.thumbnailUrl, workoutData.coverImageUrl)! } 
-              : require('@/assets/images/default_workout_cover.png')
-          }
+          source={getCoverImageSource(workoutData.thumbnailUrl, workoutData.coverImageUrl)}
           style={styles.workoutImage}
-          resizeMode="cover" 
+          resizeMode="cover"
         />
       </View>
       

@@ -16,7 +16,11 @@ export const getOptimalImageUrl = (
   thumbnailUrl?: string | null,
   originalUrl?: string | null
 ): string => {
-  return (thumbnailUrl?.trim() || originalUrl?.trim()) ?? DEFAULT_PROFILE_IMAGE;
+  const thumb = thumbnailUrl?.trim();
+  const orig = originalUrl?.trim();
+  if (thumb) return thumb;
+  if (orig) return orig;
+  return DEFAULT_PROFILE_IMAGE;
 };
 
 export const getCoverImageSource = (
