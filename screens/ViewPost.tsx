@@ -11,7 +11,7 @@ import ShareModal from '@/components/ShareModal';
 import { sharePost } from '@/services/ShareService';
 import { usePostsData, Post, Comment, Reply } from '@/hooks/usePostsData';
 import { useAuth } from '@/context/AuthContext';
-import { collection, query, where, limit, getDocs } from 'firebase/firestore';
+import { collection, query, where, limit, getDocs, getDoc, doc } from 'firebase/firestore';
 import { db } from '@/firebaseConfig';
 import { getOptimalImageUrl, deleteImageFromStorage, deleteMilestoneFromFirestore } from '@/utils/imageUtils';
 
@@ -63,30 +63,62 @@ export default function ViewPost() {
   useEffect(() => {
     const fetchPostData = async () => {
       if (!postId) {
-        console.error("No post ID provided");
         setLoading(false);
         return;
       }
-
-      console.log("Fetching post with ID:", postId);
-      
+      setLoading(true);
       try {
-        setLoading(true);
-        
-        // Get post data
+        // Fetch post
         const fetchedPost = await getPostById(postId);
+        if (fetchedPost && fetchedPost.authorId) {
+          const userDoc = await getDoc(doc(db, 'users', fetchedPost.authorId));
+          if (userDoc.exists()) {
+            const userData = userDoc.data();
+            fetchedPost.authorProfileThumbnailUrl = userData.profileThumbnailUrl || '';
+          }
+        }
         setPost(fetchedPost);
-        
-        // Get comments
+
+        // Fetch comments
         const fetchedComments = await getPostComments(postId);
-        setComments(fetchedComments);
+
+        // For each comment, fetch the author's thumbnail
+        const commentsWithThumbnails = await Promise.all(
+          fetchedComments.map(async (comment) => {
+            if (comment.authorId) {
+              const userDoc = await getDoc(doc(db, 'users', comment.authorId));
+              if (userDoc.exists()) {
+                const userData = userDoc.data();
+                comment.authorProfileThumbnailUrl = userData.profileThumbnailUrl || '';
+              }
+            }
+            // For each reply, fetch the author's thumbnail
+            if (comment.replies && comment.replies.length > 0) {
+              comment.replies = await Promise.all(
+                comment.replies.map(async (reply) => {
+                  if (reply.authorId) {
+                    const replyUserDoc = await getDoc(doc(db, 'users', reply.authorId));
+                    if (replyUserDoc.exists()) {
+                      const replyUserData = replyUserDoc.data();
+                      reply.authorProfileThumbnailUrl = replyUserData.profileThumbnailUrl || '';
+                    }
+                  }
+                  return reply;
+                })
+              );
+            }
+            return comment;
+          })
+        );
+
+        setComments(commentsWithThumbnails);
       } catch (error) {
-        console.error("Error fetching post:", error);
+        console.error("Error fetching post/comments:", error);
       } finally {
         setLoading(false);
       }
     };
-    
+
     fetchPostData();
   }, [postId]);
 
@@ -676,42 +708,55 @@ export default function ViewPost() {
     }
   };
 
-  const renderReplyItem = (reply: Reply, commentId: string) => (
-    <View key={reply.id} style={styles.replyItem}>
-      <View style={styles.commentLeftSection}>
-        <Image
-          source={{ uri: getOptimalImageUrl(reply.authorProfileThumbnailUrl, reply.authorProfileImageUrl) || 'https://via.placeholder.com/150' }}
-          style={styles.replyProfilePic}
-        />
-        <View style={styles.commentContent}>
-          <View style={styles.commentHeader}>
-            <Text style={styles.commentUsername}>{reply.authorUsername}</Text>
-            <Text style={styles.commentTimestamp}>{formatDate(reply.createdAt)}</Text>
+  console.log('Profile image URL:', getOptimalImageUrl(post.authorProfileThumbnailUrl, post.authorProfileImageUrl));
+
+  const renderReplyItem = (reply: Reply, commentId: string) => {
+    const uri = getOptimalImageUrl(
+      reply.authorProfileThumbnailUrl,
+      reply.authorProfileImageUrl
+    );
+
+    return (
+      <View key={reply.id} style={styles.replyItem}>
+        <View style={styles.commentLeftSection}>
+          <Image
+            source={{ uri, cache: 'reload' }}
+            style={styles.replyProfilePic}
+            key={uri}
+            onError={({ nativeEvent }) =>
+              console.error('Reply image failed to load:', uri, nativeEvent)
+            }
+          />
+          <View style={styles.commentContent}>
+            <View style={styles.commentHeader}>
+              <Text style={styles.commentUsername}>{reply.authorUsername}</Text>
+              <Text style={styles.commentTimestamp}>{formatDate(reply.createdAt)}</Text>
+            </View>
+            <Text style={styles.commentText}>{reply.text}</Text>
+            {/* Reply Actions (e.g., like for reply) can go here */}
           </View>
-          <Text style={styles.commentText}>{reply.text}</Text>
-          {/* Reply Actions (e.g., like for reply) can go here */}
+        </View>
+        <View style={styles.commentLikeContainer}>
+          <TouchableOpacity 
+            style={styles.commentLikeButton}
+            onPress={() => handleReplyLike(commentId, reply.id)}
+          >
+            <Ionicons 
+              name={reply.isLiked ? "heart" : "heart-outline"} 
+              size={14} 
+              color={reply.isLiked ? "#FF3B30" : "#999"}
+            />
+          </TouchableOpacity>
+          <Text style={[
+            styles.commentLikeCount,
+            reply.isLiked && styles.commentLikedCount
+          ]}>
+            {reply.likes || 0}
+          </Text>
         </View>
       </View>
-      <View style={styles.commentLikeContainer}>
-        <TouchableOpacity 
-          style={styles.commentLikeButton}
-          onPress={() => handleReplyLike(commentId, reply.id)}
-        >
-          <Ionicons 
-            name={reply.isLiked ? "heart" : "heart-outline"} 
-            size={14} 
-            color={reply.isLiked ? "#FF3B30" : "#999"}
-          />
-        </TouchableOpacity>
-        <Text style={[
-          styles.commentLikeCount,
-          reply.isLiked && styles.commentLikedCount
-        ]}>
-          {reply.likes || 0}
-        </Text>
-      </View>
-    </View>
-  );
+    );
+  };
 
   return (
     <KeyboardAvoidingView 
