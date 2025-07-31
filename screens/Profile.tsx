@@ -1,10 +1,12 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { View, ScrollView, Text, Image, StyleSheet, Dimensions, FlatList, TouchableOpacity, SafeAreaView, Animated, ActivityIndicator, RefreshControl, Modal } from 'react-native';
+import { View, ScrollView, Text, Image, StyleSheet, Dimensions, FlatList, TouchableOpacity, SafeAreaView, Animated, ActivityIndicator, RefreshControl, Modal, Platform, ActionSheetIOS, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useProfileData } from '@/hooks/useProfileData';
 import { useAuth } from '@/context/AuthContext';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { formatCount } from '@/logic/formattingFunctions';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { app } from '@/firebaseConfig';
 import { BOTTOM_BAR_HEIGHT } from '@/styles/globalStyles';
 
 const archetypeIcons = {
@@ -201,6 +203,62 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
       );
     }
     return null;
+  };
+
+  const handleBlockUser = async () => {
+    if (!displayProfileData?.id) return;
+    const username = displayProfileData.username || 'this user';
+
+    Alert.alert(
+      'Block User',
+      `Are you sure you want to block @${username}? They will not be able to interact with you.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Block',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const functions = getFunctions(app, 'northamerica-northeast2');
+              const blockUserFn = httpsCallable(functions, 'blockUser');
+              await blockUserFn({ targetUserId: displayProfileData.id });
+              Alert.alert('Blocked', `You have blocked @${username}.`);
+              router.replace('/');
+            } catch (error) {
+              Alert.alert('Error', 'Failed to block user. Please try again.');
+              console.error('Block user error:', error);
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  // Show action sheet (three dots)
+  const showMoreOptions = () => {
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: ['Cancel', 'Block User'],
+          destructiveButtonIndex: 1,
+          cancelButtonIndex: 0,
+          userInterfaceStyle: 'dark',
+        },
+        (buttonIndex) => {
+          if (buttonIndex === 1) handleBlockUser();
+        }
+      );
+    } else {
+      // Android fallback
+      Alert.alert(
+        'More Options',
+        '',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Block User', style: 'destructive', onPress: handleBlockUser }
+        ]
+      );
+    }
   };
 
   const onRefresh = useCallback(async () => {
@@ -661,7 +719,20 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
           style={styles.profileImage}
         />
         <Text style={styles.profileName}>{processedProfileData?.displayName || 'User'}</Text>
-        <Text style={styles.profileUsername}>@{processedProfileData?.username || 'username'}</Text>
+        <View style={styles.profileNameRow}>
+          <Text style={styles.profileUsername}>
+            @{processedProfileData?.username || 'username'}
+          </Text>
+          {/* Three dots button (Other's Profile) */}
+          {!isOwnProfile && displayProfileData && (
+            <TouchableOpacity
+              style={styles.inlineMoreButton}
+              onPress={showMoreOptions}
+            >
+              <Ionicons name="ellipsis-horizontal" size={22} color="white" />
+            </TouchableOpacity>
+          )}
+        </View>
         <Text style={styles.profileBio}>{processedProfileData?.bio || 'No bio yet'}</Text>
 
         <View style={styles.statsContainer}>
@@ -815,6 +886,18 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     marginVertical: 10,
+  },
+  profileNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 5,
+  },
+  inlineMoreButton: {
+    marginLeft: 8,
+    padding: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   profileUsername: {
     color: '#a6a6a6',
@@ -1073,6 +1156,13 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 15,
     left: 15,
+    zIndex: 1,
+    padding: 8,
+  },
+  moreButton: {
+    position: 'absolute',
+    top: 15,
+    right: 15 + 48 + 8,
     zIndex: 1,
     padding: 8,
   },
