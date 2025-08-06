@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useMemo } from 'react';
 import { 
   StyleSheet, 
   Text, 
@@ -19,6 +19,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useFeedData } from '@/hooks/useFeedData';
 import { usePostsData } from '@/hooks/usePostsData';
 import { getOptimalImageUrl } from '@/utils/imageUtils';
+import { useBlockEnforcement } from '@/utils/blockUtils';
 
 // Define interfaces for milestone data
 export interface MilestoneStats {
@@ -64,6 +65,7 @@ export default function MilestonesFeed() {
   const { currentUser } = useAuth();
   const { milestones, loading, refreshing, loadingMore, hasMore, error, refreshFeed, loadMorePosts } = useFeedData();
   const { likePost, unlikePost } = usePostsData();
+  const { canInteractWithUser, isUserBlocked } = useBlockEnforcement();
   const [shareModalVisible, setShareModalVisible] = useState(false);
   const milestoneToShare = useRef<Milestone | null>(null);
 
@@ -317,18 +319,33 @@ export default function MilestonesFeed() {
     );
   }, []);
 
+  const filteredMilestones = useMemo(() => {
+    return milestones.filter(milestone => {
+      // Don't filter out current user's own milestones
+      if (milestone.authorId === currentUser?.uid) return true;
+      
+      // Check if we've blocked this user
+      if (isUserBlocked(milestone.authorId)) return false;
+      
+      // If we don't have the author's blocked users data, allow the interaction
+      return true;
+    });
+  }, [milestones, isUserBlocked, currentUser?.uid]);
+
   // Helper function to render the card content
   const renderCardContent = useCallback((item: Milestone, hasStatus = false, statusText = '', statusColor = '') => {
+    const canInteract = !isUserBlocked(item.authorId);
+    
     return (
       <>
         {/* Milestone Card Header and Details */}
         <TouchableOpacity 
           activeOpacity={0.9}
-          onPress={() => navigateToMilestone(item.id)}
+          onPress={() => canInteract ? navigateToMilestone(item.id) : null}
         >
           <View style={styles.milestoneHeader}>
             <View style={styles.milestoneIconContainer}>
-              <TouchableOpacity onPress={() => navigateToProfile(item.authorId)}>
+              <TouchableOpacity onPress={() => canInteract ? navigateToProfile(item.authorId) : null}>
                 <Image 
                   source={{ uri: getOptimalImageUrl(item.authorProfileThumbnailUrl, item.authorProfileImageUrl) }} 
                   style={styles.profilePic}
@@ -347,7 +364,7 @@ export default function MilestonesFeed() {
             </View>
             
             {/* Post Preview (if available) */}
-            {item.imageUrl && (
+            {canInteract && item.imageUrl && (
               <TouchableOpacity 
                 style={styles.postPreviewContainer}
                 onPress={() => navigateToPost(item.associatedPostId || '')}
@@ -369,34 +386,36 @@ export default function MilestonesFeed() {
         </TouchableOpacity>
         
         {/* Like and Share */}
-        <View style={styles.cardFooter}>
-          <TouchableOpacity 
-            style={styles.footerButton}
-            onPress={() => handleLike(item.id, item.isLiked)}
-          >
-            <Ionicons 
-              name={item.isLiked ? "heart" : "heart-outline"} 
-              size={20} 
-              color={item.isLiked ? "#FF69B4" : "#FFF"} 
-            />
-            <Text style={styles.footerButtonText}>
-              {item.reactionCount > 0 
-                ? `${item.reactionCount}` 
-                : "Like"}
-            </Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={styles.footerButton}
-            onPress={() => handleShare(item)}
-          >
-            <Ionicons name="paper-plane-outline" size={20} color="#FFF" />
-            <Text style={styles.footerButtonText}>Share</Text>
-          </TouchableOpacity>
-        </View>
+        {canInteract && (
+          <View style={styles.cardFooter}>
+            <TouchableOpacity 
+              style={styles.footerButton}
+              onPress={() => handleLike(item.id, item.isLiked)}
+            >
+              <Ionicons 
+                name={item.isLiked ? "heart" : "heart-outline"} 
+                size={20} 
+                color={item.isLiked ? "#FF69B4" : "#FFF"} 
+              />
+              <Text style={styles.footerButtonText}>
+                {item.reactionCount > 0 
+                  ? `${item.reactionCount}` 
+                  : "Like"}
+              </Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.footerButton}
+              onPress={() => handleShare(item)}
+            >
+              <Ionicons name="paper-plane-outline" size={20} color="#FFF" />
+              <Text style={styles.footerButtonText}>Share</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </>
     );
-  }, [navigateToMilestone, navigateToProfile, navigateToPost, formatTimeAgo, renderMilestoneDetails, handleLike, handleShare]);
+  }, [navigateToMilestone, navigateToProfile, navigateToPost, formatTimeAgo, renderMilestoneDetails, handleLike, handleShare, isUserBlocked]);
 
   // Render footer for load more
   const renderFooter = useCallback(() => {
@@ -453,7 +472,7 @@ export default function MilestonesFeed() {
   return (
     <View style={{ flex: 1 }}>
       <FlatList
-        data={milestones}
+        data={filteredMilestones}
         keyExtractor={(item) => item.id}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={milestones.length === 0 ? { flex: 1 } : styles.milestonesContainer}

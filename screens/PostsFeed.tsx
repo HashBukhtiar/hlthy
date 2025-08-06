@@ -17,6 +17,7 @@ import { getOptimalImageUrl } from '@/utils/imageUtils';
 import { useFeedData } from '@/hooks/useFeedData';
 import { usePostsData, Post } from '@/hooks/usePostsData';
 import { useAuth } from '@/context/AuthContext';
+import { useBlockEnforcement } from '@/utils/blockUtils';
 
 const DEFAULT_PROFILE_IMAGE = 'https://thumbs.dreamstime.com/b/creative-illustration-default-avatar-profile-placeholder-isolated-background-art-design-grey-photo-blank-template-mockup-144855718.jpg';
 
@@ -25,6 +26,7 @@ export default function PostsFeed() {
   const { currentUser, userProfile } = useAuth();
   const { posts, loading, refreshing, loadingMore, hasMore, error, refreshFeed, loadMorePosts } = useFeedData();
   const { likePost, unlikePost, addComment } = usePostsData();
+  const { canInteractWithUser, isUserBlocked } = useBlockEnforcement();
   
   const [newComment, setNewComment] = useState('');
   const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
@@ -127,15 +129,31 @@ export default function PostsFeed() {
     return 'View Achievement';
   }, []);
 
+  const filteredPosts = useMemo(() => {
+    return posts.filter(post => {
+      // Don't filter out current user's own posts
+      if (post.authorId === currentUser?.uid) return true;
+      
+      // Check if we've blocked this user
+      if (isUserBlocked(post.authorId)) return false;
+      
+      // If we don't have the author's blocked users data, allow the interaction
+      // (we'll handle the case where they blocked us at the individual interaction level)
+      return true;
+    });
+  }, [posts, isUserBlocked, currentUser?.uid]);
+
   // Render individual post
   const renderPost = useCallback(({ item }: { item: Post }) => {
+    const canInteract = !isUserBlocked(item.authorId);
+    
     return (
       <View style={styles.postContainer}>
         {/* Header with user info */}
         <View style={styles.postHeader}>
           <TouchableOpacity 
             style={styles.userInfoContainer}
-            onPress={() => navigateToProfile(item.authorId)}
+            onPress={() => canInteract ? navigateToProfile(item.authorId) : null}
           >
             <Image 
               source={{ uri: getOptimalImageUrl(item.authorProfileThumbnailUrl, item.authorProfileImageUrl) || DEFAULT_PROFILE_IMAGE }}
@@ -149,16 +167,18 @@ export default function PostsFeed() {
               </Text>
             </View>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.moreButton}>
-            <Ionicons name="ellipsis-horizontal" size={20} color="#FFF" />
-          </TouchableOpacity>
+          {canInteract && (
+            <TouchableOpacity style={styles.moreButton}>
+              <Ionicons name="ellipsis-horizontal" size={20} color="#FFF" />
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Post Image */}
         {item.imageUrl && (
           <TouchableOpacity 
             activeOpacity={0.9}
-            onPress={() => handleViewPost(item.id)}
+            onPress={() => canInteract ? handleViewPost(item.id) : null}
           >
             <Image
               source={{ uri: item.imageUrl! }}
@@ -169,42 +189,46 @@ export default function PostsFeed() {
         )}
 
         {/* Action Buttons */}
-        <View style={styles.actionButtons}>
-          <View style={styles.leftActions}>
+        {canInteract && (
+          <View style={styles.actionButtons}>
+            <View style={styles.leftActions}>
+              <TouchableOpacity 
+                style={styles.actionButton} 
+                onPress={() => handleToggleLike(item.id, item.isLiked || false)}
+              >
+                <Ionicons 
+                  name={item.isLiked ? "heart" : "heart-outline"} 
+                  size={28} 
+                  color={item.isLiked ? "#FF3B30" : "#FFF"} 
+                />
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.actionButton}
+                onPress={() => toggleCommentInput(item.id)}
+              >
+                <Ionicons name="chatbubble-outline" size={26} color="#FFF" />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.actionButton}>
+                <Ionicons name="paper-plane-outline" size={26} color="#FFF" />
+              </TouchableOpacity>
+            </View>
             <TouchableOpacity 
-              style={styles.actionButton} 
-              onPress={() => handleToggleLike(item.id, item.isLiked || false)}
+              style={[styles.actionButton, styles.bookmarkButton]}
+              onPress={() => handleToggleBookmark(item.id)}
             >
               <Ionicons 
-                name={item.isLiked ? "heart" : "heart-outline"} 
-                size={28} 
-                color={item.isLiked ? "#FF3B30" : "#FFF"} 
+                name={item.isBookmarked ? "bookmark" : "bookmark-outline"} 
+                size={26} 
+                color="#FFF" 
               />
             </TouchableOpacity>
-            <TouchableOpacity 
-              style={styles.actionButton}
-              onPress={() => toggleCommentInput(item.id)}
-            >
-              <Ionicons name="chatbubble-outline" size={26} color="#FFF" />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.actionButton}>
-              <Ionicons name="paper-plane-outline" size={26} color="#FFF" />
-            </TouchableOpacity>
           </View>
-          <TouchableOpacity 
-            style={[styles.actionButton, styles.bookmarkButton]}
-            onPress={() => handleToggleBookmark(item.id)}
-          >
-            <Ionicons 
-              name={item.isBookmarked ? "bookmark" : "bookmark-outline"} 
-              size={26} 
-              color="#FFF" 
-            />
-          </TouchableOpacity>
-        </View>
+        )}
 
         {/* Likes */}
-        <Text style={styles.likes}>{item.reactionCount || 0} likes</Text>
+        {canInteract && (
+          <Text style={styles.likes}>{item.reactionCount || 0} likes</Text>
+        )}
 
         {/* Caption */}
         {item.caption && (
@@ -213,18 +237,20 @@ export default function PostsFeed() {
           </View>
         )}
         
-        {/* Comments preview button */}
-        <TouchableOpacity 
-          style={styles.commentsPreview}
-          onPress={() => handleViewPost(item.id)}
-        >
-          <Text style={styles.commentsPreviewText}>
-            View all {item.commentCount || 0} comments
-          </Text>
-        </TouchableOpacity>
+        {/* Comments preview */}
+        {canInteract && (
+          <TouchableOpacity 
+            style={styles.commentsPreview}
+            onPress={() => handleViewPost(item.id)}
+          >
+            <Text style={styles.commentsPreviewText}>
+              View all {item.commentCount || 0} comments
+            </Text>
+          </TouchableOpacity>
+        )}
 
         {/* Comment Input (shown only for active comment) */}
-        {activeCommentId === item.id && (
+        {canInteract && activeCommentId === item.id && (
           <View style={styles.commentInputContainer}>
             <Image 
               source={{ 
@@ -257,7 +283,7 @@ export default function PostsFeed() {
         )}
 
         {/* Attached Milestone (if exists) - For Achievement Posts */}
-        {item.isMilestone && item.milestoneDetails && (
+        {canInteract && item.isMilestone && item.milestoneDetails && (
           <TouchableOpacity 
             style={styles.attachedItemContainer}
             onPress={() => navigateToMilestone(item.id)}
@@ -281,7 +307,7 @@ export default function PostsFeed() {
         )}
 
         {/* Attached Workout (if exists) */}
-        {item.workoutId && (
+        {canInteract && item.workoutId && (
           <TouchableOpacity 
             style={styles.attachedItemContainer}
             onPress={() => navigateToWorkout(item.workoutId!)}
@@ -317,7 +343,8 @@ export default function PostsFeed() {
     navigateToMilestone,
     navigateToWorkout,
     formatMilestonePreview,
-    userProfile
+    userProfile,
+    isUserBlocked,
   ]);
 
   // Render footer for load more
@@ -374,7 +401,7 @@ export default function PostsFeed() {
 
   return (
     <FlatList
-      data={posts}
+      data={filteredPosts}
       renderItem={renderPost}
       keyExtractor={(item, index) => `${item.id}-${index}`}
       showsVerticalScrollIndicator={false}
