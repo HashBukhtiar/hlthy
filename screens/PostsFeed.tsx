@@ -137,8 +137,11 @@ export default function PostsFeed() {
       // Check if we've blocked this user
       if (isUserBlocked(post.authorId)) return false;
       
-      // If we don't have the author's blocked users data, allow the interaction
-      // (we'll handle the case where they blocked us at the individual interaction level)
+      // Check if this user has blocked us
+      if (post.authorBlockedUsers && post.authorBlockedUsers.includes(currentUser?.uid)) {
+        return false;
+      }
+      
       return true;
     });
   }, [posts, isUserBlocked, currentUser?.uid]);

@@ -327,7 +327,11 @@ export default function MilestonesFeed() {
       // Check if we've blocked this user
       if (isUserBlocked(milestone.authorId)) return false;
       
-      // If we don't have the author's blocked users data, allow the interaction
+      // Check if this user has blocked us
+      if (milestone.authorBlockedUsers && milestone.authorBlockedUsers.includes(currentUser?.uid)) {
+        return false;
+      }
+      
       return true;
     });
   }, [milestones, isUserBlocked, currentUser?.uid]);

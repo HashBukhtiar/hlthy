@@ -19,7 +19,7 @@ import { Post } from '@/hooks/usePostsData';
 import { UserProfile } from '@/types';
 
 interface FeedPost extends Post {
-  // Add any feed-specific properties if needed
+  authorBlockedUsers?: string[];
 }
 
 export function useFeedData() {
@@ -76,6 +76,7 @@ export function useFeedData() {
         ...postData,
         authorProfileImageUrl: authorProfile?.profileImageUrl,
         authorProfileThumbnailUrl: authorProfile?.profileThumbnailUrl,
+        authorBlockedUsers: authorProfile?.blockedUsers || [],
         isLiked: likeDoc.exists(),
         isBookmarked: false, // TODO: Implement bookmark checking
       });
