@@ -8,6 +8,7 @@ import { formatCount } from '@/logic/formattingFunctions';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { app } from '@/firebaseConfig';
 import { BOTTOM_BAR_HEIGHT } from '@/styles/globalStyles';
+import { useBlockEnforcement } from '@/utils/blockUtils';
 
 const archetypeIcons = {
   'athlete': require('@/assets/images/athlete.png'),
@@ -76,6 +77,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
     viewedProfileId,
   } = useProfileData(routeUserId, currentUserProfile);
   const createdWorkouts = workouts || [];
+  const { isUserBlocked } = useBlockEnforcement();
 
   const displayablePosts = useMemo(() => {
     if (!posts) return [];
@@ -222,6 +224,12 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
               const functions = getFunctions(app, 'northamerica-northeast2');
               const blockUserFn = httpsCallable(functions, 'blockUser');
               await blockUserFn({ targetUserId: displayProfileData.id });
+              
+              // Refresh user profile to update blocked users list
+              if (refreshUserProfile) {
+                await refreshUserProfile();
+              }
+              
               Alert.alert('Blocked', `You have blocked @${username}.`);
               router.replace('/');
             } catch (error) {
@@ -234,18 +242,55 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
     );
   };
 
+  // Add new handleUnblockUser function
+  const handleUnblockUser = async () => {
+    if (!displayProfileData?.id) return;
+    const username = displayProfileData.username || 'this user';
+
+    Alert.alert(
+      'Unblock User',
+      `Are you sure you want to unblock @${username}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Unblock',
+          style: 'default',
+          onPress: async () => {
+            try {
+              const functions = getFunctions(app, 'northamerica-northeast2');
+              const unblockUserFn = httpsCallable(functions, 'unblockUser');
+              await unblockUserFn({ targetUserId: displayProfileData.id });
+              Alert.alert('Success', `@${username} has been unblocked.`);
+              // Refresh the profile data to update the UI
+              await refreshProfileData();
+            } catch (error) {
+              Alert.alert('Error', 'Failed to unblock user. Please try again.');
+              console.error('Unblock user error:', error);
+            }
+          }
+        }
+      ]
+    );
+  };
+
   // Show action sheet (three dots)
   const showMoreOptions = () => {
+    if (!displayProfileData?.id) return;
+    
+    const isBlocked = isUserBlocked(displayProfileData.id);
+    const actionText = isBlocked ? 'Unblock User' : 'Block User';
+    const actionHandler = isBlocked ? handleUnblockUser : handleBlockUser;
+    
     if (Platform.OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
         {
-          options: ['Cancel', 'Block User'],
-          destructiveButtonIndex: 1,
+          options: ['Cancel', actionText],
+          destructiveButtonIndex: isBlocked ? -1 : 1,
           cancelButtonIndex: 0,
           userInterfaceStyle: 'dark',
         },
         (buttonIndex) => {
-          if (buttonIndex === 1) handleBlockUser();
+          if (buttonIndex === 1) actionHandler();
         }
       );
     } else {
@@ -255,7 +300,11 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
         '',
         [
           { text: 'Cancel', style: 'cancel' },
-          { text: 'Block User', style: 'destructive', onPress: handleBlockUser }
+          { 
+            text: actionText, 
+            style: isBlocked ? 'default' : 'destructive', 
+            onPress: actionHandler 
+          }
         ]
       );
     }

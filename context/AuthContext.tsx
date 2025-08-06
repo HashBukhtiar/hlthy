@@ -15,14 +15,16 @@ export function AuthProvider({ children }) {
   const refreshUserProfile = async () => {
     if (currentUser) {
       try {
+        console.log('Refreshing user profile for user:', currentUser.uid);
         const userDoc = await getDoc(doc(db, "users", currentUser.uid));
         if (userDoc.exists()) {
           const userData = userDoc.data();
           setUserProfile({
+            uid: userDoc.id, // Use 'uid' instead of 'id' to match UserProfile type
             ...userData,
-            profileImageUrl: userData.profileImageUrl,
-            profileThumbnailUrl: userData.profileThumbnailUrl,
           } as UserProfile);
+          
+          console.log('Updated blocked users:', userData.blockedUsers);
         }
       } catch (error) {
         console.error("Error refreshing user profile:", error);
@@ -40,9 +42,8 @@ export function AuthProvider({ children }) {
           if (userDoc.exists()) {
             const userData = userDoc.data();
             setUserProfile({
+              uid: userDoc.id, // Use 'uid' instead of 'id' to match UserProfile type
               ...userData,
-              profileImageUrl: userData.profileImageUrl,
-              profileThumbnailUrl: userData.profileThumbnailUrl, // Add this line
             } as UserProfile);
           }
         } catch (error) {

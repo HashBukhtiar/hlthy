@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, Image, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/context/AuthContext';
 import { doc, updateDoc, arrayRemove, collection, query, where, getDocs } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { db, app } from '@/firebaseConfig';
 import { getOptimalImageUrl } from '@/utils/imageUtils';
+import { useCallback } from 'react';
 
 interface BlockedUser {
   id: string;
@@ -19,14 +20,24 @@ interface BlockedUser {
 
 export default function BlockedUsers() {
   const router = useRouter();
-  const { currentUser, userProfile } = useAuth();
+  const { currentUser, userProfile, refreshUserProfile } = useAuth();
   const [blockedUsers, setBlockedUsers] = useState<BlockedUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [unblockingUserId, setUnblockingUserId] = useState<string | null>(null);
 
+  // Replace useEffect with useFocusEffect to refresh on screen focus
+  useFocusEffect(
+    useCallback(() => {
+      fetchBlockedUsers();
+    }, [userProfile?.blockedUsers])
+  );
+
+  // Also refresh when userProfile.blockedUsers changes
   useEffect(() => {
-    fetchBlockedUsers();
-  }, []);
+    if (userProfile?.blockedUsers) {
+      fetchBlockedUsers();
+    }
+  }, [userProfile?.blockedUsers]);
 
   const fetchBlockedUsers = async () => {
     if (!currentUser || !userProfile?.blockedUsers) {
@@ -92,11 +103,23 @@ export default function BlockedUsers() {
               const unblockUserFn = httpsCallable(functions, 'unblockUser');
               await unblockUserFn({ targetUserId: userId });
 
+              // Remove from local state immediately for better UX
               setBlockedUsers(prev => prev.filter(user => user.id !== userId));
+              
+              // Show success message
               Alert.alert('Success', `@${username} has been unblocked`);
+              
+              // Refresh user profile to update blocked users list
+              if (refreshUserProfile) {
+                await refreshUserProfile();
+              }
+              
             } catch (error) {
               console.error('Error unblocking user:', error);
-              Alert.alert('Error', 'Failed to unblock user');
+              Alert.alert('Error', 'Failed to unblock user. Please try again.');
+              
+              // Refresh the list in case of error to ensure consistency
+              fetchBlockedUsers();
             } finally {
               setUnblockingUserId(null);
             }

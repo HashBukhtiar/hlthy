@@ -21,6 +21,9 @@ export interface UserProfile {
   // Profile Images
   profileImageUrl?: string;
   profileThumbnailUrl?: string | null;
+
+  // Blocked Users
+  blockedUsers?: string[];
   
   // Timestamps
   createdAt: Timestamp;

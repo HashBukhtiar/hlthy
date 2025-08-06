@@ -1,18 +1,18 @@
 import { useAuth } from '@/context/AuthContext';
 
 export const useBlockEnforcement = () => {
-  const { userProfile } = useAuth();
+  const { userProfile, refreshUserProfile } = useAuth();
 
   const isUserBlocked = (userId: string): boolean => {
     return userProfile?.blockedUsers?.includes(userId) || false;
   };
 
   const hasUserBlockedMe = (userBlockedUsers: string[]): boolean => {
-    return userBlockedUsers?.includes(userProfile?.id || '') || false;
+    return userBlockedUsers?.includes(userProfile?.uid || '') || false; 
   };
 
   const canInteractWithUser = (targetUserId: string, targetUserBlockedUsers?: string[]): boolean => {
-    if (!userProfile?.id) return false;
+    if (!userProfile?.uid) return false;
     
     // Check if I blocked them
     if (isUserBlocked(targetUserId)) return false;
@@ -23,9 +23,17 @@ export const useBlockEnforcement = () => {
     return true;
   };
 
+  // Add refresh capability
+  const refreshBlockStatus = async () => {
+    if (refreshUserProfile) {
+      await refreshUserProfile();
+    }
+  };
+
   return {
     isUserBlocked,
     hasUserBlockedMe,
-    canInteractWithUser
+    canInteractWithUser,
+    refreshBlockStatus
   };
 };
