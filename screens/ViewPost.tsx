@@ -14,6 +14,7 @@ import { useAuth } from '@/context/AuthContext';
 import { collection, query, where, limit, getDocs, getDoc, doc } from 'firebase/firestore';
 import { db } from '@/firebaseConfig';
 import { getOptimalImageUrl, deleteImageFromStorage, deleteMilestoneFromFirestore } from '@/utils/imageUtils';
+import { useBlockEnforcement } from '@/utils/blockUtils';
 
 export default function ViewPost() {
   const [menuVisible, setMenuVisible] = useState(false);
@@ -21,6 +22,7 @@ export default function ViewPost() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { currentUser, userProfile } = useAuth();
+  const { canInteractWithUser } = useBlockEnforcement();
   const {
     getPostById, 
     getPostComments, 
@@ -187,21 +189,31 @@ export default function ViewPost() {
         usersRef,
         where('username', '>=', searchText.toLowerCase()),
         where('username', '<=', searchText.toLowerCase() + '\uf8ff'),
-        limit(10)
+        limit(20) // Fetch more to account for filtering
       );
 
       const querySnapshot = await getDocs(q);
       const users: {id: string, username: string, profileImageUrl?: string}[] = [];
+      
       querySnapshot.forEach(doc => {
-        if (doc.id !== currentUser?.uid) {
+        const userData = doc.data();
+        const userId = doc.id;
+        
+        // Skip current user and blocked users
+        if (userId === currentUser?.uid) return;
+        
+        // Check if we can interact with this user
+        if (canInteractWithUser(userId, userData.blockedUsers)) {
           users.push({
-            id: doc.id,
-            username: doc.data().username,
-            profileImageUrl: doc.data().profileImageUrl,
+            id: userId,
+            username: userData.username,
+            profileImageUrl: userData.profileImageUrl,
           });
         }
       });
-      setSearchResults(users);
+      
+      // Limit final results
+      setSearchResults(users.slice(0, 10));
     } catch (error) {
       console.error("Error searching users:", error);
     } finally {

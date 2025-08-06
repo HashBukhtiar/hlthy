@@ -9,6 +9,8 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { getOptimalImageUrl } from '@/utils/imageUtils';
+import { useBlockEnforcement } from '@/utils/blockUtils';
+
 
 interface UserConversationData {
     // Fields from /users/{userId}/conversations/{conversationId}
@@ -157,6 +159,7 @@ const ChatItem = ({
 
 export default function DMs() {
     const { currentUser } = useAuth();
+    const { canInteractWithUser } = useBlockEnforcement();
     const router = useRouter();
     const [conversations, setConversations] = useState<CombinedConversationItem[]>([]);
     const [loading, setLoading] = useState(true);
@@ -383,29 +386,39 @@ export default function DMs() {
                 usersRef,
                 where('username', '>=', searchText.toLowerCase()),
                 where('username', '<=', searchText.toLowerCase() + '\uf8ff'),
-                limit(10)
+                limit(20) // Fetch more to account for filtering
             );
 
             const querySnapshot = await getDocs(q);
             const users: UserData[] = [];
+            
             querySnapshot.forEach(doc => {
-                if (doc.id !== currentUser?.uid) {
+                const userData = doc.data();
+                const userId = doc.id;
+                
+                // Skip current user and blocked users
+                if (userId === currentUser?.uid) return;
+                
+                // Check if we can interact with this user
+                if (canInteractWithUser(userId, userData.blockedUsers)) {
                     users.push({
-                        id: doc.id,
-                        username: doc.data().username,
-                        profileImageUrl: doc.data().profileImageUrl,
-                        profileThumbnailUrl: doc.data().profileThumbnailUrl,
+                        id: userId,
+                        username: userData.username,
+                        profileImageUrl: userData.profileImageUrl,
+                        profileThumbnailUrl: userData.profileThumbnailUrl,
                     });
                 }
             });
-            setSearchResults(users);
+            
+            // Limit final results
+            setSearchResults(users.slice(0, 10));
         } catch (error) {
             console.error("Error searching users: ", error);
             setSearchResults([]);
         } finally {
             setSearchLoading(false);
         }
-    }, [searchText, currentUser]);
+    }, [searchText, currentUser, canInteractWithUser]);
 
     useEffect(() => {
         // Debounce the search function

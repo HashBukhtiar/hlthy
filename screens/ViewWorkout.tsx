@@ -8,6 +8,7 @@ import { db } from '@/firebaseConfig';
 import { doc, getDoc, Timestamp, updateDoc, increment, setDoc, deleteDoc, collection, query, where, orderBy, getDocs, limit } from 'firebase/firestore';
 import { useAuth } from '@/context/AuthContext'; 
 import { getCoverImageSource, deleteImageFromStorage } from '@/utils/imageUtils';
+import { useBlockEnforcement } from '@/utils/blockUtils';
 
 // Interface for individual exercise within a segment
 interface WorkoutExercise {
@@ -47,6 +48,7 @@ export default function ViewWorkout() {
   const params = useLocalSearchParams();
   const workoutId = params.id as string;
   const { currentUser } = useAuth();
+  const { canInteractWithUser } = useBlockEnforcement();
 
   const [workoutData, setWorkoutData] = useState<WorkoutData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -72,20 +74,27 @@ export default function ViewWorkout() {
         where('username', '>=', lowerText),
         where('username', '<=', lowerText + '\uf8ff'),
         orderBy('username'),
-        limit(10)
+        limit(20)
       );
       const querySnapshot = await getDocs(q);
       const results: any[] = [];
       querySnapshot.forEach(docSnap => {
         const userData = docSnap.data();
-        results.push({
-          id: docSnap.id,
-          username: userData.username,
-          profileImageUrl: userData.profileImageUrl,
-          profileThumbnailUrl: userData.profileThumbnailUrl,
-        });
+        const userId = docSnap.id;
+        
+        // Skip current user and blocked users
+        if (userId === currentUser?.uid) return;
+        
+        if (canInteractWithUser(userId, userData.blockedUsers)) {
+          results.push({
+            id: userId,
+            username: userData.username,
+            profileImageUrl: userData.profileImageUrl,
+            profileThumbnailUrl: userData.profileThumbnailUrl,
+          });
+        }
       });
-      setSearchResults(results);
+      setSearchResults(results.slice(0, 10));
     } catch (error) {
       console.error("Error searching users:", error);
     } finally {

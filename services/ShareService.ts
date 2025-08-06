@@ -128,7 +128,7 @@ export const shareWorkout = async (
   recipientId: string,
   recipientUsername: string,
   recipientProfileImageUrl: string | undefined,
-  recipientProfileThumbnailUrl: string | undefined, // Add this parameter
+  recipientProfileThumbnailUrl: string | undefined,
   workout: {
     id: string;
     title: string;
@@ -179,7 +179,7 @@ export const shareMilestone = async (
   recipientId: string,
   recipientUsername: string,
   recipientProfileImageUrl: string | undefined,
-  recipientProfileThumbnailUrl: string | undefined, // Add this parameter
+  recipientProfileThumbnailUrl: string | undefined,
   milestone: {
     id: string;
     milestoneType: string;
