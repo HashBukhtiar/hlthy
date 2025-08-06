@@ -7,6 +7,7 @@ import { db } from '@/firebaseConfig';
 import { useAuth } from '@/context/AuthContext';
 import { LinearGradient } from 'expo-linear-gradient';
 import { getOptimalImageUrl } from '@/utils/imageUtils';
+import { useBlockEnforcement } from '@/utils/blockUtils';
 
 interface ExplorePost {
   id: string;
@@ -103,6 +104,7 @@ const PostGridItem = ({ item, onPress }: { item: ExplorePost; onPress: () => voi
 export default function Explore() {
   const router = useRouter();
   const { userProfile, currentUser } = useAuth();
+  const { canInteractWithUser } = useBlockEnforcement();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<UserSearchResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -139,24 +141,40 @@ export default function Explore() {
         usersRef,
         where('username', '>=', searchText.toLowerCase()),
         where('username', '<=', searchText.toLowerCase() + '\uf8ff'),
-        limit(10)
+        limit(20) // Fetch more to account for filtering
       );
       const querySnapshot = await getDocs(q);
-      const users: UserSearchResult[] = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        username: doc.data().username,
-        displayName: doc.data().displayName,
-        profilePictureUrl: doc.data().profileImageUrl,
-        profileThumbnailUrl: doc.data().profileThumbnailUrl,
-      }));
-      setSearchResults(users);
+      
+      // Filter out blocked users
+      const users: UserSearchResult[] = [];
+      querySnapshot.docs.forEach(doc => {
+        const userData = doc.data();
+        const userId = doc.id;
+        
+        // Skip current user and blocked users
+        if (userId === currentUser?.uid) return;
+        
+        // Check if we can interact with this user
+        if (canInteractWithUser(userId, userData.blockedUsers)) {
+          users.push({
+            id: userId,
+            username: userData.username,
+            displayName: userData.displayName,
+            profilePictureUrl: userData.profileImageUrl,
+            profileThumbnailUrl: userData.profileThumbnailUrl,
+          });
+        }
+      });
+      
+      // Limit final results
+      setSearchResults(users.slice(0, 10));
     } catch (error) {
       console.error("Error searching users:", error);
       setSearchResults([]);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [canInteractWithUser, currentUser?.uid]);
 
   // Debounced search handler
   const handleSearch = useCallback((text: string) => {
