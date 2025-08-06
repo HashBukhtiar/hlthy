@@ -5,7 +5,8 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/context/AuthContext';
 import { doc, updateDoc, arrayRemove, collection, query, where, getDocs } from 'firebase/firestore';
-import { db } from '@/firebaseConfig';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { db, app } from '@/firebaseConfig';
 import { getOptimalImageUrl } from '@/utils/imageUtils';
 
 interface BlockedUser {
@@ -87,9 +88,9 @@ export default function BlockedUsers() {
           onPress: async () => {
             setUnblockingUserId(userId);
             try {
-              await updateDoc(doc(db, 'users', currentUser!.uid), {
-                blockedUsers: arrayRemove(userId)
-              });
+              const functions = getFunctions(app, 'northamerica-northeast2');
+              const unblockUserFn = httpsCallable(functions, 'unblockUser');
+              await unblockUserFn({ targetUserId: userId });
 
               setBlockedUsers(prev => prev.filter(user => user.id !== userId));
               Alert.alert('Success', `@${username} has been unblocked`);
