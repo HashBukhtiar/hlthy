@@ -47,6 +47,57 @@ export const acceptfollowrequest = onCall(
       );
     }
 
+    // Check if either user has blocked the other before accepting
+    const [targetUserDoc, requestingUserDoc] = await Promise.all([
+      db.collection("users").doc(targetUserId).get(),
+      db.collection("users").doc(requestingUserId).get(),
+    ]);
+
+    if (!targetUserDoc.exists || !requestingUserDoc.exists) {
+      throw new HttpsError("not-found", "User not found");
+    }
+
+    const targetUserData = targetUserDoc.data();
+    const requestingUserData = requestingUserDoc.data();
+
+    // Check if target user has blocked requesting user
+    const targetUserBlockedUsers = targetUserData?.blockedUsers || [];
+    if (targetUserBlockedUsers.includes(requestingUserId)) {
+      // If blocked, just ignore the request instead of accepting
+      const batch = db.batch();
+      // Update activity status to ignored
+      const activityRef = db.collection("activity").doc(targetUserId)
+        .collection("userActivity").doc(activityId);
+      batch.update(activityRef, {status: "ignored", isRead: true});
+
+      // Delete pending follower document
+      const pendingFollowerDocRef = db.collection("users").doc(targetUserId)
+        .collection("pendingFollowers").doc(requestingUserId);
+      batch.delete(pendingFollowerDocRef);
+
+      await batch.commit();
+      throw new HttpsError("failed-precondition", "Cannot accept follow request from a blocked user");
+    }
+
+    // Check if requesting user has blocked target user
+    const requestingUserBlockedUsers = requestingUserData?.blockedUsers || [];
+    if (requestingUserBlockedUsers.includes(targetUserId)) {
+      // If the requester has blocked the target, ignore the request
+      const batch = db.batch();
+      // Update activity status to ignored
+      const activityRef = db.collection("activity").doc(targetUserId)
+        .collection("userActivity").doc(activityId);
+      batch.update(activityRef, {status: "ignored", isRead: true});
+
+      // Delete pending follower document
+      const pendingFollowerDocRef = db.collection("users").doc(targetUserId)
+        .collection("pendingFollowers").doc(requestingUserId);
+      batch.delete(pendingFollowerDocRef);
+
+      await batch.commit();
+      throw new HttpsError("failed-precondition", "Cannot accept follow request - user has blocked you");
+    }
+
     const batch = db.batch();
 
     // 1. Add to targetUser's followers
@@ -72,12 +123,14 @@ export const acceptfollowrequest = onCall(
     // 3. Update follower/following counts
     const targetUserRef = db.collection("users").doc(targetUserId);
     batch.update(targetUserRef, {
-      followerCount: admin.firestore.FieldValue.increment(1),
+      "followerCount": admin.firestore.FieldValue.increment(1),
+      "stats.followerCount": admin.firestore.FieldValue.increment(1),
     });
 
     const requestingUserRef = db.collection("users").doc(requestingUserId);
     batch.update(requestingUserRef, {
-      followingCount: admin.firestore.FieldValue.increment(1),
+      "followingCount": admin.firestore.FieldValue.increment(1),
+      "stats.followingCount": admin.firestore.FieldValue.increment(1),
     });
 
     // 4. Update the original follow_request activity status
@@ -97,9 +150,6 @@ export const acceptfollowrequest = onCall(
     batch.delete(pendingFollowerDocRef);
 
     // 6. Create activity for the requesting user
-    const targetUserDoc = await db.collection("users").doc(targetUserId).get();
-    const targetUserData = targetUserDoc.data();
-
     const acceptedActivityData = {
       type: "follow_accepted",
       fromUserId: targetUserId,
@@ -110,18 +160,6 @@ export const acceptfollowrequest = onCall(
     };
     const newActivityForRequesterRef = db.collection("activity").doc(requestingUserId).collection("userActivity").doc();
     batch.set(newActivityForRequesterRef, acceptedActivityData);
-
-    const activityDocSnap = await activityRef.get();
-    console.log(`Activity doc ${activityId} exists: ${activityDocSnap.exists}`);
-
-    const pendingFollowerDocSnap = await pendingFollowerDocRef.get();
-    console.log(`Pending follower doc for ${requestingUserId} under ${targetUserId} exists: ${pendingFollowerDocSnap.exists}`);
-
-    const targetUserSnap = await targetUserRef.get();
-    console.log(`Target user doc ${targetUserId} exists: ${targetUserSnap.exists}`);
-
-    const requestingUserSnap = await requestingUserRef.get();
-    console.log(`Requesting user doc ${requestingUserId} exists: ${requestingUserSnap.exists}`);
 
     try {
       await batch.commit();
@@ -325,7 +363,7 @@ export const createMilestonePost = onCall(
       console.warn("createMilestonePost: authorUsername not provided in request data. This is recommended.");
     }
 
-    const postPayload: { [key: string]: any } = {
+    const postPayload: Record<string, unknown> = {
       authorId: userId,
       authorUsername: data.authorUsername || "User",
       authorProfileImageUrl: data.authorProfileImageUrl || null,
@@ -384,28 +422,79 @@ export const followUser = onCall(
     }
     const db = getDb();
 
-    // 1. Fetch the target user's profileVisibility
-    const targetUserDoc = await db.collection("users").doc(targetUserId).get();
-    if (!targetUserDoc.exists) {
-      throw new HttpsError("not-found", "Target user not found");
+    // Check if either user has blocked the other
+    const [currentUserDoc, targetUserDoc] = await Promise.all([
+      db.collection("users").doc(uid).get(),
+      db.collection("users").doc(targetUserId).get(),
+    ]);
+
+    if (!currentUserDoc.exists || !targetUserDoc.exists) {
+      throw new HttpsError("not-found", "User not found");
     }
+
+    const currentUserData = currentUserDoc.data();
     const targetUserData = targetUserDoc.data();
+
+    // Check if current user has blocked target user
+    const currentUserBlockedUsers = currentUserData?.blockedUsers || [];
+    if (currentUserBlockedUsers.includes(targetUserId)) {
+      throw new HttpsError("failed-precondition", "Cannot follow a user you have blocked");
+    }
+
+    // Check if target user has blocked current user
+    const targetUserBlockedUsers = targetUserData?.blockedUsers || [];
+    if (targetUserBlockedUsers.includes(uid)) {
+      throw new HttpsError("failed-precondition", "Cannot follow a user who has blocked you");
+    }
+
     const isPrivate = targetUserData?.profileVisibility === "private";
 
     if (isPrivate) {
       // For private accounts, create a pending follow request instead
-      await db.collection("users").doc(targetUserId)
-        .collection("pendingFollowers").doc(uid)
-        .set({
-          requestedAt: admin.firestore.FieldValue.serverTimestamp(),
-          requesterUsername: req.auth?.token?.name || "", // or fetch username if needed
-          requesterProfileImageUrl: req.auth?.token?.picture || "",
-        });
+      // But first check if there's already a pending request
+      const pendingFollowerDoc = await db.collection("users").doc(targetUserId)
+        .collection("pendingFollowers").doc(uid).get();
+      if (pendingFollowerDoc.exists) {
+        throw new HttpsError("already-exists", "Follow request already sent");
+      }
+
+      // Create the pending follow request
+      const batch = db.batch();
+      // Add to pending followers
+      const pendingFollowerRef = db.collection("users").doc(targetUserId)
+        .collection("pendingFollowers").doc(uid);
+      batch.set(pendingFollowerRef, {
+        requestedAt: admin.firestore.FieldValue.serverTimestamp(),
+        requesterUsername: currentUserData?.username || "",
+        requesterProfileImageUrl: currentUserData?.profileImageUrl || "",
+      });
+
+      // Create activity notification for the target user
+      const activityRef = db.collection("activity").doc(targetUserId)
+        .collection("userActivity").doc();
+      batch.set(activityRef, {
+        type: "follow_request",
+        fromUserId: uid,
+        fromUsername: currentUserData?.username || "Someone",
+        fromProfileImageUrl: currentUserData?.profileImageUrl || "",
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        status: "pending",
+        isRead: false,
+      });
+
+      await batch.commit();
       return {success: true, message: "Follow request sent (pending approval)."};
     }
 
-    // 2. Public account: proceed with follow as before
+    // Public account: proceed with immediate follow
     const batch = db.batch();
+
+    // Check if already following to prevent duplicates
+    const followingDoc = await db.collection("users").doc(uid)
+      .collection("following").doc(targetUserId).get();
+    if (followingDoc.exists) {
+      throw new HttpsError("already-exists", "Already following this user");
+    }
 
     batch.set(
       db.collection("users").doc(targetUserId).collection("followers").doc(uid),
@@ -425,6 +514,18 @@ export const followUser = onCall(
       "stats.followingCount": FieldValue.increment(1),
     });
 
+    // Create activity notification for new follower
+    const activityRef = db.collection("activity").doc(targetUserId)
+      .collection("userActivity").doc();
+    batch.set(activityRef, {
+      type: "new_follower",
+      fromUserId: uid,
+      fromUsername: currentUserData?.username || "Someone",
+      fromProfileImageUrl: currentUserData?.profileImageUrl || "",
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      isRead: false,
+    });
+
     await batch.commit();
     return {success: true, message: "Now following user."};
   }
@@ -439,9 +540,16 @@ export const unfollowUser = onCall(
       throw new HttpsError("invalid-argument", "Invalid unfollow request");
     }
     const db = getDb();
+    // Check if the relationship exists before trying to remove it
+    const followingDoc = await db.collection("users").doc(uid)
+      .collection("following").doc(targetUserId).get();
+    if (!followingDoc.exists) {
+      throw new HttpsError("not-found", "Not currently following this user");
+    }
+
     const batch = db.batch();
 
-    // 1) remove subcollection docs
+    // 1) Remove subcollection docs
     batch.delete(
       db.collection("users").doc(targetUserId).collection("followers").doc(uid)
     );
@@ -449,7 +557,7 @@ export const unfollowUser = onCall(
       db.collection("users").doc(uid).collection("following").doc(targetUserId)
     );
 
-    // 2) decrement top-level counts
+    // 2) Decrement top-level counts (but ensure they don't go below 0)
     batch.update(db.collection("users").doc(targetUserId), {
       "followerCount": FieldValue.increment(-1),
       "stats.followerCount": FieldValue.increment(-1),
@@ -460,6 +568,6 @@ export const unfollowUser = onCall(
     });
 
     await batch.commit();
-    return {success: true};
+    return {success: true, message: "Successfully unfollowed user."};
   }
 );
