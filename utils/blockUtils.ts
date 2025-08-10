@@ -1,4 +1,6 @@
 import { useAuth } from '@/context/AuthContext';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { app } from '@/firebaseConfig';
 
 export const useBlockEnforcement = () => {
   const { userProfile, refreshUserProfile } = useAuth();
@@ -30,10 +32,22 @@ export const useBlockEnforcement = () => {
     }
   };
 
+  const cleanupBlockedUserActivity = async (targetUserId: string) => {
+    try {
+      const functions = getFunctions(app, 'northamerica-northeast2');
+      const cleanupFn = httpsCallable(functions, 'cleanupBlockedUserActivity');
+      await cleanupFn({ targetUserId });
+      console.log('Activity cleanup completed');
+    } catch (error) {
+      console.error('Error cleaning up activity:', error);
+    }
+  };
+
   return {
     isUserBlocked,
     hasUserBlockedMe,
     canInteractWithUser,
-    refreshBlockStatus
+    refreshBlockStatus,
+    cleanupBlockedUserActivity,
   };
 };
