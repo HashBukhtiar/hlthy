@@ -23,7 +23,7 @@ export default function ViewPost() {
   const insets = useSafeAreaInsets();
   const { currentUser, userProfile } = useAuth();
   const { canInteractWithUser, isUserBlocked } = useBlockEnforcement();
-  const canInteractWithAuthor = post ? canInteractWithUser(post.authorId, post.authorBlockedUsers) : false;  const {
+  const {
     getPostById, 
     getPostComments, 
     likePost, 
@@ -70,6 +70,11 @@ export default function ViewPost() {
       return canInteractWithUser(comment.authorId, comment.authorBlockedUsers);
     });
   }, [comments, canInteractWithUser, currentUser?.uid]);
+
+  const canInteractWithAuthor = useMemo(() => {
+    if (!post || !post.authorId) return false;
+    return canInteractWithUser(post.authorId, post.authorBlockedUsers);
+  }, [post, canInteractWithUser]);
   
   // Fetch post and comments
   useEffect(() => {

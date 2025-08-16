@@ -59,7 +59,7 @@ Here's a comprehensive testing checklist for your Settings system. Test these sc
   - Test each option (Everyone, Followers Only)
   - Verify behaviour works accordingly
 
-- [ ] **Blocked Users**
+- [X] **Blocked Users**
   - Test navigation to blocked users screen
   - Test when no blocked users exist
   - Test unblocking users (if you have test blocked users)
