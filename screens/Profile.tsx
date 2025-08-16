@@ -78,6 +78,8 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
   } = useProfileData(routeUserId, currentUserProfile);
   const createdWorkouts = workouts || [];
   const { isUserBlocked } = useBlockEnforcement();
+  const [isBlockedByUser, setIsBlockedByUser] = useState(false);
+  const [hasBlockedUser, setHasBlockedUser] = useState(false);
 
   const displayablePosts = useMemo(() => {
     if (!posts) return [];
@@ -97,6 +99,15 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
 
   const isOwnProfile = !routeUserId || routeUserId === currentUser?.uid;
   const displayProfileData = isOwnProfile ? (profileData || currentUserProfile) : profileData;
+
+  useEffect(() => {
+    if (displayProfileData?.blockedUsers && currentUser) {
+      setIsBlockedByUser(displayProfileData.blockedUsers.includes(currentUser.uid));
+    }
+    if (currentUserProfile?.blockedUsers && displayProfileData?.id) {
+      setHasBlockedUser(currentUserProfile.blockedUsers.includes(displayProfileData.id));
+    }
+  }, [displayProfileData, currentUserProfile, currentUser]);
   
   // Process profile data to ensure consistent count structure
   const processedProfileData = useMemo(() => {
@@ -120,7 +131,16 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
   }, [displayProfileData]);
 
   const isPrivate = processedProfileData?.profileVisibility === 'private';
-  const canViewContent = isOwnProfile || !isPrivate || isFollowingStatus;
+  const canViewContent = useMemo(() => {
+    // If blocked by the user, cannot view content
+    if (isBlockedByUser && !isOwnProfile) return false;
+    
+    // If we've blocked the user, we can still view their profile but with limited interactions
+    // (This maintains current behavior while showing block status)
+    
+    // Original private profile logic
+    return isOwnProfile || !isPrivate || isFollowingStatus;
+  }, [isOwnProfile, isPrivate, isFollowingStatus, isBlockedByUser]);
 
   const indicatorPosition = tabIndicator.interpolate({
     inputRange: [0, screenWidth, screenWidth * 2],
@@ -669,6 +689,30 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
       </View>
     );
   }
+
+  if (isBlockedByUser && !isOwnProfile) {
+    return (
+      <SafeAreaView style={styles.container}>
+        {/* Back Button */}
+        {router.canGoBack() && (
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => router.back()}
+          >
+            <Ionicons name="arrow-back" size={28} color="white" />
+          </TouchableOpacity>
+        )}
+        
+        <View style={styles.blockedContainer}>
+          <Ionicons name="person-remove" size={64} color="#666" />
+          <Text style={styles.blockedTitle}>User Not Available</Text>
+          <Text style={styles.blockedSubtitle}>
+            This user has restricted access to their profile.
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
   
   if (error) {
     return (
@@ -698,7 +742,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
       </SafeAreaView>
     );
   }
-
+  
   // Main return statement for the component
   return (
     <SafeAreaView style={styles.container}>
@@ -724,19 +768,21 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
         )}
 
         {/* Follow/Unfollow Button (Other's Profile) */}
-        {!isOwnProfile && displayProfileData && (
+        {!isOwnProfile && displayProfileData && !isBlockedByUser && (
           <TouchableOpacity
             style={[
               styles.followButton,
-              isFollowingStatus 
-                ? styles.unfollowButtonActive 
-                : isRequestPending
-                  ? styles.requestedButtonActive
-                  : styles.followButtonActive,
-              followActionLoading && styles.followButtonDisabled
+              hasBlockedUser
+                ? styles.blockedButtonActive
+                : isFollowingStatus 
+                  ? styles.unfollowButtonActive 
+                  : isRequestPending
+                    ? styles.requestedButtonActive
+                    : styles.followButtonActive,
+              (followActionLoading || hasBlockedUser) && styles.followButtonDisabled
             ]}
             onPress={() => {
-              if (followActionLoading) return;
+              if (followActionLoading || hasBlockedUser) return;
               if (isFollowingStatus) {
                 unfollowUser(displayProfileData.id);
               } else if (isRequestPending) {
@@ -745,17 +791,19 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
                 followUser(displayProfileData.id);
               }
             }}
-            disabled={followActionLoading}
+            disabled={followActionLoading || hasBlockedUser}
           >
             {followActionLoading ? (
               <ActivityIndicator size="small" color="#FFF" />
             ) : (
               <Text style={styles.followButtonText}>
-                {isFollowingStatus 
-                  ? "Unfollow" 
-                  : isRequestPending 
-                    ? "Requested" 
-                    : "Follow"}
+                {hasBlockedUser 
+                  ? "Blocked" 
+                  : isFollowingStatus 
+                    ? "Unfollow" 
+                    : isRequestPending 
+                      ? "Requested" 
+                      : "Follow"}
               </Text>
             )}
           </TouchableOpacity>
@@ -788,44 +836,48 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
           <TouchableOpacity
             style={styles.statItem}
             onPress={() => {
-              if (processedProfileData?.archetype) {
+              if (processedProfileData?.archetype && !isBlockedByUser) {
                 setTooltipText(archetypeDescriptions[processedProfileData.archetype.toLowerCase() || 'generalist']);
                 setTooltipVisible(true);
               }
             }}
-            disabled={!processedProfileData?.archetype}
+            disabled={!processedProfileData?.archetype || isBlockedByUser}
           >
             <Image
               source={archetypeIcons[processedProfileData?.archetype?.toLowerCase() || 'generalist']}
-              style={styles.archetypeIcon}
+              style={[styles.archetypeIcon, isBlockedByUser && styles.disabledIcon]}
             />
-            <Text style={styles.statLabel}>Archetype</Text>
+            <Text style={[styles.statLabel, isBlockedByUser && styles.disabledText]}>Archetype</Text>
           </TouchableOpacity>
+          
           <TouchableOpacity
             style={styles.statItem}
             onPress={() => {
               if (isPrivate && !isOwnProfile) return;
+              if (isBlockedByUser) return;
               router.push(`/followers/${viewedProfileId}`);
             }}
-            disabled={isPrivate && !isOwnProfile}
+            disabled={(isPrivate && !isOwnProfile) || isBlockedByUser}
           >
-            <Text style={styles.statNumber}>
-              {processedProfileData?.followerCount ?? followers.length}
+            <Text style={[styles.statNumber, isBlockedByUser && styles.disabledText]}>
+              {isBlockedByUser ? "••" : (processedProfileData?.followerCount ?? followers.length)}
             </Text>
-            <Text style={styles.statLabel}>Followers</Text>
+            <Text style={[styles.statLabel, isBlockedByUser && styles.disabledText]}>Followers</Text>
           </TouchableOpacity>
+          
           <TouchableOpacity
             style={styles.statItem}
             onPress={() => {
               if (isPrivate && !isOwnProfile) return;
+              if (isBlockedByUser) return;
               router.push(`/following/${viewedProfileId}`);
             }}
-            disabled={isPrivate && !isOwnProfile}
+            disabled={(isPrivate && !isOwnProfile) || isBlockedByUser}
           >
-            <Text style={styles.statNumber}>
-              {processedProfileData?.followingCount ?? following.length}
+            <Text style={[styles.statNumber, isBlockedByUser && styles.disabledText]}>
+              {isBlockedByUser ? "••" : (processedProfileData?.followingCount ?? following.length)}
             </Text>
-            <Text style={styles.statLabel}>Following</Text>
+            <Text style={[styles.statLabel, isBlockedByUser && styles.disabledText]}>Following</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -889,8 +941,16 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
         </View>
       ) : (
         <View style={styles.lockedContainer}>
-          <Ionicons name="lock-closed" size={48} color="gray" />
-          <Text style={styles.lockedText}>This account is private</Text>
+          <Ionicons 
+            name={isBlockedByUser ? "person-remove" : "lock-closed"} 
+            size={48} 
+            color="gray" 
+          />
+          <Text style={styles.lockedText}>
+            {isBlockedByUser 
+              ? "This user has restricted access to their profile" 
+              : "This account is private"}
+          </Text>
         </View>
       )}
     </SafeAreaView>
@@ -1367,6 +1427,36 @@ const styles = StyleSheet.create({
     color: 'gray',
     fontSize: 16,
     marginTop: 12,
+  },
+  blockedContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 40,
+  },
+  blockedTitle: {
+    color: '#fff',
+    fontSize: 20,
+    fontWeight: '600',
+    marginTop: 20,
+    marginBottom: 8,
+  },
+  blockedSubtitle: {
+    color: '#999',
+    fontSize: 16,
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  blockedButtonActive: {
+    backgroundColor: '#444',
+    borderColor: '#666',
+  },
+  disabledIcon: {
+    opacity: 0.5,
+  },
+  disabledText: {
+    opacity: 0.5,
+    color: '#666',
   },
 });
 
