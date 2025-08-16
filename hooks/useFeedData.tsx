@@ -64,23 +64,20 @@ export function useFeedData() {
         authorProfiles[doc.id] = doc.data() as UserProfile;
       });
     }
-    
-    // 3. Map fresh profile data back to each post
-    const enrichedPosts: FeedPost[] = [];
-    for (const postData of postDocs) {
-      const authorProfile = authorProfiles[postData.authorId];
-      const likeRef = doc(db, 'posts', postData.id, 'likers', currentUser.uid);
-      const likeDoc = await getDoc(likeRef);
 
-      enrichedPosts.push({
-        ...postData,
-        authorProfileImageUrl: authorProfile?.profileImageUrl,
-        authorProfileThumbnailUrl: authorProfile?.profileThumbnailUrl,
-        authorBlockedUsers: authorProfile?.blockedUsers || [],
-        isLiked: likeDoc.exists(),
-        isBookmarked: false, // TODO: Implement bookmark checking
-      });
-    }
+    // 3. Enhance posts with author profile data
+    const enrichedPosts: FeedPost[] = postDocs.map(post => {
+      const authorProfile = authorProfiles[post.authorId];
+      return {
+        ...post,
+        authorProfileImageUrl: authorProfile?.profileImageUrl || '',
+        authorProfileThumbnailUrl: authorProfile?.profileThumbnailUrl || '',
+        authorBlockedUsers: authorProfile?.blockedUsers || [], // Add this line
+        // Determine if the current user has liked this post
+        isLiked: false, // This would need to be determined separately if needed
+      };
+    });
+
     return enrichedPosts;
   }, [currentUser?.uid]);
 

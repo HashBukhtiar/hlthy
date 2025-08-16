@@ -138,7 +138,7 @@ export default function PostsFeed() {
       if (isUserBlocked(post.authorId)) return false;
       
       // Filter out posts if we've been blocked by the author
-      if (post.authorBlockedUsers && post.authorBlockedUsers.includes(currentUser?.uid)) {
+      if (post.authorBlockedUsers && post.authorBlockedUsers.includes(currentUser?.uid || '')) {
         return false;
       }
       

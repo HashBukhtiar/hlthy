@@ -32,6 +32,7 @@ export interface Post {
   authorUsername: string;
   authorProfileImageUrl: string;
   authorProfileThumbnailUrl?: string;
+  authorBlockedUsers?: string[];
   caption: string;
   imageUrl: string;
   thumbnailUrl?: string | null;
@@ -166,6 +167,7 @@ export function usePostsData() {
           const u = userSnap.data() as any
           post.authorProfileImageUrl     = u.profileImageUrl     || ""
           post.authorProfileThumbnailUrl = u.profileThumbnailUrl || ""
+          post.authorBlockedUsers        = u.blockedUsers        || []
         }
 
         // ► preserve like‐status
@@ -230,6 +232,7 @@ export function usePostsData() {
       const u = userSnap.data() as any
       post.authorProfileImageUrl     = u.profileImageUrl     || ""
       post.authorProfileThumbnailUrl = u.profileThumbnailUrl || ""
+      post.authorBlockedUsers        = u.blockedUsers        || []
     }
 
     // ► preserve like‐status
