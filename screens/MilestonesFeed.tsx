@@ -324,17 +324,10 @@ export default function MilestonesFeed() {
       // Don't filter out current user's own milestones
       if (milestone.authorId === currentUser?.uid) return true;
       
-      // Check if we've blocked this user
-      if (isUserBlocked(milestone.authorId)) return false;
-      
-      // Check if this user has blocked us
-      if (milestone.authorBlockedUsers && milestone.authorBlockedUsers.includes(currentUser?.uid)) {
-        return false;
-      }
-      
-      return true;
+      // Filter out milestones from users we've blocked or who have blocked us
+      return canInteractWithUser(milestone.authorId, milestone.authorBlockedUsers || []);
     });
-  }, [milestones, isUserBlocked, currentUser?.uid]);
+  }, [milestones, canInteractWithUser, currentUser?.uid]);
 
   // Helper function to render the card content
   const renderCardContent = useCallback((item: Milestone, hasStatus = false, statusText = '', statusColor = '') => {

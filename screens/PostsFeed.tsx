@@ -134,10 +134,10 @@ export default function PostsFeed() {
       // Don't filter out current user's own posts
       if (post.authorId === currentUser?.uid) return true;
       
-      // Check if we've blocked this user
+      // Filter out posts from users we've blocked
       if (isUserBlocked(post.authorId)) return false;
       
-      // Check if this user has blocked us
+      // Filter out posts if we've been blocked by the author
       if (post.authorBlockedUsers && post.authorBlockedUsers.includes(currentUser?.uid)) {
         return false;
       }

@@ -93,6 +93,7 @@ export interface Comment {
   authorUsername: string;
   authorProfileImageUrl: string;
   authorProfileThumbnailUrl?: string;
+  authorBlockedUsers?: string[];
   text: string;
   createdAt: Timestamp;
   likes: number;
@@ -109,6 +110,7 @@ export interface Reply {
   authorUsername: string;
   authorProfileImageUrl: string;
   authorProfileThumbnailUrl?: string;
+  authorBlockedUsers?: string[];
   text: string;
   createdAt: Timestamp;
   likes: number;
@@ -264,12 +266,13 @@ export function usePostsData() {
         replies:    []
       }
 
-      // ► fetch commenter's profile image
+      // fetch commenter's profile image
       const userSnap = await getDoc(doc(db, "users", comment.authorId))
       if (userSnap.exists()) {
         const u = userSnap.data() as any
         comment.authorProfileImageUrl = u.profileImageUrl || ""
         comment.authorProfileThumbnailUrl = u.profileThumbnailUrl || ""
+        comment.authorBlockedUsers = u.blockedUsers || []
       }
 
       comments.push(comment)

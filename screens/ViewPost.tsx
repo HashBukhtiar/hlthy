@@ -108,9 +108,10 @@ export default function ViewPost() {
               if (userDoc.exists()) {
                 const userData = userDoc.data();
                 comment.authorProfileThumbnailUrl = userData.profileThumbnailUrl || '';
+                comment.authorBlockedUsers = userData.blockedUsers || [];
               }
             }
-            // For each reply, fetch the author's thumbnail
+            // For each reply, fetch the author's thumbnail and blocked users
             if (comment.replies && comment.replies.length > 0) {
               comment.replies = await Promise.all(
                 comment.replies.map(async (reply) => {
@@ -119,6 +120,7 @@ export default function ViewPost() {
                     if (replyUserDoc.exists()) {
                       const replyUserData = replyUserDoc.data();
                       reply.authorProfileThumbnailUrl = replyUserData.profileThumbnailUrl || '';
+                      reply.authorBlockedUsers = replyUserData.blockedUsers || [];
                     }
                   }
                   return reply;

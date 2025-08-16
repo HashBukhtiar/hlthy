@@ -22,13 +22,13 @@ export const useBlockEnforcement = () => {
   }, [userProfile?.uid]);
 
   // Memoize the canInteractWithUser function
-  const canInteractWithUser = useCallback((targetUserId: string, targetUserBlockedUsers?: string[]): boolean => {
+  const canInteractWithUser = useCallback((targetUserId: string, targetUserBlockedUsers: string[] = []): boolean => {
     if (!userProfile?.uid) return false;
     
     // Check if I blocked them
     if (isUserBlocked(targetUserId)) return false;
     
-    // Check if they blocked me (only if we have their blocked users data)
+    // Check if they blocked me (use empty array as default if undefined)
     if (targetUserBlockedUsers && hasUserBlockedMe(targetUserBlockedUsers)) return false;
     
     return true;
