@@ -6,13 +6,19 @@ import json
 import os
 from datetime import datetime
 
-# Import exercise safety knowledge
+# Import exercise safety knowledge and user profiles
 try:
     from exercise_safety import EXERCISE_SAFETY_GUIDELINES, get_safety_context_for_injury
 except ImportError:
     EXERCISE_SAFETY_GUIDELINES = "Safety guidelines not loaded"
     def get_safety_context_for_injury(injury_type):
         return {"avoid": [], "prefer": [], "modifications": []}
+
+try:
+    from user_profiles import profile_manager, UserProfile, InjuryRecord, FitnessGoals
+except ImportError:
+    print("Warning: User profile system not available")
+    profile_manager = None
 
 app = Flask(__name__)
 CORS(app, resources={r"/api/*": {"origins": "*"}})
@@ -352,11 +358,179 @@ def validate_workout_plan(plan_json, context):
 # Health check endpoints
 @app.route('/', methods=['GET'])
 def health_check():
-    return jsonify({"status": "OK", "message": "HLTHY Coach AI service is running", "version": "v1-coach"}), 200
+    return jsonify({"status": "OK", "message": "HLTHY Coach AI service is running", "version": "v1-profiles"}), 200
 
 @app.route('/api/health', methods=['GET']) 
 def api_health():
-    return jsonify({"status": "OK", "service": "HLTHY Coach API", "version": "v1-coach"}), 200
+    return jsonify({"status": "OK", "service": "HLTHY Coach API", "version": "v1-profiles"}), 200
+
+# User Profile Management Endpoints
+@app.route('/api/profile', methods=['POST'])
+def create_profile():
+    """Create a new user profile"""
+    try:
+        if not profile_manager:
+            return jsonify({"error": "Profile system not available"}), 500
+            
+        data = request.get_json() or {}
+        
+        # Extract profile data with defaults
+        age = data.get('age')
+        gender = data.get('gender')
+        experience_level = data.get('experience_level', 'beginner')
+        primary_goal = data.get('primary_goal', 'muscle_building')
+        training_frequency = data.get('training_frequency', 3)
+        
+        # Create profile
+        profile = profile_manager.create_user_profile(
+            age=age,
+            gender=gender,
+            experience_level=experience_level,
+            primary_goal=primary_goal,
+            training_frequency=training_frequency
+        )
+        
+        return jsonify({
+            "success": True,
+            "user_id": profile.user_id,
+            "message": "Profile created successfully"
+        }), 201
+        
+    except Exception as e:
+        print(f"Error creating profile: {e}")
+        return jsonify({"error": "Failed to create profile"}), 500
+
+@app.route('/api/profile/<user_id>', methods=['GET'])
+def get_profile(user_id):
+    """Get user profile by ID"""
+    try:
+        if not profile_manager:
+            return jsonify({"error": "Profile system not available"}), 500
+            
+        profile = profile_manager.load_profile(user_id)
+        if not profile:
+            return jsonify({"error": "Profile not found"}), 404
+            
+        # Convert to dict for JSON response
+        from dataclasses import asdict
+        profile_dict = asdict(profile)
+        
+        return jsonify({
+            "success": True,
+            "profile": profile_dict
+        })
+        
+    except Exception as e:
+        print(f"Error getting profile: {e}")
+        return jsonify({"error": "Failed to get profile"}), 500
+
+@app.route('/api/profile/<user_id>', methods=['PUT'])
+def update_profile(user_id):
+    """Update user profile"""
+    try:
+        if not profile_manager:
+            return jsonify({"error": "Profile system not available"}), 500
+            
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "No update data provided"}), 400
+            
+        updated_profile = profile_manager.update_profile(user_id, data)
+        if not updated_profile:
+            return jsonify({"error": "Profile not found or update failed"}), 404
+            
+        return jsonify({
+            "success": True,
+            "message": "Profile updated successfully"
+        })
+        
+    except Exception as e:
+        print(f"Error updating profile: {e}")
+        return jsonify({"error": "Failed to update profile"}), 500
+
+@app.route('/api/profile/<user_id>/injury', methods=['POST'])
+def add_injury(user_id):
+    """Add injury to user profile"""
+    try:
+        if not profile_manager:
+            return jsonify({"error": "Profile system not available"}), 500
+            
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "No injury data provided"}), 400
+            
+        required_fields = ['injury_type', 'severity', 'affected_area']
+        for field in required_fields:
+            if field not in data:
+                return jsonify({"error": f"Missing required field: {field}"}), 400
+        
+        success = profile_manager.add_injury(
+            user_id=user_id,
+            injury_type=data['injury_type'],
+            severity=data['severity'],
+            affected_area=data['affected_area'],
+            notes=data.get('notes', '')
+        )
+        
+        if success:
+            return jsonify({
+                "success": True,
+                "message": "Injury added successfully"
+            }), 201
+        else:
+            return jsonify({"error": "Failed to add injury"}), 500
+            
+    except Exception as e:
+        print(f"Error adding injury: {e}")
+        return jsonify({"error": "Failed to add injury"}), 500
+
+@app.route('/api/profile/<user_id>/injury/<injury_id>', methods=['PUT'])
+def update_injury_status(user_id, injury_id):
+    """Update injury status"""
+    try:
+        if not profile_manager:
+            return jsonify({"error": "Profile system not available"}), 500
+            
+        data = request.get_json()
+        if not data or 'status' not in data:
+            return jsonify({"error": "Missing status field"}), 400
+            
+        success = profile_manager.update_injury_status(
+            user_id=user_id,
+            injury_id=injury_id,
+            new_status=data['status'],
+            notes=data.get('notes', '')
+        )
+        
+        if success:
+            return jsonify({
+                "success": True,
+                "message": "Injury status updated successfully"
+            })
+        else:
+            return jsonify({"error": "Failed to update injury status"}), 404
+            
+    except Exception as e:
+        print(f"Error updating injury status: {e}")
+        return jsonify({"error": "Failed to update injury status"}), 500
+
+@app.route('/api/profiles', methods=['GET'])
+def list_profiles():
+    """List all user profile IDs (admin endpoint)"""
+    try:
+        if not profile_manager:
+            return jsonify({"error": "Profile system not available"}), 500
+            
+        profile_ids = profile_manager.list_all_profiles()
+        return jsonify({
+            "success": True,
+            "profile_ids": profile_ids,
+            "count": len(profile_ids)
+        })
+        
+    except Exception as e:
+        print(f"Error listing profiles: {e}")
+        return jsonify({"error": "Failed to list profiles"}), 500
 
 # Main chat endpoint with coaching functionality
 @app.route('/api/chat', methods=['POST'])
