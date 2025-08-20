@@ -24,9 +24,6 @@ COPY exercise_safety.py .
 COPY user_profiles.py .
 COPY semantic_memory.py .
 
-# Copy Google Cloud credentials if they exist (optional)
-COPY service-account-key.json* ./
-
 # Create directories for persistent data
 RUN mkdir -p user_profiles memory_data
 
@@ -35,8 +32,8 @@ ENV PYTHONPATH=/app
 ENV PYTHONUNBUFFERED=1
 ENV PORT=5001
 
-# Note: GOOGLE_APPLICATION_CREDENTIALS should be set at runtime
-# Example: docker run -e GOOGLE_APPLICATION_CREDENTIALS=/app/service-account-key.json
+# Note: Google Cloud credentials should be set at runtime via environment variables
+# GOOGLE_CLOUD_PROJECT_ID, GOOGLE_CLOUD_PRIVATE_KEY, GOOGLE_CLOUD_CLIENT_EMAIL, etc.
 
 # Expose port
 EXPOSE 5001

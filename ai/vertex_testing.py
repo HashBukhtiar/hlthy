@@ -5,6 +5,14 @@ from flask_cors import CORS
 import json
 import os
 from datetime import datetime
+from google.oauth2 import service_account
+
+# Load environment variables from .env file
+try:
+    from load_env import load_env_file
+    load_env_file()
+except ImportError:
+    print("Warning: Could not load load_env.py - using system environment variables only")
 
 # Import exercise safety knowledge and user profiles
 try:
@@ -29,14 +37,61 @@ except ImportError:
 app = Flask(__name__)
 CORS(app, resources={r"/api/*": {"origins": "*"}})
 
+def get_google_credentials():
+    """Create Google Cloud credentials from environment variables or file."""
+    # Try to get credentials from environment variables first
+    if all(key in os.environ for key in ['GOOGLE_CLOUD_PROJECT_ID', 'GOOGLE_CLOUD_PRIVATE_KEY', 'GOOGLE_CLOUD_CLIENT_EMAIL']):
+        credentials_info = {
+            "type": "service_account",
+            "project_id": os.environ['GOOGLE_CLOUD_PROJECT_ID'],
+            "private_key_id": os.environ.get('GOOGLE_CLOUD_PRIVATE_KEY_ID', ''),
+            "private_key": os.environ['GOOGLE_CLOUD_PRIVATE_KEY'].replace('\\n', '\n'),
+            "client_email": os.environ['GOOGLE_CLOUD_CLIENT_EMAIL'],
+            "client_id": os.environ.get('GOOGLE_CLOUD_CLIENT_ID', ''),
+            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+            "token_uri": "https://oauth2.googleapis.com/token",
+            "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+            "client_x509_cert_url": os.environ.get('GOOGLE_CLOUD_CLIENT_X509_CERT_URL', ''),
+            "universe_domain": "googleapis.com"
+        }
+        return service_account.Credentials.from_service_account_info(credentials_info)
+    
+    # Fallback to default credentials (service account file)
+    try:
+        from google.auth import default
+        credentials, project = default()
+        return credentials
+    except Exception as e:
+        print(f"Warning: Could not load Google Cloud credentials: {e}")
+        return None
+
 # Initialize Vertex AI
-project_id = "hlthy-421200"
+project_id = os.environ.get('GOOGLE_CLOUD_PROJECT_ID', 'hlthy-421200')
 location = "us-central1"
-vertexai.init(project=project_id, location=location)
+
+# Get credentials and initialize Vertex AI
+credentials = get_google_credentials()
+if credentials:
+    vertexai.init(project=project_id, location=location, credentials=credentials)
+    print(f"Vertex AI initialized successfully for project: {project_id}")
+else:
+    print("Warning: Vertex AI not initialized - credentials not available")
+    # Initialize without credentials for local testing
+    try:
+        vertexai.init(project=project_id, location=location)
+        print(f"Vertex AI initialized with default credentials for project: {project_id}")
+    except Exception as e:
+        print(f"Error initializing Vertex AI: {e}")
 
 # Initialize models
-coach_model = GenerativeModel("gemini-2.0-flash-exp")  # Main coach model
-router_model = GenerativeModel("gemini-1.5-flash")     # Cheaper model for routing
+try:
+    coach_model = GenerativeModel("gemini-2.0-flash-exp")  # Main coach model
+    router_model = GenerativeModel("gemini-1.5-flash")     # Cheaper model for routing
+    print("Generative models initialized successfully")
+except Exception as e:
+    print(f"Warning: Could not initialize models: {e}")
+    coach_model = None
+    router_model = None
 
 # Router prompt
 ROUTER_PROMPT = """You classify the user's intent into exactly one label:

@@ -1,0 +1,68 @@
+# Google Cloud Credentials - NEVER COMMIT THESE
+service-account-key.json
+*.json
+
+# Debug files
+debug_key.py
+debug_key.txt
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environment
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local data
+user_profiles/
+memory_data/
+*.db
+*.sqlite
+
+# Logs
+*.log
+logs/
+
+# Docker
+.docker/
+*.tar
+
+# Environment files
+.env
+.env.local
+.env.production
