@@ -23,6 +23,7 @@ COPY vertex_testing.py .
 COPY exercise_safety.py .
 COPY user_profiles.py .
 COPY semantic_memory.py .
+COPY load_env.py .
 
 # Create directories for persistent data
 RUN mkdir -p user_profiles memory_data
