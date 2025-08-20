@@ -29,14 +29,14 @@ RUN mkdir -p user_profiles memory_data
 # Set environment variables
 ENV PYTHONPATH=/app
 ENV PYTHONUNBUFFERED=1
-ENV PORT=8080
+ENV PORT=5001
 
 # Expose port
-EXPOSE 8080
+EXPOSE 5001
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8080/api/health || exit 1
+    CMD curl -f http://localhost:5001/api/health || exit 1
 
 # Run the Flask application
 CMD ["python", "vertex_testing.py"]
