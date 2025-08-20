@@ -538,6 +538,78 @@ def list_profiles():
         print(f"Error listing profiles: {e}")
         return jsonify({"error": "Failed to list profiles"}), 500
 
+@app.route('/api/profile/<user_id>/milestone', methods=['POST'])
+def add_milestone(user_id):
+    """Add milestone or progress note to user's semantic memory"""
+    try:
+        if not memory_system:
+            return jsonify({"error": "Memory system not available"}), 500
+            
+        data = request.get_json()
+        if not data or 'text' not in data:
+            return jsonify({"error": "Missing milestone text"}), 400
+        
+        milestone_text = data['text']
+        milestone_type = data.get('type', 'progress')
+        
+        memory_system.add_milestone_snippet(user_id, milestone_text, milestone_type)
+        
+        return jsonify({
+            "success": True,
+            "message": "Milestone added to memory successfully"
+        }), 201
+        
+    except Exception as e:
+        print(f"Error adding milestone: {e}")
+        return jsonify({"error": "Failed to add milestone"}), 500
+
+@app.route('/api/profile/<user_id>/memory', methods=['GET'])
+def get_user_memory(user_id):
+    """Get user's recent memory snippets"""
+    try:
+        if not memory_system:
+            return jsonify({"error": "Memory system not available"}), 500
+        
+        days = int(request.args.get('days', 7))
+        recent_snippets = memory_system.get_recent_context(user_id, days=days)
+        
+        return jsonify({
+            "success": True,
+            "memory_snippets": recent_snippets,
+            "days_requested": days
+        })
+        
+    except Exception as e:
+        print(f"Error getting memory: {e}")
+        return jsonify({"error": "Failed to get memory"}), 500
+
+@app.route('/api/profile/<user_id>/memory/search', methods=['POST'])
+def search_user_memory(user_id):
+    """Search user's semantic memory"""
+    try:
+        if not memory_system:
+            return jsonify({"error": "Memory system not available"}), 500
+        
+        data = request.get_json()
+        if not data or 'query' not in data:
+            return jsonify({"error": "Missing search query"}), 400
+        
+        query = data['query']
+        k = data.get('k', 3)
+        
+        results = memory_system.retrieve_relevant_snippets(user_id, query, k=k)
+        
+        return jsonify({
+            "success": True,
+            "query": query,
+            "results": results,
+            "count": len(results)
+        })
+        
+    except Exception as e:
+        print(f"Error searching memory: {e}")
+        return jsonify({"error": "Failed to search memory"}), 500
+
 # Main chat endpoint with coaching functionality
 @app.route('/api/chat', methods=['POST'])
 def chat():
