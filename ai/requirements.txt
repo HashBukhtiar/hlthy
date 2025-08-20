@@ -77,8 +77,9 @@ werkzeug==3.0.6
 zipp==3.20.2
 zope.interface==6.0
 
-# Semantic Memory Dependencies
-sentence-transformers==2.2.2
+# Semantic Memory Dependencies (compatible versions)
+sentence-transformers==2.7.0
 faiss-cpu==1.7.4
-torch==2.0.1
-transformers==4.36.2
+torch==2.1.0
+transformers==4.55.2
+numpy<2.0

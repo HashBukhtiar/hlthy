@@ -8,6 +8,7 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     gcc \
     g++ \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first for better caching
@@ -23,6 +24,9 @@ COPY exercise_safety.py .
 COPY user_profiles.py .
 COPY semantic_memory.py .
 
+# Copy Google Cloud credentials if they exist (optional)
+COPY service-account-key.json* ./
+
 # Create directories for persistent data
 RUN mkdir -p user_profiles memory_data
 
@@ -30,6 +34,9 @@ RUN mkdir -p user_profiles memory_data
 ENV PYTHONPATH=/app
 ENV PYTHONUNBUFFERED=1
 ENV PORT=5001
+
+# Note: GOOGLE_APPLICATION_CREDENTIALS should be set at runtime
+# Example: docker run -e GOOGLE_APPLICATION_CREDENTIALS=/app/service-account-key.json
 
 # Expose port
 EXPOSE 5001
