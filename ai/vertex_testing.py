@@ -6,6 +6,14 @@ import json
 import os
 from datetime import datetime
 
+# Import exercise safety knowledge
+try:
+    from exercise_safety import EXERCISE_SAFETY_GUIDELINES, get_safety_context_for_injury
+except ImportError:
+    EXERCISE_SAFETY_GUIDELINES = "Safety guidelines not loaded"
+    def get_safety_context_for_injury(injury_type):
+        return {"avoid": [], "prefer": [], "modifications": []}
+
 app = Flask(__name__)
 CORS(app, resources={r"/api/*": {"origins": "*"}})
 
@@ -31,7 +39,9 @@ Return JSON only: {"label":"planner"}
 Fallback: if confidence < 0.6 and the user mentions a workout, use `planner`; otherwise `explain`."""
 
 # System prompt for HLTHY Coach with AI Exercise Knowledge
-COACH_SYSTEM_PROMPT = """You are HLTHY Coach, a mobile fitness trainer with access to comprehensive exercise science knowledge. Goals: safe, specific, actionable programming using evidence-based exercise selection.
+SAFETY_RULES = f"""
+EXERCISE SAFETY GUIDELINES:
+{EXERCISE_SAFETY_GUIDELINES}
 
 SAFETY-FIRST RULES:
 1) NEVER recommend exercises contraindicated for active injuries or conditions in healthSummary
@@ -40,6 +50,11 @@ SAFETY-FIRST RULES:
 4) When in doubt, choose safer alternatives (e.g., goblet squat vs. back squat for beginners)
 5) Respect equipment limitations - only suggest exercises possible with available equipment
 6) Flag any exercise that might aggravate mentioned injuries/pain
+"""
+
+COACH_SYSTEM_PROMPT = f"""You are HLTHY Coach, a mobile fitness trainer with access to comprehensive exercise science knowledge. Goals: safe, specific, actionable programming using evidence-based exercise selection.
+
+{SAFETY_RULES}
 
 EXERCISE SELECTION PRINCIPLES:
 - Choose from well-established, evidence-based exercises with proper biomechanics
@@ -59,63 +74,57 @@ PROGRAMMING RULES:
 JSON output schemas:
 
 WorkoutPlan
-{
+{{
   "dayType": "string",
   "segments": [
-    {
-      "name": "string",
+    {{
+      "name": "string", 
       "exercises": [
-        {
-          "exerciseId": "clear_unique_identifier (e.g., barbell_back_squat, dumbbell_bench_press)",
-          "exerciseName": "Human readable name",
+        {{
+          "exerciseId": "unique_id_like_barbell_squat",
+          "exerciseName": "Human Readable Name",
           "sets": 3,
           "reps": 8,
-          "load": "@RPE8" | "@%1RM75" | "kg_60" | "bodyweight",
+          "load": "@RPE8",
           "restSec": 90,
-          "notes": "optional safety cue or form reminder",
-          "safetyRating": "low" | "medium" | "high",
-          "equipmentNeeded": ["barbell", "bench"] | ["dumbbells"] | ["bodyweight"]
-        }
+          "notes": "safety cue",
+          "safetyRating": "low",
+          "equipmentNeeded": ["barbell"]
+        }}
       ]
-    }
+    }}
   ],
-  "notes": "optional coaching notes",
-  "safetyNotes": "any injury considerations or modifications"
-}
+  "safetyNotes": "injury considerations"
+}}
 
 TechniqueAdvice
-{
-  "issue": "string (e.g., elbow_pain_right during bench)",
-  "riskAssessment": "description of injury risk",
-  "avoidExercises": ["exercise names to avoid"],
+{{
+  "issue": "injury or form issue",
+  "riskAssessment": "injury risk description", 
+  "avoidExercises": ["exercises to avoid"],
   "safeAlternatives": [
-    {
-      "exerciseId": "safe_alternative_id",
-      "exerciseName": "Safe Alternative Exercise",
-      "reason": "why this is safer",
-      "modifications": ["any needed modifications"]
-    }
+    {{
+      "exerciseId": "safe_alternative",
+      "exerciseName": "Safe Exercise",
+      "reason": "why safer"
+    }}
   ],
-  "techniqueCues": ["cue 1", "cue 2", "cue 3"],
-  "whenToStop": "signs to stop exercising"
-}
+  "techniqueCues": ["form cue 1", "form cue 2"]
+}}
 
 SchedulePlan
-{
-  "daysPerWeek": 5,
-  "split": [{"day":"Mon","focus":"Push","intensity":"moderate"}],
-  "restDays": ["Wed", "Sun"],
-  "deloadGuidelines": ["deload in week 4 if RPE≥9 persists", "reduce volume by 40%"],
-  "progressionRules": ["increase weight when RPE<7 for 2 consecutive sessions"]
-}
+{{
+  "daysPerWeek": 4,
+  "split": [{{"day":"Mon","focus":"Upper"}}, {{"day":"Tue","focus":"Lower"}}],
+  "deloadGuidelines": ["reduce volume by 40% every 4th week"]
+}}
 
 Explanation
-{
-  "topic": "string",
-  "keyPoints": ["evidence-based bullet 1","practical bullet 2","safety bullet 3"],
-  "commonMistakes": ["mistake 1", "mistake 2"],
+{{
+  "topic": "topic name",
+  "keyPoints": ["key point 1", "key point 2", "key point 3"],
   "safetyConsiderations": ["safety point 1", "safety point 2"]
-}
+}}
 
 After the JSON, output a short human summary that matches preferenceMemory."""
 
@@ -172,7 +181,7 @@ def route_user_message(user_message):
             return "explain"
 
 def build_route_template(route, context, user_message, conversation_history):
-    """Build the appropriate template based on route"""
+    """Build the appropriate template based on route with AI exercise knowledge"""
     
     # Convert conversation history to shortTermTurns format (last 6 turns)
     short_terms = []
@@ -187,66 +196,85 @@ def build_route_template(route, context, user_message, conversation_history):
     bulleted_turns = "\n".join([f"- {turn['role']}: {turn['text']}" for turn in short_terms])
     bulleted_snippets = "\n".join([f"- {snippet['source']} ({snippet.get('date', 'unknown')}): {snippet['text']}" for snippet in context.get('retrievedSnippets', [])])
     
+    # Build equipment context
+    equipment_available = context.get('equipmentAccess', {}).get(context.get('equipmentAccess', {}).get('current', 'gym'), [])
+    equipment_str = ", ".join(equipment_available) if equipment_available else "standard gym equipment"
+    
     context_str = f"""CONTEXT:
 profileSummary:
 {context['profileSummary']}
 
-healthSummary:
+healthSummary (CRITICAL - must respect these constraints):
 {json.dumps(context['healthSummary'], indent=2)}
 
 preferenceMemory:
 {json.dumps(context['preferenceMemory'], indent=2)}
 
+equipmentAccess: {equipment_str}
+
 recentContext (short-term turns):
 {bulleted_turns}
 
 retrievedSnippets (long-term facts):
-{bulleted_snippets}
-
-allowedExercises (IDs and short names):
-{json.dumps(context['allowedExercises'], indent=2)}"""
+{bulleted_snippets}"""
 
     if route == "planner":
         template = f"""{context_str}
 
-TASK:
-Draft a single-day workout plan tailored to the user's message and CONTEXT.
-- Respect healthSummary.bannedExercises and cautionMovements.
-- Use only allowedExercises[].id in the JSON.
-- Prefer loads as RPE unless the user asks for %1RM or kg.
-- Keep segments 2–4 with 2–5 exercises each (MVP).
-- If equipment constraints remove common options, choose nearest valid substitution.
+TASK: Draft a single-day workout plan using your comprehensive exercise science knowledge
+SAFETY REQUIREMENTS:
+- Absolutely AVOID exercises contraindicated for any conditions in healthSummary
+- Choose evidence-based exercises with proper biomechanical principles
+- Match exercise difficulty to user experience level
+- Only suggest exercises possible with available equipment: {equipment_str}
+- Include safety ratings for each exercise
+- Prefer joint-friendly variations when possible
+
+PROGRAMMING GUIDELINES:
+- Use compound movements as the foundation
+- 2-4 segments with 2-5 exercises each
+- Progressive overload principles
+- Appropriate rest periods for goals
+- Clear exercise identifiers (e.g., barbell_back_squat, dumbbell_chest_press)
 
 Return:
-1) WorkoutPlan JSON
-2) Human summary (≤120 words, {context['preferenceMemory']['tone']} tone).
+1) WorkoutPlan JSON with safety ratings and equipment requirements
+2) Human summary (≤120 words, {context['preferenceMemory']['tone']} tone)
 
 User message: {user_message}"""
 
     elif route == "technique":
         template = f"""{context_str}
 
-TASK:
-The user needs technique guidance or safe substitutions given injuries/equipment.
-- Identify likely unsafe exercises given healthSummary.
-- Provide 1–3 substitutions (exerciseId) with reasons.
-- Provide 3–5 concise actionable cues.
-- If the user refers to a specific set, anchor advice to that context.
+TASK: Provide technique guidance and safe exercise alternatives
+SAFETY ASSESSMENT:
+- Analyze injury risk based on healthSummary
+- Identify exercises to absolutely avoid
+- Suggest safer alternatives with clear rationale
+- Provide evidence-based technique cues
+- Include warning signs to stop exercising
+
+Use your extensive knowledge of biomechanics, anatomy, and injury prevention.
 
 Return:
-1) TechniqueAdvice JSON
-2) Human summary (≤100 words).
+1) TechniqueAdvice JSON with risk assessment and safe alternatives
+2) Human summary (≤100 words, prioritize safety)
 
 User message: {user_message}"""
 
     elif route == "schedule":
         template = f"""{context_str}
 
-TASK:
-Propose a days-per-week split and simple deload rules based on CONTEXT.
+TASK: Design a training schedule using periodization principles
+CONSIDERATIONS:
+- Recovery requirements based on training experience
+- Appropriate training frequency and volume
+- Built-in progression and deload protocols
+- Injury prevention through proper programming
+
 Return:
-1) SchedulePlan JSON
-2) Human summary (≤120 words).
+1) SchedulePlan JSON with evidence-based progression rules
+2) Human summary (≤120 words)
 
 User message: {user_message}"""
 
@@ -255,36 +283,59 @@ User message: {user_message}"""
 profileSummary: {context['profileSummary']}
 preferenceMemory: {json.dumps(context['preferenceMemory'])}
 
-TASK:
-Explain the requested topic briefly and accurately. Use bullet key points.
+TASK: Explain fitness concepts using evidence-based information
+- Draw from exercise science, biomechanics, and physiology knowledge
+- Include practical applications
+- Mention common mistakes and safety considerations
+- Keep information accurate and up-to-date
+
 Return:
-1) Explanation JSON
-2) Human summary (≤100 words).
+1) Explanation JSON with evidence-based key points
+2) Human summary (≤100 words)
 
 User message: {user_message}"""
 
     return template
 
 def validate_workout_plan(plan_json, context):
-    """Basic validator to check for banned exercises and safety violations"""
+    """Enhanced validator for AI-generated workout plans"""
     violations = []
     
     try:
         plan = json.loads(plan_json) if isinstance(plan_json, str) else plan_json
         banned_exercises = context.get('healthSummary', {}).get('bannedExercises', [])
-        allowed_exercise_ids = [ex['id'] for ex in context.get('allowedExercises', [])]
+        active_injuries = context.get('healthSummary', {}).get('activeInjuries', [])
         
         for segment in plan.get('segments', []):
             for exercise in segment.get('exercises', []):
-                exercise_id = exercise.get('exerciseId')
+                exercise_name = exercise.get('exerciseName', '').lower()
+                exercise_id = exercise.get('exerciseId', '').lower()
                 
-                # Check if exercise is banned
-                if exercise_id in banned_exercises:
-                    violations.append(f'Violation: "{exercise_id}" is banned (healthSummary.bannedExercises).')
+                # Check for banned exercises (flexible matching)
+                for banned in banned_exercises:
+                    if banned.lower() in exercise_name or banned.lower() in exercise_id:
+                        violations.append(f'Violation: "{exercise_name}" contains banned exercise "{banned}"')
                 
-                # Check if exercise is in allowed list
-                if exercise_id not in allowed_exercise_ids:
-                    violations.append(f'Violation: "{exercise_id}" is not in allowedExercises list.')
+                # Check safety rating exists
+                if not exercise.get('safetyRating'):
+                    violations.append(f'Missing safety rating for: {exercise_name}')
+                
+                # Check equipment requirements exist
+                if not exercise.get('equipmentNeeded'):
+                    violations.append(f'Missing equipment requirements for: {exercise_name}')
+                
+                # Flag high-risk exercises for beginners
+                safety_rating = exercise.get('safetyRating', '')
+                if safety_rating == 'high' and 'beginner' in context.get('profileSummary', '').lower():
+                    violations.append(f'High-risk exercise for beginner: {exercise_name}')
+        
+        # Check for injury-specific violations
+        if 'elbow' in ' '.join(active_injuries):
+            for segment in plan.get('segments', []):
+                for exercise in segment.get('exercises', []):
+                    name = exercise.get('exerciseName', '').lower()
+                    if any(term in name for term in ['overhead', 'press', 'extension', 'curl']):
+                        violations.append(f'Potential elbow aggravator with active elbow injury: {name}')
     
     except Exception as e:
         violations.append(f'JSON parsing error: {str(e)}')
@@ -338,11 +389,41 @@ def chat():
         # Get context (for MVP, use default context with some injury examples)
         context = get_default_context()
         
-        # Add some example context based on conversation patterns
-        if any(word in current_message.lower() for word in ["elbow", "hurt", "pain"]):
-            context["healthSummary"]["activeInjuries"] = ["elbow_pain_right"]
-            context["healthSummary"]["bannedExercises"] = ["barbell_bench_press", "skull_crusher"]
-            context["healthSummary"]["cautionMovements"] = ["horizontal_press"]
+        # Add dynamic context based on conversation patterns with safety guidelines
+        injury_detected = None
+        if any(word in current_message.lower() for word in ["elbow", "hurt", "pain", "injury"]):
+            if "elbow" in current_message.lower():
+                injury_detected = "elbow_pain"
+                safety_context = get_safety_context_for_injury("elbow_pain")
+                context["healthSummary"]["activeInjuries"] = ["elbow_pain_right"] 
+                context["healthSummary"]["bannedExercises"] = safety_context["avoid"]
+                context["healthSummary"]["cautionMovements"] = ["overhead_movement", "elbow_flexion_under_load"]
+            elif any(word in current_message.lower() for word in ["shoulder", "rotator"]):
+                injury_detected = "shoulder_pain"
+                safety_context = get_safety_context_for_injury("shoulder_pain")
+                context["healthSummary"]["activeInjuries"] = ["shoulder_pain"]
+                context["healthSummary"]["bannedExercises"] = safety_context["avoid"]
+            elif any(word in current_message.lower() for word in ["back", "spine", "lumbar"]):
+                injury_detected = "lower_back_pain"
+                safety_context = get_safety_context_for_injury("lower_back_pain")
+                context["healthSummary"]["activeInjuries"] = ["lower_back_pain"]
+                context["healthSummary"]["bannedExercises"] = safety_context["avoid"]
+            elif any(word in current_message.lower() for word in ["knee"]):
+                injury_detected = "knee_pain"
+                safety_context = get_safety_context_for_injury("knee_pain")
+                context["healthSummary"]["activeInjuries"] = ["knee_pain"]
+                context["healthSummary"]["bannedExercises"] = safety_context["avoid"]
+        
+        if any(word in current_message.lower() for word in ["home", "no gym", "bodyweight", "apartment"]):
+            context["equipmentAccess"]["current"] = "home"
+        
+        if any(word in current_message.lower() for word in ["beginner", "new", "starting", "never"]):
+            context["profileSummary"] = "Beginner lifter just starting their fitness journey. Needs foundational movement patterns and conservative progression. Safety is the top priority."
+            context["requestMeta"]["safetyLevel"] = "very_conservative"
+            # Add beginner-specific banned exercises
+            context["healthSummary"]["bannedExercises"].extend([
+                "behind_neck_press", "upright_rows", "kipping_pullups", "heavy_overhead_squats"
+            ])
         
         # Route the message
         route = route_user_message(current_message)
