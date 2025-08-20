@@ -19,6 +19,13 @@ export default function EmailVerificationGuard({ children }: EmailVerificationGu
   const [isResending, setIsResending] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
 
+  // Handle navigation when user is not authenticated
+  useEffect(() => {
+    if (!authLoading && !currentUser) {
+      router.replace('/landing');
+    }
+  }, [authLoading, currentUser, router]);
+
   // Cooldown timer for resend button
   useEffect(() => {
     if (resendCooldown > 0) {
@@ -104,10 +111,16 @@ export default function EmailVerificationGuard({ children }: EmailVerificationGu
     );
   }
 
-  // If user is not logged in, redirect to landing
+  // If user is not logged in, show loading while navigation happens
   if (!currentUser) {
-    router.replace('/landing');
-    return null;
+    return (
+      <AuthBackground>
+        <View style={styles.loadingContainer}>
+          <CustomSpinner size={48} />
+          <Text style={styles.loadingText}>Loading...</Text>
+        </View>
+      </AuthBackground>
+    );
   }
 
   // If email is verified, show the protected content
