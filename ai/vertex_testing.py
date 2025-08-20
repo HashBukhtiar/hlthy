@@ -811,4 +811,12 @@ def get_inferred_context_from_conversation(current_message, conversation_history
 if __name__ == '__main__':
     print("Starting HLTHY Coach Flask server...")
     port = int(os.environ.get("PORT", 5001))
-    app.run(host="0.0.0.0", port=port, debug=True)
+    debug = os.environ.get("FLASK_ENV") != "production"
+    
+    print(f"Server configuration:")
+    print(f"  Port: {port}")
+    print(f"  Debug: {debug}")
+    print(f"  Profile Manager: {'✅ Available' if profile_manager else '❌ Not Available'}")
+    print(f"  Memory System: {'✅ Available' if memory_system else '❌ Not Available'}")
+    
+    app.run(host="0.0.0.0", port=port, debug=debug)

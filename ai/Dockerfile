@@ -1,12 +1,42 @@
 FROM python:3.11-slim
 
+# Set working directory
 WORKDIR /app
 
+# Install system dependencies for sentence-transformers and FAISS
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    gcc \
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements first for better caching
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
 
-COPY . .
+# Install Python dependencies
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
 
+# Copy application code
+COPY vertex_testing.py .
+COPY exercise_safety.py .
+COPY user_profiles.py .
+COPY semantic_memory.py .
+
+# Create directories for persistent data
+RUN mkdir -p user_profiles memory_data
+
+# Set environment variables
+ENV PYTHONPATH=/app
+ENV PYTHONUNBUFFERED=1
+ENV PORT=8080
+
+# Expose port
 EXPOSE 8080
 
-CMD ["python", "main.py"]
+# Health check
+HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8080/api/health || exit 1
+
+# Run the Flask application
+CMD ["python", "vertex_testing.py"]
