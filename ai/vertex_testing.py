@@ -542,8 +542,10 @@ def chat():
         if not data:
             return jsonify({"error": "No JSON data received"}), 400
             
-        # Extract conversation history and current message
+        # Extract user_id and conversation history
+        user_id = data.get('user_id')  # Optional for MVP backward compatibility
         history = data.get('history', [])
+        
         if not history:
             return jsonify({"error": "Missing conversation history"}), 400
         
@@ -565,46 +567,21 @@ def chat():
             return jsonify({"error": "No user message found in history"}), 400
         
         print(f"Current message: {current_message}")
+        print(f"User ID: {user_id}")
         print(f"Conversation history length: {len(conversation_history)}")
         
-        # Get context (for MVP, use default context with some injury examples)
-        context = get_default_context()
-        
-        # Add dynamic context based on conversation patterns with safety guidelines
-        injury_detected = None
-        if any(word in current_message.lower() for word in ["elbow", "hurt", "pain", "injury"]):
-            if "elbow" in current_message.lower():
-                injury_detected = "elbow_pain"
-                safety_context = get_safety_context_for_injury("elbow_pain")
-                context["healthSummary"]["activeInjuries"] = ["elbow_pain_right"] 
-                context["healthSummary"]["bannedExercises"] = safety_context["avoid"]
-                context["healthSummary"]["cautionMovements"] = ["overhead_movement", "elbow_flexion_under_load"]
-            elif any(word in current_message.lower() for word in ["shoulder", "rotator"]):
-                injury_detected = "shoulder_pain"
-                safety_context = get_safety_context_for_injury("shoulder_pain")
-                context["healthSummary"]["activeInjuries"] = ["shoulder_pain"]
-                context["healthSummary"]["bannedExercises"] = safety_context["avoid"]
-            elif any(word in current_message.lower() for word in ["back", "spine", "lumbar"]):
-                injury_detected = "lower_back_pain"
-                safety_context = get_safety_context_for_injury("lower_back_pain")
-                context["healthSummary"]["activeInjuries"] = ["lower_back_pain"]
-                context["healthSummary"]["bannedExercises"] = safety_context["avoid"]
-            elif any(word in current_message.lower() for word in ["knee"]):
-                injury_detected = "knee_pain"
-                safety_context = get_safety_context_for_injury("knee_pain")
-                context["healthSummary"]["activeInjuries"] = ["knee_pain"]
-                context["healthSummary"]["bannedExercises"] = safety_context["avoid"]
-        
-        if any(word in current_message.lower() for word in ["home", "no gym", "bodyweight", "apartment"]):
-            context["equipmentAccess"]["current"] = "home"
-        
-        if any(word in current_message.lower() for word in ["beginner", "new", "starting", "never"]):
-            context["profileSummary"] = "Beginner lifter just starting their fitness journey. Needs foundational movement patterns and conservative progression. Safety is the top priority."
-            context["requestMeta"]["safetyLevel"] = "very_conservative"
-            # Add beginner-specific banned exercises
-            context["healthSummary"]["bannedExercises"].extend([
-                "behind_neck_press", "upright_rows", "kipping_pullups", "heavy_overhead_squats"
-            ])
+        # Get context - use real user profile if available, otherwise default/inferred
+        if user_id and profile_manager:
+            print(f"Loading context for user: {user_id}")
+            context = profile_manager.get_user_context_for_ai(user_id)
+            
+            # If no profile found, create one from conversation inference
+            if not profile_manager.load_profile(user_id):
+                print(f"No profile found for {user_id}, using inferred context")
+                context = get_inferred_context_from_conversation(current_message, conversation_history)
+        else:
+            print("Using inferred context (no user_id or profile_manager)")
+            context = get_inferred_context_from_conversation(current_message, conversation_history)
         
         # Route the message
         route = route_user_message(current_message)
@@ -645,6 +622,74 @@ def chat():
         import traceback
         traceback.print_exc()
         return jsonify({"text": "I'm having trouble right now. Please try again later."}), 500
+
+def get_inferred_context_from_conversation(current_message, conversation_history):
+    """Infer user context from conversation when no profile exists"""
+    context = get_default_context()
+    
+    # Analyze current message and history for context clues
+    all_text = current_message + " " + " ".join([msg.get("text", "") for msg in conversation_history])
+    text_lower = all_text.lower()
+    
+    # Experience level inference
+    if any(word in text_lower for word in ["beginner", "new", "starting", "never", "first time"]):
+        context["profileSummary"] = "Beginner lifter just starting their fitness journey. Needs foundational movement patterns and conservative progression. Safety is the top priority."
+        context["requestMeta"]["safetyLevel"] = "very_conservative"
+        # Add beginner-specific banned exercises
+        context["healthSummary"]["bannedExercises"].extend([
+            "behind_neck_press", "upright_rows", "kipping_pullups", "heavy_overhead_squats"
+        ])
+    elif any(word in text_lower for word in ["intermediate", "experienced", "years", "advanced"]):
+        context["profileSummary"] = "Experienced lifter with solid foundation looking to optimize training and continue progression."
+        context["requestMeta"]["safetyLevel"] = "standard"
+    
+    # Injury detection and context
+    injury_detected = None
+    if any(word in text_lower for word in ["elbow", "hurt", "pain", "injury", "sore"]):
+        if "elbow" in text_lower:
+            injury_detected = "elbow_pain"
+            safety_context = get_safety_context_for_injury("elbow_pain")
+            context["healthSummary"]["activeInjuries"] = ["elbow_pain"] 
+            context["healthSummary"]["bannedExercises"].extend(safety_context["avoid"])
+            context["healthSummary"]["cautionMovements"] = ["overhead_movement", "elbow_flexion_under_load"]
+        elif any(word in text_lower for word in ["shoulder", "rotator"]):
+            injury_detected = "shoulder_pain"
+            safety_context = get_safety_context_for_injury("shoulder_pain")
+            context["healthSummary"]["activeInjuries"] = ["shoulder_pain"]
+            context["healthSummary"]["bannedExercises"].extend(safety_context["avoid"])
+        elif any(word in text_lower for word in ["back", "spine", "lumbar"]):
+            injury_detected = "lower_back_pain"
+            safety_context = get_safety_context_for_injury("lower_back_pain")
+            context["healthSummary"]["activeInjuries"] = ["lower_back_pain"]
+            context["healthSummary"]["bannedExercises"].extend(safety_context["avoid"])
+        elif any(word in text_lower for word in ["knee"]):
+            injury_detected = "knee_pain"
+            safety_context = get_safety_context_for_injury("knee_pain")
+            context["healthSummary"]["activeInjuries"] = ["knee_pain"]
+            context["healthSummary"]["bannedExercises"].extend(safety_context["avoid"])
+    
+    # Equipment availability
+    if any(word in text_lower for word in ["home", "no gym", "bodyweight", "apartment", "limited equipment"]):
+        context["equipmentAccess"]["current"] = "home"
+    elif any(word in text_lower for word in ["gym", "barbell", "rack", "machines"]):
+        context["equipmentAccess"]["current"] = "gym"
+    
+    # Goal inference
+    if any(word in text_lower for word in ["strength", "strong", "powerlifting", "max"]):
+        context["profileSummary"] += " Focused on building strength and power."
+    elif any(word in text_lower for word in ["muscle", "size", "bodybuilding", "hypertrophy"]):
+        context["profileSummary"] += " Focused on building muscle mass."
+    elif any(word in text_lower for word in ["weight loss", "fat loss", "lose weight", "cut"]):
+        context["profileSummary"] += " Focused on weight/fat loss while preserving muscle."
+    
+    # Tone preferences
+    if any(word in text_lower for word in ["technical", "detailed", "science", "explain"]):
+        context["preferenceMemory"]["tone"] = "technical"
+        context["preferenceMemory"]["replyLength"] = "detailed"
+    elif any(word in text_lower for word in ["quick", "brief", "short"]):
+        context["preferenceMemory"]["replyLength"] = "brief"
+    
+    return context
 
 if __name__ == '__main__':
     print("Starting HLTHY Coach Flask server...")
