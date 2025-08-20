@@ -76,3 +76,9 @@ wadllib==1.3.3
 werkzeug==3.0.6
 zipp==3.20.2
 zope.interface==6.0
+
+# Semantic Memory Dependencies
+sentence-transformers==2.2.2
+faiss-cpu==1.7.4
+torch==2.0.1
+transformers==4.36.2
