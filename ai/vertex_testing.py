@@ -20,6 +20,12 @@ except ImportError:
     print("Warning: User profile system not available")
     profile_manager = None
 
+try:
+    from semantic_memory import memory_system
+except ImportError:
+    print("Warning: Semantic memory system not available")
+    memory_system = None
+
 app = Flask(__name__)
 CORS(app, resources={r"/api/*": {"origins": "*"}})
 
@@ -575,6 +581,17 @@ def chat():
             print(f"Loading context for user: {user_id}")
             context = profile_manager.get_user_context_for_ai(user_id)
             
+            # Add semantic memory retrieval
+            if memory_system:
+                try:
+                    # Get relevant snippets based on current message
+                    relevant_snippets = memory_system.retrieve_relevant_snippets(user_id, current_message, k=3)
+                    context["retrievedSnippets"] = relevant_snippets
+                    print(f"Retrieved {len(relevant_snippets)} relevant memory snippets")
+                except Exception as e:
+                    print(f"Warning: Could not retrieve memory snippets: {e}")
+                    context["retrievedSnippets"] = []
+            
             # If no profile found, create one from conversation inference
             if not profile_manager.load_profile(user_id):
                 print(f"No profile found for {user_id}, using inferred context")
@@ -614,6 +631,34 @@ def chat():
                 print(f"Validation error: {e}")
         
         print(f"Coach response generated: {response_text[:200]}...")
+        
+        # Store conversation in semantic memory for future retrieval
+        if user_id and memory_system:
+            try:
+                # Store user message
+                memory_system.add_chat_snippet(user_id, current_message, role="user")
+                
+                # Store coach response (first 300 chars to avoid too much storage)
+                coach_summary = response_text[:300] + "..." if len(response_text) > 300 else response_text
+                memory_system.add_chat_snippet(user_id, coach_summary, role="coach")
+                
+                # If it's a workout plan, also store as structured workout data
+                if route == "planner" and "{" in response_text:
+                    try:
+                        json_start = response_text.find('{')
+                        json_end = response_text.rfind('}') + 1
+                        if json_start >= 0 and json_end > json_start:
+                            plan_json_str = response_text[json_start:json_end]
+                            plan_data = json.loads(plan_json_str)
+                            plan_data['date'] = datetime.now().isoformat()
+                            memory_system.add_workout_snippet(user_id, plan_data)
+                            print("Stored workout plan in semantic memory")
+                    except Exception as e:
+                        print(f"Could not store workout plan in memory: {e}")
+                        
+                print("Stored conversation in semantic memory")
+            except Exception as e:
+                print(f"Warning: Could not store in semantic memory: {e}")
         
         return jsonify({"text": response_text})
         
