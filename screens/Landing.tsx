@@ -17,13 +17,14 @@ import SignUpStep1 from '@/components/SignUpStep1';
 import SignUpStep2 from '@/components/SignUpStep2';
 import SignUpStep3 from '@/components/SignUpStep3';
 import SignUpStep4 from '@/components/SignUpStep4';
+import EmailVerificationScreen from '@/components/EmailVerificationScreen';
 
 export default function Landing() {
   const router = useRouter();
   const { width } = Dimensions.get('window');
   
   // State for current active screen
-  const [currentScreen, setCurrentScreen] = useState<'landing' | 'signup-step1' | 'signup-step2' | 'signup-step3' | 'signup-step4' | 'login' | 'forgot'>('landing');
+  const [currentScreen, setCurrentScreen] = useState<'landing' | 'signup-step1' | 'signup-step2' | 'signup-step3' | 'signup-step4' | 'login' | 'forgot' | 'email-verification'>('landing');
   
   // State for storing signup data across steps
   const [signupData, setSignupData] = useState({
@@ -35,6 +36,7 @@ export default function Landing() {
     password: '',
   });
   const [signupLoading, setSignupLoading] = useState(false);
+  const [verificationEmail, setVerificationEmail] = useState('');
 
   // Animation values for each screen - only center instance needed, positioned dynamically
   const landingAnim = useRef(new Animated.Value(0)).current;
@@ -44,6 +46,7 @@ export default function Landing() {
   const signUpStep4Anim = useRef(new Animated.Value(width)).current;
   const loginAnim = useRef(new Animated.Value(width)).current;
   const forgotPasswordAnim = useRef(new Animated.Value(width)).current;
+  const emailVerificationAnim = useRef(new Animated.Value(width)).current;
 
   // Initialize screen positions
   useEffect(() => {
@@ -55,11 +58,12 @@ export default function Landing() {
     signUpStep4Anim.setValue(width);
     loginAnim.setValue(width);
     forgotPasswordAnim.setValue(width);
+    emailVerificationAnim.setValue(width);
   }, []);
 
   // Helper function to animate screen transitions with position restoration
   const animateToScreen = useCallback((
-    targetScreen: 'landing' | 'signup-step1' | 'signup-step2' | 'signup-step3' | 'signup-step4' | 'login' | 'forgot', 
+    targetScreen: 'landing' | 'signup-step1' | 'signup-step2' | 'signup-step3' | 'signup-step4' | 'login' | 'forgot' | 'email-verification', 
     direction: 'forward' | 'backward' = 'forward'
   ) => {
     if (targetScreen === currentScreen) return;
@@ -73,6 +77,7 @@ export default function Landing() {
         case 'signup-step4': return signUpStep4Anim;
         case 'login': return loginAnim;
         case 'forgot': return forgotPasswordAnim;
+        case 'email-verification': return emailVerificationAnim;
       }
     };
 
@@ -124,7 +129,7 @@ export default function Landing() {
     }
 
     setCurrentScreen(targetScreen);
-  }, [currentScreen, landingAnim, signUpStep1Anim, signUpStep2Anim, signUpStep3Anim, signUpStep4Anim, loginAnim, forgotPasswordAnim, width]);
+  }, [currentScreen, landingAnim, signUpStep1Anim, signUpStep2Anim, signUpStep3Anim, signUpStep4Anim, loginAnim, forgotPasswordAnim, emailVerificationAnim, width]);
 
   const handleShowSignUp = useCallback(() => {
     animateToScreen('signup-step1', 'forward');
@@ -188,6 +193,19 @@ export default function Landing() {
     const finalData = { ...signupData, archetype: data.archetype };
     return finalData;
   }, [signupData]);
+
+  const handleEmailVerificationRequired = useCallback((email: string) => {
+    setVerificationEmail(email);
+    animateToScreen('email-verification', 'forward');
+  }, [animateToScreen]);
+
+  const handleEmailVerificationComplete = useCallback(() => {
+    router.replace('/profile');
+  }, [router]);
+
+  const handleBackToSignUpFromVerification = useCallback(() => {
+    animateToScreen('signup-step1', 'backward');
+  }, [animateToScreen]);
 
   return (
     <AuthBackground>
@@ -273,7 +291,6 @@ export default function Landing() {
               onBackPress={handleSignUpStep3Back}
               onComplete={handleSignUpStep3Data}
               onShowLogin={handleShowLogin}
-              loading={signupLoading}
             />
           </Animated.View>
 
@@ -286,7 +303,7 @@ export default function Landing() {
               onBackPress={handleSignUpStep4Back}
               onComplete={handleSignUpStep4Complete}
               onShowLogin={handleShowLogin}
-              loading={signupLoading}
+              onEmailVerificationRequired={handleEmailVerificationRequired}
             />
           </Animated.View>
 
@@ -313,6 +330,19 @@ export default function Landing() {
               onBackPress={handleBackToLandingFromForgotPassword}
               onBackToLogin={handleBackToLandingFromForgotPassword}
               onShowSignUp={handleShowSignUpFromForgotPassword}
+            />
+          </Animated.View>
+
+          {/* Email Verification Content */}
+          <Animated.View style={[
+            styles.slideView, 
+            { transform: [{ translateX: emailVerificationAnim }] }
+          ]}>
+            <EmailVerificationScreen
+              visible={true}
+              userEmail={verificationEmail}
+              onVerificationComplete={handleEmailVerificationComplete}
+              onBackToSignUp={handleBackToSignUpFromVerification}
             />
           </Animated.View>
         </View>
