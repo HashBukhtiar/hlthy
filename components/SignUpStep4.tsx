@@ -1,12 +1,12 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, KeyboardAvoidingView, ScrollView, StyleSheet, Dimensions, Keyboard, TouchableWithoutFeedback, Animated, Platform } from 'react-native';
 import { TextInput } from 'react-native-paper';
-import Ionicons from 'react-native-vector-icons/Ionicons';
+import { Ionicons } from '@expo/vector-icons';
 import { CustomSelector, SelectorItem } from '@/components/CustomSelector';
 import CustomSpinner from '@/components/CustomSpinner';
 import { Image } from 'react-native';
 import { auth, db } from '@/firebaseConfig';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { createUserWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 import { useRouter } from 'expo-router';
 
@@ -15,9 +15,10 @@ interface SignUpStep4Props {
   onBackPress: () => void;
   onComplete: (data: { archetype: string }) => void;
   onShowLogin?: () => void;
+  onEmailVerificationRequired?: (email: string) => void;
 }
 
-export default function SignUpStep4({ visible, onBackPress, onComplete, onShowLogin }: SignUpStep4Props) {
+export default function SignUpStep4({ visible, onBackPress, onComplete, onShowLogin, onEmailVerificationRequired }: SignUpStep4Props) {
   const { width, height } = Dimensions.get('window');
   const router = useRouter();
 
@@ -68,11 +69,19 @@ export default function SignUpStep4({ visible, onBackPress, onComplete, onShowLo
     try {
       const signupData = await onComplete({ archetype });
       console.log('[SignUpStep4] Received signup data:', signupData);
-      if (!signupData) return;
+      if (!signupData || typeof signupData !== 'object') {
+        setLoading(false);
+        return;
+      }
       const { email, password, firstName, lastName, username, dateOfBirth } = signupData;
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
       console.log('[SignUpStep4] Firebase Auth user created:', user.uid);
+      
+      // Send email verification
+      await sendEmailVerification(user);
+      console.log('[SignUpStep4] Email verification sent to:', email);
+      
       // Update users document
       await setDoc(doc(db, 'users', user.uid), {
         uid: user.uid,
@@ -103,6 +112,7 @@ export default function SignUpStep4({ visible, onBackPress, onComplete, onShowLo
         analytics: {lastSeen: new Date().toISOString()},
         latestPRs: {},
         bio: '',
+        emailVerified: false, // Track verification status
       });
       // Update usersPublic document
       await setDoc(doc(db, 'usersPublic', user.uid), {
@@ -110,12 +120,16 @@ export default function SignUpStep4({ visible, onBackPress, onComplete, onShowLo
         username,
       });
       console.log('[SignUpStep4] Firestore user profile created for:', user.uid);
-      router.replace('/profile');
+      
+      // Redirect to email verification screen
+      if (onEmailVerificationRequired) {
+        onEmailVerificationRequired(email);
+      }
     } catch (error) {
       console.error('[SignUpStep4] Signup error:', error);
     }
     setLoading(false);
-  }, [archetype, onComplete, shakeAnim, router]);
+  }, [archetype, onComplete, shakeAnim, onEmailVerificationRequired]);
 
   const handleBackPress = useCallback(() => {
     onBackPress();
