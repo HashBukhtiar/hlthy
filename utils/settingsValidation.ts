@@ -51,23 +51,15 @@ export const validateSettings = (settings: Partial<UserSettings>): ValidationRes
   }
 
   // Privacy settings validation
-  const validVisibilities = ['public', 'followers', 'private'];
+  const validVisibilities = ['public', 'private'];
   if (settings.profileVisibility && !validVisibilities.includes(settings.profileVisibility)) {
     errors.push('Invalid profile visibility setting');
   }
 
-  const validPermissions = ['everyone', 'followers'];
-  if (settings.commentPermission && !validPermissions.includes(settings.commentPermission)) {
-    errors.push('Invalid comment permission setting');
-  }
-
-  if (settings.messagePermission && !validPermissions.includes(settings.messagePermission)) {
+  // Message permission validation
+  const validMessagePermissions = ['everyone', 'followers'];
+  if (settings.messagePermission && !validMessagePermissions.includes(settings.messagePermission)) {
     errors.push('Invalid message permission setting');
-  }
-
-  const validFollowPermissions = ['anyone', 'approval'];
-  if (settings.followPermission && !validFollowPermissions.includes(settings.followPermission)) {
-    errors.push('Invalid follow permission setting');
   }
 
   // Theme validation
@@ -93,6 +85,36 @@ export const validateSettings = (settings: Partial<UserSettings>): ValidationRes
     }
   }
 
+  // Archetype validation (optional, we can add specific valid archetypes)
+  if (settings.archetype) {
+    const validArchetypes = ['athlete', 'bodybuilder', 'crossfitter', 'generalist', 'powerlifter'];
+    if (!validArchetypes.includes(settings.archetype.toLowerCase())) {
+      warnings.push('Selected archetype may not be recognized');
+    }
+  }
+
+  // Email validation (basic check)
+  if (settings.email) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(settings.email)) {
+      errors.push('Invalid email format');
+    }
+  }
+
+  // Notifications validation
+  if (settings.notifications) {
+    const requiredNotificationKeys = [
+      'newFollowers', 'likesAndComments', 'directMessages', 
+      'followRequestAccepted', 'taggedInComments', 'mentionedInReplies'
+    ];
+    
+    for (const key of requiredNotificationKeys) {
+      if (settings.notifications[key as keyof typeof settings.notifications] === undefined) {
+        warnings.push(`Notification setting '${key}' is not defined`);
+      }
+    }
+  }
+
   return {
     isValid: errors.length === 0,
     errors,
@@ -112,12 +134,21 @@ export const sanitizeSettings = (settings: Partial<UserSettings>): Partial<UserS
     sanitized.bio = sanitized.bio.trim();
   }
 
+  if (sanitized.email) {
+    sanitized.email = sanitized.email.trim().toLowerCase();
+  }
+
   // Ensure notification settings are boolean
   if (sanitized.notifications) {
     Object.keys(sanitized.notifications).forEach(key => {
       sanitized.notifications![key as keyof typeof sanitized.notifications] = 
         Boolean(sanitized.notifications![key as keyof typeof sanitized.notifications]);
     });
+  }
+
+  // Ensure archetype is lowercase for consistency
+  if (sanitized.archetype) {
+    sanitized.archetype = sanitized.archetype.toLowerCase();
   }
 
   return sanitized;

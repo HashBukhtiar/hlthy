@@ -38,15 +38,6 @@ export const calculatePrivacyLevel = (settings: Partial<UserSettings>): 'open' |
 
   // Profile visibility
   if (settings.profileVisibility === 'private') privacyScore += 3;
-  else if (settings.profileVisibility === 'followers') privacyScore += 2;
-  else privacyScore += 0;
-
-  // Follow permissions
-  if (settings.followPermission === 'approval') privacyScore += 2;
-  else privacyScore += 0;
-
-  // Comment permissions
-  if (settings.commentPermission === 'followers') privacyScore += 1;
   else privacyScore += 0;
 
   // Message permissions
@@ -56,8 +47,13 @@ export const calculatePrivacyLevel = (settings: Partial<UserSettings>): 'open' |
   // Two-factor authentication
   if (settings.twoFactorEnabled) privacyScore += 2;
 
-  if (privacyScore >= 7) return 'strict';
-  if (privacyScore >= 4) return 'moderate';
+  // Blocked users count (more blocked users = higher privacy concern)
+  if (settings.blockedUsers && settings.blockedUsers.length > 0) {
+    privacyScore += Math.min(settings.blockedUsers.length * 0.5, 2);
+  }
+
+  if (privacyScore >= 6) return 'strict';
+  if (privacyScore >= 3) return 'moderate';
   return 'open';
 };
 
