@@ -619,6 +619,9 @@ export default function ViewPost() {
                 <Image
                   source={{ uri: getOptimalImageUrl(comment.authorProfileThumbnailUrl, comment.authorProfileImageUrl) || 'https://via.placeholder.com/150' }}
                   style={styles.commentProfilePic}
+                  onError={() => {
+                    console.warn('Comment profile image failed to load');
+                  }}
                 />
               </TouchableOpacity>
               <View style={styles.commentContent}>
@@ -895,12 +898,11 @@ export default function ViewPost() {
       <View key={reply.id} style={styles.replyItem}>
         <View style={styles.commentLeftSection}>
           <Image
-            source={{ uri, cache: 'reload' }}
+            source={{ uri }}
             style={styles.replyProfilePic}
-            key={uri}
-            onError={({ nativeEvent }) =>
-              console.error('Reply image failed to load:', uri, nativeEvent)
-            }
+            onError={() => {
+              console.warn('Reply profile image failed to load:', uri);
+            }}
           />
           <View style={styles.commentContent}>
             <View style={styles.commentHeader}>

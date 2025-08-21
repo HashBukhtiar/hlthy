@@ -1219,9 +1219,9 @@ export default function Settings() {
                       return;
                     }
                     
-                    const cleanDate = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
-                    console.log('Setting date to:', cleanDate);
-                    updateSetting('dateOfBirth', cleanDate);
+                    // Use selectedDate directly - no need to "clean" it
+                    console.log('Setting date to:', selectedDate);
+                    updateSetting('dateOfBirth', selectedDate);
                   }
                 }}
                 maximumDate={new Date()}

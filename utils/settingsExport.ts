@@ -75,10 +75,15 @@ export const importSettings = async (): Promise<Partial<UserSettings> | null> =>
       throw new Error('Invalid settings file format');
     }
 
-    // Remove sensitive/non-transferable settings
-    const sanitizedSettings = { ...importData.settings };
-    delete sanitizedSettings.dateOfBirth; // Don't import personal data
-    
+    // Remove sensitive/non-transferable settings using destructuring
+    const { 
+      dateOfBirth,      // Personal data - don't import across devices
+      blockedUsers,     // Security data - should be device/account specific  
+      email,            // Account data - tied to specific user account
+      twoFactorEnabled, // Security setting - should not be transferred
+      ...sanitizedSettings 
+    } = importData.settings;
+
     return sanitizedSettings;
   } catch (error) {
     console.error('Import settings failed:', error);

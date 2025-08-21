@@ -18,7 +18,8 @@ export const useBlockEnforcement = () => {
 
   // Memoize the hasUserBlockedMe function
   const hasUserBlockedMe = useCallback((userBlockedUsers: string[]): boolean => {
-    return userBlockedUsers?.includes(userProfile?.uid || '') || false; 
+    if (!userProfile?.uid) return false;
+    return userBlockedUsers?.includes(userProfile.uid) || false; 
   }, [userProfile?.uid]);
 
   // Memoize the canInteractWithUser function

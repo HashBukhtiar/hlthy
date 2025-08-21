@@ -27,8 +27,8 @@ export const getCoverImageSource = (
   thumbnailUrl?: string | null,
   originalUrl?: string | null
 ): ImageSourcePropType => {
-  if (thumbnailUrl?.trim())  return { uri: thumbnailUrl };
-  if (originalUrl?.trim())   return { uri: originalUrl };
+  if (thumbnailUrl?.trim()) return { uri: thumbnailUrl };
+  if (originalUrl?.trim()) return { uri: originalUrl };
   return hlthyLogo;
 }
 
