@@ -208,8 +208,8 @@ async function convertFirestoreDoc(
 }
 
 
-const MessageItem = React.memo<{ item: Message; onLongPress: (m: Message) => void; conversationId: string }>(
-  ({ item, onLongPress, conversationId }) => {
+const MessageItem = React.memo<{ item: Message; onLongPress: (m: Message) => void; conversationId: string; onReprompt?: (message: string) => void }>(
+  ({ item, onLongPress, conversationId, onReprompt }) => {
     const router = useRouter();
     if (item.type === 'dateHeader') {
       return (
@@ -391,6 +391,7 @@ const MessageItem = React.memo<{ item: Message; onLongPress: (m: Message) => voi
             onLongPress={() => onLongPress(item)}
             isAiConversation={conversationId.endsWith('_ai_conversation')}
             timestamp={item.createdAt}
+            onReprompt={onReprompt}
           />
         ) : (
           <TouchableOpacity
@@ -693,7 +694,7 @@ const AIMessageBubble: React.FC<AIMessageBubbleProps> = ({ message, intent, onLo
       <View style={styles.aiContentContainer}>
         <View style={[styles.aiContentBubble]}>
           <View style={styles.aiMessageContent}>
-            {formatMessage(message)}
+            <Text style={styles.aiText}>{message}</Text>
           </View>
           
           {/* Action Buttons */}
@@ -704,6 +705,7 @@ const AIMessageBubble: React.FC<AIMessageBubbleProps> = ({ message, intent, onLo
               activeOpacity={0.7}
             >
               <Ionicons name="copy-outline" size={16} color="#888" />
+              <Text style={styles.aiActionLabel}>Copy</Text>
             </TouchableOpacity>
             <TouchableOpacity 
               style={styles.aiActionButton}
@@ -711,6 +713,7 @@ const AIMessageBubble: React.FC<AIMessageBubbleProps> = ({ message, intent, onLo
               activeOpacity={0.7}
             >
               <Ionicons name="share-outline" size={16} color="#888" />
+              <Text style={styles.aiActionLabel}>Share</Text>
             </TouchableOpacity>
             <TouchableOpacity 
               style={[styles.aiActionButton, isLiked && styles.aiActionButtonActive]}
@@ -722,6 +725,9 @@ const AIMessageBubble: React.FC<AIMessageBubbleProps> = ({ message, intent, onLo
                 size={16} 
                 color={isLiked ? "#4CD964" : "#888"} 
               />
+              <Text style={[styles.aiActionLabel, isLiked && { color: "#4CD964" }]}>
+                {isLiked ? "Liked" : "Like"}
+              </Text>
             </TouchableOpacity>
             <TouchableOpacity 
               style={styles.aiActionButton}
@@ -729,6 +735,7 @@ const AIMessageBubble: React.FC<AIMessageBubbleProps> = ({ message, intent, onLo
               activeOpacity={0.7}
             >
               <Ionicons name="refresh-outline" size={16} color="#888" />
+              <Text style={styles.aiActionLabel}>Retry</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -1131,6 +1138,13 @@ export default function ChatScreen() {
     }
   }, []);
 
+  const handleReprompt = useCallback(async (repromptMessage: string) => {
+    if (!conversationId.endsWith('_ai_conversation')) return;
+    
+    // Send the reprompt message
+    await handleSend(repromptMessage);
+  }, [conversationId]);
+
   const navigateToUserProfile = () => {
     if (conversationId !== 'ai_conversation' && otherParticipantId) {
       router.push(`/profile/${otherParticipantId}`);
@@ -1138,8 +1152,8 @@ export default function ChatScreen() {
   };
 
   const renderMessage = useCallback<ListRenderItem<Message>>(
-    ({ item }) => <MessageItem item={item} onLongPress={handleLongPress} conversationId={conversationId} />,
-    [handleLongPress, conversationId]
+    ({ item }) => <MessageItem item={item} onLongPress={handleLongPress} conversationId={conversationId} onReprompt={handleReprompt} />,
+    [handleLongPress, conversationId, handleReprompt]
   );
 
   return (
@@ -1796,11 +1810,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     backgroundColor: 'rgba(0, 0, 0, 0.2)',
-    gap: 8,
+    gap: 12,
   },
   aiActionButton: {
-    padding: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 8,
     borderRadius: 12,
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    gap: 4,
+  },
+  aiActionButtonActive: {
+    backgroundColor: 'rgba(76, 217, 100, 0.2)',
+  },
+  aiActionLabel: {
+    color: '#888',
+    fontSize: 11,
+    fontWeight: '500',
   },
 });
