@@ -124,7 +124,9 @@ export const SmartChatInput: React.FC<SmartChatInputProps> = ({
 
   const handleSend = () => {
     if (value.trim()) {
-      onSend(value.trim(), currentIntent || undefined);
+      // Only pass currentIntent if it exists and has an intent property
+      const intentToPass = currentIntent?.intent ? currentIntent : undefined;
+      onSend(value.trim(), intentToPass);
     }
   };
 

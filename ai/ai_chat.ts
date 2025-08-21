@@ -40,15 +40,20 @@ export async function classifyIntent(message: string): Promise<IntentClassificat
       body: JSON.stringify({ message }),
     });
     
-    console.log("Intent classification response:", response.status, response.statusText);
+    console.log("Intent classification response status:", response.status, response.statusText);
 
     if (!response.ok) {
-      throw new Error(`Intent classification failed: ${response.status} ${response.statusText}`);
+      console.error(`Intent classification failed: ${response.status} ${response.statusText}`);
+      return {
+        intent: 'explain',
+        error: `HTTP ${response.status}: ${response.statusText}`,
+      };
     }
 
     const data = await response.json();
     console.log("Intent classification result:", data);
 
+    // Ensure we return a properly formatted result
     return {
       intent: data.intent || 'explain',
       confidence: data.confidence,

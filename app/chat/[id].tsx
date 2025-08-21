@@ -681,12 +681,18 @@ export default function ChatScreen() {
 
       // Add user's message to Firestore with intent information
       console.log("Adding user message to Firestore:", textToSend);
-      await addDoc(messagesRef, {
+      const messageData: any = {
         text: textToSend,
         createdAt: serverTimestamp(),
         senderId: currentUser.uid,
-        intent: intentResult?.intent, // Store the intent
-      });
+      };
+      
+      // Only add intent field if intentResult exists and has intent property
+      if (intentResult?.intent) {
+        messageData.intent = intentResult.intent;
+      }
+      
+      await addDoc(messagesRef, messageData);
       console.log("User message added successfully");
 
       if (isAiChat) {
@@ -703,13 +709,19 @@ export default function ChatScreen() {
           const aiResponseText = await sendMessage(historyForAPI, textToSend);
 
           // Save AI's response to Firestore using current user's ID with isAiResponse flag
-          await addDoc(messagesRef, {
+          const aiMessageData: any = {
             text: aiResponseText,
             createdAt: serverTimestamp(),
             senderId: currentUser.uid, // Use current user's ID to avoid permission issues
             isAiResponse: true, // Flag to identify this as an AI response
-            intent: intentResult?.intent, // Store the original intent for context
-          });
+          };
+          
+          // Only add intent field if intentResult exists and has intent property
+          if (intentResult?.intent) {
+            aiMessageData.intent = intentResult.intent;
+          }
+          
+          await addDoc(messagesRef, aiMessageData);
         } catch (error) {
           console.error('Error sending message to AI:', error);
           // Add an error message to the chat
