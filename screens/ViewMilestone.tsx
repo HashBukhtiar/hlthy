@@ -10,6 +10,8 @@ import { useAuth } from '@/context/AuthContext';
 import { doc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '@/firebaseConfig';
 import { calculateImprovementPercentage } from '@/logic/milesonteUtils';
+import { getOptimalImageUrl } from '@/utils/imageUtils';
+import { useBlockEnforcement } from '@/utils/blockUtils';
 
 // Define interfaces for milestone data
 export interface MilestoneStats {
@@ -51,6 +53,7 @@ export interface Milestone {
 
 export default function ViewMilestone() {
   const { currentUser } = useAuth();
+  const { canInteractWithUser } = useBlockEnforcement();
   const [shareModalVisible, setShareModalVisible] = useState(false);
   const { id } = useLocalSearchParams();
   const insets = useSafeAreaInsets();
@@ -59,6 +62,7 @@ export default function ViewMilestone() {
   const [milestone, setMilestone] = useState<Milestone | null>(null);
   const [isPinned, setIsPinned] = useState(false);
   const [isTop5Percent, setIsTop5Percent] = useState(false);
+  const canInteractWithAuthor = milestone ? canInteractWithUser(milestone.userId, milestone.authorBlockedUsers) : false;
 
   useEffect(() => {
     const fetchMilestone = async () => {
@@ -80,12 +84,29 @@ export default function ViewMilestone() {
             return;
           }
 
+          // Fetch the author's profile to get the latest profile image
+          let authorProfileImageUrl = 'https://via.placeholder.com/150';
+          let authorProfileThumbnailUrl = null;
+          let authorFullName = data.authorUsername;
+
+          if (data.authorId) {
+            const userRef = doc(db, 'users', data.authorId);
+            const userSnap = await getDoc(userRef);
+            if (userSnap.exists()) {
+              const userData = userSnap.data();
+              authorProfileImageUrl = userData.profileImageUrl || authorProfileImageUrl;
+              authorProfileThumbnailUrl = userData.profileThumbnailUrl || null;
+              authorFullName = userData.displayName || authorFullName;
+              milestoneData.authorBlockedUsers = userData.blockedUsers || [];
+            }
+          }
+
           const milestoneData: Milestone = {
             id: milestoneSnap.id,
             userId: data.authorId,
             username: data.authorUsername,
-            fullName: data.authorFullName || data.authorUsername,
-            profileImageUrl: data.authorProfileImageUrl,
+            fullName: authorFullName,
+            profileImageUrl: getOptimalImageUrl(authorProfileImageUrl, authorProfileThumbnailUrl),
             createdAt: data.createdAt.toDate(),
             milestoneType: data.milestoneDetails?.type,
             details: {
@@ -113,6 +134,7 @@ export default function ViewMilestone() {
             top5Percent: data.top5Percent || false,
           };
           
+          // TODO: Implement pinned and top X%
           setMilestone(milestoneData);
           setIsPinned(milestoneData.pinned);
           setIsTop5Percent(milestoneData.top5Percent);
@@ -134,6 +156,11 @@ export default function ViewMilestone() {
 
   const handleLike = () => {
     if (!milestone) return;
+
+    if (!canInteractWithAuthor) {
+      Alert.alert("Cannot Like", "You cannot interact with this user.");
+      return;
+    }
     
     setMilestone(prevState => {
       if (!prevState) return null;
@@ -154,13 +181,60 @@ export default function ViewMilestone() {
   };
 
   const navigateToPost = (postId: string | undefined) => {
-    if (postId) {
-      router.push(`/view-post/${postId}`);
+    if (!postId) return;
+    
+    if (!canInteractWithAuthor) {
+      Alert.alert("Post Unavailable", "This post is not accessible.");
+      return;
     }
+    
+    router.push(`/view-post/${postId}`);
   };
   
   const navigateToProfile = (userId: string) => {
+    if (!canInteractWithUser(userId)) {
+      Alert.alert("Profile Unavailable", "This user's profile is not accessible.");
+      return;
+    }
     router.push(`/profile?id=${userId}`);
+  };
+
+  const renderActionButtons = () => {
+    if (!canInteractWithAuthor) {
+      return (
+        <View style={styles.actionButtonsContainer}>
+          <Text style={styles.blockedMessage}>Interactions not available</Text>
+        </View>
+      );
+    }
+
+    return (
+      <View style={styles.actionButtonsContainer}>
+        <TouchableOpacity 
+          style={styles.actionButton}
+          onPress={handleLike}
+        >
+          <Ionicons 
+            name={milestone.isLiked ? "heart" : "heart-outline"} 
+            size={24} 
+            color={milestone.isLiked ? "#FF69B4" : "#FFF"} 
+            style={styles.actionIcon}
+          />
+          <Text style={styles.actionButtonText}>
+            Like
+            {milestone.stats.likes > 0 && <Text style={styles.likeCountText}> ({milestone.stats.likes})</Text>}
+          </Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={styles.actionButton}
+          onPress={handleShare}
+        >
+          <Ionicons name="paper-plane-outline" size={24} color="#FFF" style={styles.actionIcon} />
+          <Text style={styles.actionButtonText}>Share</Text>
+        </TouchableOpacity>
+      </View>
+    );
   };
   
   const handleShare = async () => {
@@ -169,10 +243,15 @@ export default function ViewMilestone() {
       return;
     }
     
+    if (!canInteractWithAuthor) {
+      Alert.alert("Cannot Share", "You cannot interact with this user.");
+      return;
+    }
+    
     setShareModalVisible(true);
   };
 
-  const shareMilestoneWithUser = async (userId: string, username: string, profileImageUrl?: string) => {
+  const shareMilestoneWithUser = async (userId: string, username: string, profileImageUrl?: string, profileThumbnailUrl?: string) => {
     if (!currentUser || !milestone) return;
     
     try {
@@ -181,6 +260,7 @@ export default function ViewMilestone() {
         userId,
         username,
         profileImageUrl,
+        profileThumbnailUrl,
         {
           id: milestone.id,
           milestoneType: milestone.milestoneType,
@@ -564,37 +644,15 @@ export default function ViewMilestone() {
           </TouchableOpacity>
         )}
         
-        <View style={styles.actionButtonsContainer}>
-          <TouchableOpacity 
-            style={styles.actionButton}
-            onPress={handleLike}
-          >
-            <Ionicons 
-              name={milestone.isLiked ? "heart" : "heart-outline"} 
-              size={24} 
-              color={milestone.isLiked ? "#FF69B4" : "#FFF"} 
-              style={styles.actionIcon}
-            />
-            <Text style={styles.actionButtonText}>
-              Like
-              {milestone.stats.likes > 0 && <Text style={styles.likeCountText}> ({milestone.stats.likes})</Text>}
-            </Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={styles.actionButton}
-            onPress={handleShare}
-          >
-            <Ionicons name="paper-plane-outline" size={24} color="#FFF" style={styles.actionIcon} />
-            <Text style={styles.actionButtonText}>Share</Text>
-          </TouchableOpacity>
-        </View>
+        {renderActionButtons()}
       </ScrollView>
-      <ShareModal
-        visible={shareModalVisible}
-        onClose={() => setShareModalVisible(false)}
-        onShareWith={shareMilestoneWithUser}
-      />
+      {canInteractWithAuthor && (
+        <ShareModal
+          visible={shareModalVisible}
+          onClose={() => setShareModalVisible(false)}
+          onShareWith={shareMilestoneWithUser}
+        />
+      )}
     </View>
   );
 }
@@ -959,5 +1017,11 @@ const styles = StyleSheet.create({
     marginTop: 8,
     borderWidth: 1,
     borderColor: '#4CD964'
+  },
+  blockedMessage: {
+    color: '#999',
+    fontSize: 16,
+    textAlign: 'center',
+    fontStyle: 'italic',
   },
 });

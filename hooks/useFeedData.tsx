@@ -16,9 +16,10 @@ import {
 import { db } from '@/firebaseConfig';
 import { useAuth } from '@/context/AuthContext';
 import { Post } from '@/hooks/usePostsData';
+import { UserProfile } from '@/types';
 
 interface FeedPost extends Post {
-  // Add any feed-specific properties if needed
+  authorBlockedUsers?: string[];
 }
 
 export function useFeedData() {
@@ -45,6 +46,40 @@ export function useFeedData() {
       return true;
     });
   }, []);
+
+  const processPostsWithAuthorProfiles = useCallback(async (postDocs: (Post & { id: string })[]): Promise<FeedPost[]> => {
+    if (postDocs.length === 0) return [];
+    if (!currentUser?.uid) return [];
+
+    // 1. Collect unique author IDs from the posts
+    const authorIds = [...new Set(postDocs.map(post => post.authorId).filter(id => id))];
+
+    // 2. Fetch all author profiles in a single batched query
+    const authorProfiles: Record<string, UserProfile> = {};
+    if (authorIds.length > 0) {
+      // Firestore 'in' queries are limited to 30 items. For larger batches, you would need to chunk this.
+      const usersQuery = query(collection(db, 'users'), where('__name__', 'in', authorIds));
+      const usersSnapshot = await getDocs(usersQuery);
+      usersSnapshot.forEach(doc => {
+        authorProfiles[doc.id] = doc.data() as UserProfile;
+      });
+    }
+
+    // 3. Enhance posts with author profile data
+    const enrichedPosts: FeedPost[] = postDocs.map(post => {
+      const authorProfile = authorProfiles[post.authorId];
+      return {
+        ...post,
+        authorProfileImageUrl: authorProfile?.profileImageUrl || '',
+        authorProfileThumbnailUrl: authorProfile?.profileThumbnailUrl || '',
+        authorBlockedUsers: authorProfile?.blockedUsers || [], // Add this line
+        // Determine if the current user has liked this post
+        isLiked: false, // This would need to be determined separately if needed
+      };
+    });
+
+    return enrichedPosts;
+  }, [currentUser?.uid]);
 
   const fetchFeedData = useCallback(async (isRefresh = false, isLoadMore = false) => {
     if (!currentUser?.uid) return;
@@ -91,29 +126,14 @@ export function useFeedData() {
       }
 
       // Get the actual post data for each feed item
-      const feedPosts: FeedPost[] = [];
-      for (const feedDoc of feedSnapshot.docs) {
-        const feedData = feedDoc.data();
-        const postId = feedDoc.id;
-        
-        // Get the full post data
-        const postRef = doc(db, 'posts', postId);
-        const postDoc = await getDoc(postRef);
-        
-        if (postDoc.exists()) {
-          const postData = postDoc.data() as Post;
-          // Check if user has liked this post
-          const likeRef = doc(db, 'posts', postId, 'likers', currentUser.uid);
-          const likeDoc = await getDoc(likeRef);
-          
-          feedPosts.push({
-            ...postData,
-            id: postId,
-            isLiked: likeDoc.exists(),
-            isBookmarked: false, // TODO: Implement bookmark checking
-          });
-        }
-      }
+      const postPromises = feedSnapshot.docs.map(feedDoc => getDoc(doc(db, 'posts', feedDoc.id)));
+      const postSnapshots = await Promise.all(postPromises);
+
+      const postsData = postSnapshots
+        .filter(doc => doc.exists())
+        .map(doc => ({ id: doc.id, ...doc.data() } as Post & { id: string }));
+
+      const feedPosts = await processPostsWithAuthorProfiles(postsData);
 
       // Set last visible for pagination
       if (feedSnapshot.docs.length > 0) {
@@ -157,33 +177,21 @@ export function useFeedData() {
   const fetchPublicPostsFallback = async (isRefresh = false) => {
     try {
       // Fallback to public posts if user has no personalized feed
-      // EXCLUDE the current user's own posts from the fallback
       const postsRef = collection(db, 'posts');
       const publicQuery = query(
         postsRef,
-        where('authorId', '!=', currentUser!.uid), // Exclude user's own posts
+        where('authorId', '!=', currentUser!.uid),
         where('visibility', '==', 'public'),
-        orderBy('authorId'), // Required for != queries
+        orderBy('authorId'), 
         orderBy('createdAt', 'desc'),
         limit(BATCH_SIZE)
       );
 
       const publicSnapshot = await getDocs(publicQuery);
-      const publicPosts: FeedPost[] = [];
-
-      for (const postDoc of publicSnapshot.docs) {
-        const postData = postDoc.data() as Post;
-        // Check if user has liked this post
-        const likeRef = doc(db, 'posts', postDoc.id, 'likers', currentUser!.uid);
-        const likeDoc = await getDoc(likeRef);
-        
-        publicPosts.push({
-          ...postData,
-          id: postDoc.id,
-          isLiked: likeDoc.exists(),
-          isBookmarked: false,
-        });
-      }
+      
+      // Efficiently process all fetched public posts
+      const postsData = publicSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Post & { id: string }));
+      const publicPosts = await processPostsWithAuthorProfiles(postsData);
 
       // Remove duplicates before setting state
       const uniquePublicPosts = removeDuplicatePosts(publicPosts);
@@ -204,32 +212,15 @@ export function useFeedData() {
         );
 
         const simpleSnapshot = await getDocs(simpleQuery);
-        const filteredPosts: FeedPost[] = [];
+        
+        // Filter out user's own posts client-side
+        const filteredPostDocs = simpleSnapshot.docs
+          .filter(doc => doc.data().authorId !== currentUser!.uid)
+          .slice(0, BATCH_SIZE);
 
-        for (const postDoc of simpleSnapshot.docs) {
-          const postData = postDoc.data() as Post;
-          
-          // Skip user's own posts
-          if (postData.authorId === currentUser!.uid) {
-            continue;
-          }
-          
-          // Stop once we have enough posts
-          if (filteredPosts.length >= BATCH_SIZE) {
-            break;
-          }
-          
-          // Check if user has liked this post
-          const likeRef = doc(db, 'posts', postDoc.id, 'likers', currentUser!.uid);
-          const likeDoc = await getDoc(likeRef);
-          
-          filteredPosts.push({
-            ...postData,
-            id: postDoc.id,
-            isLiked: likeDoc.exists(),
-            isBookmarked: false,
-          });
-        }
+        // Efficiently process the filtered posts
+        const postsData = filteredPostDocs.map(doc => ({ id: doc.id, ...doc.data() } as Post & { id: string }));
+        const filteredPosts = await processPostsWithAuthorProfiles(postsData);
 
         const uniqueFilteredPosts = removeDuplicatePosts(filteredPosts);
         setPosts(uniqueFilteredPosts);
@@ -248,10 +239,10 @@ export function useFeedData() {
   }, [fetchFeedData]);
 
   const loadMorePosts = useCallback(() => {
-    if (!loadingMore && hasMore) {
+    if (!loadingMore && hasMore && lastVisible) {
       fetchFeedData(false, true);
     }
-  }, [fetchFeedData, loadingMore, hasMore]);
+  }, [fetchFeedData, loadingMore, hasMore, lastVisible]);
 
   // Initial load with real-time listener
   useEffect(() => {
@@ -273,23 +264,16 @@ export function useFeedData() {
           return;
         }
 
-        const feedPosts: FeedPost[] = [];
+        // Get post documents from the feed references
+        const postPromises = snapshot.docs.map(feedDoc => getDoc(doc(db, 'posts', feedDoc.id)));
+        const postSnapshots = await Promise.all(postPromises);
         
-        for (const feedDoc of snapshot.docs) {
-          const feedData = feedDoc.data();
-          const postId = feedDoc.id;
-          
-          // Check if user has liked this post
-          const likeRef = doc(db, 'posts', postId, 'likers', currentUser.uid);
-          const likeDoc = await getDoc(likeRef);
-          
-          feedPosts.push({
-            ...feedData,
-            id: postId,
-            isLiked: likeDoc.exists(),
-            isBookmarked: false,
-          } as FeedPost);
-        }
+        const postsData = postSnapshots
+          .filter(doc => doc.exists())
+          .map(doc => ({ id: doc.id, ...doc.data() } as Post & { id: string }));
+
+        // Process posts to get author profiles and like status
+        const feedPosts = await processPostsWithAuthorProfiles(postsData);
 
         // Remove duplicates before setting state
         const uniqueFeedPosts = removeDuplicatePosts(feedPosts);
@@ -297,6 +281,11 @@ export function useFeedData() {
         setMilestones(uniqueFeedPosts.filter(post => post.isMilestone));
         setLoading(false);
         setError(null);
+
+        if (snapshot.docs.length > 0) {
+          setLastVisible(snapshot.docs[snapshot.docs.length - 1]);
+          setHasMore(snapshot.docs.length === BATCH_SIZE);
+        }
       },
       (error) => {
         console.error('Feed listener error:', error);
@@ -306,7 +295,7 @@ export function useFeedData() {
     );
 
     return unsubscribe;
-  }, [currentUser?.uid, removeDuplicatePosts]);
+  }, [currentUser?.uid, removeDuplicatePosts, processPostsWithAuthorProfiles]);
 
   return {
     posts,

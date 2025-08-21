@@ -14,3 +14,4 @@ export * from "./imageProcessing";
 export * from "./feedTriggers";
 export * from "./followTriggers";
 export * from "./adminFunctions";
+export * from "./settingsService";

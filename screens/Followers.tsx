@@ -13,6 +13,7 @@ import { db } from '@/firebaseConfig';
 import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { getOptimalImageUrl } from '@/utils/imageUtils';
 
 export default function Followers() {
   const { userId } = useLocalSearchParams();
@@ -127,7 +128,7 @@ export default function Followers() {
           >
             <Image 
               source={{ 
-                uri: item.profileImageUrl || 'https://thumbs.dreamstime.com/b/creative-illustration-default-avatar-profile-placeholder-isolated-background-art-design-grey-photo-blank-template-mockup-144855718.jpg'
+                uri: getOptimalImageUrl(item.profileThumbnailUrl, item.profileImageUrl) || 'https://thumbs.dreamstime.com/b/creative-illustration-default-avatar-profile-placeholder-isolated-background-art-design-grey-photo-blank-template-mockup-144855718.jpg'
               }} 
               style={styles.avatar} 
             />

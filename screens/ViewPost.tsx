@@ -1,5 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, Image, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform, FlatList, TextInput, Modal, ActivityIndicator, Alert } from 'react-native';
+import React, { useState, useEffect, useMemo } from 'react';
+import {
+  StyleSheet, Text, View, Image, ScrollView,
+  TouchableOpacity, KeyboardAvoidingView, Platform,
+  TextInput, Modal, ActivityIndicator, Alert
+} from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,10 +11,10 @@ import ShareModal from '@/components/ShareModal';
 import { sharePost } from '@/services/ShareService';
 import { usePostsData, Post, Comment, Reply } from '@/hooks/usePostsData';
 import { useAuth } from '@/context/AuthContext';
-import { collection } from 'firebase/firestore';
+import { collection, query, where, limit, getDocs, getDoc, doc } from 'firebase/firestore';
 import { db } from '@/firebaseConfig';
-import { query, where, limit, getDocs } from 'firebase/firestore';
-import { deleteImageFromStorage, deleteMilestoneFromFirestore } from '@/utils/imageUtils';
+import { getOptimalImageUrl, deleteImageFromStorage, deleteMilestoneFromFirestore } from '@/utils/imageUtils';
+import { useBlockEnforcement } from '@/utils/blockUtils';
 
 export default function ViewPost() {
   const [menuVisible, setMenuVisible] = useState(false);
@@ -18,7 +22,8 @@ export default function ViewPost() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { currentUser, userProfile } = useAuth();
-  const { 
+  const { canInteractWithUser, isUserBlocked } = useBlockEnforcement();
+  const {
     getPostById, 
     getPostComments, 
     likePost, 
@@ -55,35 +60,85 @@ export default function ViewPost() {
 
   const [selectedCommentForAction, setSelectedCommentForAction] = useState<Comment | null>(null);
   const [commentActionModalVisible, setCommentActionModalVisible] = useState(false);
+
+  const filteredComments = useMemo(() => {
+    return comments.filter(comment => {
+      // Always show current user's own comments
+      if (comment.authorId === currentUser?.uid) return true;
+      
+      // Filter out comments from blocked users
+      return canInteractWithUser(comment.authorId, comment.authorBlockedUsers);
+    });
+  }, [comments, canInteractWithUser, currentUser?.uid]);
+
+  const canInteractWithAuthor = useMemo(() => {
+    if (!post || !post.authorId) return false;
+    return canInteractWithUser(post.authorId, post.authorBlockedUsers);
+  }, [post, canInteractWithUser]);
   
   // Fetch post and comments
   useEffect(() => {
     const fetchPostData = async () => {
       if (!postId) {
-        console.error("No post ID provided");
         setLoading(false);
         return;
       }
-
-      console.log("Fetching post with ID:", postId);
-      
+      setLoading(true);
       try {
-        setLoading(true);
-        
-        // Get post data
+        // Fetch post
         const fetchedPost = await getPostById(postId);
+        if (fetchedPost && fetchedPost.authorId) {
+          const userDoc = await getDoc(doc(db, 'users', fetchedPost.authorId));
+          if (userDoc.exists()) {
+            const userData = userDoc.data();
+            fetchedPost.authorProfileThumbnailUrl = userData.profileThumbnailUrl || '';
+            fetchedPost.authorBlockedUsers = userData.blockedUsers || [];
+          }
+        }
         setPost(fetchedPost);
-        
-        // Get comments
+
+        // Fetch comments
         const fetchedComments = await getPostComments(postId);
-        setComments(fetchedComments);
+
+        // For each comment, fetch the author's thumbnail
+        const commentsWithThumbnails = await Promise.all(
+          fetchedComments.map(async (comment) => {
+            if (comment.authorId) {
+              const userDoc = await getDoc(doc(db, 'users', comment.authorId));
+              if (userDoc.exists()) {
+                const userData = userDoc.data();
+                comment.authorProfileThumbnailUrl = userData.profileThumbnailUrl || '';
+                comment.authorBlockedUsers = userData.blockedUsers || [];
+              }
+            }
+            // For each reply, fetch the author's thumbnail and blocked users
+            if (comment.replies && comment.replies.length > 0) {
+              comment.replies = await Promise.all(
+                comment.replies.map(async (reply) => {
+                  if (reply.authorId) {
+                    const replyUserDoc = await getDoc(doc(db, 'users', reply.authorId));
+                    if (replyUserDoc.exists()) {
+                      const replyUserData = replyUserDoc.data();
+                      reply.authorProfileThumbnailUrl = replyUserData.profileThumbnailUrl || '';
+                      reply.authorBlockedUsers = replyUserData.blockedUsers || [];
+                    }
+                  }
+                  return reply;
+                })
+              );
+            }
+            return comment;
+          })
+        );
+
+        setComments(commentsWithThumbnails);
       } catch (error) {
-        console.error("Error fetching post:", error);
+        console.error("Error fetching post/comments:", error);
       } finally {
         setLoading(false);
       }
     };
-    
+
     fetchPostData();
   }, [postId]);
 
@@ -152,21 +207,31 @@ export default function ViewPost() {
         usersRef,
         where('username', '>=', searchText.toLowerCase()),
         where('username', '<=', searchText.toLowerCase() + '\uf8ff'),
-        limit(10)
+        limit(20) // Fetch more to account for filtering
       );
 
       const querySnapshot = await getDocs(q);
       const users: {id: string, username: string, profileImageUrl?: string}[] = [];
+      
       querySnapshot.forEach(doc => {
-        if (doc.id !== currentUser?.uid) {
+        const userData = doc.data();
+        const userId = doc.id;
+        
+        // Skip current user and blocked users
+        if (userId === currentUser?.uid) return;
+        
+        // Check if we can interact with this user
+        if (canInteractWithUser(userId, userData.blockedUsers)) {
           users.push({
-            id: doc.id,
-            username: doc.data().username,
-            profileImageUrl: doc.data().profileImageUrl,
+            id: userId,
+            username: userData.username,
+            profileImageUrl: userData.profileImageUrl,
           });
         }
       });
-      setSearchResults(users);
+      
+      // Limit final results
+      setSearchResults(users.slice(0, 10));
     } catch (error) {
       console.error("Error searching users:", error);
     } finally {
@@ -174,13 +239,13 @@ export default function ViewPost() {
     }
   };
 
-useEffect(() => {
-  const delayDebounceFn = setTimeout(() => {
-    searchUsers();
-  }, 500);
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      searchUsers();
+    }, 500);
 
-  return () => clearTimeout(delayDebounceFn);
-}, [searchText]);
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchText]);
 
   const sharePostWithUser = async (userId: string, username: string, profileImageUrl?: string) => {
     if (!currentUser || !post) return;
@@ -191,10 +256,12 @@ useEffect(() => {
         userId,
         username,
         profileImageUrl,
+        undefined,
         {
           id: post.id,
           caption: post.caption,
           imageUrl: post.imageUrl,
+          thumbnailUrl: post.thumbnailUrl,
           authorUsername: post.authorUsername
         }
       );
@@ -209,6 +276,12 @@ useEffect(() => {
   
   const handleLike = async () => {
     if (!post || !currentUser) return;
+    
+    // Check if we can interact with the post author
+    if (!canInteractWithAuthor) {
+      Alert.alert("Cannot Like", "You cannot interact with this user.");
+      return;
+    }
     
     try {
       if (post.isLiked) {
@@ -238,6 +311,12 @@ useEffect(() => {
   
   const handleAddComment = async () => {
     if (!post || !currentUser || !commentText.trim() || isSubmitting) return;
+    
+    // Check if we can interact with the post author
+    if (!canInteractWithAuthor) {
+      Alert.alert("Cannot Comment", "You cannot interact with this user.");
+      return;
+    }
     
     try {
       setIsSubmitting(true);
@@ -384,8 +463,15 @@ useEffect(() => {
     const commentIndex = comments.findIndex(c => c.id === commentId);
     if (commentIndex === -1) return;
 
-    const originalComments = [...comments];
     const comment = comments[commentIndex];
+    
+    // Check if we can interact with the comment author
+    if (!canInteractWithUser(comment.authorId, comment.authorBlockedUsers)) {
+      Alert.alert("Cannot Like", "You cannot interact with this user.");
+      return;
+    }
+
+    const originalComments = [...comments];
     const currentlyLiked = comment.isLiked;
 
     const updatedComments = [...comments];
@@ -438,6 +524,15 @@ useEffect(() => {
   const handleAddReply = async (parentCommentId: string) => {
     if (!post || !currentUser || !replyText.trim() || isSubmittingReply) return;
 
+    const comment = comments.find(c => c.id === parentCommentId);
+    if (!comment) return;
+
+    // Check if we can interact with the comment author
+    if (!canInteractWithUser(comment.authorId, comment.authorBlockedUsers)) {
+      Alert.alert("Cannot Reply", "You cannot interact with this user.");
+      return;
+    }
+
     setIsSubmittingReply(true);
     try {
       const newReply = await addReplyToComment(post.id, parentCommentId, replyText.trim());
@@ -474,6 +569,13 @@ useEffect(() => {
     if (replyIndex === undefined || replyIndex === -1 || !comment.replies) return;
 
     const reply = comment.replies[replyIndex];
+    
+    // Check if we can interact with the reply author
+    if (!canInteractWithUser(reply.authorId, reply.authorBlockedUsers)) {
+      Alert.alert("Cannot Like", "You cannot interact with this user.");
+      return;
+    }
+
     const currentlyLiked = reply.isLiked;
 
     // Optimistic UI Update
@@ -498,6 +600,121 @@ useEffect(() => {
       setComments(originalComments);
       Alert.alert("Error", "Could not update reply like status.");
     }
+  };
+
+  const renderCommentItem = (comment: Comment) => {
+    const canInteractWithComment = canInteractWithUser(comment.authorId, comment.authorBlockedUsers);
+    
+    return (
+      <View key={comment.id}>
+        <TouchableOpacity 
+          onLongPress={canInteractWithComment ? () => handleLongPressComment(comment) : undefined}
+          delayLongPress={500}
+        >
+          <View style={styles.commentItem}>
+            <View style={styles.commentLeftSection}>
+              <TouchableOpacity 
+                onPress={canInteractWithComment ? () => navigateToProfile(comment.authorId) : undefined}
+              >
+                <Image
+                  source={{ uri: getOptimalImageUrl(comment.authorProfileThumbnailUrl, comment.authorProfileImageUrl) || 'https://via.placeholder.com/150' }}
+                  style={styles.commentProfilePic}
+                  onError={() => {
+                    console.warn('Comment profile image failed to load');
+                  }}
+                />
+              </TouchableOpacity>
+              <View style={styles.commentContent}>
+                <View style={styles.commentHeader}>
+                  <Text style={styles.commentUsername}>{comment.authorUsername}</Text>
+                  <Text style={styles.commentTimestamp}>{formatDate(comment.createdAt)}</Text>
+                </View>
+                <Text style={styles.commentText}>{comment.text}</Text>
+                {canInteractWithComment && (
+                  <View style={styles.commentActions}>
+                    <TouchableOpacity onPress={() => handleToggleReplyInput(comment.id)} style={styles.replyButton}>
+                      <Text style={styles.replyButtonText}>Reply</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
+            </View>
+            {canInteractWithComment && (
+              <View style={styles.commentLikeContainer}>
+                <TouchableOpacity 
+                  style={styles.commentLikeButton}
+                  onPress={() => handleCommentLike(comment.id)}
+                >
+                  <Ionicons 
+                    name={comment.isLiked ? "heart" : "heart-outline"} 
+                    size={14} 
+                    color={comment.isLiked ? "#FF3B30" : "#999"}
+                  />
+                </TouchableOpacity>
+                <Text style={[
+                  styles.commentLikeCount,
+                  comment.isLiked && styles.commentLikedCount
+                ]}>
+                  {comment.likes || 0}
+                </Text>
+              </View>
+            )}
+          </View>
+        </TouchableOpacity>
+        
+        {/* Reply Input Area - only show if can interact */}
+        {canInteractWithComment && replyingToCommentId === comment.id && (
+          <View style={styles.replyInputContainer}>
+            <Image
+              source={{ uri: getOptimalImageUrl(userProfile?.profileThumbnailUrl, userProfile?.profileImageUrl) || 'https://via.placeholder.com/150' }}
+              style={styles.replyInputProfilePic}
+            />
+            <TextInput
+              style={styles.replyInput}
+              placeholder={`Replying to ${comment.authorUsername}...`}
+              placeholderTextColor="#666"
+              value={replyText}
+              onChangeText={setReplyText}
+              autoFocus={true}
+              autoCorrect={true}
+              spellCheck={true}
+            />
+            <TouchableOpacity 
+              style={[
+                styles.postReplyButton, 
+                (replyText.trim() === '' || isSubmittingReply) && styles.disabledButton
+              ]}
+              onPress={() => handleAddReply(comment.id)}
+              disabled={replyText.trim() === '' || isSubmittingReply}
+            >
+              {isSubmittingReply ? (
+                <ActivityIndicator size="small" color="#0A84FF" />
+              ) : (
+                <Text style={[
+                  styles.postButtonText, 
+                  replyText.trim() === '' && styles.disabledButtonText
+                ]}>
+                  Post
+                </Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Filter and render replies */}
+        {comment.replies && comment.replies.length > 0 && (
+          <View style={styles.repliesContainer}>
+            {comment.replies
+              .filter(reply => 
+                reply.authorId === currentUser?.uid || 
+                canInteractWithUser(reply.authorId, reply.authorBlockedUsers)
+              )
+              .map(reply => renderReplyItem(reply, comment.id))
+            }
+          </View>
+        )}
+      </View>
+    );
   };
 
   const handleLongPressComment = (comment: Comment) => {
@@ -671,47 +888,57 @@ useEffect(() => {
     }
   };
 
-  const renderReplyItem = (reply: Reply, commentId: string) => (
-    <View key={reply.id} style={styles.replyItem}>
-      <View style={styles.commentLeftSection}>
-        <Image source={{ uri: reply.authorProfileImageUrl || 'https://via.placeholder.com/150' }} style={styles.replyProfilePic} />
-        <View style={styles.commentContent}>
-          <View style={styles.commentHeader}>
-            <Text style={styles.commentUsername}>{reply.authorUsername}</Text>
-            <Text style={styles.commentTimestamp}>{formatDate(reply.createdAt)}</Text>
+  const renderReplyItem = (reply: Reply, commentId: string) => {
+    const uri = getOptimalImageUrl(
+      reply.authorProfileThumbnailUrl,
+      reply.authorProfileImageUrl
+    );
+
+    return (
+      <View key={reply.id} style={styles.replyItem}>
+        <View style={styles.commentLeftSection}>
+          <Image
+            source={{ uri }}
+            style={styles.replyProfilePic}
+            onError={() => {
+              console.warn('Reply profile image failed to load:', uri);
+            }}
+          />
+          <View style={styles.commentContent}>
+            <View style={styles.commentHeader}>
+              <Text style={styles.commentUsername}>{reply.authorUsername}</Text>
+              <Text style={styles.commentTimestamp}>{formatDate(reply.createdAt)}</Text>
+            </View>
+            <Text style={styles.commentText}>{reply.text}</Text>
+            {/* Reply Actions (e.g., like for reply) can go here */}
           </View>
-          <Text style={styles.commentText}>{reply.text}</Text>
-          {/* Reply Actions (e.g., like for reply) can go here */}
+        </View>
+        <View style={styles.commentLikeContainer}>
+          <TouchableOpacity 
+            style={styles.commentLikeButton}
+            onPress={() => handleReplyLike(commentId, reply.id)}
+          >
+            <Ionicons 
+              name={reply.isLiked ? "heart" : "heart-outline"} 
+              size={14} 
+              color={reply.isLiked ? "#FF3B30" : "#999"}
+            />
+          </TouchableOpacity>
+          <Text style={[
+            styles.commentLikeCount,
+            reply.isLiked && styles.commentLikedCount
+          ]}>
+            {reply.likes || 0}
+          </Text>
         </View>
       </View>
-      <View style={styles.commentLikeContainer}>
-        <TouchableOpacity 
-          style={styles.commentLikeButton}
-          onPress={() => handleReplyLike(commentId, reply.id)}
-        >
-          <Ionicons 
-            name={reply.isLiked ? "heart" : "heart-outline"} 
-            size={14} 
-            color={reply.isLiked ? "#FF3B30" : "#999"}
-          />
-        </TouchableOpacity>
-        <Text style={[
-          styles.commentLikeCount,
-          reply.isLiked && styles.commentLikedCount
-        ]}>
-          {reply.likes || 0}
-        </Text>
-      </View>
-    </View>
-  );
+    );
+  };
 
   return (
     <KeyboardAvoidingView 
       style={{ flex: 1, backgroundColor: '#000' }}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
-      // You might need to add keyboardVerticalOffset if you have a custom fixed header
-      // that's not accounted for by `insets.top`.
-      // Example: keyboardVerticalOffset={Platform.OS === "ios" ? YOUR_HEADER_HEIGHT : 0}
     >
       <View style={[styles.container, { paddingTop: insets.top }]}>
         <ScrollView 
@@ -723,8 +950,11 @@ useEffect(() => {
               style={styles.userInfoContainer}
               onPress={() => navigateToProfile(post.authorId)}
             >
-              <Image source={{ uri: post.authorProfileImageUrl || 'https://via.placeholder.com/150' }} style={styles.profilePic} />
-              <View>
+            <Image
+              source={{ uri: getOptimalImageUrl(post.authorProfileThumbnailUrl, post.authorProfileImageUrl) || 'https://via.placeholder.com/150' }}
+              style={styles.profilePic}
+            />
+            <View>
                 <Text style={styles.username}>{post.authorUsername}</Text>
                 <Text style={styles.location}>{formatDate(post.createdAt)}</Text>
               </View>
@@ -740,30 +970,32 @@ useEffect(() => {
             <Image source={{ uri: post.imageUrl }} style={styles.postImage} />
           )}
 
-          <View style={styles.actionButtons}>
-            <View style={styles.leftActions}>
-              <TouchableOpacity style={styles.actionButton} onPress={handleLike}>
+          {canInteractWithAuthor && (
+            <View style={styles.actionButtons}>
+              <View style={styles.leftActions}>
+                <TouchableOpacity style={styles.actionButton} onPress={handleLike}>
+                  <Ionicons 
+                    name={post.isLiked ? "heart" : "heart-outline"} 
+                    size={28} 
+                    color={post.isLiked ? "#FF3B30" : "#FFF"} 
+                  />
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.actionButton}>
+                  <Ionicons name="chatbubble-outline" size={26} color="#FFF" />
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.actionButton} onPress={handleSharePost}>
+                  <Ionicons name="paper-plane-outline" size={26} color="#FFF" />
+                </TouchableOpacity>
+              </View>
+              <TouchableOpacity style={styles.actionButton} onPress={handleBookmark}>
                 <Ionicons 
-                  name={post.isLiked ? "heart" : "heart-outline"} 
-                  size={28} 
-                  color={post.isLiked ? "#FF3B30" : "#FFF"} 
+                  name={post.isBookmarked ? "bookmark" : "bookmark-outline"} 
+                  size={26} 
+                  color="#FFF" 
                 />
               </TouchableOpacity>
-              <TouchableOpacity style={styles.actionButton}>
-                <Ionicons name="chatbubble-outline" size={26} color="#FFF" />
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.actionButton} onPress={handleSharePost}>
-                <Ionicons name="paper-plane-outline" size={26} color="#FFF" />
-              </TouchableOpacity>
             </View>
-            <TouchableOpacity style={styles.actionButton} onPress={handleBookmark}>
-              <Ionicons 
-                name={post.isBookmarked ? "bookmark" : "bookmark-outline"} 
-                size={26} 
-                color="#FFF" 
-              />
-            </TouchableOpacity>
-          </View>
+          )}
 
           <TouchableOpacity onPress={navigateToLikers}>
             <Text style={styles.likes}>{post.reactionCount || 0} likes</Text>
@@ -835,162 +1067,52 @@ useEffect(() => {
               </TouchableOpacity>
             </View>
             
-            {comments.length === 0 && (
+            {filteredComments.length === 0 && (
               <Text style={{ color: '#999', textAlign: 'center', marginTop: 20, marginBottom: 20 }}>
-                No comments yet. Be the first to comment!
+                {canInteractWithAuthor ? "No comments yet. Be the first to comment!" : "Comments are not available."}
               </Text>
             )}
             
-            {comments.map(comment => (
-              <View key={comment.id}>
-                <TouchableOpacity 
-                  onLongPress={() => handleLongPressComment(comment)}
-                  delayLongPress={500}
-                >
-                  <View style={styles.commentItem}>
-                    <View style={styles.commentLeftSection}>
-                      <Image source={{ uri: comment.authorProfileImageUrl || 'https://via.placeholder.com/150' }} style={styles.commentProfilePic} />
-                      <View style={styles.commentContent}>
-                        <View style={styles.commentHeader}>
-                          <Text style={styles.commentUsername}>{comment.authorUsername}</Text>
-                          <Text style={styles.commentTimestamp}>{formatDate(comment.createdAt)}</Text>
-                        </View>
-                        <Text style={styles.commentText}>{comment.text}</Text>
-                        <View style={styles.commentActions}>
-                          <TouchableOpacity onPress={() => handleToggleReplyInput(comment.id)} style={styles.replyButton}>
-                            <Text style={styles.replyButtonText}>Reply</Text>
-                          </TouchableOpacity>
-                        </View>
-                      </View>
-                    </View>
-                    <View style={styles.commentLikeContainer}>
-                      <TouchableOpacity 
-                        style={styles.commentLikeButton}
-                        onPress={() => handleCommentLike(comment.id)}
-                      >
-                        <Ionicons 
-                          name={comment.isLiked ? "heart" : "heart-outline"} 
-                          size={14} 
-                          color={comment.isLiked ? "#FF3B30" : "#999"}
-                        />
-                      </TouchableOpacity>
-                      <Text style={[
-                        styles.commentLikeCount,
-                        comment.isLiked && styles.commentLikedCount
-                      ]}>
-                        {comment.likes || 0}
-                      </Text>
-                    </View>
-                  </View>
-                </TouchableOpacity>
-                {/* Reply Input Area */}
-                {replyingToCommentId === comment.id && (
-                  <View style={styles.replyInputContainer}>
-                    <Image 
-                      source={{ uri: userProfile?.profileImageUrl || 'https://via.placeholder.com/150' }} 
-                      style={styles.replyInputProfilePic} 
-                    />
-                    <TextInput
-                      style={styles.replyInput}
-                      placeholder={`Replying to ${comment.authorUsername}...`}
-                      placeholderTextColor="#666"
-                      value={replyText}
-                      onChangeText={setReplyText}
-                      autoFocus={true}
-                      autoCorrect={true}
-                      spellCheck={true}
-                    />
-                    <TouchableOpacity 
-                      style={[
-                        styles.postReplyButton, 
-                        (replyText.trim() === '' || isSubmittingReply) && styles.disabledButton
-                      ]}
-                      onPress={() => handleAddReply(comment.id)}
-                      disabled={replyText.trim() === '' || isSubmittingReply}
-                    >
-                      {isSubmittingReply ? (
-                        <ActivityIndicator size="small" color="#0A84FF" />
-                      ) : (
-                        <Text style={[
-                          styles.postButtonText, 
-                          replyText.trim() === '' && styles.disabledButtonText
-                        ]}>
-                          Post
-                        </Text>
-                      )}
-                    </TouchableOpacity>
-                  </View>
-                )}
-
-                {/* Display Replies */}
-                {(comment.replyCount || 0) > 0 && !comment.replies?.length && !loadingReplies[comment.id] && (
-                  <TouchableOpacity 
-                    style={styles.viewRepliesButton} 
-                    onPress={() => handleLoadReplies(comment.id)}
-                  >
-                    <Text style={styles.viewRepliesText}>
-                      View {comment.replyCount} {comment.replyCount === 1 ? 'reply' : 'replies'}
-                    </Text>
-                  </TouchableOpacity>
-                )}
-                {loadingReplies[comment.id] && (
-                  <ActivityIndicator size="small" color="#0A84FF" style={{alignSelf: 'flex-start', marginLeft: 50, marginVertical: 5}}/>
-                )}
-
-                {comment.replies && comment.replies.length > 0 && (
-                  <View style={styles.repliesContainer}>
-                    {comment.replies.map(reply => renderReplyItem(reply, comment.id))}
-                    {(comment.replyCount || 0) > comment.replies.length && !loadingReplies[comment.id] && (
-                      <TouchableOpacity 
-                          style={styles.viewRepliesButton} 
-                          onPress={() => handleLoadReplies(comment.id)} // Could be "load more" in future
-                        >
-                          <Text style={styles.viewRepliesText}>
-                            View more replies
-                          </Text>
-                        </TouchableOpacity>
-                    )}
-                  </View>
-                )}
-              </View>
-            ))}
+            {filteredComments.map(comment => renderCommentItem(comment))}
           </View>
         </ScrollView>
 
-        <View style={[styles.commentInputContainer, { paddingBottom: Math.max(insets.bottom, 10) }]}>
-          <Image 
-            source={{ uri: userProfile?.profileImageUrl || 'https://via.placeholder.com/150' }} 
-            style={styles.commentInputProfilePic} 
-          />
-          <TextInput
-            style={styles.commentInput}
-            placeholder="Add a comment..."
-            placeholderTextColor="#666"
-            value={commentText}
-            onChangeText={setCommentText}
-            autoCorrect={true}
-            spellCheck={true}
-          />
-          <TouchableOpacity 
-            style={[
-              styles.postButton, 
-              (commentText.trim() === '' || isSubmitting) && styles.disabledButton
-            ]}
-            onPress={handleAddComment}
-            disabled={commentText.trim() === '' || isSubmitting}
-          >
-            {isSubmitting ? (
-              <ActivityIndicator size="small" color="#0A84FF" />
-            ) : (
-              <Text style={[
-                styles.postButtonText, 
-                commentText.trim() === '' && styles.disabledButtonText
-              ]}>
-                Post
-              </Text>
-            )}
-          </TouchableOpacity>
-        </View>
+        {canInteractWithAuthor && (
+          <View style={[styles.commentInputContainer, { paddingBottom: Math.max(insets.bottom, 10) }]}>
+            <Image
+              source={{ uri: getOptimalImageUrl(userProfile?.profileThumbnailUrl, userProfile?.profileImageUrl) || 'https://via.placeholder.com/150' }}
+              style={styles.commentInputProfilePic}
+            />
+            <TextInput
+              style={styles.commentInput}
+              placeholder="Add a comment..."
+              placeholderTextColor="#666"
+              value={commentText}
+              onChangeText={setCommentText}
+              autoCorrect={true}
+              spellCheck={true}
+            />
+            <TouchableOpacity 
+              style={[
+                styles.postButton, 
+                (commentText.trim() === '' || isSubmitting) && styles.disabledButton
+              ]}
+              onPress={handleAddComment}
+              disabled={commentText.trim() === '' || isSubmitting}
+            >
+              {isSubmitting ? (
+                <ActivityIndicator size="small" color="#0A84FF" />
+              ) : (
+                <Text style={[
+                  styles.postButtonText, 
+                  commentText.trim() === '' && styles.disabledButtonText
+                ]}>
+                  Post
+                </Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        )}
 
         <Modal
           animationType="slide"

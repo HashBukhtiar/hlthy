@@ -14,14 +14,13 @@ import {
     FlatList
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { MediaType } from 'expo-image-picker';
 import { Dropdown } from 'react-native-element-dropdown';
 import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
 import { db } from '@/firebaseConfig';
 import { collection, doc, getDoc, getDocs, query, where, orderBy } from 'firebase/firestore';
-import { getOptimalImageUrl } from '@/utils/imageUtils';
+import { getCoverImageSource } from '@/utils/imageUtils';
 
 // Secondary color and its variations
 export const SECONDARY_COLOR = '#ff2d55';
@@ -34,6 +33,7 @@ interface WorkoutItemData {
   creatorId?: string;
   creatorUsername?: string;
   coverImageUrl?: string | null;
+  thumbnailUrl?: string | null;
   segments?: number;
   length?: string;
 }
@@ -446,11 +446,7 @@ export const WorkoutSelectionModal: React.FC<WorkoutSelectionModalProps> = ({
           }}
         >
             <Image 
-                source={
-                    getOptimalImageUrl(item.thumbnailUrl, item.coverImageUrl)
-                        ? { uri: getOptimalImageUrl(item.thumbnailUrl, item.coverImageUrl)! }
-                        : require('@/assets/images/icon.png')
-                } 
+                source={getCoverImageSource(item.thumbnailUrl, item.coverImageUrl)}
                 style={postComponentStyles.workoutThumbnailLarge}
             />
         <View style={postComponentStyles.workoutItemInfo}>
