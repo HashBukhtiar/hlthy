@@ -16,6 +16,8 @@ import {
   Alert,
   Modal,
   Animated,
+  Share,
+  Clipboard,
 } from 'react-native';
 import { db } from '@/firebaseConfig';
 import { 
@@ -501,9 +503,54 @@ interface AIMessageBubbleProps {
   onLongPress: () => void;
   isAiConversation?: boolean;
   timestamp?: Date;
+  onReprompt?: (message: string) => void;
 }
 
-const AIMessageBubble: React.FC<AIMessageBubbleProps> = ({ message, intent, onLongPress, isAiConversation, timestamp }) => {
+const AIMessageBubble: React.FC<AIMessageBubbleProps> = ({ message, intent, onLongPress, isAiConversation, timestamp, onReprompt }) => {
+  const [isLiked, setIsLiked] = useState(false);
+
+  // Handler functions for action buttons
+  const handleCopy = async () => {
+    try {
+      await Clipboard.setString(message);
+      Alert.alert("Copied!", "Message copied to clipboard");
+    } catch (error) {
+      Alert.alert("Error", "Failed to copy message");
+    }
+  };
+
+  const handleShare = async () => {
+    try {
+      await Share.share({
+        message: `HLTHY Coach Response:\n\n${message}`,
+        title: 'HLTHY Coach AI Response',
+      });
+    } catch (error) {
+      console.error('Error sharing:', error);
+    }
+  };
+
+  const handleLike = () => {
+    setIsLiked(!isLiked);
+    // Here you could send feedback to your analytics or backend
+    console.log(`AI response ${isLiked ? 'unliked' : 'liked'}`);
+  };
+
+  const handleReprompt = () => {
+    if (onReprompt) {
+      Alert.alert(
+        "Regenerate Response",
+        "Ask the AI to provide a different response to your previous question?",
+        [
+          { text: "Cancel", style: "cancel" },
+          { 
+            text: "Regenerate", 
+            onPress: () => onReprompt("Please provide a different response to my previous question.") 
+          }
+        ]
+      );
+    }
+  };
   const intentConfigs = {
     planner: { 
       icon: '🏋️', 
@@ -653,37 +700,33 @@ const AIMessageBubble: React.FC<AIMessageBubbleProps> = ({ message, intent, onLo
           <View style={styles.aiActions}>
             <TouchableOpacity 
               style={styles.aiActionButton}
-              onPress={() => {
-                // Copy message to clipboard
-                // TODO: Implement clipboard copy
-              }}
+              onPress={handleCopy}
+              activeOpacity={0.7}
             >
               <Ionicons name="copy-outline" size={16} color="#888" />
             </TouchableOpacity>
             <TouchableOpacity 
               style={styles.aiActionButton}
-              onPress={() => {
-                // Share message
-                // TODO: Implement sharing
-              }}
+              onPress={handleShare}
+              activeOpacity={0.7}
             >
               <Ionicons name="share-outline" size={16} color="#888" />
             </TouchableOpacity>
             <TouchableOpacity 
-              style={styles.aiActionButton}
-              onPress={() => {
-                // Like/feedback
-                // TODO: Implement feedback
-              }}
+              style={[styles.aiActionButton, isLiked && styles.aiActionButtonActive]}
+              onPress={handleLike}
+              activeOpacity={0.7}
             >
-              <Ionicons name="thumbs-up-outline" size={16} color="#888" />
+              <Ionicons 
+                name={isLiked ? "thumbs-up" : "thumbs-up-outline"} 
+                size={16} 
+                color={isLiked ? "#4CD964" : "#888"} 
+              />
             </TouchableOpacity>
             <TouchableOpacity 
               style={styles.aiActionButton}
-              onPress={() => {
-                // Regenerate response
-                // TODO: Implement regeneration
-              }}
+              onPress={handleReprompt}
+              activeOpacity={0.7}
             >
               <Ionicons name="refresh-outline" size={16} color="#888" />
             </TouchableOpacity>
