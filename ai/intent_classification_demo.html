@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HLTHY Coach - Intent Classification Demo</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f8f9fa;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .chat-container {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        
+        .input-container {
+            margin-bottom: 20px;
+        }
+        
+        .intent-indicator {
+            padding: 8px 16px;
+            border-radius: 20px;
+            margin-bottom: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            display: none;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .input-row {
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+            border: 2px solid #e1e5e9;
+            border-radius: 24px;
+            padding: 8px 16px;
+            background: #f8f9fa;
+        }
+        
+        .message-input {
+            flex: 1;
+            border: none;
+            background: transparent;
+            font-size: 16px;
+            padding: 8px 0;
+            outline: none;
+            resize: none;
+            font-family: inherit;
+        }
+        
+        .send-button {
+            background: #007AFF;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 16px;
+            cursor: pointer;
+            font-weight: 600;
+            min-width: 60px;
+        }
+        
+        .send-button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .examples {
+            margin-top: 15px;
+            display: none;
+        }
+        
+        .examples h4 {
+            margin: 0 0 10px 0;
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .example-button {
+            display: inline-block;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 16px;
+            padding: 6px 12px;
+            margin: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        
+        .example-button:hover {
+            background: #f0f0f0;
+        }
+        
+        .messages {
+            min-height: 200px;
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #e1e5e9;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 20px;
+        }
+        
+        .message {
+            margin-bottom: 16px;
+            padding: 12px 16px;
+            border-radius: 16px;
+            max-width: 80%;
+        }
+        
+        .user-message {
+            background: #007AFF;
+            color: white;
+            margin-left: auto;
+        }
+        
+        .coach-message {
+            background: white;
+            border: 1px solid #e1e5e9;
+            border-left: 4px solid #4ECDC4;
+        }
+        
+        .message-meta {
+            font-size: 12px;
+            margin-top: 4px;
+            opacity: 0.7;
+        }
+        
+        .status {
+            text-align: center;
+            padding: 10px;
+            border-radius: 8px;
+            margin: 10px 0;
+            display: none;
+        }
+        
+        .status.loading {
+            background: #e3f2fd;
+            color: #1976d2;
+            display: block;
+        }
+        
+        .status.error {
+            background: #ffebee;
+            color: #c62828;
+            display: block;
+        }
+        
+        .stats {
+            background: #f0f0f0;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🏋️ HLTHY Coach - Intent Classification Demo</h1>
+        <p>This demo shows how the intent classification system works in real-time</p>
+    </div>
+
+    <div class="chat-container">
+        <div class="messages" id="messages">
+            <div style="text-align: center; color: #666; padding: 20px;">
+                Start a conversation to see intent classification in action!
+            </div>
+        </div>
+
+        <div class="status" id="status"></div>
+
+        <div class="input-container">
+            <div class="intent-indicator" id="intentIndicator">
+                <span id="intentIcon">🤔</span>
+                <span id="intentLabel">ANALYZING...</span>
+            </div>
+
+            <div class="input-row" id="inputRow">
+                <textarea 
+                    class="message-input" 
+                    id="messageInput" 
+                    placeholder="Ask me anything about fitness..."
+                    rows="1"
+                ></textarea>
+                <button class="send-button" id="sendButton" onclick="sendMessage()">Send</button>
+            </div>
+
+            <div class="examples" id="examples">
+                <h4>Try asking:</h4>
+            </div>
+        </div>
+    </div>
+
+    <div class="stats" id="stats">
+        <strong>Classification Statistics:</strong>
+        <div id="statsContent">No classifications yet</div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:5001';
+        let classificationStats = {};
+        let messageCount = 0;
+
+        // Intent UI configurations
+        const intentConfigs = {
+            planner: {
+                icon: '🏋️',
+                color: '#FF6B35',
+                backgroundColor: '#FFF4F2',
+                examples: ["I need a leg workout", "Design a push/pull split", "What exercises for chest?"]
+            },
+            technique: {
+                icon: '🎯',
+                color: '#F7931E',
+                backgroundColor: '#FFF8F0',
+                examples: ["My shoulder hurts during bench", "How to fix squat form?", "Substitute for deadlifts?"]
+            },
+            explain: {
+                icon: '📚',
+                color: '#4ECDC4',
+                backgroundColor: '#F0FFFE',
+                examples: ["What is progressive overload?", "Explain compound exercises", "Define RPE"]
+            },
+            schedule: {
+                icon: '📅',
+                color: '#45B7D1',
+                backgroundColor: '#F0F8FF',
+                examples: ["When to deload?", "How many rest days?", "Best training frequency?"]
+            },
+            chit_chat: {
+                icon: '💬',
+                color: '#96CEB4',
+                backgroundColor: '#F5FFF7',
+                examples: ["Hello!", "Thank you!", "Have a great day!"]
+            }
+        };
+
+        // Auto-resize textarea
+        const messageInput = document.getElementById('messageInput');
+        messageInput.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = this.scrollHeight + 'px';
+        });
+
+        // Send message on Enter (but not Shift+Enter)
+        messageInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        // Show examples on focus
+        messageInput.addEventListener('focus', function() {
+            showExamples('explain'); // Default examples
+        });
+
+        // Hide examples on blur (with delay)
+        messageInput.addEventListener('blur', function() {
+            setTimeout(() => {
+                document.getElementById('examples').style.display = 'none';
+            }, 200);
+        });
+
+        async function classifyIntent(message) {
+            try {
+                const response = await fetch(`${API_BASE}/api/classify-intent`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message })
+                });
+                return await response.json();
+            } catch (error) {
+                console.error('Classification failed:', error);
+                return { error: error.message };
+            }
+        }
+
+        async function sendChatMessage(message, history) {
+            try {
+                const response = await fetch(`${API_BASE}/api/chat`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        history: [...history, { role: 'user', text: message }],
+                        user_id: 'web_demo_user'
+                    })
+                });
+                return await response.json();
+            } catch (error) {
+                console.error('Chat failed:', error);
+                return { error: error.message };
+            }
+        }
+
+        function updateIntentIndicator(intent) {
+            const config = intentConfigs[intent] || intentConfigs.explain;
+            const indicator = document.getElementById('intentIndicator');
+            const icon = document.getElementById('intentIcon');
+            const label = document.getElementById('intentLabel');
+            const inputRow = document.getElementById('inputRow');
+
+            icon.textContent = config.icon;
+            label.textContent = intent.toUpperCase();
+            
+            indicator.style.backgroundColor = config.backgroundColor;
+            indicator.style.color = config.color;
+            indicator.style.display = 'flex';
+            
+            inputRow.style.borderColor = config.color;
+            
+            showExamples(intent);
+            updateStats(intent);
+        }
+
+        function showExamples(intent) {
+            const config = intentConfigs[intent] || intentConfigs.explain;
+            const examplesDiv = document.getElementById('examples');
+            
+            if (config.examples.length > 0) {
+                const exampleButtons = config.examples.map(example => 
+                    `<span class="example-button" onclick="setMessage('${example}', '${intent}')" 
+                          style="border-color: ${config.color}; color: ${config.color};">
+                        ${example}
+                     </span>`
+                ).join('');
+                
+                examplesDiv.innerHTML = `<h4>Try asking:</h4>${exampleButtons}`;
+                examplesDiv.style.display = 'block';
+            }
+        }
+
+        function setMessage(message, intent) {
+            document.getElementById('messageInput').value = message;
+            document.getElementById('examples').style.display = 'none';
+            updateIntentIndicator(intent);
+            messageInput.focus();
+        }
+
+        function updateStats(intent) {
+            classificationStats[intent] = (classificationStats[intent] || 0) + 1;
+            messageCount++;
+            
+            const statsContent = document.getElementById('statsContent');
+            const statsText = Object.entries(classificationStats)
+                .map(([intent, count]) => {
+                    const config = intentConfigs[intent];
+                    const percentage = ((count / messageCount) * 100).toFixed(1);
+                    return `${config.icon} ${intent}: ${count} (${percentage}%)`;
+                })
+                .join(' | ');
+            
+            statsContent.innerHTML = `Total: ${messageCount} messages | ${statsText}`;
+        }
+
+        function addMessage(text, isUser, intent) {
+            const messagesDiv = document.getElementById('messages');
+            
+            if (messagesDiv.innerHTML.includes('Start a conversation')) {
+                messagesDiv.innerHTML = '';
+            }
+            
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isUser ? 'user-message' : 'coach-message'}`;
+            
+            let messageContent = `<div>${text}</div>`;
+            if (intent) {
+                const config = intentConfigs[intent];
+                messageContent += `<div class="message-meta">${config.icon} ${intent}</div>`;
+            }
+            
+            messageDiv.innerHTML = messageContent;
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        function showStatus(message, type = 'loading') {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = `status ${type}`;
+        }
+
+        function hideStatus() {
+            const status = document.getElementById('status');
+            status.style.display = 'none';
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const message = input.value.trim();
+            
+            if (!message) return;
+            
+            const sendButton = document.getElementById('sendButton');
+            sendButton.disabled = true;
+            sendButton.textContent = 'Sending...';
+            
+            // Clear input
+            input.value = '';
+            input.style.height = 'auto';
+            
+            try {
+                // Step 1: Classify intent
+                showStatus('🤔 Understanding your question...');
+                const intentResult = await classifyIntent(message);
+                
+                if (intentResult.error) {
+                    addMessage(message, true);
+                    showStatus('Classification failed, but continuing...', 'error');
+                    setTimeout(hideStatus, 3000);
+                } else {
+                    addMessage(message, true, intentResult.intent);
+                    updateIntentIndicator(intentResult.intent);
+                    hideStatus();
+                }
+                
+                // Step 2: Get chat response
+                showStatus('💭 Coach is thinking...');
+                const chatHistory = Array.from(document.querySelectorAll('.message')).map(msg => {
+                    const isUser = msg.classList.contains('user-message');
+                    return {
+                        role: isUser ? 'user' : 'coach',
+                        text: msg.querySelector('div').textContent
+                    };
+                });
+                
+                const chatResponse = await sendChatMessage(message, chatHistory.slice(0, -1));
+                hideStatus();
+                
+                if (chatResponse.error) {
+                    addMessage('Sorry, I encountered an error. Please try again.', false);
+                    showStatus('Chat response failed', 'error');
+                    setTimeout(hideStatus, 3000);
+                } else {
+                    const responseText = chatResponse.response || chatResponse.text || 'No response received';
+                    const intent = intentResult.intent || 'explain';
+                    addMessage(responseText, false, intent);
+                }
+                
+            } catch (error) {
+                console.error('Error:', error);
+                addMessage('Something went wrong. Please check the console and try again.', false);
+                showStatus('Error occurred', 'error');
+                setTimeout(hideStatus, 3000);
+            } finally {
+                sendButton.disabled = false;
+                sendButton.textContent = 'Send';
+            }
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            // Check API health
+            fetch(`${API_BASE}/api/health`)
+                .then(response => response.json())
+                .then(data => {
+                    console.log('✅ API is healthy:', data);
+                    showStatus('✅ Connected to HLTHY Coach API', 'loading');
+                    setTimeout(hideStatus, 2000);
+                })
+                .catch(error => {
+                    console.error('❌ API connection failed:', error);
+                    showStatus('❌ Cannot connect to API. Make sure the container is running.', 'error');
+                });
+        });
+    </script>
+</body>
+</html>

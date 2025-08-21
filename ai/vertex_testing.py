@@ -94,16 +94,28 @@ except Exception as e:
     router_model = None
 
 # Router prompt
-ROUTER_PROMPT = """You classify the user's intent into exactly one label:
-- planner: asking for a workout today, a split, or exercise selection.
-- technique: asking about form, substitutions due to pain/injury/equipment, or fix-my-lift.
-- explain: asking for definitions or educational content.
-- schedule: asking about deloads, weekly layout, rest days, or adherence.
-- chit_chat: greetings or small talk.
+ROUTER_PROMPT = """You are a fitness coach intent classifier. Classify the user's intent into exactly one label:
+
+- planner: User wants a workout for today, exercise selection, routine design, or split planning. Examples: "I need a leg workout", "give me chest exercises", "design a push/pull split", "what should I train today"
+
+- technique: User asks about exercise form, has pain/injury concerns, needs exercise substitutions, or wants form corrections. Examples: "my shoulder hurts during bench", "how to fix my squat form", "substitute for deadlifts", "correct bench press technique"
+
+- explain: User wants definitions, educational content, or theoretical knowledge about fitness concepts. Examples: "what is progressive overload", "explain hypertrophy", "define RPE", "how does muscle growth work"
+
+- schedule: User asks about training frequency, rest days, deload timing, or program scheduling. Examples: "how often should I train", "when to deload", "how many rest days", "training frequency for beginners"
+
+- chit_chat: Greetings, thanks, casual conversation, or social interaction. Examples: "hello", "thank you", "good morning", "have a great day"
+
+IMPORTANT CLASSIFICATION RULES:
+- If the message mentions specific exercises + pain/injury → technique
+- If asking for workout recommendations or exercise selection → planner  
+- If asking "what is", "define", "explain", "how does X work" → explain
+- If asking about frequency, timing, rest, deload → schedule
+- If greeting, thanking, or casual → chit_chat
 
 Return JSON only: {"label":"planner"}
 
-Fallback: if confidence < 0.6 and the user mentions a workout, use `planner`; otherwise `explain`."""
+User message: """
 
 # System prompt for HLTHY Coach with AI Exercise Knowledge
 COACH_SYSTEM_PROMPT = """You are HLTHY Coach, a mobile fitness trainer with access to comprehensive exercise science knowledge. Goals: safe, specific, actionable programming using evidence-based exercise selection.
@@ -235,24 +247,49 @@ def get_default_context():
     }
 
 def route_user_message(user_message):
-    """Route user message to appropriate category"""
+    """Route user message to appropriate category with improved logic"""
     try:
-        prompt = f"{ROUTER_PROMPT}\n\nUser message: {user_message}"
+        prompt = f"{ROUTER_PROMPT}\n\n{user_message}"
         response = router_model.generate_content(prompt)
         result = json.loads(response.text.strip())
         return result.get("label", "explain")
     except Exception as e:
         print(f"Router error: {e}")
-        # Fallback routing logic
+        # Enhanced fallback routing logic
         message_lower = user_message.lower()
-        if any(word in message_lower for word in ["workout", "exercise", "train", "lift", "plan"]):
-            return "planner"
-        elif any(word in message_lower for word in ["form", "technique", "hurt", "pain", "substitute"]):
+        
+        # Technique patterns - check first for pain/injury
+        if any(word in message_lower for word in ["hurt", "pain", "injury", "sore", "ache", "substitute", "can't do", "instead of"]):
             return "technique"
-        elif any(word in message_lower for word in ["schedule", "split", "week", "rest", "deload"]):
+        if any(word in message_lower for word in ["form", "technique", "correct", "fix my", "how to do", "proper way"]):
+            return "technique"
+            
+        # Planner patterns - workout requests
+        if any(word in message_lower for word in ["workout", "routine", "exercises for", "train", "lift", "need a", "give me a", "design"]):
+            return "planner"
+        if any(word in message_lower for word in ["chest", "back", "legs", "arms", "shoulders", "push", "pull"]):
+            return "planner"
+            
+        # Schedule patterns
+        if any(word in message_lower for word in ["how often", "frequency", "times per week", "rest day", "deload", "schedule"]):
             return "schedule"
-        else:
+        if any(word in message_lower for word in ["should i train", "how many days", "when to"]):
+            return "schedule"
+            
+        # Chit chat patterns
+        if any(word in message_lower for word in ["hi", "hello", "hey", "good morning", "good afternoon", "thanks", "thank you"]):
+            return "chit_chat"
+        if any(word in message_lower for word in ["great", "awesome", "perfect", "bye", "goodbye", "see you"]):
+            return "chit_chat"
+            
+        # Explain patterns - educational
+        if any(word in message_lower for word in ["what is", "define", "explain", "how does", "why", "what are"]):
             return "explain"
+        if any(word in message_lower for word in ["difference between", "mean by", "definition"]):
+            return "explain"
+            
+        # Default fallback
+        return "explain"
 
 def build_route_template(route, context, user_message, conversation_history):
     """Build the appropriate template based on route with AI exercise knowledge"""

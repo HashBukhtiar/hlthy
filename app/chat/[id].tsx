@@ -38,7 +38,9 @@ import {
 import { useAuth } from '@/context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { sendMessage } from '@/ai/ai_chat';
+import { sendMessage, sendMessageWithIntent, IntentClassificationResult } from '@/ai/ai_chat';
+import { SmartChatInput } from '@/components/SmartChatInput';
+import { IntentMessageWrapper } from '@/components/IntentBadge';
 import { calculateImprovementPercentage } from '@/logic/milesonteUtils';
 import { generateId } from '@/logic/idGenerator';
 import { getOptimalImageUrl } from '@/utils/imageUtils';
