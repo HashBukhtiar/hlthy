@@ -7,14 +7,8 @@ const getApiUrl = () => {
     return process.env.EXPO_PUBLIC_API_URL;
   }
   
-  // Fallback URLs (only used if environment variable is not set)
-  if (__DEV__) {
-    // Development fallback - use local network IP instead of localhost for mobile devices
-    return 'http://localhost:5001';
-  } else {
-    // Production fallback - should not be reached if .env is properly configured
-    throw new Error('EXPO_PUBLIC_API_URL environment variable is required in production');
-  }
+  // Default to production Google Cloud Run service
+  return 'https://hlthy-ai-service-s4rm2uw5oa-pd.a.run.app';
 };
 
 export const API_BASE_URL = getApiUrl();
