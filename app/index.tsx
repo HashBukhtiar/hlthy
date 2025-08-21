@@ -2,12 +2,17 @@ import { Redirect } from 'expo-router';
 import { useState, useEffect } from 'react';
 import { View, ActivityIndicator } from 'react-native';
 import { auth } from '@/firebaseConfig';
-import { onAuthStateChanged, signInWithEmailAndPassword } from 'firebase/auth';
+import { onAuthStateChanged, signInWithEmailAndPassword, getAuth, setPersistence, browserSessionPersistence } from 'firebase/auth';
 
 // Backdoor to bypass login. must be false in production
 const BYPASS_AUTH = false;
 const DEV_EMAIL = 'dev2@gmail.com';
 const DEV_PASSWORD = 'dev1232';
+
+if (typeof window !== "undefined") {
+  const auth = getAuth();
+  setPersistence(auth, browserSessionPersistence);
+}
 
 export default function Index() {
   const [isLoading, setIsLoading] = useState(true);

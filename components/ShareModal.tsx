@@ -16,17 +16,21 @@ import { shareModalStyles } from '@/styles/shareModalStyles';
 import { collection, query, where, getDocs, limit, orderBy } from 'firebase/firestore';
 import { db } from '@/firebaseConfig';
 import { debounce } from 'lodash';
+import { useBlockEnforcement } from '@/utils/blockUtils';
+import { useAuth } from '@/context/AuthContext';
 
 interface ShareModalProps {
   visible: boolean;
   onClose: () => void;
-  onShareWith: (userId: string, username: string, profileImageUrl?: string) => Promise<void>;
+  onShareWith: (userId: string, username: string, profileImageUrl?: string, profileThumbnailUrl?: string) => Promise<void>;
 }
 
 export default function ShareModal({ visible, onClose, onShareWith }: ShareModalProps) {
   const [searchText, setSearchText] = useState('');
-  const [searchResults, setSearchResults] = useState<{id: string, username: string, profileImageUrl?: string}[]>([]);
+  const [searchResults, setSearchResults] = useState<{id: string, username: string, profileImageUrl?: string, profileThumbnailUrl?: string}[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
+  const { canInteractWithUser } = useBlockEnforcement();
+  const { currentUser } = useAuth();
 
   const handleSearchUsers = debounce(async (text: string) => {
     if (!text.trim()) {
@@ -42,22 +46,32 @@ export default function ShareModal({ visible, onClose, onShareWith }: ShareModal
         where('username', '>=', lowerText),
         where('username', '<=', lowerText + '\uf8ff'),
         orderBy('username'),
-        limit(10)
+        limit(20) // Fetch more to account for filtering
       );
       
       const querySnapshot = await getDocs(q);
-      const results: {id: string, username: string, profileImageUrl?: string}[] = [];
+      const results: {id: string, username: string, profileImageUrl?: string, profileThumbnailUrl?: string}[] = [];
       
       querySnapshot.forEach(doc => {
         const userData = doc.data();
-        results.push({
-          id: doc.id,
-          username: userData.username,
-          profileImageUrl: userData.profileImageUrl,
-        });
+        const userId = doc.id;
+        
+        // Skip current user and blocked users
+        if (userId === currentUser?.uid) return;
+        
+        // Check if we can interact with this user (not blocked)
+        if (canInteractWithUser(userId, userData.blockedUsers)) {
+          results.push({
+            id: userId,
+            username: userData.username,
+            profileImageUrl: userData.profileImageUrl,
+            profileThumbnailUrl: userData.profileThumbnailUrl,
+          });
+        }
       });
       
-      setSearchResults(results);
+      // Limit final results
+      setSearchResults(results.slice(0, 10));
     } catch (error) {
       console.error("Error searching users:", error);
     } finally {
@@ -118,7 +132,7 @@ export default function ShareModal({ visible, onClose, onShareWith }: ShareModal
               renderItem={({ item }) => (
                 <TouchableOpacity
                   style={shareModalStyles.userItem}
-                  onPress={() => onShareWith(item.id, item.username, item.profileImageUrl)}
+                  onPress={() => onShareWith(item.id, item.username, item.profileImageUrl, item.profileThumbnailUrl)}
                 >
                   <Image
                     source={item.profileImageUrl ? { uri: item.profileImageUrl } : require('@/assets/images/profile-icon.png')}

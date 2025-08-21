@@ -36,7 +36,6 @@ export default function RegularPost({ onBack }: RegularPostProps) {
     const router = useRouter();
     const { addPost } = usePostsData();
     const { currentUser } = useAuth();
-    const userProfile = currentUser?.userProfile;
 
     // Form state
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -96,7 +95,7 @@ export default function RegularPost({ onBack }: RegularPostProps) {
                 imageUri,
                 isMilestone: false,
                 milestoneDetails: null,
-                visibility: userVisibility, // Use user's profile visibility preference
+                visibility: userVisibility,
                 workoutId: selectedWorkout?.id,
                 authorArchetype: authorArchetype
             };

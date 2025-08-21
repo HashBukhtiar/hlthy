@@ -32,6 +32,7 @@ export interface Post {
   authorUsername: string;
   authorProfileImageUrl: string;
   authorProfileThumbnailUrl?: string;
+  authorBlockedUsers?: string[];
   caption: string;
   imageUrl: string;
   thumbnailUrl?: string | null;
@@ -92,6 +93,8 @@ export interface Comment {
   authorId: string;
   authorUsername: string;
   authorProfileImageUrl: string;
+  authorProfileThumbnailUrl?: string;
+  authorBlockedUsers?: string[];
   text: string;
   createdAt: Timestamp;
   likes: number;
@@ -107,6 +110,8 @@ export interface Reply {
   authorId: string;
   authorUsername: string;
   authorProfileImageUrl: string;
+  authorProfileThumbnailUrl?: string;
+  authorBlockedUsers?: string[];
   text: string;
   createdAt: Timestamp;
   likes: number;
@@ -138,45 +143,51 @@ export function usePostsData() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const { currentUser, userProfile } = useAuth();
-  const functionsInstance = getFunctions(app, 'northamerica-northeast2');
 
   // Fetch all public posts
   const fetchPosts = async () => {
     try {
-      setLoading(true);
-      const postsRef = collection(db, "posts");
-      const q = query(postsRef, where("visibility", "==", "public"), orderBy("createdAt", "desc"));
-      const querySnapshot = await getDocs(q);
-      
-      const postsData: Post[] = [];
-      
-      for (const docSnapshot of querySnapshot.docs) {
-        const post = { id: docSnapshot.id, ...docSnapshot.data() } as Post;
-        
-        if (currentUser) {
-          try {
-            // Check if current user has liked this post by checking the 'likers' subcollection
-            const likeRef = doc(db, "posts", docSnapshot.id, "likers", currentUser.uid);
-            const likeDoc = await getDoc(likeRef);
-            post.isLiked = likeDoc.exists();
-          } catch (err) {
-            console.log("Error checking like status in fetchPosts:", err);
-            post.isLiked = false;
-          }
-        }
-        
-        postsData.push(post);
-      }
-      
-      setPosts(postsData);
-    } catch (err) {
-      console.error("Error fetching posts:", err);
-      setError(err as Error);
-    } finally {
-      setLoading(false);
-    }
-  };
+      setLoading(true)
+      const postsRef = collection(db, "posts")
+      const q = query(
+        postsRef,
+        where("visibility", "==", "public"),
+        orderBy("createdAt", "desc")
+      )
+      const querySnapshot = await getDocs(q)
 
+      const postsData: Post[] = []
+      for (const snap of querySnapshot.docs) {
+        // build the base Post
+        const post = { id: snap.id, ...(snap.data() as Post) } as Post
+
+        // ► fetch author's profile image
+        const userSnap = await getDoc(doc(db, "users", post.authorId))
+        if (userSnap.exists()) {
+          const u = userSnap.data() as any
+          post.authorProfileImageUrl     = u.profileImageUrl     || ""
+          post.authorProfileThumbnailUrl = u.profileThumbnailUrl || ""
+          post.authorBlockedUsers        = u.blockedUsers        || []
+        }
+
+        // ► preserve like‐status
+        if (currentUser) {
+          const likeSnap = await getDoc(
+            doc(db, "posts", post.id, "likers", currentUser.uid)
+          )
+          post.isLiked = likeSnap.exists()
+        }
+
+        postsData.push(post)
+      }
+      setPosts(postsData)
+    } catch (err) {
+      console.error("Error fetching posts:", err)
+      setError(err as Error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const uploadImage = async (imageUri: string, postId: string): Promise<string> => {
     try {
@@ -209,86 +220,68 @@ export function usePostsData() {
 
   // Get a specific post by ID
   const getPostById = async (postId: string) => {
-    try {
-      console.log("Fetching post with ID:", postId);
-      const postRef = doc(db, "posts", postId);
-      const postDoc = await getDoc(postRef);
+    const postRef = doc(db, "posts", postId)
+    const postSnap = await getDoc(postRef)
+    if (!postSnap.exists()) throw new Error("Post not found")
 
-      if (!postDoc.exists()) {
-        console.log("Post does not exist in Firestore");
-        throw new Error("Post not found");
-      }
+    const post = { id: postSnap.id, ...(postSnap.data() as Post) } as Post
 
-      console.log("Post found:", postDoc.data());
-      const post = { id: postDoc.id, ...postDoc.data() } as Post;
-
-      if (currentUser) {
-        try {
-          // Check if current user has liked this post by checking the 'likers' subcollection
-          const likeRef = doc(db, "posts", postId, "likers", currentUser.uid);
-          const likeSnap = await getDoc(likeRef);
-          post.isLiked = likeSnap.exists();
-        } catch (err) {
-          console.log("Error checking like status in getPostById:", err);
-          post.isLiked = false;
-        }
-      }
-
-      return post;
-    } catch (err) {
-      console.error("Error getting post:", err);
-      throw err;
+    // ► fetch author's profile image
+    const userSnap = await getDoc(doc(db, "users", post.authorId))
+    if (userSnap.exists()) {
+      const u = userSnap.data() as any
+      post.authorProfileImageUrl     = u.profileImageUrl     || ""
+      post.authorProfileThumbnailUrl = u.profileThumbnailUrl || ""
+      post.authorBlockedUsers        = u.blockedUsers        || []
     }
-  };
+
+    // ► preserve like‐status
+    if (currentUser) {
+      const likeSnap = await getDoc(
+        doc(db, "posts", postId, "likers", currentUser.uid)
+      )
+      post.isLiked = likeSnap.exists()
+    }
+
+    return post
+  }
 
   // Get comments for a post
   const getPostComments = async (postId: string): Promise<Comment[]> => {
-    if (!currentUser) {
-      // If no current user, fetch comments without like status
-      const commentsRefNoUser = collection(db, "posts", postId, "comments");
-      const qNoUser = query(commentsRefNoUser, orderBy("createdAt", "desc"));
-      const querySnapshotNoUser = await getDocs(qNoUser);
-      const commentsNoUser: Comment[] = [];
-      querySnapshotNoUser.forEach((doc) => {
-        const data = doc.data();
-        commentsNoUser.push({ 
-          id: doc.id, 
-          ...data,
-          likes: data.likes || 0,
-          likedBy: data.likedBy || [],
-          replyCount: data.replyCount || 0,
-          isLiked: false, // Default for no user
-        } as Comment);
-      });
-      return commentsNoUser;
-    }
+    const commentsRef = collection(db, "posts", postId, "comments")
+    const q = query(commentsRef, orderBy("createdAt", "desc"))
+    const snaps = await getDocs(q)
 
-    try {
-      const commentsRef = collection(db, "posts", postId, "comments");
-      const q = query(commentsRef, orderBy("createdAt", "desc"));
-      const querySnapshot = await getDocs(q);
-      
-      const comments: Comment[] = [];
-      
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        const likedBy = data.likedBy || [];
-        comments.push({ 
-          id: doc.id, 
-          ...data,
-          likes: data.likes || 0,
-          likedBy: likedBy,
-          replyCount: data.replyCount || 0,
-          isLiked: likedBy.includes(currentUser.uid),
-        } as Comment);
-      });
-      
-      return comments;
-    } catch (err) {
-      console.error("Error fetching comments:", err);
-      throw err;
+    const comments: Comment[] = []
+    for (const snap of snaps.docs) {
+      const data = snap.data()
+      const comment: Comment = {
+        id: snap.id,
+        authorId: data.authorId,
+        authorUsername: data.authorUsername,
+        authorProfileImageUrl: "",
+        text: data.text,
+        createdAt: data.createdAt,
+        likes: data.likes || 0,
+        likedBy: data.likedBy || [],
+        replyCount: data.replyCount || 0,
+        isLiked:    currentUser ? (data.likedBy?.includes(currentUser.uid) ?? false) : false,
+        replies:    []
+      }
+
+      // fetch commenter's profile image
+      const userSnap = await getDoc(doc(db, "users", comment.authorId))
+      if (userSnap.exists()) {
+        const u = userSnap.data() as any
+        comment.authorProfileImageUrl = u.profileImageUrl || ""
+        comment.authorProfileThumbnailUrl = u.profileThumbnailUrl || ""
+        comment.authorBlockedUsers = u.blockedUsers || []
+      }
+
+      comments.push(comment)
     }
-  };
+    return comments
+  }
 
   // Add a new post
   const addPost = async (postData: NewPostData) => {
@@ -527,67 +520,32 @@ export function usePostsData() {
   // Add comment to a post
   const addComment = async (postId: string, text: string): Promise<Comment> => {
     if (!currentUser || !userProfile) throw new Error("User not authenticated");
-    if (!text.trim()) throw new Error("Comment text cannot be empty");
+    if (!text.trim())      throw new Error("Comment text cannot be empty");
 
-    const postRef = doc(db, "posts", postId);
-    const commentsCollectionRef = collection(db, "posts", postId, "comments");
+    const newCommentRef = await addDoc(
+      collection(db, "posts", postId, "comments"),
+      {
+        text,
+        authorId:       currentUser.uid,
+        authorUsername: userProfile.username || "Anonymous",
+        createdAt:      serverTimestamp(),
+        likes:          0,
+        likedBy:        [],
+        replyCount:     0,
+      }
+    );
 
-    try {
-      const postDocSnap = await getDoc(postRef);
-      if (!postDocSnap.exists()) throw new Error("Post not found");
-      const postData = postDocSnap.data() as Post;
-
-      const newCommentRef = doc(commentsCollectionRef);
-
-      const newCommentData: Omit<Comment, 'id' | 'isLiked' | 'replies'> = {
-        text: text.trim(),
-        authorId: currentUser.uid,
-        authorUsername: userProfile?.username || currentUser.displayName || "Anonymous",
-        authorProfileImageUrl: userProfile?.profileImageUrl || currentUser.photoURL || "",
-        createdAt: serverTimestamp(),
-        likes: 0,
-        likedBy: [],
-        replyCount: 0,
-      };
-
-      await runTransaction(db, async (transaction) => {
-        transaction.set(newCommentRef, newCommentData);
-        transaction.update(postRef, {
-          commentCount: increment(1)
-        });
-
-        // Activity for post author
-        if (postData.authorId !== currentUser.uid) {
-          const authorActivityColRef = collection(db, 'activity', postData.authorId, 'userActivity');
-          const newActivityRef = doc(authorActivityColRef);
-          transaction.set(newActivityRef, {
-            type: 'post_comment',
-            fromUserId: currentUser.uid,
-            fromUsername: userProfile?.username || currentUser.displayName || "Someone",
-            fromProfileImageUrl: userProfile?.profileImageUrl || currentUser.photoURL || "",
-            postId: postId,
-            postImageUrl: postData.imageUrl?.startsWith("http") ? postData.imageUrl : undefined,
-            postCaption: postData.caption ? postData.caption.substring(0, 50) + (postData.caption.length > 50 ? "..." : "") : undefined,
-            commentId: newCommentRef.id,
-            commentText: text.trim().substring(0, 50) + (text.trim().length > 50 ? "..." : ""),
-            createdAt: serverTimestamp(),
-            status: 'unread',
-          } as Omit<ActivityItem, 'id'>);
-        }
-      });
-      
-      const clientTimestamp = Timestamp.now();
-      return { 
-        id: newCommentRef.id, 
-        ...newCommentData, 
-        createdAt: clientTimestamp, 
-        isLiked: false,
-      } as Comment;
-
-    } catch (error) {
-      console.error("Error adding comment: ", error);
-      throw error;
-    }
+    return {
+      id: newCommentRef.id,
+      text,
+      authorId:             currentUser.uid,
+      authorUsername:       userProfile.username || "Anonymous",
+      authorProfileImageUrl: userProfile.profileImageUrl || "",
+      createdAt:            Timestamp.now(),
+      likes:                0,
+      likedBy:              [],
+      replyCount:           0,
+    };
   };
 
   const likeComment = async (postId: string, commentId: string) => {
@@ -700,7 +658,6 @@ export function usePostsData() {
         text: text.trim(),
         authorId: currentUser.uid,
         authorUsername: userProfile.username,
-        authorProfileImageUrl: userProfile.profileImageUrl || "",
         createdAt: serverTimestamp(),
         likes: 0,
         likedBy: [],
@@ -748,48 +705,38 @@ export function usePostsData() {
   };
 
   const getCommentReplies = async (postId: string, commentId: string): Promise<Reply[]> => {
-    if (!currentUser) {
-      // If no current user, fetch replies without like status
-      const repliesRefNoUser = collection(db, "posts", postId, "comments", commentId, "replies");
-      const qNoUser = query(repliesRefNoUser, orderBy("createdAt", "asc")); // Replies usually ascending
-      const querySnapshotNoUser = await getDocs(qNoUser);
-      const repliesNoUser: Reply[] = [];
-      querySnapshotNoUser.forEach((doc) => {
-        const data = doc.data();
-        repliesNoUser.push({ 
-          id: doc.id, 
-          ...data,
-          likes: data.likes || 0,
-          likedBy: data.likedBy || [],
-          isLiked: false,
-         } as Reply);
-      });
-      return repliesNoUser;
+    const repliesRef = collection(db, "posts", postId, "comments", commentId, "replies")
+    const q = query(repliesRef, orderBy("createdAt", "asc"))
+    const snaps = await getDocs(q)
+
+    const replies: Reply[] = []
+    for (const snap of snaps.docs) {
+      const data = snap.data()
+      const reply: Reply = {
+        id: snap.id,
+        parentCommentId: data.parentCommentId,
+        authorId: data.authorId,
+        authorUsername: data.authorUsername,
+        authorProfileImageUrl: "",
+        text: data.text,
+        createdAt: data.createdAt,
+        likes: data.likes || 0,
+        likedBy: data.likedBy || [],
+        replyToUserId: data.replyToUserId,
+        isLiked: currentUser ? (data.likedBy?.includes(currentUser.uid) ?? false) : false
+      }
+
+      // ► fetch replier’s profile image
+      const userSnap = await getDoc(doc(db, "users", reply.authorId))
+      if (userSnap.exists()) {
+        const u = userSnap.data() as any
+        reply.authorProfileImageUrl = u.profileImageUrl || ""
+        reply.authorProfileThumbnailUrl = u.profileThumbnailUrl || ""
+      }
+
+      replies.push(reply)
     }
-    
-    try {
-      const repliesRef = collection(db, "posts", postId, "comments", commentId, "replies");
-      const q = query(repliesRef, orderBy("createdAt", "asc")); // Replies usually ascending
-      const querySnapshot = await getDocs(q);
-      
-      const replies: Reply[] = [];
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        const likedBy = data.likedBy || [];
-        replies.push({ 
-          id: doc.id, 
-          ...data,
-          likes: data.likes || 0,
-          likedBy: likedBy,
-          isLiked: likedBy.includes(currentUser.uid),
-         } as Reply);
-      });
-      
-      return replies;
-    } catch (err) {
-      console.error("Error fetching comment replies:", err);
-      throw err;
-    }
+    return replies
   };
 
   const likeReply = async (postId: string, commentId: string, replyId: string) => {

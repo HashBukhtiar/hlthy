@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { 
   StyleSheet, 
   Text, 
@@ -17,41 +17,20 @@ import { getOptimalImageUrl } from '@/utils/imageUtils';
 import { useFeedData } from '@/hooks/useFeedData';
 import { usePostsData, Post } from '@/hooks/usePostsData';
 import { useAuth } from '@/context/AuthContext';
+import { useBlockEnforcement } from '@/utils/blockUtils';
 
 const DEFAULT_PROFILE_IMAGE = 'https://thumbs.dreamstime.com/b/creative-illustration-default-avatar-profile-placeholder-isolated-background-art-design-grey-photo-blank-template-mockup-144855718.jpg';
 
 export default function PostsFeed() {
   const router = useRouter();
   const { currentUser, userProfile } = useAuth();
-  const { posts: allPosts, loading, refreshing, loadingMore, hasMore, error, refreshFeed, loadMorePosts } = useFeedData();
+  const { posts, loading, refreshing, loadingMore, hasMore, error, refreshFeed, loadMorePosts } = useFeedData();
   const { likePost, unlikePost, addComment } = usePostsData();
+  const { canInteractWithUser, isUserBlocked } = useBlockEnforcement();
   
   const [newComment, setNewComment] = useState('');
   const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
   const [submittingComment, setSubmittingComment] = useState(false);
-
-  // Filter posts to exclude milestone-only posts AND remove duplicates
-  const posts = useMemo(() => {
-    const seenIds = new Set<string>();
-    
-    return allPosts.filter(post => {
-      // Skip if we've already seen this post ID
-      if (seenIds.has(post.id)) {
-        console.warn(`Duplicate post found and removed: ${post.id}`);
-        return false;
-      }
-      seenIds.add(post.id);
-      
-      // If it's not a milestone, include it (regular post)
-      if (!post.isMilestone) {
-        return true;
-      }
-      
-      // If it's a milestone, only include it if it has additional content (achievement post)
-      // Achievement posts have both milestone data AND (image OR caption)
-      return post.imageUrl || (post.caption && post.caption.trim() !== '');
-    });
-  }, [allPosts]);
 
   // Handle image click to view full post
   const handleViewPost = useCallback((postId: string) => {
@@ -150,182 +129,211 @@ export default function PostsFeed() {
     return 'View Achievement';
   }, []);
 
+  const filteredPosts = useMemo(() => {
+    return posts.filter(post => {
+      // Don't filter out current user's own posts
+      if (post.authorId === currentUser?.uid) return true;
+      
+      // Filter out posts from users we've blocked
+      if (isUserBlocked(post.authorId)) return false;
+      
+      // Filter out posts if we've been blocked by the author
+      if (post.authorBlockedUsers && post.authorBlockedUsers.includes(currentUser?.uid || '')) {
+        return false;
+      }
+      
+      return true;
+    });
+  }, [posts, isUserBlocked, currentUser?.uid]);
+
   // Render individual post
-  const renderPost = useCallback(({ item }: { item: Post }) => (
-    <View style={styles.postContainer}>
-      {/* Header with user info */}
-      <View style={styles.postHeader}>
-        <TouchableOpacity 
-          style={styles.userInfoContainer}
-          onPress={() => navigateToProfile(item.authorId)}
-        >
-          <Image 
-            source={{ 
-              uri: getOptimalImageUrl(item.authorProfileThumbnailUrl, item.authorProfileImageUrl) || DEFAULT_PROFILE_IMAGE
-            }} 
-            style={styles.profilePic} 
-          />
-          <View>
-            <Text style={styles.username}>{item.authorUsername}</Text>
-            <Text style={styles.timestamp}>
-              {item.createdAt ? new Date(item.createdAt.toDate()).toLocaleDateString() : 'Unknown'}
-            </Text>
-          </View>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.moreButton}>
-          <Ionicons name="ellipsis-horizontal" size={20} color="#FFF" />
-        </TouchableOpacity>
-      </View>
-
-      {/* Post Image */}
-      {item.imageUrl && (
-        <TouchableOpacity 
-          activeOpacity={0.9}
-          onPress={() => handleViewPost(item.id)}
-        >
-          <Image 
-            source={{ uri: getOptimalImageUrl(item.thumbnailUrl, item.imageUrl) || item.imageUrl }} 
-            style={styles.postImage} 
-          />
-        </TouchableOpacity>
-      )}
-
-      {/* Action Buttons */}
-      <View style={styles.actionButtons}>
-        <View style={styles.leftActions}>
+  const renderPost = useCallback(({ item }: { item: Post }) => {
+    const canInteract = !isUserBlocked(item.authorId);
+    
+    return (
+      <View style={styles.postContainer}>
+        {/* Header with user info */}
+        <View style={styles.postHeader}>
           <TouchableOpacity 
-            style={styles.actionButton} 
-            onPress={() => handleToggleLike(item.id, item.isLiked || false)}
+            style={styles.userInfoContainer}
+            onPress={() => canInteract ? navigateToProfile(item.authorId) : null}
           >
-            <Ionicons 
-              name={item.isLiked ? "heart" : "heart-outline"} 
-              size={28} 
-              color={item.isLiked ? "#FF3B30" : "#FFF"} 
+            <Image 
+              source={{ uri: getOptimalImageUrl(item.authorProfileThumbnailUrl, item.authorProfileImageUrl) || DEFAULT_PROFILE_IMAGE }}
+              style={styles.profilePic}
+              onError={({ nativeEvent }) => console.error('❌ profile failed to load:', item.authorProfileThumbnailUrl, nativeEvent)}
+            />
+            <View>
+              <Text style={styles.username}>{item.authorUsername}</Text>
+              <Text style={styles.timestamp}>
+                {item.createdAt ? new Date(item.createdAt.toDate()).toLocaleDateString() : 'Unknown'}
+              </Text>
+            </View>
+          </TouchableOpacity>
+          {canInteract && (
+            <TouchableOpacity style={styles.moreButton}>
+              <Ionicons name="ellipsis-horizontal" size={20} color="#FFF" />
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* Post Image */}
+        {item.imageUrl && (
+          <TouchableOpacity 
+            activeOpacity={0.9}
+            onPress={() => canInteract ? handleViewPost(item.id) : null}
+          >
+            <Image
+              source={{ uri: item.imageUrl! }}
+              style={styles.postImage}
+              onError={({ nativeEvent }) => console.error('❌ post image failed to load:', item.imageUrl, nativeEvent)}
             />
           </TouchableOpacity>
+        )}
+
+        {/* Action Buttons */}
+        {canInteract && (
+          <View style={styles.actionButtons}>
+            <View style={styles.leftActions}>
+              <TouchableOpacity 
+                style={styles.actionButton} 
+                onPress={() => handleToggleLike(item.id, item.isLiked || false)}
+              >
+                <Ionicons 
+                  name={item.isLiked ? "heart" : "heart-outline"} 
+                  size={28} 
+                  color={item.isLiked ? "#FF3B30" : "#FFF"} 
+                />
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.actionButton}
+                onPress={() => toggleCommentInput(item.id)}
+              >
+                <Ionicons name="chatbubble-outline" size={26} color="#FFF" />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.actionButton}>
+                <Ionicons name="paper-plane-outline" size={26} color="#FFF" />
+              </TouchableOpacity>
+            </View>
+            <TouchableOpacity 
+              style={[styles.actionButton, styles.bookmarkButton]}
+              onPress={() => handleToggleBookmark(item.id)}
+            >
+              <Ionicons 
+                name={item.isBookmarked ? "bookmark" : "bookmark-outline"} 
+                size={26} 
+                color="#FFF" 
+              />
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Likes */}
+        {canInteract && (
+          <Text style={styles.likes}>{item.reactionCount || 0} likes</Text>
+        )}
+
+        {/* Caption */}
+        {item.caption && (
+          <View style={styles.captionContainer}>
+            <Text style={styles.caption} numberOfLines={2}>{item.caption}</Text>
+          </View>
+        )}
+        
+        {/* Comments preview */}
+        {canInteract && (
           <TouchableOpacity 
-            style={styles.actionButton}
-            onPress={() => toggleCommentInput(item.id)}
+            style={styles.commentsPreview}
+            onPress={() => handleViewPost(item.id)}
           >
-            <Ionicons name="chatbubble-outline" size={26} color="#FFF" />
+            <Text style={styles.commentsPreviewText}>
+              View all {item.commentCount || 0} comments
+            </Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.actionButton}>
-            <Ionicons name="paper-plane-outline" size={26} color="#FFF" />
+        )}
+
+        {/* Comment Input (shown only for active comment) */}
+        {canInteract && activeCommentId === item.id && (
+          <View style={styles.commentInputContainer}>
+            <Image 
+              source={{ 
+                uri: getOptimalImageUrl(userProfile?.profileThumbnailUrl, userProfile?.profileImageUrl) || DEFAULT_PROFILE_IMAGE
+              }} 
+              style={styles.commentInputProfilePic} 
+            />
+            <TextInput
+              style={styles.commentInput}
+              placeholder="Add a comment..."
+              placeholderTextColor="#666"
+              value={newComment}
+              onChangeText={setNewComment}
+              autoFocus
+            />
+            <TouchableOpacity 
+              style={[styles.postButton, (newComment.trim() === '' || submittingComment) && styles.disabledButton]}
+              onPress={() => handleAddComment(item.id)}
+              disabled={newComment.trim() === '' || submittingComment}
+            >
+              {submittingComment ? (
+                <ActivityIndicator size="small" color="#0A84FF" />
+              ) : (
+                <Text style={[styles.postButtonText, newComment.trim() === '' && styles.disabledButtonText]}>
+                  Post
+                </Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Attached Milestone (if exists) - For Achievement Posts */}
+        {canInteract && item.isMilestone && item.milestoneDetails && (
+          <TouchableOpacity 
+            style={styles.attachedItemContainer}
+            onPress={() => navigateToMilestone(item.id)}
+          >
+            <View style={styles.attachedItemContent}>
+              <View style={styles.attachedItemInfo}>
+                <Ionicons name="trophy-outline" size={18} color="#FFF" style={styles.attachedItemIcon} />
+                <View>
+                  <Text style={styles.attachedItemTitle}>
+                    {item.milestoneDetails.type === 'PR' ? 'Personal Record' : 
+                    item.milestoneDetails.type === 'weightLoss' ? 'Weight Loss' : 'Weight Gain'}
+                  </Text>
+                  <Text style={styles.attachedItemDetails}>
+                    {formatMilestonePreview(item.milestoneDetails)}
+                  </Text>
+                </View>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#999" />
+            </View>
           </TouchableOpacity>
-        </View>
-        <TouchableOpacity 
-          style={[styles.actionButton, styles.bookmarkButton]}
-          onPress={() => handleToggleBookmark(item.id)}
-        >
-          <Ionicons 
-            name={item.isBookmarked ? "bookmark" : "bookmark-outline"} 
-            size={26} 
-            color="#FFF" 
-          />
-        </TouchableOpacity>
+        )}
+
+        {/* Attached Workout (if exists) */}
+        {canInteract && item.workoutId && (
+          <TouchableOpacity 
+            style={styles.attachedItemContainer}
+            onPress={() => navigateToWorkout(item.workoutId!)}
+          >
+            <View style={styles.attachedItemContent}>
+              <View style={styles.attachedItemInfo}>
+                <Ionicons name="flame" size={18} color="#FFF" style={styles.attachedItemIcon} />
+                <View>
+                  <Text style={styles.attachedItemTitle}>
+                    Workout
+                  </Text>
+                  <Text style={styles.attachedItemDetails}>
+                    View attached workout
+                  </Text>
+                </View>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#999" />
+            </View>
+          </TouchableOpacity>
+        )}
       </View>
-
-      {/* Likes */}
-      <Text style={styles.likes}>{item.reactionCount || 0} likes</Text>
-
-      {/* Caption */}
-      {item.caption && (
-        <View style={styles.captionContainer}>
-          <Text style={styles.caption} numberOfLines={2}>{item.caption}</Text>
-        </View>
-      )}
-      
-      {/* Comments preview button */}
-      <TouchableOpacity 
-        style={styles.commentsPreview}
-        onPress={() => handleViewPost(item.id)}
-      >
-        <Text style={styles.commentsPreviewText}>
-          View all {item.commentCount || 0} comments
-        </Text>
-      </TouchableOpacity>
-
-      {/* Comment Input (shown only for active comment) */}
-      {activeCommentId === item.id && (
-        <View style={styles.commentInputContainer}>
-          <Image 
-            source={{ 
-              uri: getOptimalImageUrl(userProfile?.profileThumbnailUrl, userProfile?.profileImageUrl) || DEFAULT_PROFILE_IMAGE
-            }} 
-            style={styles.commentInputProfilePic} 
-          />
-          <TextInput
-            style={styles.commentInput}
-            placeholder="Add a comment..."
-            placeholderTextColor="#666"
-            value={newComment}
-            onChangeText={setNewComment}
-            autoFocus
-          />
-          <TouchableOpacity 
-            style={[styles.postButton, (newComment.trim() === '' || submittingComment) && styles.disabledButton]}
-            onPress={() => handleAddComment(item.id)}
-            disabled={newComment.trim() === '' || submittingComment}
-          >
-            {submittingComment ? (
-              <ActivityIndicator size="small" color="#0A84FF" />
-            ) : (
-              <Text style={[styles.postButtonText, newComment.trim() === '' && styles.disabledButtonText]}>
-                Post
-              </Text>
-            )}
-          </TouchableOpacity>
-        </View>
-      )}
-
-      {/* Attached Milestone (if exists) - For Achievement Posts */}
-      {item.isMilestone && item.milestoneDetails && (
-        <TouchableOpacity 
-          style={styles.attachedItemContainer}
-          onPress={() => navigateToMilestone(item.id)}
-        >
-          <View style={styles.attachedItemContent}>
-            <View style={styles.attachedItemInfo}>
-              <Ionicons name="trophy-outline" size={18} color="#FFF" style={styles.attachedItemIcon} />
-              <View>
-                <Text style={styles.attachedItemTitle}>
-                  {item.milestoneDetails.type === 'PR' ? 'Personal Record' : 
-                   item.milestoneDetails.type === 'weightLoss' ? 'Weight Loss' : 'Weight Gain'}
-                </Text>
-                <Text style={styles.attachedItemDetails}>
-                  {formatMilestonePreview(item.milestoneDetails)}
-                </Text>
-              </View>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color="#999" />
-          </View>
-        </TouchableOpacity>
-      )}
-
-      {/* Attached Workout (if exists) */}
-      {item.workoutId && (
-        <TouchableOpacity 
-          style={styles.attachedItemContainer}
-          onPress={() => navigateToWorkout(item.workoutId!)}
-        >
-          <View style={styles.attachedItemContent}>
-            <View style={styles.attachedItemInfo}>
-              <Ionicons name="flame" size={18} color="#FFF" style={styles.attachedItemIcon} />
-              <View>
-                <Text style={styles.attachedItemTitle}>
-                  Workout
-                </Text>
-                <Text style={styles.attachedItemDetails}>
-                  View attached workout
-                </Text>
-              </View>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color="#999" />
-          </View>
-        </TouchableOpacity>
-      )}
-    </View>
-  ), [
+    );
+  }, [
     navigateToProfile, 
     handleViewPost, 
     handleToggleLike, 
@@ -338,7 +346,8 @@ export default function PostsFeed() {
     navigateToMilestone,
     navigateToWorkout,
     formatMilestonePreview,
-    userProfile
+    userProfile,
+    isUserBlocked,
   ]);
 
   // Render footer for load more
@@ -395,7 +404,7 @@ export default function PostsFeed() {
 
   return (
     <FlatList
-      data={posts}
+      data={filteredPosts}
       renderItem={renderPost}
       keyExtractor={(item, index) => `${item.id}-${index}`}
       showsVerticalScrollIndicator={false}
