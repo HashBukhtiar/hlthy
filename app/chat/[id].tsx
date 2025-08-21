@@ -586,7 +586,7 @@ const AIMessageBubble: React.FC<AIMessageBubbleProps> = ({ message, intent, onLo
       // Handle headers (lines that are short and followed by content)
       if (trimmedParagraph.length < 50 && !trimmedParagraph.includes('.') && index < paragraphs.length - 1) {
         return (
-          <Text key={index} style={styles.aiHeader}>
+          <Text key={index} style={styles.aiSectionHeader}>
             {trimmedParagraph}
           </Text>
         );
@@ -1674,6 +1674,32 @@ const styles = StyleSheet.create({
     lineHeight: 21,
     marginBottom: 4,
     paddingLeft: 8,
+  },
+  bulletPoint: {
+    color: '#4ECDC4',
+    fontWeight: '600',
+  },
+  workoutBlock: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+    borderLeftWidth: 3,
+    borderLeftColor: '#4ECDC4',
+  },
+  workoutLine: {
+    color: 'white',
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 2,
+    fontFamily: 'monospace',
+  },
+  aiSectionHeader: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 8,
+    marginTop: 4,
   },
   aiActions: {
     flexDirection: 'row',
