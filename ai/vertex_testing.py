@@ -863,6 +863,99 @@ def get_inferred_context_from_conversation(current_message, conversation_history
     
     return context
 
+# Intent classification system based on copilot instructions v2
+def classify_user_intent(message):
+    """
+    Classify user intent based on the HLTHY Coach router prompt.
+    Returns one of: planner, technique, explain, schedule, chit_chat
+    """
+    try:
+        router_prompt = """You classify the user's intent into exactly one label:
+- planner: asking for a workout today, a split, or exercise selection.
+- technique: asking about form, substitutions due to pain/injury/equipment, or fix-my-lift.
+- explain: asking for definitions or educational content.
+- schedule: asking about deloads, weekly layout, rest days, or adherence.
+- chit_chat: greetings or small talk.
+
+Return JSON only: {"label":"planner"}
+
+Fallback: if confidence < 0.6 and the user mentions a workout, use `planner`; otherwise `explain`.
+
+User message: "{message}"
+
+Classify this message:"""
+
+        # Use a simpler model for intent classification (more cost-effective)
+        classification_response = router_model.generate_content(
+            router_prompt.format(message=message),
+            generation_config={
+                "temperature": 0.1,
+                "max_output_tokens": 50,
+                "response_mime_type": "application/json"
+            }
+        )
+        
+        result = json.loads(classification_response.text.strip())
+        intent_label = result.get("label", "explain")  # Default fallback
+        
+        # Validate the label is one of the expected values
+        valid_labels = ["planner", "technique", "explain", "schedule", "chit_chat"]
+        if intent_label not in valid_labels:
+            # Apply fallback logic
+            message_lower = message.lower()
+            if any(keyword in message_lower for keyword in ["workout", "exercise", "training", "routine", "split"]):
+                intent_label = "planner"
+            else:
+                intent_label = "explain"
+        
+        print(f"Intent classified as: {intent_label}")
+        return intent_label
+        
+    except Exception as e:
+        print(f"Error in intent classification: {e}")
+        # Fallback logic based on keywords
+        message_lower = message.lower()
+        if any(keyword in message_lower for keyword in ["workout", "exercise", "training", "routine", "split", "today"]):
+            return "planner"
+        elif any(keyword in message_lower for keyword in ["form", "technique", "pain", "injury", "hurt", "substitute"]):
+            return "technique" 
+        elif any(keyword in message_lower for keyword in ["schedule", "week", "rest", "deload", "frequency"]):
+            return "schedule"
+        elif any(keyword in message_lower for keyword in ["hi", "hello", "hey", "thanks", "good", "great"]):
+            return "chit_chat"
+        else:
+            return "explain"
+
+@app.route('/api/classify-intent', methods=['POST'])
+def classify_intent():
+    """
+    Endpoint to classify user intent for routing purposes.
+    """
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({"error": "No JSON data received"}), 400
+            
+        message = data.get('message', '')
+        if not message:
+            return jsonify({"error": "Missing message"}), 400
+        
+        print(f"=== CLASSIFYING INTENT ===")
+        print(f"Message: {message}")
+        
+        intent_label = classify_user_intent(message)
+        
+        return jsonify({
+            "intent": intent_label,
+            "message": message,
+            "timestamp": datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        print(f"Error in classify_intent endpoint: {e}")
+        return jsonify({"error": str(e)}), 500
+
 if __name__ == '__main__':
     print("Starting HLTHY Coach Flask server...")
     port = int(os.environ.get("PORT", 5001))
