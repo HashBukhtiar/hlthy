@@ -881,7 +881,7 @@ const ShareModal: React.FC<ShareModalProps> = ({ visible, onClose, message, inte
           createdAt: serverTimestamp(),
           senderId: currentUser.uid,
           isSharedAiResponse: true,
-          originalIntent: intent,
+          ...(intent && { originalIntent: intent }),
         });
 
         // Update conversation metadata
