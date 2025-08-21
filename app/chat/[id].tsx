@@ -15,6 +15,7 @@ import {
   Image,
   Alert,
   Modal,
+  Animated,
 } from 'react-native';
 import { db } from '@/firebaseConfig';
 import { 
@@ -501,11 +502,47 @@ export default function ChatScreen() {
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [otherParticipantId, setOtherParticipantId] = useState<string | null>(null);
+  const [isAiThinking, setIsAiThinking] = useState(false);
+  const thinkingDotAnimations = useRef([
+    new Animated.Value(0.4),
+    new Animated.Value(0.4),
+    new Animated.Value(0.4),
+  ]).current;
   
   const BATCH_SIZE = 20; // number of messages to fetch at a time
   const [lastVisible, setLastVisible] = useState<any>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMoreMessages, setHasMoreMessages] = useState(true);
+
+  // Animate thinking dots when AI is thinking
+  useEffect(() => {
+    if (isAiThinking) {
+      const animations = thinkingDotAnimations.map((anim, index) =>
+        Animated.loop(
+          Animated.sequence([
+            Animated.delay(index * 150),
+            Animated.timing(anim, {
+              toValue: 1,
+              duration: 500,
+              useNativeDriver: false,
+            }),
+            Animated.timing(anim, {
+              toValue: 0.4,
+              duration: 500,
+              useNativeDriver: false,
+            }),
+          ])
+        )
+      );
+      
+      animations.forEach(anim => anim.start());
+      
+      return () => {
+        animations.forEach(anim => anim.stop());
+        thinkingDotAnimations.forEach(anim => anim.setValue(0.4));
+      };
+    }
+  }, [isAiThinking]);
 
   useEffect(() => {
     if (!currentUser || !conversationId) {
@@ -696,6 +733,7 @@ export default function ChatScreen() {
       console.log("User message added successfully");
 
       if (isAiChat) {
+        setIsAiThinking(true); // Show thinking indicator
         try {
           // The `messages` state is ordered descending. We need ascending for the API.
           const historyForAPI = [...messages]
@@ -731,6 +769,8 @@ export default function ChatScreen() {
             senderId: currentUser.uid,
             isAiResponse: true,
           });
+        } finally {
+          setIsAiThinking(false); // Hide thinking indicator
         }
       } else {
         // Handle user-to-user chat metadata updates
@@ -910,6 +950,28 @@ export default function ChatScreen() {
 
             contentContainerStyle={styles.messagesContainer}
           />
+        )}
+
+        {/* AI Thinking Indicator */}
+        {isAiThinking && (
+          <View style={styles.thinkingIndicator}>
+            <View style={styles.thinkingBubble}>
+              <View style={styles.thinkingDots}>
+                {thinkingDotAnimations.map((anim, index) => (
+                  <Animated.View
+                    key={index}
+                    style={[
+                      styles.thinkingDot,
+                      {
+                        opacity: anim,
+                      }
+                    ]}
+                  />
+                ))}
+              </View>
+              <Text style={styles.thinkingText}>AI is thinking...</Text>
+            </View>
+          </View>
         )}
 
         {/* Delete Message Modal */}
@@ -1256,5 +1318,45 @@ const styles = StyleSheet.create({
     fontSize: 14,
     padding: 10,
     textAlign: 'center',
+  },
+  thinkingIndicator: {
+    paddingHorizontal: 10,
+    paddingBottom: 10,
+  },
+  thinkingBubble: {
+    backgroundColor: '#d466ff',
+    alignSelf: 'flex-start',
+    maxWidth: '70%',
+    borderRadius: 20,
+    paddingVertical: 15,
+    paddingHorizontal: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  thinkingDots: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  thinkingDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+  },
+  dot1: {
+    opacity: 0.4,
+  },
+  dot2: {
+    opacity: 0.7,
+  },
+  dot3: {
+    opacity: 1,
+  },
+  thinkingText: {
+    color: 'white',
+    fontSize: 14,
+    fontStyle: 'italic',
   },
 });
