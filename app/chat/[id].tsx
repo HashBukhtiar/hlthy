@@ -206,8 +206,8 @@ async function convertFirestoreDoc(
 }
 
 
-const MessageItem = React.memo<{ item: Message; onLongPress: (m: Message) => void }>(
-  ({ item, onLongPress }) => {
+const MessageItem = React.memo<{ item: Message; onLongPress: (m: Message) => void; conversationId: string }>(
+  ({ item, onLongPress, conversationId }) => {
     const router = useRouter();
     if (item.type === 'dateHeader') {
       return (
@@ -382,31 +382,36 @@ const MessageItem = React.memo<{ item: Message; onLongPress: (m: Message) => voi
         isUserMessage={item.user === 'user'} 
         showIntentBadge={!!item.intent}
       >
-        <TouchableOpacity
-          style={[
-            styles.messageBubble,
-            item.user === 'user'
-              ? styles.currentUserMessage
-              : item.user === 'other'
-              ? styles.otherUserMessage
-              : styles.aiMessage,
-          ]}
-          onLongPress={() => onLongPress(item)}
-          delayLongPress={500}
-          activeOpacity={0.7}
-        >
-          <Text
-            style={
+        {item.user === 'ai' ? (
+          <AIMessageBubble 
+            message={item.text}
+            intent={item.intent}
+            onLongPress={() => onLongPress(item)}
+            isAiConversation={conversationId.endsWith('_ai_conversation')}
+          />
+        ) : (
+          <TouchableOpacity
+            style={[
+              styles.messageBubble,
               item.user === 'user'
-                ? styles.currentUserText
-                : item.user === 'other'
-                ? styles.otherUserText
-                : styles.aiText
-            }
+                ? styles.currentUserMessage
+                : styles.otherUserMessage,
+            ]}
+            onLongPress={() => onLongPress(item)}
+            delayLongPress={500}
+            activeOpacity={0.7}
           >
-            {item.text}
-          </Text>
-        </TouchableOpacity>
+            <Text
+              style={
+                item.user === 'user'
+                  ? styles.currentUserText
+                  : styles.otherUserText
+              }
+            >
+              {item.text}
+            </Text>
+          </TouchableOpacity>
+        )}
       </IntentMessageWrapper>
     );
   },
@@ -487,6 +492,152 @@ function addDateHeaders(msgs: Message[]): Message[] {
   
   return out;
 }
+
+// Enhanced AI Message Component
+interface AIMessageBubbleProps {
+  message: string;
+  intent?: string;
+  onLongPress: () => void;
+  isAiConversation?: boolean;
+}
+
+const AIMessageBubble: React.FC<AIMessageBubbleProps> = ({ message, intent, onLongPress, isAiConversation }) => {
+  const intentConfigs = {
+    planner: { 
+      icon: '🏋️', 
+      color: '#FF6B35', 
+      gradient: ['#FF6B35', '#F7931E'],
+      label: 'WORKOUT PLANNER'
+    },
+    technique: { 
+      icon: '🎯', 
+      color: '#F7931E', 
+      gradient: ['#F7931E', '#FFD700'],
+      label: 'TECHNIQUE HELP'
+    },
+    explain: { 
+      icon: '📚', 
+      color: '#4ECDC4', 
+      gradient: ['#4ECDC4', '#45B7D1'],
+      label: 'EDUCATION'
+    },
+    schedule: { 
+      icon: '📅', 
+      color: '#45B7D1', 
+      gradient: ['#45B7D1', '#96CEB4'],
+      label: 'SCHEDULING'
+    },
+    chit_chat: { 
+      icon: '💬', 
+      color: '#96CEB4', 
+      gradient: ['#96CEB4', '#FFEAA7'],
+      label: 'CHAT'
+    },
+  } as const;
+
+  const config = intent && intentConfigs[intent as keyof typeof intentConfigs] 
+    ? intentConfigs[intent as keyof typeof intentConfigs] 
+    : { icon: '🤖', color: '#d466ff', gradient: ['#d466ff', '#9f44ff'], label: 'AI ASSISTANT' };
+
+  // Format message with better structure
+  const formatMessage = (text: string) => {
+    // Split into paragraphs and handle lists
+    const paragraphs = text.split('\n\n').filter(p => p.trim());
+    
+    return paragraphs.map((paragraph, index) => {
+      // Handle bullet points
+      if (paragraph.includes('•') || paragraph.includes('-')) {
+        const lines = paragraph.split('\n').map(line => line.trim()).filter(line => line);
+        return (
+          <View key={index} style={styles.aiParagraph}>
+            {lines.map((line, lineIndex) => (
+              <Text key={lineIndex} style={styles.aiListItem}>
+                {line.startsWith('•') || line.startsWith('-') ? line : `• ${line}`}
+              </Text>
+            ))}
+          </View>
+        );
+      }
+      
+      // Handle numbered lists
+      if (/^\d+\./.test(paragraph.trim())) {
+        const lines = paragraph.split('\n').map(line => line.trim()).filter(line => line);
+        return (
+          <View key={index} style={styles.aiParagraph}>
+            {lines.map((line, lineIndex) => (
+              <Text key={lineIndex} style={styles.aiListItem}>
+                {line}
+              </Text>
+            ))}
+          </View>
+        );
+      }
+      
+      // Regular paragraphs
+      return (
+        <Text key={index} style={[styles.aiText, styles.aiParagraph]}>
+          {paragraph}
+        </Text>
+      );
+    });
+  };
+
+  return (
+    <TouchableOpacity
+      onLongPress={onLongPress}
+      delayLongPress={500}
+      activeOpacity={0.7}
+      style={styles.aiMessageContainer}
+    >
+      {/* AI Header */}
+      <View style={styles.aiHeader}>
+        <View style={[styles.aiIconContainer, { backgroundColor: `${config.color}15` }]}>
+          {isAiConversation ? (
+            <Image 
+              source={require('@/assets/images/logo-dark.png')} 
+              style={styles.aiLogo}
+              resizeMode="contain"
+            />
+          ) : (
+            <Text style={styles.aiIcon}>{config.icon}</Text>
+          )}
+        </View>
+        <View style={styles.aiHeaderInfo}>
+          <Text style={styles.aiTitle}>HLTHY Coach</Text>
+          <Text style={[styles.aiSubtitle, { color: config.color }]}>
+            {config.label}
+          </Text>
+        </View>
+        <View style={styles.aiStatus}>
+          <View style={[styles.aiStatusDot, { backgroundColor: config.color }]} />
+          <Text style={styles.aiStatusText}>ONLINE</Text>
+        </View>
+      </View>
+
+      {/* Message Content */}
+      <View style={styles.aiContentContainer}>
+        <View style={[styles.aiContentBubble]}>
+          <View style={styles.aiMessageContent}>
+            {formatMessage(message)}
+          </View>
+          
+          {/* Action Buttons */}
+          <View style={styles.aiActions}>
+            <TouchableOpacity style={styles.aiActionButton}>
+              <Ionicons name="copy-outline" size={16} color="#888" />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.aiActionButton}>
+              <Ionicons name="share-outline" size={16} color="#888" />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.aiActionButton}>
+              <Ionicons name="thumbs-up-outline" size={16} color="#888" />
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+};
 
 export default function ChatScreen() {
   const router = useRouter();
@@ -889,8 +1040,8 @@ export default function ChatScreen() {
   };
 
   const renderMessage = useCallback<ListRenderItem<Message>>(
-    ({ item }) => <MessageItem item={item} onLongPress={handleLongPress} />,
-    [handleLongPress]
+    ({ item }) => <MessageItem item={item} onLongPress={handleLongPress} conversationId={conversationId} />,
+    [handleLongPress, conversationId]
   );
 
   return (
@@ -910,14 +1061,28 @@ export default function ChatScreen() {
               onPress={navigateToUserProfile}
               disabled={conversationId === 'ai_conversation' || !otherParticipantId}
             >
-              {profileImageUrl ? (
+              {conversationId.endsWith('_ai_conversation') ? (
+                <Image 
+                  source={require('@/assets/images/logo-dark.png')} 
+                  style={styles.headerLogo} 
+                  resizeMode="contain"
+                />
+              ) : profileImageUrl ? (
                 <Image source={{ uri: profileImageUrl }} style={styles.profilePic} />
               ) : (
                 <Image source={require('@/assets/images/profile-icon.png')} style={styles.profilePic} />
               )}
-              <Text style={styles.headerText} numberOfLines={1} ellipsizeMode="tail">
-                {chatTitle}
-              </Text>
+              <View style={styles.headerTextContainer}>
+                <Text style={styles.headerText} numberOfLines={1} ellipsizeMode="tail">
+                  {chatTitle}
+                </Text>
+                {conversationId.endsWith('_ai_conversation') && (
+                  <View style={styles.aiStatusRow}>
+                    <View style={styles.onlineDot} />
+                    <Text style={styles.onlineText}>AI Assistant • Online</Text>
+                  </View>
+                )}
+              </View>
             </TouchableOpacity>
           </View>
         </SafeAreaView>
@@ -955,21 +1120,42 @@ export default function ChatScreen() {
         {/* AI Thinking Indicator */}
         {isAiThinking && (
           <View style={styles.thinkingIndicator}>
-            <View style={styles.thinkingBubble}>
-              <View style={styles.thinkingDots}>
-                {thinkingDotAnimations.map((anim, index) => (
-                  <Animated.View
-                    key={index}
-                    style={[
-                      styles.thinkingDot,
-                      {
-                        opacity: anim,
-                      }
-                    ]}
-                  />
-                ))}
+            <View style={styles.aiHeader}>
+              <View style={[styles.aiIconContainer, { backgroundColor: '#d466ff15' }]}>
+                <Image 
+                  source={require('@/assets/images/logo-dark.png')} 
+                  style={styles.aiLogo}
+                  resizeMode="contain"
+                />
               </View>
-              <Text style={styles.thinkingText}>AI is thinking...</Text>
+              <View style={styles.aiHeaderInfo}>
+                <Text style={styles.aiTitle}>HLTHY Coach</Text>
+                <Text style={[styles.aiSubtitle, { color: '#d466ff' }]}>
+                  PROCESSING...
+                </Text>
+              </View>
+              <View style={styles.aiStatus}>
+                <View style={[styles.aiStatusDot, { backgroundColor: '#d466ff' }]} />
+                <Text style={styles.aiStatusText}>THINKING</Text>
+              </View>
+            </View>
+            <View style={styles.aiContentContainer}>
+              <View style={styles.thinkingBubble}>
+                <View style={styles.thinkingDots}>
+                  {thinkingDotAnimations.map((anim, index) => (
+                    <Animated.View
+                      key={index}
+                      style={[
+                        styles.thinkingDot,
+                        {
+                          opacity: anim,
+                        }
+                      ]}
+                    />
+                  ))}
+                </View>
+                <Text style={styles.thinkingText}>Analyzing your request...</Text>
+              </View>
             </View>
           </View>
         )}
@@ -1061,6 +1247,31 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     marginRight: 10,
   },
+  headerLogo: {
+    width: 24,
+    height: 24,
+    marginRight: 10,
+  },
+  headerTextContainer: {
+    flex: 1,
+  },
+  aiStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 2,
+  },
+  onlineDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#4CD964',
+    marginRight: 4,
+  },
+  onlineText: {
+    color: '#888',
+    fontSize: 12,
+    fontWeight: '500',
+  },
   messagesContainer: {
     padding: 10,
     justifyContent: 'flex-start',
@@ -1082,8 +1293,12 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   aiMessage: {
-    backgroundColor: '#d466ff',
+    backgroundColor: 'transparent',
     alignSelf: 'flex-start',
+    maxWidth: '85%',
+    borderRadius: 0,
+    padding: 0,
+    marginVertical: 8,
   },
   currentUserText: {
     color: 'white',
@@ -1093,6 +1308,8 @@ const styles = StyleSheet.create({
   },
   aiText: {
     color: 'white',
+    fontSize: 16,
+    lineHeight: 22,
   },
   unavailableItemBubble: {
     backgroundColor: '#3A3A3A',
@@ -1349,5 +1566,101 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 14,
     fontStyle: 'italic',
+  },
+  // Enhanced AI Message Styles
+  aiMessageContainer: {
+    alignSelf: 'flex-start',
+    maxWidth: '90%',
+    marginVertical: 8,
+    marginHorizontal: 10,
+  },
+  aiHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    paddingHorizontal: 4,
+  },
+  aiIconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  aiLogo: {
+    width: 20,
+    height: 20,
+  },
+  aiIcon: {
+    fontSize: 16,
+  },
+  aiHeaderInfo: {
+    flex: 1,
+  },
+  aiTitle: {
+    color: 'white',
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  aiSubtitle: {
+    fontSize: 11,
+    fontWeight: '600',
+    opacity: 0.8,
+    marginTop: 1,
+  },
+  aiStatus: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 4,
+  },
+  aiStatusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  aiStatusText: {
+    color: '#888',
+    fontSize: 9,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+  },
+  aiContentContainer: {
+    paddingLeft: 42, // Align with header text
+  },
+  aiContentBubble: {
+    backgroundColor: 'rgba(30, 30, 30, 0.95)',
+    borderRadius: 16,
+    borderTopLeftRadius: 4,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  aiMessageContent: {
+    padding: 16,
+  },
+  aiParagraph: {
+    marginBottom: 12,
+  },
+  aiListItem: {
+    color: 'white',
+    fontSize: 15,
+    lineHeight: 21,
+    marginBottom: 4,
+    paddingLeft: 8,
+  },
+  aiActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+    gap: 8,
+  },
+  aiActionButton: {
+    padding: 6,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
   },
 });
