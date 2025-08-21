@@ -6,6 +6,16 @@ export interface ValidationResult {
   warnings: string[];
 }
 
+export const DISPLAY_NAME_RULES = {
+  MIN_LENGTH: 2,
+  MAX_LENGTH: 30,
+  ALLOWED_CHARACTERS: 'Letters, numbers, spaces, hyphens, underscores, periods, and apostrophes',
+  EXAMPLES: {
+    VALID: ['John Doe', 'María García', 'Alex-123', "O'Connor", 'Jean-Pierre'],
+    INVALID: ['@username', 'user#123', 'test$name', '___', '...']
+  }
+};
+
 export const validateSettings = (settings: Partial<UserSettings>): ValidationResult => {
   const errors: string[] = [];
   const warnings: string[] = [];
@@ -18,8 +28,8 @@ export const validateSettings = (settings: Partial<UserSettings>): ValidationRes
     if (settings.displayName.length > 30) {
       errors.push('Display name cannot exceed 30 characters');
     }
-    if (!/^[a-zA-Z0-9\s\-_\.]+$/.test(settings.displayName)) {
-      errors.push('Display name contains invalid characters');
+    if (/[@#$%^&*()+=\[\]{}|\\:";?/<>~`]/.test(settings.displayName)) {
+      errors.push('Display name cannot contain special symbols like @, #, $, %, etc.');
     }
   }
 
