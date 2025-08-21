@@ -9,6 +9,7 @@ interface SettingsItemProps {
   onValueChange?: (value: any) => void;
   options?: { label: string; value: any }[];
   placeholder?: string;
+  maxLength?: number;
   helperText?: string;
   destructive?: boolean;
   disabled?: boolean;
@@ -23,11 +24,12 @@ export const SettingsItem: React.FC<SettingsItemProps> = ({
   onValueChange,
   options,
   placeholder,
+  maxLength,
   helperText,
   destructive = false,
   disabled = false,
   displayValue,
-  onPress
+  onPress,
 }) => {
   const renderContent = () => {
     switch (type) {
@@ -64,6 +66,7 @@ export const SettingsItem: React.FC<SettingsItemProps> = ({
             placeholder={placeholder}
             placeholderTextColor="#666"
             editable={!disabled}
+            maxLength={maxLength}
           />
         );
 
@@ -147,22 +150,26 @@ const styles = StyleSheet.create({
   },
   row: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
+    minHeight: 40,
   },
   labelContainer: {
-    flex: 1,
+    flex: 2,
     marginRight: 16,
+    minWidth: 120,
   },
   label: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '500',
+    flexWrap: 'wrap',
   },
   helperText: {
     color: '#666',
     fontSize: 12,
-    marginTop: 2,
+    marginTop: 4,
+    flexWrap: 'wrap',
   },
   selectButton: {
     flexDirection: 'row',
@@ -172,11 +179,14 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 8,
     minWidth: 120,
+    maxWidth: 200,
+    flex: 1,
   },
   selectText: {
     color: '#fff',
     fontSize: 14,
     marginRight: 8,
+    flex: 1,
   },
   placeholder: {
     color: '#666',
@@ -189,6 +199,9 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     fontSize: 14,
     minWidth: 120,
+    maxWidth: 200,
+    flex: 1,
+    textAlignVertical: 'top',
   },
   button: {
     flexDirection: 'row',
@@ -196,15 +209,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
+    maxWidth: 200,
+    flex: 1,
   },
   buttonText: {
     color: '#007AFF',
     fontSize: 14,
     marginRight: 8,
+    flex: 1,
   },
   infoText: {
     color: '#999',
     fontSize: 14,
+    flex: 1,
+    maxWidth: 200,
   },
   destructiveButton: {
     backgroundColor: 'rgba(255, 59, 48, 0.1)',

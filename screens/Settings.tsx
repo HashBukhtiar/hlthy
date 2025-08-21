@@ -811,6 +811,8 @@ export default function Settings() {
             value={settings.displayName}
             onValueChange={(value) => updateSetting('displayName', value)}
             placeholder="Enter display name"
+            maxLength={30}
+            helperText={`${settings.displayName?.length || 0}/30 characters`}
           />
 
           <SettingsItem
@@ -819,6 +821,8 @@ export default function Settings() {
             value={settings.bio}
             onValueChange={(value) => updateSetting('bio', value)}
             placeholder="Tell us about yourself"
+            maxLength={300}
+            helperText={`${settings.bio?.length || 0}/300 characters`}
           />
 
           <SettingsItem

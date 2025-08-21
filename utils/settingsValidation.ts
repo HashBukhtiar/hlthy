@@ -15,8 +15,8 @@ export const validateSettings = (settings: Partial<UserSettings>): ValidationRes
     if (settings.displayName.length < 2) {
       errors.push('Display name must be at least 2 characters long');
     }
-    if (settings.displayName.length > 50) {
-      errors.push('Display name cannot exceed 50 characters');
+    if (settings.displayName.length > 30) {
+      errors.push('Display name cannot exceed 30 characters');
     }
     if (!/^[a-zA-Z0-9\s\-_\.]+$/.test(settings.displayName)) {
       errors.push('Display name contains invalid characters');
@@ -28,8 +28,8 @@ export const validateSettings = (settings: Partial<UserSettings>): ValidationRes
   }
 
   // Bio validation
-  if (settings.bio && settings.bio.length > 500) {
-    errors.push('Bio cannot exceed 500 characters');
+  if (settings.bio && settings.bio.length > 300) {
+    errors.push('Bio cannot exceed 300 characters');
   }
 
   // Date of birth validation
