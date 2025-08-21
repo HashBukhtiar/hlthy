@@ -115,7 +115,14 @@ const ChatItem = ({
     };
 
     const navigateToChat = () => {
-        router.push(`/chat/${item.id}`);
+        if (item.isPinnedAI) {
+            if (currentUser) {
+                const aiConversationId = `${currentUser.uid}_ai_conversation`;
+                router.push(`/chat/${aiConversationId}`);
+            }
+        } else {
+            router.push(`/chat/${item.id}`);
+        }
     };
 
     return (
