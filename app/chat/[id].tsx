@@ -388,6 +388,7 @@ const MessageItem = React.memo<{ item: Message; onLongPress: (m: Message) => voi
             intent={item.intent}
             onLongPress={() => onLongPress(item)}
             isAiConversation={conversationId.endsWith('_ai_conversation')}
+            timestamp={item.createdAt}
           />
         ) : (
           <TouchableOpacity
@@ -499,9 +500,10 @@ interface AIMessageBubbleProps {
   intent?: string;
   onLongPress: () => void;
   isAiConversation?: boolean;
+  timestamp?: Date;
 }
 
-const AIMessageBubble: React.FC<AIMessageBubbleProps> = ({ message, intent, onLongPress, isAiConversation }) => {
+const AIMessageBubble: React.FC<AIMessageBubbleProps> = ({ message, intent, onLongPress, isAiConversation, timestamp }) => {
   const intentConfigs = {
     planner: { 
       icon: '🏋️', 
@@ -623,9 +625,16 @@ const AIMessageBubble: React.FC<AIMessageBubbleProps> = ({ message, intent, onLo
         </View>
         <View style={styles.aiHeaderInfo}>
           <Text style={styles.aiTitle}>HLTHY Coach</Text>
-          <Text style={[styles.aiSubtitle, { color: config.color }]}>
-            {config.label}
-          </Text>
+          <View style={styles.aiSubtitleRow}>
+            <Text style={[styles.aiSubtitle, { color: config.color }]}>
+              {config.label}
+            </Text>
+            {timestamp && (
+              <Text style={styles.aiTimestamp}>
+                • {timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </Text>
+            )}
+          </View>
         </View>
         <View style={styles.aiStatus}>
           <View style={[styles.aiStatusDot, { backgroundColor: config.color }]} />
@@ -642,14 +651,41 @@ const AIMessageBubble: React.FC<AIMessageBubbleProps> = ({ message, intent, onLo
           
           {/* Action Buttons */}
           <View style={styles.aiActions}>
-            <TouchableOpacity style={styles.aiActionButton}>
+            <TouchableOpacity 
+              style={styles.aiActionButton}
+              onPress={() => {
+                // Copy message to clipboard
+                // TODO: Implement clipboard copy
+              }}
+            >
               <Ionicons name="copy-outline" size={16} color="#888" />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.aiActionButton}>
+            <TouchableOpacity 
+              style={styles.aiActionButton}
+              onPress={() => {
+                // Share message
+                // TODO: Implement sharing
+              }}
+            >
               <Ionicons name="share-outline" size={16} color="#888" />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.aiActionButton}>
+            <TouchableOpacity 
+              style={styles.aiActionButton}
+              onPress={() => {
+                // Like/feedback
+                // TODO: Implement feedback
+              }}
+            >
               <Ionicons name="thumbs-up-outline" size={16} color="#888" />
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.aiActionButton}
+              onPress={() => {
+                // Regenerate response
+                // TODO: Implement regeneration
+              }}
+            >
+              <Ionicons name="refresh-outline" size={16} color="#888" />
             </TouchableOpacity>
           </View>
         </View>
