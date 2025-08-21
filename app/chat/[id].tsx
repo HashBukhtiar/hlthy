@@ -18,6 +18,7 @@ import {
   Animated,
   Share,
   Clipboard,
+  ScrollView,
 } from 'react-native';
 import { db } from '@/firebaseConfig';
 import { 
@@ -2170,6 +2171,143 @@ const styles = StyleSheet.create({
   aiActionLabel: {
     color: '#888',
     fontSize: 11,
+    fontWeight: '500',
+  },
+  // Share Modal Styles
+  shareModalContainer: {
+    flex: 1,
+    backgroundColor: '#000',
+  },
+  shareModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#1a1a1a',
+    borderBottomWidth: 1,
+    borderBottomColor: '#333',
+  },
+  shareModalCloseButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  shareModalTitle: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  shareModalSendButton: {
+    backgroundColor: '#4CD964',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 16,
+  },
+  shareModalSendButtonDisabled: {
+    backgroundColor: '#333',
+  },
+  shareModalSendButtonText: {
+    color: 'white',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  shareModalSendButtonTextDisabled: {
+    color: '#888',
+  },
+  sharePreview: {
+    backgroundColor: '#1a1a1a',
+    margin: 16,
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  sharePreviewTitle: {
+    color: '#4CD964',
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  sharePreviewText: {
+    color: '#DDD',
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  shareSearchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1a1a1a',
+    marginHorizontal: 16,
+    marginBottom: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  shareSearchIcon: {
+    marginRight: 8,
+  },
+  shareSearchInput: {
+    flex: 1,
+    color: 'white',
+    fontSize: 16,
+  },
+  shareUsersList: {
+    flex: 1,
+    paddingHorizontal: 16,
+  },
+  shareUsersListTitle: {
+    color: '#888',
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 12,
+    marginTop: 8,
+  },
+  shareLoadingIndicator: {
+    marginVertical: 20,
+  },
+  shareNoResults: {
+    color: '#666',
+    fontSize: 14,
+    textAlign: 'center',
+    fontStyle: 'italic',
+    marginVertical: 20,
+  },
+  shareUserItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 4,
+    borderRadius: 12,
+    backgroundColor: 'transparent',
+  },
+  shareUserItemSelected: {
+    backgroundColor: 'rgba(76, 217, 100, 0.1)',
+  },
+  shareUserAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 12,
+  },
+  shareUserInfo: {
+    flex: 1,
+  },
+  shareUserName: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  shareUserHandle: {
+    color: '#888',
+    fontSize: 14,
+    marginTop: 2,
+  },
+  followingTag: {
+    color: '#4CD964',
+    fontSize: 12,
     fontWeight: '500',
   },
 });
