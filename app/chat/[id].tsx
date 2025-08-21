@@ -1141,9 +1141,16 @@ export default function ChatScreen() {
   const handleReprompt = useCallback(async (repromptMessage: string) => {
     if (!conversationId.endsWith('_ai_conversation')) return;
     
-    // Send the reprompt message
-    await handleSend(repromptMessage);
-  }, [conversationId]);
+    // Get the last user message from the conversation
+    const lastUserMessage = messages.find(msg => msg.user === 'user');
+    if (!lastUserMessage) return;
+    
+    // Create a reprompt based on the last user question
+    const reprompt = `${lastUserMessage.text}\n\nPlease provide a different or more detailed response.`;
+    
+    // Send the reprompt message using the existing handleSend function
+    await handleSend(reprompt);
+  }, [conversationId, messages, handleSend]);
 
   const navigateToUserProfile = () => {
     if (conversationId !== 'ai_conversation' && otherParticipantId) {
