@@ -7,7 +7,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { db } from '@/firebaseConfig'; 
 import { doc, getDoc, Timestamp, updateDoc, increment, setDoc, deleteDoc, collection, query, where, orderBy, getDocs, limit } from 'firebase/firestore';
 import { useAuth } from '@/context/AuthContext'; 
-import { getOptimalImageUrl, deleteImageFromStorage } from '@/utils/imageUtils';
+import { getCoverImageSource, deleteImageFromStorage } from '@/utils/imageUtils';
+import { useBlockEnforcement } from '@/utils/blockUtils';
 
 // Interface for individual exercise within a segment
 interface WorkoutExercise {
@@ -47,6 +48,7 @@ export default function ViewWorkout() {
   const params = useLocalSearchParams();
   const workoutId = params.id as string;
   const { currentUser } = useAuth();
+  const { canInteractWithUser } = useBlockEnforcement();
 
   const [workoutData, setWorkoutData] = useState<WorkoutData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -55,7 +57,7 @@ export default function ViewWorkout() {
   const [favoriteLoading, setFavoriteLoading] = useState(false);
   const [shareModalVisible, setShareModalVisible] = useState(false);
   const [searchText, setSearchText] = useState('');
-  const [searchResults, setSearchResults] = useState<{ id: string; username: string; profileImageUrl?: string }[]>([]);
+  const [searchResults, setSearchResults] = useState<{ id: string; username: string; profileImageUrl?: string; profileThumbnailUrl?: string }[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
 
   const handleSearchUsers = async (text: string) => {
@@ -72,19 +74,27 @@ export default function ViewWorkout() {
         where('username', '>=', lowerText),
         where('username', '<=', lowerText + '\uf8ff'),
         orderBy('username'),
-        limit(10)
+        limit(20)
       );
       const querySnapshot = await getDocs(q);
       const results: any[] = [];
       querySnapshot.forEach(docSnap => {
         const userData = docSnap.data();
-        results.push({
-          id: docSnap.id,
-          username: userData.username,
-          profileImageUrl: userData.profileImageUrl,
-        });
+        const userId = docSnap.id;
+        
+        // Skip current user and blocked users
+        if (userId === currentUser?.uid) return;
+        
+        if (canInteractWithUser(userId, userData.blockedUsers)) {
+          results.push({
+            id: userId,
+            username: userData.username,
+            profileImageUrl: userData.profileImageUrl,
+            profileThumbnailUrl: userData.profileThumbnailUrl,
+          });
+        }
       });
-      setSearchResults(results);
+      setSearchResults(results.slice(0, 10));
     } catch (error) {
       console.error("Error searching users:", error);
     } finally {
@@ -227,7 +237,7 @@ export default function ViewWorkout() {
   
   const displayWorkoutLength = calculateTotalLength(workoutData.segments);
 
-  const shareWorkoutWithUser = async (userId: string, username: string, profileImageUrl?: string) => {
+  const shareWorkoutWithUser = async (userId: string, username: string, profileImageUrl?: string, profileThumbnailUrl?: string) => {
     if (!currentUser || !workoutData) return;
     
     try {
@@ -236,11 +246,12 @@ export default function ViewWorkout() {
         userId,
         username,
         profileImageUrl,
+        profileThumbnailUrl,
         {
           id: workoutData.id,
           title: workoutData.title,
           coverImageUrl: workoutData.coverImageUrl || null,
-          thumbnailUrl: workoutData.thumbnailUrl || null, // Add this
+          thumbnailUrl: workoutData.thumbnailUrl || null,
           creatorUsername: workoutData.creatorUsername,
           description: workoutData.description
         }
@@ -361,13 +372,9 @@ export default function ViewWorkout() {
       
       <View style={styles.imageContainer}>
         <Image
-          source={
-            getOptimalImageUrl(workoutData.thumbnailUrl, workoutData.coverImageUrl) 
-              ? { uri: getOptimalImageUrl(workoutData.thumbnailUrl, workoutData.coverImageUrl)! } 
-              : require('@/assets/images/default_workout_cover.png')
-          }
+          source={getCoverImageSource(workoutData.thumbnailUrl, workoutData.coverImageUrl)}
           style={styles.workoutImage}
-          resizeMode="cover" 
+          resizeMode="cover"
         />
       </View>
       

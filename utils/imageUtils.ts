@@ -1,24 +1,36 @@
+import { ImageSourcePropType } from 'react-native';
 import { ref, deleteObject } from 'firebase/storage';
 import { storage, db } from '@/firebaseConfig';
 import { doc, deleteDoc } from 'firebase/firestore';
+import hlthyLogo from '@/assets/images/icon.png';
+
+const DEFAULT_PROFILE_IMAGE = 'https://thumbs.dreamstime.com/b/creative-illustration-default-avatar-profile-placeholder-isolated-background-art-design-grey-photo-blank-template-mockup-144855718.jpg';
 
 /**
- * Gets the appropriate image URL, preferring thumbnail over original
+ * Gets the appropriate image URL, preferring thumbnail over original, with a fallback to a default.
  * @param thumbnailUrl - The thumbnail URL from Firestore
  * @param originalUrl - The original image URL
- * @returns The URL to use for display
+ * @returns The URL to use for display. Returns a default image if none are provided.
  */
-export const getOptimalImageUrl = (thumbnailUrl?: string | null, originalUrl?: string | null): string | null => {
-  if (thumbnailUrl && thumbnailUrl.trim() !== '') {
-    return thumbnailUrl;
-  }
-  
-  if (originalUrl && originalUrl.trim() !== '') {
-    return originalUrl;
-  }
-  
-  return null;
+export const getOptimalImageUrl = (
+  thumbnailUrl?: string | null,
+  originalUrl?: string | null
+): string => {
+  const thumb = thumbnailUrl?.trim();
+  const orig = originalUrl?.trim();
+  if (thumb) return thumb;
+  if (orig) return orig;
+  return DEFAULT_PROFILE_IMAGE;
 };
+
+export const getCoverImageSource = (
+  thumbnailUrl?: string | null,
+  originalUrl?: string | null
+): ImageSourcePropType => {
+  if (thumbnailUrl?.trim()) return { uri: thumbnailUrl };
+  if (originalUrl?.trim()) return { uri: originalUrl };
+  return hlthyLogo;
+}
 
 /**
  * Gets the storage bucket name from the Firebase config

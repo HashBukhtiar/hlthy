@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { collection, query, orderBy, getDocs, doc, getDoc, increment, where, setDoc, runTransaction, serverTimestamp, writeBatch } from 'firebase/firestore';
+import { collection, query, orderBy, getDocs, doc, getDoc, where, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db, app } from '@/firebaseConfig';
 import { useAuth } from '@/context/AuthContext';
 import { getFunctions, httpsCallable } from 'firebase/functions';
@@ -27,10 +27,12 @@ interface WorkoutItemData {
   thumbnailUrl?: string | null;
 }
 
-export function useProfileData(userId = null) {
+export function useProfileData(userId = null, contextUserProfile: UserProfile | null = null) {
   const { currentUser } = useAuth();
   const profileIdToFetch = userId || currentUser?.uid;
   const functions = getFunctions(app, 'northamerica-northeast2');
+  const followUserFn   = httpsCallable(functions, 'followUser');
+  const unfollowUserFn = httpsCallable(functions, 'unfollowUser');
   const isOwnProfile = !userId || userId === currentUser?.uid;
   const [loading, setLoading] = useState(true);
   const [profileData, setProfileData] = useState<UserProfile | null>(null);
@@ -78,6 +80,9 @@ export function useProfileData(userId = null) {
       bio: userData.bio || '',
       archetype: userData.archetype || 'generalist',
       createdAt: userData.createdAt,
+
+      // Profile Settings
+      profileVisibility: userData.profileVisibility ?? 'public',
       
       // Optional fields with proper defaults
       dateOfBirth: userData.dateOfBirth || undefined,
@@ -240,7 +245,16 @@ export function useProfileData(userId = null) {
           orderBy("createdAt", "desc")
         );
         const postsSnapshot = await getDocs(postsQuery);
-        userPosts = postsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        // Attach the fresh profile image URL from the already-fetched user profile
+        userPosts = postsSnapshot.docs.map(doc => {
+          const postData = doc.data();
+          return {
+            ...postData,
+            id: doc.id,
+            authorProfileImageUrl: userData.profileImageUrl,
+            authorProfileThumbnailUrl: userData.profileThumbnailUrl,
+          };
+        });
         console.log(`Retrieved ${userPosts.length} user posts for:`, profileIdToFetch);
       } catch (postsError) {
         console.error("Error fetching posts:", postsError);
@@ -381,8 +395,8 @@ export function useProfileData(userId = null) {
   }, [profileIdToFetch, currentUser?.uid, isOwnProfile]);
 
   const followUser = async (targetUserId: string) => {
-    if (!currentUser || !currentUser.uid || followActionLoading) {
-      console.error("Current user not found or action in progress for follow operation");
+    if (!currentUser || !currentUser.uid) {
+      console.error("Current user not found or not authenticated for follow operation");
       return;
     }
     const currentUserId = currentUser.uid;
@@ -393,84 +407,27 @@ export function useProfileData(userId = null) {
     setFollowActionLoading(true);
 
     try {
-      // Check if already following or request already pending to prevent duplicate writes
-      const isAlreadyFollowing = isFollowingStatus;
-      const isAlreadyPending = isRequestPending;
-
-      if (isAlreadyFollowing) {
-        console.log("Already following this user.");
+      // Prevent duplicate actions
+      if (isFollowingStatus) {
         setFollowActionLoading(false);
         return;
       }
-      if (isAlreadyPending) {
-        console.log("Follow request already pending for this user.");
+      if (isRequestPending) {
         setFollowActionLoading(false);
         return;
       }
 
-      // Get target user's profile to check if account is private
-      const targetUserDoc = await getDoc(doc(db, "users", targetUserId));
-      const targetUserData = targetUserDoc.data();
-      const isPrivateAccount = targetUserData?.accountPrivacy === 'private' || targetUserData?.isPrivate || false;
+      // Always use the Cloud Function for follow logic
+      const result = await followUserFn({ targetUserId });
+      const message = result?.data?.message || "";
 
-      if (isPrivateAccount) {
-        // For private accounts, send a follow request
-        const pendingFollowerRef = doc(db, "users", targetUserId, "pendingFollowers", currentUserId);
-        await setDoc(pendingFollowerRef, {
-          requestedAt: serverTimestamp(),
-          requesterUsername: currentUser.displayName || 'Unknown',
-          requesterProfileImageUrl: currentUser.photoURL || '',
-        });
-
+      if (message.includes("pending approval")) {
         setIsRequestPending(true);
+        setIsFollowingStatus(false);
         console.log("Follow request sent to private account:", targetUserId);
       } else {
-        // For public accounts, directly create the follow relationship
-        const batch = writeBatch(db);
-        
-        // Add to target user's followers (this triggers the Cloud Function)
-        const followerRef = doc(db, 'users', targetUserId, 'followers', currentUserId);
-        batch.set(followerRef, {
-          userId: currentUserId,
-          username: currentUser.displayName || 'Unknown',
-          profileImageUrl: currentUser.photoURL || '',
-          followedAt: serverTimestamp()
-        });
-        
-        // Add to current user's following
-        const followingRef = doc(db, 'users', currentUserId, 'following', targetUserId);
-        batch.set(followingRef, {
-          userId: targetUserId,
-          username: targetUserData?.username || 'Unknown',
-          profileImageUrl: targetUserData?.profileImageUrl || '',
-          followedAt: serverTimestamp()
-        });
-
-        // Update both top-level and stats counts for consistency during migration
-        const targetUserDocRef = doc(db, "users", targetUserId);
-        const currentUserDocRef = doc(db, "users", currentUserId);
-        batch.update(targetUserDocRef, { 
-          followerCount: increment(1),
-          'stats.followerCount': increment(1)
-        });
-        batch.update(currentUserDocRef, { 
-          followingCount: increment(1),
-          'stats.followingCount': increment(1)
-        });
-        
-        await batch.commit();
-
-        // Update local state
         setIsFollowingStatus(true);
-        setProfileData(prev => prev ? { 
-          ...prev, 
-          followerCount: (prev.followerCount || 0) + 1,
-          stats: {
-            ...prev.stats,
-            followerCount: (prev.followerCount || 0) + 1
-          }
-        } : null);
-        
+        setIsRequestPending(false);
         console.log("Successfully followed public account:", targetUserId);
       }
     } catch (error) {
@@ -509,46 +466,9 @@ export function useProfileData(userId = null) {
         setIsRequestPending(false);
         console.log("Cancelled follow request to user:", targetUserId);
       } else {
-        // If not pending, proceed with normal unfollow transaction
-        await runTransaction(db, async (transaction) => {
-          const targetUserSnap = await transaction.get(targetUserDocRef);
-          const currentUserSnap = await transaction.get(currentUserDocRef);
-
-          if (!targetUserSnap.exists() || !currentUserSnap.exists()) {
-            console.warn("User document not found for unfollow operation, but attempting to clean up follow docs.");
-          }
-          
-          // Ensure followerCount and followingCount do not go below 0
-          const currentFollowerCount = targetUserSnap.data()?.followerCount || 0;
-          const currentFollowingCount = currentUserSnap.data()?.followingCount || 0;
-
-          transaction.delete(targetUserFollowersRef);
-          transaction.delete(currentUserFollowingRef);
-          
-          if (targetUserSnap.exists()) {
-            transaction.update(targetUserDocRef, { 
-              followerCount: increment(currentFollowerCount > 0 ? -1 : 0),
-              'stats.followerCount': increment(currentFollowerCount > 0 ? -1 : 0)
-            });
-          }
-          if (currentUserSnap.exists()) {
-            transaction.update(currentUserDocRef, { 
-              followingCount: increment(currentFollowingCount > 0 ? -1 : 0),
-              'stats.followingCount': increment(currentFollowingCount > 0 ? -1 : 0)
-            });
-          }
-        });
-        
+        // Public unfollow → call Cloud Function
+        await unfollowUserFn({ targetUserId });
         setIsFollowingStatus(false);
-        setProfileData(prev => prev ? { 
-          ...prev, 
-          followerCount: Math.max(0, (prev.followerCount || 0) - 1),
-          stats: {
-            ...prev.stats,
-            followerCount: Math.max(0, (prev.followerCount || 0) - 1)
-          }
-        } : null);
-        setFollowers(prev => prev.filter(follower => follower.id !== currentUserId));
         console.log("Successfully unfollowed user:", targetUserId);
       }
     } catch (error) {
@@ -573,6 +493,13 @@ export function useProfileData(userId = null) {
       console.log("profileIdToFetch is null/undefined in useEffect, not fetching.");
     }
   }, [fetchProfileData]);
+
+  useEffect(() => {
+    if (isOwnProfile && contextUserProfile && profileData && contextUserProfile.profileImageUrl !== profileData.profileImageUrl) {
+      console.log("Profile image URL mismatch detected in hook, refreshing profile data...");
+      fetchProfileData();
+    }
+  }, [contextUserProfile?.profileImageUrl, isOwnProfile, profileData, fetchProfileData]);
 
   return {
     loading,
