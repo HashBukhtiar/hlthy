@@ -4,7 +4,12 @@
  * This file contains functionality for sending messages to the AI service with intent classification.
  */
 
-import { Message } from "@/types";
+// Local Message interface for AI chat
+interface Message {
+  text: string;
+  role: 'user' | 'model';
+}
+
 import { API_BASE_URL } from "@/config/api";
 
 export interface IntentClassificationResult {

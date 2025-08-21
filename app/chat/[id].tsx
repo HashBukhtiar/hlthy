@@ -50,6 +50,7 @@ interface FirestoreMessageData {
   text: string;
   createdAt: Timestamp;
   isAiResponse?: boolean; // Flag to identify AI responses
+  intent?: string; // Add intent field
   sharedPost?: {
     id: string;
     imageUrl: string | null;
@@ -91,6 +92,7 @@ interface Message {
   user: 'user' | 'other' | 'ai';
   role: 'user' | 'model';
   createdAt?: Date;
+  intent?: string; // Add intent field
   sharedPost?: {
     id: string;
     imageUrl: string | null;
@@ -194,6 +196,7 @@ async function convertFirestoreDoc(
     user: userType,
     role: roleType,
     createdAt: messageDate,
+    intent: data.intent, // Include intent data
     sharedPost: resolvedSharedPost,
     sharedMilestone: resolvedSharedMilestone,
     sharedWorkout: resolvedSharedWorkout,
@@ -240,7 +243,7 @@ const MessageItem = React.memo<{ item: Message; onLongPress: (m: Message) => voi
           </View>
           {item.sharedPost.imageUrl && (
             <Image 
-              source={{ uri: getOptimalImageUrl(item.sharedPost.thumbnailUrl, item.sharedPost.imageUrl) }} 
+              source={{ uri: getOptimalImageUrl(item.sharedPost.thumbnailUrl, item.sharedPost.imageUrl) || undefined }} 
               style={styles.sharedPostImage} 
             />
           )}
@@ -361,7 +364,7 @@ const MessageItem = React.memo<{ item: Message; onLongPress: (m: Message) => voi
           </View>
           {item.sharedWorkout.coverImageUrl && (
             <Image 
-              source={{ uri: getOptimalImageUrl(item.sharedWorkout.thumbnailUrl, item.sharedWorkout.coverImageUrl) }} 
+              source={{ uri: getOptimalImageUrl(item.sharedWorkout.thumbnailUrl, item.sharedWorkout.coverImageUrl) || undefined }} 
               style={styles.sharedWorkoutImage} 
             />
           )}
@@ -373,31 +376,37 @@ const MessageItem = React.memo<{ item: Message; onLongPress: (m: Message) => voi
     }
 
     return (
-      <TouchableOpacity
-        style={[
-          styles.messageBubble,
-          item.user === 'user'
-            ? styles.currentUserMessage
-            : item.user === 'other'
-            ? styles.otherUserMessage
-            : styles.aiMessage,
-        ]}
-        onLongPress={() => onLongPress(item)}
-        delayLongPress={500}
-        activeOpacity={0.7}
+      <IntentMessageWrapper 
+        intent={item.intent} 
+        isUserMessage={item.user === 'user'} 
+        showIntentBadge={!!item.intent}
       >
-        <Text
-          style={
+        <TouchableOpacity
+          style={[
+            styles.messageBubble,
             item.user === 'user'
-              ? styles.currentUserText
+              ? styles.currentUserMessage
               : item.user === 'other'
-              ? styles.otherUserText
-              : styles.aiText
-          }
+              ? styles.otherUserMessage
+              : styles.aiMessage,
+          ]}
+          onLongPress={() => onLongPress(item)}
+          delayLongPress={500}
+          activeOpacity={0.7}
         >
-          {item.text}
-        </Text>
-      </TouchableOpacity>
+          <Text
+            style={
+              item.user === 'user'
+                ? styles.currentUserText
+                : item.user === 'other'
+                ? styles.otherUserText
+                : styles.aiText
+            }
+          >
+            {item.text}
+          </Text>
+        </TouchableOpacity>
+      </IntentMessageWrapper>
     );
   },
   (prev, next) => {
@@ -444,6 +453,7 @@ function addDateHeaders(msgs: Message[]): Message[] {
           text: currentDayStr,
           type: 'dateHeader',
           user: 'other',
+          role: 'model',
           createdAt: currentDayMessages.length > 0 ? currentDayMessages[currentDayMessages.length-1].createdAt : undefined
         });
       }
@@ -469,6 +479,7 @@ function addDateHeaders(msgs: Message[]): Message[] {
       text: currentDayStr,
       type: 'dateHeader',
       user: 'other',
+      role: 'model',
       createdAt: currentDayMessages.length > 0 ? currentDayMessages[currentDayMessages.length-1].createdAt : undefined
     });
   }
@@ -617,19 +628,19 @@ export default function ChatScreen() {
   }, [currentUser, conversationId]);
 
 
-  const handleSend = async () => {
+  const handleSend = async (textToSend: string, intentResult?: IntentClassificationResult) => {
     Keyboard.dismiss();
     
     console.log("Current user:", currentUser);
     console.log("Current user UID:", currentUser?.uid);
     console.log("Conversation ID:", conversationId);
+    console.log("Intent result:", intentResult);
     
-    if (!input.trim() || !currentUser || !conversationId) {
-      console.log("Validation failed - input:", input.trim(), "currentUser:", !!currentUser, "conversationId:", conversationId);
+    if (!textToSend.trim() || !currentUser || !conversationId) {
+      console.log("Validation failed - input:", textToSend.trim(), "currentUser:", !!currentUser, "conversationId:", conversationId);
       return;
     }
 
-    const textToSend = input.trim();
     setInput('');
 
     const isAiChat = conversationId.endsWith('_ai_conversation');
@@ -668,12 +679,13 @@ export default function ChatScreen() {
 
       const messagesRef = collection(db, "conversations", conversationId, "messages");
 
-      // Add user's message to Firestore. This will be picked up by the onSnapshot listener.
+      // Add user's message to Firestore with intent information
       console.log("Adding user message to Firestore:", textToSend);
       await addDoc(messagesRef, {
         text: textToSend,
         createdAt: serverTimestamp(),
         senderId: currentUser.uid,
+        intent: intentResult?.intent, // Store the intent
       });
       console.log("User message added successfully");
 
@@ -687,7 +699,8 @@ export default function ChatScreen() {
           // Add the new user message to the history for the API call
           historyForAPI.push({ text: textToSend, role: 'user' });
 
-          const aiResponseText = await sendMessage(historyForAPI);
+          // Use the enhanced sendMessage function
+          const aiResponseText = await sendMessage(historyForAPI, textToSend);
 
           // Save AI's response to Firestore using current user's ID with isAiResponse flag
           await addDoc(messagesRef, {
@@ -695,6 +708,7 @@ export default function ChatScreen() {
             createdAt: serverTimestamp(),
             senderId: currentUser.uid, // Use current user's ID to avoid permission issues
             isAiResponse: true, // Flag to identify this as an AI response
+            intent: intentResult?.intent, // Store the original intent for context
           });
         } catch (error) {
           console.error('Error sending message to AI:', error);
@@ -923,22 +937,14 @@ export default function ChatScreen() {
           </TouchableOpacity>
         </Modal>
 
-        {/* Input */}
-        <View style={styles.inputContainer}>
-          <TextInput
-            style={styles.input}
-            value={input}
-            onChangeText={setInput}
-            placeholder="Type your message..."
-            placeholderTextColor="#888"
-            autoCorrect={true}
-            spellCheck={true}
-            autoCapitalize="sentences"
-          />
-          <TouchableOpacity style={styles.sendButton} onPress={handleSend}>
-            <Ionicons name="send" size={24} color="white" />
-          </TouchableOpacity>
-        </View>
+        {/* Smart Input with Intent Classification */}
+        <SmartChatInput
+          value={input}
+          onChangeText={setInput}
+          onSend={handleSend}
+          placeholder={conversationId.endsWith('_ai_conversation') ? "Ask me anything about fitness..." : "Type your message..."}
+          disabled={false}
+        />
       </View>
     </KeyboardAvoidingView>
   );
