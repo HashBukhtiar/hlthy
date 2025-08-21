@@ -535,15 +535,6 @@ const AIMessageBubble: React.FC<AIMessageBubbleProps> = ({ message, intent, onLo
       onReprompt(message);
     }
   };
-    // Here you could send feedback to your analytics or backend
-    console.log(`AI response ${isLiked ? 'unliked' : 'liked'}`);
-  };
-
-  const handleReprompt = () => {
-    if (onReprompt) {
-      onReprompt(message);
-    }
-  };
 
   const intentConfigs = {
     planner: { 
