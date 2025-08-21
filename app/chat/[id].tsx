@@ -541,31 +541,20 @@ const AIMessageBubble: React.FC<AIMessageBubbleProps> = ({ message, intent, onLo
 
   // Format message with better structure
   const formatMessage = (text: string) => {
-    // Split into paragraphs and handle lists
-    const paragraphs = text.split('\n\n').filter(p => p.trim());
+    // Clean and split the text
+    const cleanText = text.replace(/```json\s*|\s*```/g, '').trim();
+    const paragraphs = cleanText.split('\n\n').filter(p => p.trim());
     
     return paragraphs.map((paragraph, index) => {
-      // Handle bullet points
-      if (paragraph.includes('•') || paragraph.includes('-')) {
-        const lines = paragraph.split('\n').map(line => line.trim()).filter(line => line);
-        return (
-          <View key={index} style={styles.aiParagraph}>
-            {lines.map((line, lineIndex) => (
-              <Text key={lineIndex} style={styles.aiListItem}>
-                {line.startsWith('•') || line.startsWith('-') ? line : `• ${line}`}
-              </Text>
-            ))}
-          </View>
-        );
-      }
+      const trimmedParagraph = paragraph.trim();
       
-      // Handle numbered lists
-      if (/^\d+\./.test(paragraph.trim())) {
-        const lines = paragraph.split('\n').map(line => line.trim()).filter(line => line);
+      // Handle workout routines (often contain structured data)
+      if (trimmedParagraph.includes('Week') || trimmedParagraph.includes('Day') || trimmedParagraph.includes('Sets:')) {
+        const lines = trimmedParagraph.split('\n').map(line => line.trim()).filter(line => line);
         return (
-          <View key={index} style={styles.aiParagraph}>
+          <View key={index} style={styles.workoutBlock}>
             {lines.map((line, lineIndex) => (
-              <Text key={lineIndex} style={styles.aiListItem}>
+              <Text key={lineIndex} style={styles.workoutLine}>
                 {line}
               </Text>
             ))}
@@ -573,10 +562,40 @@ const AIMessageBubble: React.FC<AIMessageBubbleProps> = ({ message, intent, onLo
         );
       }
       
+      // Handle bullet points and lists
+      if (trimmedParagraph.includes('•') || trimmedParagraph.includes('-') || /^\d+\./.test(trimmedParagraph)) {
+        const lines = trimmedParagraph.split('\n').map(line => line.trim()).filter(line => line);
+        return (
+          <View key={index} style={styles.aiParagraph}>
+            {lines.map((line, lineIndex) => {
+              const cleanLine = line.replace(/^[•\-]\s*/, '').replace(/^\d+\.\s*/, '');
+              const isNumbered = /^\d+\./.test(line);
+              const bulletChar = isNumbered ? `${line.match(/^\d+/)?.[0]}.` : '•';
+              
+              return (
+                <Text key={lineIndex} style={styles.aiListItem}>
+                  <Text style={styles.bulletPoint}>{bulletChar} </Text>
+                  {cleanLine}
+                </Text>
+              );
+            })}
+          </View>
+        );
+      }
+      
+      // Handle headers (lines that are short and followed by content)
+      if (trimmedParagraph.length < 50 && !trimmedParagraph.includes('.') && index < paragraphs.length - 1) {
+        return (
+          <Text key={index} style={styles.aiHeader}>
+            {trimmedParagraph}
+          </Text>
+        );
+      }
+      
       // Regular paragraphs
       return (
         <Text key={index} style={[styles.aiText, styles.aiParagraph]}>
-          {paragraph}
+          {trimmedParagraph}
         </Text>
       );
     });
@@ -1539,17 +1558,22 @@ const styles = StyleSheet.create({
   thinkingIndicator: {
     paddingHorizontal: 10,
     paddingBottom: 10,
+    alignSelf: 'flex-start',
+    maxWidth: '90%',
+    marginVertical: 8,
   },
   thinkingBubble: {
-    backgroundColor: '#d466ff',
+    backgroundColor: 'rgba(30, 30, 30, 0.95)',
     alignSelf: 'flex-start',
-    maxWidth: '70%',
-    borderRadius: 20,
-    paddingVertical: 15,
-    paddingHorizontal: 20,
+    borderRadius: 16,
+    borderTopLeftRadius: 4,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   thinkingDots: {
     flexDirection: 'row',
@@ -1564,8 +1588,9 @@ const styles = StyleSheet.create({
   },
   thinkingText: {
     color: 'white',
-    fontSize: 14,
+    fontSize: 13,
     fontStyle: 'italic',
+    opacity: 0.8,
   },
   // Enhanced AI Message Styles
   aiMessageContainer: {
