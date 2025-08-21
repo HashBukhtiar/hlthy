@@ -1017,7 +1017,7 @@ export default function ChatScreen() {
           onChangeText={setInput}
           onSend={handleSend}
           placeholder={conversationId.endsWith('_ai_conversation') ? "Ask me anything about fitness..." : "Type your message..."}
-          disabled={false}
+          disabled={isAiThinking}
         />
       </View>
     </KeyboardAvoidingView>
@@ -1344,15 +1344,6 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: 4,
     backgroundColor: 'rgba(255, 255, 255, 0.8)',
-  },
-  dot1: {
-    opacity: 0.4,
-  },
-  dot2: {
-    opacity: 0.7,
-  },
-  dot3: {
-    opacity: 1,
   },
   thinkingText: {
     color: 'white',
