@@ -33,8 +33,26 @@ export const validateSettings = (settings: Partial<UserSettings>): ValidationRes
     }
   }
 
-  if (!settings.displayName || settings.displayName.trim() === '') {
+  if (!settings.displayName?.trim()) {
     errors.push('Display name cannot be empty.');
+  } else {
+    const trimmedName = settings.displayName.trim();
+    
+    if (trimmedName.length < DISPLAY_NAME_RULES.MIN_LENGTH) {
+      errors.push(`Display name must be at least ${DISPLAY_NAME_RULES.MIN_LENGTH} characters long`);
+    }
+    if (trimmedName.length > DISPLAY_NAME_RULES.MAX_LENGTH) {
+      errors.push(`Display name cannot exceed ${DISPLAY_NAME_RULES.MAX_LENGTH} characters`);
+    }
+    if (/[@#$%^&*()+=\[\]{}|\\:";?/<>~`]/.test(trimmedName)) {
+      errors.push('Display name cannot contain special symbols like @, #, $, %, etc.');
+    }
+    if (!/[a-zA-Z0-9]/.test(trimmedName)) {
+      errors.push('Display name must contain at least one letter or number');
+    }
+    if (/[.\-_']{3,}/.test(trimmedName)) {
+      warnings.push('Display name contains many consecutive special characters');
+    }
   }
 
   // Bio validation
