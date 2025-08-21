@@ -509,6 +509,7 @@ interface AIMessageBubbleProps {
 
 const AIMessageBubble: React.FC<AIMessageBubbleProps> = ({ message, intent, onLongPress, isAiConversation, timestamp, onReprompt }) => {
   const [isLiked, setIsLiked] = useState(false);
+  const [shareModalVisible, setShareModalVisible] = useState(false);
 
   // Handler functions for action buttons
   const handleCopy = async () => {
@@ -520,38 +521,29 @@ const AIMessageBubble: React.FC<AIMessageBubbleProps> = ({ message, intent, onLo
     }
   };
 
-  const handleShare = async () => {
-    try {
-      await Share.share({
-        message: `HLTHY Coach Response:\n\n${message}`,
-        title: 'HLTHY Coach AI Response',
-      });
-    } catch (error) {
-      console.error('Error sharing:', error);
-    }
+  const handleShare = () => {
+    setShareModalVisible(true);
   };
 
   const handleLike = () => {
     setIsLiked(!isLiked);
+  };
+
+  const handleReprompt = () => {
+    if (onReprompt) {
+      onReprompt(message);
+    }
+  };
     // Here you could send feedback to your analytics or backend
     console.log(`AI response ${isLiked ? 'unliked' : 'liked'}`);
   };
 
   const handleReprompt = () => {
     if (onReprompt) {
-      Alert.alert(
-        "Regenerate Response",
-        "Ask the AI to provide a different response to your previous question?",
-        [
-          { text: "Cancel", style: "cancel" },
-          { 
-            text: "Regenerate", 
-            onPress: () => onReprompt("Please provide a different response to my previous question.") 
-          }
-        ]
-      );
+      onReprompt(message);
     }
   };
+
   const intentConfigs = {
     planner: { 
       icon: '🏋️', 
@@ -740,7 +732,312 @@ const AIMessageBubble: React.FC<AIMessageBubbleProps> = ({ message, intent, onLo
           </View>
         </View>
       </View>
+      
+      {/* Share Modal */}
+      <ShareModal
+        visible={shareModalVisible}
+        onClose={() => setShareModalVisible(false)}
+        message={message}
+        intent={intent}
+      />
     </TouchableOpacity>
+  );
+};
+
+// Share Modal Component for sharing AI responses with app users
+interface ShareModalProps {
+  visible: boolean;
+  onClose: () => void;
+  message: string;
+  intent?: string;
+}
+
+const ShareModal: React.FC<ShareModalProps> = ({ visible, onClose, message, intent }) => {
+  const { currentUser } = useAuth();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [selectedUsers, setSelectedUsers] = useState<any[]>([]);
+  const [following, setFollowing] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [sharing, setSharing] = useState(false);
+
+  // Fetch user's following list when modal opens
+  useEffect(() => {
+    if (visible && currentUser) {
+      fetchFollowing();
+    }
+  }, [visible, currentUser]);
+
+  const fetchFollowing = async () => {
+    if (!currentUser) return;
+    
+    try {
+      setLoading(true);
+      const followingRef = collection(db, `users/${currentUser.uid}/following`);
+      const followingSnap = await getDocs(followingRef);
+      
+      const followingData = await Promise.all(
+        followingSnap.docs.map(async (docRef) => {
+          const userRef = doc(db, 'users', docRef.id);
+          const userDoc = await getDoc(userRef);
+          if (userDoc.exists()) {
+            return {
+              id: docRef.id,
+              ...userDoc.data(),
+            };
+          }
+          return null;
+        })
+      );
+      
+      setFollowing(followingData.filter(Boolean));
+    } catch (error) {
+      console.error('Error fetching following:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const searchUsers = async (searchQuery: string) => {
+    if (!searchQuery.trim() || !currentUser) {
+      setSearchResults([]);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      // Search users by username or display name
+      const usersRef = collection(db, 'users');
+      
+      // We'll use a simple approach since Firestore has limited query capabilities
+      const allUsersSnap = await getDocs(usersRef);
+      const searchResults: any[] = [];
+      
+      allUsersSnap.forEach(doc => {
+        if (doc.id !== currentUser.uid) {
+          const userData = doc.data();
+          const username = userData.username?.toLowerCase() || '';
+          const displayName = userData.displayName?.toLowerCase() || '';
+          const search = searchQuery.toLowerCase();
+          
+          if (username.includes(search) || displayName.includes(search)) {
+            searchResults.push({
+              id: doc.id,
+              ...userData
+            });
+          }
+        }
+      });
+
+      setSearchResults(searchResults.slice(0, 10)); // Limit to 10 results
+    } catch (error) {
+      console.error('Error searching users:', error);
+      setSearchResults([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const toggleUserSelection = (user: any) => {
+    setSelectedUsers(prev => {
+      const isSelected = prev.some(u => u.id === user.id);
+      if (isSelected) {
+        return prev.filter(u => u.id !== user.id);
+      } else {
+        return [...prev, user];
+      }
+    });
+  };
+
+  const shareWithUsers = async () => {
+    if (selectedUsers.length === 0 || !currentUser) return;
+
+    try {
+      setSharing(true);
+      
+      const sharePromises = selectedUsers.map(async (user) => {
+        // Create or get conversation with the user
+        const conversationId = [currentUser.uid, user.id].sort().join('_');
+        const conversationRef = doc(db, 'conversations', conversationId);
+        
+        // Ensure conversation exists
+        const conversationSnap = await getDoc(conversationRef);
+        if (!conversationSnap.exists()) {
+          await setDoc(conversationRef, {
+            participants: [currentUser.uid, user.id],
+            participantUsernames: {
+              [currentUser.uid]: currentUser.displayName || currentUser.email,
+              [user.id]: user.displayName || user.username
+            },
+            participantProfileImages: {
+              [currentUser.uid]: currentUser.photoURL || null,
+              [user.id]: user.profileImageUrl || null
+            },
+            createdAt: serverTimestamp(),
+            lastMessageAt: serverTimestamp(),
+            lastMessageText: `Shared AI response: ${message.substring(0, 100)}...`,
+            lastMessageSenderId: currentUser.uid,
+          });
+        }
+
+        // Add the AI response as a shared message
+        const messagesRef = collection(db, 'conversations', conversationId, 'messages');
+        const shareMessage = `🤖 HLTHY Coach Response${intent ? ` (${intent.toUpperCase()})` : ''}:\n\n${message}`;
+        
+        await addDoc(messagesRef, {
+          text: shareMessage,
+          createdAt: serverTimestamp(),
+          senderId: currentUser.uid,
+          isSharedAiResponse: true,
+          originalIntent: intent,
+        });
+
+        // Update conversation metadata
+        await updateDoc(conversationRef, {
+          lastMessageAt: serverTimestamp(),
+          lastMessageText: `Shared AI response: ${message.substring(0, 50)}...`,
+          lastMessageSenderId: currentUser.uid,
+        });
+      });
+
+      await Promise.all(sharePromises);
+      
+      Alert.alert(
+        "Shared Successfully!", 
+        `AI response shared with ${selectedUsers.length} user${selectedUsers.length === 1 ? '' : 's'}.`
+      );
+      
+      // Reset and close modal
+      setSelectedUsers([]);
+      setSearchQuery('');
+      setSearchResults([]);
+      onClose();
+      
+    } catch (error) {
+      console.error('Error sharing with users:', error);
+      Alert.alert("Error", "Failed to share AI response. Please try again.");
+    } finally {
+      setSharing(false);
+    }
+  };
+
+  const renderUser = (user: any, isFromFollowing: boolean = false) => (
+    <TouchableOpacity
+      key={user.id}
+      style={[
+        styles.shareUserItem,
+        selectedUsers.some(u => u.id === user.id) && styles.shareUserItemSelected
+      ]}
+      onPress={() => toggleUserSelection(user)}
+    >
+      <Image
+        source={
+          user.profileImageUrl 
+            ? { uri: user.profileImageUrl }
+            : require('@/assets/images/profile-icon.png')
+        }
+        style={styles.shareUserAvatar}
+      />
+      <View style={styles.shareUserInfo}>
+        <Text style={styles.shareUserName}>
+          {user.displayName || user.username}
+        </Text>
+        <Text style={styles.shareUserHandle}>
+          @{user.username}
+          {isFromFollowing && <Text style={styles.followingTag}> • Following</Text>}
+        </Text>
+      </View>
+      {selectedUsers.some(u => u.id === user.id) && (
+        <Ionicons name="checkmark-circle" size={24} color="#4CD964" />
+      )}
+    </TouchableOpacity>
+  );
+
+  return (
+    <Modal
+      visible={visible}
+      animationType="slide"
+      presentationStyle="pageSheet"
+      onRequestClose={onClose}
+    >
+      <SafeAreaView style={styles.shareModalContainer}>
+        <View style={styles.shareModalHeader}>
+          <TouchableOpacity onPress={onClose} style={styles.shareModalCloseButton}>
+            <Ionicons name="close" size={24} color="white" />
+          </TouchableOpacity>
+          <Text style={styles.shareModalTitle}>Share AI Response</Text>
+          <TouchableOpacity 
+            onPress={shareWithUsers}
+            disabled={selectedUsers.length === 0 || sharing}
+            style={[
+              styles.shareModalSendButton,
+              (selectedUsers.length === 0 || sharing) && styles.shareModalSendButtonDisabled
+            ]}
+          >
+            <Text style={[
+              styles.shareModalSendButtonText,
+              (selectedUsers.length === 0 || sharing) && styles.shareModalSendButtonTextDisabled
+            ]}>
+              {sharing ? 'Sharing...' : `Share${selectedUsers.length > 0 ? ` (${selectedUsers.length})` : ''}`}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Preview of what's being shared */}
+        <View style={styles.sharePreview}>
+          <Text style={styles.sharePreviewTitle}>Sharing:</Text>
+          <Text style={styles.sharePreviewText} numberOfLines={3}>
+            🤖 HLTHY Coach Response{intent ? ` (${intent.toUpperCase()})` : ''}:{'\n\n'}{message}
+          </Text>
+        </View>
+
+        {/* Search Bar */}
+        <View style={styles.shareSearchContainer}>
+          <Ionicons name="search" size={20} color="#888" style={styles.shareSearchIcon} />
+          <TextInput
+            style={styles.shareSearchInput}
+            placeholder="Search users..."
+            placeholderTextColor="#888"
+            value={searchQuery}
+            onChangeText={(text) => {
+              setSearchQuery(text);
+              searchUsers(text);
+            }}
+          />
+        </View>
+
+        {/* User Lists */}
+        <ScrollView style={styles.shareUsersList}>
+          {/* Search Results */}
+          {searchQuery.length > 0 && (
+            <>
+              <Text style={styles.shareUsersListTitle}>Search Results</Text>
+              {loading ? (
+                <ActivityIndicator size="small" color="#4CD964" style={styles.shareLoadingIndicator} />
+              ) : searchResults.length === 0 ? (
+                <Text style={styles.shareNoResults}>No users found</Text>
+              ) : (
+                searchResults.map(user => renderUser(user))
+              )}
+            </>
+          )}
+
+          {/* Following List (when no search) */}
+          {searchQuery.length === 0 && (
+            <>
+              <Text style={styles.shareUsersListTitle}>People You Follow</Text>
+              {loading ? (
+                <ActivityIndicator size="small" color="#4CD964" style={styles.shareLoadingIndicator} />
+              ) : following.length === 0 ? (
+                <Text style={styles.shareNoResults}>You're not following anyone yet</Text>
+              ) : (
+                following.map(user => renderUser(user, true))
+              )}
+            </>
+          )}
+        </ScrollView>
+      </SafeAreaView>
+    </Modal>
   );
 };
 
