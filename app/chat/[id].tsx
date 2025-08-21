@@ -1671,6 +1671,16 @@ const styles = StyleSheet.create({
     opacity: 0.8,
     marginTop: 1,
   },
+  aiSubtitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 1,
+  },
+  aiTimestamp: {
+    color: '#666',
+    fontSize: 10,
+    marginLeft: 4,
+  },
   aiStatus: {
     alignItems: 'center',
     flexDirection: 'row',
