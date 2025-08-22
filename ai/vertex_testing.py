@@ -61,6 +61,35 @@ except ImportError:
     print("Warning: Semantic memory system not available")
     memory_system = None
 
+# New integrated systems
+try:
+    from profile_sync import sync_memory_to_profile
+    PROFILE_SYNC_AVAILABLE = True
+except ImportError:
+    print("Warning: Profile sync system not available")
+    PROFILE_SYNC_AVAILABLE = False
+
+try:
+    from rate_limiting import is_within_rate_limit, cache_prompt, get_cached_response
+    RATE_LIMITING_AVAILABLE = True
+except ImportError:
+    print("Warning: Rate limiting system not available") 
+    RATE_LIMITING_AVAILABLE = False
+
+try:
+    from exercise_whitelist_cache import get_cached_allowed_exercises, invalidate_user_exercise_cache
+    EXERCISE_CACHE_AVAILABLE = True
+except ImportError:
+    print("Warning: Exercise whitelist cache not available")
+    EXERCISE_CACHE_AVAILABLE = False
+
+try:
+    from observability_dashboard import log_violation, log_substitution, log_metric
+    OBSERVABILITY_AVAILABLE = True
+except ImportError:
+    print("Warning: Observability dashboard not available")
+    OBSERVABILITY_AVAILABLE = False
+
 app = Flask(__name__)
 CORS(app, resources={r"/api/*": {"origins": "*"}})
 
