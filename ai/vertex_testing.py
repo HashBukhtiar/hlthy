@@ -1319,6 +1319,25 @@ def chat():
 
                     if violations:
                         print(f"Validation violations found: {violations}")
+                        
+                        # Log violations for observability
+                        if user_id and OBSERVABILITY_AVAILABLE:
+                            for violation in violations:
+                                # Extract exercise name from violation
+                                invalid_exercise = "unknown"
+                                if "Unknown exercise ID" in violation:
+                                    invalid_exercise = violation.split("'")[1] if "'" in violation else "unknown"
+                                elif "not in allowed shortlist" in violation:
+                                    invalid_exercise = violation.split("'")[1] if "'" in violation else "unknown"
+                                elif "contraindicated for" in violation:
+                                    invalid_exercise = violation.split("'")[1] if "'" in violation else "unknown"
+                                
+                                log_violation(
+                                    user_id=user_id,
+                                    violation_type="workout_plan_validation",
+                                    invalid_exercise=invalid_exercise,
+                                    context={"route": route, "violation_details": violation}
+                                )
                         # Build compact correction prompt with only violations and allowed IDs
                         try:
                             allowed_ids_shortlist = _allowed_ids_for_prompt(context, max_ids=25) if CANONICAL_DATABASE_AVAILABLE else []
@@ -1355,8 +1374,36 @@ def chat():
                                     if not fix_violations:
                                         response_text = response_text[:json_start] + fixed_json + response_text[json_end:]
                                         print("✅ Correction loop successfully fixed all violations")
+                                        
+                                        # Log successful corrections
+                                        if user_id and OBSERVABILITY_AVAILABLE:
+                                            for i, violation in enumerate(critical_violations):
+                                                invalid_exercise = "unknown"
+                                                if "Unknown exercise ID" in violation:
+                                                    invalid_exercise = violation.split("'")[1] if "'" in violation else "unknown"
+                                                log_violation(
+                                                    user_id=user_id,
+                                                    violation_type="workout_plan_validation",
+                                                    invalid_exercise=invalid_exercise,
+                                                    context={"route": route, "violation_details": violation},
+                                                    correction_successful=True
+                                                )
                                     else:
                                         print(f"⚠️  Correction loop still has violations: {fix_violations[:3]}")  # Show first 3
+                                        
+                                        # Log failed corrections
+                                        if user_id and OBSERVABILITY_AVAILABLE:
+                                            for violation in fix_violations[:3]:
+                                                invalid_exercise = "unknown"
+                                                if "Unknown exercise ID" in violation:
+                                                    invalid_exercise = violation.split("'")[1] if "'" in violation else "unknown"
+                                                log_violation(
+                                                    user_id=user_id,
+                                                    violation_type="correction_loop_failed",
+                                                    invalid_exercise=invalid_exercise,
+                                                    context={"route": route, "remaining_violations": len(fix_violations)},
+                                                    correction_successful=False
+                                                )
                         except Exception as corr_e:
                             print(f"Correction loop failed: {corr_e}")
             except Exception as e:
