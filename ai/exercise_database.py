@@ -1,9 +1,10 @@
 # Canonical Exercise Database with ID-based Safety Rules
 # This replaces name-based matching with strict ID-level validation
 
-from typing import Dict, List, Set
+from typing import Dict, List, Set, Tuple
 from dataclasses import dataclass
 from enum import Enum
+from functools import lru_cache
 
 class RiskLevel(Enum):
     LOW = "low"
@@ -330,7 +331,203 @@ CANONICAL_EXERCISES: Dict[str, ExerciseProfile] = {
         min_experience_level=ExperienceLevel.BEGINNER,
         safety_flags={"spine_neutral", "functional_core"},
         substitutions=["wall_sits", "dead_bug"]
-    )
+    ),
+
+    # ADDITIONAL COVERAGE (expanded set)
+    # CHEST / PUSH
+    "incline_dumbbell_press": ExerciseProfile(
+        exercise_id="incline_dumbbell_press",
+        display_name="Incline Dumbbell Press",
+        common_names=["incline db press", "incline dumbbell bench"],
+        risk_level=RiskLevel.LOW,
+        primary_muscles=["upper_chest", "anterior_deltoids", "triceps"],
+        equipment_required=["dumbbells", "incline_bench"],
+        injury_contraindications=set(),
+        injury_cautions={InjuryType.SHOULDER},
+        min_experience_level=ExperienceLevel.BEGINNER,
+        safety_flags={"safer_than_barbell"},
+        substitutions=["push_ups_elevated", "dumbbell_bench_press"]
+    ),
+    "chest_fly": ExerciseProfile(
+        exercise_id="chest_fly",
+        display_name="Chest Fly",
+        common_names=["db fly", "dumbbell fly"],
+        risk_level=RiskLevel.LOW,
+        primary_muscles=["chest"],
+        equipment_required=["dumbbells", "bench"],
+        injury_contraindications={InjuryType.SHOULDER},
+        injury_cautions=set(),
+        min_experience_level=ExperienceLevel.BEGINNER,
+        safety_flags={"use_light_loads"},
+        substitutions=["cable_fly", "push_ups"]
+    ),
+
+    # BACK / PULL
+    "romanian_deadlift": ExerciseProfile(
+        exercise_id="romanian_deadlift",
+        display_name="Romanian Deadlift",
+        common_names=["RDL", "barbell RDL"],
+        risk_level=RiskLevel.MODERATE,
+        primary_muscles=["hamstrings", "glutes", "erector_spinae"],
+        equipment_required=["barbell"],
+        injury_contraindications={InjuryType.LOWER_BACK},
+        injury_cautions={InjuryType.KNEE, InjuryType.HIP},
+        min_experience_level=ExperienceLevel.INTERMEDIATE,
+        safety_flags={"hip_hinge_pattern", "controlled_range"},
+        substitutions=["dumbbell_rdl", "glute_bridge"]
+    ),
+    "dumbbell_row": ExerciseProfile(
+        exercise_id="dumbbell_row",
+        display_name="Dumbbell Row",
+        common_names=["one-arm db row", "db row"],
+        risk_level=RiskLevel.LOW,
+        primary_muscles=["lats", "rhomboids", "biceps"],
+        equipment_required=["dumbbell", "bench"],
+        injury_contraindications=set(),
+        injury_cautions={InjuryType.LOWER_BACK},
+        min_experience_level=ExperienceLevel.BEGINNER,
+        safety_flags={"unilateral_control", "support_on_bench"},
+        substitutions=["seated_cable_row", "inverted_rows"]
+    ),
+    "seated_cable_row": ExerciseProfile(
+        exercise_id="seated_cable_row",
+        display_name="Seated Cable Row",
+        common_names=["cable row", "rowing machine (cable)"]
+        ,
+        risk_level=RiskLevel.LOW,
+        primary_muscles=["lats", "rhomboids", "rear_delts"],
+        equipment_required=["cable", "machine"],
+        injury_contraindications=set(),
+        injury_cautions={InjuryType.LOWER_BACK},
+        min_experience_level=ExperienceLevel.BEGINNER,
+        safety_flags={"machine_safe"},
+        substitutions=["dumbbell_row", "inverted_rows"]
+    ),
+
+    # SHOULDERS
+    "lateral_raise": ExerciseProfile(
+        exercise_id="lateral_raise",
+        display_name="Lateral Raise",
+        common_names=["db lateral raises", "side raise"],
+        risk_level=RiskLevel.LOW,
+        primary_muscles=["medial_deltoids"],
+        equipment_required=["dumbbells"],
+        injury_contraindications={InjuryType.SHOULDER},
+        injury_cautions=set(),
+        min_experience_level=ExperienceLevel.BEGINNER,
+        safety_flags={"light_load_high_reps"},
+        substitutions=["cable_lateral_raise", "machine_lateral_raise"]
+    ),
+    "face_pulls": ExerciseProfile(
+        exercise_id="face_pulls",
+        display_name="Face Pulls",
+        common_names=["rope face pulls"],
+        risk_level=RiskLevel.LOW,
+        primary_muscles=["rear_delts", "traps"],
+        equipment_required=["cable"],
+        injury_contraindications=set(),
+        injury_cautions={InjuryType.SHOULDER},
+        min_experience_level=ExperienceLevel.BEGINNER,
+        safety_flags={"shoulder_health_exercise"},
+        substitutions=["reverse_fly", "band_face_pulls"]
+    ),
+
+    # LEGS
+    "leg_press": ExerciseProfile(
+        exercise_id="leg_press",
+        display_name="Leg Press",
+        common_names=["machine leg press"],
+        risk_level=RiskLevel.LOW,
+        primary_muscles=["quadriceps", "glutes"],
+        equipment_required=["machine"],
+        injury_contraindications={InjuryType.KNEE},
+        injury_cautions=set(),
+        min_experience_level=ExperienceLevel.BEGINNER,
+        safety_flags={"machine_guided"},
+        substitutions=["goblet_squat", "split_squat"]
+    ),
+    "split_squat": ExerciseProfile(
+        exercise_id="split_squat",
+        display_name="Split Squat",
+        common_names=["static lunge"],
+        risk_level=RiskLevel.LOW,
+        primary_muscles=["quadriceps", "glutes"],
+        equipment_required=["dumbbells"],
+        injury_contraindications={InjuryType.KNEE},
+        injury_cautions={InjuryType.HIP},
+        min_experience_level=ExperienceLevel.BEGINNER,
+        safety_flags={"unilateral_balance"},
+        substitutions=["leg_press", "goblet_squat"]
+    ),
+    "romanian_deadlift_dumbbell": ExerciseProfile(
+        exercise_id="romanian_deadlift_dumbbell",
+        display_name="Dumbbell Romanian Deadlift",
+        common_names=["db RDL", "dumbbell RDL"],
+        risk_level=RiskLevel.LOW,
+        primary_muscles=["hamstrings", "glutes"],
+        equipment_required=["dumbbells"],
+        injury_contraindications={InjuryType.LOWER_BACK},
+        injury_cautions=set(),
+        min_experience_level=ExperienceLevel.BEGINNER,
+        safety_flags={"hip_hinge_pattern"},
+        substitutions=["glute_bridge", "hamstring_curl_machine"]
+    ),
+
+    # ARMS
+    "bicep_curls": ExerciseProfile(
+        exercise_id="bicep_curls",
+        display_name="Bicep Curls",
+        common_names=["db curls", "barbell curls"],
+        risk_level=RiskLevel.LOW,
+        primary_muscles=["biceps"],
+        equipment_required=["dumbbells"],
+        injury_contraindications=set(),
+        injury_cautions={InjuryType.ELBOW, InjuryType.WRIST},
+        min_experience_level=ExperienceLevel.BEGINNER,
+        safety_flags={"controlled_tempo"},
+        substitutions=["hammer_curls", "cable_curls"]
+    ),
+    "tricep_pushdown": ExerciseProfile(
+        exercise_id="tricep_pushdown",
+        display_name="Tricep Pushdown",
+        common_names=["cable pushdowns"],
+        risk_level=RiskLevel.LOW,
+        primary_muscles=["triceps"],
+        equipment_required=["cable"],
+        injury_contraindications={InjuryType.ELBOW},
+        injury_cautions=set(),
+        min_experience_level=ExperienceLevel.BEGINNER,
+        safety_flags={"joint_friendly_when_light"},
+        substitutions=["dips_assisted", "diamond_push_ups"]
+    ),
+
+    # CORE
+    "dead_bug": ExerciseProfile(
+        exercise_id="dead_bug",
+        display_name="Dead Bug",
+        common_names=["deadbug"],
+        risk_level=RiskLevel.LOW,
+        primary_muscles=["core"],
+        equipment_required=["bodyweight"],
+        injury_contraindications=set(),
+        injury_cautions={InjuryType.LOWER_BACK},
+        min_experience_level=ExperienceLevel.BEGINNER,
+        safety_flags={"spine_neutral"},
+        substitutions=["planks"]
+    ),
+    "hollow_hold": ExerciseProfile(
+        exercise_id="hollow_hold",
+        display_name="Hollow Hold",
+        common_names=["hollow body hold"],
+        risk_level=RiskLevel.LOW,
+        primary_muscles=["core"],
+        equipment_required=["bodyweight"],
+        injury_contraindications={InjuryType.LOWER_BACK},
+        injury_cautions=set(),
+        min_experience_level=ExperienceLevel.INTERMEDIATE,
+        safety_flags={"core_control"},
+        substitutions=["dead_bug", "planks"]
+    ),
 }
 
 # Injury-specific banned exercise sets (by ID only)
@@ -459,6 +656,24 @@ def get_all_allowed_exercises(user_context: dict) -> List[str]:
         if is_allowed:
             allowed.append(exercise_id)
     return allowed
+
+# --------------- Cached variants for performance and prompting ---------------
+def _context_key(user_context: dict) -> Tuple[str, Tuple[str, ...]]:
+    exp = user_context.get('experience_level', 'beginner')
+    injuries = tuple(sorted([str(i) for i in user_context.get('active_injuries', [])]))
+    return (exp, injuries)
+
+@lru_cache(maxsize=128)
+def _get_allowed_cached(exp: str, injuries: Tuple[str, ...]) -> Tuple[str, ...]:
+    ctx = {'experience_level': exp, 'active_injuries': list(injuries)}
+    return tuple(get_all_allowed_exercises(ctx))
+
+def get_all_allowed_exercises_cached(user_context: dict) -> List[str]:
+    key = _context_key(user_context)
+    return list(_get_allowed_cached(key[0], key[1]))
+
+def clear_exercise_cache():
+    _get_allowed_cached.cache_clear()
 
 # Quick lookup maps for common name to ID conversion (for migration help)
 NAME_TO_ID_MAP = {}
