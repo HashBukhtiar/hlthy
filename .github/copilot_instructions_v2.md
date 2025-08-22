@@ -1,260 +1,71 @@
-HLTHY Coach — MVP Prompt Pack (v1)
-Date: 2025-08-19
+2) Sharpen semantic memory (higher precision, lower tokens)
 
-This document is model-agnostic and copy-paste ready. It defines the context contract,
-prompts, and validator loop for the hlthy AI coach MVP.
+Your memory system is already set up with MiniLM + FAISS and trims to 100 snippets per user. Improve retrieval by:
 
----
+Filter + score: time-decay recent items, and bias sources (set feedback > chat > general).
 
-1) Context Contract (server assembles this for every /chat request)
+Normalize exercise mentions to IDs before indexing so “bench” links to barbell_bench_press.
 
-Do **not** paste whole chat histories or the full exercise catalog. Provide only these blocks:
+Threshold tuning: raise or lower the 0.3 similarity gate per route (e.g., technique needs stricter matches than explain).
 
-{
-  "profileSummary": "≤ 2 KB natural language summary of trainingProfile (goal, schedule, equipment, experience).",
-  "healthSummary": {
-    "activeInjuries": ["elbow_pain_right"],
-    "bannedExercises": ["barbell_bench_press", "skull_crusher"],
-    "cautionMovements": ["horizontal_press"],
-    "updatedAt": "2025-07-16T10:20:00Z"
-  },
-  "preferenceMemory": {
-    "replyLength": "concise_bullets",
-    "tone": "direct",
-    "exerciseNameStyle": "common_abbreviations",
-    "dislikedExercises": ["walking_lunge"]
-  },
-  "shortTermTurns": [
-    {"role":"user","text":"Can I bench today?"},
-    {"role":"coach","text":"Avoid barbell bench; use neutral-grip DB press."},
-    {"role":"user","text":"Okay. Need legs today, quad focus."}
-  ],
-  "retrievedSnippets": [
-    {"source":"chat","date":"2025-06-28","text":"My right elbow hurts on bench."},
-    {"source":"workout","date":"2025-07-14","text":"Squat 3x6 @ RPE9; hamstring volume low."}
-  ],
-  "allowedExercises": [
-    {"id":"high_bar_squat","name":"High Bar Squat"},
-    {"id":"front_squat","name":"Front Squat"},
-    {"id":"leg_extension","name":"Leg Extension"},
-    {"id":"db_bulgarian_split_squat","name":"DB Bulgarian Split Squat"},
-    {"id":"db_rdl","name":"DB Romanian Deadlift"},
-    {"id":"lying_leg_curl","name":"Lying Leg Curl"},
-    {"id":"bike_warmup","name":"Bike Warm-up"},
-    {"id":"bw_squat","name":"Bodyweight Squat"}
-  ],
-  "requestMeta": {
-    "route": "auto|planner|technique|explain|schedule",
-    "maxOutputTokens": 700,
-    "adapterId": "optional-user-adapter-id"
-  }
-}
+Chunking: index workouts by segment/exercise, not whole sessions, so you can pull the one quad note instead of the entire day.
 
-Notes:
-- `allowedExercises` is a filtered slice from your `exercises.ts` based on equipment/injuries—keep it to 10–30 items.
-- `retrievedSnippets` = top-K (2–3) semantic matches from milestones/workouts/setAnalyses/older chats.
-- `shortTermTurns` = last 3–6 turns only.
+De-duplication: collapse near-duplicate chat lines before indexing.
 
----
+Top-K discipline: stick to K=2–3; never paste entire memory.
+These changes make the context slimmer and more relevant without touching the model. 
 
-2) Router Prompt (cheap model OK)
+3) Add an allowedExercises projection to the prompt
 
-Instruction:
+Right now your template passes “equipmentAccess” text, but not a concrete whitelist of exercise IDs for the model to use. Add allowedExercises[] (10–30 IDs filtered by equipment + injury bans) to every planner/technique prompt and instruct the model to pick only from that list. This is the single best way to reduce hallucinations and token waste. Wire it into the template alongside profile/health/preference blocks. 
 
-You classify the user's intent into exactly one label:
-- planner: asking for a workout today, a split, or exercise selection.
-- technique: asking about form, substitutions due to pain/injury/equipment, or fix-my-lift.
-- explain: asking for definitions or educational content.
-- schedule: asking about deloads, weekly layout, rest days, or adherence.
-- chit_chat: greetings or small talk.
+4) Close the validator loop (auto-correct on violations)
 
-Return JSON only: {"label":"planner"}
+You already validate plans (banned exercises, missing safetyRating/equipmentNeeded, beginner high-risk). When violations occur, re-prompt with a tiny “validator feedback” message and the previous JSON only—don’t resend the whole context. This cuts tokens dramatically and guarantees compliance without manual retries. Also expand validator checks to: total session duration, segment count, per-muscle weekly set ceilings, and “no heavy hinge + heavy squat on consecutive days” spacing. 
 
-Fallback: if confidence < 0.6 and the user mentions a workout, use `planner`; otherwise `explain`.
+5) Make profiles operational, not just descriptive
 
----
+Your profile manager emits a great context object (experience, goals, injuries, tone). Extend it to keep training maxes/1RMs, preferred rep ranges per goal phase, and active ban/caution lists rolled up from injuries—then serialize a compact profileSummary + healthSummary every time. Add a “preference memory” updater that learns dislikes (“hate walking lunges”) from chat and persists them. This will let the planner adapt week-to-week without bigger prompts. 
 
-3) System Prompt — HLTHY Coach v1
+6) Route with a cheap model; reserve the strong model for hard tasks
 
-You are HLTHY Coach, a mobile fitness trainer. Goals: safe, specific, actionable programming.
+You already use a fast router and a stronger coach. Keep that split, and add a rule-based fallback (you wrote one) so routing never blocks. Also route Explain to the cheap model by default; reserve the strong model for Planner/Technique/Schedule only. Log per-route tokens to catch regressions. 
 
-Rules:
-1) Use only exercises present in allowedExercises (IDs). If a requested exercise is banned in healthSummary, substitute safely.
-2) Always output machine-readable JSON first (schema below), then a short user-friendly summary (≤120 words by default).
-3) Obey preferenceMemory (replyLength, tone, exerciseNameStyle). Be concise unless user asks for detail.
-4) Never exceed safe weekly volumes, and never schedule conflicting heavy hinge and squat on consecutive days without stating rationale.
-5) If information is missing, ask one clarifying question or make a conservative assumption and state it.
-6) If validator feedback is supplied, fix the plan and re-output valid JSON.
-7) Use the user's words when possible (e.g., 'RDL'). Avoid hallucinating new exercise names; choose the closest valid ID.
-8) If an exercise is unsafe per healthSummary (bannedExercises), do not include it; propose a substitution and explain why.
+7) Build a cues/substitutions library (reduce model work)
 
-JSON output schemas:
+Stand up a small, versioned JSON for technique cues and common substitutions by exercise ID (e.g., for elbow pain, DB neutral-grip press → reasons, cues). Inject only the 5–10 items relevant to the user’s query and injuries. This cuts tokens, increases consistency, and ensures the model’s advice matches your safety doctrine. Tie this to your injury maps and the “prefer/avoid” lists. 
 
-WorkoutPlan
-{
-  "dayType": "string",
-  "segments": [
-    {
-      "name": "string",
-      "exercises": [
-        {
-          "exerciseId": "one of allowedExercises[].id",
-          "sets": 3,
-          "reps": 8,
-          "load": "@RPE8" | "@%1RM75" | "kg_60",
-          "restSec": 90,
-          "notes": "optional short cue"
-        }
-      ]
-    }
-  ],
-  "notes": "optional"
-}
+8) Memory → profile sync (closed loop)
 
-TechniqueAdvice
-{
-  "issue": "string (e.g., elbow_pain_right during bench)",
-  "unsafe": ["exerciseId", "..."],
-  "substitutions": [{"from":"exerciseId","to":"exerciseId","reason":"string"}],
-  "cues": ["short cue 1","short cue 2"]
-}
+After each chat, run a tiny extractor that promotes durable facts into the profile: new dislikes, resolved/active injuries, equipment changes (“no leg press at this gym”), and inferred goals. You already have semantic memory and profile endpoints; add a post-reply job to write back to the profile so the next plan is better by default. 
+ 
 
-SchedulePlan
-{
-  "daysPerWeek": 5,
-  "split": [{"day":"Mon","focus":"Push"},{"day":"Tue","focus":"Pull"}],
-  "guidelines": ["deload in week 4 if RPE≥9 persists"]
-}
+9) Observability & cost controls
 
-Explanation
-{
-  "topic": "string",
-  "keyPoints": ["bullet 1","bullet 2","bullet 3"]
-}
+Log: route label, input/output token counts, # of snippets included, violations found, correction loops taken. Enforce daily message caps per user and implement a cache for identical recent prompts (e.g., same user asks “push day please” twice). You already have the API surface—add these counters and a simple dashboard. 
 
-After the JSON, output a short human summary that matches preferenceMemory.
+10) (Optional) Lightweight personalization adapter
 
----
+When you have a few hundred clean SFT pairs (prompt → validated JSON plan), consider training a small LoRA/adapter for tone/structure—not for exercise knowledge. Hot-swap the adapter per user cohort (beginner hypertrophy, etc.). Keep RAG + validator as the source of truth for safety and equipment constraints. (Adapter plugs into your existing dual-model design.)
 
-4) Route Templates (append after System Prompt)
 
-4A) Planner Template
 
-CONTEXT:
-profileSummary:
-{{profileSummary}}
 
-healthSummary:
-{{json healthSummary}}
+MORE STUFF:
 
-preferenceMemory:
-{{json preferenceMemory}}
 
-recentContext (short-term turns):
-{{bulleted shortTermTurns}}
+Fix the enum gap: add ANKLE to InjuryType and remove the hasattr(... 'ANKLE') fallback in calf-raise rules to avoid silent misclassification. 
 
-retrievedSnippets (long-term facts):
-{{bulleted retrievedSnippets}}
+Risk-aware planning: treat RiskLevel.HIGH/EXTREME as “discourage by default”; require explicit rationale from the model to include them for advanced users—otherwise auto-substitute from exercise.substitutions. 
 
-allowedExercises (IDs and short names):
-{{json allowedExercises}}
+Technique route = database-powered: when a banned exercise appears, call get_safe_substitutions(exercise_id, user_ctx) and present top 2–3 with cues from your safety doctrine (EXERCISE_SAFETY_GUIDELINES)—short, consistent, and token-cheap. 
+ 
 
-TASK:
-Draft a single-day workout plan tailored to the user's message and CONTEXT.
-- Respect healthSummary.bannedExercises and cautionMovements.
-- Use only allowedExercises[].id in the JSON.
-- Prefer loads as RPE unless the user asks for %1RM or kg.
-- Keep segments 2–4 with 2–5 exercises each (MVP).
-- If equipment constraints remove common options, choose nearest valid substitution.
+Program state for progression: store the last used load/RPE per exerciseId and let the planner propose +2.5–5% or +1 rep when RPE ≤7. This logic lives outside the LLM; the model only chooses exercises and set/rep patterns.
 
-Return:
-1) WorkoutPlan JSON
-2) Human summary (≤120 words, {{preferenceMemory.tone}} tone).
+Parify with the app’s exercises.ts: ensure every exercise the mobile UI exposes is present in the canonical DB with the same IDs. If the mobile uses metricType (e.g., weight_reps), add it to ExerciseProfile so the planner chooses correct load notation.
 
----
 
-4B) Technique Template
+Precompute and cache per-user whitelists at login (experience + injuries + equipment). Invalidate the cache on profile or injury changes. Use the cached list in every prompt. 
 
-CONTEXT: (same fields as Planner)
-
-TASK:
-The user needs technique guidance or safe substitutions given injuries/equipment.
-- Identify likely unsafe exercises given healthSummary.
-- Provide 1–3 substitutions (exerciseId) with reasons.
-- Provide 3–5 concise actionable cues.
-- If the user refers to a specific set, anchor advice to that context.
-
-Return:
-1) TechniqueAdvice JSON
-2) Human summary (≤100 words).
-
----
-
-4C) Explain Template
-
-CONTEXT: (profileSummary, preferenceMemory only; snippets optional)
-
-TASK:
-Explain the requested topic briefly and accurately. Use bullet key points.
-Return:
-1) Explanation JSON
-2) Human summary (≤100 words).
-
----
-
-4D) Schedule/Adherence Template
-
-CONTEXT: (full; include last week’s workouts in retrievedSnippets if relevant)
-
-TASK:
-Propose a days-per-week split and simple deload rules based on CONTEXT.
-Return:
-1) SchedulePlan JSON
-2) Human summary (≤120 words).
-
----
-
-5) Validator Correction Prompt (only when your code flags violations)
-
-VALIDATOR_FEEDBACK:
-- Violation: "barbell_bench_press" is banned (healthSummary.bannedExercises).
-- Violation: Quad volume exceeds safe range for this user (reduce by ~3 sets).
-
-INSTRUCTIONS:
-Fix the prior JSON plan accordingly. Keep structure identical. Return JSON only, no prose.
-
----
-
-6) Memory Extractor Prompt (post-message job)
-
-You extract structured memory updates from the latest user message only.
-
-Return JSON with any fields present; omit if none found:
-{
-  "preferences": {
-    "replyLength": "concise_bullets|standard|detailed",
-    "tone": "direct|motivational|clinical",
-    "dislikedExercises": ["exerciseId"...]
-  },
-  "injuryEvents": [
-    {
-      "type": "elbow_pain|knee_pain|shoulder_pain|...",
-      "side": "left|right|bilateral|unspecified",
-      "status": "active|resolved|worsening|improving",
-      "aggravatingExercises": ["exerciseId"...]
-    }
-  ]
-}
-If nothing to update, return {}.
-
----
-
-7) Implementation Notes
-
-- Token budget (target input ≤ 2k, output ≤ 700).
-- Retrieval: top-K=2–3; skip if low relevance.
-- Short-term window: last 3–6 turns only.
-- AllowedExercises slice: 10–30 IDs filtered by equipment/injuries.
-- Two-tier routing: cheap model for Router/Explain; strong model for Planner/Technique/Schedule.
-- JSON-first outputs; deterministic validator fixes math/safety; only re-prompt with tiny validator feedback when needed.
-- Optional adapterId for tone polish; fallback to base if missing.
+Observability: log counts of violations by category (injury vs experience vs unknown ID) and how often substitutions are applied. This shows where your database needs coverage.

@@ -20,6 +20,7 @@ class InjuryType(Enum):
     HIP = "hip"
     NECK = "neck"
     WRIST = "wrist"
+    ANKLE = "ankle"
 
 class ExperienceLevel(Enum):
     BEGINNER = "beginner"
@@ -699,7 +700,7 @@ CANONICAL_EXERCISES: Dict[str, ExerciseProfile] = {
         primary_muscles=["calves"],
         equipment_required=["machine"],
         injury_contraindications=set(),
-        injury_cautions={InjuryType.ANKLE if hasattr(InjuryType, 'ANKLE') else InjuryType.KNEE},
+        injury_cautions={InjuryType.ANKLE},
         min_experience_level=ExperienceLevel.BEGINNER,
         safety_flags={"isolation_movt"},
         substitutions=["calf_raise_seated"]
@@ -712,7 +713,7 @@ CANONICAL_EXERCISES: Dict[str, ExerciseProfile] = {
         primary_muscles=["calves"],
         equipment_required=["machine"],
         injury_contraindications=set(),
-        injury_cautions={InjuryType.KNEE},
+        injury_cautions={InjuryType.ANKLE},
         min_experience_level=ExperienceLevel.BEGINNER,
         safety_flags={"isolation_movt"},
         substitutions=["calf_raise_standing"]
@@ -1207,6 +1208,9 @@ INJURY_BANNED_EXERCISES: Dict[InjuryType, Set[str]] = {
     },
     InjuryType.NECK: {
         "behind_neck_press", "weighted_sit_ups"
+    },
+    InjuryType.ANKLE: {
+        "calf_raise_standing", "calf_raise_seated", "calf_press_leg_press_machine"
     }
 }
 

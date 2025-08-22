@@ -28,7 +28,7 @@ try:
         is_exercise_allowed, get_safe_substitutions,
         get_all_allowed_exercises, get_all_allowed_exercises_cached,
         suggest_exercise_id_from_name, InjuryType, ExperienceLevel,
-        NAME_TO_ID_MAP
+        NAME_TO_ID_MAP, RiskLevel
     )
     CANONICAL_DATABASE_AVAILABLE = True
 except ImportError:
@@ -302,7 +302,50 @@ def _build_user_context(context: dict) -> dict:
         user_ctx['equipment_available'].append('bench')
     return user_ctx
 
-def _allowed_ids_for_prompt(context: dict, max_ids: int = 25) -> list:
+def _get_risk_aware_allowed_ids(context: dict, max_ids: int = 25) -> tuple[list, list]:
+    """Get allowed exercise IDs with risk-awareness. Returns (safe_ids, risky_ids_with_rationale_required)"""
+    try:
+        user_ctx = _build_user_context(context)
+        base_allowed = get_all_allowed_exercises_cached({
+            'experience_level': user_ctx['experience_level'], 
+            'active_injuries': user_ctx['active_injuries']
+        })
+        equip = set(user_ctx.get('equipment_available', []))
+        
+        safe_ids = []
+        risky_ids = []
+        
+        for ex_id in base_allowed:
+            ex = CANONICAL_EXERCISES.get(ex_id)
+            if not ex:
+                continue
+            if not _equipment_satisfies(ex.equipment_required, equip):
+                continue
+                
+            # Categorize by risk level
+            if ex.risk_level in [RiskLevel.HIGH, RiskLevel.EXTREME]:
+                # Only include high-risk exercises for advanced users, and require rationale
+                if user_ctx['experience_level'] == 'advanced':
+                    risky_ids.append(ex_id)
+            else:
+                safe_ids.append(ex_id)
+        
+        # Prioritize safe exercises, add risky ones only if needed to reach minimum
+        total_safe = len(safe_ids)
+        if total_safe >= 10:
+            # We have enough safe exercises
+            return safe_ids[:max_ids], risky_ids[:5] if risky_ids else []
+        else:
+            # Add some risky exercises to reach minimum viable set
+            combined = safe_ids + risky_ids[:max_ids - total_safe]
+            return combined[:max_ids], risky_ids
+            
+    except Exception as e:
+        print(f"Error building risk-aware allowed IDs: {e}")
+        # Fallback to ultra-conservative safe exercises
+        safe_fallback = ["push_ups", "goblet_squat", "dumbbell_row", "planks", "glute_bridge", 
+                        "dumbbell_shoulder_press", "hammer_curls", "split_squat", "dead_bug", "lateral_raise"]
+        return safe_fallback, []
     """Whitelist 10–30 IDs: use cached allowed (injury/experience), then filter by equipment."""
     try:
         user_ctx = _build_user_context(context)
