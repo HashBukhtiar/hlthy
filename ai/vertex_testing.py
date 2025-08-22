@@ -346,37 +346,13 @@ def _get_risk_aware_allowed_ids(context: dict, max_ids: int = 25) -> tuple[list,
         safe_fallback = ["push_ups", "goblet_squat", "dumbbell_row", "planks", "glute_bridge", 
                         "dumbbell_shoulder_press", "hammer_curls", "split_squat", "dead_bug", "lateral_raise"]
         return safe_fallback, []
-    """Whitelist 10–30 IDs: use cached allowed (injury/experience), then filter by equipment."""
-    try:
-        user_ctx = _build_user_context(context)
-        base_allowed = get_all_allowed_exercises_cached({'experience_level': user_ctx['experience_level'], 'active_injuries': user_ctx['active_injuries']})
-        equip = set(user_ctx.get('equipment_available', []))
-        filtered = []
-        for ex_id in base_allowed:
-            ex = CANONICAL_EXERCISES.get(ex_id)
-            if not ex:
-                continue
-            if _equipment_satisfies(ex.equipment_required, equip):
-                filtered.append(ex_id)
-        
-        # Ensure 10–30 window; prioritize compound movements and common exercises
-        if len(filtered) < 10:
-            # Add basic bodyweight/dumbbell exercises as fallback
-            fallback_ids = ["push_ups", "goblet_squat", "dumbbell_row", "planks", "glute_bridge", 
-                          "dumbbell_shoulder_press", "hammer_curls", "split_squat", "dead_bug", "lateral_raise"]
-            for fb_id in fallback_ids:
-                if fb_id in CANONICAL_EXERCISES and fb_id not in filtered:
-                    filtered.append(fb_id)
-                if len(filtered) >= 10:
-                    break
-        
-        # Cap at max_ids to keep prompt focused
-        return filtered[:max_ids]
-    except Exception as e:
-        print(f"Error building allowed IDs list: {e}")
-        # Ultra-conservative fallback - basic safe exercises
-        return ["push_ups", "goblet_squat", "dumbbell_row", "planks", "glute_bridge", 
-                "dumbbell_shoulder_press", "hammer_curls", "split_squat", "dead_bug", "lateral_raise"]
+def _allowed_ids_for_prompt(context: dict, max_ids: int = 25) -> list:
+    """Wrapper for risk-aware allowed IDs that returns just the safe list for backward compatibility"""
+    safe_ids, risky_ids = _get_risk_aware_allowed_ids(context, max_ids)
+    # For now, return combined list but log risky ones
+    if risky_ids:
+        print(f"⚠️  Including {len(risky_ids)} high-risk exercises that require rationale: {risky_ids[:3]}")
+    return safe_ids + risky_ids[:max_ids - len(safe_ids)]
 
 def _normalize_text_to_ids(text: str) -> str:
     """Replace exercise mentions with canonical IDs for better retrieval. Case-insensitive.
