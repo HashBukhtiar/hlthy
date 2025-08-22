@@ -20,6 +20,13 @@ service cloud.firestore {
       return exists(/databases/$(database)/documents/users/$(targetUserId)/followers/$(currentUserId));
     }
     
+    function canViewProfile(targetUserId, currentUserId) {
+      return currentUserId == targetUserId ||
+        (get(/databases/$(database)/documents/users/$(targetUserId)).data.get('profileVisibility', 'public') == 'public') ||
+        (get(/databases/$(database)/documents/users/$(targetUserId)).data.get('profileVisibility', 'public') == 'followers' && 
+         isFollowing(targetUserId, currentUserId));
+    }
+    
     function canViewPost(postData, currentUserId) {
       return postData.authorId == currentUserId ||
         (postData.get('visibility', 'public') == 'public' && 
@@ -42,26 +49,37 @@ service cloud.firestore {
       allow update: if isOwner(userId);
     }
 
-    // User subcollections (move these OUTSIDE the match /users/{userId} block)
+    // Message requests
+    match /users/{userId}/messageRequests/{requestId} {
+      allow read, delete: if isOwner(userId);
+      allow create: if isAuthenticated() && 
+        request.auth.uid != userId && 
+        !isBlocked(userId, request.auth.uid) &&
+        !isBlocked(request.auth.uid, userId);
+    }
+
+    // User subcollections
     match /users/{userId}/followers/{followerId} {
-      allow read:   if isOwner(userId) || isOwner(followerId);
-      // only the *follower* should ever add themselves—no need to let the target user write here
+      allow read: if isOwner(userId) || isOwner(followerId);
       allow create: if isAuthenticated() && request.auth.uid == followerId;
       allow delete: if isOwner(userId) || isOwner(followerId);
     }
+    
     match /users/{userId}/following/{followedUserId} {
       allow read: if isOwner(userId);
-      // only the *owner* of this list (i.e. the follower) should add/remove entries
       allow write: if isOwner(userId);
     }
+    
     match /users/{userId}/pendingFollowers/{requesterId} {
       allow read: if isOwner(userId);
       allow create: if isAuthenticated() && request.auth.uid == requesterId;
       allow delete: if isOwner(userId) || isOwner(requesterId);
     }
+    
     match /users/{userId}/savedWorkouts/{workoutId} {
       allow read, write: if isOwner(userId);
     }
+    
     match /users/{userId}/conversations/{conversationId} {
       allow read: if isOwner(userId);
       allow write: if isAuthenticated() &&
@@ -79,6 +97,8 @@ service cloud.firestore {
 
     // Posts collection
     match /posts/{postId} {
+      // Allow thumbnail optimization reads
+      allow get: if request.resource.data.keys().hasAny(['thumbnailUrl']);
       allow read: if isAuthenticated() && 
         canViewPost(resource.data, request.auth.uid);
       
@@ -100,9 +120,11 @@ service cloud.firestore {
       }
       
       match /comments/{commentId} {
-        allow read: if isAuthenticated();
+        allow read: if isAuthenticated() && 
+          canViewPost(get(/databases/$(database)/documents/posts/$(postId)).data, request.auth.uid);
         allow create: if isAuthenticated() && 
           request.auth.uid == request.resource.data.authorId &&
+          canInteractWithPost(get(/databases/$(database)/documents/posts/$(postId)).data, request.auth.uid) &&
           request.resource.data.keys().hasAll(['authorId', 'text', 'createdAt']) &&
           request.resource.data.text is string &&
           request.resource.data.text.size() > 0;
@@ -133,6 +155,8 @@ service cloud.firestore {
 
     // Workouts collection
     match /workouts/{workoutId} {
+      // Allow thumbnail optimization reads
+      allow get: if request.resource.data.keys().hasAny(['thumbnailUrl']);
       allow read: if isAuthenticated() && 
         (resource.data.get('isPublic', false) == true || 
          resource.data.creatorId == request.auth.uid);
