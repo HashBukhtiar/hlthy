@@ -14,11 +14,17 @@ import pickle
 # For embeddings - using sentence transformers for semantic similarity
 try:
     from sentence_transformers import SentenceTransformer
-    import faiss
+    try:
+        import faiss
+        FAISS_AVAILABLE = True
+    except ImportError:
+        print("Warning: FAISS not available, using numpy similarity fallback")
+        FAISS_AVAILABLE = False
     EMBEDDINGS_AVAILABLE = True
 except ImportError:
-    print("Warning: sentence-transformers not available. Install with: pip install sentence-transformers faiss-cpu")
+    print("Warning: sentence-transformers not available. Install with: pip install sentence-transformers")
     EMBEDDINGS_AVAILABLE = False
+    FAISS_AVAILABLE = False
 
 # Import exercise normalization for ID-aligned RAG
 try:
@@ -118,7 +124,10 @@ class SemanticMemorySystem:
         
         # Memory storage
         self.snippets: Dict[str, List[MemorySnippet]] = {}  # user_id -> snippets
-        self.user_indexes: Dict[str, Any] = {}  # user_id -> FAISS index
+        if FAISS_AVAILABLE:
+            self.user_indexes: Dict[str, Any] = {}  # user_id -> FAISS index
+        else:
+            self.user_embeddings: Dict[str, np.ndarray] = {}  # user_id -> embeddings matrix
         
         # Load existing memory
         self._load_memory_data()
@@ -154,13 +163,22 @@ class SemanticMemorySystem:
                 self.snippets[user_id] = snippets
                 
                 # Load FAISS index if it exists and embeddings are enabled
-                if self.embeddings_enabled:
+                if self.embeddings_enabled and FAISS_AVAILABLE:
                     index_path = self._get_user_index_path(user_id)
                     if index_path.exists():
                         try:
                             self.user_indexes[user_id] = faiss.read_index(str(index_path))
                         except Exception as e:
                             print(f"Warning: Could not load FAISS index for {user_id}: {e}")
+                elif self.embeddings_enabled:
+                    # Load numpy embeddings fallback
+                    embeddings_path = self.memory_dir / f"embeddings_{user_id}.pkl"
+                    if embeddings_path.exists():
+                        try:
+                            with open(embeddings_path, 'rb') as f:
+                                self.user_embeddings[user_id] = pickle.load(f)
+                        except Exception as e:
+                            print(f"Warning: Could not load embeddings for {user_id}: {e}")
                 
             except Exception as e:
                 print(f"Warning: Could not load memory file {memory_file}: {e}")
@@ -188,12 +206,20 @@ class SemanticMemorySystem:
             json.dump(data, f, indent=2)
         
         # Save FAISS index if embeddings are enabled
-        if self.embeddings_enabled and user_id in self.user_indexes:
+        if self.embeddings_enabled and FAISS_AVAILABLE and user_id in self.user_indexes:
             index_path = self._get_user_index_path(user_id)
             try:
                 faiss.write_index(self.user_indexes[user_id], str(index_path))
             except Exception as e:
                 print(f"Warning: Could not save FAISS index for {user_id}: {e}")
+        elif self.embeddings_enabled and user_id in self.user_embeddings:
+            # Save numpy embeddings fallback
+            embeddings_path = self.memory_dir / f"embeddings_{user_id}.pkl"
+            try:
+                with open(embeddings_path, 'wb') as f:
+                    pickle.dump(self.user_embeddings[user_id], f)
+            except Exception as e:
+                print(f"Warning: Could not save embeddings for {user_id}: {e}")
     
     def add_chat_snippet(self, user_id: str, message_text: str, role: str = "user"):
         """Add a chat message to semantic memory"""
@@ -308,12 +334,21 @@ class SemanticMemorySystem:
                 if 'normalized_text' not in snippet.metadata:
                     snippet.metadata['normalized_text'] = normalized_text
                 
-                # Initialize or update FAISS index
-                if user_id not in self.user_indexes:
-                    self.user_indexes[user_id] = faiss.IndexFlatIP(self.embedding_dimension)
-                
-                # Add to index
-                self.user_indexes[user_id].add(np.array([embedding], dtype=np.float32))
+                # Initialize or update index
+                if FAISS_AVAILABLE:
+                    # Use FAISS
+                    if user_id not in self.user_indexes:
+                        self.user_indexes[user_id] = faiss.IndexFlatIP(self.embedding_dimension)
+                    self.user_indexes[user_id].add(np.array([embedding], dtype=np.float32))
+                else:
+                    # Use numpy fallback
+                    if user_id not in self.user_embeddings:
+                        self.user_embeddings[user_id] = np.array([embedding], dtype=np.float32)
+                    else:
+                        self.user_embeddings[user_id] = np.vstack([
+                            self.user_embeddings[user_id], 
+                            embedding.reshape(1, -1)
+                        ])
                 
             except Exception as e:
                 print(f"Warning: Could not compute embedding for snippet: {e}")
@@ -323,8 +358,11 @@ class SemanticMemorySystem:
             self.snippets[user_id] = self.snippets[user_id][-100:]
             
             # Rebuild index with remaining snippets
-            if self.embeddings_enabled and user_id in self.user_indexes:
-                self._rebuild_user_index(user_id)
+            if self.embeddings_enabled:
+                if FAISS_AVAILABLE and user_id in self.user_indexes:
+                    self._rebuild_user_index(user_id)
+                elif user_id in self.user_embeddings:
+                    self._rebuild_user_index(user_id)
         
         # Save to disk
         self._save_user_memory(user_id)
@@ -349,9 +387,12 @@ class SemanticMemorySystem:
                 embeddings.append(snippet.embedding)
             
             if embeddings:
-                self.user_indexes[user_id] = faiss.IndexFlatIP(self.embedding_dimension)
-                embeddings_array = np.array(embeddings, dtype=np.float32)
-                self.user_indexes[user_id].add(embeddings_array)
+                if FAISS_AVAILABLE:
+                    self.user_indexes[user_id] = faiss.IndexFlatIP(self.embedding_dimension)
+                    embeddings_array = np.array(embeddings, dtype=np.float32)
+                    self.user_indexes[user_id].add(embeddings_array)
+                else:
+                    self.user_embeddings[user_id] = np.array(embeddings, dtype=np.float32)
                 
         except Exception as e:
             print(f"Warning: Could not rebuild index for {user_id}: {e}")
@@ -365,22 +406,43 @@ class SemanticMemorySystem:
         if not user_snippets:
             return []
         
-        if self.embeddings_enabled and user_id in self.user_indexes:
+        if self.embeddings_enabled and (
+            (FAISS_AVAILABLE and user_id in self.user_indexes) or 
+            (not FAISS_AVAILABLE and user_id in self.user_embeddings)
+        ):
             # Use semantic search with embeddings - normalize query for better matching
             try:
                 # Normalize query to canonical IDs for better semantic matching
                 normalized_query = _normalize_text_for_embedding(query)
                 query_embedding = self.embedding_model.encode([normalized_query])
                 
-                # Search for similar snippets
-                scores, indices = self.user_indexes[user_id].search(
-                    query_embedding.astype(np.float32), 
-                    min(k, len(user_snippets))
-                )
+                if FAISS_AVAILABLE:
+                    # FAISS search
+                    scores, indices = self.user_indexes[user_id].search(
+                        query_embedding.astype(np.float32), 
+                        min(k, len(user_snippets))
+                    )
+                    scores = scores[0]
+                    indices = indices[0]
+                else:
+                    # Numpy cosine similarity fallback
+                    # Normalize embeddings for cosine similarity
+                    query_norm = query_embedding / np.linalg.norm(query_embedding)
+                    embeddings_norm = self.user_embeddings[user_id] / np.linalg.norm(
+                        self.user_embeddings[user_id], axis=1, keepdims=True
+                    )
+                    
+                    # Calculate cosine similarity
+                    similarities = np.dot(embeddings_norm, query_norm.T).flatten()
+                    
+                    # Get top-k indices
+                    top_indices = np.argsort(similarities)[::-1][:min(k, len(user_snippets))]
+                    scores = similarities[top_indices]
+                    indices = top_indices
                 
                 # Get top snippets with scores above threshold
                 relevant_snippets = []
-                for score, idx in zip(scores[0], indices[0]):
+                for score, idx in zip(scores, indices):
                     if score > 0.3:  # Similarity threshold
                         snippet = user_snippets[idx]
                         relevant_snippets.append({

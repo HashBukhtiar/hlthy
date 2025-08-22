@@ -1,18 +1,12 @@
-# HLTHY AI Coach Production Dockerfile
-FROM python:3.12-slim
+# HLTHY AI Coach Production Dockerfile  
+# Use Python image with pre-built scientific libraries to avoid build issues
+FROM python:3.11-slim
 
-# Install system dependencies including SWIG for faiss-cpu
+# Install system dependencies
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-        build-essential \
-        python3-dev \
-        libffi-dev \
-        libssl-dev \
         curl \
-        swig \
-        libblas3 \
-        liblapack3 \
-        libgomp1 \
+        build-essential \
         && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
@@ -20,10 +14,19 @@ RUN apt-get update && \
 # Set working directory
 WORKDIR /app
 
-# Upgrade pip and install Python build tools
-RUN python -m pip install --upgrade pip setuptools wheel
+# Upgrade pip and install wheel support
+RUN python -m pip install --upgrade pip wheel
 
-# Copy requirements and install dependencies
+# Install ML dependencies first with specific versions that have wheels
+RUN pip install --no-cache-dir \
+    numpy==1.24.3 \
+    scipy==1.10.1 \
+    scikit-learn==1.2.2
+
+# Try to install FAISS - if it fails, continue without it
+RUN pip install --no-cache-dir faiss-cpu==1.7.4 || echo "FAISS installation failed, using fallback"
+
+# Copy requirements and install remaining dependencies
 COPY ai/requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
@@ -50,9 +53,7 @@ CMD ["gunicorn", \
      "--bind", "0.0.0.0:8080", \
      "--workers", "4", \
      "--worker-class", "sync", \
-     "--worker-connections", "1000", \
      "--timeout", "60", \
-     "--keepalive", "5", \
      "--max-requests", "1000", \
      "--max-requests-jitter", "50", \
      "--preload", \

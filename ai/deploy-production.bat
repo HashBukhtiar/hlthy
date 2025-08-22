@@ -38,7 +38,7 @@ if "!ACTION!"=="" set ACTION=deploy
 
 if "!ACTION!"=="build" (
     echo [STEP] Building and pushing Docker image to Google Cloud...
-    gcloud builds submit --config cloudbuild.yaml ..
+    gcloud builds submit --config ..\cloudbuild.yaml ..
     if !errorlevel! neq 0 (
         echo [ERROR] Build failed!
         exit /b 1
@@ -48,7 +48,7 @@ if "!ACTION!"=="build" (
     echo [STEP] Deploying HLTHY Coach to Google Cloud Run...
     
     echo [INFO] 1. Building and pushing image...
-    gcloud builds submit --config cloudbuild.yaml ..
+    gcloud builds submit --config ..\cloudbuild.yaml ..
     if !errorlevel! neq 0 (
         echo [ERROR] Build failed!
         exit /b 1
