@@ -10,7 +10,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { getOptimalImageUrl } from '@/utils/imageUtils';
 import { useBlockEnforcement } from '@/utils/blockUtils';
-
+import { httpsCallable } from 'firebase/functions';
+import { functions } from '@/firebaseConfig';
+import MessageRequestItem from '@/components/MessageRequestItem';
 
 interface UserConversationData {
     // Fields from /users/{userId}/conversations/{conversationId}
@@ -316,48 +318,19 @@ export default function DMs() {
 
     const handleApproveRequest = async (req: any) => {
         try {
-            // Create conversation if it doesn't exist
-            const conversationRef = doc(db, "conversations", req.conversationId);
-            const conversationSnap = await getDoc(conversationRef);
-            if (!conversationSnap.exists()) {
-                await setDoc(conversationRef, {
-                    participants: [currentUser.uid, req.fromUserId],
-                    lastMessageAt: serverTimestamp(),
-                    lastMessageText: req.text,
-                    participantUsernames: {
-                        [currentUser.uid]: currentUser.displayName || currentUser.email || 'Current User',
-                        [req.fromUserId]: req.fromUserId, // You may want to fetch username
-                    },
-                    participantProfileImages: {
-                        [currentUser.uid]: currentUser.photoURL || '',
-                        [req.fromUserId]: '', // You may want to fetch image
-                    },
-                    isPinnedAI: false,
-                });
-            }
-            // Add both users' conversation refs
-            await setDoc(doc(db, `users/${currentUser.uid}/conversations`, req.conversationId), {
-                otherParticipantId: req.fromUserId,
-                otherParticipantUsername: req.fromUserId,
-                otherParticipantProfileImage: '',
-            }, { merge: true });
-            await setDoc(doc(db, `users/${req.fromUserId}/conversations`, req.conversationId), {
-                otherParticipantId: currentUser.uid,
-                otherParticipantUsername: currentUser.displayName || currentUser.email || 'Current User',
-                otherParticipantProfileImage: currentUser.photoURL || '',
-            }, { merge: true });
-
-            // Move the message to the conversation's messages subcollection
-            await addDoc(collection(db, "conversations", req.conversationId, "messages"), {
-                text: req.text,
-                createdAt: req.createdAt || serverTimestamp(),
-                senderId: req.fromUserId,
+            const approveMessageRequest = httpsCallable(functions, 'approveMessageRequest');
+            await approveMessageRequest({
+            requestId: req.id,
+            conversationId: req.conversationId,
             });
 
-            // Remove the request
-            await deleteDoc(doc(db, "users", currentUser.uid, "messageRequests", req.id));
+            // Remove from state
             setMessageRequests(msgs => msgs.filter(m => m.id !== req.id));
-            Alert.alert("Request approved", "You can now chat with this user.");
+            
+            // Refresh conversations to show the new chat
+            await fetchConversations();
+            
+            Alert.alert("Request Approved", "You can now chat with this user.");
         } catch (error) {
             console.error("Error approving request:", error);
             Alert.alert("Error", "Failed to approve request.");
@@ -366,7 +339,11 @@ export default function DMs() {
 
     const handleIgnoreRequest = async (req: any) => {
         try {
-            await deleteDoc(doc(db, "users", currentUser.uid, "messageRequests", req.id));
+            const ignoreMessageRequest = httpsCallable(functions, 'ignoreMessageRequest');
+            await ignoreMessageRequest({
+            requestId: req.id,
+            });
+
             setMessageRequests(msgs => msgs.filter(m => m.id !== req.id));
         } catch (error) {
             console.error("Error ignoring request:", error);
@@ -568,26 +545,22 @@ export default function DMs() {
             ) : null}
             {(loadingRequests && !messageRequests.length) ? (
                 <View style={styles.centered}><ActivityIndicator size="small" color="#fff" /></View>
-            ) : messageRequests.length > 0 && (
-                <View style={{ padding: 10 }}>
-                    <Text style={{ color: 'white', fontWeight: 'bold', marginBottom: 8 }}>Message Requests</Text>
+                ) : messageRequests.length > 0 && (
+                <View style={{ padding: 16 }}>
+                    <View style={styles.requestsHeader}>
+                    <Ionicons name="mail-outline" size={20} color="#4CD964" />
+                    <Text style={styles.requestsHeaderText}>Message Requests</Text>
+                    <View style={styles.requestsBadge}>
+                        <Text style={styles.requestsBadgeText}>{messageRequests.length}</Text>
+                    </View>
+                    </View>
                     {messageRequests.map(req => (
-                        <View key={req.id} style={{ backgroundColor: '#222', padding: 10, borderRadius: 8, marginBottom: 8 }}>
-                            <Text style={{ color: 'white', marginBottom: 8 }}>{req.text}</Text>
-                            <View style={{ flexDirection: 'row', justifyContent: 'flex-end' }}>
-                                <TouchableOpacity
-                                    style={{ marginRight: 16 }}
-                                    onPress={() => handleApproveRequest(req)}
-                                >
-                                    <Text style={{ color: '#4CD964', fontWeight: 'bold' }}>Approve</Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity
-                                    onPress={() => handleIgnoreRequest(req)}
-                                >
-                                    <Text style={{ color: '#FF3B30', fontWeight: 'bold' }}>Ignore</Text>
-                                </TouchableOpacity>
-                            </View>
-                        </View>
+                    <MessageRequestItem
+                        key={req.id}
+                        request={req}
+                        onApprove={() => handleApproveRequest(req)}
+                        onIgnore={() => handleIgnoreRequest(req)}
+                    />
                     ))}
                 </View>
             )}
@@ -782,7 +755,35 @@ const styles = StyleSheet.create({
         fontSize: 16,
     },
     pressedItem: {
-    backgroundColor: '#222', 
-    borderLeftWidth: 3,
-},
+        backgroundColor: '#222', 
+        borderLeftWidth: 3,
+    },
+    requestsHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 16,
+        paddingBottom: 8,
+        borderBottomWidth: 1,
+        borderBottomColor: '#333',
+    },
+    requestsHeaderText: {
+        color: 'white',
+        fontWeight: 'bold',
+        fontSize: 16,
+        marginLeft: 8,
+        flex: 1,
+    },
+    requestsBadge: {
+        backgroundColor: '#FF2D55',
+        borderRadius: 12,
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        minWidth: 24,
+        alignItems: 'center',
+    },
+    requestsBadgeText: {
+        color: 'white',
+        fontSize: 12,
+        fontWeight: 'bold',
+    },
 });
