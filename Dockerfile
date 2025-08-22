@@ -1,7 +1,7 @@
 # HLTHY AI Coach Production Dockerfile
 FROM python:3.12-slim
 
-# Install system dependencies
+# Install system dependencies including SWIG for faiss-cpu
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         build-essential \
@@ -9,6 +9,10 @@ RUN apt-get update && \
         libffi-dev \
         libssl-dev \
         curl \
+        swig \
+        libblas3 \
+        liblapack3 \
+        libgomp1 \
         && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
@@ -22,9 +26,6 @@ RUN python -m pip install --upgrade pip setuptools wheel
 # Copy requirements and install dependencies
 COPY ai/requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
-
-# Install production WSGI server
-RUN pip install gunicorn==23.0.0
 
 # Copy application code
 COPY ai/ ./
