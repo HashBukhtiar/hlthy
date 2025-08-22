@@ -1459,6 +1459,13 @@ def chat():
         # Cache the response for future use
         if user_id and RATE_LIMITING_AVAILABLE and not cached_response:
             cache_prompt(current_message, response_text, user_context={"user_id": user_id})
+        
+        # Log system metrics for observability
+        if OBSERVABILITY_AVAILABLE:
+            log_metric("chat_response_time", generation_time, {"route": route, "user_id": user_id or "anonymous"})
+            log_metric("chat_input_tokens", int(input_tokens), {"route": route})
+            log_metric("chat_output_tokens", int(output_tokens), {"route": route})
+            log_metric("memory_snippets_retrieved", snippet_count, {"user_id": user_id or "anonymous"})
 
         return jsonify({"text": response_text})
         
