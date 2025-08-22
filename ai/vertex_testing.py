@@ -522,31 +522,38 @@ retrievedSnippets (long-term facts):
         canonical_info = ""
         if CANONICAL_DATABASE_AVAILABLE:
             canonical_info = f"""
-CANONICAL EXERCISE DATABASE (WHITELIST):
+🔒 CANONICAL EXERCISE DATABASE (STRICT ENFORCEMENT):
 allowedExercises: [{allowed_ids_str}]
 
-RULE: Pick exerciseId only from allowedExercises. Unknown or disallowed IDs will be rejected.
-Examples of valid IDs: "barbell_bench_press", "dumbbell_shoulder_press", "pull_ups", "goblet_squat", "lat_pulldown".
-NEVER use custom names or variations - stick to the canonical IDs exactly."""
+⚠️  CRITICAL RULES - VIOLATIONS WILL BE REJECTED:
+1. exerciseId MUST be exactly one of the allowedExercises IDs above
+2. NO custom names, variations, or creative exercise IDs allowed
+3. NO exercises outside the allowedExercises list - they will be BANNED
+4. Use exact IDs: "barbell_bench_press" NOT "bench press" or "Bench Press"
+5. System will auto-validate and reject any unknown/banned exercise IDs
+
+✅ Valid example: "exerciseId": "goblet_squat"
+❌ Invalid: "exerciseId": "Goblet Squats" or "goblet_squats" or "dumbbell squat"
+
+The allowedExercises list above has been filtered for your injuries/experience/equipment."""
         
         template = f"""{context_str}
 
-TASK: Draft a single-day workout plan using canonical exercise database
-SAFETY REQUIREMENTS:
-- ONLY use exercise IDs from the canonical database - validation will reject unknown IDs
-- System automatically filters contraindicated exercises for injuries and experience level
+TASK: Draft a single-day workout plan using ONLY canonical exercise IDs from the allowed list
+🎯 SAFETY REQUIREMENTS:
+- Database automatically filters out contraindicated exercises for injuries and experience level  
 - Choose equipment-appropriate exercises for: {equipment_str}
-- Trust the database's built-in safety ratings and contraindications
+- System enforces ID compliance - unknown IDs will trigger plan rejection
 
-PROGRAMMING GUIDELINES:
+💪 PROGRAMMING GUIDELINES:
 - Use compound movements as the foundation  
 - 2-4 segments with 2-5 exercises each
 - Progressive overload principles
 - Exercise identifiers MUST be canonical IDs (e.g., "back_squat", "dumbbell_bench_press")
 {canonical_info}
 
-Return:
-1) WorkoutPlan JSON with canonical exercise IDs only
+🏗️ Return:
+1) WorkoutPlan JSON with canonical exercise IDs only (from allowedExercises)
 2) Human summary (≤120 words, {context['preferenceMemory']['tone']} tone)
 
 User message: {user_message}"""
