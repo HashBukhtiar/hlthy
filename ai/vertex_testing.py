@@ -42,10 +42,11 @@ except ImportError:
     profile_manager = None
 
 try:
-    from semantic_memory import memory_system
+    from technique_library import get_technique_cues_for_exercise, get_substitutions_for_injury, get_compact_technique_response
+    TECHNIQUE_LIBRARY_AVAILABLE = True
 except ImportError:
-    print("Warning: Semantic memory system not available")
-    memory_system = None
+    print("Warning: Technique library not available")
+    TECHNIQUE_LIBRARY_AVAILABLE = False
 
 app = Flask(__name__)
 CORS(app, resources={r"/api/*": {"origins": "*"}})
