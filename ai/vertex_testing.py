@@ -128,37 +128,33 @@ Return JSON only: {"label":"planner"}
 
 User message: """
 
-# System prompt for HLTHY Coach with AI Exercise Knowledge
-COACH_SYSTEM_PROMPT = """You are HLTHY Coach, a mobile fitness trainer with access to comprehensive exercise science knowledge. Goals: safe, specific, actionable programming using evidence-based exercise selection.
+# System prompt for HLTHY Coach with Canonical Exercise Database
+COACH_SYSTEM_PROMPT = """You are HLTHY Coach, a mobile fitness trainer with access to a canonical exercise database. Goals: safe, specific, actionable programming using evidence-based exercise selection.
 
-CRITICAL SAFETY RULES:
-1) NEVER recommend exercises contraindicated for active injuries or conditions in healthSummary
-2) Always prioritize joint-friendly, progressive overload principles  
-3) Avoid high-risk exercises for beginners (behind-neck press, upright rows, loaded spinal flexion)
-4) When in doubt, choose safer alternatives (goblet squat vs. back squat for beginners)
+CRITICAL EXERCISE DATABASE RULES:
+1) ONLY use exercise IDs from the canonical database - no custom exercise names
+2) Every exerciseId in your JSON must be a valid canonical ID (e.g., "barbell_bench_press", "goblet_squat")
+3) The validation system will REJECT any unknown exercise IDs
+4) Use the provided substitution suggestions when exercises are contraindicated
 5) Respect equipment limitations - only suggest exercises possible with available equipment
-6) Flag any exercise that might aggravate mentioned injuries/pain
 
-HIGH-RISK EXERCISES TO AVOID FOR BEGINNERS:
-- Behind-the-neck press/pulldowns (cervical spine risk)
-- Upright rows (shoulder impingement) 
-- Smith machine squats with feet forward (unnatural movement)
-- Loaded spinal flexion (weighted sit-ups)
-- Kipping pull-ups without proper base strength
-- Heavy overhead squats (requires extensive mobility)
+CANONICAL EXERCISE ID FORMAT:
+- Use underscores, not spaces: "barbell_bench_press" not "barbell bench press"
+- Be specific: "back_squat" not just "squat"  
+- Follow the exact IDs in the database: "dumbbell_shoulder_press", "hammer_curls", "pull_ups"
 
-INJURY-SPECIFIC EXERCISE RESTRICTIONS:
-- Shoulder pain: avoid overhead pressing, behind-neck movements, wide-grip bench
-- Elbow pain: avoid overhead pressing, tricep extensions, close-grip movements  
-- Lower back pain: avoid loaded spinal flexion, deadlifts from floor initially
-- Knee pain: avoid deep squats, lunges initially, high-impact movements
+SAFETY ENFORCEMENT:
+- The system automatically validates all exercise IDs against user injuries and experience
+- Contraindicated exercises will be flagged and must be replaced with suggested substitutions
+- High-risk exercises for beginners are automatically filtered out
+- All exercises include built-in safety ratings and injury contraindications
 
 EXERCISE SELECTION PRINCIPLES:
-- Choose evidence-based exercises with proper biomechanics
-- Prefer compound movements over isolation when appropriate
-- Match exercise difficulty to user's experience level
-- Consider injury history and current limitations
-- Use extensive exercise science knowledge, but be conservative with risk
+- Choose from canonical database only - no variations or creative names
+- Prefer compound movements with established safety profiles
+- Match exercise difficulty to user's experience level via database constraints
+- Use database substitution suggestions when primary choices are contraindicated
+- Trust the database's injury contraindications and experience level requirements
 
 JSON SCHEMAS:
 
@@ -420,47 +416,113 @@ User message: {user_message}"""
     return template
 
 def validate_workout_plan(plan_json, context):
-    """Enhanced validator for AI-generated workout plans"""
+    """Enhanced validator using canonical exercise database"""
     violations = []
     
     try:
         plan = json.loads(plan_json) if isinstance(plan_json, str) else plan_json
-        banned_exercises = context.get('healthSummary', {}).get('bannedExercises', [])
-        active_injuries = context.get('healthSummary', {}).get('activeInjuries', [])
         
+        if not CANONICAL_DATABASE_AVAILABLE:
+            # Fallback to legacy validation if database not available
+            return validate_workout_plan_legacy(plan, context)
+        
+        # Extract exercise IDs from plan
+        exercise_ids = []
         for segment in plan.get('segments', []):
             for exercise in segment.get('exercises', []):
-                exercise_name = exercise.get('exerciseName', '').lower()
-                exercise_id = exercise.get('exerciseId', '').lower()
-                
-                # Check for banned exercises (flexible matching)
-                for banned in banned_exercises:
-                    if banned.lower() in exercise_name or banned.lower() in exercise_id:
-                        violations.append(f'Violation: "{exercise_name}" contains banned exercise "{banned}"')
-                
-                # Check safety rating exists
-                if not exercise.get('safetyRating'):
-                    violations.append(f'Missing safety rating for: {exercise_name}')
-                
-                # Check equipment requirements exist
-                if not exercise.get('equipmentNeeded'):
-                    violations.append(f'Missing equipment requirements for: {exercise_name}')
-                
-                # Flag high-risk exercises for beginners
-                safety_rating = exercise.get('safetyRating', '')
-                if safety_rating == 'high' and 'beginner' in context.get('profileSummary', '').lower():
-                    violations.append(f'High-risk exercise for beginner: {exercise_name}')
+                exercise_id = exercise.get('exerciseId', '').strip()
+                if exercise_id:
+                    exercise_ids.append(exercise_id)
         
-        # Check for injury-specific violations
-        if 'elbow' in ' '.join(active_injuries):
-            for segment in plan.get('segments', []):
-                for exercise in segment.get('exercises', []):
-                    name = exercise.get('exerciseName', '').lower()
-                    if any(term in name for term in ['overhead', 'press', 'extension', 'curl']):
-                        violations.append(f'Potential elbow aggravator with active elbow injury: {name}')
+        # Build user context for validation
+        user_context = {
+            'experience_level': 'beginner',  # Default
+            'active_injuries': context.get('healthSummary', {}).get('activeInjuries', [])
+        }
+        
+        # Infer experience level from profile summary
+        profile_summary = context.get('profileSummary', '').lower()
+        if 'intermediate' in profile_summary or 'experienced' in profile_summary:
+            user_context['experience_level'] = 'intermediate'
+        elif 'advanced' in profile_summary:
+            user_context['experience_level'] = 'advanced'
+        elif 'beginner' in profile_summary or 'new' in profile_summary:
+            user_context['experience_level'] = 'beginner'
+        
+        # Validate using canonical database
+        validation_results = validate_workout_plan_exercises(exercise_ids, user_context)
+        
+        if not validation_results['valid']:
+            # Add database violations
+            violations.extend(validation_results['violations'])
+            
+            # Add unknown exercise violations
+            for unknown_id in validation_results['unknown_exercises']:
+                violations.append(f'Unknown exercise ID: "{unknown_id}" - not in canonical database')
+            
+            # Add substitution suggestions to violations for logging
+            for banned_id, subs in validation_results['substitution_suggestions'].items():
+                sub_names = [CANONICAL_EXERCISES[sub_id].display_name for sub_id in subs[:2]]  # Top 2 suggestions
+                violations.append(f'Suggested substitutions for {banned_id}: {", ".join(sub_names)}')
+        
+        # Add risk warnings
+        for warning in validation_results['risk_warnings']:
+            violations.append(f'Risk warning: {warning}')
+        
+        # Additional validation for missing required fields
+        for segment in plan.get('segments', []):
+            for exercise in segment.get('exercises', []):
+                exercise_id = exercise.get('exerciseId', '')
+                
+                # Check required fields exist
+                if not exercise.get('exerciseName'):
+                    violations.append(f'Missing exerciseName for: {exercise_id}')
+                if not exercise.get('equipmentNeeded'):
+                    violations.append(f'Missing equipment requirements for: {exercise_id}')
+                
+                # Validate against canonical data if exercise exists
+                if exercise_id in CANONICAL_EXERCISES:
+                    canonical_exercise = CANONICAL_EXERCISES[exercise_id]
+                    
+                    # Check equipment consistency
+                    required_equipment = canonical_exercise.equipment_required
+                    available_equipment = context.get('equipmentAccess', {}).get('current', 'gym')
+                    
+                    # Simple equipment check (could be enhanced)
+                    if 'home' in available_equipment and any(eq in required_equipment for eq in ['barbell', 'rack', 'machines']):
+                        violations.append(f'Exercise {exercise_id} requires gym equipment but user has home setup')
     
     except Exception as e:
-        violations.append(f'JSON parsing error: {str(e)}')
+        violations.append(f'Validation error: {str(e)}')
+    
+    return violations
+
+def validate_workout_plan_legacy(plan, context):
+    """Legacy validator for backward compatibility"""
+    violations = []
+    
+    banned_exercises = context.get('healthSummary', {}).get('bannedExercises', [])
+    active_injuries = context.get('healthSummary', {}).get('activeInjuries', [])
+    
+    for segment in plan.get('segments', []):
+        for exercise in segment.get('exercises', []):
+            exercise_name = exercise.get('exerciseName', '').lower()
+            exercise_id = exercise.get('exerciseId', '').lower()
+            
+            # Check for banned exercises (flexible matching)
+            for banned in banned_exercises:
+                if banned.lower() in exercise_name or banned.lower() in exercise_id:
+                    violations.append(f'Violation: "{exercise_name}" contains banned exercise "{banned}"')
+            
+            # Check equipment requirements exist
+            if not exercise.get('equipmentNeeded'):
+                violations.append(f'Missing equipment requirements for: {exercise_name}')
+            
+            # Flag high-risk exercises for beginners
+            if 'beginner' in context.get('profileSummary', '').lower():
+                high_risk_terms = ['behind-neck', 'upright row', 'kipping', 'overhead squat', 'weighted sit']
+                if any(term in exercise_name for term in high_risk_terms):
+                    violations.append(f'High-risk exercise for beginner: {exercise_name}')
     
     return violations
 
