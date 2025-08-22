@@ -337,26 +337,52 @@ retrievedSnippets (long-term facts):
 {bulleted_snippets}"""
 
     if route == "planner":
+        # Add canonical database context if available
+        canonical_info = ""
+        if CANONICAL_DATABASE_AVAILABLE:
+            # Build user context for allowed exercises
+            user_context = {
+                'experience_level': 'beginner',
+                'active_injuries': context.get('healthSummary', {}).get('activeInjuries', [])
+            }
+            
+            # Infer experience from profile
+            profile_summary = context.get('profileSummary', '').lower()
+            if 'intermediate' in profile_summary or 'experienced' in profile_summary:
+                user_context['experience_level'] = 'intermediate'
+            elif 'advanced' in profile_summary:
+                user_context['experience_level'] = 'advanced'
+            
+            allowed_exercises = get_all_allowed_exercises(user_context)
+            canonical_info = f"""
+CANONICAL EXERCISE DATABASE:
+You MUST use only these exercise IDs in your exerciseId fields:
+{', '.join(allowed_exercises[:30])}... (and other safe exercises from the database)
+
+CRITICAL: Unknown exercise IDs will be rejected by validation. Only use canonical IDs like:
+- "barbell_bench_press", "dumbbell_shoulder_press", "pull_ups", "back_squat", "deadlift"
+- "goblet_squat", "hammer_curls", "planks", "lat_pulldown", "overhead_press"
+
+NEVER use custom names or variations - stick to the canonical database IDs."""
+        
         template = f"""{context_str}
 
-TASK: Draft a single-day workout plan using your comprehensive exercise science knowledge
+TASK: Draft a single-day workout plan using canonical exercise database
 SAFETY REQUIREMENTS:
-- Absolutely AVOID exercises contraindicated for any conditions in healthSummary
-- Choose evidence-based exercises with proper biomechanical principles
-- Match exercise difficulty to user experience level
-- Only suggest exercises possible with available equipment: {equipment_str}
-- Include safety ratings for each exercise
-- Prefer joint-friendly variations when possible
+- ONLY use exercise IDs from the canonical database - validation will reject unknown IDs
+- System automatically filters contraindicated exercises for injuries and experience level
+- Choose equipment-appropriate exercises for: {equipment_str}
+- Trust the database's built-in safety ratings and contraindications
 
 PROGRAMMING GUIDELINES:
-- Use compound movements as the foundation
+- Use compound movements as the foundation  
 - 2-4 segments with 2-5 exercises each
 - Progressive overload principles
-- Appropriate rest periods for goals
-- Clear exercise identifiers (e.g., barbell_back_squat, dumbbell_chest_press)
+- Exercise identifiers MUST be canonical IDs (e.g., "back_squat", "dumbbell_bench_press")
+{canonical_info}
 
 Return:
-1) WorkoutPlan JSON with safety ratings and equipment requirements
+1) WorkoutPlan JSON with canonical exercise IDs only
 2) Human summary (≤120 words, {context['preferenceMemory']['tone']} tone)
 
 User message: {user_message}"""
