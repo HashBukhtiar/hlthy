@@ -14,13 +14,24 @@ try:
 except ImportError:
     print("Warning: Could not load load_env.py - using system environment variables only")
 
-# Import exercise safety knowledge and user profiles
+# Import exercise safety knowledge and canonical exercise database
 try:
     from exercise_safety import EXERCISE_SAFETY_GUIDELINES, get_safety_context_for_injury
 except ImportError:
     EXERCISE_SAFETY_GUIDELINES = "Safety guidelines not loaded"
     def get_safety_context_for_injury(injury_type):
         return {"avoid": [], "prefer": [], "modifications": []}
+
+try:
+    from exercise_database import (
+        CANONICAL_EXERCISES, validate_workout_plan_exercises, 
+        is_exercise_allowed, get_safe_substitutions, get_all_allowed_exercises,
+        suggest_exercise_id_from_name, InjuryType, ExperienceLevel
+    )
+    CANONICAL_DATABASE_AVAILABLE = True
+except ImportError:
+    print("Warning: Canonical exercise database not available - falling back to legacy safety")
+    CANONICAL_DATABASE_AVAILABLE = False
 
 try:
     from user_profiles import profile_manager, UserProfile, InjuryRecord, FitnessGoals
