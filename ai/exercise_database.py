@@ -1066,7 +1066,7 @@ CANONICAL_EXERCISES: Dict[str, ExerciseProfile] = {
         injury_cautions=set(),
         min_experience_level=ExperienceLevel.BEGINNER,
         safety_flags={"isolation_movt"},
-        substitutions=["glute_bridge", "lateral_band_walks" if 'lateral_band_walks' in CANONICAL_EXERCISES else "split_squat"]
+    substitutions=["glute_bridge", "split_squat"]
     ),
     "hip_adduction_machine": ExerciseProfile(
         exercise_id="hip_adduction_machine",
