@@ -24,9 +24,11 @@ except ImportError:
 
 try:
     from exercise_database import (
-        CANONICAL_EXERCISES, validate_workout_plan_exercises, 
-        is_exercise_allowed, get_safe_substitutions, get_all_allowed_exercises,
-        suggest_exercise_id_from_name, InjuryType, ExperienceLevel
+        CANONICAL_EXERCISES, validate_workout_plan_exercises,
+        is_exercise_allowed, get_safe_substitutions,
+        get_all_allowed_exercises, get_all_allowed_exercises_cached,
+        suggest_exercise_id_from_name, InjuryType, ExperienceLevel,
+        NAME_TO_ID_MAP
     )
     CANONICAL_DATABASE_AVAILABLE = True
 except ImportError:
@@ -134,9 +136,10 @@ COACH_SYSTEM_PROMPT = """You are HLTHY Coach, a mobile fitness trainer with acce
 CRITICAL EXERCISE DATABASE RULES:
 1) ONLY use exercise IDs from the canonical database - no custom exercise names
 2) Every exerciseId in your JSON must be a valid canonical ID (e.g., "barbell_bench_press", "goblet_squat")
-3) The validation system will REJECT any unknown exercise IDs
-4) Use the provided substitution suggestions when exercises are contraindicated
-5) Respect equipment limitations - only suggest exercises possible with available equipment
+3) You will receive allowedExercises: a shortlist of 10–30 canonical IDs; PICK ONLY from that list
+4) The validation system will REJECT any unknown or disallowed exercise IDs
+5) Use the provided substitution suggestions when exercises are contraindicated
+6) Respect equipment limitations - only suggest exercises possible with available equipment
 
 CANONICAL EXERCISE ID FORMAT:
 - Use underscores, not spaces: "barbell_bench_press" not "barbell bench press"
@@ -220,6 +223,135 @@ PROGRAMMING RULES:
 6) Include clear exercise identifiers for tracking
 
 After JSON, provide motivational human summary matching user's preferred tone."""
+
+# -------------------- Helpers: equipment + normalization + allowlist --------------------
+def _normalize_equipment_tokens(equipment_list):
+    """Normalize equipment tokens (singularize + map synonyms)."""
+    if not equipment_list:
+        return set()
+    norm = set()
+    syn = {
+        "barbells": "barbell",
+        "dumbbells": "dumbbells",
+        "machines": "machine",
+        "cables": "cable",
+        "racks": "rack",
+        "bands": "resistance_bands",
+        "pullup_bar": "pull_up_bar",
+        "pull-up bar": "pull_up_bar",
+        "pull up bar": "pull_up_bar",
+    }
+    for item in equipment_list:
+        t = (item or "").strip().lower()
+        if t in syn:
+            norm.add(syn[t])
+        else:
+            # crude singularization for common words
+            if t.endswith("s") and t[:-1] in {"barbell", "machine", "cable", "rack", "bench"}:
+                norm.add(t[:-1])
+            else:
+                norm.add(t)
+    return norm
+
+def _equipment_satisfies(requirements, available_norm: set) -> bool:
+    """Check exercise_profile.equipment_required subset against available equipment.
+    Any requirement containing 'machine' passes if 'machine' in available.
+    'lat_machine' also passes if 'machine' present. 'bench' is assumed in gym context.
+    """
+    if not requirements:
+        return True
+    for req in requirements:
+        r = (req or "").lower()
+        if "machine" in r:
+            if "machine" not in available_norm:
+                return False
+            continue
+        if r == "lat_machine":
+            if "machine" not in available_norm and "lat_machine" not in available_norm:
+                return False
+            continue
+        if r == "bench":
+            # allow if explicit bench or general gym context (rack often implies bench availability)
+            if "bench" not in available_norm and "rack" not in available_norm:
+                return False
+            continue
+        if r not in available_norm:
+            return False
+    return True
+
+def _build_user_context(context: dict) -> dict:
+    """Compose user_context for validators from AI context."""
+    user_ctx = {
+        'experience_level': 'beginner',
+        'active_injuries': context.get('healthSummary', {}).get('activeInjuries', []),
+        'equipment_available': []
+    }
+    profile_summary = context.get('profileSummary', '').lower()
+    if 'advanced' in profile_summary:
+        user_ctx['experience_level'] = 'advanced'
+    elif 'intermediate' in profile_summary or 'experienced' in profile_summary:
+        user_ctx['experience_level'] = 'intermediate'
+    else:
+        user_ctx['experience_level'] = 'beginner'
+
+    current_key = context.get('equipmentAccess', {}).get('current', 'gym')
+    equipment_available = context.get('equipmentAccess', {}).get(current_key, [])
+    user_ctx['equipment_available'] = list(_normalize_equipment_tokens(equipment_available))
+    # Imply bench in gym contexts
+    if current_key == 'gym' and 'bench' not in user_ctx['equipment_available']:
+        user_ctx['equipment_available'].append('bench')
+    return user_ctx
+
+def _allowed_ids_for_prompt(context: dict, max_ids: int = 25) -> list:
+    """Whitelist 10–30 IDs: use cached allowed (injury/experience), then filter by equipment."""
+    try:
+        user_ctx = _build_user_context(context)
+        base_allowed = get_all_allowed_exercises_cached({'experience_level': user_ctx['experience_level'], 'active_injuries': user_ctx['active_injuries']})
+        equip = set(user_ctx.get('equipment_available', []))
+        filtered = []
+        for ex_id in base_allowed:
+            ex = CANONICAL_EXERCISES.get(ex_id)
+            if not ex:
+                continue
+            if _equipment_satisfies(ex.equipment_required, equip):
+                filtered.append(ex_id)
+        # ensure 10–30 window; fallback to base_allowed slice if needed
+        if len(filtered) < 10:
+            filtered = base_allowed[:max_ids]
+        return filtered[:max_ids]
+    except Exception:
+        # conservative fallback
+        return list(CANONICAL_EXERCISES.keys())[:max_ids]
+
+def _normalize_text_to_ids(text: str) -> str:
+    """Replace exercise mentions with canonical IDs for better retrieval. Case-insensitive.
+    Uses NAME_TO_ID_MAP keys; prefers longer keys first to avoid partial overlaps.
+    """
+    try:
+        if not text:
+            return text
+        s = text
+        # sort keys by length desc
+        keys = sorted(NAME_TO_ID_MAP.keys(), key=len, reverse=True)
+        for k in keys:
+            if not k or len(k) < 3:
+                continue
+            ex_id = NAME_TO_ID_MAP[k]
+            # simple case-insensitive replace with word-boundary tolerant approach
+            # replace variations with spaces/underscores
+            for pat in {k, k.replace('_', ' ')}:
+                s = s.replace(pat, ex_id)
+                s = s.replace(pat.title(), ex_id)
+                s = s.replace(pat.upper(), ex_id)
+                s = s.replace(pat.lower(), ex_id)
+        # minimal hardcoded alias help
+        if ' bench ' in f" {s.lower()} ":
+            s = s.replace('bench', 'barbell_bench_press')
+        if ' ohp' in s.lower() or 'overhead press' in s.lower():
+            s = s.replace('OHP', 'overhead_press').replace('overhead press', 'overhead_press')
+        return s
+    except Exception:
+        return text
 
 # Default context for MVP with AI exercise knowledge
 def get_default_context():
@@ -314,9 +446,13 @@ def build_route_template(route, context, user_message, conversation_history):
     bulleted_turns = "\n".join([f"- {turn['role']}: {turn['text']}" for turn in short_terms])
     bulleted_snippets = "\n".join([f"- {snippet['source']} ({snippet.get('date', 'unknown')}): {snippet['text']}" for snippet in context.get('retrievedSnippets', [])])
     
-    # Build equipment context
+    # Build equipment context and allowed whitelist for prompts
     equipment_available = context.get('equipmentAccess', {}).get(context.get('equipmentAccess', {}).get('current', 'gym'), [])
     equipment_str = ", ".join(equipment_available) if equipment_available else "standard gym equipment"
+    allowed_ids_shortlist = []
+    if CANONICAL_DATABASE_AVAILABLE:
+        allowed_ids_shortlist = _allowed_ids_for_prompt(context, max_ids=25)
+    allowed_ids_str = ", ".join(allowed_ids_shortlist)
     
     context_str = f"""CONTEXT:
 profileSummary:
@@ -340,32 +476,15 @@ retrievedSnippets (long-term facts):
         # Add canonical database context if available
         canonical_info = ""
         if CANONICAL_DATABASE_AVAILABLE:
-            # Build user context for allowed exercises
-            user_context = {
-                'experience_level': 'beginner',
-                'active_injuries': context.get('healthSummary', {}).get('activeInjuries', [])
-            }
-            
-            # Infer experience from profile
-            profile_summary = context.get('profileSummary', '').lower()
-            if 'intermediate' in profile_summary or 'experienced' in profile_summary:
-                user_context['experience_level'] = 'intermediate'
-            elif 'advanced' in profile_summary:
-                user_context['experience_level'] = 'advanced'
-            
-            allowed_exercises = get_all_allowed_exercises(user_context)
             canonical_info = f"""
-CANONICAL EXERCISE DATABASE:
-You MUST use only these exercise IDs in your exerciseId fields:
-{', '.join(allowed_exercises[:30])}... (and other safe exercises from the database)
+CANONICAL EXERCISE DATABASE (WHITELIST):
+allowedExercises: [{allowed_ids_str}]
 
-CRITICAL: Unknown exercise IDs will be rejected by validation. Only use canonical IDs like:
-- "barbell_bench_press", "dumbbell_shoulder_press", "pull_ups", "back_squat", "deadlift"
-- "goblet_squat", "hammer_curls", "planks", "lat_pulldown", "overhead_press"
-
-NEVER use custom names or variations - stick to the canonical database IDs."""
+RULE: Pick exerciseId only from allowedExercises. Unknown or disallowed IDs will be rejected.
+Examples of valid IDs: "barbell_bench_press", "dumbbell_shoulder_press", "pull_ups", "goblet_squat", "lat_pulldown".
+NEVER use custom names or variations - stick to the canonical IDs exactly."""
         
-        template = f"""{context_str}
+    template = f"""{context_str}
 
 TASK: Draft a single-day workout plan using canonical exercise database
 SAFETY REQUIREMENTS:
@@ -388,7 +507,7 @@ Return:
 User message: {user_message}"""
 
     elif route == "technique":
-        template = f"""{context_str}
+    template = f"""{context_str}
 
 TASK: Provide technique guidance and safe exercise alternatives
 SAFETY ASSESSMENT:
@@ -399,6 +518,9 @@ SAFETY ASSESSMENT:
 - Include warning signs to stop exercising
 
 Use your extensive knowledge of biomechanics, anatomy, and injury prevention.
+
+ALLOWED EXERCISES SHORTLIST (must choose alternatives from these IDs only if suggesting exercises):
+allowedExercises: [{allowed_ids_str}]
 
 Return:
 1) TechniqueAdvice JSON with risk assessment and safe alternatives
