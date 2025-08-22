@@ -508,7 +508,7 @@ def route_user_message(user_message):
         # Default fallback
         return "explain"
 
-def build_route_template(route, context, user_message, conversation_history):
+def build_route_template(route, context, user_message, conversation_history, user_id=None):
     """Build the appropriate template based on route with AI exercise knowledge"""
     
     # Convert conversation history to shortTermTurns format (last 6 turns)
@@ -1202,7 +1202,7 @@ def chat():
         print(f"Routed to: {route}")
 
         # Build the appropriate template
-        template = build_route_template(route, context, current_message, conversation_history)
+        template = build_route_template(route, context, current_message, conversation_history, user_id)
 
         # Generate coach response with appropriate model
         # Use cheaper model for explanations, stronger model for planning/technique
@@ -1332,6 +1332,11 @@ def chat():
                                 'active_injuries': _build_user_context(context).get('active_injuries', [])
                             }
                             memory_system.add_workout_snippet(user_id, plan_data)
+                            
+                            # Record workout performance for progression tracking
+                            if PROGRESSION_TRACKER_AVAILABLE:
+                                record_workout_performance(user_id, plan_data)
+                                
                             print("✅ Stored workout plan with canonical IDs in semantic memory")
                     except Exception as e:
                         print(f"Could not store workout plan in memory: {e}")
