@@ -101,11 +101,11 @@ Here's a comprehensive testing checklist for your Settings system. Test these sc
   - Test Privacy Policy/Terms buttons
 
 ### **7. Advanced Section**
-- [ ] **Privacy Level Indicator**
+- [X] **Privacy Level Indicator**
   - Change privacy settings and verify level updates
   - Test all three levels (Open, Moderate, Strict)
 
-- [ ] **Privacy Insights**
+- [X] **Privacy Insights**
   - Open insights modal
   - Verify insights change based on settings
   - Test close button
