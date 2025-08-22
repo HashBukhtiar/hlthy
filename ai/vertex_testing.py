@@ -595,7 +595,7 @@ def enforce_canonical_on_plan(plan: dict, context: dict) -> tuple[dict, list]:
                     if guessed and guessed in CANONICAL_EXERCISES:
                         ex['exerciseId'] = guessed
                         ex['exerciseName'] = CANONICAL_EXERCISES[guessed].display_name
-                        changes.append(f"Mapped unknown '{ex_name or ex_id}' -> {guessed}")
+                        changes.append(f"Mapped unknown exercise to canonical ID: '{ex_name or ex_id}' -> {guessed}")
                         ex_id = guessed
 
             # If still unknown, mark to remove later
@@ -610,12 +610,12 @@ def enforce_canonical_on_plan(plan: dict, context: dict) -> tuple[dict, list]:
                         new_id = subs[0]
                         ex['exerciseId'] = new_id
                         ex['exerciseName'] = CANONICAL_EXERCISES[new_id].display_name
-                        changes.append(f"Replaced banned {ex_id} -> {new_id}")
+                        changes.append(f"Replaced banned exercise '{ex_id}' with safer '{new_id}'")
                         ex_id = new_id
                     else:
                         # Mark for removal if no safe subs
                         ex['_remove'] = True
-                        changes.append(f"Removed {ex_id} (no safe substitutions)")
+                        changes.append(f"Removed '{ex_id}' (no safe substitutions available)")
 
             # Fill in canonical metadata when available
             if not ex.get('safetyRating') and not ex.get('_unknown_exercise') and ex_id in CANONICAL_EXERCISES:
