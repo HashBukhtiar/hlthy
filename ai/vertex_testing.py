@@ -1195,6 +1195,25 @@ def chat():
         print(f"User ID: {user_id}")
         print(f"Conversation history length: {len(conversation_history)}")
         
+        # Rate limiting check
+        if user_id and RATE_LIMITING_AVAILABLE:
+            if not is_within_rate_limit(user_id):
+                log_metric("rate_limit_exceeded", 1.0, {"user_id": user_id})
+                return jsonify({
+                    "text": "You've reached your daily message limit. Please try again tomorrow or consider upgrading your plan.",
+                    "rate_limited": True
+                }), 429
+        
+        # Check for cached response (prompt caching)
+        cached_response = None
+        if user_id and RATE_LIMITING_AVAILABLE:
+            cached_response = get_cached_response(current_message, 
+                                                user_context={"user_id": user_id})
+            if cached_response:
+                log_metric("prompt_cache_hit", 1.0, {"user_id": user_id})
+                print("🎯 Returning cached response")
+                return jsonify({"text": cached_response, "cached": True})
+        
         # Normalize the current message to canonical IDs for retrieval/validation
         normalized_message = current_message
         try:
@@ -1206,6 +1225,17 @@ def chat():
         if user_id and profile_manager:
             print(f"Loading context for user: {user_id}")
             context = profile_manager.get_user_context_for_ai(user_id)
+            
+            # Use cached exercise whitelist for performance
+            if EXERCISE_CACHE_AVAILABLE:
+                user_context_dict = {
+                    "experience_level": context.get("experience_level", "beginner"),
+                    "active_injuries": context.get("activeInjuries", []),
+                    "equipment_available": context.get("equipment_available", ["gym"])
+                }
+                allowed_exercises = get_cached_allowed_exercises(user_context_dict)
+                context["allowed_exercises"] = allowed_exercises
+                print(f"🏋️  Using cached whitelist: {len(allowed_exercises)} exercises allowed")
             
             # Add semantic memory retrieval
             if memory_system:
