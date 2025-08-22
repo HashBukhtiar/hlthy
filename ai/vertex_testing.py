@@ -1162,30 +1162,44 @@ def chat():
 
                     if violations:
                         print(f"Validation violations found: {violations}")
-                        # Build compact correction prompt
+                        # Build compact correction prompt with only violations and allowed IDs
                         try:
                             allowed_ids_shortlist = _allowed_ids_for_prompt(context, max_ids=25) if CANONICAL_DATABASE_AVAILABLE else []
-                            correction_prompt = (
-                                "You produced a WorkoutPlan JSON that violated constraints.\n"
-                                "Fix ONLY the exerciseId fields to resolve the violations.\n"
-                                f"allowedExercises: {allowed_ids_shortlist}\n"
-                                "Rules:\n- choose replacements strictly from allowedExercises\n- keep sets/reps/load/notes unchanged when possible\n- ensure equipment requirements are satisfied\n- output JSON only (no prose)\n\n"
-                                f"Violations: {violations}\n\n"
-                                f"Prior JSON: {plan_json}"
-                            )
-                            fix_resp = coach_model.generate_content(correction_prompt)
-                            fix_text = fix_resp.text.strip()
-                            fix_start = fix_text.find('{')
-                            fix_end = fix_text.rfind('}') + 1
-                            if fix_start >= 0 and fix_end > fix_start:
-                                fixed_json = fix_text[fix_start:fix_end]
-                                # Final validate
-                                fix_violations = validate_workout_plan(fixed_json, context)
-                                if not fix_violations:
-                                    response_text = response_text[:json_start] + fixed_json + response_text[json_end:]
-                                    print("Applied correction-loop fixed JSON")
-                                else:
-                                    print(f"Correction-loop still has violations: {fix_violations}")
+                            
+                            # Filter only the critical violations that need fixing
+                            critical_violations = [v for v in violations if 
+                                                 'Unknown exercise ID' in v or 
+                                                 'not in allowed shortlist' in v or 
+                                                 'contraindicated for' in v or
+                                                 'BANNED:' in v or
+                                                 'requires equipment not available' in v]
+                            
+                            if critical_violations:
+                                correction_prompt = (
+                                    "CRITICAL: Your WorkoutPlan JSON violated constraints and must be fixed.\n\n"
+                                    "RULES:\n"
+                                    f"- Use ONLY these exercise IDs: {allowed_ids_shortlist}\n"
+                                    "- Replace any banned/unknown exercises with safe alternatives from the list\n"
+                                    "- Keep existing sets/reps/load when possible\n"
+                                    "- Output ONLY the corrected JSON (no explanatory text)\n\n"
+                                    f"VIOLATIONS TO FIX:\n{chr(10).join(critical_violations)}\n\n"
+                                    f"ORIGINAL JSON:\n{plan_json}"
+                                )
+                                
+                                print("Sending correction prompt to fix violations...")
+                                fix_resp = coach_model.generate_content(correction_prompt)
+                                fix_text = fix_resp.text.strip()
+                                fix_start = fix_text.find('{')
+                                fix_end = fix_text.rfind('}') + 1
+                                if fix_start >= 0 and fix_end > fix_start:
+                                    fixed_json = fix_text[fix_start:fix_end]
+                                    # Final validate
+                                    fix_violations = validate_workout_plan(fixed_json, context)
+                                    if not fix_violations:
+                                        response_text = response_text[:json_start] + fixed_json + response_text[json_end:]
+                                        print("✅ Correction loop successfully fixed all violations")
+                                    else:
+                                        print(f"⚠️  Correction loop still has violations: {fix_violations[:3]}")  # Show first 3
                         except Exception as corr_e:
                             print(f"Correction loop failed: {corr_e}")
             except Exception as e:
