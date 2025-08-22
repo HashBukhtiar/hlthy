@@ -1520,12 +1520,21 @@ def suggest_exercise_from_name():
         
         if suggested_id:
             exercise = CANONICAL_EXERCISES[suggested_id]
+            # Also check if it's allowed for the user context if provided
+            user_context = {
+                'experience_level': data.get('experience_level', 'beginner'),
+                'active_injuries': data.get('active_injuries', [])
+            }
+            is_allowed, violations = is_exercise_allowed(suggested_id, user_context)
+            
             return jsonify({
                 "success": True,
                 "suggested_id": suggested_id,
                 "display_name": exercise.display_name,
                 "risk_level": exercise.risk_level.value,
-                "equipment_required": exercise.equipment_required
+                "equipment_required": exercise.equipment_required,
+                "is_allowed": is_allowed,
+                "violations": violations if not is_allowed else []
             })
         else:
             return jsonify({
@@ -1536,6 +1545,34 @@ def suggest_exercise_from_name():
         
     except Exception as e:
         print(f"Error in suggest_exercise_from_name: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/exercises/normalize-text', methods=['POST'])
+def normalize_exercise_text():
+    """Normalize text containing exercise mentions to canonical IDs"""
+    try:
+        if not CANONICAL_DATABASE_AVAILABLE:
+            return jsonify({"error": "Canonical exercise database not available"}), 500
+        
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "No JSON data received"}), 400
+            
+        text = data.get('text', '')
+        if not text:
+            return jsonify({"error": "Missing text"}), 400
+        
+        normalized_text = _normalize_text_to_ids(text)
+        
+        return jsonify({
+            "success": True,
+            "original_text": text,
+            "normalized_text": normalized_text,
+            "changes_made": normalized_text != text
+        })
+        
+    except Exception as e:
+        print(f"Error in normalize_exercise_text: {e}")
         return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
