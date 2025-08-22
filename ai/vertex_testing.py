@@ -586,26 +586,56 @@ User message: {user_message}"""
 
     elif route == "technique":
         safety_why = EXERCISE_SAFETY_GUIDELINES if isinstance(EXERCISE_SAFETY_GUIDELINES, str) else ""
+        
+        # Check for technique library availability and extract exercise mentions
+        technique_context = ""
+        if TECHNIQUE_LIBRARY_AVAILABLE and CANONICAL_DATABASE_AVAILABLE:
+            # Extract potential exercise IDs from user message
+            normalized_message = _normalize_text_to_ids(user_message)
+            mentioned_exercises = []
+            for exercise_id in CANONICAL_EXERCISES.keys():
+                if exercise_id in normalized_message.lower():
+                    mentioned_exercises.append(exercise_id)
+            
+            # Get technique guidance for mentioned exercises
+            if mentioned_exercises:
+                technique_responses = []
+                active_injuries = context.get('healthSummary', {}).get('activeInjuries', [])
+                
+                for exercise_id in mentioned_exercises[:2]:  # Limit to 2 exercises to save tokens
+                    tech_response = get_compact_technique_response(exercise_id, active_injuries)
+                    technique_responses.append(tech_response)
+                
+                if technique_responses:
+                    technique_context = "\n🎯 TECHNIQUE LIBRARY (for mentioned exercises):\n"
+                    for resp in technique_responses:
+                        technique_context += f"\n{resp['exercise_name']} ({resp['exercise_id']}):\n"
+                        if resp['technique_cues']:
+                            technique_context += f"Cues: {'; '.join(resp['technique_cues'][:3])}\n"
+                        if resp['safe_substitutions']:
+                            subs = [f"{s['substitute_name']} ({s['reason'][:50]}...)" for s in resp['safe_substitutions'][:2]]
+                            technique_context += f"Substitutions: {'; '.join(subs)}\n"
+                    technique_context += f"\n(Token cost: ~{sum(r['token_count'] for r in technique_responses)} tokens)"
+        
         template = f"""{context_str}
 
-TASK: Provide technique guidance and safe exercise alternatives
-SAFETY ASSESSMENT:
+TASK: Provide technique guidance and safe exercise alternatives using database-powered substitutions
+🔍 SAFETY ASSESSMENT:
 - Analyze injury risk based on healthSummary
-- Identify exercises to absolutely avoid
-- Suggest safer alternatives with clear rationale
-- Provide evidence-based technique cues
+- Use canonical database for precise substitution recommendations
+- Provide evidence-based technique cues from technique library
 - Include warning signs to stop exercising
 
-Use your extensive knowledge of biomechanics, anatomy, and injury prevention.
-
-ALLOWED EXERCISES SHORTLIST (must choose alternatives from these IDs only if suggesting exercises):
+ALLOWED EXERCISES SHORTLIST (for alternative suggestions):
 allowedExercises: [{allowed_ids_str}]
 
-REFERENCE SAFETY GUIDELINES (for explanations only, not for gatekeeping):
+{technique_context}
+
+📚 REFERENCE SAFETY GUIDELINES (for explanations only, not for gatekeeping):
 {safety_why}
 
-Return:
-1) TechniqueAdvice JSON with risk assessment and safe alternatives
+🏗️ Return:
+1) TechniqueAdvice JSON with risk assessment and database-powered safe alternatives
 2) Human summary (≤100 words, prioritize safety)
 
 User message: {user_message}"""
