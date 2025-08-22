@@ -41,9 +41,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
             profileThumbnailUrl: userData.profileThumbnailUrl,
             emailVerified: currentUser.emailVerified,
           } as UserProfile);
+        } else {
+          console.log("User document not found in Firestore during refresh");
+          setUserProfile(null);
         }
       } catch (error) {
         console.error("Error refreshing user profile:", error);
+        setUserProfile(null);
       }
     }
   };
@@ -76,9 +80,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
               profileThumbnailUrl: userData.profileThumbnailUrl,
               emailVerified: user.emailVerified,
             } as UserProfile);
+          } else {
+            // User exists in Auth but not in Firestore yet (e.g., during signup flow)
+            console.log("User document not found in Firestore, user may be in signup process");
+            setUserProfile(null);
           }
         } catch (error) {
           console.error("Error fetching user profile:", error);
+          // Don't set user profile on error, keep it null
+          setUserProfile(null);
         }
       } else {
         setUserProfile(null);
