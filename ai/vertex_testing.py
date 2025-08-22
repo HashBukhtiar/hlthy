@@ -315,13 +315,25 @@ def _allowed_ids_for_prompt(context: dict, max_ids: int = 25) -> list:
                 continue
             if _equipment_satisfies(ex.equipment_required, equip):
                 filtered.append(ex_id)
-        # ensure 10–30 window; fallback to base_allowed slice if needed
+        
+        # Ensure 10–30 window; prioritize compound movements and common exercises
         if len(filtered) < 10:
-            filtered = base_allowed[:max_ids]
+            # Add basic bodyweight/dumbbell exercises as fallback
+            fallback_ids = ["push_ups", "goblet_squat", "dumbbell_row", "planks", "glute_bridge", 
+                          "dumbbell_shoulder_press", "hammer_curls", "split_squat", "dead_bug", "lateral_raise"]
+            for fb_id in fallback_ids:
+                if fb_id in CANONICAL_EXERCISES and fb_id not in filtered:
+                    filtered.append(fb_id)
+                if len(filtered) >= 10:
+                    break
+        
+        # Cap at max_ids to keep prompt focused
         return filtered[:max_ids]
-    except Exception:
-        # conservative fallback
-        return list(CANONICAL_EXERCISES.keys())[:max_ids]
+    except Exception as e:
+        print(f"Error building allowed IDs list: {e}")
+        # Ultra-conservative fallback - basic safe exercises
+        return ["push_ups", "goblet_squat", "dumbbell_row", "planks", "glute_bridge", 
+                "dumbbell_shoulder_press", "hammer_curls", "split_squat", "dead_bug", "lateral_raise"]
 
 def _normalize_text_to_ids(text: str) -> str:
     """Replace exercise mentions with canonical IDs for better retrieval. Case-insensitive.
@@ -1082,17 +1094,17 @@ def chat():
         # Route the message
         route = route_user_message(current_message)
         print(f"Routed to: {route}")
-        
+
         # Build the appropriate template
-    template = build_route_template(route, context, current_message, conversation_history)
-        
+        template = build_route_template(route, context, current_message, conversation_history)
+
         # Generate coach response
         full_prompt = f"{COACH_SYSTEM_PROMPT}\n\n{template}"
-        
+
         print(f"Generating response with coach model...")
         response = coach_model.generate_content(full_prompt)
         response_text = response.text.strip()
-        
+
         # Basic validation and enforcement for workout plans (canonical IDs)
         if route == "planner" and "{" in response_text:
             try:
@@ -1151,9 +1163,9 @@ def chat():
                             print(f"Correction loop failed: {corr_e}")
             except Exception as e:
                 print(f"Validation error: {e}")
-        
+
         print(f"Coach response generated: {response_text[:200]}...")
-        
+
         # Store conversation in semantic memory for future retrieval
         if user_id and memory_system:
             try:
@@ -1162,11 +1174,11 @@ def chat():
                     memory_system.add_chat_snippet(user_id, normalized_message, role="user")
                 except Exception:
                     memory_system.add_chat_snippet(user_id, current_message, role="user")
-                
+
                 # Store coach response (first 300 chars to avoid too much storage)
                 coach_summary = response_text[:300] + "..." if len(response_text) > 300 else response_text
                 memory_system.add_chat_snippet(user_id, coach_summary, role="coach")
-                
+
                 # If it's a workout plan, also store as structured workout data
                 if route == "planner" and "{" in response_text:
                     try:
@@ -1180,11 +1192,11 @@ def chat():
                             print("Stored workout plan in semantic memory")
                     except Exception as e:
                         print(f"Could not store workout plan in memory: {e}")
-                        
+
                 print("Stored conversation in semantic memory")
             except Exception as e:
                 print(f"Warning: Could not store in semantic memory: {e}")
-        
+
         return jsonify({"text": response_text})
         
     except Exception as e:

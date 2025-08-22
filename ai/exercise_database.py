@@ -392,8 +392,7 @@ CANONICAL_EXERCISES: Dict[str, ExerciseProfile] = {
     "seated_cable_row": ExerciseProfile(
         exercise_id="seated_cable_row",
         display_name="Seated Cable Row",
-        common_names=["cable row", "rowing machine (cable)"]
-        ,
+        common_names=["cable row", "rowing machine (cable)"],
         risk_level=RiskLevel.LOW,
         primary_muscles=["lats", "rhomboids", "rear_delts"],
         equipment_required=["cable", "machine"],
@@ -1066,7 +1065,7 @@ CANONICAL_EXERCISES: Dict[str, ExerciseProfile] = {
         injury_cautions=set(),
         min_experience_level=ExperienceLevel.BEGINNER,
         safety_flags={"isolation_movt"},
-    substitutions=["glute_bridge", "split_squat"]
+        substitutions=["glute_bridge", "split_squat"]
     ),
     "hip_adduction_machine": ExerciseProfile(
         exercise_id="hip_adduction_machine",
