@@ -9,6 +9,8 @@ import { getFunctions, httpsCallable } from 'firebase/functions';
 import { app } from '@/firebaseConfig';
 import { BOTTOM_BAR_HEIGHT } from '@/styles/globalStyles';
 import { useBlockEnforcement } from '@/utils/blockUtils';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '@/firebaseConfig';
 
 const archetypeIcons = {
   'athlete': require('@/assets/images/athlete.png'),
@@ -53,6 +55,12 @@ export interface MilestoneDetails {
   totalLoss?: number;
   percentageLoss?: string;
 }
+
+const generateConversationId = (userId1: string, userId2: string): string => {
+  // Sort user IDs alphabetically to ensure consistent conversation ID
+  const sortedIds = [userId1, userId2].sort();
+  return `${sortedIds[0]}_${sortedIds[1]}`;
+};
 
 const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
   const { currentUser, userProfile: currentUserProfile, refreshUserProfile } = useAuth();
@@ -225,6 +233,29 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
       );
     }
     return null;
+  };
+
+  const handleDirectMessage = async () => {
+    if (!currentUser || !displayProfileData?.id) return;
+    
+    const conversationId = generateConversationId(currentUser.uid, displayProfileData.id);
+    
+    try {
+      // Check if conversation already exists
+      const conversationRef = doc(db, 'conversations', conversationId);
+      const conversationSnap = await getDoc(conversationRef);
+      
+      if (conversationSnap.exists()) {
+        // Conversation exists, navigate directly
+        router.push(`/chat/${conversationId}`);
+      } else {
+        // New conversation, navigate and let SmartChatInput handle permission checking
+        router.push(`/chat/${conversationId}`);
+      }
+    } catch (error) {
+      console.error('Error navigating to chat:', error);
+      Alert.alert('Error', 'Failed to open chat. Please try again.');
+    }
   };
 
   const handleBlockUser = async () => {
@@ -820,6 +851,17 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
           <Text style={styles.profileUsername}>
             @{processedProfileData?.username || 'username'}
           </Text>
+          
+          {/* DM Button (Other's Profile) */}
+          {!isOwnProfile && displayProfileData && !isBlockedByUser && !hasBlockedUser && (
+            <TouchableOpacity
+              style={styles.dmButton}
+              onPress={handleDirectMessage}
+            >
+              <Ionicons name="chatbubble-outline" size={18} color="#007AFF" />
+            </TouchableOpacity>
+          )}
+          
           {/* Three dots button (Other's Profile) */}
           {!isOwnProfile && displayProfileData && (
             <TouchableOpacity
@@ -1001,6 +1043,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 5,
+  },
+  dmButton: {
+    marginLeft: 8,
+    padding: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0, 122, 255, 0.1)',
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 122, 255, 0.3)',
   },
   inlineMoreButton: {
     marginLeft: 8,
