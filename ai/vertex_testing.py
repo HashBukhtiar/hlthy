@@ -553,6 +553,8 @@ retrievedSnippets (long-term facts):
     if route == "planner":
         # Add canonical database context if available
         canonical_info = ""
+        progression_context = ""
+        
         if CANONICAL_DATABASE_AVAILABLE:
             canonical_info = f"""
 🔒 CANONICAL EXERCISE DATABASE (STRICT ENFORCEMENT):
@@ -569,6 +571,11 @@ allowedExercises: [{allowed_ids_str}]
 ❌ Invalid: "exerciseId": "Goblet Squats" or "goblet_squats" or "dumbbell squat"
 
 The allowedExercises list above has been filtered for your injuries/experience/equipment."""
+
+        # Add progression context if available
+        if PROGRESSION_TRACKER_AVAILABLE and user_id:
+            allowed_ids_list = _allowed_ids_for_prompt(context, max_ids=25)
+            progression_context = get_progression_suggestions(user_id, allowed_ids_list[:10])
         
         template = f"""{context_str}
 
@@ -584,6 +591,8 @@ TASK: Draft a single-day workout plan using ONLY canonical exercise IDs from the
 - Progressive overload principles
 - Exercise identifiers MUST be canonical IDs (e.g., "back_squat", "dumbbell_bench_press")
 {canonical_info}
+
+{progression_context}
 
 🏗️ Return:
 1) WorkoutPlan JSON with canonical exercise IDs only (from allowedExercises)
