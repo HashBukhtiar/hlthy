@@ -552,6 +552,92 @@ def validate_workout_plan_legacy(plan, context):
     
     return violations
 
+# --- Canonical enforcement helpers ---
+def _get_user_context_from_ai_context(context: dict) -> dict:
+    """Map AI context to user_context contract for canonical validator."""
+    user_context = {
+        'experience_level': 'beginner',
+        'active_injuries': context.get('healthSummary', {}).get('activeInjuries', []),
+    }
+    profile_summary = context.get('profileSummary', '').lower()
+    if 'advanced' in profile_summary:
+        user_context['experience_level'] = 'advanced'
+    elif 'intermediate' in profile_summary or 'experienced' in profile_summary:
+        user_context['experience_level'] = 'intermediate'
+    else:
+        user_context['experience_level'] = 'beginner'
+    return user_context
+
+def enforce_canonical_on_plan(plan: dict, context: dict) -> tuple[dict, list]:
+    """
+    Enforce canonical ID rules on a WorkoutPlan dict:
+    - Ensure every exerciseId is known; if unknown, try to infer from exerciseName.
+    - Replace contraindicated exercises with safe substitutions.
+    - Fill safetyRating and equipmentNeeded from canonical metadata.
+    Returns (updated_plan, changes_log)
+    """
+    changes: list = []
+    if not CANONICAL_DATABASE_AVAILABLE:
+        return plan, changes
+
+    user_context = _get_user_context_from_ai_context(context)
+
+    # Iterate over exercises
+    for segment in plan.get('segments', []) or []:
+        for ex in segment.get('exercises', []) or []:
+            ex_id = (ex.get('exerciseId') or '').strip()
+            ex_name = (ex.get('exerciseName') or '').strip()
+
+            # If ID unknown, try to map from name
+            if not ex_id or ex_id not in CANONICAL_EXERCISES:
+                if ex_name:
+                    guessed = suggest_exercise_id_from_name(ex_name) if CANONICAL_DATABASE_AVAILABLE else None
+                    if guessed and guessed in CANONICAL_EXERCISES:
+                        ex['exerciseId'] = guessed
+                        ex['exerciseName'] = CANONICAL_EXERCISES[guessed].display_name
+                        changes.append(f"Mapped unknown '{ex_name or ex_id}' -> {guessed}")
+                        ex_id = guessed
+
+            # If still unknown, mark to remove later
+            ex['_unknown_exercise'] = ex_id not in CANONICAL_EXERCISES
+
+            # If known, ensure allowed; if not, try substitutions
+            if not ex['_unknown_exercise']:
+                allowed, violations = is_exercise_allowed(ex_id, user_context)
+                if not allowed:
+                    subs = get_safe_substitutions(ex_id, user_context)
+                    if subs:
+                        new_id = subs[0]
+                        ex['exerciseId'] = new_id
+                        ex['exerciseName'] = CANONICAL_EXERCISES[new_id].display_name
+                        changes.append(f"Replaced banned {ex_id} -> {new_id}")
+                        ex_id = new_id
+                    else:
+                        # Mark for removal if no safe subs
+                        ex['_remove'] = True
+                        changes.append(f"Removed {ex_id} (no safe substitutions)")
+
+            # Fill in canonical metadata when available
+            if not ex.get('safetyRating') and not ex.get('_unknown_exercise') and ex_id in CANONICAL_EXERCISES:
+                ex['safetyRating'] = CANONICAL_EXERCISES[ex_id].risk_level.value
+            if (not ex.get('equipmentNeeded')) and not ex.get('_unknown_exercise') and ex_id in CANONICAL_EXERCISES:
+                ex['equipmentNeeded'] = CANONICAL_EXERCISES[ex_id].equipment_required
+
+    # Remove unknown or flagged exercises
+    for segment in plan.get('segments', []) or []:
+        cleaned = []
+        for ex in segment.get('exercises', []) or []:
+            if ex.get('_remove') or ex.get('_unknown_exercise'):
+                # Skip it
+                continue
+            # Clean helper flags
+            ex.pop('_remove', None)
+            ex.pop('_unknown_exercise', None)
+            cleaned.append(ex)
+        segment['exercises'] = cleaned
+
+    return plan, changes
+
 # Health check endpoints
 @app.route('/', methods=['GET'])
 def health_check():
@@ -877,7 +963,7 @@ def chat():
         response = coach_model.generate_content(full_prompt)
         response_text = response.text.strip()
         
-        # Basic validation for workout plans
+        # Basic validation and enforcement for workout plans (canonical IDs)
         if route == "planner" and "{" in response_text:
             try:
                 # Extract JSON from response
@@ -886,10 +972,25 @@ def chat():
                 if json_start >= 0 and json_end > json_start:
                     plan_json = response_text[json_start:json_end]
                     violations = validate_workout_plan(plan_json, context)
-                    
+
+                    # Try canonical enforcement/repair
+                    try:
+                        plan_obj = json.loads(plan_json)
+                        repaired_plan, changes = enforce_canonical_on_plan(plan_obj, context)
+                        if changes:
+                            print(f"Applied canonical enforcement changes: {changes}")
+                            # Re-validate after repair
+                            recheck = validate_workout_plan(repaired_plan, context)
+                            if recheck:
+                                print(f"Post-repair remaining violations: {recheck}")
+                            # Rebuild response_text by replacing the original JSON segment with repaired JSON
+                            repaired_json_str = json.dumps(repaired_plan, separators=(",", ":"))
+                            response_text = response_text[:json_start] + repaired_json_str + response_text[json_end:]
+                    except Exception as enfe:
+                        print(f"Canonical enforcement error: {enfe}")
+
                     if violations:
                         print(f"Validation violations found: {violations}")
-                        # Could implement validator correction here
             except Exception as e:
                 print(f"Validation error: {e}")
         
