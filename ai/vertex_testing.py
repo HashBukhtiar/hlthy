@@ -1475,9 +1475,9 @@ def chat():
         traceback.print_exc()
         return jsonify({"text": "I'm having trouble right now. Please try again later."}), 500
 
-@app.route('/api/health', methods=['GET'])
-def health_check():
-    """Health check endpoint for testing"""
+@app.route('/api/system-health', methods=['GET'])
+def system_health_check():
+    """Detailed system health check endpoint for monitoring"""
     health_status = {
         "status": "healthy",
         "timestamp": datetime.now().isoformat(),
