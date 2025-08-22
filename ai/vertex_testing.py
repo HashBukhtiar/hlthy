@@ -925,30 +925,77 @@ def get_inferred_context_from_conversation(current_message, conversation_history
         context["profileSummary"] = "Experienced lifter with solid foundation looking to optimize training and continue progression."
         context["requestMeta"]["safetyLevel"] = "standard"
     
-    # Injury detection and context
+    # Injury detection and context with canonical database integration
     injury_detected = None
     if any(word in text_lower for word in ["elbow", "hurt", "pain", "injury", "sore"]):
         if "elbow" in text_lower:
-            injury_detected = "elbow_pain"
-            safety_context = get_safety_context_for_injury("elbow_pain")
-            context["healthSummary"]["activeInjuries"] = ["elbow_pain"] 
-            context["healthSummary"]["bannedExercises"].extend(safety_context["avoid"])
+            injury_detected = "elbow"
+            context["healthSummary"]["activeInjuries"] = ["elbow"] 
+            
+            if CANONICAL_DATABASE_AVAILABLE:
+                # Use canonical database for precise injury bans
+                from exercise_database import INJURY_BANNED_EXERCISES, InjuryType
+                banned_ids = INJURY_BANNED_EXERCISES.get(InjuryType.ELBOW, set())
+                # Convert to display names for legacy compatibility
+                banned_names = []
+                for exercise_id in banned_ids:
+                    if exercise_id in CANONICAL_EXERCISES:
+                        banned_names.append(CANONICAL_EXERCISES[exercise_id].display_name.lower())
+                context["healthSummary"]["bannedExercises"].extend(banned_names)
+            else:
+                # Legacy fallback
+                safety_context = get_safety_context_for_injury("elbow_pain")
+                context["healthSummary"]["bannedExercises"].extend(safety_context["avoid"])
+            
             context["healthSummary"]["cautionMovements"] = ["overhead_movement", "elbow_flexion_under_load"]
+            
         elif any(word in text_lower for word in ["shoulder", "rotator"]):
-            injury_detected = "shoulder_pain"
-            safety_context = get_safety_context_for_injury("shoulder_pain")
-            context["healthSummary"]["activeInjuries"] = ["shoulder_pain"]
-            context["healthSummary"]["bannedExercises"].extend(safety_context["avoid"])
+            injury_detected = "shoulder"
+            context["healthSummary"]["activeInjuries"] = ["shoulder"]
+            
+            if CANONICAL_DATABASE_AVAILABLE:
+                from exercise_database import INJURY_BANNED_EXERCISES, InjuryType
+                banned_ids = INJURY_BANNED_EXERCISES.get(InjuryType.SHOULDER, set())
+                banned_names = []
+                for exercise_id in banned_ids:
+                    if exercise_id in CANONICAL_EXERCISES:
+                        banned_names.append(CANONICAL_EXERCISES[exercise_id].display_name.lower())
+                context["healthSummary"]["bannedExercises"].extend(banned_names)
+            else:
+                safety_context = get_safety_context_for_injury("shoulder_pain")
+                context["healthSummary"]["bannedExercises"].extend(safety_context["avoid"])
+                
         elif any(word in text_lower for word in ["back", "spine", "lumbar"]):
-            injury_detected = "lower_back_pain"
-            safety_context = get_safety_context_for_injury("lower_back_pain")
-            context["healthSummary"]["activeInjuries"] = ["lower_back_pain"]
-            context["healthSummary"]["bannedExercises"].extend(safety_context["avoid"])
+            injury_detected = "lower_back"
+            context["healthSummary"]["activeInjuries"] = ["lower_back"]
+            
+            if CANONICAL_DATABASE_AVAILABLE:
+                from exercise_database import INJURY_BANNED_EXERCISES, InjuryType
+                banned_ids = INJURY_BANNED_EXERCISES.get(InjuryType.LOWER_BACK, set())
+                banned_names = []
+                for exercise_id in banned_ids:
+                    if exercise_id in CANONICAL_EXERCISES:
+                        banned_names.append(CANONICAL_EXERCISES[exercise_id].display_name.lower())
+                context["healthSummary"]["bannedExercises"].extend(banned_names)
+            else:
+                safety_context = get_safety_context_for_injury("lower_back_pain")
+                context["healthSummary"]["bannedExercises"].extend(safety_context["avoid"])
+                
         elif any(word in text_lower for word in ["knee"]):
-            injury_detected = "knee_pain"
-            safety_context = get_safety_context_for_injury("knee_pain")
-            context["healthSummary"]["activeInjuries"] = ["knee_pain"]
-            context["healthSummary"]["bannedExercises"].extend(safety_context["avoid"])
+            injury_detected = "knee"
+            context["healthSummary"]["activeInjuries"] = ["knee"]
+            
+            if CANONICAL_DATABASE_AVAILABLE:
+                from exercise_database import INJURY_BANNED_EXERCISES, InjuryType
+                banned_ids = INJURY_BANNED_EXERCISES.get(InjuryType.KNEE, set())
+                banned_names = []
+                for exercise_id in banned_ids:
+                    if exercise_id in CANONICAL_EXERCISES:
+                        banned_names.append(CANONICAL_EXERCISES[exercise_id].display_name.lower())
+                context["healthSummary"]["bannedExercises"].extend(banned_names)
+            else:
+                safety_context = get_safety_context_for_injury("knee_pain")
+                context["healthSummary"]["bannedExercises"].extend(safety_context["avoid"])
     
     # Equipment availability
     if any(word in text_lower for word in ["home", "no gym", "bodyweight", "apartment", "limited equipment"]):
