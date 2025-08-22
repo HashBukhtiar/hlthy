@@ -1080,6 +1080,138 @@ def classify_intent():
         print(f"Error in classify_intent endpoint: {e}")
         return jsonify({"error": str(e)}), 500
 
+@app.route('/api/exercises/canonical', methods=['GET'])
+def get_canonical_exercises():
+    """Get information about canonical exercise database"""
+    try:
+        if not CANONICAL_DATABASE_AVAILABLE:
+            return jsonify({"error": "Canonical exercise database not available"}), 500
+        
+        # Optional user context for filtering
+        user_id = request.args.get('user_id')
+        experience_level = request.args.get('experience', 'beginner')
+        active_injuries = request.args.getlist('injuries')
+        
+        user_context = {
+            'experience_level': experience_level,
+            'active_injuries': active_injuries
+        }
+        
+        # Get all exercises or filtered by user context
+        if request.args.get('filter') == 'allowed':
+            allowed_exercise_ids = get_all_allowed_exercises(user_context)
+            exercises_info = {}
+            for exercise_id in allowed_exercise_ids:
+                exercise = CANONICAL_EXERCISES[exercise_id]
+                exercises_info[exercise_id] = {
+                    "display_name": exercise.display_name,
+                    "risk_level": exercise.risk_level.value,
+                    "equipment_required": exercise.equipment_required,
+                    "primary_muscles": exercise.primary_muscles,
+                    "min_experience": exercise.min_experience_level.value
+                }
+        else:
+            # Return all exercises with their metadata
+            exercises_info = {}
+            for exercise_id, exercise in CANONICAL_EXERCISES.items():
+                is_allowed, violations = is_exercise_allowed(exercise_id, user_context)
+                exercises_info[exercise_id] = {
+                    "display_name": exercise.display_name,
+                    "common_names": exercise.common_names,
+                    "risk_level": exercise.risk_level.value,
+                    "equipment_required": exercise.equipment_required,
+                    "primary_muscles": exercise.primary_muscles,
+                    "min_experience": exercise.min_experience_level.value,
+                    "injury_contraindications": [inj.value for inj in exercise.injury_contraindications],
+                    "safety_flags": list(exercise.safety_flags),
+                    "substitutions": exercise.substitutions,
+                    "allowed_for_user": is_allowed,
+                    "violations": violations if not is_allowed else []
+                }
+        
+        return jsonify({
+            "success": True,
+            "total_exercises": len(CANONICAL_EXERCISES),
+            "exercises": exercises_info,
+            "user_context": user_context,
+            "database_version": "v1.0"
+        })
+        
+    except Exception as e:
+        print(f"Error in get_canonical_exercises: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/exercises/validate', methods=['POST'])
+def validate_exercise_list():
+    """Validate a list of exercise IDs against canonical database"""
+    try:
+        if not CANONICAL_DATABASE_AVAILABLE:
+            return jsonify({"error": "Canonical exercise database not available"}), 500
+        
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "No JSON data received"}), 400
+            
+        exercise_ids = data.get('exercise_ids', [])
+        if not exercise_ids:
+            return jsonify({"error": "Missing exercise_ids"}), 400
+        
+        # Build user context
+        user_context = {
+            'experience_level': data.get('experience_level', 'beginner'),
+            'active_injuries': data.get('active_injuries', [])
+        }
+        
+        # Validate exercises
+        validation_results = validate_workout_plan_exercises(exercise_ids, user_context)
+        
+        return jsonify({
+            "success": True,
+            "validation_results": validation_results,
+            "user_context": user_context
+        })
+        
+    except Exception as e:
+        print(f"Error in validate_exercise_list: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/exercises/suggest', methods=['POST'])
+def suggest_exercise_from_name():
+    """Suggest canonical exercise ID from natural language name"""
+    try:
+        if not CANONICAL_DATABASE_AVAILABLE:
+            return jsonify({"error": "Canonical exercise database not available"}), 500
+        
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "No JSON data received"}), 400
+            
+        exercise_name = data.get('exercise_name', '')
+        if not exercise_name:
+            return jsonify({"error": "Missing exercise_name"}), 400
+        
+        suggested_id = suggest_exercise_id_from_name(exercise_name)
+        
+        if suggested_id:
+            exercise = CANONICAL_EXERCISES[suggested_id]
+            return jsonify({
+                "success": True,
+                "suggested_id": suggested_id,
+                "display_name": exercise.display_name,
+                "risk_level": exercise.risk_level.value,
+                "equipment_required": exercise.equipment_required
+            })
+        else:
+            return jsonify({
+                "success": False,
+                "message": "No canonical exercise found for that name",
+                "suggestion": "Try using more specific terms or check the canonical database"
+            })
+        
+    except Exception as e:
+        print(f"Error in suggest_exercise_from_name: {e}")
+        return jsonify({"error": str(e)}), 500
+
 if __name__ == '__main__':
     print("Starting HLTHY Coach Flask server...")
     port = int(os.environ.get("PORT", 5001))
