@@ -14,8 +14,9 @@ import {
 } from 'react-native';
 import { TextInput } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
-import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
 import CustomSpinner from '@/components/CustomSpinner';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { app } from '@/firebaseConfig';
 
 interface SignUpStep1Props {
   visible: boolean;
@@ -117,79 +118,58 @@ export default function SignUpStep1({ visible, onBackPress, onNext, onShowLogin 
     ]).start();
   }, [firstNameShakeAnim, lastNameShakeAnim, emailShakeAnim]);
 
-  const handleNext = useCallback(async () => {
-    // Dismiss keyboard first
-    Keyboard.dismiss();
+  const handleNext = async () => {
     setSubmitted(true);
-    setErrorMessage('');
-    setLoading(true);
-    const trimmedEmail = email.trim().toLowerCase();
+    
     if (!firstName.trim()) {
       setErrorMessage('Please enter your first name');
       triggerShake('first');
-      setLoading(false);
       return;
     }
     if (!lastName.trim()) {
       setErrorMessage('Please enter your last name');
       triggerShake('last');
-      setLoading(false);
       return;
     }
-    if (!trimmedEmail) {
+    if (!email.trim()) {
       setErrorMessage('Please enter your email address');
       triggerShake('email');
-      setLoading(false);
       return;
     }
-    if (!validateEmail(trimmedEmail)) {
+    if (!validateEmail(email)) {
       setErrorMessage('Please provide a valid email.');
-      setIsEmailValid(false);
       triggerShake('email');
-      setLoading(false);
       return;
     }
-    setIsEmailValid(true);
-    const auth = getAuth();
-    const randomPassword = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36) + Date.now();
+
+    setLoading(true);
+    setErrorMessage('');
+
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, trimmedEmail, randomPassword);
-      // Unexpected: user did not exist, so we created a dummy account. Delete it immediately.
-      if (userCredential && auth.currentUser) {
-        try {
-          await auth.currentUser.delete();
-          setLoading(false);
-          onNext({ firstName, lastName, email: trimmedEmail });
-          return;
-        } catch (deleteErr) {
-          setLoading(false);
-          setErrorMessage('Something went wrong. Please try again.');
-          setIsEmailValid(false);
-          triggerShake('email');
-          console.warn('Failed to delete dummy account for', trimmedEmail, deleteErr);
-          return;
-        }
+      // Check if email exists using Cloud Function
+      const functions = getFunctions(app, 'northamerica-northeast2');
+      const checkEmailExists = httpsCallable(functions, 'checkEmailExists');
+      
+      const result = await checkEmailExists({ email: email.toLowerCase() });
+      const data = result.data as { exists: boolean };
+      
+      if (data.exists) {
+        setErrorMessage('An account with this email already exists');
+        triggerShake('email');
+        setLoading(false);
+        return;
       }
-    } catch (err: any) {
+
+      // Email is available, proceed to next step
+      onNext({ firstName, lastName, email });
+    } catch (error: any) {
+      console.error('Error checking email:', error);
+      setErrorMessage('Unable to verify email. Please try again.');
+      triggerShake('email');
+    } finally {
       setLoading(false);
-      if (err.code === 'auth/email-already-in-use') {
-        setErrorMessage('This email is already registered. Try signing in.');
-        setIsEmailValid(false);
-        triggerShake('email');
-        return;
-      } else if (err.code === 'auth/invalid-email') {
-        setErrorMessage('Please provide a valid email address.');
-        setIsEmailValid(false);
-        triggerShake('email');
-        return;
-      } else {
-        setErrorMessage('Error checking email. Please try again.');
-        setIsEmailValid(false);
-        triggerShake('email');
-        return;
-      }
     }
-  }, [firstName, lastName, email, onNext, triggerShake]);
+  };
 
   const handleBackPress = useCallback(() => {
     Keyboard.dismiss();
@@ -418,12 +398,12 @@ export default function SignUpStep1({ visible, onBackPress, onNext, onShowLogin 
         </ScrollView>
 
         {/* Loading spinner overlay */}
-        {loading || spinnerFadeAnim._value > 0 ? (
+        {loading ? (
           <>
             <View style={styles.loadingBlocker} pointerEvents="auto" />
             <Animated.View style={[styles.loadingOverlay, { opacity: spinnerFadeAnim }]} pointerEvents="auto">
               <CustomSpinner size={48} />
-              <Text style={styles.loadingText}>Checking email...</Text>
+              <Text style={styles.loadingText}>Processing...</Text>
             </Animated.View>
           </>
         ) : null}
