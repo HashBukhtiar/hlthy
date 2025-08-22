@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Alert, Image, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Alert, Image, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useAuth } from '@/context/AuthContext';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db, auth, functions } from '@/firebaseConfig';
@@ -21,6 +21,7 @@ import { exportSettings, importSettings } from '@/utils/settingsExport';
 import { trackSettingsChange, generateSettingsInsights, calculatePrivacyLevel } from '@/utils/settingsAnalytics';
 import { Ionicons } from '@expo/vector-icons';
 import { uploadProfileThumbnail } from '@/services/profileStorage';
+import NetInfo from '@react-native-community/netinfo';
 
 const archetypeData: SelectorItem[] = [
   { 
@@ -142,6 +143,9 @@ export default function Settings() {
   const [originalSettings, setOriginalSettings] = useState<Partial<UserSettings>>({});
   const [isSaving, setIsSaving] = useState(false);
   const [imageManuallyChanged, setImageManuallyChanged] = useState(false);
+  const [isOnline, setIsOnline] = useState(true);
+  const [autoSaveEnabled, setAutoSaveEnabled] = useState(true);
+  const [lastAutoSave, setLastAutoSave] = useState<Date | null>(null);
 
   // Update settings when userProfile changes
   useEffect(() => {
@@ -314,6 +318,37 @@ export default function Settings() {
     });
   }, [profileImage, userProfile?.profileImageUrl, isSaving, hasUnsavedChanges]);
 
+  useEffect(() => {
+    // Monitor network connectivity
+    const unsubscribe = NetInfo.addEventListener(state => {
+      setIsOnline(state.isConnected ?? false);
+      console.log('Network status:', state.isConnected ? 'Online' : 'Offline');
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    // Auto-save functionality
+    if (!hasUnsavedChanges || !autoSaveEnabled || !isOnline || isSaving) {
+      return;
+    }
+
+    const autoSaveTimer = setTimeout(async () => {
+      try {
+        console.log('🔄 Auto-saving settings...');
+        await handleSaveSettings();
+        setLastAutoSave(new Date());
+        console.log('✅ Auto-save completed');
+      } catch (error) {
+        console.error('❌ Auto-save failed:', error);
+        // Don't show alert for auto-save failures to avoid interrupting user
+      }
+    }, 5000); // Auto-save after 5 seconds of no changes
+
+    return () => clearTimeout(autoSaveTimer);
+  }, [hasUnsavedChanges, autoSaveEnabled, isOnline, isSaving, settings]);
+
   const handleBackPress = () => {
     if (hasUnsavedChanges) {
       Alert.alert(
@@ -431,6 +466,16 @@ export default function Settings() {
   const handleSaveSettings = async () => {
     if (!currentUser) return;
     
+    // Check network connectivity
+    if (!isOnline) {
+      Alert.alert(
+        'No Internet Connection',
+        'Please check your internet connection and try again.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+    
     try {
       setLoading(true);
       
@@ -462,7 +507,15 @@ export default function Settings() {
       await saveSettingsAfterValidation();
     } catch (error) {
       console.error("Error updating settings:", error);
-      Alert.alert("Error", "Failed to update settings: " + (error?.message || 'Unknown error'));
+      
+      // Enhanced error handling
+      const errorMessage = error?.code === 'unavailable' 
+        ? 'Service temporarily unavailable. Please try again.'
+        : error?.code === 'permission-denied'
+        ? 'You don\'t have permission to update these settings.'
+        : 'Failed to update settings: ' + (error?.message || 'Unknown error');
+      
+      Alert.alert("Error", errorMessage);
       setLoading(false);
     }
   };
@@ -1225,26 +1278,70 @@ export default function Settings() {
 
         {/* Action Buttons */}
         <View style={styles.actionButtons}>
+          {/* Network Status Indicator */}
+          {!isOnline && (
+            <View style={styles.networkStatusIndicator}>
+              <Ionicons name="wifi-outline" size={16} color="#FF3B30" />
+              <Text style={styles.networkStatusText}>
+                No internet connection - changes will be saved when online
+              </Text>
+            </View>
+          )}
+
+          {/* Auto-save Status */}
+          {lastAutoSave && (
+            <View style={styles.autoSaveIndicator}>
+              <Ionicons name="checkmark-circle" size={16} color="#34C759" />
+              <Text style={styles.autoSaveText}>
+                Auto-saved {lastAutoSave.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </Text>
+            </View>
+          )}
+
+          {/* Unsaved Changes Indicator */}
           {hasUnsavedChanges && (
             <View style={styles.unsavedChangesIndicator}>
+              <Ionicons name="warning" size={16} color="#FF9500" />
               <Text style={styles.unsavedChangesText}>
                 You have unsaved changes
+                {autoSaveEnabled && isOnline ? ' (auto-saving in 5s)' : ''}
               </Text>
             </View>
           )}
           
+          {/* Save Button */}
           <TouchableOpacity 
             style={[
               styles.saveButton,
-              hasUnsavedChanges && styles.saveButtonHighlighted
+              hasUnsavedChanges && styles.saveButtonHighlighted,
+              !isOnline && styles.saveButtonDisabled
             ]} 
             onPress={handleSaveSettings}
-            disabled={loading}
+            disabled={loading || !isOnline}
           >
-            <Text style={styles.saveButtonText}>
-              {loading ? 'Saving...' : hasUnsavedChanges ? 'Save Changes' : 'Settings Saved'}
-            </Text>
+            <View style={styles.saveButtonContent}>
+              {loading && <ActivityIndicator size="small" color="white" style={{ marginRight: 8 }} />}
+              <Text style={[
+                styles.saveButtonText,
+                !isOnline && styles.saveButtonTextDisabled
+              ]}>
+                {loading ? 'Saving...' : 
+                !isOnline ? 'No Connection' :
+                hasUnsavedChanges ? 'Save Changes' : 'Settings Saved'}
+              </Text>
+            </View>
           </TouchableOpacity>
+
+          {/* Auto-save Toggle */}
+          <View style={styles.autoSaveToggle}>
+            <Text style={styles.autoSaveToggleLabel}>Auto-save changes</Text>
+            <TouchableOpacity
+              style={[styles.toggleSwitch, autoSaveEnabled && styles.toggleSwitchActive]}
+              onPress={() => setAutoSaveEnabled(!autoSaveEnabled)}
+            >
+              <View style={[styles.toggleThumb, autoSaveEnabled && styles.toggleThumbActive]} />
+            </TouchableOpacity>
+          </View>
 
           <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
             <Text style={styles.logoutButtonText}>Logout</Text>
@@ -1725,5 +1822,92 @@ const styles = StyleSheet.create({
   },
   placeholder: {
     width: 40,
+  },
+  networkStatusIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 59, 48, 0.1)',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 59, 48, 0.3)',
+  },
+  networkStatusText: {
+    color: '#FF3B30',
+    fontSize: 14,
+    fontWeight: '500',
+    marginLeft: 8,
+    flex: 1,
+  },
+  autoSaveIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(52, 199, 89, 0.1)',
+    padding: 8,
+    borderRadius: 6,
+    marginBottom: 8,
+    alignSelf: 'center',
+  },
+  autoSaveText: {
+    color: '#34C759',
+    fontSize: 12,
+    fontWeight: '500',
+    marginLeft: 6,
+  },
+  
+  // Enhanced Save Button
+  saveButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  saveButtonDisabled: {
+    backgroundColor: '#666',
+    opacity: 0.6,
+  },
+  saveButtonTextDisabled: {
+    color: '#999',
+  },
+  
+  // Auto-save Toggle
+  autoSaveToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 12,
+    backgroundColor: '#2C2C2E',
+    borderRadius: 8,
+    marginBottom: 16,
+  },
+  autoSaveToggleLabel: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  toggleSwitch: {
+    width: 50,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: '#666',
+    justifyContent: 'center',
+    padding: 2,
+  },
+  toggleSwitchActive: {
+    backgroundColor: '#34C759',
+  },
+  toggleThumb: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  toggleThumbActive: {
+    transform: [{ translateX: 20 }],
   },
 });
