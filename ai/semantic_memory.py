@@ -330,7 +330,7 @@ class SemanticMemorySystem:
         self._save_user_memory(user_id)
     
     def _rebuild_user_index(self, user_id: str):
-        """Rebuild FAISS index for user"""
+        """Rebuild FAISS index for user with normalized text embeddings"""
         if not self.embeddings_enabled or user_id not in self.snippets:
             return
         
@@ -340,8 +340,12 @@ class SemanticMemorySystem:
             
             for snippet in snippets:
                 if snippet.embedding is None:
-                    embedding = self.embedding_model.encode([snippet.text])[0]
+                    # Use normalized text for consistent embeddings
+                    normalized_text = _normalize_text_for_embedding(snippet.text)
+                    embedding = self.embedding_model.encode([normalized_text])[0]
                     snippet.embedding = embedding
+                    # Store normalized text for reference
+                    snippet.metadata['normalized_text'] = normalized_text
                 embeddings.append(snippet.embedding)
             
             if embeddings:
