@@ -20,13 +20,6 @@ service cloud.firestore {
       return exists(/databases/$(database)/documents/users/$(targetUserId)/followers/$(currentUserId));
     }
     
-    function canViewProfile(targetUserId, currentUserId) {
-      return currentUserId == targetUserId ||
-        (get(/databases/$(database)/documents/users/$(targetUserId)).data.get('profileVisibility', 'public') == 'public') ||
-        (get(/databases/$(database)/documents/users/$(targetUserId)).data.get('profileVisibility', 'public') == 'followers' && 
-         isFollowing(targetUserId, currentUserId));
-    }
-    
     function canViewPost(postData, currentUserId) {
       return postData.authorId == currentUserId ||
         (postData.get('visibility', 'public') == 'public' && 
@@ -40,6 +33,11 @@ service cloud.firestore {
 
     // Users collection
     match /users/{userId} {
+      allow read: if isAuthenticated() && 
+        (isOwner(userId) || 
+         resource.data.get('profileVisibility', 'public') == 'public' ||
+         (resource.data.get('profileVisibility', 'public') == 'followers' && 
+          exists(/databases/$(database)/documents/users/$(userId)/followers/$(request.auth.uid))));
       allow create: if isOwner(userId);
       allow update: if isOwner(userId);
     }
