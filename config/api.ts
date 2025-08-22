@@ -8,7 +8,7 @@ const getApiUrl = () => {
   }
   
   // Default to production Google Cloud Run service
-  return 'https://hlthy-ai-service-s4rm2uw5oa-pd.a.run.app';
+  return 'https://hlthy-ai-service-375457000023.northamerica-northeast2.run.app';
 };
 
 export const API_BASE_URL = getApiUrl();
