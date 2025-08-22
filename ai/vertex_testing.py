@@ -139,15 +139,30 @@ else:
     except Exception as e:
         print(f"Error initializing Vertex AI: {e}")
 
-# Initialize models
+# Initialize models with fallback options
 try:
+    # Try newer models first
     coach_model = GenerativeModel("gemini-2.0-flash-exp")  # Main coach model
-    router_model = GenerativeModel("gemini-1.5-flash")     # Cheaper model for routing
-    print("Generative models initialized successfully")
+    router_model = GenerativeModel("gemini-2.0-flash-exp")     # Use same model for routing to avoid model access issues
+    print("Generative models initialized successfully with gemini-2.0-flash-exp")
 except Exception as e:
-    print(f"Warning: Could not initialize models: {e}")
-    coach_model = None
-    router_model = None
+    print(f"Failed to initialize with gemini-2.0-flash-exp, trying fallback: {e}")
+    try:
+        # Fallback to more widely available models
+        coach_model = GenerativeModel("gemini-1.5-pro")  # Main coach model
+        router_model = GenerativeModel("gemini-1.5-pro")     # Use same model for routing
+        print("Generative models initialized successfully with gemini-1.5-pro fallback")
+    except Exception as e2:
+        print(f"Failed to initialize with gemini-1.5-pro, trying basic fallback: {e2}")
+        try:
+            # Final fallback to basic model
+            coach_model = GenerativeModel("gemini-pro")
+            router_model = GenerativeModel("gemini-pro")
+            print("Generative models initialized successfully with gemini-pro fallback")
+        except Exception as e3:
+            print(f"Error: Could not initialize any models: {e3}")
+            coach_model = None
+            router_model = None
 
 # Router prompt
 ROUTER_PROMPT = """You are a fitness coach intent classifier. Classify the user's intent into exactly one label:
