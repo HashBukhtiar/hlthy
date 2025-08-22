@@ -62,12 +62,13 @@ class ObservabilityDB:
                     invalid_exercise TEXT NOT NULL,
                     suggested_exercise TEXT,
                     context TEXT,
-                    correction_successful BOOLEAN,
-                    INDEX(timestamp),
-                    INDEX(user_id),
-                    INDEX(violation_type)
+                    correction_successful BOOLEAN
                 )
             """)
+            
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_violations_timestamp ON violations(timestamp)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_violations_user_id ON violations(user_id)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_violations_type ON violations(violation_type)")
             
             # Substitutions table
             conn.execute("""
@@ -78,12 +79,13 @@ class ObservabilityDB:
                     original_exercise TEXT NOT NULL,
                     substituted_exercise TEXT NOT NULL,
                     reason TEXT NOT NULL,
-                    user_context TEXT,
-                    INDEX(timestamp),
-                    INDEX(user_id),
-                    INDEX(reason)
+                    user_context TEXT
                 )
             """)
+            
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_substitutions_timestamp ON substitutions(timestamp)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_substitutions_user_id ON substitutions(user_id)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_substitutions_reason ON substitutions(reason)")
             
             # System metrics table
             conn.execute("""
@@ -92,11 +94,12 @@ class ObservabilityDB:
                     timestamp TEXT NOT NULL,
                     metric_name TEXT NOT NULL,
                     value REAL NOT NULL,
-                    tags TEXT,
-                    INDEX(timestamp),
-                    INDEX(metric_name)
+                    tags TEXT
                 )
             """)
+            
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_metrics_timestamp ON system_metrics(timestamp)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_metrics_name ON system_metrics(metric_name)")
             
             # User sessions table
             conn.execute("""
@@ -107,11 +110,12 @@ class ObservabilityDB:
                     session_end TEXT,
                     message_count INTEGER DEFAULT 0,
                     violations_count INTEGER DEFAULT 0,
-                    substitutions_count INTEGER DEFAULT 0,
-                    INDEX(user_id),
-                    INDEX(session_start)
+                    substitutions_count INTEGER DEFAULT 0
                 )
             """)
+            
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON user_sessions(user_id)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_sessions_start ON user_sessions(session_start)")
             
             conn.commit()
         finally:

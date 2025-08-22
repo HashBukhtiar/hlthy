@@ -90,7 +90,7 @@ class ExerciseParity:
         canonical_ids = set(self.canonical_exercises.keys())
         
         # String IDs in app vs proper exercise IDs in canonical
-        canonical_names = {ex.name.lower().replace(' ', '_'): ex_id 
+        canonical_names = {ex.display_name.lower().replace(' ', '_'): ex_id 
                           for ex_id, ex in self.canonical_exercises.items()}
         
         results = {
@@ -113,7 +113,7 @@ class ExerciseParity:
                         "app_id": app_id,
                         "app_name": app_ex.get('name'),
                         "canonical_id": canonical_id,
-                        "canonical_name": self.canonical_exercises[canonical_id].name
+                        "canonical_name": self.canonical_exercises[canonical_id].display_name
                     })
                 else:
                     results["app_only"].append({
@@ -123,27 +123,27 @@ class ExerciseParity:
                     })
         
         # Exercises only in canonical
-        canonical_names_reverse = {ex.name: ex_id for ex_id, ex in self.canonical_exercises.items()}
+        canonical_names_reverse = {ex.display_name: ex_id for ex_id, ex in self.canonical_exercises.items()}
         for canonical_id, canonical_ex in self.canonical_exercises.items():
             if canonical_id not in app_ids:
                 # Check if name exists in app
                 matching_app = None
                 for app_id, app_ex in self.app_exercises.items():
-                    if app_ex.get('name', '').lower() == canonical_ex.name.lower():
+                    if app_ex.get('name', '').lower() == canonical_ex.display_name.lower():
                         matching_app = app_id
                         break
                 
                 if matching_app:
                     results["id_mismatches"].append({
                         "canonical_id": canonical_id,
-                        "canonical_name": canonical_ex.name,
+                        "canonical_name": canonical_ex.display_name,
                         "app_id": matching_app,
                         "app_name": self.app_exercises[matching_app].get('name')
                     })
                 else:
                     results["canonical_only"].append({
                         "id": canonical_id,
-                        "name": canonical_ex.name,
+                        "name": canonical_ex.display_name,
                         "risk_level": canonical_ex.risk_level.value,
                         "equipment": canonical_ex.equipment_required
                     })
@@ -164,7 +164,7 @@ class ExerciseParity:
             # Find matching canonical exercise
             canonical_match = None
             for canonical_id, canonical_ex in self.canonical_exercises.items():
-                if (canonical_ex.name.lower() == app_name.lower() or 
+                if (canonical_ex.display_name.lower() == app_name.lower() or 
                     canonical_id == app_id):
                     canonical_match = canonical_ex
                     break

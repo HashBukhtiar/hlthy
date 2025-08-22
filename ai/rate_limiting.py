@@ -242,3 +242,15 @@ class PromptCache:
 # Global instances
 rate_limiter = RateLimiter(daily_limit=50)  # 50 messages per day per user
 prompt_cache = PromptCache(max_age_hours=24)  # 24-hour cache
+
+def is_within_rate_limit(user_id: str) -> bool:
+    """Check if user is within rate limit - main interface function"""
+    return rate_limiter.check_rate_limit(user_id)[0]
+
+def cache_prompt(prompt: str, response: str, user_context: Dict[str, any] = None):
+    """Cache prompt response - main interface function"""
+    prompt_cache.cache_prompt(prompt, response, user_context)
+
+def get_cached_response(prompt: str, user_context: Dict[str, any] = None) -> str:
+    """Get cached response for prompt - main interface function"""
+    return prompt_cache.get_cached_response(prompt, user_context)
