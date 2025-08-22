@@ -1214,20 +1214,19 @@ def chat():
 
         print(f"Coach response generated: {response_text[:200]}...")
 
-        # Store conversation in semantic memory for future retrieval
+        # Store conversation in semantic memory for future retrieval (with normalized IDs)
         if user_id and memory_system:
             try:
-                # Store user message (normalized to canonical IDs)
-                try:
-                    memory_system.add_chat_snippet(user_id, normalized_message, role="user")
-                except Exception:
-                    memory_system.add_chat_snippet(user_id, current_message, role="user")
+                # Store user message (normalized to canonical IDs for better retrieval)
+                normalized_user_msg = _normalize_text_to_ids(current_message) if CANONICAL_DATABASE_AVAILABLE else current_message
+                memory_system.add_chat_snippet(user_id, normalized_user_msg, role="user")
 
-                # Store coach response (first 300 chars to avoid too much storage)
+                # Store coach response (first 300 chars to avoid too much storage, also normalized)
                 coach_summary = response_text[:300] + "..." if len(response_text) > 300 else response_text
-                memory_system.add_chat_snippet(user_id, coach_summary, role="coach")
+                normalized_coach_summary = _normalize_text_to_ids(coach_summary) if CANONICAL_DATABASE_AVAILABLE else coach_summary
+                memory_system.add_chat_snippet(user_id, normalized_coach_summary, role="coach")
 
-                # If it's a workout plan, also store as structured workout data
+                # If it's a workout plan, also store as structured workout data with canonical IDs
                 if route == "planner" and "{" in response_text:
                     try:
                         json_start = response_text.find('{')
@@ -1236,12 +1235,17 @@ def chat():
                             plan_json_str = response_text[json_start:json_end]
                             plan_data = json.loads(plan_json_str)
                             plan_data['date'] = datetime.now().isoformat()
+                            plan_data['route'] = route
+                            plan_data['user_context'] = {
+                                'experience_level': _build_user_context(context).get('experience_level'),
+                                'active_injuries': _build_user_context(context).get('active_injuries', [])
+                            }
                             memory_system.add_workout_snippet(user_id, plan_data)
-                            print("Stored workout plan in semantic memory")
+                            print("✅ Stored workout plan with canonical IDs in semantic memory")
                     except Exception as e:
                         print(f"Could not store workout plan in memory: {e}")
 
-                print("Stored conversation in semantic memory")
+                print("✅ Stored conversation with normalized IDs in semantic memory")
             except Exception as e:
                 print(f"Warning: Could not store in semantic memory: {e}")
 
