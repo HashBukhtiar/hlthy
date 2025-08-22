@@ -340,29 +340,62 @@ def _normalize_text_to_ids(text: str) -> str:
     Uses NAME_TO_ID_MAP keys; prefers longer keys first to avoid partial overlaps.
     """
     try:
-        if not text:
+        if not text or not NAME_TO_ID_MAP:
             return text
-        s = text
-        # sort keys by length desc
+        
+        s = text.lower()  # Work with lowercase for matching
+        original_text = text  # Keep original for case preservation
+        
+        # Sort keys by length desc to avoid partial overlaps (e.g., "bench" vs "bench press")
         keys = sorted(NAME_TO_ID_MAP.keys(), key=len, reverse=True)
+        replacements = []
+        
         for k in keys:
             if not k or len(k) < 3:
                 continue
             ex_id = NAME_TO_ID_MAP[k]
-            # simple case-insensitive replace with word-boundary tolerant approach
-            # replace variations with spaces/underscores
-            for pat in {k, k.replace('_', ' ')}:
-                s = s.replace(pat, ex_id)
-                s = s.replace(pat.title(), ex_id)
-                s = s.replace(pat.upper(), ex_id)
-                s = s.replace(pat.lower(), ex_id)
-        # minimal hardcoded alias help
-        if ' bench ' in f" {s.lower()} ":
-            s = s.replace('bench', 'barbell_bench_press')
-        if ' ohp' in s.lower() or 'overhead press' in s.lower():
-            s = s.replace('OHP', 'overhead_press').replace('overhead press', 'overhead_press')
-        return s
-    except Exception:
+            
+            # Find all occurrences of this key in lowercase text
+            import re
+            # Use word boundaries to avoid partial matches
+            pattern = r'\b' + re.escape(k) + r'\b'
+            matches = list(re.finditer(pattern, s))
+            
+            for match in matches:
+                start, end = match.span()
+                # Store replacement info
+                replacements.append((start, end, ex_id))
+        
+        # Sort replacements by position (reverse order to maintain indices)
+        replacements.sort(key=lambda x: x[0], reverse=True)
+        
+        # Apply replacements to original text
+        result = original_text
+        for start, end, ex_id in replacements:
+            result = result[:start] + ex_id + result[end:]
+        
+        # Additional common alias mapping
+        common_aliases = {
+            'bench': 'barbell_bench_press',
+            'squat': 'goblet_squat',  # Default to safer variant
+            'deadlift': 'romanian_deadlift_dumbbell',  # Default to safer variant
+            'ohp': 'overhead_press',
+            'pullup': 'pull_ups',
+            'pullups': 'pull_ups',
+            'chinup': 'pull_ups',
+            'chinups': 'pull_ups'
+        }
+        
+        for alias, canonical_id in common_aliases.items():
+            if canonical_id in CANONICAL_EXERCISES:
+                # Replace standalone words only
+                import re
+                pattern = r'\b' + re.escape(alias) + r'\b'
+                result = re.sub(pattern, canonical_id, result, flags=re.IGNORECASE)
+        
+        return result
+    except Exception as e:
+        print(f"Error normalizing text to IDs: {e}")
         return text
 
 # Default context for MVP with AI exercise knowledge
@@ -580,7 +613,7 @@ User message: {user_message}"""
     return template
 
 def validate_workout_plan(plan_json, context):
-    """Enhanced validator using canonical exercise database"""
+    """Enhanced validator using canonical exercise database with strict ID enforcement"""
     violations = []
     
     try:
@@ -599,22 +632,18 @@ def validate_workout_plan(plan_json, context):
                     exercise_ids.append(exercise_id)
         
         # Build user context for validation
-        user_context = {
-            'experience_level': 'beginner',  # Default
-            'active_injuries': context.get('healthSummary', {}).get('activeInjuries', [])
-        }
+        user_context = _build_user_context(context)
         
-        # Infer experience level from profile summary
-        profile_summary = context.get('profileSummary', '').lower()
-        if 'intermediate' in profile_summary or 'experienced' in profile_summary:
-            user_context['experience_level'] = 'intermediate'
-        elif 'advanced' in profile_summary:
-            user_context['experience_level'] = 'advanced'
-        elif 'beginner' in profile_summary or 'new' in profile_summary:
-            user_context['experience_level'] = 'beginner'
-
+        # Get the allowed exercise IDs that were provided in the prompt
+        allowed_ids_shortlist = _allowed_ids_for_prompt(context, max_ids=25)
+        
         # Validate using canonical database
         validation_results = validate_workout_plan_exercises(exercise_ids, user_context)
+        
+        # Add violations for exercises not in the allowed shortlist (prompt enforcement)
+        for exercise_id in exercise_ids:
+            if exercise_id not in allowed_ids_shortlist:
+                violations.append(f'Exercise ID "{exercise_id}" not in allowed shortlist provided to model')
         
         if not validation_results['valid']:
             # Add database violations
@@ -623,15 +652,13 @@ def validate_workout_plan(plan_json, context):
             # Add unknown exercise violations
             for unknown_id in validation_results['unknown_exercises']:
                 violations.append(f'Unknown exercise ID: "{unknown_id}" - not in canonical database')
-            
-            # Add substitution suggestions to violations for logging
-            for banned_id, subs in validation_results['substitution_suggestions'].items():
-                sub_names = [CANONICAL_EXERCISES[sub_id].display_name for sub_id in subs[:2]]  # Top 2 suggestions
-                violations.append(f'Suggested substitutions for {banned_id}: {", ".join(sub_names)}')
         
-        # Add risk warnings
+        # Add risk warnings as violations for stricter enforcement
         for warning in validation_results['risk_warnings']:
-            violations.append(f'Risk warning: {warning}')
+            if 'extreme' in warning.lower():
+                violations.append(f'BANNED: {warning}')
+            else:
+                violations.append(f'Risk warning: {warning}')
         
         # Additional validation for missing required fields and equipment gating
         for segment in plan.get('segments', []):
@@ -651,7 +678,7 @@ def validate_workout_plan(plan_json, context):
                     user_ctx = _build_user_context(context)
                     available_norm = set(user_ctx.get('equipment_available', []))
                     if not _equipment_satisfies(canonical_exercise.equipment_required, available_norm):
-                        violations.append(f'Exercise {exercise_id} not possible with available equipment: {sorted(list(available_norm))}')
+                        violations.append(f'Exercise {exercise_id} requires equipment not available: {canonical_exercise.equipment_required} (available: {sorted(list(available_norm))})')
     
     except Exception as e:
         violations.append(f'Validation error: {str(e)}')
