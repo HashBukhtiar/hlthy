@@ -49,6 +49,13 @@ except ImportError:
     TECHNIQUE_LIBRARY_AVAILABLE = False
 
 try:
+    from progression_tracker import progression_tracker, get_progression_suggestions, record_workout_performance
+    PROGRESSION_TRACKER_AVAILABLE = True
+except ImportError:
+    print("Warning: Progression tracker not available")
+    PROGRESSION_TRACKER_AVAILABLE = False
+
+try:
     from semantic_memory import memory_system
 except ImportError:
     print("Warning: Semantic memory system not available")
