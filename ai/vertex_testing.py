@@ -48,6 +48,12 @@ except ImportError:
     print("Warning: Technique library not available")
     TECHNIQUE_LIBRARY_AVAILABLE = False
 
+try:
+    from semantic_memory import memory_system
+except ImportError:
+    print("Warning: Semantic memory system not available")
+    memory_system = None
+
 app = Flask(__name__)
 CORS(app, resources={r"/api/*": {"origins": "*"}})
 
