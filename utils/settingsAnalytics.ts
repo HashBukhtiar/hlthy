@@ -34,33 +34,49 @@ export const trackSettingsChange = async (
 };
 
 export const calculatePrivacyLevel = (settings: Partial<UserSettings>): 'open' | 'moderate' | 'strict' => {
-  let privacyScore = 0;
-
-  // Profile visibility
-  if (settings.profileVisibility === 'private') privacyScore += 3;
-  else privacyScore += 0;
-
-  // Message permissions
-  if (settings.messagePermission === 'followers') privacyScore += 1;
-  else privacyScore += 0;
-
-  // Two-factor authentication
-  if (settings.twoFactorEnabled) privacyScore += 2;
-
-  // Blocked users count (more blocked users = higher privacy concern)
-  if (settings.blockedUsers && settings.blockedUsers.length > 0) {
-    privacyScore += Math.min(settings.blockedUsers.length * 0.5, 2);
+  let score = 0;
+  
+  // Profile visibility (most important - weight: 3)
+  if (settings.profileVisibility === 'private') score += 3;
+  else if (settings.profileVisibility === 'public') score += 0;
+  
+  // Message permissions (weight: 2)
+  if (settings.messagePermission === 'followers') score += 2;
+  else if (settings.messagePermission === 'everyone') score += 0;
+  
+  // Notification settings (weight: 1 each)
+  const notifications = settings.notifications || {};
+  const notificationCount = Object.values(notifications).filter(Boolean).length;
+  if (notificationCount <= 2) score += 2; // Very few notifications = more private
+  else if (notificationCount <= 4) score += 1; // Some notifications
+  // Many notifications = 0 points
+  
+  // Bio privacy check (weight: 1)
+  const bio = settings.bio || '';
+  const hasPersonalInfo = /\b(phone|email|@|\.com|\.net|contact|call|text)\b/i.test(bio);
+  if (!hasPersonalInfo) score += 1;
+  
+  // Age consideration (weight: 1)
+  if (settings.dateOfBirth) {
+    const age = new Date().getFullYear() - new Date(settings.dateOfBirth).getFullYear();
+    if (age < 18 && settings.profileVisibility === 'private') score += 1;
   }
-
-  if (privacyScore >= 6) return 'strict';
-  if (privacyScore >= 3) return 'moderate';
-  return 'open';
+  
+  // Scoring:
+  // 0-2: Open (red)
+  // 3-5: Moderate (orange) 
+  // 6+: Strict (green)
+  
+  if (score <= 2) return 'open';
+  if (score <= 5) return 'moderate';
+  return 'strict';
 };
 
 export const generateSettingsInsights = (settings: Partial<UserSettings>): string[] => {
   const insights: string[] = [];
   const privacyLevel = calculatePrivacyLevel(settings);
 
+  // Privacy level insights
   if (privacyLevel === 'open') {
     insights.push('💡 Consider enabling two-factor authentication for better security');
     insights.push('🔒 Your profile is quite open - consider making it more private if desired');
@@ -71,10 +87,12 @@ export const generateSettingsInsights = (settings: Partial<UserSettings>): strin
     }
   }
 
+  // Two-factor authentication
   if (!settings.twoFactorEnabled) {
     insights.push('🔐 Enable two-factor authentication to protect your account');
   }
 
+  // Notification insights
   if (settings.notifications) {
     const enabledCount = Object.values(settings.notifications).filter(Boolean).length;
     const totalNotifications = Object.keys(settings.notifications).length;
@@ -83,7 +101,28 @@ export const generateSettingsInsights = (settings: Partial<UserSettings>): strin
       insights.push('🔔 You might miss important updates with all notifications disabled');
     } else if (enabledCount === totalNotifications) {
       insights.push('📱 Consider disabling some notifications to reduce distractions');
+    } else if (enabledCount > 4) {
+      insights.push('🔔 Consider disabling some notifications to reduce tracking');
     }
+  }
+
+  // Bio privacy insights
+  if (settings.bio) {
+    const bio = settings.bio.toLowerCase();
+    if (bio.includes('phone') || bio.includes('email') || bio.includes('@')) {
+      insights.push('⚠️ Consider removing personal contact info from your bio');
+    }
+    if (bio.includes('location') || bio.includes('address') || bio.includes('live in') || bio.includes('from ')) {
+      insights.push('📍 Avoid sharing specific location details in your bio');
+    }
+    if (bio.includes('age') || bio.includes('years old') || bio.includes('born')) {
+      insights.push('🎂 Consider removing age information from your bio');
+    }
+  }
+
+  // Message permission insights
+  if (settings.messagePermission === 'everyone' && settings.profileVisibility === 'public') {
+    insights.push('💬 Consider limiting messages to followers only for better privacy');
   }
 
   // Age-related insights
@@ -99,6 +138,12 @@ export const generateSettingsInsights = (settings: Partial<UserSettings>): strin
         if (age < 18 && settings.profileVisibility === 'public') {
           insights.push('👤 Consider making your profile private for better safety');
         }
+        if (age < 16) {
+          insights.push('🔒 Young users should use strict privacy settings');
+        }
+        if (age > 65 && settings.messagePermission === 'everyone') {
+          insights.push('👥 Consider limiting messages to followers only');
+        }
       }
     } catch (error) {
       console.error('Error processing dateOfBirth in insights:', error);
@@ -108,6 +153,55 @@ export const generateSettingsInsights = (settings: Partial<UserSettings>): strin
   // Archetype-specific insights
   if (settings.archetype === 'athlete' && settings.profileVisibility === 'private') {
     insights.push('🏃‍♂️ Athletes often benefit from public profiles for networking');
+  }
+  if (settings.archetype === 'bodybuilder' && settings.profileVisibility === 'private') {
+    insights.push('💪 Bodybuilders often share progress publicly for motivation');
+  }
+  if (settings.archetype === 'crossfitter' && settings.profileVisibility === 'private') {
+    insights.push('🏋️‍♀️ CrossFit community thrives on public sharing and competition');
+  }
+
+  // Profile completeness insights
+  if (!settings.bio || settings.bio.trim().length < 10) {
+    insights.push('📝 Consider adding a bio to help others understand your fitness journey');
+  }
+  if (!settings.archetype) {
+    insights.push('🎯 Select a fitness archetype to get more relevant content');
+  }
+  if (!settings.dateOfBirth) {
+    insights.push('📅 Adding your birth date helps with age-appropriate content');
+  }
+
+  // Security insights
+  if (settings.profileVisibility === 'public' && settings.messagePermission === 'everyone') {
+    insights.push('🚨 Very open settings - consider tightening privacy if you receive unwanted contact');
+  }
+
+  // Display name insights
+  if (settings.displayName) {
+    if (settings.displayName.length < 3) {
+      insights.push('📛 Consider using a longer display name for better recognition');
+    }
+    if (/\d{4,}/.test(settings.displayName)) {
+      insights.push('🔢 Avoid using long numbers in your display name for better privacy');
+    }
+  }
+
+  // Language and accessibility
+  if (settings.language && settings.language !== 'en') {
+    insights.push('🌍 Great choice using the app in your preferred language!');
+  }
+
+  // Theme insights
+  if (settings.theme === 'light') {
+    insights.push('☀️ Light theme can be easier on the eyes during daytime use');
+  } else if (settings.theme === 'dark') {
+    insights.push('🌙 Dark theme can help reduce eye strain in low light');
+  }
+
+  // Final check - if no insights, add a positive message
+  if (insights.length === 0) {
+    insights.push('✅ Your settings look great! No recommendations at this time.');
   }
 
   return insights;
