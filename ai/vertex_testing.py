@@ -1475,6 +1475,40 @@ def chat():
         traceback.print_exc()
         return jsonify({"text": "I'm having trouble right now. Please try again later."}), 500
 
+@app.route('/api/health', methods=['GET'])
+def health_check():
+    """Health check endpoint for testing"""
+    health_status = {
+        "status": "healthy",
+        "timestamp": datetime.now().isoformat(),
+        "systems": {
+            "canonical_database": CANONICAL_DATABASE_AVAILABLE,
+            "technique_library": TECHNIQUE_LIBRARY_AVAILABLE,
+            "progression_tracker": PROGRESSION_TRACKER_AVAILABLE,
+            "profile_sync": PROFILE_SYNC_AVAILABLE,
+            "rate_limiting": RATE_LIMITING_AVAILABLE,
+            "exercise_cache": EXERCISE_CACHE_AVAILABLE,
+            "observability": OBSERVABILITY_AVAILABLE,
+            "semantic_memory": memory_system is not None,
+            "user_profiles": profile_manager is not None
+        }
+    }
+    
+    # Count enabled systems
+    enabled_systems = sum(1 for system in health_status["systems"].values() if system)
+    total_systems = len(health_status["systems"])
+    
+    health_status["system_coverage"] = f"{enabled_systems}/{total_systems}"
+    
+    if enabled_systems >= 7:  # Most systems enabled
+        health_status["status"] = "healthy"
+    elif enabled_systems >= 5:  # Some systems enabled
+        health_status["status"] = "degraded"
+    else:  # Few systems enabled
+        health_status["status"] = "critical"
+    
+    return jsonify(health_status)
+
 def get_inferred_context_from_conversation(current_message, conversation_history):
     """Infer user context from conversation when no profile exists"""
     context = get_default_context()
