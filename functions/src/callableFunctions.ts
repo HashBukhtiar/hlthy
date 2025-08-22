@@ -372,3 +372,40 @@ export const createMilestonePost = onCall(
     }
   }
 );
+
+// Check if email exists in Firebase Auth
+export const checkEmailExists = onCall(
+  {region: "northamerica-northeast2"},
+  async (request) => {
+    const {email} = request.data;
+
+    if (!email || typeof email !== "string") {
+      throw new HttpsError("invalid-argument", "Email is required and must be a string");
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      throw new HttpsError("invalid-argument", "Invalid email format");
+    }
+
+    try {
+      const auth = admin.auth();
+
+      // Try to get user by email - this will throw an error if user doesn't exist
+      await auth.getUserByEmail(email);
+
+      // If we reach here, user exists
+      return {exists: true};
+    } catch (error: unknown) {
+      // Check if the error is specifically "user not found"
+      if (error && typeof error === "object" && "code" in error && error.code === "auth/user-not-found") {
+        return {exists: false};
+      }
+
+      // For any other error, log it and throw a generic error
+      console.error("Error checking email existence:", error);
+      throw new HttpsError("internal", "Unable to check email existence");
+    }
+  }
+);
