@@ -55,7 +55,7 @@ Here's a comprehensive testing checklist for your Settings system. Test these sc
   - Test each option (Public, Private)
   - Verify privacy level updates accordingly
 
-- [ ] ** Who Can Message You **
+- [X] ** Who Can Message You **
   - Test each option (Everyone, Followers Only)
   - Verify behaviour works accordingly
 
@@ -110,20 +110,20 @@ Here's a comprehensive testing checklist for your Settings system. Test these sc
   - Verify insights change based on settings
   - Test close button
 
-- [ ] **Export Settings**
+- [X] **Export Settings**
   - Test export functionality
   - Verify file is created and shareable
 
-- [ ] **Import Settings**
+- [X] **Import Settings**
   - Test with valid settings file
   - Test with invalid file
   - Test canceling import
 
-- [ ] **Restore from Backup**
+- [X] **Restore from Backup**
   - Test when backup exists
   - Test when no backup exists
 
-- [ ] **Reset to Defaults**
+- [X] **Reset to Defaults**
   - Test confirmation dialog
   - Verify all settings reset
   - Test canceling reset

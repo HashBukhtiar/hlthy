@@ -571,7 +571,38 @@ export default function Settings() {
           {
             text: "Import",
             onPress: () => {
-              setSettings(prev => ({ ...prev, ...importedSettings }));
+              // Parse the dateOfBirth properly when importing
+              const parseDateOfBirth = (dateValue: any) => {
+                if (!dateValue) return undefined;
+                
+                try {
+                  if (dateValue instanceof Date) {
+                    return isNaN(dateValue.getTime()) ? undefined : dateValue;
+                  }
+                  
+                  if (dateValue.toDate && typeof dateValue.toDate === 'function') {
+                    return dateValue.toDate();
+                  }
+                  
+                  if (typeof dateValue === 'string') {
+                    const parsed = new Date(dateValue);
+                    return isNaN(parsed.getTime()) ? undefined : parsed;
+                  }
+                  
+                  return undefined;
+                } catch (error) {
+                  console.error('Error parsing date of birth from import:', error);
+                  return undefined;
+                }
+              };
+
+              // Process the imported data before setting it
+              const processedImport = {
+                ...importedSettings,
+                dateOfBirth: parseDateOfBirth(importedSettings.dateOfBirth)
+              };
+
+              setSettings(prev => ({ ...prev, ...processedImport }));
               Alert.alert("Success", "Settings imported successfully!");
             }
           }
@@ -591,7 +622,40 @@ export default function Settings() {
           {
             text: "Restore",
             onPress: () => {
-              setSettings(prev => ({ ...prev, ...backup }));
+              // Parse the dateOfBirth properly when restoring
+              const parseDateOfBirth = (dateValue: any) => {
+                if (!dateValue) return undefined;
+                
+                try {
+                  if (dateValue instanceof Date) {
+                    return isNaN(dateValue.getTime()) ? undefined : dateValue;
+                  }
+                  
+                  // Handle Firestore Timestamp
+                  if (dateValue.toDate && typeof dateValue.toDate === 'function') {
+                    return dateValue.toDate();
+                  }
+                  
+                  // Handle string dates (from backup)
+                  if (typeof dateValue === 'string') {
+                    const parsed = new Date(dateValue);
+                    return isNaN(parsed.getTime()) ? undefined : parsed;
+                  }
+                  
+                  return undefined;
+                } catch (error) {
+                  console.error('Error parsing date of birth from backup:', error);
+                  return undefined;
+                }
+              };
+
+              // Process the backup data before setting it
+              const processedBackup = {
+                ...backup,
+                dateOfBirth: parseDateOfBirth(backup.dateOfBirth)
+              };
+
+              setSettings(prev => ({ ...prev, ...processedBackup }));
               Alert.alert("Success", "Settings restored from backup!");
             }
           }

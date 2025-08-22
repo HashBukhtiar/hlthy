@@ -88,9 +88,20 @@ export const generateSettingsInsights = (settings: Partial<UserSettings>): strin
 
   // Age-related insights
   if (settings.dateOfBirth) {
-    const age = new Date().getFullYear() - settings.dateOfBirth.getFullYear();
-    if (age < 18 && settings.profileVisibility === 'public') {
-      insights.push('👤 Consider making your profile private for better safety');
+    try {
+      // Ensure dateOfBirth is a Date object
+      let dateOfBirth = settings.dateOfBirth;
+      if (typeof dateOfBirth === 'string') {
+        dateOfBirth = new Date(dateOfBirth);
+      }
+      if (dateOfBirth && typeof dateOfBirth.getFullYear === 'function') {
+        const age = new Date().getFullYear() - dateOfBirth.getFullYear();
+        if (age < 18 && settings.profileVisibility === 'public') {
+          insights.push('👤 Consider making your profile private for better safety');
+        }
+      }
+    } catch (error) {
+      console.error('Error processing dateOfBirth in insights:', error);
     }
   }
 
