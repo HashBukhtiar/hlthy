@@ -600,9 +600,9 @@ def validate_workout_plan(plan_json, context):
             user_context['experience_level'] = 'advanced'
         elif 'beginner' in profile_summary or 'new' in profile_summary:
             user_context['experience_level'] = 'beginner'
-        
-    # Validate using canonical database
-    validation_results = validate_workout_plan_exercises(exercise_ids, user_context)
+
+        # Validate using canonical database
+        validation_results = validate_workout_plan_exercises(exercise_ids, user_context)
         
         if not validation_results['valid']:
             # Add database violations
@@ -1048,6 +1048,13 @@ def chat():
         print(f"User ID: {user_id}")
         print(f"Conversation history length: {len(conversation_history)}")
         
+        # Normalize the current message to canonical IDs for retrieval/validation
+        normalized_message = current_message
+        try:
+            normalized_message = _normalize_text_to_ids(current_message) if CANONICAL_DATABASE_AVAILABLE else current_message
+        except Exception:
+            normalized_message = current_message
+
         # Get context - use real user profile if available, otherwise default/inferred
         if user_id and profile_manager:
             print(f"Loading context for user: {user_id}")
@@ -1057,7 +1064,7 @@ def chat():
             if memory_system:
                 try:
                     # Get relevant snippets based on current message
-                    relevant_snippets = memory_system.retrieve_relevant_snippets(user_id, current_message, k=3)
+                    relevant_snippets = memory_system.retrieve_relevant_snippets(user_id, normalized_message, k=3)
                     context["retrievedSnippets"] = relevant_snippets
                     print(f"Retrieved {len(relevant_snippets)} relevant memory snippets")
                 except Exception as e:
@@ -1077,7 +1084,7 @@ def chat():
         print(f"Routed to: {route}")
         
         # Build the appropriate template
-        template = build_route_template(route, context, current_message, conversation_history)
+    template = build_route_template(route, context, current_message, conversation_history)
         
         # Generate coach response
         full_prompt = f"{COACH_SYSTEM_PROMPT}\n\n{template}"
@@ -1109,11 +1116,39 @@ def chat():
                             # Rebuild response_text by replacing the original JSON segment with repaired JSON
                             repaired_json_str = json.dumps(repaired_plan, separators=(",", ":"))
                             response_text = response_text[:json_start] + repaired_json_str + response_text[json_end:]
+                            # Update plan_json reference for potential correction loop
+                            plan_json = repaired_json_str
                     except Exception as enfe:
                         print(f"Canonical enforcement error: {enfe}")
 
                     if violations:
                         print(f"Validation violations found: {violations}")
+                        # Build compact correction prompt
+                        try:
+                            allowed_ids_shortlist = _allowed_ids_for_prompt(context, max_ids=25) if CANONICAL_DATABASE_AVAILABLE else []
+                            correction_prompt = (
+                                "You produced a WorkoutPlan JSON that violated constraints.\n"
+                                "Fix ONLY the exerciseId fields to resolve the violations.\n"
+                                f"allowedExercises: {allowed_ids_shortlist}\n"
+                                "Rules:\n- choose replacements strictly from allowedExercises\n- keep sets/reps/load/notes unchanged when possible\n- ensure equipment requirements are satisfied\n- output JSON only (no prose)\n\n"
+                                f"Violations: {violations}\n\n"
+                                f"Prior JSON: {plan_json}"
+                            )
+                            fix_resp = coach_model.generate_content(correction_prompt)
+                            fix_text = fix_resp.text.strip()
+                            fix_start = fix_text.find('{')
+                            fix_end = fix_text.rfind('}') + 1
+                            if fix_start >= 0 and fix_end > fix_start:
+                                fixed_json = fix_text[fix_start:fix_end]
+                                # Final validate
+                                fix_violations = validate_workout_plan(fixed_json, context)
+                                if not fix_violations:
+                                    response_text = response_text[:json_start] + fixed_json + response_text[json_end:]
+                                    print("Applied correction-loop fixed JSON")
+                                else:
+                                    print(f"Correction-loop still has violations: {fix_violations}")
+                        except Exception as corr_e:
+                            print(f"Correction loop failed: {corr_e}")
             except Exception as e:
                 print(f"Validation error: {e}")
         
@@ -1122,8 +1157,11 @@ def chat():
         # Store conversation in semantic memory for future retrieval
         if user_id and memory_system:
             try:
-                # Store user message
-                memory_system.add_chat_snippet(user_id, current_message, role="user")
+                # Store user message (normalized to canonical IDs)
+                try:
+                    memory_system.add_chat_snippet(user_id, normalized_message, role="user")
+                except Exception:
+                    memory_system.add_chat_snippet(user_id, current_message, role="user")
                 
                 # Store coach response (first 300 chars to avoid too much storage)
                 coach_summary = response_text[:300] + "..." if len(response_text) > 300 else response_text
