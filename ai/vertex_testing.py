@@ -1423,6 +1423,11 @@ def chat():
                 normalized_coach_summary = _normalize_text_to_ids(coach_summary) if CANONICAL_DATABASE_AVAILABLE else coach_summary
                 memory_system.add_chat_snippet(user_id, normalized_coach_summary, role="coach")
 
+                # Sync conversation insights to user profile
+                if PROFILE_SYNC_AVAILABLE:
+                    conversation_text = f"{current_message} {coach_summary}"
+                    sync_memory_to_profile(user_id, conversation_text)
+
                 # If it's a workout plan, also store as structured workout data with canonical IDs
                 if route == "planner" and "{" in response_text:
                     try:
@@ -1450,6 +1455,10 @@ def chat():
                 print("✅ Stored conversation with normalized IDs in semantic memory")
             except Exception as e:
                 print(f"Warning: Could not store in semantic memory: {e}")
+        
+        # Cache the response for future use
+        if user_id and RATE_LIMITING_AVAILABLE and not cached_response:
+            cache_prompt(current_message, response_text, user_context={"user_id": user_id})
 
         return jsonify({"text": response_text})
         
