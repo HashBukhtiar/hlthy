@@ -1151,12 +1151,31 @@ def chat():
         # Build the appropriate template
         template = build_route_template(route, context, current_message, conversation_history)
 
-        # Generate coach response
+        # Generate coach response with appropriate model
+        # Use cheaper model for explanations, stronger model for planning/technique
+        if route in ["planner", "technique", "schedule"]:
+            model_to_use = coach_model  # Strong model for complex tasks
+            print(f"Using strong model (coach_model) for route: {route}")
+        else:
+            model_to_use = router_model  # Cheaper model for explanations
+            print(f"Using cheap model (router_model) for route: {route}")
+
         full_prompt = f"{COACH_SYSTEM_PROMPT}\n\n{template}"
 
-        print(f"Generating response with coach model...")
-        response = coach_model.generate_content(full_prompt)
+        # Log observability metrics
+        input_tokens = len(full_prompt.split()) * 1.3  # Rough token estimate
+        snippet_count = len(context.get('retrievedSnippets', []))
+        
+        print(f"🔍 Generating response - Route: {route}, Input tokens: ~{int(input_tokens)}, Snippets: {snippet_count}")
+        
+        start_time = datetime.now()
+        response = model_to_use.generate_content(full_prompt)
         response_text = response.text.strip()
+        generation_time = (datetime.now() - start_time).total_seconds()
+        
+        # Log response metrics
+        output_tokens = len(response_text.split()) * 1.3
+        print(f"📊 Response generated - Output tokens: ~{int(output_tokens)}, Time: {generation_time:.2f}s")
 
         # Basic validation and enforcement for workout plans (canonical IDs)
         if route == "planner" and "{" in response_text:
