@@ -988,6 +988,203 @@ CANONICAL_EXERCISES: Dict[str, ExerciseProfile] = {
         safety_flags={"shoulder_health_exercise"},
         substitutions=["face_pulls", "reverse_pec_deck"]
     ),
+
+    # --- MORE MACHINES & VARIANTS ---
+    "machine_incline_chest_press": ExerciseProfile(
+        exercise_id="machine_incline_chest_press",
+        display_name="Machine Incline Chest Press",
+        common_names=["incline chest press machine"],
+        risk_level=RiskLevel.LOW,
+        primary_muscles=["upper_chest", "triceps", "anterior_deltoids"],
+        equipment_required=["machine"],
+        injury_contraindications={InjuryType.SHOULDER},
+        injury_cautions={InjuryType.ELBOW},
+        min_experience_level=ExperienceLevel.BEGINNER,
+        safety_flags={"machine_guided"},
+        substitutions=["incline_dumbbell_press", "machine_chest_press"]
+    ),
+    "smith_machine_bench_press": ExerciseProfile(
+        exercise_id="smith_machine_bench_press",
+        display_name="Smith Machine Bench Press",
+        common_names=["smith bench"],
+        risk_level=RiskLevel.LOW,
+        primary_muscles=["chest", "triceps"],
+        equipment_required=["smith_machine"],
+        injury_contraindications={InjuryType.SHOULDER},
+        injury_cautions={InjuryType.WRIST},
+        min_experience_level=ExperienceLevel.BEGINNER,
+        safety_flags={"guided_bar_path"},
+        substitutions=["machine_chest_press", "dumbbell_bench_press"]
+    ),
+    "smith_overhead_press": ExerciseProfile(
+        exercise_id="smith_overhead_press",
+        display_name="Smith Machine Overhead Press",
+        common_names=["smith OHP"],
+        risk_level=RiskLevel.MODERATE,
+        primary_muscles=["anterior_deltoids", "triceps"],
+        equipment_required=["smith_machine"],
+        injury_contraindications={InjuryType.SHOULDER, InjuryType.LOWER_BACK},
+        injury_cautions={InjuryType.ELBOW},
+        min_experience_level=ExperienceLevel.INTERMEDIATE,
+        safety_flags={"overhead_movement", "guided_bar_path"},
+        substitutions=["machine_shoulder_press", "dumbbell_shoulder_press"]
+    ),
+    "smith_machine_squat_feet_forward": ExerciseProfile(
+        exercise_id="smith_machine_squat_feet_forward",
+        display_name="Smith Machine Squat (Feet Forward)",
+        common_names=["smith squat feet forward"],
+        risk_level=RiskLevel.HIGH,
+        primary_muscles=["quadriceps", "glutes"],
+        equipment_required=["smith_machine"],
+        injury_contraindications={InjuryType.LOWER_BACK, InjuryType.KNEE, InjuryType.HIP},
+        injury_cautions=set(),
+        min_experience_level=ExperienceLevel.ADVANCED,
+        safety_flags={"unnatural_movement_path", "avoid_for_most"},
+        substitutions=["goblet_squat", "leg_press"]
+    ),
+    "leg_press_45_degree": ExerciseProfile(
+        exercise_id="leg_press_45_degree",
+        display_name="45-Degree Leg Press",
+        common_names=["sled leg press"],
+        risk_level=RiskLevel.LOW,
+        primary_muscles=["quadriceps", "glutes"],
+        equipment_required=["machine"],
+        injury_contraindications={InjuryType.KNEE},
+        injury_cautions={InjuryType.LOWER_BACK},
+        min_experience_level=ExperienceLevel.BEGINNER,
+        safety_flags={"machine_guided"},
+        substitutions=["leg_press", "split_squat"]
+    ),
+    "hip_abduction_machine": ExerciseProfile(
+        exercise_id="hip_abduction_machine",
+        display_name="Hip Abduction (Machine)",
+        common_names=["outer thigh machine"],
+        risk_level=RiskLevel.LOW,
+        primary_muscles=["glute_medius", "glute_minimus"],
+        equipment_required=["machine"],
+        injury_contraindications={InjuryType.HIP},
+        injury_cautions=set(),
+        min_experience_level=ExperienceLevel.BEGINNER,
+        safety_flags={"isolation_movt"},
+        substitutions=["glute_bridge", "lateral_band_walks" if 'lateral_band_walks' in CANONICAL_EXERCISES else "split_squat"]
+    ),
+    "hip_adduction_machine": ExerciseProfile(
+        exercise_id="hip_adduction_machine",
+        display_name="Hip Adduction (Machine)",
+        common_names=["inner thigh machine"],
+        risk_level=RiskLevel.LOW,
+        primary_muscles=["adductors"],
+        equipment_required=["machine"],
+        injury_contraindications={InjuryType.HIP},
+        injury_cautions=set(),
+        min_experience_level=ExperienceLevel.BEGINNER,
+        safety_flags={"isolation_movt"},
+        substitutions=["split_squat", "glute_bridge"]
+    ),
+    "machine_ab_crunch": ExerciseProfile(
+        exercise_id="machine_ab_crunch",
+        display_name="Machine Ab Crunch",
+        common_names=["ab crunch machine"],
+        risk_level=RiskLevel.MODERATE,
+        primary_muscles=["rectus_abdominis"],
+        equipment_required=["machine"],
+        injury_contraindications={InjuryType.LOWER_BACK, InjuryType.NECK},
+        injury_cautions=set(),
+        min_experience_level=ExperienceLevel.BEGINNER,
+        safety_flags={"spinal_flexion_under_load"},
+        substitutions=["planks", "dead_bug"]
+    ),
+    "seated_leg_curl_machine": ExerciseProfile(
+        exercise_id="seated_leg_curl_machine",
+        display_name="Seated Leg Curl (Machine)",
+        common_names=["seated hamstring curl"],
+        risk_level=RiskLevel.LOW,
+        primary_muscles=["hamstrings"],
+        equipment_required=["machine"],
+        injury_contraindications=set(),
+        injury_cautions={InjuryType.KNEE},
+        min_experience_level=ExperienceLevel.BEGINNER,
+        safety_flags={"isolation_movt"},
+        substitutions=["leg_curl_machine", "romanian_deadlift_dumbbell"]
+    ),
+    "lying_leg_curl_machine": ExerciseProfile(
+        exercise_id="lying_leg_curl_machine",
+        display_name="Lying Leg Curl (Machine)",
+        common_names=["prone hamstring curl"],
+        risk_level=RiskLevel.LOW,
+        primary_muscles=["hamstrings"],
+        equipment_required=["machine"],
+        injury_contraindications=set(),
+        injury_cautions={InjuryType.KNEE},
+        min_experience_level=ExperienceLevel.BEGINNER,
+        safety_flags={"isolation_movt"},
+        substitutions=["leg_curl_machine", "romanian_deadlift_dumbbell"]
+    ),
+    "calf_press_leg_press_machine": ExerciseProfile(
+        exercise_id="calf_press_leg_press_machine",
+        display_name="Calf Press on Leg Press Machine",
+        common_names=["calf press sled"],
+        risk_level=RiskLevel.LOW,
+        primary_muscles=["calves"],
+        equipment_required=["machine"],
+        injury_contraindications=set(),
+        injury_cautions={InjuryType.KNEE},
+        min_experience_level=ExperienceLevel.BEGINNER,
+        safety_flags={"isolation_movt"},
+        substitutions=["calf_raise_standing", "calf_raise_seated"]
+    ),
+    "chest_supported_row_machine": ExerciseProfile(
+        exercise_id="chest_supported_row_machine",
+        display_name="Chest-Supported Row (Machine)",
+        common_names=["CSR machine"],
+        risk_level=RiskLevel.LOW,
+        primary_muscles=["lats", "rhomboids", "rear_delts"],
+        equipment_required=["machine"],
+        injury_contraindications=set(),
+        injury_cautions=set(),
+        min_experience_level=ExperienceLevel.BEGINNER,
+        safety_flags={"reduces_lower_back_stress"},
+        substitutions=["seated_cable_row", "dumbbell_row"]
+    ),
+    "cable_crossover": ExerciseProfile(
+        exercise_id="cable_crossover",
+        display_name="Cable Crossover",
+        common_names=["high to low fly", "low to high fly"],
+        risk_level=RiskLevel.LOW,
+        primary_muscles=["chest"],
+        equipment_required=["cable"],
+        injury_contraindications={InjuryType.SHOULDER},
+        injury_cautions=set(),
+        min_experience_level=ExperienceLevel.BEGINNER,
+        safety_flags={"use_light_loads"},
+        substitutions=["cable_fly", "pec_deck"]
+    ),
+    "straight_arm_pulldown": ExerciseProfile(
+        exercise_id="straight_arm_pulldown",
+        display_name="Straight-Arm Pulldown",
+        common_names=["cable straight-arm pulldown"],
+        risk_level=RiskLevel.LOW,
+        primary_muscles=["lats", "teres_major"],
+        equipment_required=["cable"],
+        injury_contraindications={InjuryType.SHOULDER},
+        injury_cautions=set(),
+        min_experience_level=ExperienceLevel.BEGINNER,
+        safety_flags={"shoulder_friendly_when_light"},
+        substitutions=["lat_pulldown", "face_pulls"]
+    ),
+    "preacher_curl_machine": ExerciseProfile(
+        exercise_id="preacher_curl_machine",
+        display_name="Preacher Curl (Machine)",
+        common_names=["machine preacher curl"],
+        risk_level=RiskLevel.LOW,
+        primary_muscles=["biceps"],
+        equipment_required=["machine"],
+        injury_contraindications={InjuryType.ELBOW, InjuryType.WRIST},
+        injury_cautions=set(),
+        min_experience_level=ExperienceLevel.BEGINNER,
+        safety_flags={"controlled_range"},
+        substitutions=["bicep_curls", "cable_curls"]
+    ),
 }
 
 # Injury-specific banned exercise sets (by ID only)
@@ -995,19 +1192,19 @@ INJURY_BANNED_EXERCISES: Dict[InjuryType, Set[str]] = {
     InjuryType.SHOULDER: {
     "behind_neck_press", "upright_rows", "overhead_press",
     "incline_barbell_bench", "kipping_pull_ups", "heavy_overhead_squat",
-    "dips", "machine_shoulder_press", "turkish_get_up"
+    "dips", "machine_shoulder_press", "turkish_get_up", "smith_overhead_press"
     },
     InjuryType.ELBOW: {
     "behind_neck_press", "overhead_press", "close_grip_bench_press",
-    "tricep_extensions", "upright_rows", "dips", "cable_overhead_tricep_extension"
+    "tricep_extensions", "upright_rows", "dips", "cable_overhead_tricep_extension", "preacher_curl_machine"
     },
     InjuryType.LOWER_BACK: {
     "deadlift", "back_squat", "weighted_sit_ups",
     "heavy_overhead_squat", "overhead_press", "barbell_row", "t_bar_row",
-    "kettlebell_swing", "cable_crunch"
+    "kettlebell_swing", "cable_crunch", "machine_ab_crunch", "smith_machine_squat_feet_forward"
     },
     InjuryType.KNEE: {
-        "back_squat", "heavy_overhead_squat"
+    "back_squat", "heavy_overhead_squat", "smith_machine_squat_feet_forward", "leg_press_45_degree"
     },
     InjuryType.NECK: {
         "behind_neck_press", "weighted_sit_ups"
