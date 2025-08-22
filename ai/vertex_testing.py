@@ -484,7 +484,7 @@ RULE: Pick exerciseId only from allowedExercises. Unknown or disallowed IDs will
 Examples of valid IDs: "barbell_bench_press", "dumbbell_shoulder_press", "pull_ups", "goblet_squat", "lat_pulldown".
 NEVER use custom names or variations - stick to the canonical IDs exactly."""
         
-    template = f"""{context_str}
+        template = f"""{context_str}
 
 TASK: Draft a single-day workout plan using canonical exercise database
 SAFETY REQUIREMENTS:
@@ -507,7 +507,8 @@ Return:
 User message: {user_message}"""
 
     elif route == "technique":
-    template = f"""{context_str}
+        safety_why = EXERCISE_SAFETY_GUIDELINES if isinstance(EXERCISE_SAFETY_GUIDELINES, str) else ""
+        template = f"""{context_str}
 
 TASK: Provide technique guidance and safe exercise alternatives
 SAFETY ASSESSMENT:
@@ -521,6 +522,9 @@ Use your extensive knowledge of biomechanics, anatomy, and injury prevention.
 
 ALLOWED EXERCISES SHORTLIST (must choose alternatives from these IDs only if suggesting exercises):
 allowedExercises: [{allowed_ids_str}]
+
+REFERENCE SAFETY GUIDELINES (for explanations only, not for gatekeeping):
+{safety_why}
 
 Return:
 1) TechniqueAdvice JSON with risk assessment and safe alternatives
@@ -597,8 +601,8 @@ def validate_workout_plan(plan_json, context):
         elif 'beginner' in profile_summary or 'new' in profile_summary:
             user_context['experience_level'] = 'beginner'
         
-        # Validate using canonical database
-        validation_results = validate_workout_plan_exercises(exercise_ids, user_context)
+    # Validate using canonical database
+    validation_results = validate_workout_plan_exercises(exercise_ids, user_context)
         
         if not validation_results['valid']:
             # Add database violations
@@ -617,7 +621,7 @@ def validate_workout_plan(plan_json, context):
         for warning in validation_results['risk_warnings']:
             violations.append(f'Risk warning: {warning}')
         
-        # Additional validation for missing required fields
+        # Additional validation for missing required fields and equipment gating
         for segment in plan.get('segments', []):
             for exercise in segment.get('exercises', []):
                 exercise_id = exercise.get('exerciseId', '')
@@ -631,14 +635,11 @@ def validate_workout_plan(plan_json, context):
                 # Validate against canonical data if exercise exists
                 if exercise_id in CANONICAL_EXERCISES:
                     canonical_exercise = CANONICAL_EXERCISES[exercise_id]
-                    
-                    # Check equipment consistency
-                    required_equipment = canonical_exercise.equipment_required
-                    available_equipment = context.get('equipmentAccess', {}).get('current', 'gym')
-                    
-                    # Simple equipment check (could be enhanced)
-                    if 'home' in available_equipment and any(eq in required_equipment for eq in ['barbell', 'rack', 'machines']):
-                        violations.append(f'Exercise {exercise_id} requires gym equipment but user has home setup')
+                    # Equipment gating with subset logic
+                    user_ctx = _build_user_context(context)
+                    available_norm = set(user_ctx.get('equipment_available', []))
+                    if not _equipment_satisfies(canonical_exercise.equipment_required, available_norm):
+                        violations.append(f'Exercise {exercise_id} not possible with available equipment: {sorted(list(available_norm))}')
     
     except Exception as e:
         violations.append(f'Validation error: {str(e)}')
