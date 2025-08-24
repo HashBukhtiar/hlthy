@@ -224,15 +224,15 @@ Here's a comprehensive testing checklist for your Settings system. Test these sc
 ## **🧪 Edge Cases**
 
 ### **14. Boundary Testing**
-- [ ] **Character Limits**
+- [X] **Character Limits**
   - Test exactly at limits (2 chars for name, 500 for bio)
   - Test one over limits
 
-- [ ] **Date Boundaries**
+- [X] **Date Boundaries**
   - Test exactly January 1, 1900
   - Test exactly today's date
 
-- [ ] **Multiple Rapid Changes**
+- [X] **Multiple Rapid Changes**
   - Make changes very quickly
   - Verify all changes register
 
