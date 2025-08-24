@@ -477,8 +477,8 @@ export default function Pulse() {
                                             <Text style={activityStyles.actionText}>
                                                 {activity.type === 'post_like' && ' liked your post'}
                                                 {activity.type === 'post_comment' && ` commented: "${displayShortenedString(activity.commentText || '', maxCommentLength)}"`}
-                                                {activity.type === 'comment_like' && ' liked your comment'}
-                                                {activity.type === 'reply_like' && ' liked your reply'}
+                                                {activity.type === 'comment_like' && ` liked your comment: "${displayShortenedString(activity.commentText || '', maxCommentLength)}"`}
+                                                {activity.type === 'reply_like' && ` liked your reply: "${displayShortenedString(activity.commentText || '', maxCommentLength)}"`}
                                                 {activity.type === 'comment_reply' && ` replied to your comment: "${displayShortenedString(activity.commentText || '', maxCommentLength)}"`}
                                                 {activity.type === 'workout_save' && ` saved your workout: ${displayShortenedString(activity.workoutTitle || 'Workout', maxWorkoutTitleLength)}`}
                                                 {activity.type === 'new_follower' && ' started following you'}
