@@ -57,6 +57,7 @@ export default function ViewPost() {
   const [replyingToCommentId, setReplyingToCommentId] = useState<string | null>(null);
   const [replyText, setReplyText] = useState('');
   const [loadingReplies, setLoadingReplies] = useState<Record<string, boolean>>({});
+  const [expandedComments, setExpandedComments] = useState<Record<string, boolean>>({});
 
   const [selectedCommentForAction, setSelectedCommentForAction] = useState<Comment | null>(null);
   const [commentActionModalVisible, setCommentActionModalVisible] = useState(false);
@@ -444,6 +445,9 @@ export default function ViewPost() {
     try {
       setRefreshing(true);
       
+      // Reset expanded state
+      setExpandedComments({});
+      
       // Refetch post and comments
       const refreshedPost = await getPostById(postId);
       setPost(refreshedPost);
@@ -507,18 +511,34 @@ export default function ViewPost() {
 
   const handleLoadReplies = async (commentId: string) => {
     if (!post) return;
-    setLoadingReplies(prev => ({ ...prev, [commentId]: true }));
-    try {
-      const fetchedReplies = await getCommentReplies(post.id, commentId);
-      setComments(prevComments => prevComments.map(c => 
-        c.id === commentId ? { ...c, replies: fetchedReplies } : c
-      ));
-    } catch (error) {
-      console.error("Error loading replies:", error);
-      Alert.alert("Error", "Could not load replies.");
-    } finally {
-      setLoadingReplies(prev => ({ ...prev, [commentId]: false }));
+    
+    // If already expanded, collapse it
+    if (expandedComments[commentId]) {
+      setExpandedComments(prev => ({ ...prev, [commentId]: false }));
+      return;
     }
+    
+    // If not loaded yet, load the replies
+    const comment = comments.find(c => c.id === commentId);
+    if (!comment?.replies || comment.replies.length === 0) {
+      setLoadingReplies(prev => ({ ...prev, [commentId]: true }));
+      try {
+        const fetchedReplies = await getCommentReplies(post.id, commentId);
+        setComments(prevComments => prevComments.map(c => 
+          c.id === commentId ? { ...c, replies: fetchedReplies } : c
+        ));
+      } catch (error) {
+        console.error("Error loading replies:", error);
+        Alert.alert("Error", "Could not load replies.");
+        setLoadingReplies(prev => ({ ...prev, [commentId]: false }));
+        return;
+      } finally {
+        setLoadingReplies(prev => ({ ...prev, [commentId]: false }));
+      }
+    }
+    
+    // Expand the comment to show replies
+    setExpandedComments(prev => ({ ...prev, [commentId]: true }));
   };
 
   const handleAddReply = async (parentCommentId: string) => {
@@ -548,6 +568,9 @@ export default function ViewPost() {
       }));
       setReplyText('');
       setReplyingToCommentId(null);
+      
+      // Automatically expand the comment to show the new reply
+      setExpandedComments(prev => ({ ...prev, [parentCommentId]: true }));
     } catch (error) {
       console.error("Error adding reply:", error);
       Alert.alert("Error", "Could not add reply. Please try again.");
@@ -604,6 +627,9 @@ export default function ViewPost() {
 
   const renderCommentItem = (comment: Comment) => {
     const canInteractWithComment = canInteractWithUser(comment.authorId, comment.authorBlockedUsers);
+    const hasReplies = comment.replyCount > 0;
+    const isExpanded = expandedComments[comment.id];
+    const isLoadingReplies = loadingReplies[comment.id];
     
     return (
       <View key={comment.id}>
@@ -662,6 +688,23 @@ export default function ViewPost() {
           </View>
         </TouchableOpacity>
         
+        {/* View Replies Button */}
+        {hasReplies && (
+          <TouchableOpacity 
+            style={styles.viewRepliesButton}
+            onPress={() => handleLoadReplies(comment.id)}
+            disabled={isLoadingReplies}
+          >
+            {isLoadingReplies ? (
+              <ActivityIndicator size="small" color="#0A84FF" />
+            ) : (
+              <Text style={styles.viewRepliesText}>
+                {isExpanded ? 'Hide replies' : `View replies (${comment.replyCount})`}
+              </Text>
+            )}
+          </TouchableOpacity>
+        )}
+        
         {/* Reply Input Area - only show if can interact */}
         {canInteractWithComment && replyingToCommentId === comment.id && (
           <View style={styles.replyInputContainer}>
@@ -701,8 +744,8 @@ export default function ViewPost() {
           </View>
         )}
 
-        {/* Filter and render replies */}
-        {comment.replies && comment.replies.length > 0 && (
+        {/* Replies Container - only show if expanded */}
+        {isExpanded && comment.replies && comment.replies.length > 0 && (
           <View style={styles.repliesContainer}>
             {comment.replies
               .filter(reply => 
@@ -1010,7 +1053,7 @@ export default function ViewPost() {
           {post.workoutId && (
             <TouchableOpacity 
               style={styles.attachedWorkoutContainer}
-              onPress={() => navigateToWorkout(post.workoutId)}
+              onPress={() => post.workoutId && navigateToWorkout(post.workoutId)}
             >
               <View style={styles.attachedWorkoutContent}>
                 <View style={styles.attachedWorkoutInfo}>
