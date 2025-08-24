@@ -132,7 +132,19 @@ service cloud.firestore {
           request.resource.data.keys().hasAll(['authorId', 'text', 'createdAt']) &&
           request.resource.data.text is string &&
           request.resource.data.text.size() > 0;
-        allow update, delete: if isAuthenticated() && 
+        
+        // Allow comment author to update/delete their own comment,
+        // OR allow anyone who can interact with the post to update replyCount
+        allow update: if isAuthenticated() && (
+          (request.auth.uid == resource.data.authorId) ||
+          (
+            canInteractWithPost(get(/databases/$(database)/documents/posts/$(postId)).data, request.auth.uid) &&
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['replyCount']) &&
+            request.resource.data.replyCount == resource.data.replyCount + 1
+          )
+        );
+        
+        allow delete: if isAuthenticated() && 
           request.auth.uid == resource.data.authorId;
         
         match /replies/{replyId} {
