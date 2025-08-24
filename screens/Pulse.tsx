@@ -97,7 +97,7 @@ export default function Pulse() {
                 
                 // Filter out follow requests from blocked users
                 if (!isUserBlocked(activityData.fromUserId)) {
-                    fetchedFollowRequests.push({ id: doc.id, ...activityData });
+                    fetchedFollowRequests.push({ ...activityData, id: doc.id });
                 }
             });
             setFollowRequests(fetchedFollowRequests);
@@ -124,7 +124,7 @@ export default function Pulse() {
 
         const otherActivitiesQuery = query(
             activityRef,
-            where('status', '!=', 'pending'),
+            where('type', '!=', 'follow_request'),
             orderBy('createdAt', 'desc')
         );
 
@@ -140,7 +140,7 @@ export default function Pulse() {
                 
                 // Filter out activities from blocked users
                 if (!isUserBlocked(activityData.fromUserId)) {
-                    fetchedOtherActivities.push({ id: doc.id, ...activityData } as ActivityItem);
+                    fetchedOtherActivities.push({ ...activityData, id: doc.id } as ActivityItem);
                 }
             });
             setOtherActivities(fetchedOtherActivities);
