@@ -136,7 +136,7 @@ export default function Settings() {
   const [isSaving, setIsSaving] = useState(false);
   const [imageManuallyChanged, setImageManuallyChanged] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
-  const [autoSaveEnabled, setAutoSaveEnabled] = useState(true);
+  const [autoSaveEnabled, setAutoSaveEnabled] = useState(false);
   const [lastAutoSave, setLastAutoSave] = useState<Date | null>(null);
   const [activeModal, setActiveModal] = useState<string | null>(null);
   const [modalQueue, setModalQueue] = useState<string[]>([]);
