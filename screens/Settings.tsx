@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Alert, Image, TouchableOpacity, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, Keyboard, Alert, Image, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useAuth } from '@/context/AuthContext';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db, auth, functions } from '@/firebaseConfig';
@@ -127,17 +127,9 @@ export default function Settings() {
   ]);
 
   const [profileImage, setProfileImage] = useState(userProfile?.profileImageUrl);
-  const [archetypeModalVisible, setArchetypeModalVisible] = useState(false);
   const [dateModalVisible, setDateModalVisible] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [privacyModalVisible, setPrivacyModalVisible] = useState(false);
-  const [messageModalVisible, setMessageModalVisible] = useState(false);
-  const [themeModalVisible, setThemeModalVisible] = useState(false);
-  const [languageModalVisible, setLanguageModalVisible] = useState(false);
-  const [weightUnitModalVisible, setWeightUnitModalVisible] = useState(false);
-  const [distanceUnitModalVisible, setDistanceUnitModalVisible] = useState(false);
   const [insights, setInsights] = useState<string[]>([]);
-  const [showInsights, setShowInsights] = useState(false);
   const [privacyLevel, setPrivacyLevel] = useState<'open' | 'moderate' | 'strict'>('moderate');
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [originalSettings, setOriginalSettings] = useState<Partial<UserSettings>>({});
@@ -146,6 +138,11 @@ export default function Settings() {
   const [isOnline, setIsOnline] = useState(true);
   const [autoSaveEnabled, setAutoSaveEnabled] = useState(true);
   const [lastAutoSave, setLastAutoSave] = useState<Date | null>(null);
+  const [activeModal, setActiveModal] = useState<string | null>(null);
+  const [modalQueue, setModalQueue] = useState<string[]>([]);
+  const [lastModalAction, setLastModalAction] = useState<number>(0);
+
+  const MODAL_DEBOUNCE_MS = 300;
 
   // Update settings when userProfile changes
   useEffect(() => {
@@ -348,6 +345,65 @@ export default function Settings() {
 
     return () => clearTimeout(autoSaveTimer);
   }, [hasUnsavedChanges, autoSaveEnabled, isOnline, isSaving, settings]);
+
+  useEffect(() => {
+    console.log('🔄 Modal State Debug:', {
+      activeModal,
+      modalQueue,
+      lastModalAction: new Date(lastModalAction).toLocaleTimeString(),
+      hasUnsavedChanges
+    });
+  }, [activeModal, modalQueue, lastModalAction, hasUnsavedChanges]);
+
+  const openModal = useCallback((modalId: string) => {
+    Keyboard.dismiss();
+  
+    const now = Date.now();
+    if (now - lastModalAction < MODAL_DEBOUNCE_MS) {
+      console.log('Modal action debounced');
+      return;
+    }
+    
+    // Close any currently active modal first
+    if (activeModal && activeModal !== modalId) {
+      console.log(`Closing ${activeModal} to open ${modalId}`);
+      closeModal(activeModal);
+      
+      // Queue the new modal to open after current one closes
+      setModalQueue(prev => [...prev, modalId]);
+      return;
+    }
+    
+    setActiveModal(modalId);
+    setLastModalAction(now);
+    console.log(`Opened modal: ${modalId}`);
+  }, [activeModal, lastModalAction]);
+
+  const closeModal = useCallback((modalId: string) => {
+    const now = Date.now();
+    if (now - lastModalAction < MODAL_DEBOUNCE_MS) {
+      console.log('Modal close debounced');
+      return;
+    }
+    
+    if (activeModal === modalId) {
+      setActiveModal(null);
+      setLastModalAction(now);
+      console.log(`Closed modal: ${modalId}`);
+      
+      // Process modal queue if any
+      if (modalQueue.length > 0) {
+        const nextModal = modalQueue[0];
+        setModalQueue(prev => prev.slice(1));
+        setTimeout(() => openModal(nextModal), 100);
+      }
+    }
+  }, [activeModal, lastModalAction, modalQueue, openModal]);
+
+  // Enhanced modal visibility getters
+  const isModalVisible = useCallback((modalId: string) => {
+    return activeModal === modalId;
+  }, [activeModal]);
 
   const handleBackPress = () => {
     if (hasUnsavedChanges) {
@@ -983,7 +1039,7 @@ export default function Settings() {
             type="select"
             label="Archetype"
             value={settings.archetype}
-            onPress={() => setArchetypeModalVisible(true)}
+            onPress={() => openModal('archetype')}
             options={archetypeData.map(item => ({ label: item.label, value: item.value }))}
           />
 
@@ -1042,7 +1098,7 @@ export default function Settings() {
             label="Profile Visibility"
             value={settings.profileVisibility}
             options={privacyOptions}
-            onPress={() => setPrivacyModalVisible(true)}
+            onPress={() => openModal('privacy')}
           />
 
           <SettingsItem
@@ -1050,7 +1106,7 @@ export default function Settings() {
             label="Who Can Message You"
             value={settings.messagePermission}
             options={permissionOptions}
-            onPress={() => setMessageModalVisible(true)}
+            onPress={() => openModal('message')}
           />
 
           <SettingsItem
@@ -1122,7 +1178,7 @@ export default function Settings() {
             label="Theme"
             value={settings.theme}
             options={themeOptions}
-            onPress={() => setThemeModalVisible(true)}
+            onPress={() => openModal('theme')}
           />
 
           <SettingsItem
@@ -1130,7 +1186,7 @@ export default function Settings() {
             label="Language"
             value={settings.language}
             options={languageOptions}
-            onPress={() => setLanguageModalVisible(true)}
+            onPress={() => openModal('language')}
           />
 
           <SettingsItem
@@ -1141,7 +1197,7 @@ export default function Settings() {
               { label: 'Metric (kg)', value: 'metric' },
               { label: 'Imperial (lbs)', value: 'imperial' }
             ]}
-            onPress={() => setWeightUnitModalVisible(true)}
+            onPress={() => openModal('weightUnit')}
           />
 
           <SettingsItem
@@ -1152,7 +1208,7 @@ export default function Settings() {
               { label: 'Metric (km)', value: 'metric' },
               { label: 'Imperial (mi)', value: 'imperial' }
             ]}
-            onPress={() => setDistanceUnitModalVisible(true)}
+            onPress={() => openModal('distanceUnit')}
           />
         </SettingsSection>
 
@@ -1247,7 +1303,7 @@ export default function Settings() {
           <SettingsItem
             type="button"
             label={`Privacy Insights (${insights.length})`}
-            onPress={() => setShowInsights(true)}
+            onPress={() => openModal('insights')}
           />
 
           <SettingsItem
@@ -1401,8 +1457,7 @@ export default function Settings() {
         )}
       </ScrollView>
 
-      {/* Only render CustomSelector when modal should be visible */}
-      {archetypeModalVisible && (
+      {isModalVisible('archetype') && (
         <CustomSelector
           items={archetypeData}
           value={settings.archetype || null}
@@ -1410,14 +1465,13 @@ export default function Settings() {
           placeholder="Select archetype"
           title="Archetype"
           icon="body"
-          modalVisible={archetypeModalVisible}
-          setModalVisible={setArchetypeModalVisible}
+          modalVisible={isModalVisible('archetype')}
+          setModalVisible={(visible) => visible ? openModal('archetype') : closeModal('archetype')}
           variant="fullWidth"
         />
       )}
 
-      {/* Privacy Modals */}
-      {privacyModalVisible && (
+      {isModalVisible('privacy') && (
         <CustomSelector
           items={privacyOptions}
           value={settings.profileVisibility ?? 'public'}
@@ -1425,13 +1479,13 @@ export default function Settings() {
           placeholder="Select visibility"
           title="Profile Visibility"
           icon="eye"
-          modalVisible={privacyModalVisible}
-          setModalVisible={setPrivacyModalVisible}
+          modalVisible={isModalVisible('privacy')}
+          setModalVisible={(visible) => visible ? openModal('privacy') : closeModal('privacy')}
           variant="fullWidth"
         />
       )}
 
-      {messageModalVisible && (
+      {isModalVisible('message') && (
         <CustomSelector
           items={permissionOptions.map(opt => ({ 
             label: opt.label, 
@@ -1444,14 +1498,13 @@ export default function Settings() {
           placeholder="Select message permission"
           title="Who Can Message You"
           icon="mail"
-          modalVisible={messageModalVisible}
-          setModalVisible={setMessageModalVisible}
+          modalVisible={isModalVisible('message')}
+          setModalVisible={(visible) => visible ? openModal('message') : closeModal('message')}
           variant="fullWidth"
         />
       )}
 
-      {/* Preference Modals */}
-      {themeModalVisible && (
+      {isModalVisible('theme') && (
         <CustomSelector
           items={themeOptions.map(opt => ({ 
             label: opt.label, 
@@ -1466,13 +1519,13 @@ export default function Settings() {
           placeholder="Select theme"
           title="App Theme"
           icon="color-palette"
-          modalVisible={themeModalVisible}
-          setModalVisible={setThemeModalVisible}
+          modalVisible={isModalVisible('theme')}
+          setModalVisible={(visible) => visible ? openModal('theme') : closeModal('theme')}
           variant="fullWidth"
         />
       )}
 
-      {languageModalVisible && (
+      {isModalVisible('language') && (
         <CustomSelector
           items={languageOptions.map(opt => ({ 
             label: opt.label, 
@@ -1484,13 +1537,13 @@ export default function Settings() {
           placeholder="Select language"
           title="App Language"
           icon="globe"
-          modalVisible={languageModalVisible}
-          setModalVisible={setLanguageModalVisible}
+          modalVisible={isModalVisible('language')}
+          setModalVisible={(visible) => visible ? openModal('language') : closeModal('language')}
           variant="fullWidth"
         />
       )}
 
-      {weightUnitModalVisible && (
+      {isModalVisible('weightUnit') && (
         <CustomSelector
           items={[
             { label: 'Metric (kg)', value: 'metric', icon: 'barbell', description: 'Kilograms for weight measurements' },
@@ -1501,13 +1554,13 @@ export default function Settings() {
           placeholder="Select weight unit"
           title="Weight Unit"
           icon="barbell"
-          modalVisible={weightUnitModalVisible}
-          setModalVisible={setWeightUnitModalVisible}
+          modalVisible={isModalVisible('weightUnit')}
+          setModalVisible={(visible) => visible ? openModal('weightUnit') : closeModal('weightUnit')}
           variant="fullWidth"
         />
       )}
 
-      {distanceUnitModalVisible && (
+      {isModalVisible('distanceUnit') && (
         <CustomSelector
           items={[
             { label: 'Metric (km)', value: 'metric', icon: 'walk', description: 'Kilometers for distance measurements' },
@@ -1518,25 +1571,24 @@ export default function Settings() {
           placeholder="Select distance unit"
           title="Distance Unit"
           icon="walk"
-          modalVisible={distanceUnitModalVisible}
-          setModalVisible={setDistanceUnitModalVisible}
+          modalVisible={isModalVisible('distanceUnit')}
+          setModalVisible={(visible) => visible ? openModal('distanceUnit') : closeModal('distanceUnit')}
           variant="fullWidth"
         />
       )}
 
-      {/* Insights Modal */}
-      {showInsights && (
+      {isModalVisible('insights') && (
         <View style={styles.modalOverlay}>
           <View style={styles.insightsModal}>
             <View style={styles.insightsHeader}>
               <Text style={styles.insightsTitle}>Privacy Insights</Text>
-              <TouchableOpacity onPress={() => setShowInsights(false)}>
+              <TouchableOpacity onPress={() => closeModal('insights')}>
                 <Text style={styles.closeButton}>✕</Text>
               </TouchableOpacity>
             </View>
-            
+
             <View style={styles.privacyLevelSection}>
-              <Text style={styles.privacyLevelLabel}>Your Privacy Level:</Text>
+              <Text style={styles.privacyLevelLabel}>Current Level:</Text>
               <View style={[
                 styles.privacyLevelBadge,
                 { backgroundColor: 
@@ -1550,19 +1602,19 @@ export default function Settings() {
               </View>
             </View>
 
-            <View style={styles.insightsList}>
-              {insights.map((insight, index) => (
-                <View key={index} style={styles.insightItem}>
-                  <Text style={styles.insightText}>{insight}</Text>
-                </View>
-              ))}
-              
-              {insights.length === 0 && (
+            <ScrollView style={styles.insightsList} showsVerticalScrollIndicator={false}>
+              {insights.length === 0 ? (
                 <Text style={styles.noInsightsText}>
                   No insights available. Your settings look good! 👍
                 </Text>
+              ) : (
+                insights.map((insight, index) => (
+                  <View key={index} style={styles.insightItem}>
+                    <Text style={styles.insightText}>{insight}</Text>
+                  </View>
+                ))
               )}
-            </View>
+            </ScrollView>
           </View>
         </View>
       )}
