@@ -375,17 +375,21 @@ export default function Pulse() {
         const getActivityIcon = (type: string) => {
             switch (type) {
                 case 'post_like':
-                    return <MaterialIcons name="favorite" size={16} color="#ff2d55" />;
+                return <MaterialIcons name="favorite" size={16} color="#ff2d55" />;
                 case 'post_comment':
-                    return <MaterialIcons name="chat-bubble" size={16} color="#ff2d55" />;
+                return <MaterialIcons name="chat-bubble" size={16} color="#ff2d55" />;
+                case 'comment_like':
+                return <MaterialIcons name="favorite" size={16} color="#ff2d55" />;
+                case 'comment_reply':
+                return <MaterialIcons name="reply" size={16} color="#ff2d55" />;
                 case 'workout_save':
-                    return <MaterialIcons name="bookmark" size={16} color="#ff2d55" />;
+                return <MaterialIcons name="bookmark" size={16} color="#ff2d55" />;
                 case 'new_follower':
-                    return <MaterialIcons name="person-add" size={16} color="#ff2d55" />;
+                return <MaterialIcons name="person-add" size={16} color="#ff2d55" />;
                 case 'follow_accepted':
-                    return <MaterialIcons name="check-circle" size={16} color="#ff2d55" />;
+                return <MaterialIcons name="check-circle" size={16} color="#ff2d55" />;
                 default:
-                    return <MaterialIcons name="notifications" size={16} color="#ff2d55" />;
+                return <MaterialIcons name="notifications" size={16} color="#ff2d55" />;
             }
         };
 
@@ -469,6 +473,8 @@ export default function Pulse() {
                                             <Text style={activityStyles.actionText}>
                                                 {activity.type === 'post_like' && ' liked your post'}
                                                 {activity.type === 'post_comment' && ` commented: "${displayShortenedString(activity.commentText || '', maxCommentLength)}"`}
+                                                {activity.type === 'comment_like' && ' liked your comment'}
+                                                {activity.type === 'comment_reply' && ` replied to your comment: "${displayShortenedString(activity.commentText || '', maxCommentLength)}"`}
                                                 {activity.type === 'workout_save' && ` saved your workout: ${displayShortenedString(activity.workoutTitle || 'Workout', maxWorkoutTitleLength)}`}
                                                 {activity.type === 'new_follower' && ' started following you'}
                                                 {activity.type === 'follow_accepted' && ' accepted your follow request'}

@@ -1,5 +1,5 @@
 import {admin, getDb} from "./firebaseAdmin";
-import {onDocumentCreated} from "firebase-functions/v2/firestore";
+import {onDocumentCreated, onDocumentWritten} from "firebase-functions/v2/firestore";
 
 export const createactivityonfollowrequest = onDocumentCreated(
   {
@@ -67,7 +67,7 @@ export const createactivityonfollowrequest = onDocumentCreated(
 
 export const createactivityonpostlike = onDocumentCreated(
   {
-    document: "posts/{postId}/reactions/{userId}",
+    document: "posts/{postId}/likers/{userId}",
     region: "northamerica-northeast2",
   },
   async (event) => {
@@ -77,14 +77,8 @@ export const createactivityonpostlike = onDocumentCreated(
       console.log("No data associated with the event for createactivityonpostlike");
       return;
     }
-    const reactionData = snapshot.data();
-    const {postId, userId: reactingUserId} = event.params;
 
-    // Only create activity for "like" type reactions
-    if (reactionData.type !== "like") {
-      console.log(`Reaction type is '${reactionData.type}', not 'like'. No activity created for post ${postId}.`);
-      return;
-    }
+    const {postId, userId: reactingUserId} = event.params;
 
     try {
       const postDoc = await db.collection("posts").doc(postId).get();
@@ -148,7 +142,7 @@ export const createactivityonpostcomment = onDocumentCreated(
     }
     const commentData = snapshot.data();
     const {postId, commentId} = event.params;
-    const commentAuthorId = commentData.userId;
+    const commentAuthorId = commentData.authorId;
 
     try {
       const postDoc = await db.collection("posts").doc(postId).get();
@@ -196,6 +190,114 @@ export const createactivityonpostcomment = onDocumentCreated(
       );
     } catch (error) {
       console.error("Error creating 'post_comment' activity:", error);
+    }
+  }
+);
+
+export const createactivityoncommentlike = onDocumentWritten(
+  {
+    document: "posts/{postId}/comments/{commentId}",
+    region: "northamerica-northeast2",
+  },
+  async (event) => {
+    const db = getDb();
+    const beforeData = event.data?.before?.data();
+    const afterData = event.data?.after?.data();
+
+    if (!beforeData || !afterData) return;
+
+    const {postId, commentId} = event.params;
+
+    // Check if likedBy array was updated (someone liked the comment)
+    const beforeLikedBy = beforeData.likedBy || [];
+    const afterLikedBy = afterData.likedBy || [];
+
+    if (afterLikedBy.length > beforeLikedBy.length) {
+      // Someone liked the comment
+      const newLiker = afterLikedBy.find((userId: string) => !beforeLikedBy.includes(userId));
+      if (!newLiker) return;
+
+      const commentAuthorId = afterData.authorId;
+
+      // Don't create activity if user likes their own comment
+      if (commentAuthorId === newLiker) return;
+
+      try {
+        const likerUserDoc = await db.collection("users").doc(newLiker).get();
+        if (!likerUserDoc.exists) return;
+        const likerUserData = likerUserDoc.data();
+
+        const activityData = {
+          type: "comment_like",
+          fromUserId: newLiker,
+          fromUsername: likerUserData?.username || "Someone",
+          fromProfileImageUrl: likerUserData?.profileImageUrl || "",
+          postId: postId,
+          commentId: commentId,
+          commentText: afterData.text ? afterData.text.substring(0, 50) + (afterData.text.length > 50 ? "..." : "") : "",
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          isRead: false,
+        };
+
+        await db
+          .collection("activity")
+          .doc(commentAuthorId)
+          .collection("userActivity")
+          .add(activityData);
+
+        console.log(`'comment_like' activity created for ${commentAuthorId} from ${newLiker}`);
+      } catch (error) {
+        console.error("Error creating comment like activity:", error);
+      }
+    }
+  }
+);
+
+export const createactivityoncommentreply = onDocumentCreated(
+  {
+    document: "posts/{postId}/comments/{commentId}/replies/{replyId}",
+    region: "northamerica-northeast2",
+  },
+  async (event) => {
+    const db = getDb();
+    const snapshot = event.data;
+    if (!snapshot) return;
+
+    const replyData = snapshot.data();
+    const {postId, commentId, replyId} = event.params;
+    const replyAuthorId = replyData.authorId;
+    const parentCommentAuthorId = replyData.replyToUserId;
+
+    // Don't create activity if user replies to their own comment
+    if (replyAuthorId === parentCommentAuthorId) return;
+
+    try {
+      const replyAuthorDoc = await db.collection("users").doc(replyAuthorId).get();
+      if (!replyAuthorDoc.exists) return;
+      const replyAuthorData = replyAuthorDoc.data();
+
+      const activityData = {
+        type: "comment_reply",
+        fromUserId: replyAuthorId,
+        fromUsername: replyAuthorData?.username || "Someone",
+        fromProfileImageUrl: replyAuthorData?.profileImageUrl || "",
+        postId: postId,
+        commentId: commentId,
+        replyId: replyId,
+        commentText: replyData.text ? replyData.text.substring(0, 50) + (replyData.text.length > 50 ? "..." : "") : "",
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        isRead: false,
+      };
+
+      await db
+        .collection("activity")
+        .doc(parentCommentAuthorId)
+        .collection("userActivity")
+        .add(activityData);
+
+      console.log(`'comment_reply' activity created for ${parentCommentAuthorId} from ${replyAuthorId}`);
+    } catch (error) {
+      console.error("Error creating comment reply activity:", error);
     }
   }
 );

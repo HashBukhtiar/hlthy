@@ -441,22 +441,6 @@ export function usePostsData() {
         transaction.update(postRef, {
           reactionCount: increment(1),
         });
-
-        if (postData.authorId !== currentUser.uid) {
-          const authorActivityColRef = collection(db, 'activity', postData.authorId, 'userActivity');
-          const newActivityRef = doc(authorActivityColRef); 
-          transaction.set(newActivityRef, {
-            type: 'post_like',
-            fromUserId: currentUser.uid,
-            fromUsername: userProfile.username,
-            fromProfileImageUrl: userProfile.profileImageUrl || currentUser.photoURL || null,
-            postId: postId,
-            postImageUrl: postData.imageUrl?.startsWith("http") ? postData.imageUrl : undefined,
-            postCaption: postData.caption ? postData.caption.substring(0, 50) + (postData.caption.length > 50 ? "..." : "") : undefined,
-            createdAt: serverTimestamp(),
-            status: 'unread', 
-          } as Omit<ActivityItem, 'id'>);
-        }
       });
       console.log(`User ${currentUser.uid} liked post ${postId}`);
     } catch (error) {
@@ -568,23 +552,6 @@ export function usePostsData() {
           likes: increment(1),
           likedBy: arrayUnion(currentUser.uid)
         });
-
-        // Activity for comment author (if not self-liking comment)
-        if (commentData.authorId !== currentUser.uid) {
-          const authorActivityColRef = collection(db, 'activity', commentData.authorId, 'userActivity');
-          const newActivityRef = doc(authorActivityColRef);
-          transaction.set(newActivityRef, {
-            type: 'comment_like',
-            fromUserId: currentUser.uid,
-            fromUsername: userProfile.username,
-            fromProfileImageUrl: userProfile.profileImageUrl || "",
-            postId: postId,
-            commentId: commentId,
-            commentText: commentData.text.substring(0, 50) + (commentData.text.length > 50 ? "..." : ""),
-            createdAt: serverTimestamp(),
-            status: 'unread',
-          } as Omit<ActivityItem, 'id'>);
-        }
       });
       console.log(`User ${currentUser.uid} liked comment ${commentId} on post ${postId}`);
     } catch (error) {
@@ -669,25 +636,6 @@ export function usePostsData() {
         transaction.update(parentCommentRef, {
           replyCount: increment(1)
         });
-
-        // Activity for parent comment author (if not replying to own comment)
-        if (parentCommentData.authorId !== currentUser.uid) {
-          const authorActivityColRef = collection(db, 'activity', parentCommentData.authorId, 'userActivity');
-          const newActivityRef = doc(authorActivityColRef);
-          transaction.set(newActivityRef, {
-            type: 'comment_reply',
-            fromUserId: currentUser.uid,
-            fromUsername: userProfile.username,
-            fromProfileImageUrl: userProfile.profileImageUrl || "",
-            postId: postId,
-            parentCommentId: parentCommentId,
-            commentText: parentCommentData.text.substring(0, 50) + (parentCommentData.text.length > 50 ? "..." : ""),
-            replyId: newReplyRef.id,
-            replyText: text.trim().substring(0, 50) + (text.trim().length > 50 ? "..." : ""),
-            createdAt: serverTimestamp(),
-            status: 'unread',
-          } as Omit<ActivityItem, 'id'>);
-        }
       });
 
       const clientTimestamp = Timestamp.now();
