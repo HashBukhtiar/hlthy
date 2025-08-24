@@ -302,6 +302,66 @@ export const createactivityoncommentreply = onDocumentCreated(
   }
 );
 
+export const createactivityonreplylike = onDocumentWritten(
+  {
+    document: "posts/{postId}/comments/{commentId}/replies/{replyId}",
+    region: "northamerica-northeast2",
+  },
+  async (event) => {
+    const db = getDb();
+    const beforeData = event.data?.before?.data();
+    const afterData = event.data?.after?.data();
+
+    if (!beforeData || !afterData) return;
+
+    const {postId, commentId, replyId} = event.params;
+
+    // Check if likedBy array was updated (someone liked the reply)
+    const beforeLikedBy = beforeData.likedBy || [];
+    const afterLikedBy = afterData.likedBy || [];
+
+    if (afterLikedBy.length > beforeLikedBy.length) {
+      // Someone liked the reply
+      const newLiker = afterLikedBy.find((userId: string) => !beforeLikedBy.includes(userId));
+      if (!newLiker) return;
+
+      const replyAuthorId = afterData.authorId;
+
+      // Don't create activity if user likes their own reply
+      if (replyAuthorId === newLiker) return;
+
+      try {
+        const likerUserDoc = await db.collection("users").doc(newLiker).get();
+        if (!likerUserDoc.exists) return;
+        const likerUserData = likerUserDoc.data();
+
+        const activityData = {
+          type: "reply_like",
+          fromUserId: newLiker,
+          fromUsername: likerUserData?.username || "Someone",
+          fromProfileImageUrl: likerUserData?.profileImageUrl || "",
+          postId: postId,
+          commentId: commentId,
+          replyId: replyId,
+          commentText: afterData.text ? afterData.text.substring(0, 50) + (afterData.text.length > 50 ? "..." : "") : "",
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          isRead: false,
+        };
+
+        await db
+          .collection("activity")
+          .doc(replyAuthorId)
+          .collection("userActivity")
+          .add(activityData);
+
+        console.log(`'reply_like' activity created for ${replyAuthorId} from ${newLiker}`);
+      } catch (error) {
+        console.error("Error creating reply like activity:", error);
+      }
+    }
+  }
+);
+
 export const createactivityonworkoutsave = onDocumentCreated(
   {
     document: "users/{saverUserId}/savedWorkouts/{workoutId}",

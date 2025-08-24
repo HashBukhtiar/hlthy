@@ -111,8 +111,13 @@ service cloud.firestore {
         request.resource.data.keys().hasAll(['authorId', 'createdAt']) &&
         request.resource.data.createdAt is timestamp;
       
-      allow update: if isAuthenticated() && 
-        request.auth.uid == resource.data.authorId;
+      allow update: if isAuthenticated() && (
+        (request.auth.uid == resource.data.authorId) ||
+        (
+          canInteractWithPost(resource.data, request.auth.uid) &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactionCount'])
+        )
+      );
       
       allow delete: if isAuthenticated() && 
         request.auth.uid == resource.data.authorId;
@@ -134,13 +139,18 @@ service cloud.firestore {
           request.resource.data.text.size() > 0;
         
         // Allow comment author to update/delete their own comment,
-        // OR allow anyone who can interact with the post to update replyCount
+        // OR allow anyone who can interact with the post to update replyCount,
+        // OR allow anyone who can interact with the post to update likes/likedBy for liking
         allow update: if isAuthenticated() && (
           (request.auth.uid == resource.data.authorId) ||
           (
             canInteractWithPost(get(/databases/$(database)/documents/posts/$(postId)).data, request.auth.uid) &&
             request.resource.data.diff(resource.data).affectedKeys().hasOnly(['replyCount']) &&
             request.resource.data.replyCount == resource.data.replyCount + 1
+          ) ||
+          (
+            canInteractWithPost(get(/databases/$(database)/documents/posts/$(postId)).data, request.auth.uid) &&
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'likedBy'])
           )
         );
         
@@ -155,7 +165,14 @@ service cloud.firestore {
             request.resource.data.keys().hasAll(['authorId', 'text', 'createdAt', 'parentCommentId']) &&
             request.resource.data.text is string &&
             request.resource.data.text.size() > 0;
-          allow update, delete: if isAuthenticated() && 
+          allow update: if isAuthenticated() && (
+            (request.auth.uid == resource.data.authorId) ||
+            (
+              canInteractWithPost(get(/databases/$(database)/documents/posts/$(postId)).data, request.auth.uid) &&
+              request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'likedBy'])
+            )
+          );
+          allow delete: if isAuthenticated() && 
             request.auth.uid == resource.data.authorId;
         }
       }

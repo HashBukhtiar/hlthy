@@ -30,7 +30,7 @@ const displayShortenedString = (str: string, maxLength: number): string => {
 
 export interface ActivityItem {
     id: string; 
-    type: 'follow_request' | 'new_follower' | 'post_like' | 'post_comment' | 'workout_save' | string;
+    type: 'follow_request' | 'new_follower' | 'post_like' | 'post_comment' | 'comment_like' | 'reply_like' | 'comment_reply' | 'workout_save' | string;
     fromUserId: string;
     fromUsername: string;
     fromProfileImageUrl?: string;
@@ -38,6 +38,8 @@ export interface ActivityItem {
     postId?: string;
     postImageUrl?: string;
     postThumbnailUrl?: string;
+    commentId?: string;
+    replyId?: string;
     workoutId?: string; 
     workoutTitle?: string;
     workoutThumbnailUrl?: string;
@@ -380,6 +382,8 @@ export default function Pulse() {
                 return <MaterialIcons name="chat-bubble" size={16} color="#ff2d55" />;
                 case 'comment_like':
                 return <MaterialIcons name="favorite" size={16} color="#ff2d55" />;
+                case 'reply_like':
+                return <MaterialIcons name="favorite" size={16} color="#ff2d55" />;
                 case 'comment_reply':
                 return <MaterialIcons name="reply" size={16} color="#ff2d55" />;
                 case 'workout_save':
@@ -425,7 +429,7 @@ export default function Pulse() {
                                             return;
                                         }
                                         
-                                        if (activity.type === 'post_like' || activity.type === 'post_comment') {
+                                        if (activity.type === 'post_like' || activity.type === 'post_comment' || activity.type === 'comment_like' || activity.type === 'reply_like') {
                                             if (activity.postId) router.push({ pathname: "/view-post/[id]", params: { id: activity.postId } });
                                         } else if (activity.type === 'workout_save') {
                                             if (activity.workoutId) router.push({ pathname: "/view-workout/[id]", params: { id: activity.workoutId } });
@@ -474,6 +478,7 @@ export default function Pulse() {
                                                 {activity.type === 'post_like' && ' liked your post'}
                                                 {activity.type === 'post_comment' && ` commented: "${displayShortenedString(activity.commentText || '', maxCommentLength)}"`}
                                                 {activity.type === 'comment_like' && ' liked your comment'}
+                                                {activity.type === 'reply_like' && ' liked your reply'}
                                                 {activity.type === 'comment_reply' && ` replied to your comment: "${displayShortenedString(activity.commentText || '', maxCommentLength)}"`}
                                                 {activity.type === 'workout_save' && ` saved your workout: ${displayShortenedString(activity.workoutTitle || 'Workout', maxWorkoutTitleLength)}`}
                                                 {activity.type === 'new_follower' && ' started following you'}
@@ -485,7 +490,7 @@ export default function Pulse() {
                                 </TouchableOpacity>
 
                                 {/* Content preview images with block checking */}
-                                {(activity.type === 'post_like' || activity.type === 'post_comment') && activity.postImageUrl && (
+                                {(activity.type === 'post_like' || activity.type === 'post_comment' || activity.type === 'comment_like' || activity.type === 'reply_like') && activity.postImageUrl && (
                                     <TouchableOpacity
                                         onPress={() => {
                                             // Check if we can interact before navigating to post
