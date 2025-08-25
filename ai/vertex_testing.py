@@ -640,6 +640,45 @@ The allowedExercises list above has been filtered for your injuries/experience/e
 - Include mobility and activation exercises where appropriate
 """
 
+        # Detect specific muscle group requests
+        muscle_group_focus = ""
+        message_lower = user_message.lower()
+        
+        if "chest" in message_lower:
+            muscle_group_focus = """
+🎯 MUSCLE GROUP FOCUS: CHEST
+- PRIMARY: chest-focused exercises (bench press, push-ups, chest fly, chest press)
+- SUPPORTING: triceps, shoulders (secondary)
+- AVOID: unrelated exercises like core, legs, or back unless specifically requested
+- Exercise selection should be 70%+ chest-primary movements
+"""
+        elif "back" in message_lower:
+            muscle_group_focus = """
+🎯 MUSCLE GROUP FOCUS: BACK
+- PRIMARY: back-focused exercises (rows, pull-ups, lat pulldown)  
+- SUPPORTING: biceps, rear delts (secondary)
+- Exercise selection should be 70%+ back-primary movements
+"""
+        elif any(word in message_lower for word in ["legs", "leg", "lower body"]):
+            muscle_group_focus = """
+🎯 MUSCLE GROUP FOCUS: LEGS/LOWER BODY
+- PRIMARY: leg-focused exercises (squats, lunges, leg press)
+- SUPPORTING: glutes, calves (secondary)  
+- Exercise selection should be 70%+ leg-primary movements
+"""
+        elif any(word in message_lower for word in ["arms", "biceps", "triceps"]):
+            muscle_group_focus = """
+🎯 MUSCLE GROUP FOCUS: ARMS
+- PRIMARY: arm-focused exercises (curls, extensions, arm isolation)
+- Exercise selection should be 70%+ arm-primary movements
+"""
+        elif any(word in message_lower for word in ["shoulders", "shoulder"]):
+            muscle_group_focus = """
+🎯 MUSCLE GROUP FOCUS: SHOULDERS
+- PRIMARY: shoulder-focused exercises (overhead press, lateral raises)
+- Exercise selection should be 70%+ shoulder-primary movements  
+"""
+
         template = f"""{context_str}
 
 TASK: Draft a single-day workout plan using ONLY canonical exercise IDs from the allowed list
@@ -647,12 +686,13 @@ TASK: Draft a single-day workout plan using ONLY canonical exercise IDs from the
 - Database automatically filters out contraindicated exercises for injuries and experience level  
 - Choose equipment-appropriate exercises for: {equipment_str}
 - System enforces ID compliance - unknown IDs will trigger plan rejection
-{injury_context}
+{injury_context}{muscle_group_focus}
 💪 PROGRAMMING GUIDELINES:
 - Use compound movements as the foundation  
 - 2-4 segments with 2-5 exercises each
 - Progressive overload principles
 - Exercise identifiers MUST be canonical IDs (e.g., "back_squat", "dumbbell_bench_press")
+- MATCH THE USER'S REQUEST: If they ask for "chest workout", focus primarily on chest exercises
 {canonical_info}
 
 {progression_context}
