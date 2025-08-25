@@ -15,7 +15,6 @@ import { collection, query, where, limit, getDocs, getDoc, doc } from 'firebase/
 import { db } from '@/firebaseConfig';
 import { getOptimalImageUrl, deleteImageFromStorage, deleteMilestoneFromFirestore } from '@/utils/imageUtils';
 import { useBlockEnforcement } from '@/utils/blockUtils';
-import { useDoubleTap } from '@/hooks/useDoubleTap';
 
 export default function ViewPost() {
   const [menuVisible, setMenuVisible] = useState(false);
@@ -79,16 +78,13 @@ export default function ViewPost() {
   }, [post, canInteractWithUser]);
 
   // Double-tap handlers for liking
-  const postDoubleTapHandler = useDoubleTap({
-    onDoubleTap: () => {
-      if (!post || !currentUser || !canInteractWithAuthor || isLiking) return;
-      
-      if (!post.isLiked) {
-        handleLike();
-      }
-    },
-    enableHaptics: true,
-  });
+  const handlePostDoubleTap = () => {
+    if (!post || !currentUser || !canInteractWithAuthor || isLiking) return;
+    
+    if (!post.isLiked) {
+      handleLike();
+    }
+  };
 
   // Helper function to handle comment double-tap
   const handleCommentDoubleTap = (commentId: string) => {
@@ -172,6 +168,11 @@ export default function ViewPost() {
         }, 300);
       }
     };
+  };
+
+  // Create post double-tap handler
+  const postDoubleTapHandler = {
+    onPress: createDoubleTapHandler(handlePostDoubleTap, 'post')
   };
   
   // Fetch post and comments
