@@ -75,7 +75,7 @@ export const SmartMessageRenderer: React.FC<SmartMessageRendererProps> = ({
   // Handle sharing workout
   const handleShareWorkout = async () => {
     try {
-      await Clipboard.setStringAsync(message);
+      Clipboard.setString(message);
       Alert.alert('Copied!', 'Workout copied to clipboard for sharing.');
     } catch (error) {
       Alert.alert('Error', 'Failed to copy workout. Please try again.');

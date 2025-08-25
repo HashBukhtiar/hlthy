@@ -42,9 +42,10 @@ import {
 import { useAuth } from '@/context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { sendMessage, sendMessageWithIntent, IntentClassificationResult } from '@/ai/ai_chat';
+import { sendMessage, sendMessageWithIntent, IntentClassificationResult, clearConversationHistory } from '@/ai/ai_chat';
 import { SmartChatInput } from '@/components/SmartChatInput';
 import { IntentMessageWrapper } from '@/components/IntentBadge';
+import { SmartMessageRenderer } from '@/components/SmartMessageRenderer';
 import { calculateImprovementPercentage } from '@/logic/milesonteUtils';
 import { generateId } from '@/logic/idGenerator';
 import { getOptimalImageUrl } from '@/utils/imageUtils';
@@ -656,7 +657,10 @@ const AIMessageBubble: React.FC<AIMessageBubbleProps> = ({ message, intent, onLo
       <View style={styles.aiContentContainer}>
         <View style={[styles.aiContentBubble]}>
           <View style={styles.aiMessageContent}>
-            <Text style={styles.aiText}>{message}</Text>
+            <SmartMessageRenderer 
+              message={message}
+              intent={intent}
+            />
           </View>
           
           {/* Action Buttons */}
@@ -1519,6 +1523,43 @@ export default function ChatScreen() {
             <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
               <Ionicons name="arrow-back" size={24} color="white" />
             </TouchableOpacity>
+            
+            {/* Clear Chat Button - Only show for AI conversations */}
+            {conversationId.endsWith('_ai_conversation') && (
+              <TouchableOpacity 
+                style={styles.clearChatButton} 
+                onPress={async () => {
+                  Alert.alert(
+                    "Clear Chat History", 
+                    "This will delete all conversation history. Are you sure?",
+                    [
+                      { text: "Cancel", style: "cancel" },
+                      { 
+                        text: "Clear", 
+                        style: "destructive",
+                        onPress: async () => {
+                          try {
+                            if (currentUser?.uid) {
+                              const success = await clearConversationHistory(currentUser.uid);
+                              if (success) {
+                                Alert.alert("Success", "Chat history cleared! AI will now give you fresh responses.");
+                              } else {
+                                Alert.alert("Error", "Failed to clear chat history");
+                              }
+                            }
+                          } catch (error) {
+                            console.error('Clear chat error:', error);
+                            Alert.alert("Error", "Failed to clear chat history");
+                          }
+                        }
+                      }
+                    ]
+                  );
+                }}
+              >
+                <Ionicons name="trash-outline" size={20} color="#FF6B35" />
+              </TouchableOpacity>
+            )}
             <TouchableOpacity
               style={styles.headerUserInfoContainer}
               onPress={navigateToUserProfile}
@@ -1697,6 +1738,14 @@ const styles = StyleSheet.create({
   backButton: {
     padding: 5,
     marginRight: 5,
+  },
+  clearChatButton: {
+    padding: 8,
+    marginRight: 10,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 107, 53, 0.1)',
+    borderWidth: 1,
+    borderColor: '#FF6B35',
   },
   headerUserInfoContainer: {
     flexDirection: 'row',

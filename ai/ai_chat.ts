@@ -1,4 +1,6 @@
 import { API_BASE_URL } from '@/config/api';
+import { db } from '@/firebaseConfig';
+import { doc, updateDoc, deleteDoc, collection, query, where, getDocs, writeBatch } from 'firebase/firestore';
 
 export interface IntentClassificationResult {
   intent: string;
@@ -214,6 +216,30 @@ export async function checkAIServiceHealth(): Promise<boolean> {
     return response.ok;
   } catch (error) {
     console.error('AI service health check failed:', error);
+    return false;
+  }
+}
+
+/**
+ * Clear the AI conversation history for a user
+ * @param userId - The user's unique ID
+ * @returns Promise<boolean> - Success status
+ */
+export async function clearConversationHistory(userId: string): Promise<boolean> {
+  try {
+    console.log('Clearing conversation history for user:', userId);
+    
+    const conversationId = `${userId}_ai_conversation`;
+    
+    // Delete the entire conversation document
+    const conversationRef = doc(db, 'conversations', conversationId);
+    await deleteDoc(conversationRef);
+    
+    console.log('✅ Conversation history cleared successfully!');
+    return true;
+    
+  } catch (error) {
+    console.error('❌ Error clearing conversation history:', error);
     return false;
   }
 }

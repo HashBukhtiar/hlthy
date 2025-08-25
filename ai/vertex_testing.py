@@ -402,9 +402,10 @@ def _get_risk_aware_allowed_ids(context: dict, max_ids: int = 25) -> tuple[list,
             
     except Exception as e:
         print(f"Error building risk-aware allowed IDs: {e}")
-        # Fallback to ultra-conservative safe exercises
-        safe_fallback = ["push_ups", "goblet_squat", "dumbbell_row", "planks", "glute_bridge", 
-                        "dumbbell_shoulder_press", "hammer_curls", "split_squat", "dead_bug", "lateral_raise"]
+        # Fallback to ultra-conservative safe exercises with better chest coverage
+        safe_fallback = ["push_ups", "incline_push_ups", "dumbbell_bench_press", "dumbbell_fly", 
+                        "goblet_squat", "dumbbell_row", "planks", "glute_bridge", 
+                        "dumbbell_shoulder_press", "hammer_curls", "split_squat", "lateral_raise"]
         return safe_fallback, []
 def _allowed_ids_for_prompt(context: dict, max_ids: int = 25) -> list:
     """Wrapper for risk-aware allowed IDs that returns just the safe list for backward compatibility"""
@@ -521,17 +522,20 @@ def route_user_message(user_message):
         # Enhanced fallback routing logic
         message_lower = user_message.lower()
         
-        # Technique patterns - check first for pain/injury
-        if any(word in message_lower for word in ["hurt", "pain", "injury", "sore", "ache", "substitute", "can't do", "instead of"]):
-            return "technique"
-        if any(word in message_lower for word in ["form", "technique", "correct", "fix my", "how to do", "proper way"]):
-            return "technique"
-            
-        # Planner patterns - workout requests
+        # Planner patterns - workout requests (check these FIRST before technique patterns)
         if any(word in message_lower for word in ["workout", "routine", "exercises for", "train", "lift", "need a", "give me a", "design"]):
             return "planner"
         if any(word in message_lower for word in ["chest", "back", "legs", "arms", "shoulders", "push", "pull"]):
             return "planner"
+        
+        # Technique patterns - check after planner to avoid interference
+        if any(word in message_lower for word in ["hurt", "pain", "injury", "sore", "ache", "substitute", "can't do", "instead of"]):
+            # If it's asking for a workout WITH pain mention, still route to planner
+            if any(workout_word in message_lower for workout_word in ["workout", "routine", "exercises for", "give me", "need"]):
+                return "planner"
+            return "technique"
+        if any(word in message_lower for word in ["form", "technique", "correct", "fix my", "how to do", "proper way"]):
+            return "technique"
             
         # Schedule patterns
         if any(word in message_lower for word in ["how often", "frequency", "times per week", "rest day", "deload", "schedule"]):
@@ -623,6 +627,19 @@ The allowedExercises list above has been filtered for your injuries/experience/e
             allowed_ids_list = _allowed_ids_for_prompt(context, max_ids=25)
             progression_context = get_progression_suggestions(user_id, allowed_ids_list[:10])
         
+        # Check if user mentioned pain/injury in their workout request
+        injury_context = ""
+        pain_keywords = ["pain", "hurt", "injury", "sore", "ache", "shoulder pain", "knee pain", "back pain"]
+        if any(keyword in user_message.lower() for keyword in pain_keywords):
+            injury_context = """
+⚠️  INJURY-AWARE PLANNING (User mentioned pain/discomfort):
+- Prioritize pain-free range of motion exercises
+- Select joint-friendly alternatives from allowedExercises list  
+- Avoid aggravating movements that could worsen symptoms
+- Focus on strengthening supporting muscle groups
+- Include mobility and activation exercises where appropriate
+"""
+
         template = f"""{context_str}
 
 TASK: Draft a single-day workout plan using ONLY canonical exercise IDs from the allowed list
@@ -630,7 +647,7 @@ TASK: Draft a single-day workout plan using ONLY canonical exercise IDs from the
 - Database automatically filters out contraindicated exercises for injuries and experience level  
 - Choose equipment-appropriate exercises for: {equipment_str}
 - System enforces ID compliance - unknown IDs will trigger plan rejection
-
+{injury_context}
 💪 PROGRAMMING GUIDELINES:
 - Use compound movements as the foundation  
 - 2-4 segments with 2-5 exercises each
@@ -1490,7 +1507,7 @@ def chat():
             log_metric("chat_output_tokens", int(output_tokens), {"route": route})
             log_metric("memory_snippets_retrieved", snippet_count, {"user_id": user_id or "anonymous"})
 
-        # Clean up response format - extract just JSON for workout plans, keep full text for chat
+        # Clean up response format - extract JSON for structured responses, keep text for chat
         clean_response_text = response_text
         if route == "planner" and "{" in response_text and "}" in response_text:
             try:
@@ -1505,6 +1522,47 @@ def chat():
                     clean_response_text = json_only
             except:
                 # If JSON extraction fails, keep original response
+                pass
+        elif route == "technique" and "{" in response_text and "}" in response_text:
+            # For technique responses, if there's JSON, check if it's malformed and convert to readable text
+            try:
+                json_start = response_text.find('{')
+                json_end = response_text.rfind('}') + 1
+                if json_start >= 0 and json_end > json_start:
+                    json_part = response_text[json_start:json_end]
+                    parsed_json = json.loads(json_part)
+                    
+                    # Convert technique JSON to readable format instead of showing raw JSON
+                    if isinstance(parsed_json, dict) and ('risk_assessment' in parsed_json or 'technique_advice' in parsed_json or 'safe_alternatives' in parsed_json):
+                        readable_text = ""
+                        
+                        # Add any text before the JSON
+                        if json_start > 0:
+                            readable_text += response_text[:json_start].strip() + "\n\n"
+                        
+                        # Convert JSON to readable format
+                        if 'risk_assessment' in parsed_json:
+                            readable_text += f"**Risk Assessment:** {parsed_json['risk_assessment']}\n\n"
+                        
+                        if 'technique_advice' in parsed_json:
+                            readable_text += f"**Technique Advice:** {parsed_json['technique_advice']}\n\n"
+                        
+                        if 'safe_alternatives' in parsed_json:
+                            readable_text += f"**Safe Alternatives:** {parsed_json['safe_alternatives']}\n\n"
+                        
+                        if 'warning_signs' in parsed_json:
+                            readable_text += f"**Warning Signs:** {parsed_json['warning_signs']}\n\n"
+                        
+                        # Add any text after the JSON
+                        if json_end < len(response_text):
+                            readable_text += response_text[json_end:].strip()
+                        
+                        clean_response_text = readable_text.strip()
+                    else:
+                        # If it's not a technique JSON, keep as is
+                        pass
+            except:
+                # If JSON parsing fails, keep original response
                 pass
         
         return jsonify({"text": clean_response_text})
