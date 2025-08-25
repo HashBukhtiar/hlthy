@@ -56,9 +56,11 @@ except ImportError:
     PROGRESSION_TRACKER_AVAILABLE = False
 
 try:
+    # Import semantic memory with fallback for lightweight deployment
     from semantic_memory import memory_system
-except ImportError:
-    print("Warning: Semantic memory system not available")
+    print("✅ Semantic memory system available")
+except ImportError as e:
+    print(f"⚠️  Semantic memory system not available: {e}")
     memory_system = None
 
 # New integrated systems
@@ -1440,8 +1442,11 @@ def chat():
 
                 # Sync conversation insights to user profile
                 if PROFILE_SYNC_AVAILABLE:
-                    conversation_text = f"{current_message} {coach_summary}"
-                    sync_memory_to_profile(user_id, conversation_text)
+                    try:
+                        conversation_text = f"{current_message} {coach_summary}"
+                        sync_memory_to_profile(user_id, conversation_text, response_text, profile_manager)
+                    except Exception as e:
+                        print(f"Warning: Could not store in semantic memory: {e}")
 
                 # If it's a workout plan, also store as structured workout data with canonical IDs
                 if route == "planner" and "{" in response_text:
@@ -1473,7 +1478,10 @@ def chat():
         
         # Cache the response for future use
         if user_id and RATE_LIMITING_AVAILABLE and not cached_response:
-            cache_prompt(current_message, response_text, user_context={"user_id": user_id})
+            try:
+                cache_prompt(current_message, response_text, user_context={"user_id": user_id})
+            except Exception as e:
+                print(f"Warning: Could not cache prompt: {e}")
         
         # Log system metrics for observability
         if OBSERVABILITY_AVAILABLE:
