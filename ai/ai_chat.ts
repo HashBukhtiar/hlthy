@@ -80,19 +80,32 @@ export async function sendMessage(history: ChatMessage[], currentMessage: string
  * Send a message with intent classification to the AI backend
  * @param history - Array of previous chat messages for context
  * @param currentMessage - The current message from the user
+ * @param userId - The user's unique ID for profile management
  * @returns Promise<string> - AI response text with intent processing
  */
-export async function sendMessageWithIntent(history: ChatMessage[], currentMessage: string): Promise<string> {
+export async function sendMessageWithIntent(history: ChatMessage[], currentMessage: string, userId?: string): Promise<string> {
   try {
     console.log('Sending message with intent to AI backend:', { 
       url: `${API_BASE_URL}/api/chat`,
       messageCount: history.length,
-      currentMessage: currentMessage.substring(0, 100) + '...'
+      currentMessage: currentMessage.substring(0, 100) + '...',
+      userId: userId || 'anonymous'
     });
 
     // First classify the intent
     const intentResult = await classifyIntent(currentMessage);
     console.log('Intent classification result:', intentResult);
+
+    const requestBody: any = {
+      history: history,
+      intent: intentResult.intent,
+      confidence: intentResult.confidence
+    };
+
+    // Include user_id if provided for profile management
+    if (userId) {
+      requestBody.user_id = userId;
+    }
 
     // Then send the message with intent context
     const response = await fetch(`${API_BASE_URL}/api/chat`, {
@@ -100,11 +113,7 @@ export async function sendMessageWithIntent(history: ChatMessage[], currentMessa
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        history: history,
-        intent: intentResult.intent,
-        confidence: intentResult.confidence
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {
