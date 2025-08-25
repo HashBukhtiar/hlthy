@@ -5,12 +5,14 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '@/context/AuthContext';
 import { GradientSurface } from '../atoms/GradientSurface';
 import { Tag } from '../atoms/Tag';
 import { Chip } from '../atoms/Chip';
 import { IconButton } from '../atoms/IconButton';
 import { ProgressDots } from '../atoms/ProgressDots';
 import { RPEGauge } from '../atoms/RPEGauge';
+import { WorkoutSaveModal } from '../modals/WorkoutSaveModal';
 import { Colors, Layout, Typography, Gradients, getIntentConfig } from '@/theme/ai';
 import { WorkoutPlanData, resolveExerciseName, parseRPE, formatRestTime } from '@/utils/aiMessage';
 import { exercises } from '@/data/exercises';
@@ -19,7 +21,7 @@ interface WorkoutPlanCardProps {
   data: WorkoutPlanData;
   intent?: string;
   onSave?: (data: WorkoutPlanData) => void;
-  onStart?: (data: WorkoutPlanData) => void;
+  onAddToWorkouts?: (data: WorkoutPlanData) => void;
   onExplain?: () => void;
   onShare?: () => void;
 }
@@ -28,11 +30,13 @@ export const WorkoutPlanCard: React.FC<WorkoutPlanCardProps> = ({
   data,
   intent,
   onSave,
-  onStart,
+  onAddToWorkouts,
   onExplain,
   onShare,
 }) => {
+  const { currentUser } = useAuth();
   const [expandedSegments, setExpandedSegments] = useState<Set<number>>(new Set([0])); // First segment expanded by default
+  const [showSaveModal, setShowSaveModal] = useState(false);
   const intentConfig = getIntentConfig(intent);
 
   const toggleSegment = (index: number) => {
@@ -50,8 +54,12 @@ export const WorkoutPlanCard: React.FC<WorkoutPlanCardProps> = ({
       case 'save':
         onSave?.(data);
         break;
-      case 'start':
-        onStart?.(data);
+      case 'add_to_workouts':
+        if (!currentUser) {
+          Alert.alert('Login Required', 'Please log in to save workouts.');
+          return;
+        }
+        setShowSaveModal(true);
         break;
       case 'explain':
         onExplain?.();
@@ -107,8 +115,7 @@ export const WorkoutPlanCard: React.FC<WorkoutPlanCardProps> = ({
               icon={<Ionicons name="ellipsis-vertical" size={20} color={Colors.text} />}
               onPress={() => {
                 Alert.alert('Workout Actions', 'Choose an action:', [
-                  { text: 'Save', onPress: () => handleMenuAction('save') },
-                  { text: 'Start', onPress: () => handleMenuAction('start') },
+                  { text: 'Add to My Workouts', onPress: () => handleMenuAction('add_to_workouts') },
                   { text: 'Explain', onPress: () => handleMenuAction('explain') },
                   { text: 'Share', onPress: () => handleMenuAction('share') },
                   { text: 'Cancel', style: 'cancel' },
@@ -256,7 +263,7 @@ export const WorkoutPlanCard: React.FC<WorkoutPlanCardProps> = ({
           {/* CTA Row */}
           <View style={{ flexDirection: 'row', gap: Layout.gap.md }}>
             <TouchableOpacity
-              onPress={() => handleMenuAction('start')}
+              onPress={() => handleMenuAction('add_to_workouts')}
               style={{
                 flex: 1,
                 backgroundColor: intentConfig.primary,
@@ -278,7 +285,7 @@ export const WorkoutPlanCard: React.FC<WorkoutPlanCardProps> = ({
                   fontWeight: Typography.weights.bold,
                 }}
               >
-                🚀 START
+                � ADD TO WORKOUTS
               </Text>
             </TouchableOpacity>
 
@@ -306,6 +313,21 @@ export const WorkoutPlanCard: React.FC<WorkoutPlanCardProps> = ({
           </View>
         </View>
       </View>
+      
+      {/* Workout Save Modal */}
+      {currentUser && (
+        <WorkoutSaveModal
+          visible={showSaveModal}
+          onClose={() => setShowSaveModal(false)}
+          workoutData={data}
+          userId={currentUser.uid}
+          username={currentUser.username || currentUser.displayName || 'User'}
+          onSuccess={(workoutId) => {
+            console.log('Workout saved with ID:', workoutId);
+            onAddToWorkouts?.(data);
+          }}
+        />
+      )}
     </GradientSurface>
   );
 };
