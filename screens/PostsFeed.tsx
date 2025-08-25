@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { 
   StyleSheet, 
   Text, 
@@ -31,6 +31,10 @@ export default function PostsFeed() {
   const [newComment, setNewComment] = useState('');
   const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
   const [submittingComment, setSubmittingComment] = useState(false);
+
+  // Double-tap functionality refs
+  const tapTimers = useRef<Record<string, number>>({});
+  const likingInProgress = useRef<Record<string, boolean>>({});
 
   // Handle image click to view full post
   const handleViewPost = useCallback((postId: string) => {
@@ -98,6 +102,58 @@ export default function PostsFeed() {
       setSubmittingComment(false);
     }
   }, [currentUser, newComment, submittingComment, addComment]);
+
+  // Double-tap handler for posts
+  const createDoubleTapHandler = useCallback((postId: string, isCurrentlyLiked: boolean) => {
+    return () => {
+      // Prevent multiple rapid taps
+      if (likingInProgress.current[postId]) {
+        console.log('Like operation already in progress for', postId);
+        return;
+      }
+
+      const now = Date.now();
+      const lastTap = tapTimers.current[postId];
+      
+      if (lastTap && now - lastTap < 300) {
+        // Double tap detected - like the post
+        delete tapTimers.current[postId];
+        try {
+          // Haptic feedback
+          import('expo-haptics').then(({ impactAsync, ImpactFeedbackStyle }) => {
+            impactAsync?.(ImpactFeedbackStyle.Light);
+          }).catch(() => {});
+          
+          // Set in progress flag
+          likingInProgress.current[postId] = true;
+          
+          // Only like if not already liked
+          if (!isCurrentlyLiked) {
+            handleToggleLike(postId, false);
+          }
+          
+          // Clear in progress flag after a delay
+          setTimeout(() => {
+            delete likingInProgress.current[postId];
+          }, 1000);
+        } catch (error) {
+          console.error('Error in double tap handler:', error);
+          delete likingInProgress.current[postId];
+        }
+      } else {
+        // Single tap - store timestamp and navigate after delay
+        tapTimers.current[postId] = now;
+        
+        // Navigate to post after delay if no second tap comes
+        setTimeout(() => {
+          if (tapTimers.current[postId] === now) {
+            delete tapTimers.current[postId];
+            handleViewPost(postId);
+          }
+        }, 300);
+      }
+    };
+  }, [handleToggleLike, handleViewPost]);
 
   // Format milestone preview
   const formatMilestonePreview = useCallback((details: any): string => {
@@ -181,7 +237,7 @@ export default function PostsFeed() {
         {item.imageUrl && (
           <TouchableOpacity 
             activeOpacity={0.9}
-            onPress={() => canInteract ? handleViewPost(item.id) : null}
+            onPress={canInteract ? createDoubleTapHandler(item.id, item.isLiked || false) : undefined}
           >
             <Image
               source={{ uri: item.imageUrl! }}
@@ -348,6 +404,7 @@ export default function PostsFeed() {
     formatMilestonePreview,
     userProfile,
     isUserBlocked,
+    createDoubleTapHandler,
   ]);
 
   // Render footer for load more
