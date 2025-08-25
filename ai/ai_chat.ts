@@ -16,24 +16,33 @@ export interface ChatMessage {
  * Send a message to the HLTHY AI Coach backend service
  * @param history - Array of previous chat messages for context
  * @param currentMessage - The current message from the user
+ * @param userId - The user's unique ID for profile management
  * @returns Promise<string> - AI response text
  */
-export async function sendMessage(history: ChatMessage[], currentMessage: string): Promise<string> {
+export async function sendMessage(history: ChatMessage[], currentMessage: string, userId?: string): Promise<string> {
   try {
     console.log('Sending message to AI backend:', { 
       url: `${API_BASE_URL}/api/chat`,
       messageCount: history.length,
-      currentMessage: currentMessage.substring(0, 100) + '...'
+      currentMessage: currentMessage.substring(0, 100) + '...',
+      userId: userId || 'anonymous'
     });
+
+    const requestBody: any = {
+      history: history
+    };
+
+    // Include user_id if provided for profile management
+    if (userId) {
+      requestBody.user_id = userId;
+    }
 
     const response = await fetch(`${API_BASE_URL}/api/chat`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        history: history
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {
