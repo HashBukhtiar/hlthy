@@ -561,11 +561,67 @@ def route_user_message(user_message):
 def build_route_template(route, context, user_message, conversation_history, user_id=None):
     """Build the appropriate template based on route with AI exercise knowledge"""
     
-    # Convert conversation history to shortTermTurns format (last 6 turns)
+    # Convert conversation history to shortTermTurns format with intelligent filtering
     short_terms = []
+    important_context = []  # Store critical info like injuries
+    
+    # First pass: extract critical long-term context from ALL messages
+    for msg in conversation_history:
+        text = msg.get("text", "").lower()
+        
+        # Extract injury/medical information that should always be preserved
+        if any(injury_word in text for injury_word in ["injury", "pain", "hurt", "knee", "shoulder", "back", "elbow", "wrist", "ankle"]):
+            important_context.append({
+                "role": msg.get("role", "user"),
+                "text": msg.get("text", ""),
+                "type": "medical"
+            })
+    
+    # Second pass: build recent context with conflict filtering
+    current_lower = user_message.lower()
+    current_muscle_groups = []
+    
+    # Detect what muscle group is being requested NOW
+    if "chest" in current_lower:
+        current_muscle_groups = ["chest"]
+    elif "back" in current_lower:
+        current_muscle_groups = ["back"]  
+    elif any(word in current_lower for word in ["legs", "leg", "lower body"]):
+        current_muscle_groups = ["legs"]
+    elif any(word in current_lower for word in ["arms", "biceps", "triceps"]):
+        current_muscle_groups = ["arms"]
+    elif any(word in current_lower for word in ["shoulders", "shoulder"]):
+        current_muscle_groups = ["shoulders"]
+    
+    # Add recent messages (last 6) with smart filtering
     for msg in conversation_history[-6:]:
         role = "user" if msg.get("role") == "user" else "coach"
-        short_terms.append({"role": role, "text": msg.get("text", "")})
+        text = msg.get("text", "")
+        text_lower = text.lower()
+        
+        # Always include if it contains injury/medical info
+        if any(injury_word in text_lower for injury_word in ["injury", "pain", "hurt", "knee", "shoulder", "back", "elbow"]):
+            short_terms.append({"role": role, "text": text})
+            continue
+            
+        # Filter out conflicting muscle group references ONLY if current request is specific
+        should_filter = False
+        if current_muscle_groups and "chest" in current_muscle_groups:
+            # Filter out previous core/leg/back workout references, but keep injury mentions
+            conflicting_workouts = ["dead_bug", "bird_dog", "core workout", "leg workout", "back workout", "abs workout"]
+            if any(conflict in text_lower for conflict in conflicting_workouts):
+                should_filter = True
+        
+        if not should_filter:
+            short_terms.append({"role": role, "text": text})
+    
+    # Add important medical context to the beginning if not already included
+    for important_msg in important_context[-3:]:  # Only last 3 medical mentions to avoid spam
+        if not any(important_msg["text"] == existing["text"] for existing in short_terms):
+            short_terms.insert(0, {
+                "role": important_msg["role"], 
+                "text": f"[Medical Context] {important_msg['text']}"
+            })
     
     # Update context with conversation data
     context["shortTermTurns"] = short_terms
@@ -646,11 +702,12 @@ The allowedExercises list above has been filtered for your injuries/experience/e
         
         if "chest" in message_lower:
             muscle_group_focus = """
-🎯 MUSCLE GROUP FOCUS: CHEST
-- PRIMARY: chest-focused exercises (bench press, push-ups, chest fly, chest press)
-- SUPPORTING: triceps, shoulders (secondary)
-- AVOID: unrelated exercises like core, legs, or back unless specifically requested
-- Exercise selection should be 70%+ chest-primary movements
+🎯 MUSCLE GROUP FOCUS: CHEST (CRITICAL INSTRUCTION)
+- PRIMARY REQUIREMENT: 80%+ exercises must target chest muscles 
+- ALLOWED: bench press variations, chest fly, chest press, push-ups, dips
+- FORBIDDEN: core exercises (dead_bug, planks, bird_dog), leg exercises, back exercises
+- This is a CHEST workout - ignore any previous conversation context about other muscle groups
+- Exercise selection should be 80%+ chest-primary movements ONLY
 """
         elif "back" in message_lower:
             muscle_group_focus = """
@@ -1651,26 +1708,34 @@ def get_inferred_context_from_conversation(current_message, conversation_history
     """Infer user context from conversation when no profile exists"""
     context = get_default_context()
     
-    # Analyze current message and history for context clues
-    all_text = current_message + " " + " ".join([msg.get("text", "") for msg in conversation_history])
-    text_lower = all_text.lower()
+    # Analyze ALL conversation history for long-term medical context (injuries)
+    all_medical_text = current_message + " " + " ".join([msg.get("text", "") for msg in conversation_history])
+    medical_lower = all_medical_text.lower()
     
-    # Experience level inference
-    if any(word in text_lower for word in ["beginner", "new", "starting", "never", "first time"]):
+    # Only analyze recent conversation (last 3 messages) for experience/preference context
+    recent_history = conversation_history[-3:] if len(conversation_history) > 3 else conversation_history
+    recent_text = current_message + " " + " ".join([msg.get("text", "") for msg in recent_history])
+    recent_lower = recent_text.lower()
+    
+    # Prioritize CURRENT message for immediate requests
+    current_lower = current_message.lower()
+    
+    # Experience level inference (use recent context to avoid stale info)
+    if any(word in recent_lower for word in ["beginner", "new", "starting", "never", "first time"]):
         context["profileSummary"] = "Beginner lifter just starting their fitness journey. Needs foundational movement patterns and conservative progression. Safety is the top priority."
         context["requestMeta"]["safetyLevel"] = "very_conservative"
         # Add beginner-specific banned exercises
         context["healthSummary"]["bannedExercises"].extend([
             "behind_neck_press", "upright_rows", "kipping_pullups", "heavy_overhead_squats"
         ])
-    elif any(word in text_lower for word in ["intermediate", "experienced", "years", "advanced"]):
+    elif any(word in recent_lower for word in ["intermediate", "experienced", "years", "advanced"]):
         context["profileSummary"] = "Experienced lifter with solid foundation looking to optimize training and continue progression."
         context["requestMeta"]["safetyLevel"] = "standard"
     
-    # Injury detection and context with canonical database integration
+    # Injury detection and context (use FULL medical history for injuries)
     injury_detected = None
-    if any(word in text_lower for word in ["elbow", "hurt", "pain", "injury", "sore"]):
-        if "elbow" in text_lower:
+    if any(word in medical_lower for word in ["elbow", "hurt", "pain", "injury", "sore"]):
+        if "elbow" in medical_lower:
             injury_detected = "elbow"
             context["healthSummary"]["activeInjuries"] = ["elbow"] 
             
@@ -1691,7 +1756,7 @@ def get_inferred_context_from_conversation(current_message, conversation_history
             
             context["healthSummary"]["cautionMovements"] = ["overhead_movement", "elbow_flexion_under_load"]
             
-        elif any(word in text_lower for word in ["shoulder", "rotator"]):
+        elif any(word in medical_lower for word in ["shoulder", "rotator"]):
             injury_detected = "shoulder"
             context["healthSummary"]["activeInjuries"] = ["shoulder"]
             
@@ -1707,7 +1772,7 @@ def get_inferred_context_from_conversation(current_message, conversation_history
                 safety_context = get_safety_context_for_injury("shoulder_pain")
                 context["healthSummary"]["bannedExercises"].extend(safety_context["avoid"])
                 
-        elif any(word in text_lower for word in ["back", "spine", "lumbar"]):
+        elif any(word in medical_lower for word in ["back", "spine", "lumbar"]):
             injury_detected = "lower_back"
             context["healthSummary"]["activeInjuries"] = ["lower_back"]
             
@@ -1723,7 +1788,7 @@ def get_inferred_context_from_conversation(current_message, conversation_history
                 safety_context = get_safety_context_for_injury("lower_back_pain")
                 context["healthSummary"]["bannedExercises"].extend(safety_context["avoid"])
                 
-        elif any(word in text_lower for word in ["knee"]):
+        elif any(word in medical_lower for word in ["knee"]):
             injury_detected = "knee"
             context["healthSummary"]["activeInjuries"] = ["knee"]
             
@@ -1739,25 +1804,25 @@ def get_inferred_context_from_conversation(current_message, conversation_history
                 safety_context = get_safety_context_for_injury("knee_pain")
                 context["healthSummary"]["bannedExercises"].extend(safety_context["avoid"])
     
-    # Equipment availability
-    if any(word in text_lower for word in ["home", "no gym", "bodyweight", "apartment", "limited equipment"]):
+    # Equipment availability (use recent context)
+    if any(word in recent_lower for word in ["home", "no gym", "bodyweight", "apartment", "limited equipment"]):
         context["equipmentAccess"]["current"] = "home"
-    elif any(word in text_lower for word in ["gym", "barbell", "rack", "machines"]):
+    elif any(word in recent_lower for word in ["gym", "barbell", "rack", "machines"]):
         context["equipmentAccess"]["current"] = "gym"
     
-    # Goal inference
-    if any(word in text_lower for word in ["strength", "strong", "powerlifting", "max"]):
+    # Goal inference (use recent context)
+    if any(word in recent_lower for word in ["strength", "strong", "powerlifting", "max"]):
         context["profileSummary"] += " Focused on building strength and power."
-    elif any(word in text_lower for word in ["muscle", "size", "bodybuilding", "hypertrophy"]):
+    elif any(word in recent_lower for word in ["muscle", "size", "bodybuilding", "hypertrophy"]):
         context["profileSummary"] += " Focused on building muscle mass."
-    elif any(word in text_lower for word in ["weight loss", "fat loss", "lose weight", "cut"]):
+    elif any(word in recent_lower for word in ["weight loss", "fat loss", "lose weight", "cut"]):
         context["profileSummary"] += " Focused on weight/fat loss while preserving muscle."
     
-    # Tone preferences
-    if any(word in text_lower for word in ["technical", "detailed", "science", "explain"]):
+    # Tone preferences (use recent context)
+    if any(word in recent_lower for word in ["technical", "detailed", "science", "explain"]):
         context["preferenceMemory"]["tone"] = "technical"
         context["preferenceMemory"]["replyLength"] = "detailed"
-    elif any(word in text_lower for word in ["quick", "brief", "short"]):
+    elif any(word in recent_lower for word in ["quick", "brief", "short"]):
         context["preferenceMemory"]["replyLength"] = "brief"
     
     return context
