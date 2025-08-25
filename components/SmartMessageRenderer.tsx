@@ -114,6 +114,82 @@ export const SmartMessageRenderer: React.FC<SmartMessageRendererProps> = ({
     }
   };
 
+  // Render technique advice JSON as readable format
+  const renderTechniqueAdvice = (data: any) => {
+    const elements = [];
+
+    if (data.issue) {
+      elements.push(
+        <View key="issue" style={styles.techniqueSection}>
+          <Text style={styles.techniqueSectionTitle}>⚠️ Issue Identified</Text>
+          <Text style={styles.techniqueText}>{data.issue.replace(/_/g, ' ').toUpperCase()}</Text>
+        </View>
+      );
+    }
+
+    if (data.riskAssessment) {
+      elements.push(
+        <View key="risk" style={styles.techniqueSection}>
+          <Text style={styles.techniqueSectionTitle}>🔍 Risk Assessment</Text>
+          <Text style={styles.techniqueText}>{data.riskAssessment}</Text>
+        </View>
+      );
+    }
+
+    if (data.avoidExercises && data.avoidExercises.length > 0) {
+      elements.push(
+        <View key="avoid" style={styles.techniqueSection}>
+          <Text style={styles.techniqueSectionTitle}>❌ Exercises to Avoid</Text>
+          {data.avoidExercises.map((exercise: string, index: number) => (
+            <Text key={index} style={styles.techniqueListItem}>
+              • {exercise.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}
+            </Text>
+          ))}
+        </View>
+      );
+    }
+
+    if (data.safeAlternatives && data.safeAlternatives.length > 0) {
+      elements.push(
+        <View key="alternatives" style={styles.techniqueSection}>
+          <Text style={styles.techniqueSectionTitle}>✅ Safe Alternatives</Text>
+          {data.safeAlternatives.map((alt: any, index: number) => (
+            <View key={index} style={styles.alternativeItem}>
+              <Text style={styles.alternativeExercise}>
+                {(alt.exerciseName || alt.name || alt.exercise || 'Exercise').replace(/_/g, ' ')}
+              </Text>
+              {alt.reason && (
+                <Text style={styles.alternativeReason}>
+                  {alt.reason}
+                </Text>
+              )}
+              {alt.modifications && (
+                <Text style={styles.alternativeModification}>
+                  Modifications: {alt.modifications}
+                </Text>
+              )}
+            </View>
+          ))}
+        </View>
+      );
+    }
+
+    if (data.warningSignsToStop && data.warningSignsToStop.length > 0) {
+      elements.push(
+        <View key="warnings" style={styles.techniqueSection}>
+          <Text style={styles.techniqueSectionTitle}>🛑 Warning Signs to Stop</Text>
+          {data.warningSignsToStop.map((warning: string, index: number) => (
+            <Text key={index} style={styles.techniqueListItem}>
+              • {warning}
+            </Text>
+          ))}
+        </View>
+      );
+    }
+
+    return elements;
+  };
+
   // Format regular text messages
   const formatTextMessage = (text: string) => {
     // Clean up any stray JSON markers
@@ -182,10 +258,63 @@ export const SmartMessageRenderer: React.FC<SmartMessageRendererProps> = ({
   };
 
   // Main render logic
-  const workoutData = parseWorkoutData(message);
+  const mixedContent = extractJsonAndText(message);
+  
+  if (mixedContent.hasJson) {
+    // Handle mixed content with JSON and text
+    const elements = [];
 
+    // Render text before JSON
+    if (mixedContent.beforeText) {
+      elements.push(
+        <View key="before-text" style={styles.textContainer}>
+          {formatTextMessage(mixedContent.beforeText)}
+        </View>
+      );
+    }
+
+    // Render JSON content
+    if (mixedContent.isWorkout) {
+      elements.push(
+        <WorkoutRenderer
+          key="workout-json"
+          workoutData={mixedContent.jsonData as WorkoutPlan}
+          onSaveWorkout={handleSaveWorkout}
+          onShareWorkout={handleShareWorkout}
+        />
+      );
+    } else if (mixedContent.isTechnique) {
+      elements.push(
+        <View key="technique-json" style={styles.textContainer}>
+          {renderTechniqueAdvice(mixedContent.jsonData)}
+        </View>
+      );
+    } else {
+      // Handle other JSON types as formatted text
+      elements.push(
+        <View key="other-json" style={styles.workoutTextBlock}>
+          <Text style={styles.workoutTextLine}>
+            {JSON.stringify(mixedContent.jsonData, null, 2)}
+          </Text>
+        </View>
+      );
+    }
+
+    // Render text after JSON
+    if (mixedContent.afterText) {
+      elements.push(
+        <View key="after-text" style={styles.textContainer}>
+          {formatTextMessage(mixedContent.afterText)}
+        </View>
+      );
+    }
+
+    return <View style={styles.textContainer}>{elements}</View>;
+  }
+
+  // Try to parse as pure JSON workout
+  const workoutData = parseWorkoutData(message);
   if (workoutData) {
-    // Render as beautiful workout UI
     return (
       <WorkoutRenderer
         workoutData={workoutData}
@@ -195,7 +324,7 @@ export const SmartMessageRenderer: React.FC<SmartMessageRendererProps> = ({
     );
   }
 
-  // Render as formatted text
+  // Render as pure text
   return (
     <View style={styles.textContainer}>
       {formatTextMessage(message)}
@@ -255,5 +384,58 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     fontFamily: 'monospace',
     marginBottom: 4,
+  },
+  // Technique advice styles
+  techniqueSection: {
+    backgroundColor: '#2A2A2A',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+    borderLeftWidth: 3,
+    borderLeftColor: '#FF6B35',
+  },
+  techniqueSectionTitle: {
+    color: '#FF6B35',
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 8,
+  },
+  techniqueText: {
+    color: '#FFF',
+    fontSize: 15,
+    lineHeight: 20,
+    marginBottom: 4,
+  },
+  techniqueListItem: {
+    color: '#FFF',
+    fontSize: 15,
+    lineHeight: 20,
+    marginBottom: 4,
+    marginLeft: 8,
+  },
+  alternativeItem: {
+    backgroundColor: '#1A1A1A',
+    borderRadius: 6,
+    padding: 10,
+    marginBottom: 8,
+    marginLeft: 8,
+  },
+  alternativeExercise: {
+    color: '#4CD964',
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  alternativeReason: {
+    color: '#FFF',
+    fontSize: 14,
+    lineHeight: 18,
+    marginBottom: 4,
+  },
+  alternativeModification: {
+    color: '#888',
+    fontSize: 13,
+    lineHeight: 16,
+    fontStyle: 'italic',
   },
 });
