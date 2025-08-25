@@ -19,7 +19,7 @@ export interface ChatMessage {
  * @param userId - The user's unique ID for profile management
  * @returns Promise<string> - AI response text
  */
-export async function sendMessage(history: ChatMessage[], currentMessage: string, userId?: string): Promise<string> {
+export async function sendMessage(history: ChatMessage[], currentMessage: string, userId?: string): Promise<string>; {
   try {
     console.log('Sending message to AI backend:', { 
       url: `${API_BASE_URL}/api/chat`,
