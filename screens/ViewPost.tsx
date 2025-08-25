@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   StyleSheet, Text, View, Image, ScrollView,
   TouchableOpacity, KeyboardAvoidingView, Platform,
@@ -15,6 +15,7 @@ import { collection, query, where, limit, getDocs, getDoc, doc } from 'firebase/
 import { db } from '@/firebaseConfig';
 import { getOptimalImageUrl, deleteImageFromStorage, deleteMilestoneFromFirestore } from '@/utils/imageUtils';
 import { useBlockEnforcement } from '@/utils/blockUtils';
+import { useDoubleTap } from '@/hooks/useDoubleTap';
 
 export default function ViewPost() {
   const [menuVisible, setMenuVisible] = useState(false);
@@ -76,6 +77,102 @@ export default function ViewPost() {
     if (!post || !post.authorId) return false;
     return canInteractWithUser(post.authorId, post.authorBlockedUsers);
   }, [post, canInteractWithUser]);
+
+  // Double-tap handlers for liking
+  const postDoubleTapHandler = useDoubleTap({
+    onDoubleTap: () => {
+      if (!post || !currentUser || !canInteractWithAuthor || isLiking) return;
+      
+      if (!post.isLiked) {
+        handleLike();
+      }
+    },
+    enableHaptics: true,
+  });
+
+  // Helper function to handle comment double-tap
+  const handleCommentDoubleTap = (commentId: string) => {
+    if (likingComments[commentId]) return;
+    
+    const comment = comments.find(c => c.id === commentId);
+    if (!comment || !currentUser) return;
+    
+    if (!canInteractWithUser(comment.authorId, comment.authorBlockedUsers)) return;
+    
+    if (!comment.isLiked) {
+      handleCommentLike(commentId);
+    }
+  };
+
+  // Helper function to handle reply double-tap
+  const handleReplyDoubleTap = (commentId: string, replyId: string) => {
+    const replyKey = `${commentId}-${replyId}`;
+    if (likingReplies[replyKey]) return;
+    
+    const comment = comments.find(c => c.id === commentId);
+    const reply = comment?.replies?.find(r => r.id === replyId);
+    if (!reply || !currentUser) return;
+    
+    if (!canInteractWithUser(reply.authorId, reply.authorBlockedUsers)) return;
+    
+    if (!reply.isLiked) {
+      handleReplyLike(commentId, replyId);
+    }
+  };
+
+  // Double-tap logic without hooks for comments/replies
+  const commentTapTimers = useRef<Record<string, number>>({});
+  const replyTapTimers = useRef<Record<string, number>>({});
+  const likingInProgress = useRef<Record<string, boolean>>({});
+
+  const createDoubleTapHandler = (onDoubleTap: () => void, id: string, isReply = false) => {
+    const timers = isReply ? replyTapTimers.current : commentTapTimers.current;
+    
+    return () => {
+      // Prevent multiple rapid taps
+      if (likingInProgress.current[id]) {
+        console.log('Like operation already in progress for', id);
+        return;
+      }
+
+      const now = Date.now();
+      const lastTap = timers[id];
+      
+      if (lastTap && now - lastTap < 300) {
+        // Double tap detected
+        delete timers[id];
+        try {
+          // Haptic feedback
+          import('expo-haptics').then(({ impactAsync, ImpactFeedbackStyle }) => {
+            impactAsync?.(ImpactFeedbackStyle.Light);
+          }).catch(() => {});
+          
+          // Set in progress flag
+          likingInProgress.current[id] = true;
+          
+          onDoubleTap();
+          
+          // Clear in progress flag after a delay
+          setTimeout(() => {
+            delete likingInProgress.current[id];
+          }, 1000);
+        } catch (error) {
+          console.error('Error in double tap handler:', error);
+          delete likingInProgress.current[id];
+        }
+      } else {
+        // Single tap - store timestamp
+        timers[id] = now;
+        
+        // Clear after delay to reset for next potential double tap
+        setTimeout(() => {
+          if (timers[id] === now) {
+            delete timers[id];
+          }
+        }, 300);
+      }
+    };
+  };
   
   // Fetch post and comments
   useEffect(() => {
@@ -275,8 +372,10 @@ export default function ViewPost() {
     }
   };
   
+  const [isLiking, setIsLiking] = useState(false);
+
   const handleLike = async () => {
-    if (!post || !currentUser) return;
+    if (!post || !currentUser || isLiking) return;
     
     // Check if we can interact with the post author
     if (!canInteractWithAuthor) {
@@ -284,16 +383,21 @@ export default function ViewPost() {
       return;
     }
     
+    setIsLiking(true);
     try {
       if (post.isLiked) {
         await unlikePost(post.id);
-        setPost({...post, isLiked: false, reactionCount: post.reactionCount - 1});
+        setPost({...post, isLiked: false, reactionCount: Math.max(0, post.reactionCount - 1)});
       } else {
         await likePost(post.id);
         setPost({...post, isLiked: true, reactionCount: post.reactionCount + 1});
       }
     } catch (error) {
       console.error("Error toggling like:", error);
+      // Show user-friendly error message
+      Alert.alert("Error", "Failed to update like status. Please try again.");
+    } finally {
+      setIsLiking(false);
     }
   };
   
@@ -461,8 +565,11 @@ export default function ViewPost() {
     }
   };
   
+  const [likingComments, setLikingComments] = useState<Record<string, boolean>>({});
+  const [likingReplies, setLikingReplies] = useState<Record<string, boolean>>({});
+
   const handleCommentLike = async (commentId: string) => {
-    if (!post || !currentUser) return;
+    if (!post || !currentUser || likingComments[commentId]) return;
 
     const commentIndex = comments.findIndex(c => c.id === commentId);
     if (commentIndex === -1) return;
@@ -475,14 +582,17 @@ export default function ViewPost() {
       return;
     }
 
+    setLikingComments(prev => ({ ...prev, [commentId]: true }));
+    
     const originalComments = [...comments];
     const currentlyLiked = comment.isLiked;
 
+    // Optimistic UI Update
     const updatedComments = [...comments];
     updatedComments[commentIndex] = {
       ...comment,
       isLiked: !currentlyLiked,
-      likes: currentlyLiked ? (comment.likes || 0) - 1 : (comment.likes || 0) + 1,
+      likes: currentlyLiked ? Math.max(0, (comment.likes || 0) - 1) : (comment.likes || 0) + 1,
     };
     setComments(updatedComments);
 
@@ -494,8 +604,15 @@ export default function ViewPost() {
       }
     } catch (error) {
       console.error("Error toggling comment like:", error);
+      // Revert optimistic update
       setComments(originalComments);
       Alert.alert("Error", "Could not update like status. Please try again.");
+    } finally {
+      setLikingComments(prev => {
+        const newState = { ...prev };
+        delete newState[commentId];
+        return newState;
+      });
     }
   };
   
@@ -582,6 +699,9 @@ export default function ViewPost() {
   const handleReplyLike = async (commentId: string, replyId: string) => {
     if (!post || !currentUser) return;
 
+    const replyKey = `${commentId}-${replyId}`;
+    if (likingReplies[replyKey]) return;
+
     const commentIndex = comments.findIndex(c => c.id === commentId);
     if (commentIndex === -1) return;
 
@@ -599,6 +719,8 @@ export default function ViewPost() {
       return;
     }
 
+    setLikingReplies(prev => ({ ...prev, [replyKey]: true }));
+
     const currentlyLiked = reply.isLiked;
 
     // Optimistic UI Update
@@ -606,7 +728,7 @@ export default function ViewPost() {
     updatedReplies[replyIndex] = {
       ...reply,
       isLiked: !currentlyLiked,
-      likes: currentlyLiked ? (reply.likes || 0) - 1 : (reply.likes || 0) + 1,
+      likes: currentlyLiked ? Math.max(0, (reply.likes || 0) - 1) : (reply.likes || 0) + 1,
     };
     const updatedComments = [...comments];
     updatedComments[commentIndex] = { ...comment, replies: updatedReplies };
@@ -620,8 +742,15 @@ export default function ViewPost() {
       }
     } catch (error) {
       console.error("Error toggling reply like:", error);
+      // Revert optimistic update
       setComments(originalComments);
       Alert.alert("Error", "Could not update reply like status.");
+    } finally {
+      setLikingReplies(prev => {
+        const newState = { ...prev };
+        delete newState[replyKey];
+        return newState;
+      });
     }
   };
 
@@ -635,7 +764,9 @@ export default function ViewPost() {
       <View key={comment.id}>
         <TouchableOpacity 
           onLongPress={canInteractWithComment ? () => handleLongPressComment(comment) : undefined}
+          onPress={canInteractWithComment ? createDoubleTapHandler(() => handleCommentDoubleTap(comment.id), comment.id) : undefined}
           delayLongPress={500}
+          activeOpacity={0.7}
         >
           <View style={styles.commentItem}>
             <View style={styles.commentLeftSection}>
@@ -937,8 +1068,15 @@ export default function ViewPost() {
       reply.authorProfileImageUrl
     );
 
+    const canInteractWithReply = canInteractWithUser(reply.authorId, reply.authorBlockedUsers);
+
     return (
-      <View key={reply.id} style={styles.replyItem}>
+      <TouchableOpacity
+        key={reply.id}
+        onPress={canInteractWithReply ? createDoubleTapHandler(() => handleReplyDoubleTap(commentId, reply.id), `${commentId}-${reply.id}`, true) : undefined}
+        activeOpacity={0.7}
+        style={styles.replyItem}
+      >
         <View style={styles.commentLeftSection}>
           <Image
             source={{ uri }}
@@ -956,25 +1094,27 @@ export default function ViewPost() {
             {/* Reply Actions (e.g., like for reply) can go here */}
           </View>
         </View>
-        <View style={styles.commentLikeContainer}>
-          <TouchableOpacity 
-            style={styles.commentLikeButton}
-            onPress={() => handleReplyLike(commentId, reply.id)}
-          >
-            <Ionicons 
-              name={reply.isLiked ? "heart" : "heart-outline"} 
-              size={14} 
-              color={reply.isLiked ? "#FF3B30" : "#999"}
-            />
-          </TouchableOpacity>
-          <Text style={[
-            styles.commentLikeCount,
-            reply.isLiked && styles.commentLikedCount
-          ]}>
-            {reply.likes || 0}
-          </Text>
-        </View>
-      </View>
+        {canInteractWithReply && (
+          <View style={styles.commentLikeContainer}>
+            <TouchableOpacity 
+              style={styles.commentLikeButton}
+              onPress={() => handleReplyLike(commentId, reply.id)}
+            >
+              <Ionicons 
+                name={reply.isLiked ? "heart" : "heart-outline"} 
+                size={14} 
+                color={reply.isLiked ? "#FF3B30" : "#999"}
+              />
+            </TouchableOpacity>
+            <Text style={[
+              styles.commentLikeCount,
+              reply.isLiked && styles.commentLikedCount
+            ]}>
+              {reply.likes || 0}
+            </Text>
+          </View>
+        )}
+      </TouchableOpacity>
     );
   };
 
@@ -1010,7 +1150,12 @@ export default function ViewPost() {
           </View>
 
           {post.imageUrl && (
-            <Image source={{ uri: post.imageUrl }} style={styles.postImage} />
+            <TouchableOpacity 
+              activeOpacity={1}
+              {...postDoubleTapHandler}
+            >
+              <Image source={{ uri: post.imageUrl }} style={styles.postImage} />
+            </TouchableOpacity>
           )}
 
           {canInteractWithAuthor && (
