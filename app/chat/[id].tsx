@@ -45,6 +45,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { sendMessage, sendMessageWithIntent, IntentClassificationResult } from '@/ai/ai_chat';
 import { SmartChatInput } from '@/components/SmartChatInput';
 import { IntentMessageWrapper } from '@/components/IntentBadge';
+import { MessageRenderer } from '@/components/ai/MessageRenderer';
 import { calculateImprovementPercentage } from '@/logic/milesonteUtils';
 import { generateId } from '@/logic/idGenerator';
 import { getOptimalImageUrl } from '@/utils/imageUtils';
@@ -392,13 +393,10 @@ const MessageItem = React.memo<{ item: Message; onLongPress: (m: Message) => voi
         showIntentBadge={!!item.intent}
       >
         {item.user === 'ai' ? (
-          <AIMessageBubble 
+          <MessageRenderer
             message={item.text}
             intent={item.intent}
-            onLongPress={() => onLongPress(item)}
-            isAiConversation={conversationId.endsWith('_ai_conversation')}
-            timestamp={item.createdAt}
-            onReprompt={onReprompt}
+            onFormatAgain={() => onReprompt?.(item.text)}
           />
         ) : (
           <TouchableOpacity
