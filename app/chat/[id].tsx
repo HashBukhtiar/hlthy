@@ -1159,6 +1159,14 @@ export default function ChatScreen() {
   }, [lastVisible, loadingMore, conversationId, currentUser, hasMoreMessages]);
 
   const initialScrollRef = useRef(true);
+  const shouldAutoScroll = useRef(true);
+
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    if (!loading && messages.length > 0 && shouldAutoScroll.current) {
+      flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+    }
+  }, [messages, loading]);
 
   useEffect(() => {
     if (!loading && initialScrollRef.current) {
@@ -1610,6 +1618,13 @@ export default function ChatScreen() {
             inverted
             onEndReached={fetchMore}
             onEndReachedThreshold={0.1}
+            onScroll={(event) => {
+              // In an inverted list, offset 0 is the bottom (newest messages)
+              // If user scrolls away from 0, they're looking at older messages
+              const scrollOffset = event.nativeEvent.contentOffset.y;
+              shouldAutoScroll.current = scrollOffset < 50; // Allow for small scroll variations
+            }}
+            scrollEventThrottle={16}
 
             ListFooterComponent={
               loadingMore

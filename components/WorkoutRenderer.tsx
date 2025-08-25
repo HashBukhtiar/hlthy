@@ -244,7 +244,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   workoutContent: {
-    maxHeight: 400,
+    // Removed maxHeight to allow full workout display
   },
   segment: {
     padding: 16,
