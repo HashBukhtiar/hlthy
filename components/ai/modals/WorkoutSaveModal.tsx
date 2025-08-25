@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
+import { useRouter } from 'expo-router';
 import { WorkoutPlanData } from '@/utils/aiMessage';
 import { saveAIWorkoutToMyWorkouts, updateWorkoutVisibility } from '@/services/workoutService';
 import { Colors, Layout, Typography } from '@/theme/ai';
@@ -60,6 +61,7 @@ export const WorkoutSaveModal: React.FC<WorkoutSaveModalProps> = ({
   username,
   onSuccess,
 }) => {
+  const router = useRouter();
   const [title, setTitle] = useState(workoutData.dayType || 'AI Workout');
   const [description, setDescription] = useState(
     workoutData.safetyNotes || 'AI-generated workout plan tailored for you'
@@ -104,6 +106,8 @@ export const WorkoutSaveModal: React.FC<WorkoutSaveModalProps> = ({
             onPress: () => {
               onSuccess?.(workoutId);
               onClose();
+              // Navigate to the workouts page
+              router.push('/workouts');
             },
           },
           {
