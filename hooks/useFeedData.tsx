@@ -65,16 +65,33 @@ export function useFeedData() {
       });
     }
 
-    // 3. Enhance posts with author profile data
+    // 3. Fetch like status for all posts in parallel
+    const likeStatusPromises = postDocs.map(async (post) => {
+      try {
+        const likerDoc = await getDoc(doc(db, 'posts', post.id, 'likers', currentUser.uid));
+        return { postId: post.id, isLiked: likerDoc.exists() };
+      } catch (error) {
+        console.error(`Error fetching like status for post ${post.id}:`, error);
+        return { postId: post.id, isLiked: false };
+      }
+    });
+
+    const likeStatuses = await Promise.all(likeStatusPromises);
+    const likeStatusMap = likeStatuses.reduce((acc, { postId, isLiked }) => {
+      acc[postId] = isLiked;
+      return acc;
+    }, {} as Record<string, boolean>);
+
+    // 4. Enhance posts with author profile data and like status
     const enrichedPosts: FeedPost[] = postDocs.map(post => {
       const authorProfile = authorProfiles[post.authorId];
       return {
         ...post,
         authorProfileImageUrl: authorProfile?.profileImageUrl || '',
         authorProfileThumbnailUrl: authorProfile?.profileThumbnailUrl || '',
-        authorBlockedUsers: authorProfile?.blockedUsers || [], // Add this line
-        // Determine if the current user has liked this post
-        isLiked: false, // This would need to be determined separately if needed
+        authorBlockedUsers: authorProfile?.blockedUsers || [],
+        // Set the actual like status for the current user
+        isLiked: likeStatusMap[post.id] || false,
       };
     });
 
