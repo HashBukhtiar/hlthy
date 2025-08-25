@@ -117,12 +117,20 @@ export default function ViewPost() {
   };
 
   // Double-tap logic without hooks for comments/replies
+  const postTapTimers = useRef<Record<string, number>>({});
   const commentTapTimers = useRef<Record<string, number>>({});
   const replyTapTimers = useRef<Record<string, number>>({});
   const likingInProgress = useRef<Record<string, boolean>>({});
 
-  const createDoubleTapHandler = (onDoubleTap: () => void, id: string, isReply = false) => {
-    const timers = isReply ? replyTapTimers.current : commentTapTimers.current;
+  const createDoubleTapHandler = (onDoubleTap: () => void, id: string, type: 'post' | 'comment' | 'reply' = 'comment') => {
+    let timers;
+    if (type === 'post') {
+      timers = postTapTimers.current;
+    } else if (type === 'reply') {
+      timers = replyTapTimers.current;
+    } else {
+      timers = commentTapTimers.current;
+    }
     
     return () => {
       // Prevent multiple rapid taps
@@ -172,7 +180,7 @@ export default function ViewPost() {
 
   // Create post double-tap handler
   const postDoubleTapHandler = {
-    onPress: createDoubleTapHandler(handlePostDoubleTap, 'post')
+    onPress: createDoubleTapHandler(handlePostDoubleTap, 'post', 'post')
   };
   
   // Fetch post and comments
@@ -765,7 +773,7 @@ export default function ViewPost() {
       <View key={comment.id}>
         <TouchableOpacity 
           onLongPress={canInteractWithComment ? () => handleLongPressComment(comment) : undefined}
-          onPress={canInteractWithComment ? createDoubleTapHandler(() => handleCommentDoubleTap(comment.id), comment.id) : undefined}
+          onPress={canInteractWithComment ? createDoubleTapHandler(() => handleCommentDoubleTap(comment.id), comment.id, 'comment') : undefined}
           delayLongPress={500}
           activeOpacity={0.7}
         >
@@ -1074,7 +1082,7 @@ export default function ViewPost() {
     return (
       <TouchableOpacity
         key={reply.id}
-        onPress={canInteractWithReply ? createDoubleTapHandler(() => handleReplyDoubleTap(commentId, reply.id), `${commentId}-${reply.id}`, true) : undefined}
+        onPress={canInteractWithReply ? createDoubleTapHandler(() => handleReplyDoubleTap(commentId, reply.id), `${commentId}-${reply.id}`, 'reply') : undefined}
         activeOpacity={0.7}
         style={styles.replyItem}
       >
