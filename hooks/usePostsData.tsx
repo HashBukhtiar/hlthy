@@ -430,6 +430,13 @@ export function usePostsData() {
       if (!postDoc.exists()) throw new Error("Post not found");
       const postData = postDoc.data() as Post;
 
+      // Check if user has already liked this post
+      const likerDoc = await getDoc(likerRef);
+      if (likerDoc.exists()) {
+        console.log(`User ${currentUser.uid} has already liked post ${postId}`);
+        return; // Don't throw error, just return silently
+      }
+
       await runTransaction(db, async (transaction) => {
         transaction.set(likerRef, {
           userId: currentUser.uid,
@@ -442,6 +449,23 @@ export function usePostsData() {
           reactionCount: increment(1),
         });
       });
+
+      // Create activity for the post author (if not self-like)
+      if (postData.authorId !== currentUser.uid) {
+        const authorActivityColRef = collection(db, 'activity', postData.authorId, 'userActivity');
+        await addDoc(authorActivityColRef, {
+          type: 'post_like',
+          fromUserId: currentUser.uid,
+          fromUsername: userProfile.username,
+          fromProfileImageUrl: userProfile.profileImageUrl || null,
+          postId: postId,
+          postImageUrl: postData.imageUrl || null,
+          postCaption: postData.caption || '',
+          createdAt: serverTimestamp(),
+          status: 'unread'
+        });
+      }
+
       console.log(`User ${currentUser.uid} liked post ${postId}`);
     } catch (error) {
       console.error("Error liking post: ", error);
@@ -625,7 +649,10 @@ export function usePostsData() {
         text: text.trim(),
         authorId: currentUser.uid,
         authorUsername: userProfile.username,
-        createdAt: serverTimestamp(),
+        authorProfileImageUrl: userProfile.profileImageUrl || "",
+        authorProfileThumbnailUrl: userProfile.profileThumbnailUrl || "",
+        authorBlockedUsers: [],
+        createdAt: serverTimestamp() as any,
         likes: 0,
         likedBy: [],
         replyToUserId: parentCommentData.authorId,

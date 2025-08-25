@@ -24,9 +24,17 @@ const DEFAULT_PROFILE_IMAGE = 'https://thumbs.dreamstime.com/b/creative-illustra
 export default function PostsFeed() {
   const router = useRouter();
   const { currentUser, userProfile } = useAuth();
-  const { posts, loading, refreshing, loadingMore, hasMore, error, refreshFeed, loadMorePosts } = useFeedData();
+  const { posts: feedPosts, loading, refreshing, loadingMore, hasMore, error, refreshFeed, loadMorePosts } = useFeedData();
   const { likePost, unlikePost, addComment } = usePostsData();
   const { canInteractWithUser, isUserBlocked } = useBlockEnforcement();
+  
+  // Local state for optimistic updates  
+  const [posts, setPosts] = useState<typeof feedPosts>([]);
+
+  // Update local posts when feedPosts change
+  useEffect(() => {
+    setPosts(feedPosts);
+  }, [feedPosts]);
   
   const [newComment, setNewComment] = useState('');
   const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
@@ -48,15 +56,43 @@ export default function PostsFeed() {
       return;
     }
 
+    // Optimistic update - update UI immediately
+    setPosts(prevPosts => 
+      prevPosts.map(post => 
+        post.id === postId 
+          ? {
+              ...post,
+              isLiked: !isCurrentlyLiked,
+              reactionCount: isCurrentlyLiked 
+                ? Math.max(0, (post.reactionCount || 0) - 1)
+                : (post.reactionCount || 0) + 1
+            }
+          : post
+      )
+    );
+
     try {
       if (isCurrentlyLiked) {
         await unlikePost(postId);
       } else {
         await likePost(postId);
       }
-      // The UI update should be handled by the parent component or through state management
     } catch (error) {
       console.error('Error toggling like:', error);
+      // Revert optimistic update on error
+      setPosts(prevPosts => 
+        prevPosts.map(post => 
+          post.id === postId 
+            ? {
+                ...post,
+                isLiked: isCurrentlyLiked,
+                reactionCount: isCurrentlyLiked 
+                  ? (post.reactionCount || 0) + 1
+                  : Math.max(0, (post.reactionCount || 0) - 1)
+              }
+            : post
+        )
+      );
       Alert.alert('Error', 'Could not update like status. Please try again.');
     }
   }, [currentUser, likePost, unlikePost]);
