@@ -46,7 +46,6 @@ export default function ViewPost() {
   const [sortModalVisible, setSortModalVisible] = useState(false);
   const [sortType, setSortType] = useState('Recency');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSubmittingReply, setIsSubmittingReply] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
   const [shareModalVisible, setShareModalVisible] = useState(false);
@@ -55,7 +54,7 @@ export default function ViewPost() {
   const [searchLoading, setSearchLoading] = useState(false);
 
   const [replyingToCommentId, setReplyingToCommentId] = useState<string | null>(null);
-  const [replyText, setReplyText] = useState('');
+  const [replyingToUsername, setReplyingToUsername] = useState<string | null>(null);
   const [loadingReplies, setLoadingReplies] = useState<Record<string, boolean>>({});
   const [expandedComments, setExpandedComments] = useState<Record<string, boolean>>({});
 
@@ -434,10 +433,41 @@ export default function ViewPost() {
     
     try {
       setIsSubmitting(true);
-      const newComment = await addComment(post.id, commentText.trim());
-      setComments([{ ...newComment, replies: [] }, ...comments]);
+      
+      if (replyingToCommentId) {
+        // Handle reply - extract the actual reply text without the @username prefix
+        const replyTextWithoutPrefix = commentText.replace(/^@\w+\s+/, '').trim();
+        if (!replyTextWithoutPrefix) return;
+        
+        const newReply = await addReplyToComment(post.id, replyingToCommentId, replyTextWithoutPrefix);
+        
+        // Update the comment with the new reply
+        setComments(prevComments => 
+          prevComments.map(comment => 
+            comment.id === replyingToCommentId 
+              ? { 
+                  ...comment, 
+                  replies: [...(comment.replies || []), newReply],
+                  replyCount: (comment.replyCount || 0) + 1
+                }
+              : comment
+          )
+        );
+        
+        // Automatically expand the comment to show the new reply
+        setExpandedComments(prev => ({ ...prev, [replyingToCommentId]: true }));
+        
+        // Clear reply mode
+        setReplyingToCommentId(null);
+        setReplyingToUsername(null);
+      } else {
+        // Handle regular comment
+        const newComment = await addComment(post.id, commentText.trim());
+        setComments([{ ...newComment, replies: [] }, ...comments]);
+        setPost(prevPost => prevPost ? {...prevPost, commentCount: (prevPost.commentCount || 0) + 1} : null);
+      }
+      
       setCommentText('');
-      setPost(prevPost => prevPost ? {...prevPost, commentCount: (prevPost.commentCount || 0) + 1} : null);
     } catch (error) {
       console.error("Error adding comment:", error);
       Alert.alert("Error", "Could not add comment. Please try again.");
@@ -625,14 +655,31 @@ export default function ViewPost() {
     }
   };
   
-  const handleToggleReplyInput = (commentId: string | null) => {
+  const handleToggleReplyInput = (commentId: string, username: string) => {
     if (replyingToCommentId === commentId) {
+      // Cancel reply mode
       setReplyingToCommentId(null);
-      setReplyText('');
+      setReplyingToUsername(null);
+      setCommentText('');
     } else {
+      // Enter reply mode
       setReplyingToCommentId(commentId);
-      setReplyText('');
+      setReplyingToUsername(username);
+      setCommentText(`@${username} `);
     }
+  };
+
+  // Custom text change handler to preserve @username prefix when replying
+  const handleCommentTextChange = (text: string) => {
+    if (replyingToCommentId && replyingToUsername) {
+      const expectedPrefix = `@${replyingToUsername} `;
+      // If user tries to delete the @username prefix, restore it
+      if (!text.startsWith(expectedPrefix)) {
+        setCommentText(expectedPrefix);
+        return;
+      }
+    }
+    setCommentText(text);
   };
 
   const handleLoadReplies = async (commentId: string) => {
@@ -665,44 +712,6 @@ export default function ViewPost() {
     
     // Expand the comment to show replies
     setExpandedComments(prev => ({ ...prev, [commentId]: true }));
-  };
-
-  const handleAddReply = async (parentCommentId: string) => {
-    if (!post || !currentUser || !replyText.trim() || isSubmittingReply) return;
-
-    const comment = comments.find(c => c.id === parentCommentId);
-    if (!comment) return;
-
-    // Check if we can interact with the comment author
-    if (!canInteractWithUser(comment.authorId, comment.authorBlockedUsers)) {
-      Alert.alert("Cannot Reply", "You cannot interact with this user.");
-      return;
-    }
-
-    setIsSubmittingReply(true);
-    try {
-      const newReply = await addReplyToComment(post.id, parentCommentId, replyText.trim());
-      setComments(prevComments => prevComments.map(c => {
-        if (c.id === parentCommentId) {
-          return {
-            ...c,
-            replies: [newReply, ...(c.replies || [])],
-            replyCount: (c.replyCount || 0) + 1,
-          };
-        }
-        return c;
-      }));
-      setReplyText('');
-      setReplyingToCommentId(null);
-      
-      // Automatically expand the comment to show the new reply
-      setExpandedComments(prev => ({ ...prev, [parentCommentId]: true }));
-    } catch (error) {
-      console.error("Error adding reply:", error);
-      Alert.alert("Error", "Could not add reply. Please try again.");
-    } finally {
-      setIsSubmittingReply(false);
-    }
   };
 
   const handleReplyLike = async (commentId: string, replyId: string) => {
@@ -798,7 +807,7 @@ export default function ViewPost() {
                 <Text style={styles.commentText}>{comment.text}</Text>
                 {canInteractWithComment && (
                   <View style={styles.commentActions}>
-                    <TouchableOpacity onPress={() => handleToggleReplyInput(comment.id)} style={styles.replyButton}>
+                    <TouchableOpacity onPress={() => handleToggleReplyInput(comment.id, comment.authorUsername)} style={styles.replyButton}>
                       <Text style={styles.replyButtonText}>Reply</Text>
                     </TouchableOpacity>
                   </View>
@@ -845,45 +854,6 @@ export default function ViewPost() {
           </TouchableOpacity>
         )}
         
-        {/* Reply Input Area - only show if can interact */}
-        {canInteractWithComment && replyingToCommentId === comment.id && (
-          <View style={styles.replyInputContainer}>
-            <Image
-              source={{ uri: getOptimalImageUrl(userProfile?.profileThumbnailUrl, userProfile?.profileImageUrl) || 'https://via.placeholder.com/150' }}
-              style={styles.replyInputProfilePic}
-            />
-            <TextInput
-              style={styles.replyInput}
-              placeholder={`Replying to ${comment.authorUsername}...`}
-              placeholderTextColor="#666"
-              value={replyText}
-              onChangeText={setReplyText}
-              autoFocus={true}
-              autoCorrect={true}
-              spellCheck={true}
-            />
-            <TouchableOpacity 
-              style={[
-                styles.postReplyButton, 
-                (replyText.trim() === '' || isSubmittingReply) && styles.disabledButton
-              ]}
-              onPress={() => handleAddReply(comment.id)}
-              disabled={replyText.trim() === '' || isSubmittingReply}
-            >
-              {isSubmittingReply ? (
-                <ActivityIndicator size="small" color="#0A84FF" />
-              ) : (
-                <Text style={[
-                  styles.postButtonText, 
-                  replyText.trim() === '' && styles.disabledButtonText
-                ]}>
-                  Post
-                </Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        )}
-
         {/* Replies Container - only show if expanded */}
         {isExpanded && comment.replies && comment.replies.length > 0 && (
           <View style={styles.repliesContainer}>
@@ -1276,38 +1246,56 @@ export default function ViewPost() {
 
         {canInteractWithAuthor && (
           <View style={[styles.commentInputContainer, { paddingBottom: Math.max(insets.bottom, 10) }]}>
-            <Image
-              source={{ uri: getOptimalImageUrl(userProfile?.profileThumbnailUrl, userProfile?.profileImageUrl) || 'https://via.placeholder.com/150' }}
-              style={styles.commentInputProfilePic}
-            />
-            <TextInput
-              style={styles.commentInput}
-              placeholder="Add a comment..."
-              placeholderTextColor="#666"
-              value={commentText}
-              onChangeText={setCommentText}
-              autoCorrect={true}
-              spellCheck={true}
-            />
-            <TouchableOpacity 
-              style={[
-                styles.postButton, 
-                (commentText.trim() === '' || isSubmitting) && styles.disabledButton
-              ]}
-              onPress={handleAddComment}
-              disabled={commentText.trim() === '' || isSubmitting}
-            >
-              {isSubmitting ? (
-                <ActivityIndicator size="small" color="#0A84FF" />
-              ) : (
-                <Text style={[
-                  styles.postButtonText, 
-                  commentText.trim() === '' && styles.disabledButtonText
-                ]}>
-                  Post
+            {replyingToCommentId && (
+              <View style={styles.replyIndicator}>
+                <Text style={styles.replyIndicatorText}>
+                  Replying to @{replyingToUsername}
                 </Text>
-              )}
-            </TouchableOpacity>
+                <TouchableOpacity onPress={() => {
+                  setReplyingToCommentId(null);
+                  setReplyingToUsername(null);
+                  setCommentText('');
+                }}>
+                  <Ionicons name="close" size={16} color="#999" />
+                </TouchableOpacity>
+              </View>
+            )}
+            <View style={styles.inputRow}>
+              <Image
+                source={{ uri: getOptimalImageUrl(userProfile?.profileThumbnailUrl, userProfile?.profileImageUrl) || 'https://via.placeholder.com/150' }}
+                style={styles.commentInputProfilePic}
+              />
+              <TextInput
+                style={styles.commentInput}
+                placeholder={replyingToCommentId ? `Reply to @${replyingToUsername}...` : "Add a comment..."}
+                placeholderTextColor="#666"
+                value={commentText}
+                onChangeText={handleCommentTextChange}
+                autoCorrect={true}
+                spellCheck={true}
+                multiline={true}
+                maxLength={500}
+              />
+              <TouchableOpacity 
+                style={[
+                  styles.postButton, 
+                  (commentText.trim() === '' || isSubmitting) && styles.disabledButton
+                ]}
+                onPress={handleAddComment}
+                disabled={commentText.trim() === '' || isSubmitting}
+              >
+                {isSubmitting ? (
+                  <ActivityIndicator size="small" color="#0A84FF" />
+                ) : (
+                  <Text style={[
+                    styles.postButtonText, 
+                    commentText.trim() === '' && styles.disabledButtonText
+                  ]}>
+                    {replyingToCommentId ? 'Reply' : 'Post'}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
         )}
 
@@ -1779,13 +1767,30 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   commentInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
     paddingHorizontal: 15,
     paddingVertical: 10,
     borderTopColor: '#222',
     borderTopWidth: 1,
     backgroundColor: '#000',
+  },
+  replyIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#111',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 15,
+    marginBottom: 8,
+  },
+  replyIndicatorText: {
+    color: '#0A84FF',
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   commentInputProfilePic: {
     width: 30,
@@ -1795,14 +1800,17 @@ const styles = StyleSheet.create({
   },
   commentInput: {
     flex: 1,
-    height: 36,
+    minHeight: 36,
+    maxHeight: 120,
     borderColor: '#333',
     borderWidth: 1,
     borderRadius: 18,
     paddingHorizontal: 15,
+    paddingVertical: 8,
     fontSize: 14,
     color: '#FFF',
     backgroundColor: '#111',
+    textAlignVertical: 'center',
   },
   postButton: {
     marginLeft: 10,
