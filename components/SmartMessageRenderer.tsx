@@ -33,6 +33,38 @@ export const SmartMessageRenderer: React.FC<SmartMessageRendererProps> = ({
   message, 
   intent 
 }) => {
+  // Check if message contains JSON embedded in text
+  const extractJsonAndText = (text: string) => {
+    try {
+      // Look for JSON blocks
+      const jsonMatch = text.match(/```json\s*(\{.*?\})\s*```/s) || text.match(/(\{[\s\S]*?\})/);
+      
+      if (jsonMatch) {
+        const jsonStr = jsonMatch[1];
+        const beforeJson = text.substring(0, text.indexOf(jsonMatch[0])).trim();
+        const afterJson = text.substring(text.indexOf(jsonMatch[0]) + jsonMatch[0].length).trim();
+        
+        try {
+          const parsed = JSON.parse(jsonStr);
+          return {
+            hasJson: true,
+            jsonData: parsed,
+            beforeText: beforeJson,
+            afterText: afterJson,
+            isWorkout: !!(parsed.dayType && parsed.segments && Array.isArray(parsed.segments)),
+            isTechnique: !!(parsed.issue || parsed.riskAssessment || parsed.safeAlternatives || parsed.avoidExercises)
+          };
+        } catch {
+          return { hasJson: false };
+        }
+      }
+      
+      return { hasJson: false };
+    } catch {
+      return { hasJson: false };
+    }
+  };
+
   // Check if message is JSON workout data
   const isWorkoutJson = (text: string): boolean => {
     try {
