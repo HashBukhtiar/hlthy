@@ -1490,7 +1490,24 @@ def chat():
             log_metric("chat_output_tokens", int(output_tokens), {"route": route})
             log_metric("memory_snippets_retrieved", snippet_count, {"user_id": user_id or "anonymous"})
 
-        return jsonify({"text": response_text})
+        # Clean up response format - extract just JSON for workout plans, keep full text for chat
+        clean_response_text = response_text
+        if route == "planner" and "{" in response_text and "}" in response_text:
+            try:
+                # Extract only the JSON part for workout plans
+                json_start = response_text.find('{')
+                json_end = response_text.rfind('}') + 1
+                if json_start >= 0 and json_end > json_start:
+                    json_only = response_text[json_start:json_end]
+                    # Verify it's valid JSON
+                    import json
+                    json.loads(json_only)  # This will throw if invalid
+                    clean_response_text = json_only
+            except:
+                # If JSON extraction fails, keep original response
+                pass
+        
+        return jsonify({"text": clean_response_text})
         
     except Exception as e:
         print(f"ERROR in /api/chat: {e}")
