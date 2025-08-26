@@ -604,6 +604,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     gap: 8,
+    overflow: 'hidden',
+    position: 'relative',
   },
   primaryButtonFail: {
     backgroundColor: '#DC2626', // red
@@ -668,6 +670,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 6,
+    overflow: 'hidden',
   },
   successCheckWrapper: {
     width: 22,
