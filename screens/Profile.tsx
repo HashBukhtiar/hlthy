@@ -29,6 +29,7 @@ const archetypeDescriptions = {
   'powerlifter': 'Specialized in maximizing strength in the squat, bench press, and deadlift.',
 };
 import { getOptimalImageUrl, getCoverImageSource } from '@/utils/imageUtils';
+import { MilestoneDetails } from '@/types/milestone';
 
 interface ProfileScreenProps {
   userId?: string;
@@ -38,22 +39,6 @@ enum TabType {
   POSTS = 'POSTS',
   MILESTONES = 'MILESTONES',
   WORKOUTS = 'WORKOUTS'
-}
-
-export interface MilestoneDetails {
-  exerciseName?: string;
-  value?: number;
-  weightUnit?: string;
-  reps?: number;
-  newWeight?: number;
-  newWeightUnit?: string;
-  previousWeight?: number;
-  previousWeightUnit?: string;
-  previousValue?: number;
-  previousReps?: number;
-  improvement?: string;
-  totalLoss?: number;
-  percentageLoss?: string;
 }
 
 const generateConversationId = (userId1: string, userId2: string): string => {

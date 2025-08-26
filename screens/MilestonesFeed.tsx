@@ -20,45 +20,7 @@ import { useFeedData } from '@/hooks/useFeedData';
 import { usePostsData } from '@/hooks/usePostsData';
 import { getOptimalImageUrl } from '@/utils/imageUtils';
 import { useBlockEnforcement } from '@/utils/blockUtils';
-
-// Define interfaces for milestone data
-export interface MilestoneStats {
-  likes: number;
-}
-
-export interface MilestoneDetails {
-  exerciseName?: string;
-  value?: number;
-  weightUnit?: string;
-  reps?: number;
-  newWeight?: number;
-  newWeightUnit?: string;
-  previousWeight?: number;
-  previousWeightUnit?: string;
-  previousValue?: number;
-  previousReps?: number;
-  improvement?: string;
-  totalLoss?: number;
-  percentageLoss?: string;
-  type: 'PR' | 'weightLoss' | 'weightGain';
-}
-
-export interface Milestone {
-  id: string;
-  authorId: string;
-  authorUsername: string;
-  authorProfileImageUrl: string;
-  authorProfileThumbnailUrl: string;
-  createdAt: any;
-  milestoneType: 'PR' | 'weightLoss' | 'weightGain' | string;
-  milestoneDetails: MilestoneDetails;
-  reactionCount: number;
-  isLiked: boolean;
-  associatedPostId?: string;
-  imageUrl?: string;
-  pinned?: boolean;
-  top5Percent?: boolean;
-}
+import { FeedMilestone, MilestoneDetails, MilestoneStats } from '@/types/milestone';
 
 export default function MilestonesFeed() {
   const router = useRouter();
@@ -67,7 +29,7 @@ export default function MilestonesFeed() {
   const { likePost, unlikePost } = usePostsData();
   const { canInteractWithUser, isUserBlocked } = useBlockEnforcement();
   const [shareModalVisible, setShareModalVisible] = useState(false);
-  const milestoneToShare = useRef<Milestone | null>(null);
+  const milestoneToShare = useRef<FeedMilestone | null>(null);
   
   // Local state for optimistic updates  
   const [milestones, setMilestones] = useState<typeof feedMilestones>([]);
@@ -152,7 +114,7 @@ export default function MilestonesFeed() {
     router.push(`/profile/${userId}`);
   }, [router]);
 
-  const handleShare = useCallback((milestone: Milestone) => {
+  const handleShare = useCallback((milestone: FeedMilestone) => {
     console.log("🎯 sharing milestone payload:", milestone);
     if (!currentUser) {
       Alert.alert("Please log in", "You need to be logged in to share milestones.");
@@ -188,7 +150,7 @@ export default function MilestonesFeed() {
     }
   }, [currentUser]);
 
-  const renderMilestoneDetails = useCallback((milestone: Milestone) => {
+  const renderMilestoneDetails = useCallback((milestone: FeedMilestone) => {
     const details = milestone.milestoneDetails;
     
     if (details.type === 'PR') {
@@ -286,7 +248,7 @@ export default function MilestonesFeed() {
 
   const renderMilestoneCard = useCallback((item: typeof milestones[0]) => {
     // Convert Post to Milestone format
-    const milestone: Milestone = {
+    const milestone: FeedMilestone = {
       id: item.id,
       authorId: item.authorId,
       authorUsername: item.authorUsername,
@@ -367,7 +329,7 @@ export default function MilestonesFeed() {
   }, [milestones, canInteractWithUser, currentUser?.uid]);
 
   // Helper function to render the card content
-  const renderCardContent = useCallback((item: Milestone, hasStatus = false, statusText = '', statusColor = '') => {
+  const renderCardContent = useCallback((item: FeedMilestone, hasStatus = false, statusText = '', statusColor = '') => {
     const canInteract = !isUserBlocked(item.authorId);
     
     return (

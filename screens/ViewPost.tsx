@@ -15,6 +15,7 @@ import { collection, query, where, limit, getDocs, getDoc, doc } from 'firebase/
 import { db } from '@/firebaseConfig';
 import { getOptimalImageUrl, deleteImageFromStorage, deleteMilestoneFromFirestore } from '@/utils/imageUtils';
 import { useBlockEnforcement } from '@/utils/blockUtils';
+import { useUnits } from '@/hooks/useUnits';
 
 export default function ViewPost() {
   const [menuVisible, setMenuVisible] = useState(false);
@@ -47,6 +48,7 @@ export default function ViewPost() {
   const [sortType, setSortType] = useState('Recency');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const { getWeightUnit, getDistanceUnit } = useUnits();
 
   const [shareModalVisible, setShareModalVisible] = useState(false);
   const [searchText, setSearchText] = useState('');
@@ -261,7 +263,9 @@ export default function ViewPost() {
     if (!details) return '';
   
     if (details.type === 'weightLoss' || details.type === 'weightGain') {
-      return `New Weight: ${details.newWeight} ${details.newWeightUnit || 'lbs'}`;
+      // Display the unit that was actually used when the milestone was created
+      const unit = details.newWeightUnit || details.weightUnit || getWeightUnit();
+      return `New Weight: ${details.newWeight} ${unit}`;
     }
   
     if (details.type === 'PR') {
@@ -270,12 +274,16 @@ export default function ViewPost() {
   
       // weight_reps
       if (details.value && details.reps) {
-        return preview + `${details.value} ${details.weightUnit || 'lbs'} × ${details.reps} reps`;
+        // Display the unit that was actually used when the milestone was created
+        const unit = details.weightUnit || getWeightUnit();
+        return preview + `${details.value} ${unit} × ${details.reps} reps`;
       }
+      
       // bodyweight_reps
-      if (details.reps) {
+      if (details.reps && !details.value) {
         return preview + `${details.reps} reps`;
       }
+      
       // duration, duration_level, distance_time
       if (details.duration) {
         const d = details.duration;
@@ -284,21 +292,35 @@ export default function ViewPost() {
         const s = d % 60;
         const time = [h > 0 ? `${h}h` : '', m > 0 ? `${m}m` : '', (s > 0 || (!h && !m)) ? `${s}s` : ''].filter(Boolean).join(' ');
   
-        if (details.value && details.weightUnit === 'miles') { // distance_time
+        // For distance_time, check if weightUnit represents distance unit
+        if (details.value && details.weightUnit && (details.weightUnit === 'miles' || details.weightUnit === 'km')) {
           return preview + `${details.value} ${details.weightUnit} in ${time}`;
         }
-        return preview + time; // duration
+        
+        // For pure duration
+        if (details.level) {
+          return preview + `${time} (Level ${details.level})`;
+        }
+        
+        return preview + time;
       }
-      // distance
-      if (details.value && details.weightUnit) {
+      
+      // distance only
+      if (details.value && details.weightUnit && (details.weightUnit === 'miles' || details.weightUnit === 'km')) {
         return preview + `${details.value} ${details.weightUnit}`;
       }
+      
+      // fallback
+      if (details.value) {
+        const unit = details.weightUnit || getWeightUnit();
+        return preview + `${details.value} ${unit}`;
+      }
+      
       return exercise;
     }
   
     return 'View Achievement';
   };
-
 
   const searchUsers = async () => {
     if (!searchText.trim()) {
