@@ -75,7 +75,6 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({
           data={parsed.data as WorkoutPlanData}
           intent={intent}
           onSave={handleSaveWorkout}
-          onStart={handleStartWorkout}
           onExplain={handleExplainChoices}
         />
       );
