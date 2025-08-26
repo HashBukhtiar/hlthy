@@ -57,9 +57,8 @@ class FocusPlanner:
         
         # Build focus whitelist
         whitelist_result = build_focus_whitelist(
-            focus=normalized_focus,
-            exercise_db=self.exercise_db,
-            user_context=user_context
+            user_ctx=user_context,
+            focus_or_combo=normalized_focus
         )
         
         # Get slot template
@@ -209,16 +208,22 @@ class FocusPlanner:
     def _build_user_context(self, user_id: str, additional_context: Dict[str, Any]) -> Dict[str, Any]:
         """Build complete user context for focus planning."""
         # Get user profile
-        user_profile = self.user_profiles.get_user_profile(user_id)
+        user_profile = None
+        if self.user_profiles and user_id:
+            try:
+                user_profile = self.user_profiles.load_profile(user_id)
+            except Exception as e:
+                print(f"⚠️  Failed to load user profile: {e}")
+                user_profile = None
         
         # Merge with additional context
         context = {
             "user_id": user_id,
-            "experience_level": user_profile.get('experience_level', 'intermediate'),
-            "available_equipment": user_profile.get('available_equipment', []),
-            "preferences": user_profile.get('preferences', {}),
-            "limitations": user_profile.get('limitations', {}),
-            "goals": user_profile.get('goals', [])
+            "experience_level": user_profile.experience_level if user_profile else 'intermediate',
+            "available_equipment": user_profile.preferences.available_equipment if user_profile and user_profile.preferences else [],
+            "preferences": user_profile.preferences.__dict__ if user_profile and user_profile.preferences else {},
+            "limitations": user_profile.limitations.__dict__ if user_profile and user_profile.limitations else {},
+            "goals": user_profile.goals.__dict__ if user_profile and user_profile.goals else {}
         }
         
         # Override with additional context
