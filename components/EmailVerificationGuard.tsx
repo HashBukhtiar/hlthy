@@ -3,10 +3,11 @@ import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { auth } from '@/firebaseConfig';
-import { sendEmailVerification, reload, signOut } from 'firebase/auth';
+import { reload, signOut } from 'firebase/auth';
 import { useAuth } from '@/context/AuthContext';
 import CustomSpinner from '@/components/CustomSpinner';
 import AuthBackground from '@/components/AuthBackground';
+import { SignupService } from '@/services/signupService';
 
 interface EmailVerificationGuardProps {
   children: React.ReactNode;
@@ -43,6 +44,11 @@ export default function EmailVerificationGuard({ children }: EmailVerificationGu
     try {
       await reload(currentUser);
       if (currentUser.emailVerified) {
+        // Check if there's a pending signup to complete
+        const hasPending = await SignupService.hasPendingSignup();
+        if (hasPending) {
+          await SignupService.completePendingSignup();
+        }
         // Email is now verified, the AuthContext will update automatically
         return;
       }
@@ -58,7 +64,7 @@ export default function EmailVerificationGuard({ children }: EmailVerificationGu
     
     setIsResending(true);
     try {
-      await sendEmailVerification(currentUser);
+      await SignupService.resendVerificationEmail();
       setResendCooldown(60); // 60 second cooldown
       Alert.alert(
         'Verification Email Sent',

@@ -12,8 +12,9 @@ import {
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { auth } from '@/firebaseConfig';
-import { sendEmailVerification, reload, signOut } from 'firebase/auth';
+import { reload, signOut } from 'firebase/auth';
 import CustomSpinner from '@/components/CustomSpinner';
+import { SignupService } from '@/services/signupService';
 
 interface EmailVerificationScreenProps {
   visible: boolean;
@@ -64,6 +65,8 @@ export default function EmailVerificationScreen({
     try {
       await reload(auth.currentUser);
       if (auth.currentUser.emailVerified) {
+        // Complete the signup process with stored data
+        await SignupService.completePendingSignup();
         onVerificationComplete();
       }
     } catch (error) {
@@ -78,7 +81,7 @@ export default function EmailVerificationScreen({
     
     setIsResending(true);
     try {
-      await sendEmailVerification(auth.currentUser);
+      await SignupService.resendVerificationEmail();
       setResendCooldown(60); // 60 second cooldown
       Alert.alert(
         'Verification Email Sent',
@@ -108,12 +111,11 @@ export default function EmailVerificationScreen({
           style: 'destructive',
           onPress: async () => {
             try {
-              if (auth.currentUser) {
-                await signOut(auth);
-              }
+              // This will clean up both AsyncStorage data and Firebase Auth account
+              await SignupService.cancelPendingSignup();
               onBackToSignUp();
             } catch (error) {
-              console.error('Error signing out:', error);
+              console.error('Error canceling signup:', error);
               onBackToSignUp();
             }
           },
