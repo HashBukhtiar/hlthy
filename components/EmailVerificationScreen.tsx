@@ -9,6 +9,7 @@ import {
   AppState,
   AppStateStatus,
   Animated,
+  Easing,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -45,6 +46,7 @@ export default function EmailVerificationScreen({
   // Success animation state for resend button
   const [showResendSuccess, setShowResendSuccess] = useState(false);
   const spinnerFadeAnim = useRef(new Animated.Value(0)).current;
+  const spinnerScaleAnim = useRef(new Animated.Value(0.8)).current;
   const resendSuccessAnim = useRef(new Animated.Value(0)).current;
   // Icon transition animations
   const sendIconYAnim = useRef(new Animated.Value(0)).current;
@@ -87,19 +89,37 @@ export default function EmailVerificationScreen({
 
   useEffect(() => {
     if (isChangingEmail) {
-      Animated.timing(spinnerFadeAnim, {
-        toValue: 1,
-        duration: 300,
-        useNativeDriver: true,
-      }).start();
+      Animated.parallel([
+        Animated.timing(spinnerFadeAnim, {
+          toValue: 1,
+          duration: 400,
+          useNativeDriver: true,
+          easing: Easing.out(Easing.cubic),
+        }),
+        Animated.timing(spinnerScaleAnim, {
+          toValue: 1,
+          duration: 400,
+          useNativeDriver: true,
+          easing: Easing.out(Easing.back(1.1)),
+        }),
+      ]).start();
     } else {
-      Animated.timing(spinnerFadeAnim, {
-        toValue: 0,
-        duration: 250,
-        useNativeDriver: true,
-      }).start();
+      Animated.parallel([
+        Animated.timing(spinnerFadeAnim, {
+          toValue: 0,
+          duration: 350,
+          useNativeDriver: true,
+          easing: Easing.inOut(Easing.cubic),
+        }),
+        Animated.timing(spinnerScaleAnim, {
+          toValue: 0.8,
+          duration: 350,
+          useNativeDriver: true,
+          easing: Easing.in(Easing.back(1.5)),
+        }),
+      ]).start();
     }
-  }, [isChangingEmail, spinnerFadeAnim]);
+  }, [isChangingEmail, spinnerFadeAnim, spinnerScaleAnim]);
 
   // Interpolated colors for the primary button background and text
   const animatedBackgroundColor = verifyFailAnim.interpolate({
@@ -550,8 +570,17 @@ export default function EmailVerificationScreen({
       {/* Loading spinner overlay */}
       {isChangingEmail && (
         <>
-          <View style={styles.loadingBlocker} pointerEvents="auto" />
-          <Animated.View style={[styles.loadingOverlay, { opacity: spinnerFadeAnim }]} pointerEvents="auto">
+          <Animated.View 
+            style={[styles.loadingBlocker, { opacity: spinnerFadeAnim }]} 
+            pointerEvents="auto" 
+          />
+          <Animated.View style={[
+            styles.loadingOverlay, 
+            { 
+              opacity: spinnerFadeAnim,
+              transform: [{ scale: spinnerScaleAnim }]
+            }
+          ]} pointerEvents="auto">
             <CustomSpinner size={48} />
             <Text style={styles.loadingText}>Cleaning up...</Text>
           </Animated.View>
@@ -780,7 +809,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'transparent',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
     zIndex: 999,
   },
 });
