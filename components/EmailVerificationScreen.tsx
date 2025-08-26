@@ -27,6 +27,7 @@ interface EmailVerificationScreenProps {
   userEmail: string;
   onVerificationComplete: () => void;
   onBackToSignUp: () => void;
+  emailSent?: boolean; // New prop to indicate when email was actually sent
 }
 
 export default function EmailVerificationScreen({
@@ -34,6 +35,7 @@ export default function EmailVerificationScreen({
   userEmail,
   onVerificationComplete,
   onBackToSignUp,
+  emailSent = false,
 }: EmailVerificationScreenProps) {
   const { width, height } = Dimensions.get('window');
   const router = useRouter();
@@ -80,12 +82,12 @@ export default function EmailVerificationScreen({
     }
   }, [resendCooldown]);
 
-  // Start with a 60s countdown when the screen is shown
+  // Start countdown when email is actually sent, not just when screen becomes visible
   useEffect(() => {
-    if (visible && resendCooldown === 0) {
+    if (emailSent && resendCooldown === 0) {
       setResendCooldown(60);
     }
-  }, [visible]);
+  }, [emailSent]);
 
   useEffect(() => {
     if (isChangingEmail) {

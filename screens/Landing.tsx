@@ -37,6 +37,7 @@ export default function Landing() {
   });
   const [signupLoading, setSignupLoading] = useState(false);
   const [verificationEmail, setVerificationEmail] = useState('');
+  const [emailSent, setEmailSent] = useState(false);
 
   // Animation values for each screen - only center instance needed, positioned dynamically
   const landingAnim = useRef(new Animated.Value(0)).current;
@@ -196,14 +197,17 @@ export default function Landing() {
 
   const handleEmailVerificationRequired = useCallback((email: string) => {
     setVerificationEmail(email);
+    setEmailSent(true); // Set emailSent to true when email verification is required
     animateToScreen('email-verification', 'forward');
   }, [animateToScreen]);
 
   const handleEmailVerificationComplete = useCallback(() => {
+    setEmailSent(false); // Reset emailSent when verification is complete
     router.replace('/profile');
   }, [router]);
 
   const handleBackToSignUpFromVerification = useCallback(() => {
+    setEmailSent(false); // Reset emailSent when going back to signup
     animateToScreen('signup-step1', 'backward');
   }, [animateToScreen]);
 
@@ -343,6 +347,7 @@ export default function Landing() {
               userEmail={verificationEmail}
               onVerificationComplete={handleEmailVerificationComplete}
               onBackToSignUp={handleBackToSignUpFromVerification}
+              emailSent={emailSent}
             />
           </Animated.View>
         </View>
