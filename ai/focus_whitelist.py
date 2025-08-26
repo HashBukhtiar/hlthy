@@ -262,20 +262,28 @@ def _rank_exercises_by_preference(
 
 
 def _get_exercise_patterns(exercise_id: str) -> List[str]:
-    """Get movement patterns for an exercise (mock implementation)."""
-    # This would query the exercise database
-    # For now, return empty list (implement based on your exercise_database.py)
-    from exercise_database import get_exercise_data
-    exercise_data = get_exercise_data(exercise_id)
-    return exercise_data.get('movement_patterns', []) if exercise_data else []
+    """Get movement patterns for an exercise from the canonical database."""
+    try:
+        from exercise_database import get_exercise_data
+        exercise_data = get_exercise_data(exercise_id)
+        if exercise_data:
+            # Return movement patterns, defaulting to display name as pattern
+            return exercise_data.get('movement_patterns', [exercise_data.get('name', '').lower()])
+        return []
+    except Exception:
+        return []
 
 
 def _get_exercise_muscles(exercise_id: str) -> List[str]:
-    """Get muscle families for an exercise (mock implementation)."""
-    # This would query the exercise database
-    from exercise_database import get_exercise_data
-    exercise_data = get_exercise_data(exercise_id)
-    return exercise_data.get('muscle_families', []) if exercise_data else []
+    """Get muscle families for an exercise from the canonical database."""
+    try:
+        from exercise_database import get_exercise_data
+        exercise_data = get_exercise_data(exercise_id)
+        if exercise_data:
+            return exercise_data.get('muscle_families', [])
+        return []
+    except Exception:
+        return []
 
 
 def _get_safety_score(exercise_id: str, user_ctx: Dict[str, Any]) -> float:
