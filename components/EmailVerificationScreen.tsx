@@ -156,13 +156,13 @@ export default function EmailVerificationScreen({
       verifyCheckIconYAnim.setValue(0);
       verifyOutlineOpacityAnim.setValue(0);
 
-      // animate: check slides up/out, X slides in from bottom, outline fades in
-  // set starting positions so entrance animations are visible
-  verifyCheckIconYAnim.setValue(0);
-  verifyXIconYAnim.setValue(60);
-  verifyOutlineOpacityAnim.setValue(0);
+      // Phase 1: Check slides up/out, X slides in from bottom, synchronized like resend button
+      // Set starting positions for smooth entrance animations
+      verifyCheckIconYAnim.setValue(0);
+      verifyXIconYAnim.setValue(60);
+      verifyOutlineOpacityAnim.setValue(0);
 
-  Animated.parallel([
+      Animated.parallel([
         Animated.timing(verifyCheckIconYAnim, {
           toValue: -35,
           duration: 350,
@@ -442,13 +442,13 @@ export default function EmailVerificationScreen({
                 style={{
                   transform: [{ translateY: verifyCheckIconYAnim }],
                   opacity: verifyCheckIconYAnim.interpolate({
-                    inputRange: [-60, -30, -5, 0, 5, 30],
-                    outputRange: [0, 0, 0.8, 1, 0.8, 0],
+                    inputRange: [-60, -40, -20, 0, 20, 40],
+                    outputRange: [0, 0.5, 0.8, 1, 0.8, 0],
                     extrapolate: 'clamp',
                   }),
                 }}
               >
-                <Ionicons name="checkmark-done-outline" size={20} color={isVerificationFailed ? '#FFFFFF' : '#000000'} />
+                <Ionicons name="checkmark-done-outline" size={20} color="#000000" />
               </Animated.View>
 
               {/* X icon (slides in from bottom on failure) */}
@@ -457,8 +457,8 @@ export default function EmailVerificationScreen({
                   position: 'absolute',
                   transform: [{ translateY: verifyXIconYAnim }],
                   opacity: verifyXIconYAnim.interpolate({
-                    inputRange: [-5, 0, 5, 30, 60],
-                    outputRange: [0, 1, 0.8, 0, 0],
+                    inputRange: [-20, 0, 20, 40, 60],
+                    outputRange: [0, 1, 0.8, 0.5, 0],
                     extrapolate: 'clamp',
                   }),
                 }}
@@ -471,7 +471,7 @@ export default function EmailVerificationScreen({
               styles.primaryButtonText,
               { color: animatedPrimaryTextColor },
             ]}>
-              {isCheckingVerification ? 'Checking...' : 'I\'ve Verified'}
+              {'I\'ve Verified'}
             </AnimatedText>
           </AnimatedTouchableOpacity>
 
