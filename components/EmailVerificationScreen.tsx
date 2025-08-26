@@ -37,7 +37,10 @@ export default function EmailVerificationScreen({
   const [resendCooldown, setResendCooldown] = useState(0);
   const [isCheckingVerification, setIsCheckingVerification] = useState(false);
   const [isChangingEmail, setIsChangingEmail] = useState(false);
+  // Success animation state for resend button
+  const [showResendSuccess, setShowResendSuccess] = useState(false);
   const spinnerFadeAnim = useRef(new Animated.Value(0)).current;
+  const resendSuccessAnim = useRef(new Animated.Value(0)).current;
 
   // Check verification status when app comes to foreground
   useEffect(() => {
@@ -102,6 +105,25 @@ export default function EmailVerificationScreen({
     try {
       await SignupService.resendVerificationEmail();
       setResendCooldown(60); // 60 second cooldown
+
+      // trigger a compact success animation: expanding green circle + check
+      setShowResendSuccess(true);
+      resendSuccessAnim.setValue(0);
+      Animated.sequence([
+        Animated.timing(resendSuccessAnim, {
+          toValue: 1,
+          duration: 700,
+          useNativeDriver: false,
+        }),
+        Animated.delay(900),
+        Animated.timing(resendSuccessAnim, {
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: false,
+        }),
+      ]).start(() => {
+        setShowResendSuccess(false);
+      });
     } catch (error: any) {
       console.error('Error resending verification email:', error);
       Alert.alert(
@@ -112,7 +134,7 @@ export default function EmailVerificationScreen({
     } finally {
       setIsResending(false);
     }
-  }, [resendCooldown]);
+  }, [resendCooldown, resendSuccessAnim]);
 
   const handleChangeEmail = useCallback(async () => {
     setIsChangingEmail(true);
@@ -165,13 +187,21 @@ export default function EmailVerificationScreen({
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.secondaryButton, (isResending || resendCooldown > 0) && styles.disabledButton]}
+            style={[
+              styles.secondaryButton,
+              (isResending || resendCooldown > 0) && styles.disabledButton,
+              showResendSuccess && { borderColor: '#22C55E' },
+            ]}
             onPress={handleResendVerification}
             disabled={isResending || resendCooldown > 0}
             activeOpacity={0.8}
           >
             {isResending ? (
               <CustomSpinner size={16} />
+            ) : showResendSuccess ? (
+              <Animated.View style={styles.successCheckWrapper}>
+                <Ionicons name="checkmark" size={18} color="#FFFFFF" />
+              </Animated.View>
             ) : (
               <Ionicons name="send" size={16} color="#FFFFFF" />
             )}
@@ -291,6 +321,18 @@ const styles = StyleSheet.create({
     gap: 8,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.3)',
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  successCheckWrapper: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: 'transparent',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 6,
+    zIndex: 3,
   },
   secondaryButtonText: {
     color: '#FFFFFF',
