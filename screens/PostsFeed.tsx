@@ -223,8 +223,10 @@ export default function PostsFeed() {
 
   const filteredPosts = useMemo(() => {
     return posts.filter(post => {
-      // Don't filter out current user's own posts
-      if (post.authorId === currentUser?.uid) return true;
+      // Filter out milestone-only posts (milestones without images) - they should only appear in MilestonesFeed
+      if (post.isMilestone && !post.imageUrl) {
+        return false;
+      }
       
       // Filter out posts from users we've blocked
       if (isUserBlocked(post.authorId)) return false;
