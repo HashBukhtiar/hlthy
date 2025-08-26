@@ -1406,8 +1406,32 @@ def chat():
         route = route_user_message(current_message)
         print(f"Routed to: {route}")
 
-        # Build the appropriate template
-        template = build_route_template(route, context, current_message, conversation_history, user_id)
+        # Focus Planner Integration for workout requests
+        focus_enhanced_request = None
+        if route == "planner" and user_id and FOCUS_PLANNER_AVAILABLE:
+            try:
+                print("🎯 Processing workout request with Focus Planner...")
+                focus_enhanced_request = focus_integration.enhance_workout_request(
+                    user_message=current_message,
+                    user_id=user_id,
+                    conversation_context={"history": conversation_history, "context": context}
+                )
+                
+                if focus_enhanced_request.get('enhanced'):
+                    print(f"✅ Focus Planner enhanced request: {focus_enhanced_request['focus_result']['focus']}")
+                    # Use the enhanced prompt instead of building template
+                    template = focus_enhanced_request['enhanced_prompt']
+                else:
+                    print(f"⚠️  Focus Planner could not enhance: {focus_enhanced_request.get('suggestion', 'No focus detected')}")
+                    # Fall back to regular template building
+                    template = build_route_template(route, context, current_message, conversation_history, user_id)
+            except Exception as e:
+                print(f"❌ Focus Planner enhancement failed: {e}")
+                # Fall back to regular template building
+                template = build_route_template(route, context, current_message, conversation_history, user_id)
+        else:
+            # Build the regular template for non-planner routes or when Focus Planner unavailable
+            template = build_route_template(route, context, current_message, conversation_history, user_id)
 
         # Generate coach response with appropriate model
         # Use cheaper model for explanations, stronger model for planning/technique
