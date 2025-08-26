@@ -144,34 +144,41 @@ export default function EmailVerificationScreen({
 
       // After delay, animate everything back with send icon coming from below
       setTimeout(() => {
-        // First, move send icon to bottom position (off-screen below)
-        sendIconYAnim.setValue(50);
-        
-        Animated.parallel([
-          // Check icon slides up and out
-          Animated.timing(checkIconYAnim, {
-            toValue: -35,
-            duration: 350,
-            useNativeDriver: true,
-          }),
-          // Send icon slides up from bottom to center
+        // Smoothly move send icon further down then bring it up (avoids an instant jump)
+        Animated.sequence([
+          // Nudge send icon further down off-screen quickly
           Animated.timing(sendIconYAnim, {
-            toValue: 0,
-            duration: 400,
+            toValue: 60,
+            duration: 180,
             useNativeDriver: true,
           }),
-          // Outline fades out
-          Animated.timing(outlineOpacityAnim, {
-            toValue: 0,
-            duration: 250,
-            useNativeDriver: true,
-          }),
-          // Success animation out
-          Animated.timing(resendSuccessAnim, {
-            toValue: 0,
-            duration: 300,
-            useNativeDriver: false,
-          }),
+          // Then animate check icon out while send slides up into place
+          Animated.parallel([
+            // Check icon slides up and out
+            Animated.timing(checkIconYAnim, {
+              toValue: -35,
+              duration: 350,
+              useNativeDriver: true,
+            }),
+            // Send icon slides up from bottom to center
+            Animated.timing(sendIconYAnim, {
+              toValue: 0,
+              duration: 400,
+              useNativeDriver: true,
+            }),
+            // Outline fades out
+            Animated.timing(outlineOpacityAnim, {
+              toValue: 0,
+              duration: 250,
+              useNativeDriver: true,
+            }),
+            // Success animation out
+            Animated.timing(resendSuccessAnim, {
+              toValue: 0,
+              duration: 300,
+              useNativeDriver: false,
+            }),
+          ]),
         ]).start(() => {
           setShowResendSuccess(false);
         });
@@ -296,7 +303,7 @@ export default function EmailVerificationScreen({
                       }
                     ]}
                   >
-                    <Ionicons name="checkmark" size={18} color="#FFFFFF" />
+                    <Ionicons name="checkmark" size={18} color="#22C55E" />
                   </Animated.View>
                 </>
               )}
