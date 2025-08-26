@@ -34,6 +34,7 @@ try:
         # Test focus processing directly
         try:
             if detected_focus:
+                import traceback
                 focus_result = focus_integration.focus_planner.process_focus_request(
                     focus=detected_focus,
                     user_id="test_user",
@@ -45,6 +46,8 @@ try:
                 print(f"   ⚙️  Focus processing: SKIPPED - no focus detected")
         except Exception as e:
             print(f"   ⚙️  Focus processing: FAILED - {e}")
+            import traceback
+            traceback.print_exc()
         
         # Test full enhancement
         try:

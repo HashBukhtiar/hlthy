@@ -56,7 +56,7 @@ class FocusPlanner:
         user_context = self._build_user_context(user_id, context or {})
         
         # Build focus whitelist
-        whitelist_result = build_focus_whitelist(
+        allowed_exercises = build_focus_whitelist(
             user_ctx=user_context,
             focus_or_combo=normalized_focus
         )
@@ -76,7 +76,7 @@ class FocusPlanner:
         # Compose final prompt components
         prompt_components = self._compose_prompt_components(
             focus=normalized_focus,
-            whitelist=whitelist_result['allowed_exercises'],
+            whitelist=allowed_exercises,
             slot_template=slot_template,
             rubric=rubric,
             limits=limits,
@@ -88,7 +88,7 @@ class FocusPlanner:
             "focus": normalized_focus,
             "original_focus": focus,
             "user_id": user_id,
-            "whitelist_result": whitelist_result,
+            "whitelist_result": {"allowed_exercises": allowed_exercises},
             "slot_template": slot_template,
             "ruleset": ruleset,
             "rules": rules,
@@ -98,8 +98,8 @@ class FocusPlanner:
             "prompt_components": prompt_components,
             "user_context": user_context,
             "metadata": {
-                "total_allowed_exercises": len(whitelist_result['allowed_exercises']),
-                "whitelist_build_time": whitelist_result.get('build_time_ms', 0),
+                "total_allowed_exercises": len(allowed_exercises),
+                "whitelist_build_time": 0,  # We don't track timing in this implementation
                 "combo_detected": parse_combo(normalized_focus) is not None
             }
         }
