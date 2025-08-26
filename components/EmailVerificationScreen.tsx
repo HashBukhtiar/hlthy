@@ -436,40 +436,36 @@ export default function EmailVerificationScreen({
               pointerEvents="none"
             />
 
-            {isCheckingVerification ? (
-              <CustomSpinner size={20} />
-            ) : (
-              <View style={styles.primaryIconContainer}>
-                {/* Check icon (slides out to top when fail, slides back in from top) */}
-                <Animated.View
-                  style={{
-                    transform: [{ translateY: verifyCheckIconYAnim }],
-                    opacity: verifyCheckIconYAnim.interpolate({
-                      inputRange: [-60, -35, -10, 0, 10],
-                      outputRange: [0, 0.4, 0.6, 1, 0.8],
-                      extrapolate: 'clamp',
-                    }),
-                  }}
-                >
-                  <Ionicons name="checkmark-done-outline" size={20} color={isVerificationFailed ? '#FFFFFF' : '#000000'} />
-                </Animated.View>
+            <View style={styles.primaryIconContainer}>
+              {/* Check icon (slides out to top when fail, slides back in from top) */}
+              <Animated.View
+                style={{
+                  transform: [{ translateY: verifyCheckIconYAnim }],
+                  opacity: verifyCheckIconYAnim.interpolate({
+                    inputRange: [-60, -35, -10, 0, 10],
+                    outputRange: [0, 0.4, 0.6, 1, 0.8],
+                    extrapolate: 'clamp',
+                  }),
+                }}
+              >
+                <Ionicons name="checkmark-done-outline" size={20} color={isVerificationFailed ? '#FFFFFF' : '#000000'} />
+              </Animated.View>
 
-                {/* X icon (slides in from bottom on failure) */}
-                <Animated.View
-                  style={{
-                    position: 'absolute',
-                    transform: [{ translateY: verifyXIconYAnim }],
-                    opacity: verifyXIconYAnim.interpolate({
-                      inputRange: [0, 20, 60],
-                      outputRange: [1, 0.8, 0],
-                      extrapolate: 'clamp',
-                    }),
-                  }}
-                >
-                  <Ionicons name="close" size={20} color="#FFFFFF" />
-                </Animated.View>
-              </View>
-            )}
+              {/* X icon (slides in from bottom on failure) */}
+              <Animated.View
+                style={{
+                  position: 'absolute',
+                  transform: [{ translateY: verifyXIconYAnim }],
+                  opacity: verifyXIconYAnim.interpolate({
+                    inputRange: [0, 20, 60],
+                    outputRange: [1, 0.8, 0],
+                    extrapolate: 'clamp',
+                  }),
+                }}
+              >
+                <Ionicons name="close" size={20} color="#FFFFFF" />
+              </Animated.View>
+            </View>
 
             <AnimatedText style={[
               styles.primaryButtonText,
