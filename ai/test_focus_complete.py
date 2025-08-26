@@ -106,7 +106,7 @@ try:
             )
             
             whitelist_count = len(result['whitelist_result']['allowed_exercises'])
-            slot_count = len(result['slot_template']['slots'])
+            slot_count = len(result['slot_template']) if isinstance(result['slot_template'], list) else 0
             
             print(f"✅ Focus '{focus}': {whitelist_count} exercises, {slot_count} slots")
             
