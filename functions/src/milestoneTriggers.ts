@@ -51,6 +51,7 @@ export const updateUserMilestoneSummaryOnCreateV2 = onDocumentCreated(
           const exerciseId = milestoneDetails.exerciseId;
           const newPRData = {
             value: milestoneDetails.value !== undefined ? milestoneDetails.value : null,
+            weightUnit: milestoneDetails.weightUnit, // Preserve the unit
             reps: milestoneDetails.reps !== undefined ? milestoneDetails.reps : null,
             duration: milestoneDetails.duration !== undefined ? milestoneDetails.duration : null,
             level: milestoneDetails.level !== undefined ? milestoneDetails.level : null,
@@ -80,7 +81,7 @@ export const updateUserMilestoneSummaryOnCreateV2 = onDocumentCreated(
         ) {
           const newWeightEntry = {
             value: milestoneDetails.newWeight,
-            unit: milestoneDetails.weightUnit || null,
+            unit: milestoneDetails.newWeightUnit || milestoneDetails.weightUnit,
             date: achievedAtTimestamp,
             postId: postId,
           };

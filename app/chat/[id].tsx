@@ -294,12 +294,14 @@ const MessageItem = React.memo<{ item: Message; onLongPress: (m: Message) => voi
               </Text>
               <View style={styles.milestoneStatsRow}>
                 <Text style={styles.milestoneValue}>
-                  {item.sharedMilestone.details.value}{item.sharedMilestone.details.weightUnit}
+                  {item.sharedMilestone.details.value}
+                  {item.sharedMilestone.details.weightUnit || 'lbs'}
                   {item.sharedMilestone.details.reps != null && item.sharedMilestone.details.reps > 1 && ` × ${item.sharedMilestone.details.reps}`}
                 </Text>
                 {item.sharedMilestone.details.previousValue != null && (
                   <Text style={styles.milestonePrevious}>
-                    from {item.sharedMilestone.details.previousValue}{item.sharedMilestone.details.weightUnit}
+                    from {item.sharedMilestone.details.previousValue}
+                    {item.sharedMilestone.details.weightUnit || 'lbs'}
                     {item.sharedMilestone.details.previousReps != null && item.sharedMilestone.details.previousReps > 1 && ` × ${item.sharedMilestone.details.previousReps}`}
                   </Text>
                 )}

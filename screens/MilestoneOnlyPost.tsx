@@ -258,7 +258,9 @@ export default function MilestoneOnlyPost({ onBack }: MilestoneOnlyPostProps) {
                                 <View style={styles.prMetricsRow}>
                                     <View style={styles.prMetricGroup}>
                                         <Text style={styles.prMetricValue}>{previousPR.weight}</Text>
-                                        <Text style={styles.prMetricLabel}>lbs</Text>
+                                        <Text style={styles.prMetricLabel}>
+                                            {previousPR.weightUnit || getWeightUnit()}
+                                        </Text>
                                     </View>
                                     <Text style={styles.prMetricSeparator}>×</Text>
                                     <View style={styles.prMetricGroup}>
@@ -290,19 +292,23 @@ export default function MilestoneOnlyPost({ onBack }: MilestoneOnlyPostProps) {
                                 <View style={styles.prMetricsRow}>
                                     <View style={styles.prMetricGroup}>
                                         <Text style={styles.prMetricValue}>{previousPR.distance}</Text>
-                                        <Text style={styles.prMetricLabel}>miles</Text>
+                                        <Text style={styles.prMetricLabel}>
+                                            {previousPR.distanceUnit || getDistanceUnit()}
+                                        </Text>
                                     </View>
                                 </View>
                             )}
                             
                             {selectedExercise.metricType === 'distance_time' && 
-                             previousPR.distance !== undefined && 
-                             previousPR.duration !== undefined && (
+                            previousPR.distance !== undefined && 
+                            previousPR.duration !== undefined && (
                                 <View style={styles.prMetricsColumn}>
                                     <View style={styles.prMetricsRow}>
                                         <View style={styles.prMetricGroup}>
                                             <Text style={styles.prMetricValue}>{previousPR.distance}</Text>
-                                            <Text style={styles.prMetricLabel}>miles</Text>
+                                            <Text style={styles.prMetricLabel}>
+                                                {previousPR.distanceUnit || getDistanceUnit()}
+                                            </Text>
                                         </View>
                                     </View>
                                     <View style={styles.prMetricsRow}>
@@ -316,7 +322,9 @@ export default function MilestoneOnlyPost({ onBack }: MilestoneOnlyPostProps) {
                                             <Text style={styles.prMetricValue}>
                                                 {formatDuration(Math.round(previousPR.duration / previousPR.distance))}
                                             </Text>
-                                            <Text style={styles.prMetricLabel}>per mile</Text>
+                                            <Text style={styles.prMetricLabel}>
+                                                per {(previousPR.distanceUnit || getDistanceUnit()).slice(0, -1)}
+                                            </Text>
                                         </View>
                                     </View>
                                 </View>

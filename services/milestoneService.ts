@@ -4,13 +4,15 @@ import { Exercise } from '@/data/exercises';
 
 // This interface can be shared by any component that needs it.
 export interface PreviousPRData {
-    weight?: number;
-    reps?: number;
-    distance?: number;
-    duration?: number;
-    level?: number;
-    date?: string;
-    isPR?: boolean;
+  date: string;
+  isPR: boolean;
+  weight?: number;
+  weightUnit?: string;
+  reps?: number;
+  duration?: number;
+  distance?: number;
+  distanceUnit?: string;
+  level?: string;
 }
 
 /**
@@ -98,6 +100,7 @@ export const fetchPreviousPRService = async (userId: string, exercise: Exercise)
             switch (exercise.metricType) {
                 case 'weight_reps':
                     prData.weight = bestPR.value;
+                    prData.weightUnit = bestPR.weightUnit;
                     prData.reps = bestPR.reps;
                     break;
                 case 'bodyweight_reps':
@@ -105,12 +108,14 @@ export const fetchPreviousPRService = async (userId: string, exercise: Exercise)
                     break;
                 case 'distance':
                     prData.distance = bestPR.value;
+                    prData.distanceUnit = bestPR.weightUnit;
                     break;
                 case 'duration':
                     prData.duration = bestPR.duration;
                     break;
                 case 'distance_time':
                     prData.distance = bestPR.value;
+                    prData.distanceUnit = bestPR.weightUnit;
                     prData.duration = bestPR.duration;
                     break;
                 case 'duration_level':
