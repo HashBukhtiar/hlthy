@@ -442,8 +442,8 @@ export default function EmailVerificationScreen({
                 style={{
                   transform: [{ translateY: verifyCheckIconYAnim }],
                   opacity: verifyCheckIconYAnim.interpolate({
-                    inputRange: [-60, -35, -10, 0, 10],
-                    outputRange: [0, 0.4, 0.6, 1, 0.8],
+                    inputRange: [-60, -30, -5, 0, 5, 30],
+                    outputRange: [0, 0, 0.8, 1, 0.8, 0],
                     extrapolate: 'clamp',
                   }),
                 }}
@@ -457,8 +457,8 @@ export default function EmailVerificationScreen({
                   position: 'absolute',
                   transform: [{ translateY: verifyXIconYAnim }],
                   opacity: verifyXIconYAnim.interpolate({
-                    inputRange: [0, 20, 60],
-                    outputRange: [1, 0.8, 0],
+                    inputRange: [-5, 0, 5, 30, 60],
+                    outputRange: [0, 1, 0.8, 0, 0],
                     extrapolate: 'clamp',
                   }),
                 }}
