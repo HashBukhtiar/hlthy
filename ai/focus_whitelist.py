@@ -287,22 +287,35 @@ def _get_exercise_muscles(exercise_id: str) -> List[str]:
 
 
 def _get_safety_score(exercise_id: str, user_ctx: Dict[str, Any]) -> float:
-    """Get safety score for exercise based on user context."""
-    # This would calculate safety based on injuries, experience, etc.
-    # For now, return neutral score
-    from exercise_database import get_exercise_data
-    exercise_data = get_exercise_data(exercise_id)
-    if not exercise_data:
-        return 0.0
-    
-    # Simple scoring based on difficulty and user experience
-    difficulty = exercise_data.get('difficulty', 'intermediate')
-    user_exp = user_ctx.get('experience', 'intermediate')
-    
-    exp_levels = {'beginner': 1, 'intermediate': 2, 'advanced': 3}
-    diff_levels = {'beginner': 1, 'intermediate': 2, 'advanced': 3}
-    
-    user_level = exp_levels.get(user_exp, 2)
+    """Get safety score for exercise based on user context and canonical database."""
+    try:
+        from exercise_database import get_exercise_data
+        exercise_data = get_exercise_data(exercise_id)
+        if not exercise_data:
+            return 0.5  # Neutral score for unknown exercises
+        
+        # Get risk level from canonical database
+        risk_level = exercise_data.get('risk_level', 'medium')
+        min_experience = exercise_data.get('experience_level', 'intermediate')
+        user_experience = user_ctx.get('experience_level', 'intermediate')
+        
+        # Convert to numeric scores
+        risk_scores = {'low': 0.9, 'medium': 0.7, 'high': 0.5, 'very_high': 0.3}
+        exp_levels = {'beginner': 1, 'intermediate': 2, 'advanced': 3}
+        
+        base_score = risk_scores.get(risk_level, 0.7)
+        user_level = exp_levels.get(user_experience, 2)
+        required_level = exp_levels.get(min_experience, 2)
+        
+        # Adjust score based on experience match
+        if user_level >= required_level:
+            return base_score
+        else:
+            # Penalize if user doesn't meet minimum experience
+            return base_score * 0.6
+            
+    except Exception:
+        return 0.5  # Safe default score
     exercise_level = diff_levels.get(difficulty, 2)
     
     # Higher score if exercise matches or is below user level
