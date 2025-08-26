@@ -129,6 +129,14 @@ def parse_combo(text: str) -> Optional[Tuple[str, str, float]]:
         if focus_a in BASE_FOCI and focus_b in BASE_FOCI:
             return (focus_a, focus_b, 0.5)
     
+    # Check for "+" pattern
+    plus_match = re.search(r'(\w+)\+(\w+)', text_lower)
+    if plus_match:
+        focus_a = normalize_focus(plus_match.group(1))
+        focus_b = normalize_focus(plus_match.group(2))
+        if focus_a in BASE_FOCI and focus_b in BASE_FOCI:
+            return (focus_a, focus_b, 0.5)
+    
     # Check for known combo patterns
     normalized = normalize_focus(text_lower)
     if normalized in ['back_biceps', 'chest_triceps', 'shoulders_triceps', 
