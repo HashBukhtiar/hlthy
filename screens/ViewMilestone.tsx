@@ -40,6 +40,7 @@ export interface Milestone {
   username: string;
   fullName?: string;
   profileImageUrl: string;
+  authorBlockedUsers?: string[];
   createdAt: Date;
   milestoneType: 'PR' | 'weightLoss' | 'weightGain' | string;
   details: MilestoneDetails;
@@ -88,6 +89,7 @@ export default function ViewMilestone() {
           let authorProfileImageUrl = 'https://via.placeholder.com/150';
           let authorProfileThumbnailUrl = null;
           let authorFullName = data.authorUsername;
+          let authorBlockedUsers: string[] = [];
 
           if (data.authorId) {
             const userRef = doc(db, 'users', data.authorId);
@@ -97,7 +99,7 @@ export default function ViewMilestone() {
               authorProfileImageUrl = userData.profileImageUrl || authorProfileImageUrl;
               authorProfileThumbnailUrl = userData.profileThumbnailUrl || null;
               authorFullName = userData.displayName || authorFullName;
-              milestoneData.authorBlockedUsers = userData.blockedUsers || [];
+              authorBlockedUsers = userData.blockedUsers || [];
             }
           }
 
@@ -124,6 +126,7 @@ export default function ViewMilestone() {
               totalLoss: data.milestoneDetails?.totalLoss,
               percentageLoss: data.milestoneDetails?.percentageLoss,
             },
+            authorBlockedUsers: authorBlockedUsers,
             stats: {
               likes: data.likeCount || (Array.isArray(data.likes) ? data.likes.length : 0),
             },
@@ -136,8 +139,8 @@ export default function ViewMilestone() {
           
           // TODO: Implement pinned and top X%
           setMilestone(milestoneData);
-          setIsPinned(milestoneData.pinned);
-          setIsTop5Percent(milestoneData.top5Percent);
+          setIsPinned(milestoneData.pinned || false);
+          setIsTop5Percent(milestoneData.top5Percent || false);
 
         } else {
           console.log("No such milestone document!");
@@ -200,7 +203,7 @@ export default function ViewMilestone() {
   };
 
   const renderActionButtons = () => {
-    if (!canInteractWithAuthor) {
+    if (!milestone || !canInteractWithAuthor) {
       return (
         <View style={styles.actionButtonsContainer}>
           <Text style={styles.blockedMessage}>Interactions not available</Text>
