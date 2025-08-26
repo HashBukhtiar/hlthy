@@ -102,11 +102,6 @@ export default function EmailVerificationScreen({
     try {
       await SignupService.resendVerificationEmail();
       setResendCooldown(60); // 60 second cooldown
-      Alert.alert(
-        'Verification Email Sent',
-        'A new verification email has been sent to your inbox.',
-        [{ text: 'OK' }]
-      );
     } catch (error: any) {
       console.error('Error resending verification email:', error);
       Alert.alert(
@@ -139,7 +134,7 @@ export default function EmailVerificationScreen({
     <View style={styles.container}>
       <View style={styles.content}>
         <View style={styles.iconContainer}>
-          <Ionicons name="mail" size={56} color="#FFFFFF" />
+          <Ionicons name="mail" size={50} color="#FFFFFF" />
         </View>
         
         <Text style={styles.title}>Verify Your Email</Text>
@@ -232,13 +227,15 @@ const styles = StyleSheet.create({
     paddingTop: 60,
   },
   iconContainer: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 32,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   title: {
     fontSize: 28,
