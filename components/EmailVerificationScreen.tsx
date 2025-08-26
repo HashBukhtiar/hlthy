@@ -110,48 +110,51 @@ export default function EmailVerificationScreen({
       await SignupService.resendVerificationEmail();
       setResendCooldown(60); // 60 second cooldown
 
-      // trigger success animation with icon transitions and outline fade
+      // trigger success animation with smooth icon transitions
       setShowResendSuccess(true);
       resendSuccessAnim.setValue(0);
       
-      // Animate send icon down and check icon down from top
+      // Phase 1: Send icon slides down, check icon slides down from top
       Animated.parallel([
         // Send icon slides down
         Animated.timing(sendIconYAnim, {
-          toValue: 30,
-          duration: 400,
+          toValue: 35,
+          duration: 350,
           useNativeDriver: true,
         }),
         // Check icon slides down from top to center
         Animated.timing(checkIconYAnim, {
           toValue: 0,
-          duration: 400,
+          duration: 350,
           useNativeDriver: true,
         }),
         // Outline fades in
         Animated.timing(outlineOpacityAnim, {
           toValue: 1,
-          duration: 300,
+          duration: 250,
           useNativeDriver: true,
         }),
         // Success animation (for any other effects)
         Animated.timing(resendSuccessAnim, {
           toValue: 1,
-          duration: 700,
+          duration: 600,
           useNativeDriver: false,
         }),
       ]).start();
 
-      // After delay, animate everything back
+      // After delay, animate everything back with send icon coming from below
       setTimeout(() => {
+        // First, move send icon to bottom position (off-screen below)
+        sendIconYAnim.setValue(50);
+        
         Animated.parallel([
           // Check icon slides up and out
           Animated.timing(checkIconYAnim, {
-            toValue: -30,
-            duration: 400,
+            toValue: -35,
+            duration: 350,
             useNativeDriver: true,
           }),
-          // Send icon slides up from bottom back to center
+          // Send icon slides up from bottom to center
           Animated.timing(sendIconYAnim, {
             toValue: 0,
             duration: 400,
@@ -160,7 +163,7 @@ export default function EmailVerificationScreen({
           // Outline fades out
           Animated.timing(outlineOpacityAnim, {
             toValue: 0,
-            duration: 300,
+            duration: 250,
             useNativeDriver: true,
           }),
           // Success animation out
@@ -172,7 +175,7 @@ export default function EmailVerificationScreen({
         ]).start(() => {
           setShowResendSuccess(false);
         });
-      }, 1200); // Hold the success state for 1.2 seconds
+      }, 1400); // Hold the success state for 1.4 seconds
       
     } catch (error: any) {
       console.error('Error resending verification email:', error);
@@ -268,7 +271,11 @@ export default function EmailVerificationScreen({
                       styles.iconWrapper,
                       {
                         transform: [{ translateY: sendIconYAnim }],
-                        opacity: showResendSuccess ? 0 : 1,
+                        opacity: sendIconYAnim.interpolate({
+                          inputRange: [-10, 0, 10, 40],
+                          outputRange: [0, 1, 0.8, 0],
+                          extrapolate: 'clamp',
+                        }),
                       }
                     ]}
                   >
@@ -281,7 +288,11 @@ export default function EmailVerificationScreen({
                       styles.iconWrapper,
                       {
                         transform: [{ translateY: checkIconYAnim }],
-                        opacity: showResendSuccess ? 1 : 0,
+                        opacity: checkIconYAnim.interpolate({
+                          inputRange: [-40, -10, 0, 10],
+                          outputRange: [0, 0, 1, 0],
+                          extrapolate: 'clamp',
+                        }),
                       }
                     ]}
                   >
