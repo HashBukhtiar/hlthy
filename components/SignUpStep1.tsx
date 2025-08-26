@@ -175,6 +175,7 @@ export default function SignUpStep1({ visible, onBackPress, onNext, onShowLogin 
   const handleBackPress = useCallback(() => {
     Keyboard.dismiss();
     setErrorMessage('');
+    setSubmitted(false);
     setFirstName('');
     setLastName('');
     setEmail('');
