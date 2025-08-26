@@ -17,6 +17,10 @@ import { reload, signOut } from 'firebase/auth';
 import CustomSpinner from '@/components/CustomSpinner';
 import { SignupService } from '@/services/signupService';
 
+// Animated wrappers for touchable and text so we can animate colors
+const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
+const AnimatedText = Animated.createAnimatedComponent(Text);
+
 interface EmailVerificationScreenProps {
   visible: boolean;
   userEmail: string;
@@ -97,6 +101,17 @@ export default function EmailVerificationScreen({
     }
   }, [isChangingEmail, spinnerFadeAnim]);
 
+  // Interpolated colors for the primary button background and text
+  const animatedBackgroundColor = verifyFailAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['#FFFFFF', '#DC2626'],
+  });
+
+  const animatedPrimaryTextColor = verifyFailAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['#000000', '#FFFFFF'],
+  });
+
   const checkEmailVerification = useCallback(async () => {
     if (!auth.currentUser) return;
     
@@ -122,7 +137,12 @@ export default function EmailVerificationScreen({
       verifyOutlineOpacityAnim.setValue(0);
 
       // animate: check slides up/out, X slides in from bottom, outline fades in
-      Animated.parallel([
+  // set starting positions so entrance animations are visible
+  verifyCheckIconYAnim.setValue(0);
+  verifyXIconYAnim.setValue(60);
+  verifyOutlineOpacityAnim.setValue(0);
+
+  Animated.parallel([
         Animated.timing(verifyCheckIconYAnim, {
           toValue: -35,
           duration: 350,
@@ -257,7 +277,12 @@ export default function EmailVerificationScreen({
       resendSuccessAnim.setValue(0);
       
       // Phase 1: Send icon slides down, check icon slides down from top
-      Animated.parallel([
+  // ensure icons start off-screen where appropriate so the entrance animates
+  checkIconYAnim.setValue(-60);
+  sendIconYAnim.setValue(0);
+  outlineOpacityAnim.setValue(0);
+
+  Animated.parallel([
         // Send icon slides down
         Animated.timing(sendIconYAnim, {
           toValue: 35,
@@ -372,11 +397,11 @@ export default function EmailVerificationScreen({
         </Text>
 
         <View style={styles.buttonContainer}>
-          <TouchableOpacity
+          <AnimatedTouchableOpacity
             style={[
               styles.primaryButton,
-              isVerificationFailed && styles.primaryButtonFail,
               isCheckingVerification && styles.disabledButton,
+              { backgroundColor: animatedBackgroundColor },
             ]}
             onPress={checkEmailVerification}
             disabled={isCheckingVerification}
@@ -426,13 +451,13 @@ export default function EmailVerificationScreen({
               </View>
             )}
 
-            <Text style={[
+            <AnimatedText style={[
               styles.primaryButtonText,
-              isVerificationFailed && styles.primaryButtonTextFail,
+              { color: animatedPrimaryTextColor },
             ]}>
               {isCheckingVerification ? 'Checking...' : 'I\'ve Verified'}
-            </Text>
-          </TouchableOpacity>
+            </AnimatedText>
+          </AnimatedTouchableOpacity>
 
           <TouchableOpacity
             style={[
@@ -604,7 +629,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     gap: 8,
-    overflow: 'hidden',
+  overflow: 'visible',
     position: 'relative',
   },
   primaryButtonFail: {
@@ -670,7 +695,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 6,
-    overflow: 'hidden',
+  overflow: 'visible',
   },
   successCheckWrapper: {
     width: 22,
