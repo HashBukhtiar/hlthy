@@ -1765,7 +1765,8 @@ def system_health_check():
             "exercise_cache": EXERCISE_CACHE_AVAILABLE,
             "observability": OBSERVABILITY_AVAILABLE,
             "semantic_memory": memory_system is not None,
-            "user_profiles": profile_manager is not None
+            "user_profiles": profile_manager is not None,
+            "focus_planner": FOCUS_PLANNER_AVAILABLE
         }
     }
     
