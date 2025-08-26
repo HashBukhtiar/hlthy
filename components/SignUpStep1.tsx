@@ -119,6 +119,7 @@ export default function SignUpStep1({ visible, onBackPress, onNext, onShowLogin 
   }, [firstNameShakeAnim, lastNameShakeAnim, emailShakeAnim]);
 
   const handleNext = async () => {
+    Keyboard.dismiss();
     setSubmitted(true);
     
     if (!firstName.trim()) {
