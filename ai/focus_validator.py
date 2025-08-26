@@ -3,8 +3,8 @@ Focus Validator - Validates workout plans against focus requirements and safety 
 """
 import json
 from typing import Dict, List, Set, Any, Optional, Tuple
-from .focus_rules import normalize_focus, parse_combo, get_muscle_families_for_focus
-from .exercise_database import ExerciseDatabase
+from focus_rules import normalize_focus, parse_combo, get_muscle_families_for_focus
+from exercise_database import ExerciseDatabase
 
 
 class FocusValidator:

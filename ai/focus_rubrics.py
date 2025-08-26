@@ -2,7 +2,7 @@
 Focus Rubrics - Rules and validation criteria for each focus type
 """
 from typing import Dict, Optional, Tuple
-from .focus_rules import parse_combo, normalize_focus
+from focus_rules import parse_combo, normalize_focus
 
 
 # Focus-specific rubrics

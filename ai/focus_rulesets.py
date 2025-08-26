@@ -2,7 +2,7 @@
 Focus Rulesets - High-level ruleset applications for different workout contexts
 """
 from typing import Dict, Optional, List
-from .focus_rules import normalize_focus, parse_combo
+from focus_rules import normalize_focus, parse_combo
 
 
 # Ruleset definitions for different contexts

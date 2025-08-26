@@ -3,14 +3,14 @@ Focus Router - Main entry point and orchestrator for Focus Planner system
 """
 import json
 from typing import Dict, List, Any, Optional, Tuple
-from .focus_rules import normalize_focus, parse_combo
-from .focus_whitelist import build_focus_whitelist
-from .focus_composer import get_slot_template_for_focus, merge_slot_templates
-from .focus_rubrics import get_rubric_for_focus
-from .focus_validator import FocusValidator
-from .focus_rulesets import FocusRuleset
-from .exercise_database import ExerciseDatabase
-from .user_profiles import UserProfileManager
+from focus_rules import normalize_focus, parse_combo
+from focus_whitelist import build_focus_whitelist
+from focus_composer import get_slot_template_for_focus, merge_slot_templates
+from focus_rubrics import get_rubric_for_focus
+from focus_validator import FocusValidator
+from focus_rulesets import FocusRuleset
+from exercise_database import ExerciseDatabase
+from user_profiles import UserProfileManager
 
 
 class FocusPlanner:

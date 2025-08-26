@@ -4,9 +4,9 @@ Focus Integration - Integrates Focus Planner with the existing AI chat system
 import json
 import time
 from typing import Dict, List, Any, Optional, Tuple
-from .focus_router import FocusPlanner
-from .exercise_database import ExerciseDatabase
-from .user_profiles import UserProfileManager
+from focus_router import FocusPlanner
+from exercise_database import ExerciseDatabase
+from user_profiles import UserProfileManager
 
 
 class FocusIntegration:

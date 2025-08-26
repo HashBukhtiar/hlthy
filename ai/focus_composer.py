@@ -2,7 +2,7 @@
 Focus Composer - Generate slot templates and compose focus-specific prompts
 """
 from typing import Dict, List, Any, Optional, Tuple
-from .focus_rules import (
+from focus_rules import (
     BASE_FOCI, VOLUME_BOUNDS, normalize_focus, parse_combo,
     get_muscle_families_for_focus
 )
