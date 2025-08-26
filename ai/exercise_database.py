@@ -1350,10 +1350,28 @@ def suggest_exercise_id_from_name(exercise_name: str) -> str:
 
 
 # Focus Planner compatibility functions and wrapper class
-def get_exercises_by_filters(movement_patterns: List[str] = None, 
+def get_exercises_by_filters(filters=None, 
+                           movement_patterns: List[str] = None, 
                            muscle_families: List[str] = None,
                            equipment: List[str] = None) -> List[str]:
-    """Get exercise IDs matching the specified filters"""
+    """Get exercise IDs matching the specified filters
+    
+    Args:
+        filters: Dictionary with filter parameters (for dictionary-style calls)
+        movement_patterns: List of movement patterns to match
+        muscle_families: List of muscle families to match
+        equipment: List of required equipment
+    """
+    # Handle dictionary-style call
+    if isinstance(filters, dict):
+        movement_patterns = filters.get('movement_patterns', movement_patterns)
+        muscle_families = filters.get('muscle_families', muscle_families)
+        equipment = filters.get('equipment', equipment)
+    
+    # If no filters at all, return all exercises
+    if not any([movement_patterns, muscle_families, equipment]):
+        return list(CANONICAL_EXERCISES.keys())
+    
     matching_exercises = []
     
     for exercise_id, exercise in CANONICAL_EXERCISES.items():
