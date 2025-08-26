@@ -7,6 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import ShareModal from '@/components/ShareModal';
 import { shareMilestone } from '@/services/ShareService';
 import { useAuth } from '@/context/AuthContext';
+import { usePostsData } from '@/hooks/usePostsData';
 import { doc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '@/firebaseConfig';
 import { calculateImprovementPercentage } from '@/logic/milesonteUtils';
@@ -54,6 +55,7 @@ export interface Milestone {
 
 export default function ViewMilestone() {
   const { currentUser } = useAuth();
+  const { likePost, unlikePost } = usePostsData();
   const { canInteractWithUser } = useBlockEnforcement();
   const [shareModalVisible, setShareModalVisible] = useState(false);
   const { id } = useLocalSearchParams();
@@ -103,6 +105,18 @@ export default function ViewMilestone() {
             }
           }
 
+          // Check if the current user has liked this milestone
+          let isLiked = false;
+          if (currentUser) {
+            try {
+              const likerDoc = await getDoc(doc(db, 'posts', milestoneSnap.id, 'likers', currentUser.uid));
+              isLiked = likerDoc.exists();
+            } catch (error) {
+              console.error('Error checking like status:', error);
+              isLiked = false;
+            }
+          }
+
           const milestoneData: Milestone = {
             id: milestoneSnap.id,
             userId: data.authorId,
@@ -128,9 +142,9 @@ export default function ViewMilestone() {
             },
             authorBlockedUsers: authorBlockedUsers,
             stats: {
-              likes: data.likeCount || (Array.isArray(data.likes) ? data.likes.length : 0),
+              likes: data.likeCount || 0,
             },
-            isLiked: currentUser ? (data.likes || []).includes(currentUser.uid) : false,
+            isLiked: isLiked,
             associatedPostId: milestoneSnap.id,
             postImageUrl: data.imageUrl || null,
             pinned: data.pinned || false,
@@ -157,7 +171,7 @@ export default function ViewMilestone() {
     fetchMilestone();
   }, [id, currentUser]);
 
-  const handleLike = () => {
+  const handleLike = async () => {
     if (!milestone) return;
 
     if (!canInteractWithAuthor) {
@@ -165,6 +179,7 @@ export default function ViewMilestone() {
       return;
     }
     
+    // Optimistic update - update UI immediately
     setMilestone(prevState => {
       if (!prevState) return null;
       
@@ -181,6 +196,33 @@ export default function ViewMilestone() {
         }
       };
     });
+
+    try {
+      if (milestone.isLiked) {
+        await unlikePost(milestone.id);
+      } else {
+        await likePost(milestone.id);
+      }
+    } catch (error) {
+      console.error('Error toggling milestone like:', error);
+      // Revert optimistic update on error
+      setMilestone(prevState => {
+        if (!prevState) return null;
+        
+        const revertedIsLiked = !prevState.isLiked;
+        const revertDelta = revertedIsLiked ? 1 : -1;
+        
+        return {
+          ...prevState,
+          isLiked: revertedIsLiked,
+          stats: {
+            ...prevState.stats,
+            likes: Math.max(0, prevState.stats.likes + revertDelta)
+          }
+        };
+      });
+      Alert.alert('Error', 'Could not update like status. Please try again.');
+    }
   };
 
   const navigateToPost = (postId: string | undefined) => {

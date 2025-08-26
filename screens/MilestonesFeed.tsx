@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import { 
   StyleSheet, 
   Text, 
@@ -63,11 +63,19 @@ export interface Milestone {
 export default function MilestonesFeed() {
   const router = useRouter();
   const { currentUser } = useAuth();
-  const { milestones, loading, refreshing, loadingMore, hasMore, error, refreshFeed, loadMorePosts } = useFeedData();
+  const { milestones: feedMilestones, loading, refreshing, loadingMore, hasMore, error, refreshFeed, loadMorePosts } = useFeedData();
   const { likePost, unlikePost } = usePostsData();
   const { canInteractWithUser, isUserBlocked } = useBlockEnforcement();
   const [shareModalVisible, setShareModalVisible] = useState(false);
   const milestoneToShare = useRef<Milestone | null>(null);
+  
+  // Local state for optimistic updates  
+  const [milestones, setMilestones] = useState<typeof feedMilestones>([]);
+
+  // Update local milestones when feedMilestones change
+  useEffect(() => {
+    setMilestones(feedMilestones);
+  }, [feedMilestones]);
 
   // Format the time as "X time ago"
   const formatTimeAgo = useCallback((date: any): string => {
@@ -89,6 +97,21 @@ export default function MilestonesFeed() {
       return;
     }
 
+    // Optimistic update - update UI immediately
+    setMilestones(prevMilestones => 
+      prevMilestones.map(milestone => 
+        milestone.id === milestoneId 
+          ? {
+              ...milestone,
+              isLiked: !isCurrentlyLiked,
+              reactionCount: isCurrentlyLiked 
+                ? Math.max(0, (milestone.reactionCount || 0) - 1)
+                : (milestone.reactionCount || 0) + 1
+            }
+          : milestone
+      )
+    );
+
     try {
       if (isCurrentlyLiked) {
         await unlikePost(milestoneId);
@@ -97,6 +120,20 @@ export default function MilestonesFeed() {
       }
     } catch (error) {
       console.error('Error toggling milestone like:', error);
+      // Revert optimistic update on error
+      setMilestones(prevMilestones => 
+        prevMilestones.map(milestone => 
+          milestone.id === milestoneId 
+            ? {
+                ...milestone,
+                isLiked: isCurrentlyLiked,
+                reactionCount: isCurrentlyLiked 
+                  ? (milestone.reactionCount || 0) + 1
+                  : Math.max(0, (milestone.reactionCount || 0) - 1)
+              }
+            : milestone
+        )
+      );
       Alert.alert('Error', 'Could not update like status. Please try again.');
     }
   }, [currentUser, likePost, unlikePost]);
@@ -247,14 +284,14 @@ export default function MilestonesFeed() {
     return null;
   }, [formatTimeAgo]);
 
-  const renderMilestoneCard = useCallback((item: Milestone) => {
+  const renderMilestoneCard = useCallback((item: typeof milestones[0]) => {
     // Convert Post to Milestone format
     const milestone: Milestone = {
       id: item.id,
       authorId: item.authorId,
       authorUsername: item.authorUsername,
-      authorProfileImageUrl: item.authorProfileImageUrl,
-      authorProfileThumbnailUrl: item.authorProfileThumbnailUrl,
+      authorProfileImageUrl: item.authorProfileImageUrl || '',
+      authorProfileThumbnailUrl: item.authorProfileThumbnailUrl || '',
       createdAt: item.createdAt,
       milestoneType: item.milestoneDetails?.type || 'PR',
       milestoneDetails: item.milestoneDetails as MilestoneDetails,
@@ -445,7 +482,7 @@ export default function MilestonesFeed() {
         </Text>
         <TouchableOpacity 
           style={styles.createButton}
-          onPress={() => router.push('/create-post')}
+          // onPress={() => router.push('/(tabs)/')}
         >
           <Text style={styles.createButtonText}>Create Milestone</Text>
         </TouchableOpacity>
