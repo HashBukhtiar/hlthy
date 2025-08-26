@@ -187,14 +187,6 @@ export default function EmailVerificationScreen({
             </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.tertiaryButton}
-            onPress={handleOpenEmailApp}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="open" size={16} color="rgba(255, 255, 255, 0.7)" />
-            <Text style={styles.tertiaryButtonText}>Open Email App</Text>
-          </TouchableOpacity>
         </View>
       </View>
 
