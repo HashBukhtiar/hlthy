@@ -1347,3 +1347,107 @@ for exercise_id, exercise in CANONICAL_EXERCISES.items():
 def suggest_exercise_id_from_name(exercise_name: str) -> str:
     """Helper function to suggest canonical ID from natural language name"""
     return NAME_TO_ID_MAP.get(exercise_name.lower(), None)
+
+
+# Focus Planner compatibility functions and wrapper class
+def get_exercises_by_filters(movement_patterns: List[str] = None, 
+                           muscle_families: List[str] = None,
+                           equipment: List[str] = None) -> List[str]:
+    """Get exercise IDs matching the specified filters"""
+    matching_exercises = []
+    
+    for exercise_id, exercise in CANONICAL_EXERCISES.items():
+        # Check movement patterns (using primary muscles as proxy)
+        if movement_patterns:
+            # Simple pattern matching - can be enhanced
+            matches_pattern = any(
+                pattern.lower() in exercise.display_name.lower() or
+                any(pattern.lower() in muscle.lower() for muscle in exercise.primary_muscles)
+                for pattern in movement_patterns
+            )
+            if not matches_pattern:
+                continue
+        
+        # Check muscle families
+        if muscle_families:
+            matches_muscle = any(
+                family.lower() in muscle.lower() or muscle.lower() in family.lower()
+                for family in muscle_families
+                for muscle in exercise.primary_muscles
+            )
+            if not matches_muscle:
+                continue
+        
+        # Check equipment
+        if equipment:
+            matches_equipment = any(
+                eq in exercise.equipment_required for eq in equipment
+            )
+            if not matches_equipment:
+                continue
+        
+        matching_exercises.append(exercise_id)
+    
+    return matching_exercises
+
+
+def get_exercise_data(exercise_id: str) -> Dict:
+    """Get exercise data as dictionary for compatibility"""
+    exercise = CANONICAL_EXERCISES.get(exercise_id)
+    if not exercise:
+        return None
+    
+    return {
+        'id': exercise.exercise_id,
+        'name': exercise.display_name,
+        'movement_patterns': [exercise.display_name.lower()],  # Simplified
+        'muscle_families': exercise.primary_muscles,
+        'equipment': exercise.equipment_required,
+        'risk_level': exercise.risk_level.value,
+        'experience_level': exercise.min_experience_level.value
+    }
+
+
+class ExerciseDatabase:
+    """Wrapper class for Focus Planner compatibility"""
+    
+    def __init__(self):
+        self.exercises = CANONICAL_EXERCISES
+    
+    def get_exercise_by_id(self, exercise_id: str) -> Dict:
+        """Get exercise by ID"""
+        return get_exercise_data(exercise_id)
+    
+    def get_exercises_by_movement_patterns(self, patterns: List[str]) -> List[str]:
+        """Get exercises matching movement patterns"""
+        return get_exercises_by_filters(movement_patterns=patterns)
+    
+    def get_exercises_by_muscle_families(self, families: List[str]) -> List[str]:
+        """Get exercises targeting muscle families"""
+        return get_exercises_by_filters(muscle_families=families)
+    
+    def filter_exercises_for_injuries(self, exercise_ids: List[str], injuries: List[str]) -> List[str]:
+        """Filter exercises safe for users with injuries"""
+        safe_exercises = []
+        
+        for exercise_id in exercise_ids:
+            exercise = CANONICAL_EXERCISES.get(exercise_id)
+            if not exercise:
+                continue
+            
+            # Check if exercise is contraindicated for any injury
+            is_safe = True
+            for injury in injuries:
+                injury_type = injury.upper() if hasattr(InjuryType, injury.upper()) else None
+                if injury_type and getattr(InjuryType, injury_type, None) in exercise.injury_contraindications:
+                    is_safe = False
+                    break
+            
+            if is_safe:
+                safe_exercises.append(exercise_id)
+        
+        return safe_exercises
+    
+    def get_all_exercises(self) -> List[str]:
+        """Get all exercise IDs"""
+        return list(CANONICAL_EXERCISES.keys())
