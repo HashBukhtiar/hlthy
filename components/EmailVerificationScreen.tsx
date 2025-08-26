@@ -37,6 +37,7 @@ export default function EmailVerificationScreen({
   const [resendCooldown, setResendCooldown] = useState(0);
   const [isCheckingVerification, setIsCheckingVerification] = useState(false);
   const [isChangingEmail, setIsChangingEmail] = useState(false);
+  const [isVerificationFailed, setIsVerificationFailed] = useState(false);
   // Success animation state for resend button
   const [showResendSuccess, setShowResendSuccess] = useState(false);
   const spinnerFadeAnim = useRef(new Animated.Value(0)).current;
@@ -45,6 +46,11 @@ export default function EmailVerificationScreen({
   const sendIconYAnim = useRef(new Animated.Value(0)).current;
   const checkIconYAnim = useRef(new Animated.Value(-30)).current;
   const outlineOpacityAnim = useRef(new Animated.Value(0)).current;
+  // Verification failure animations (primary button)
+  const verifyXIconYAnim = useRef(new Animated.Value(60)).current; // starts off-screen below
+  const verifyCheckIconYAnim = useRef(new Animated.Value(0)).current; // center
+  const verifyOutlineOpacityAnim = useRef(new Animated.Value(0)).current;
+  const verifyFailAnim = useRef(new Animated.Value(0)).current;
 
   // Check verification status when app comes to foreground
   useEffect(() => {
@@ -101,9 +107,138 @@ export default function EmailVerificationScreen({
         // Complete the signup process with stored data
         await SignupService.completePendingSignup();
         onVerificationComplete();
+        return;
       }
+
+      // If we reach here, verification check did not find a verified email.
+      // Trigger a failure feedback animation (red button, X slides in from bottom,
+      // check slides out to top and later slides back in from top).
+      setIsVerificationFailed(true);
+      // show feedback state
+      // reset animation values
+      verifyFailAnim.setValue(0);
+      verifyXIconYAnim.setValue(60);
+      verifyCheckIconYAnim.setValue(0);
+      verifyOutlineOpacityAnim.setValue(0);
+
+      // animate: check slides up/out, X slides in from bottom, outline fades in
+      Animated.parallel([
+        Animated.timing(verifyCheckIconYAnim, {
+          toValue: -35,
+          duration: 350,
+          useNativeDriver: true,
+        }),
+        Animated.timing(verifyXIconYAnim, {
+          toValue: 0,
+          duration: 350,
+          useNativeDriver: true,
+        }),
+        Animated.timing(verifyOutlineOpacityAnim, {
+          toValue: 1,
+          duration: 250,
+          useNativeDriver: true,
+        }),
+        Animated.timing(verifyFailAnim, {
+          toValue: 1,
+          duration: 600,
+          useNativeDriver: false,
+        }),
+      ]).start();
+
+      // After a short hold, animate X out and bring the check back from the top
+      setTimeout(() => {
+        // position check above before sliding down
+        verifyCheckIconYAnim.setValue(-60);
+
+        Animated.sequence([
+          // nudge X down off-screen quickly
+          Animated.timing(verifyXIconYAnim, {
+            toValue: 60,
+            duration: 180,
+            useNativeDriver: true,
+          }),
+          // then slide check down from top while fading outline
+          Animated.parallel([
+            Animated.timing(verifyCheckIconYAnim, {
+              toValue: 0,
+              duration: 400,
+              useNativeDriver: true,
+            }),
+            Animated.timing(verifyOutlineOpacityAnim, {
+              toValue: 0,
+              duration: 250,
+              useNativeDriver: true,
+            }),
+            Animated.timing(verifyFailAnim, {
+              toValue: 0,
+              duration: 300,
+              useNativeDriver: false,
+            }),
+          ]),
+        ]).start(() => {
+          // reset failure state after animation finishes
+          setIsVerificationFailed(false);
+        });
+      }, 1400);
     } catch (error) {
       console.error('Error checking email verification:', error);
+      // On error, show the same failure feedback so users get visual response
+      setIsVerificationFailed(true);
+      verifyFailAnim.setValue(0);
+      verifyXIconYAnim.setValue(60);
+      verifyCheckIconYAnim.setValue(0);
+      verifyOutlineOpacityAnim.setValue(0);
+
+      Animated.parallel([
+        Animated.timing(verifyCheckIconYAnim, {
+          toValue: -35,
+          duration: 350,
+          useNativeDriver: true,
+        }),
+        Animated.timing(verifyXIconYAnim, {
+          toValue: 0,
+          duration: 350,
+          useNativeDriver: true,
+        }),
+        Animated.timing(verifyOutlineOpacityAnim, {
+          toValue: 1,
+          duration: 250,
+          useNativeDriver: true,
+        }),
+        Animated.timing(verifyFailAnim, {
+          toValue: 1,
+          duration: 600,
+          useNativeDriver: false,
+        }),
+      ]).start();
+
+      setTimeout(() => {
+        verifyCheckIconYAnim.setValue(-60);
+        Animated.sequence([
+          Animated.timing(verifyXIconYAnim, {
+            toValue: 60,
+            duration: 180,
+            useNativeDriver: true,
+          }),
+          Animated.parallel([
+            Animated.timing(verifyCheckIconYAnim, {
+              toValue: 0,
+              duration: 400,
+              useNativeDriver: true,
+            }),
+            Animated.timing(verifyOutlineOpacityAnim, {
+              toValue: 0,
+              duration: 250,
+              useNativeDriver: true,
+            }),
+            Animated.timing(verifyFailAnim, {
+              toValue: 0,
+              duration: 300,
+              useNativeDriver: false,
+            }),
+          ]),
+        ]).start(() => setIsVerificationFailed(false));
+      }, 1400);
     } finally {
       setIsCheckingVerification(false);
     }
@@ -238,17 +373,63 @@ export default function EmailVerificationScreen({
 
         <View style={styles.buttonContainer}>
           <TouchableOpacity
-            style={[styles.primaryButton, isCheckingVerification && styles.disabledButton]}
+            style={[
+              styles.primaryButton,
+              isVerificationFailed && styles.primaryButtonFail,
+              isCheckingVerification && styles.disabledButton,
+            ]}
             onPress={checkEmailVerification}
             disabled={isCheckingVerification}
             activeOpacity={0.8}
           >
+            {/* Red outline when verification fails */}
+            <Animated.View
+              style={[
+                styles.verifyOutline,
+                { opacity: verifyOutlineOpacityAnim },
+              ]}
+              pointerEvents="none"
+            />
+
             {isCheckingVerification ? (
               <CustomSpinner size={20} />
             ) : (
-              <Ionicons name="checkmark-done-outline" size={20} color="#000000" />
+              <View style={styles.primaryIconContainer}>
+                {/* Check icon (slides out to top when fail, slides back in from top) */}
+                <Animated.View
+                  style={{
+                    transform: [{ translateY: verifyCheckIconYAnim }],
+                    opacity: verifyCheckIconYAnim.interpolate({
+                      inputRange: [-60, -35, -10, 0, 10],
+                      outputRange: [0, 0.4, 0.6, 1, 0.8],
+                      extrapolate: 'clamp',
+                    }),
+                  }}
+                >
+                  <Ionicons name="checkmark-done-outline" size={20} color={isVerificationFailed ? '#FFFFFF' : '#000000'} />
+                </Animated.View>
+
+                {/* X icon (slides in from bottom on failure) */}
+                <Animated.View
+                  style={{
+                    position: 'absolute',
+                    transform: [{ translateY: verifyXIconYAnim }],
+                    opacity: verifyXIconYAnim.interpolate({
+                      inputRange: [0, 20, 60],
+                      outputRange: [1, 0.8, 0],
+                      extrapolate: 'clamp',
+                    }),
+                  }}
+                >
+                  <Ionicons name="close" size={20} color="#FFFFFF" />
+                </Animated.View>
+              </View>
             )}
-            <Text style={styles.primaryButtonText}>
+
+            <Text style={[
+              styles.primaryButtonText,
+              isVerificationFailed && styles.primaryButtonTextFail,
+            ]}>
               {isCheckingVerification ? 'Checking...' : 'I\'ve Verified'}
             </Text>
           </TouchableOpacity>
@@ -424,6 +605,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
+  primaryButtonFail: {
+    backgroundColor: '#DC2626', // red
+  },
   primaryButtonText: {
     color: '#000000',
     fontSize: 16,
@@ -453,6 +637,17 @@ const styles = StyleSheet.create({
     borderColor: '#22C55E',
     zIndex: 1,
   },
+  verifyOutline: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 25,
+    borderWidth: 2,
+    borderColor: '#991B1B',
+    zIndex: 1,
+  },
   buttonIconContainer: {
     position: 'relative',
     width: 20,
@@ -466,6 +661,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     width: 20,
     height: 20,
+  },
+  primaryIconContainer: {
+    width: 22,
+    height: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 6,
   },
   successCheckWrapper: {
     width: 22,
@@ -481,6 +683,9 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '500',
+  },
+  primaryButtonTextFail: {
+    color: '#FFFFFF',
   },
   tertiaryButton: {
     backgroundColor: 'transparent',
