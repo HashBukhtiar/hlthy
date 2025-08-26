@@ -68,6 +68,13 @@ export default function EmailVerificationScreen({
     }
   }, [resendCooldown]);
 
+  // Start with a 60s countdown when the screen is shown
+  useEffect(() => {
+    if (visible && resendCooldown === 0) {
+      setResendCooldown(60);
+    }
+  }, [visible]);
+
   useEffect(() => {
     if (isChangingEmail) {
       Animated.timing(spinnerFadeAnim, {
