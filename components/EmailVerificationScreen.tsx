@@ -35,6 +35,7 @@ export default function EmailVerificationScreen({
   const [isResending, setIsResending] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
   const [isCheckingVerification, setIsCheckingVerification] = useState(false);
+  const [isChangingEmail, setIsChangingEmail] = useState(false);
 
   // Check verification status when app comes to foreground
   useEffect(() => {
@@ -101,6 +102,7 @@ export default function EmailVerificationScreen({
   }, [resendCooldown]);
 
   const handleChangeEmail = useCallback(async () => {
+    setIsChangingEmail(true);
     try {
       // This will clean up both AsyncStorage data and Firebase Auth account
       await SignupService.cancelPendingSignup();
@@ -108,6 +110,8 @@ export default function EmailVerificationScreen({
     } catch (error) {
       console.error('Error canceling signup:', error);
       onBackToSignUp();
+    } finally {
+      setIsChangingEmail(false);
     }
   }, [onBackToSignUp]);
 
@@ -172,15 +176,27 @@ export default function EmailVerificationScreen({
 
       <View style={styles.footer}>
         <TouchableOpacity
-          style={styles.changeEmailButton}
+          style={[styles.changeEmailButton, isChangingEmail && styles.disabledButton]}
           onPress={handleChangeEmail}
           activeOpacity={0.8}
+          disabled={isChangingEmail}
         >
           <Text style={styles.changeEmailText}>
             Wrong email address? <Text style={styles.changeEmailLink}>Change it</Text>
           </Text>
         </TouchableOpacity>
       </View>
+
+      {/* Loading spinner overlay */}
+      {isChangingEmail && (
+        <>
+          <View style={styles.loadingBlocker} pointerEvents="auto" />
+          <View style={styles.loadingOverlay} pointerEvents="auto">
+            <CustomSpinner size={48} />
+            <Text style={styles.loadingText}>Cleaning up...</Text>
+          </View>
+        </>
+      )}
     </View>
   );
 }
@@ -298,5 +314,40 @@ const styles = StyleSheet.create({
   changeEmailLink: {
     color: '#FFFFFF',
     fontWeight: '600',
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    width: 180,
+    height: 180,
+    marginLeft: -90,
+    marginTop: -90,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 10,
+  },
+  loadingText: {
+    color: '#FFFFFF',
+    marginTop: 24,
+    fontSize: 16,
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+  loadingBlocker: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'transparent',
+    zIndex: 999,
   },
 });
