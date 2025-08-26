@@ -1459,7 +1459,48 @@ def chat():
         output_tokens = len(response_text.split()) * 1.3
         print(f"📊 Response generated - Output tokens: ~{int(output_tokens)}, Time: {generation_time:.2f}s")
 
-        # Basic validation and enforcement for workout plans (canonical IDs)
+        # Focus Planner Validation for enhanced requests
+        if focus_enhanced_request and focus_enhanced_request.get('enhanced'):
+            try:
+                print("🔍 Validating AI response with Focus Planner...")
+                is_valid, violations, validation_details = focus_integration.validate_ai_response(
+                    response_text, focus_enhanced_request
+                )
+                
+                if not is_valid and violations:
+                    print(f"⚠️  Focus validation failed: {len(violations)} violations")
+                    
+                    # Get correction suggestions
+                    corrections = focus_integration.suggest_corrections(
+                        response_text, focus_enhanced_request, violations
+                    )
+                    
+                    if corrections.get('retry_prompt'):
+                        print("🔄 Attempting correction with Focus Planner suggestions...")
+                        try:
+                            correction_response = model_to_use.generate_content(corrections['retry_prompt'])
+                            corrected_text = correction_response.text.strip()
+                            
+                            # Validate corrected response
+                            is_corrected_valid, corrected_violations, _ = focus_integration.validate_ai_response(
+                                corrected_text, focus_enhanced_request
+                            )
+                            
+                            if is_corrected_valid:
+                                print("✅ Focus Planner correction successful!")
+                                response_text = corrected_text
+                            else:
+                                print(f"⚠️  Correction still has {len(corrected_violations)} violations")
+                                
+                        except Exception as ce:
+                            print(f"❌ Focus correction failed: {ce}")
+                else:
+                    print("✅ Focus validation passed!")
+                    
+            except Exception as ve:
+                print(f"❌ Focus validation error: {ve}")
+
+        # Basic validation and enforcement for workout plans (canonical IDs) - Legacy fallback
         if route == "planner" and "{" in response_text:
             try:
                 # Extract JSON from response
