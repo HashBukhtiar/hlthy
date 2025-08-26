@@ -44,7 +44,15 @@ export class SignupService {
       console.log('[SignupService] Verification email sent to:', signupData.email);
     } catch (error: any) {
       // Clean up stored data if account creation fails
-      await this.clearPendingSignupData();
+      await AsyncStorage.removeItem(PENDING_SIGNUP_KEY);
+      
+      // If account was created but email sending failed, try to delete it immediately
+      const user = auth.currentUser;
+      if (user && !user.emailVerified) {
+        await this.safelyCleanupUnverifiedAccount(user);
+        console.log('[SignupService] Cleaned up after failed account creation');
+      }
+      
       console.error('[SignupService] Error initiating pending signup:', error);
       throw error;
     }
@@ -160,11 +168,11 @@ export class SignupService {
     try {
       await AsyncStorage.removeItem(PENDING_SIGNUP_KEY);
       
-      // If there's an unverified user, delete the Firebase Auth account
+      // If there's an unverified user, try to clean it up safely
       const user = auth.currentUser;
       if (user && !user.emailVerified) {
-        console.log('[SignupService] Deleting unverified Firebase Auth account:', user.uid);
-        await deleteUser(user);
+        console.log('[SignupService] Cleaning up unverified Firebase Auth account:', user.uid);
+        await this.safelyCleanupUnverifiedAccount(user);
       }
     } catch (error) {
       console.error('[SignupService] Error clearing pending signup data:', error);
@@ -218,11 +226,28 @@ export class SignupService {
       const user = auth.currentUser;
       if (user && !user.emailVerified) {
         console.log('[SignupService] Cleaning up existing unverified account:', user.uid);
-        await deleteUser(user);
+        await this.safelyCleanupUnverifiedAccount(user);
       }
     } catch (error) {
       // It's okay if this fails - might mean no user or already signed out
       console.log('[SignupService] No existing unverified account to clean up');
+    }
+  }
+
+  /**
+   * Safely clean up unverified account - tries deletion, falls back to sign out
+   */
+  private static async safelyCleanupUnverifiedAccount(user: any): Promise<void> {
+    try {
+      await deleteUser(user);
+      console.log('[SignupService] Successfully deleted unverified account:', user.uid);
+    } catch (deleteError: any) {
+      if (deleteError.code === 'auth/requires-recent-login') {
+        console.log('[SignupService] Account too old to delete, signing out instead');
+      } else {
+        console.log('[SignupService] Account deletion failed:', deleteError.message);
+      }
+      await signOut(auth);
     }
   }
 }
