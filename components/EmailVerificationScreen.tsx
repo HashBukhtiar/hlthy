@@ -41,6 +41,10 @@ export default function EmailVerificationScreen({
   const [showResendSuccess, setShowResendSuccess] = useState(false);
   const spinnerFadeAnim = useRef(new Animated.Value(0)).current;
   const resendSuccessAnim = useRef(new Animated.Value(0)).current;
+  // Icon transition animations
+  const sendIconYAnim = useRef(new Animated.Value(0)).current;
+  const checkIconYAnim = useRef(new Animated.Value(-30)).current;
+  const outlineOpacityAnim = useRef(new Animated.Value(0)).current;
 
   // Check verification status when app comes to foreground
   useEffect(() => {
@@ -106,24 +110,70 @@ export default function EmailVerificationScreen({
       await SignupService.resendVerificationEmail();
       setResendCooldown(60); // 60 second cooldown
 
-      // trigger a compact success animation: expanding green circle + check
+      // trigger success animation with icon transitions and outline fade
       setShowResendSuccess(true);
       resendSuccessAnim.setValue(0);
-      Animated.sequence([
+      
+      // Animate send icon down and check icon down from top
+      Animated.parallel([
+        // Send icon slides down
+        Animated.timing(sendIconYAnim, {
+          toValue: 30,
+          duration: 400,
+          useNativeDriver: true,
+        }),
+        // Check icon slides down from top to center
+        Animated.timing(checkIconYAnim, {
+          toValue: 0,
+          duration: 400,
+          useNativeDriver: true,
+        }),
+        // Outline fades in
+        Animated.timing(outlineOpacityAnim, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        // Success animation (for any other effects)
         Animated.timing(resendSuccessAnim, {
           toValue: 1,
           duration: 700,
           useNativeDriver: false,
         }),
-        Animated.delay(900),
-        Animated.timing(resendSuccessAnim, {
-          toValue: 0,
-          duration: 300,
-          useNativeDriver: false,
-        }),
-      ]).start(() => {
-        setShowResendSuccess(false);
-      });
+      ]).start();
+
+      // After delay, animate everything back
+      setTimeout(() => {
+        Animated.parallel([
+          // Check icon slides up and out
+          Animated.timing(checkIconYAnim, {
+            toValue: -30,
+            duration: 400,
+            useNativeDriver: true,
+          }),
+          // Send icon slides up from bottom back to center
+          Animated.timing(sendIconYAnim, {
+            toValue: 0,
+            duration: 400,
+            useNativeDriver: true,
+          }),
+          // Outline fades out
+          Animated.timing(outlineOpacityAnim, {
+            toValue: 0,
+            duration: 300,
+            useNativeDriver: true,
+          }),
+          // Success animation out
+          Animated.timing(resendSuccessAnim, {
+            toValue: 0,
+            duration: 300,
+            useNativeDriver: false,
+          }),
+        ]).start(() => {
+          setShowResendSuccess(false);
+        });
+      }, 1200); // Hold the success state for 1.2 seconds
+      
     } catch (error: any) {
       console.error('Error resending verification email:', error);
       Alert.alert(
@@ -134,7 +184,7 @@ export default function EmailVerificationScreen({
     } finally {
       setIsResending(false);
     }
-  }, [resendCooldown, resendSuccessAnim]);
+  }, [resendCooldown, resendSuccessAnim, sendIconYAnim, checkIconYAnim, outlineOpacityAnim]);
 
   const handleChangeEmail = useCallback(async () => {
     setIsChangingEmail(true);
@@ -155,7 +205,7 @@ export default function EmailVerificationScreen({
   return (
     <View style={styles.container}>
       <View style={styles.content}>
-        <View style={styles.iconContainer}>
+        <View style={styles.emailIconContainer}>
           <Ionicons name="mail" size={50} color="#FFFFFF" />
         </View>
         
@@ -190,21 +240,57 @@ export default function EmailVerificationScreen({
             style={[
               styles.secondaryButton,
               (isResending || resendCooldown > 0) && styles.disabledButton,
-              showResendSuccess && { borderColor: '#22C55E' },
             ]}
             onPress={handleResendVerification}
             disabled={isResending || resendCooldown > 0}
             activeOpacity={0.8}
           >
-            {isResending ? (
-              <CustomSpinner size={16} />
-            ) : showResendSuccess ? (
-              <Animated.View style={styles.successCheckWrapper}>
-                <Ionicons name="checkmark" size={18} color="#FFFFFF" />
-              </Animated.View>
-            ) : (
-              <Ionicons name="send" size={16} color="#FFFFFF" />
-            )}
+            {/* Animated green outline */}
+            <Animated.View
+              style={[
+                styles.successOutline,
+                {
+                  opacity: outlineOpacityAnim,
+                }
+              ]}
+              pointerEvents="none"
+            />
+            
+            {/* Icon container with transitions */}
+            <View style={styles.buttonIconContainer}>
+              {isResending ? (
+                <CustomSpinner size={16} />
+              ) : (
+                <>
+                  {/* Send icon - slides down and back up */}
+                  <Animated.View
+                    style={[
+                      styles.iconWrapper,
+                      {
+                        transform: [{ translateY: sendIconYAnim }],
+                        opacity: showResendSuccess ? 0 : 1,
+                      }
+                    ]}
+                  >
+                    <Ionicons name="send" size={16} color="#FFFFFF" />
+                  </Animated.View>
+                  
+                  {/* Check icon - slides in from top */}
+                  <Animated.View
+                    style={[
+                      styles.iconWrapper,
+                      {
+                        transform: [{ translateY: checkIconYAnim }],
+                        opacity: showResendSuccess ? 1 : 0,
+                      }
+                    ]}
+                  >
+                    <Ionicons name="checkmark" size={18} color="#FFFFFF" />
+                  </Animated.View>
+                </>
+              )}
+            </View>
+            
             <Text style={styles.secondaryButtonText}>
               {isResending
                 ? 'Sending...'
@@ -256,7 +342,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: 60,
   },
-  iconContainer: {
+  emailIconContainer: {
     width: 100,
     height: 100,
     borderRadius: 50,
@@ -266,6 +352,13 @@ const styles = StyleSheet.create({
     marginBottom: 32,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  iconContainer: {
+    position: 'relative',
+    width: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   title: {
     fontSize: 28,
@@ -323,6 +416,31 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.3)',
     overflow: 'hidden',
     position: 'relative',
+  },
+  successOutline: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 25,
+    borderWidth: 2,
+    borderColor: '#22C55E',
+    zIndex: 1,
+  },
+  buttonIconContainer: {
+    position: 'relative',
+    width: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  iconWrapper: {
+    position: 'absolute',
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 20,
+    height: 20,
   },
   successCheckWrapper: {
     width: 22,
