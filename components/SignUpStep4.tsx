@@ -5,15 +5,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { CustomSelector, SelectorItem } from '@/components/CustomSelector';
 import CustomSpinner from '@/components/CustomSpinner';
 import { Image } from 'react-native';
-import { auth, db } from '@/firebaseConfig';
-import { createUserWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
-import { doc, setDoc } from 'firebase/firestore';
 import { useRouter } from 'expo-router';
+import { SignupService } from '@/services/signupService';
 
 interface SignUpStep4Props {
   visible: boolean;
   onBackPress: () => void;
-  onComplete: (data: { archetype: string }) => void;
+  onComplete: (data: { archetype: string }) => any;
   onShowLogin?: () => void;
   onEmailVerificationRequired?: (email: string) => void;
 }
@@ -67,59 +65,26 @@ export default function SignUpStep4({ visible, onBackPress, onComplete, onShowLo
     }
     setLoading(true);
     try {
-      const signupData = await onComplete({ archetype });
+      const signupData = onComplete({ archetype });
       console.log('[SignUpStep4] Received signup data:', signupData);
       if (!signupData || typeof signupData !== 'object') {
         setLoading(false);
         return;
       }
       const { email, password, firstName, lastName, username, dateOfBirth } = signupData;
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
-      console.log('[SignUpStep4] Firebase Auth user created:', user.uid);
       
-      // Send email verification
-      await sendEmailVerification(user);
-      console.log('[SignUpStep4] Email verification sent to:', email);
-      
-      // Update users document
-      await setDoc(doc(db, 'users', user.uid), {
-        uid: user.uid,
+      // Initiate pending signup (creates temp account and sends verification email)
+      await SignupService.initiatePendingSignup({
         email,
+        password,
         firstName,
         lastName,
         username,
         dateOfBirth,
         archetype,
-        version: 1,
-        units: {weight: "metric", distance: "metric"},
-        notifications: {mentionedInReplies: true, likesAndComments: true, taggedInComments: true, directMessages: true, newFollowers: true, followRequestAccepted: true},
-        messagePermission: 'everyone',
-        profileVisibility: 'public',
-        createdAt: new Date().toISOString(),
-        lastModified: new Date().toISOString(),
-        language: 'en',
-        followPermission: 'anyone',
-        followerCount: 0,
-        followingCount: 0,
-        postCount: 0,
-        workoutCount: 0,
-        milestoneCount: 0,
-        displayName: `${firstName} ${lastName}`,
-        commentPermission: 'everyone',
-        theme: 'dark',
-        twoFactorEnabled: false,
-        analytics: {lastSeen: new Date().toISOString()},
-        latestPRs: {},
-        bio: '',
-        emailVerified: false, // Track verification status
       });
-      // Update usersPublic document
-      await setDoc(doc(db, 'usersPublic', user.uid), {
-        uid: user.uid,
-        username,
-      });
-      console.log('[SignUpStep4] Firestore user profile created for:', user.uid);
+      
+      console.log('[SignUpStep4] Pending signup initiated, verification email sent to:', email);
       
       // Redirect to email verification screen
       if (onEmailVerificationRequired) {
@@ -320,12 +285,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 0,
     height: 60,
     textAlignVertical: 'top',
-  },
-  inputContentStyle: {
-    // nothing right now.
-  },
-  inputContentStyleCompact: {
-    // nothing right now.
   },
   buttonContainer: {
     gap: 15,
