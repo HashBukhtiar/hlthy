@@ -92,6 +92,21 @@ except ImportError:
     print("Warning: Observability dashboard not available")
     OBSERVABILITY_AVAILABLE = False
 
+# Focus Planner Integration
+try:
+    from focus_integration import FocusIntegration
+    from exercise_database import ExerciseDatabase
+    FOCUS_PLANNER_AVAILABLE = True
+    
+    # Initialize Focus Planner system
+    exercise_database = ExerciseDatabase()
+    focus_integration = FocusIntegration(exercise_database, profile_manager or None)
+    print("✅ Focus Planner system available")
+except ImportError as e:
+    print(f"⚠️  Focus Planner system not available: {e}")
+    FOCUS_PLANNER_AVAILABLE = False
+    focus_integration = None
+
 app = Flask(__name__)
 CORS(app, resources={r"/api/*": {"origins": "*"}})
 
