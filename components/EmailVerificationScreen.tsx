@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   Alert,
   AppState,
   AppStateStatus,
+  Animated,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -36,6 +37,7 @@ export default function EmailVerificationScreen({
   const [resendCooldown, setResendCooldown] = useState(0);
   const [isCheckingVerification, setIsCheckingVerification] = useState(false);
   const [isChangingEmail, setIsChangingEmail] = useState(false);
+  const spinnerFadeAnim = useRef(new Animated.Value(0)).current;
 
   // Check verification status when app comes to foreground
   useEffect(() => {
@@ -58,6 +60,22 @@ export default function EmailVerificationScreen({
       return () => clearTimeout(timer);
     }
   }, [resendCooldown]);
+
+  useEffect(() => {
+    if (isChangingEmail) {
+      Animated.timing(spinnerFadeAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
+    } else {
+      Animated.timing(spinnerFadeAnim, {
+        toValue: 0,
+        duration: 250,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [isChangingEmail, spinnerFadeAnim]);
 
   const checkEmailVerification = useCallback(async () => {
     if (!auth.currentUser) return;
@@ -191,10 +209,10 @@ export default function EmailVerificationScreen({
       {isChangingEmail && (
         <>
           <View style={styles.loadingBlocker} pointerEvents="auto" />
-          <View style={styles.loadingOverlay} pointerEvents="auto">
+          <Animated.View style={[styles.loadingOverlay, { opacity: spinnerFadeAnim }]} pointerEvents="auto">
             <CustomSpinner size={48} />
             <Text style={styles.loadingText}>Cleaning up...</Text>
-          </View>
+          </Animated.View>
         </>
       )}
     </View>
