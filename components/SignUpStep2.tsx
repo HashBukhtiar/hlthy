@@ -62,6 +62,16 @@ export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin,
 
   // Spinner fade animation
   const spinnerFadeAnim = useRef(new Animated.Value(0)).current;
+  const [spinnerOpacity, setSpinnerOpacity] = useState<number>(0);
+
+  useEffect(() => {
+    const id = spinnerFadeAnim.addListener(({ value }) => {
+      setSpinnerOpacity(value);
+    });
+    return () => {
+      spinnerFadeAnim.removeListener(id);
+    };
+  }, [spinnerFadeAnim]);
 
   const triggerUsernameShake = useCallback(() => {
     usernameShakeAnim.setValue(0);
@@ -251,10 +261,12 @@ export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin,
   // Username input (no longer prepends '@')
   const getUsernameValue = () => username;
   const handleUsernameChange = (text: string) => {
-    setUsername(text.replace(/^@+/, ''));
+    // Remove any leading @ characters and trim leading/trailing whitespace
+    const sanitized = text.replace(/^@+/, '').trim();
+    setUsername(sanitized);
     if (submitted) {
-      // Live validation after first submit
-      const usernameErr = getUsernameError(text.replace(/^@+/, ''));
+      // Live validation after first submit using sanitized value
+      const usernameErr = getUsernameError(sanitized);
       setErrorMessage(usernameErr || '');
     }
   };
@@ -541,7 +553,7 @@ export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin,
         </ScrollView>
 
         {/* Loader widget centered on page, above all content */}
-        {(loading || spinnerFadeAnim._value > 0) && (
+  {(loading || spinnerOpacity > 0) && (
           <>
             <View style={styles.loadingBlocker} pointerEvents="auto" />
             <Animated.View style={[styles.loadingOverlay, { opacity: spinnerFadeAnim }]} pointerEvents="auto">

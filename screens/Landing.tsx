@@ -228,7 +228,7 @@ export default function Landing() {
 
                 <View style={styles.taglineContainer}>
                   <Text style={styles.tagline}>Smarter Fitness Starts Here</Text>
-                  <Text style={styles.subtagline}>Stay motivated, track progress, and grow together with AI-powered support</Text>
+                  <Text style={styles.subtagline}>Stay motivated, track progress, and grow together with AI-powered coaching</Text>
                 </View>
 
                 <View style={styles.buttonContainer}>
