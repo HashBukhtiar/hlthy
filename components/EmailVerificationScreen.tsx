@@ -128,7 +128,7 @@ export default function EmailVerificationScreen({
     <View style={styles.container}>
       <View style={styles.content}>
         <View style={styles.iconContainer}>
-          <Ionicons name="mail" size={80} color="#FFFFFF" />
+          <Ionicons name="mail" size={56} color="#FFFFFF" />
         </View>
         
         <Text style={styles.title}>Verify Your Email</Text>
@@ -138,8 +138,7 @@ export default function EmailVerificationScreen({
         </Text>
         
         <Text style={styles.description}>
-          Please check your inbox and click the verification link to continue. 
-          If you don't see the email, check your spam folder.
+          Follow the instructions in the email to verify.
         </Text>
 
         <View style={styles.buttonContainer}>
@@ -152,7 +151,7 @@ export default function EmailVerificationScreen({
             {isCheckingVerification ? (
               <CustomSpinner size={20} />
             ) : (
-              <Ionicons name="refresh" size={20} color="#000000" />
+              <Ionicons name="checkmark-done-outline" size={20} color="#000000" />
             )}
             <Text style={styles.primaryButtonText}>
               {isCheckingVerification ? 'Checking...' : 'I\'ve Verified'}
