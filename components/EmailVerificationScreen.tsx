@@ -122,14 +122,6 @@ export default function EmailVerificationScreen({
     );
   }, [onBackToSignUp]);
 
-  const handleOpenEmailApp = useCallback(() => {
-    Alert.alert(
-      'Check Your Email',
-      'Please check your email inbox and spam folder for the verification email, then return to this app.',
-      [{ text: 'OK' }]
-    );
-  }, []);
-
   if (!visible) return null;
 
   return (
