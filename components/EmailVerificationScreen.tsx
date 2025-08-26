@@ -101,27 +101,14 @@ export default function EmailVerificationScreen({
   }, [resendCooldown]);
 
   const handleChangeEmail = useCallback(async () => {
-    Alert.alert(
-      'Change Email Address',
-      'To change your email address, you\'ll need to start the signup process again.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Start Over',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              // This will clean up both AsyncStorage data and Firebase Auth account
-              await SignupService.cancelPendingSignup();
-              onBackToSignUp();
-            } catch (error) {
-              console.error('Error canceling signup:', error);
-              onBackToSignUp();
-            }
-          },
-        },
-      ]
-    );
+    try {
+      // This will clean up both AsyncStorage data and Firebase Auth account
+      await SignupService.cancelPendingSignup();
+      onBackToSignUp();
+    } catch (error) {
+      console.error('Error canceling signup:', error);
+      onBackToSignUp();
+    }
   }, [onBackToSignUp]);
 
   if (!visible) return null;
