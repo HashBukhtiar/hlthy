@@ -47,6 +47,7 @@ import { SmartChatInput } from '@/components/SmartChatInput';
 import { IntentMessageWrapper } from '@/components/IntentBadge';
 import { calculateImprovementPercentage } from '@/logic/milesonteUtils';
 import { getOptimalImageUrl } from '@/utils/imageUtils';
+import { useUnits } from '@/hooks/useUnits';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@/firebaseConfig';
 
@@ -213,6 +214,32 @@ async function convertFirestoreDoc(
 const MessageItem = React.memo<{ item: Message; onLongPress: (m: Message) => void; conversationId: string; onReprompt?: (message: string) => void }>(
   ({ item, onLongPress, conversationId, onReprompt }) => {
     const router = useRouter();
+    const { getWeightUnit, getDistanceUnit, convertWeight, convertDistance } = useUnits();
+    
+    // Helper function to convert and format value with proper units
+    const convertAndFormatValue = (value: number, storedUnit: string) => {
+      if (storedUnit === 'kg' || storedUnit === 'lbs') {
+        const userPreferredUnit = getWeightUnit() as 'kg' | 'lbs';
+        const convertedValue = storedUnit !== userPreferredUnit 
+          ? convertWeight(value, storedUnit as 'kg' | 'lbs', userPreferredUnit)
+          : value;
+        return {
+          value: Math.round(convertedValue * 10) / 10,
+          unit: userPreferredUnit
+        };
+      } else if (storedUnit === 'km' || storedUnit === 'miles') {
+        const userPreferredUnit = getDistanceUnit() as 'km' | 'miles';
+        const convertedValue = storedUnit !== userPreferredUnit 
+          ? convertDistance(value, storedUnit as 'km' | 'miles', userPreferredUnit)
+          : value;
+        return {
+          value: Math.round(convertedValue * 10) / 10,
+          unit: userPreferredUnit
+        };
+      }
+      return { value, unit: storedUnit };
+    };
+    
     if (item.type === 'dateHeader') {
       return (
         <View style={styles.dateHeaderContainer}>
@@ -294,14 +321,24 @@ const MessageItem = React.memo<{ item: Message; onLongPress: (m: Message) => voi
               </Text>
               <View style={styles.milestoneStatsRow}>
                 <Text style={styles.milestoneValue}>
-                  {item.sharedMilestone.details.value}
-                  {item.sharedMilestone.details.weightUnit || 'lbs'}
+                  {item.sharedMilestone.details.value && item.sharedMilestone.details.weightUnit
+                    ? (() => {
+                        const converted = convertAndFormatValue(item.sharedMilestone.details.value, item.sharedMilestone.details.weightUnit);
+                        return `${converted.value} ${converted.unit}`;
+                      })()
+                    : `${item.sharedMilestone.details.value}${item.sharedMilestone.details.weightUnit || 'lbs'}`
+                  }
                   {item.sharedMilestone.details.reps != null && item.sharedMilestone.details.reps > 1 && ` × ${item.sharedMilestone.details.reps}`}
                 </Text>
                 {item.sharedMilestone.details.previousValue != null && (
                   <Text style={styles.milestonePrevious}>
-                    from {item.sharedMilestone.details.previousValue}
-                    {item.sharedMilestone.details.weightUnit || 'lbs'}
+                    from {item.sharedMilestone.details.previousValue && item.sharedMilestone.details.weightUnit
+                      ? (() => {
+                          const converted = convertAndFormatValue(item.sharedMilestone.details.previousValue, item.sharedMilestone.details.weightUnit);
+                          return `${converted.value} ${converted.unit}`;
+                        })()
+                      : `${item.sharedMilestone.details.previousValue}${item.sharedMilestone.details.weightUnit || 'lbs'}`
+                    }
                     {item.sharedMilestone.details.previousReps != null && item.sharedMilestone.details.previousReps > 1 && ` × ${item.sharedMilestone.details.previousReps}`}
                   </Text>
                 )}
@@ -328,11 +365,28 @@ const MessageItem = React.memo<{ item: Message; onLongPress: (m: Message) => voi
               </Text>
               <Text style={styles.weightChangeValue}>
                 {item.sharedMilestone.type === 'weightLoss' ? '↓' : '↑'} 
-                {item.sharedMilestone.details.totalLoss} {item.sharedMilestone.details.newWeightUnit}
+                {item.sharedMilestone.details.totalLoss && item.sharedMilestone.details.newWeightUnit
+                  ? (() => {
+                      const converted = convertAndFormatValue(item.sharedMilestone.details.totalLoss, item.sharedMilestone.details.newWeightUnit);
+                      return `${converted.value} ${converted.unit}`;
+                    })()
+                  : `${item.sharedMilestone.details.totalLoss} ${item.sharedMilestone.details.newWeightUnit || getWeightUnit()}`
+                }
               </Text>
               <Text style={styles.weightChangeDetails}>
-                {item.sharedMilestone.details.previousWeight} → {item.sharedMilestone.details.newWeight}
-                {item.sharedMilestone.details.newWeightUnit}
+                {item.sharedMilestone.details.previousWeight && item.sharedMilestone.details.newWeightUnit
+                  ? (() => {
+                      const convertedPrevious = convertAndFormatValue(item.sharedMilestone.details.previousWeight, item.sharedMilestone.details.newWeightUnit);
+                      return convertedPrevious.value;
+                    })()
+                  : item.sharedMilestone.details.previousWeight
+                } → {item.sharedMilestone.details.newWeight && item.sharedMilestone.details.newWeightUnit
+                  ? (() => {
+                      const convertedNew = convertAndFormatValue(item.sharedMilestone.details.newWeight, item.sharedMilestone.details.newWeightUnit);
+                      return `${convertedNew.value} ${convertedNew.unit}`;
+                    })()
+                  : `${item.sharedMilestone.details.newWeight} ${item.sharedMilestone.details.newWeightUnit || getWeightUnit()}`
+                }
               </Text>
               <Text style={styles.milestoneImprovement}>
                 {item.sharedMilestone.details.percentageLoss} change
