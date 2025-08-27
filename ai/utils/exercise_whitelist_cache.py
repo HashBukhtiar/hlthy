@@ -17,15 +17,11 @@ try:
     from core.exercise_database import get_all_allowed_exercises, CANONICAL_EXERCISES
     CANONICAL_DATABASE_AVAILABLE = True
 except ImportError:
-    try:
-        from exercise_database import get_all_allowed_exercises, CANONICAL_EXERCISES
-        CANONICAL_DATABASE_AVAILABLE = True
-    except ImportError:
-        print("Warning: Exercise database not available for whitelist cache")
-        CANONICAL_DATABASE_AVAILABLE = False
-        CANONICAL_EXERCISES = {}
-        def get_all_allowed_exercises(user_context):
-            return []
+    print("Warning: Exercise database not available for whitelist cache")
+    CANONICAL_DATABASE_AVAILABLE = False
+    CANONICAL_EXERCISES = {}
+    def get_all_allowed_exercises(user_context):
+        return []
 
 class ExerciseWhitelistCache:
     """Manages cached exercise whitelists per user context"""

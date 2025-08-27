@@ -15,14 +15,10 @@ try:
     from core.exercise_database import CANONICAL_EXERCISES, NAME_TO_ID_MAP
     CANONICAL_DATABASE_AVAILABLE = True
 except ImportError:
-    try:
-        from exercise_database import CANONICAL_EXERCISES, NAME_TO_ID_MAP
-        CANONICAL_DATABASE_AVAILABLE = True
-    except ImportError:
-        print("Warning: Exercise database not available for profile sync normalization")
-        CANONICAL_DATABASE_AVAILABLE = False
-        CANONICAL_EXERCISES = {}
-        NAME_TO_ID_MAP = {}
+    print("Warning: Exercise database not available for profile sync normalization")
+    CANONICAL_DATABASE_AVAILABLE = False
+    CANONICAL_EXERCISES = {}
+    NAME_TO_ID_MAP = {}
 
 class ProfileExtractor:
     """Extracts durable facts from chat for profile updates"""
