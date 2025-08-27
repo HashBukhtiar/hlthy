@@ -244,10 +244,21 @@ class UserProfileManager:
         )
         
         # Add injury-specific restrictions from safety knowledge
-        from exercise_safety import get_safety_context_for_injury
-        safety_context = get_safety_context_for_injury(injury_type)
-        injury.banned_exercises = safety_context["avoid"]
-        injury.caution_movements = safety_context.get("modifications", [])
+        try:
+            from utils.exercise_safety import get_safety_context_for_injury
+            safety_context = get_safety_context_for_injury(injury_type)
+            injury.banned_exercises = safety_context["avoid"]
+            injury.caution_movements = safety_context.get("modifications", [])
+        except ImportError:
+            try:
+                from exercise_safety import get_safety_context_for_injury
+                safety_context = get_safety_context_for_injury(injury_type)
+                injury.banned_exercises = safety_context["avoid"]
+                injury.caution_movements = safety_context.get("modifications", [])
+            except ImportError:
+                print("Warning: Exercise safety not available for injury restrictions")
+                injury.banned_exercises = []
+                injury.caution_movements = []
         
         profile.active_injuries.append(injury)
         return self.save_profile(profile)
