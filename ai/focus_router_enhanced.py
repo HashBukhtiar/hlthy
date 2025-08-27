@@ -47,7 +47,10 @@ def is_nonsense_or_unknown(text: str) -> bool:
         'upper', 'lower', 'full body', 'split', 'bro split',
         'glutes', 'quads', 'hamstrings', 'calves', 'biceps', 'triceps',
         'delts', 'traps', 'lats', 'rhomboids', 'obliques', 'mass',
-        'gains', 'pump', 'conditioning', 'athletic', 'performance'
+        'gains', 'pump', 'conditioning', 'athletic', 'performance',
+        'leg day', 'push day', 'pull day', 'chest day', 'back day',
+        'arm day', 'shoulder day', 'leg workout', 'upper body',
+        'lower body', 'leg', 'leg training', 'fitness', 'gym'
     }
     
     has_fitness_term = any(term in normalized for term in fitness_terms)
