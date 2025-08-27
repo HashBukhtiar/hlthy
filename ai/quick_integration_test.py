@@ -105,7 +105,7 @@ def test_segment_awareness():
                 if key.startswith('is') or key in ['primary_muscles', 'safety_flags']:
                     print(f"     {key}: {value}")
         
-        sample_ids = ['treadmill_walk_easy', 'barbell_bench_press']
+        sample_ids = ['treadmill_walk_easy', 'barbell_bench_press', 'doorway_pec_stretch', 'hamstring_stretch_seated']
         
         for exercise_id in sample_ids:
             exercise = db.get_exercise_by_id(exercise_id)
