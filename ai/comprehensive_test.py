@@ -254,6 +254,21 @@ def test_flask_endpoints():
             test_results["profile_creation"] = response.status_code
             print_test_result("Profile Creation Endpoint", profile_endpoint_works, f"Status: {response.status_code}")
             
+            # Test exercise canonical endpoint
+            response = client.get('/api/exercises/canonical')
+            canonical_endpoint_works = response.status_code == 200
+            test_results["canonical_exercises"] = canonical_endpoint_works
+            print_test_result("Canonical Exercises Endpoint", canonical_endpoint_works, f"Status: {response.status_code}")
+            
+            # Test exercise validation endpoint
+            validation_data = {'exercise_ids': ['push_ups', 'invalid_exercise']}
+            response = client.post('/api/exercises/validate',
+                                 json=validation_data,
+                                 content_type='application/json')
+            validation_endpoint_works = response.status_code == 200
+            test_results["exercise_validation"] = validation_endpoint_works
+            print_test_result("Exercise Validation Endpoint", validation_endpoint_works, f"Status: {response.status_code}")
+            
     except Exception as e:
         test_results["flask_error"] = str(e)
         print_test_result("Flask API Endpoints", False, str(e))
