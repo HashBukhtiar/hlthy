@@ -302,7 +302,7 @@ class FocusIntegrationSystem:
     
     def handle_interview_response(self, user_id: str, response: str) -> Dict[str, Any]:
         """
-        Handle response to an interview question
+        Handle response to an interview question using trainer brain intelligence
         
         Args:
             user_id: User identifier
@@ -325,62 +325,120 @@ class FocusIntegrationSystem:
                 'message': "No current question found. Please start over."
             }
         
-        # Process the response
-        processed = process_interview_response(
-            question_type=current_question['type'],
-            response=response,
-            context={'session': session}
+        # Extract information from user's response using trainer brain
+        extracted_info = self.trainer_brain.extract_info_from_response(
+            response, 
+            current_question['question_type']
         )
         
-        if not processed['valid']:
-            # Invalid response, ask again or provide help
-            suggestions = processed.get('suggestions', [])
-            help_text = f" Try one of: {', '.join(suggestions)}" if suggestions else ""
-            
+        if not extracted_info:
+            # Response didn't contain recognizable info
             return {
                 'response_type': 'clarification',
-                'message': f"I didn't understand that response.{help_text} {current_question['text']}",
-                'suggestions': suggestions,
+                'message': f"I didn't catch that. {current_question['question']}",
                 'question': current_question,
-                'error_details': processed
+                'suggestions': current_question.get('options', [])
             }
         
-        # Valid response - store it
-        session.add_response(
-            question_type=current_question['type'],
-            response=response,
-            parsed_value=processed['parsed_value']
-        )
+        # Store extracted information in session
+        for info_type, value in extracted_info.items():
+            session.add_response(info_type, response, value)
+        
+        # Build current user profile from session
+        current_profile = {}
+        for question_type, response_data in session.responses.items():
+            current_profile[question_type] = response_data['parsed_value']
         
         # Check if we need more information
-        missing_info = session.get_missing_info()
-        if missing_info and not session.has_complete_info():
-            # Generate next question
-            next_question = self._generate_next_question(session, missing_info)
-            if next_question:
-                session.current_question = next_question
-                session.questions_asked.append(next_question)
-                
-                # Create encouraging progress message
-                progress_msg = self._get_progress_message(session, processed['parsed_value'])
-                
-                return {
-                    'response_type': 'interview_question',
-                    'question': next_question,
-                    'session_id': session.session_id,
-                    'message': f"{progress_msg} {next_question['text']}",
-                    'progress': {
-                        'completed': len(session.responses),
-                        'remaining': len(missing_info) - 1,  # -1 because we're asking the next one
-                        'percentage': int((len(session.responses) / 4) * 100)  # Assuming 4 required questions
-                    }
-                }
+        next_question = self.trainer_brain.get_next_interview_question(current_profile)
         
-        # We have all the info we need - plan the workout
+        if next_question:
+            # Ask next question
+            session.current_question = next_question
+            session.questions_asked.append(next_question)
+            
+            # Create encouraging progress message
+            progress_msg = self._get_progress_message(len(session.responses))
+            
+            return {
+                'response_type': 'interview_question',
+                'question': next_question,
+                'session_id': session.session_id,
+                'message': f"{progress_msg} {next_question['question']}",
+                'progress': {
+                    'completed': len(session.responses),
+                    'total_critical': len([info for info in self.trainer_brain.required_info.values() if info['priority'] == 'critical']),
+                    'percentage': min(100, int((len(session.responses) / 4) * 100))  # Estimate 4 questions
+                }
+            }
+        
+        # We have enough info - generate workout or advice
         session.completed = True
         context = session.build_workout_context()
         
-        return self._plan_workout_from_interview(user_id, session, context)
+        # Update context with extracted profile info
+        context.update(current_profile)
+        
+        return self._complete_interview_and_respond(user_id, session, context)
+    
+    def _get_progress_message(self, responses_count: int) -> str:
+        """Generate encouraging progress message"""
+        messages = [
+            "Perfect!", "Great!", "Excellent!", "Got it!", "Wonderful!"
+        ]
+        
+        import random
+        base_message = random.choice(messages)
+        
+        if responses_count == 1:
+            return f"{base_message} That helps me understand your goals."
+        elif responses_count == 2:
+            return f"{base_message} I'm getting a clear picture of what you need."
+        elif responses_count == 3:
+            return f"{base_message} Almost there - just one more question."
+        else:
+            return f"{base_message}"
+    
+    def _complete_interview_and_respond(self, user_id: str, session: InterviewSession, context: Dict[str, Any]) -> Dict[str, Any]:
+        """Complete interview and provide appropriate response"""
+        try:
+            # Determine if this was a workout request or advice request
+            original_request = session.initial_request.lower()
+            
+            # Analyze the original intent
+            original_intent = self.trainer_brain.analyze_message_intent(session.initial_request)
+            
+            if original_intent['type'] == 'workout_request':
+                # Generate workout with full context
+                return self._plan_workout_from_interview(user_id, session, context)
+            elif original_intent['type'] == 'advice_request':
+                # Provide enhanced advice with context
+                advice_response = self.trainer_brain.generate_advice_response(original_intent, context)
+                return {
+                    'response_type': 'advice_with_context',
+                    'session_id': session.session_id,
+                    'message': f"Thanks for the details! {advice_response}",
+                    'context': context,
+                    'follow_up_suggestions': [
+                        "Would you like a specific workout plan now?",
+                        "Any other training questions?",
+                        "Want to know about nutrition?"
+                    ]
+                }
+            else:
+                # Default to workout generation
+                return self._plan_workout_from_interview(user_id, session, context)
+        except Exception as e:
+            return {
+                'response_type': 'error',
+                'message': f"Error completing interview: {str(e)}",
+                'session_id': session.session_id,
+                'debug_info': {
+                    'context_keys': list(context.keys()),
+                    'session_completed': session.completed,
+                    'error_type': type(e).__name__
+                }
+            }
     
     def handle_confirmation(self, user_id: str, confirmed: bool, 
                           original_focus: str = None) -> Dict[str, Any]:
