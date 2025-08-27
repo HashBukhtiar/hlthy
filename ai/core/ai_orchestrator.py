@@ -82,14 +82,15 @@ class AIOrchestrator:
     
     def __init__(self, gemini_model):
         self.gemini = gemini_model
-        self.exercise_db = ExerciseDatabase()
-        self.semantic_memory = SemanticMemorySystem()
-        self.profile_manager = UserProfileManager()
-        self.progression_tracker = ProgressionTracker()
-        self.technique_library = TechniqueLibrary()
-        self.validator = ComprehensiveValidator()
-        self.equipment_catalog = EquipmentCatalog()
-        self.observability = ObservabilityDashboard()
+        # Initialize all systems safely
+        self.exercise_db = ExerciseDatabase() if ExerciseDatabase else None
+        self.semantic_memory = SemanticMemorySystem() if SemanticMemorySystem else None
+        self.profile_manager = UserProfileManager() if UserProfileManager else None
+        self.progression_tracker = ProgressionTracker() if ProgressionTracker else None
+        self.technique_library = TechniqueLibrary() if TechniqueLibrary else None
+        self.validator = ComprehensiveValidator() if ComprehensiveValidator else None
+        self.equipment_catalog = EquipmentCatalog() if EquipmentCatalog else None
+        self.observability = ObservabilityDashboard() if ObservabilityDashboard else None
         
     def process_message(self, user_id: str, message: str) -> Dict:
         """
