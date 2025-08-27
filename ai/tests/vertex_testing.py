@@ -102,20 +102,39 @@ except ImportError:
     print("Warning: Observability dashboard not available")
     OBSERVABILITY_AVAILABLE = False
 
-# Focus Planner Integration
+# Focus Planner Integration - Enhanced System
 try:
-    from focus_integration import FocusIntegration
-    from exercise_database import ExerciseDatabase
-    FOCUS_PLANNER_AVAILABLE = True
+    # Try new enhanced integration system first
+    import sys
+    import os
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     
-    # Initialize Focus Planner system
+    from integration.focus_integration_complete import FocusIntegrationSystem
+    from core.exercise_database import ExerciseDatabase
+    FOCUS_PLANNER_AVAILABLE = True
+    ENHANCED_INTEGRATION = True
+    
+    # Initialize Enhanced Focus Planner system
     exercise_database = ExerciseDatabase()
-    focus_integration = FocusIntegration(exercise_database, profile_manager or None)
-    print("✅ Focus Planner system available")
+    focus_integration = FocusIntegrationSystem(exercise_db=exercise_database, user_profiles=profile_manager)
+    print("✅ Enhanced Focus Planner system available with interview flow")
 except ImportError as e:
-    print(f"⚠️  Focus Planner system not available: {e}")
-    FOCUS_PLANNER_AVAILABLE = False
-    focus_integration = None
+    try:
+        # Fallback to old integration
+        from focus_integration import FocusIntegration
+        from exercise_database import ExerciseDatabase
+        FOCUS_PLANNER_AVAILABLE = True
+        ENHANCED_INTEGRATION = False
+        
+        # Initialize old Focus Planner system
+        exercise_database = ExerciseDatabase()
+        focus_integration = FocusIntegration(exercise_database, profile_manager or None)
+        print("⚠️ Using old Focus Planner system")
+    except ImportError as e2:
+        print(f"❌ Focus Planner system not available: {e}, {e2}")
+        FOCUS_PLANNER_AVAILABLE = False
+        ENHANCED_INTEGRATION = False
+        focus_integration = None
 
 app = Flask(__name__)
 CORS(app, resources={r"/api/*": {"origins": "*"}})
