@@ -5,40 +5,192 @@ import json
 from typing import Dict, List, Set, Any, Optional, Tuple
 from focus_rules import normalize_focus, parse_combo, get_muscle_families_for_focus
 try:
-    from exercise_database import ExerciseDatabase
+    from exercise_database import CANONICAL_EXERCISES
 except ImportError:
     # Fallback mock for testing
-    class ExerciseDatabase:
-        @staticmethod
-        def get_by_id(exercise_id):
-            return {
-                'name': f'Mock {exercise_id}',
-                'movement_patterns': ['horizontal_press'],
-                'muscle_families': ['chest']
-            }
-        
-        @staticmethod
-        def is_allowed(exercise_id, user_context):
-            return (True, [])
+    CANONICAL_EXERCISES = {}
 
 
 class FocusValidator:
-    """Validates workout plans against focus requirements."""
+    """Validates workout plans against focus requirements with segment awareness."""
     
-    def __init__(self, exercise_db: ExerciseDatabase):
-        self.exercise_db = exercise_db
+    def __init__(self):
+        pass
     
-    def validate_workout(self, workout_plan: Dict[str, Any], allowed_exercises: List[str]) -> Tuple[bool, List[str]]:
+    def validate_segment_aware_workout(self, workout_plan: Dict[str, Any], allowed_exercises: List[str]) -> Tuple[bool, List[str]]:
         """
-        Validate a workout plan against focus requirements and safety constraints.
+        Validate a segment-aware workout plan.
         
         Args:
-            workout_plan: Parsed workout plan
+            workout_plan: Parsed workout plan with warmup/main/cooldown segments
             allowed_exercises: List of allowed exercise IDs from whitelist
             
         Returns:
             (is_valid, list_of_violations)
         """
+        violations = []
+        
+        # Check for required segments
+        if 'warmup' not in workout_plan:
+            violations.append("Missing warmup segment")
+        if 'main' not in workout_plan:
+            violations.append("Missing main workout segment") 
+        if 'cooldown' not in workout_plan:
+            violations.append("Missing cooldown segment")
+        
+        if violations:
+            return False, violations
+        
+        # Validate each segment
+        warmup_valid, warmup_violations = self._validate_warmup_segment(workout_plan['warmup'])
+        main_valid, main_violations = self._validate_main_segment(workout_plan['main'], allowed_exercises)
+        cooldown_valid, cooldown_violations = self._validate_cooldown_segment(workout_plan['cooldown'])
+        
+        violations.extend(warmup_violations)
+        violations.extend(main_violations)
+        violations.extend(cooldown_violations)
+        
+        # Check for exercise duplication across segments
+        duplication_violations = self._validate_no_segment_duplication(workout_plan)
+        violations.extend(duplication_violations)
+        
+        return len(violations) == 0, violations
+    
+    def _validate_warmup_segment(self, warmup_exercises: List[Dict]) -> Tuple[bool, List[str]]:
+        """Validate warmup segment exercises are appropriate."""
+        violations = []
+        
+        if not warmup_exercises:
+            violations.append("Warmup segment is empty")
+            return False, violations
+        
+        has_cardio = False
+        has_activation = False
+        
+        for exercise in warmup_exercises:
+            exercise_id = exercise.get('exercise_id')
+            if not exercise_id or exercise_id not in CANONICAL_EXERCISES:
+                violations.append(f"Unknown warmup exercise: {exercise_id}")
+                continue
+            
+            canonical_exercise = CANONICAL_EXERCISES[exercise_id]
+            
+            # Check if exercise is appropriate for warmup
+            if canonical_exercise.isCardioWarmup:
+                has_cardio = True
+            elif canonical_exercise.isActivation:
+                has_activation = True
+            else:
+                violations.append(f"Exercise {exercise_id} not suitable for warmup (not flagged as cardio warmup or activation)")
+        
+        # Ensure we have both cardio and activation components
+        if not has_cardio:
+            violations.append("Warmup missing cardio component")
+        if not has_activation:
+            violations.append("Warmup missing activation component")
+        
+        return len(violations) == 0, violations
+    
+    def _validate_cooldown_segment(self, cooldown_exercises: List[Dict]) -> Tuple[bool, List[str]]:
+        """Validate cooldown segment exercises are appropriate."""
+        violations = []
+        
+        if not cooldown_exercises:
+            violations.append("Cooldown segment is empty")
+            return False, violations
+        
+        has_mobility_or_stretch = False
+        
+        for exercise in cooldown_exercises:
+            exercise_id = exercise.get('exercise_id')
+            if not exercise_id or exercise_id not in CANONICAL_EXERCISES:
+                violations.append(f"Unknown cooldown exercise: {exercise_id}")
+                continue
+            
+            canonical_exercise = CANONICAL_EXERCISES[exercise_id]
+            
+            # Check if exercise is appropriate for cooldown
+            if (canonical_exercise.isMobility or 
+                canonical_exercise.isStretch or 
+                canonical_exercise.isCooldownSafe):
+                has_mobility_or_stretch = True
+            else:
+                violations.append(f"Exercise {exercise_id} not suitable for cooldown (not flagged as mobility, stretch, or cooldown safe)")
+        
+        # Ensure we have mobility/stretch component
+        if not has_mobility_or_stretch:
+            violations.append("Cooldown missing mobility or stretch component")
+        
+        return len(violations) == 0, violations
+    
+    def _validate_main_segment(self, main_exercises: List[Dict], allowed_exercises: List[str]) -> Tuple[bool, List[str]]:
+        """Validate main workout segment."""
+        violations = []
+        
+        if not main_exercises:
+            violations.append("Main workout segment is empty")
+            return False, violations
+        
+        # Validate exercise IDs are in allowed list
+        allowed_set = set(allowed_exercises)
+        
+        for exercise in main_exercises:
+            exercise_id = exercise.get('exercise_id')
+            if exercise_id and exercise_id not in allowed_set:
+                violations.append(f"Main exercise {exercise_id} not in allowed exercises for this focus")
+        
+        # Check volume is reasonable
+        total_sets = sum(exercise.get('sets', 0) for exercise in main_exercises)
+        if total_sets > 25:
+            violations.append(f"Main workout volume too high: {total_sets} sets")
+        elif total_sets < 8:
+            violations.append(f"Main workout volume too low: {total_sets} sets")
+        
+        return len(violations) == 0, violations
+    
+    def _validate_no_segment_duplication(self, workout_plan: Dict) -> List[str]:
+        """Ensure no exercise is repeated across warmup, main, and cooldown."""
+        violations = []
+        
+        # Collect exercise IDs from each segment
+        warmup_ids = {ex.get('exercise_id') for ex in workout_plan.get('warmup', [])}
+        main_ids = {ex.get('exercise_id') for ex in workout_plan.get('main', [])}
+        cooldown_ids = {ex.get('exercise_id') for ex in workout_plan.get('cooldown', [])}
+        
+        # Remove None values
+        warmup_ids.discard(None)
+        main_ids.discard(None)
+        cooldown_ids.discard(None)
+        
+        # Check for overlaps
+        warmup_main_overlap = warmup_ids & main_ids
+        warmup_cooldown_overlap = warmup_ids & cooldown_ids
+        main_cooldown_overlap = main_ids & cooldown_ids
+        
+        if warmup_main_overlap:
+            violations.append(f"Exercises duplicated between warmup and main: {', '.join(warmup_main_overlap)}")
+        
+        if warmup_cooldown_overlap:
+            violations.append(f"Exercises duplicated between warmup and cooldown: {', '.join(warmup_cooldown_overlap)}")
+        
+        if main_cooldown_overlap:
+            violations.append(f"Exercises duplicated between main and cooldown: {', '.join(main_cooldown_overlap)}")
+        
+        return violations
+    
+    def validate_workout(self, workout_plan: Dict[str, Any], allowed_exercises: List[str]) -> Tuple[bool, List[str]]:
+        """
+        Legacy method for backward compatibility - validates both segment-aware and traditional plans.
+        """
+        # Check if it's a segment-aware plan
+        if 'warmup' in workout_plan and 'main' in workout_plan and 'cooldown' in workout_plan:
+            return self.validate_segment_aware_workout(workout_plan, allowed_exercises)
+        else:
+            # Fall back to traditional validation
+            return self._validate_traditional_workout(workout_plan, allowed_exercises)
+    
+    def _validate_traditional_workout(self, workout_plan: Dict[str, Any], allowed_exercises: List[str]) -> Tuple[bool, List[str]]:
+        """Validate traditional (non-segment-aware) workout plan."""
         violations = []
         
         # Extract exercises from workout plan
