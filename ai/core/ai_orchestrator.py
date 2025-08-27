@@ -491,9 +491,10 @@ class AIOrchestrator:
             
             workout = json.loads(response_text)
             
-            # 4. Validate the workout with YOUR validator
+            # 4. Validate the workout with YOUR validator (considering full profile)
             validated_workout = workout
             try:
+                # Pass the full UserProfile object to validator
                 validated_workout = self.validator.validate_workout(workout, profile) if hasattr(self.validator, 'validate_workout') else workout
             except Exception:
                 pass
@@ -518,7 +519,7 @@ class AIOrchestrator:
             return {
                 'type': 'workout',
                 'workout': validated_workout,
-                'message': f"Here's your {understanding.get('exercise_focus', '')} workout using our validated exercise database:",
+                'message': f"Here's your {primary_goal} workout tailored for {experience_level} level, considering your {len(active_injuries)} active injuries:",
                 'used_systems': ['exercise_database', 'validator', 'progression_tracker', 'semantic_memory']
             }
             
@@ -782,6 +783,117 @@ class AIOrchestrator:
         else:
             # Profile complete, proceed with workout generation
             return self._generate_workout_with_systems(user_id, understanding, context)
+    
+    def _update_profile_from_interview(self, user_id: str, question: str, answer: str) -> Dict:
+        """
+        Update UserProfile based on interview response
+        """
+        try:
+            # Import required classes
+            from utils.user_profiles import UserProfile, FitnessGoals
+            from datetime import datetime
+            
+            # Load existing profile or create new one
+            profile = self.profile_manager.load_profile(user_id) if hasattr(self.profile_manager, 'load_profile') else None
+            
+            if not profile:
+                # Create new profile
+                profile = UserProfile(
+                    user_id=user_id,
+                    created_at=datetime.now().isoformat(),
+                    updated_at=datetime.now().isoformat(),
+                    experience_level="beginner"
+                )
+            
+            # Update profile based on question
+            if question == 'experience_level':
+                if answer.lower() in ['beginner', 'intermediate', 'advanced']:
+                    profile.experience_level = answer.lower()
+                    
+            elif question == 'fitness_goals':
+                if not profile.goals:
+                    profile.goals = FitnessGoals(
+                        primary_goal=answer.lower().replace(' ', '_'),
+                        secondary_goals=[],
+                        training_frequency=3,
+                        session_duration=60
+                    )
+                else:
+                    profile.goals.primary_goal = answer.lower().replace(' ', '_')
+                    
+            elif question == 'time_available':
+                duration = 60  # default
+                if '30' in answer:
+                    duration = 30
+                elif '45' in answer:
+                    duration = 45
+                elif '90' in answer:
+                    duration = 90
+                    
+                if not profile.goals:
+                    profile.goals = FitnessGoals(
+                        primary_goal='general',
+                        secondary_goals=[],
+                        training_frequency=3,
+                        session_duration=duration
+                    )
+                else:
+                    profile.goals.session_duration = duration
+                    
+            elif question == 'equipment_access':
+                # Simple equipment mapping
+                if 'bodyweight' in answer.lower():
+                    profile.available_equipment = {'bodyweight': ['floor']}
+                elif 'home' in answer.lower():
+                    profile.available_equipment = {'home': ['dumbbells', 'resistance_bands']}
+                else:
+                    profile.available_equipment = {'commercial_gym': ['full_gym']}
+            
+            # Save updated profile
+            profile.updated_at = datetime.now().isoformat()
+            self.profile_manager.save_profile(profile) if hasattr(self.profile_manager, 'save_profile') else None
+            
+            return {
+                'type': 'profile_update',
+                'message': f"Got it! {answer} - I've updated your profile.",
+                'next_question': self._get_next_interview_question(profile),
+                'used_systems': ['profile_manager']
+            }
+            
+        except Exception as e:
+            print(f"Profile update error: {e}")
+            return {
+                'type': 'error',
+                'message': "I had trouble updating your profile. Let's try again.",
+                'error': str(e)
+            }
+    
+    def _get_next_interview_question(self, profile) -> Optional[Dict]:
+        """
+        Get the next question in the interview flow
+        """
+        if not profile.experience_level or profile.experience_level == "beginner":
+            return {
+                'question': 'experience_level',
+                'message': "What's your training experience level? (beginner/intermediate/advanced)"
+            }
+        elif not profile.goals or not profile.goals.primary_goal:
+            return {
+                'question': 'fitness_goals',
+                'message': "What are your main fitness goals? (muscle_building/weight_loss/strength/endurance)"
+            }
+        elif not profile.goals or not profile.goals.session_duration:
+            return {
+                'question': 'time_available',
+                'message': "How much time do you have for workouts? (30/45/60/90 minutes)"
+            }
+        elif not profile.available_equipment:
+            return {
+                'question': 'equipment_access',
+                'message': "What equipment do you have access to? (commercial gym/home gym/bodyweight only)"
+            }
+        else:
+            return None  # Interview complete
     
     def _get_available_equipment(self) -> List[Dict]:
         """
