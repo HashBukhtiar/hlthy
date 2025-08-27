@@ -54,6 +54,7 @@ export async function sendMessage(history: ChatMessage[], currentMessage: string
     }
 
     const data = await response.json();
+    console.log('Raw API response:', data);
     
     // Handle different response formats from the AI service
     if (data.response) {
@@ -127,6 +128,7 @@ export async function sendMessageWithIntent(history: ChatMessage[], currentMessa
     }
 
     const data = await response.json();
+    console.log('Raw API response (with intent):', data);
     
     // Handle different response formats from the AI service  
     if (data.response) {

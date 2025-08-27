@@ -1368,14 +1368,18 @@ def chat():
                     context
                 )
                 
+                # Extract the appropriate response text based on response type
+                response_text = result.get('message', result.get('response', 'Enhanced AI response generated'))
+                
                 return jsonify({
                     "success": True,
-                    "response": result.get('response', 'Enhanced AI response generated'),
+                    "response": response_text,
                     "route": route,
-                    "workout_plan": result.get('workout_plan'),
-                    "interview_mode": result.get('interview_mode', False),
+                    "workout_plan": result.get('workout'),
+                    "interview_mode": result.get('response_type') == 'interview_question',
                     "session_status": result.get('session_status', 'completed'),
-                    "enhanced_system": True
+                    "enhanced_system": True,
+                    "response_type": result.get('response_type')
                 })
                 
             except Exception as e:
