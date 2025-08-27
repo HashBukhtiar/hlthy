@@ -1267,13 +1267,13 @@ export default function Settings() {
           <SettingsItem
             type="button"
             label="Privacy Policy"
-            onPress={() => Alert.alert("Coming Soon", "Privacy policy will be available in a future update.")}
+            onPress={() => router.push('/privacy-policy')}
           />
 
           <SettingsItem
             type="button"
             label="Terms of Service"
-            onPress={() => Alert.alert("Coming Soon", "Terms of service will be available in a future update.")}
+            onPress={() => router.push('/terms-of-service')}
           />
         </SettingsSection>
 
