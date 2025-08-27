@@ -7,8 +7,8 @@ const getApiUrl = () => {
     return process.env.EXPO_PUBLIC_API_URL;
   }
   
-  // Default to production Google Cloud Run service (updated to northamerica-northeast2)
-  return 'https://hlthy-ai-service-375457000023.northamerica-northeast2.run.app';
+  // Default to production Google Cloud Run service (current deployment)
+  return 'https://hlthy-ai-service-s4rm2uw5oa-pd.a.run.app';
 };
 
 export const API_BASE_URL = getApiUrl();
