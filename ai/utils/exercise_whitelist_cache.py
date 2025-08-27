@@ -131,6 +131,9 @@ class ExerciseWhitelistCache:
     
     def _analyze_risk_distribution(self, exercise_ids: List[str]) -> Dict[str, int]:
         """Analyze risk level distribution in whitelist"""
+        if not CANONICAL_DATABASE_AVAILABLE:
+            return {"low": len(exercise_ids), "moderate": 0, "high": 0, "extreme": 0}
+            
         distribution = {"low": 0, "moderate": 0, "high": 0, "extreme": 0}
         
         for exercise_id in exercise_ids:
@@ -235,6 +238,9 @@ exercise_whitelist_cache = ExerciseWhitelistCache()
 
 def get_cached_allowed_exercises(user_context: Dict[str, any]) -> List[str]:
     """Get allowed exercises with caching - main interface function"""
+    if not CANONICAL_DATABASE_AVAILABLE:
+        return []
+        
     # Try cache first
     cached = exercise_whitelist_cache.get_cached_whitelist(user_context)
     if cached:

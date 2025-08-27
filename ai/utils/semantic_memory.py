@@ -28,12 +28,17 @@ except ImportError:
 
 # Import exercise normalization for ID-aligned RAG
 try:
-    from exercise_database import NAME_TO_ID_MAP, CANONICAL_EXERCISES
+    from core.exercise_database import NAME_TO_ID_MAP, CANONICAL_EXERCISES
     CANONICAL_DATABASE_AVAILABLE = True
 except ImportError:
-    print("Warning: Exercise database not available for semantic memory normalization")
-    CANONICAL_DATABASE_AVAILABLE = False
-    NAME_TO_ID_MAP = {}
+    try:
+        from exercise_database import NAME_TO_ID_MAP, CANONICAL_EXERCISES
+        CANONICAL_DATABASE_AVAILABLE = True
+    except ImportError:
+        print("Warning: Exercise database not available for semantic memory normalization")
+        CANONICAL_DATABASE_AVAILABLE = False
+        NAME_TO_ID_MAP = {}
+        CANONICAL_EXERCISES = {}
 
 def _normalize_text_for_embedding(text: str) -> str:
     """Normalize exercise mentions to canonical IDs for better semantic retrieval"""
