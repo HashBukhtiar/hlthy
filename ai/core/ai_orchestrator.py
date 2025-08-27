@@ -391,13 +391,32 @@ class AIOrchestrator:
         try:
             # 1. Get valid exercises from YOUR database
             valid_exercises = context.get('allowed_exercises', [])
-            profile = context.get('profile') or {}
+            profile = context.get('profile')  # UserProfile object or None
             
-            if profile.get('injuries'):
+            # Extract relevant info from UserProfile for workout generation
+            if profile:
+                experience_level = profile.experience_level
+                primary_goal = profile.goals.primary_goal if profile.goals else 'general'
+                session_duration = profile.goals.session_duration if profile.goals else 60
+                training_frequency = profile.goals.training_frequency if profile.goals else 3
+                active_injuries = [injury.injury_type for injury in (profile.active_injuries or [])]
+                banned_exercises = []
+                for injury in (profile.active_injuries or []):
+                    banned_exercises.extend(injury.banned_exercises or [])
+            else:
+                experience_level = 'beginner'
+                primary_goal = 'general'
+                session_duration = 60
+                training_frequency = 3
+                active_injuries = []
+                banned_exercises = []
+            
+            # Filter out banned exercises due to injuries
+            if banned_exercises:
                 try:
                     valid_exercises = self.validator.filter_safe_exercises(
                         valid_exercises,
-                        profile.get('injuries', [])
+                        active_injuries
                     ) if hasattr(self.validator, 'filter_safe_exercises') else valid_exercises
                 except Exception:
                     pass
@@ -431,17 +450,21 @@ class AIOrchestrator:
             AVAILABLE EXERCISES (use ONLY these):
             {json.dumps(exercise_names, indent=2)}
             
-            WORKOUT REQUIREMENTS:
-            - Focus: {understanding.get('exercise_focus', 'general')}
-            - Experience: {profile.get('experience_level', 'intermediate')}
-            - Time available: {profile.get('time_available', '60 minutes')}
-            - Must avoid: {profile.get('injuries', [])}
+            USER PROFILE & REQUIREMENTS:
+            - Experience: {experience_level}
+            - Primary goal: {primary_goal}
+            - Session duration: {session_duration} minutes
+            - Training frequency: {training_frequency} days/week
+            - Active injuries: {active_injuries}
+            - Banned exercises: {banned_exercises}
             
             LAST WORKOUT (for progression):
             {json.dumps(last_workout, indent=2) if last_workout else 'No previous workout data'}
             
             Create a workout using 6-8 exercises from the available list.
-            Include sets, reps, rest periods.
+            CRITICAL: Avoid any exercises in the banned list.
+            Consider the user's injuries and experience level.
+            Include sets, reps, rest periods appropriate for their goal.
             
             Return JSON with:
             - warm_up: [] (2-3 exercises from the list)
@@ -453,7 +476,7 @@ class AIOrchestrator:
             - sets: number
             - reps: number/range
             - rest: seconds
-            - notes: any form cues
+            - notes: any form cues or injury considerations
             """
             
             response = self.gemini.generate_content(prompt)
@@ -688,7 +711,7 @@ class AIOrchestrator:
         
         return similar[:5] if similar else exercise_names[:5]
     
-    def _should_interview_user(self, profile: Dict, understanding: Dict) -> bool:
+    def _should_interview_user(self, profile, understanding: Dict) -> bool:
         """
         Check if user needs to be interviewed based on profile completeness
         """
@@ -697,11 +720,19 @@ class AIOrchestrator:
             return True
             
         # Check for essential profile fields for workout generation
-        required_fields = ['experience_level', 'fitness_goals', 'time_available']
-        missing_fields = [field for field in required_fields if not profile.get(field)]
+        missing_requirements = []
+        
+        if not profile.experience_level or profile.experience_level == "beginner":
+            missing_requirements.append("experience_level")
+            
+        if not profile.goals or not profile.goals.primary_goal:
+            missing_requirements.append("fitness_goals")
+            
+        if not profile.goals or not profile.goals.session_duration:
+            missing_requirements.append("time_available")
         
         # If user is requesting workout but missing key info, interview them
-        if understanding.get('intent') == 'workout_request' and missing_fields:
+        if understanding.get('intent') == 'workout_request' and missing_requirements:
             return True
             
         return False
@@ -710,35 +741,42 @@ class AIOrchestrator:
         """
         Start interview process for new or incomplete users
         """
-        profile = context.get('profile') or {}
+        profile = context.get('profile')  # UserProfile object or None
         
         # Determine what information we need
-        if not profile.get('experience_level'):
+        if not profile:
             return {
                 'type': 'interview',
                 'question': 'experience_level',
                 'message': "Hi! I'd love to create a personalized workout for you. What's your training experience level? (beginner/intermediate/advanced)",
                 'used_systems': ['profile_manager']
             }
-        elif not profile.get('fitness_goals'):
+        elif not profile.experience_level or profile.experience_level == "beginner":
+            return {
+                'type': 'interview',
+                'question': 'experience_level',
+                'message': "Great! What's your training experience level? (beginner/intermediate/advanced)",
+                'used_systems': ['profile_manager']
+            }
+        elif not profile.goals or not profile.goals.primary_goal:
             return {
                 'type': 'interview', 
                 'question': 'fitness_goals',
-                'message': "Great! What are your main fitness goals? (build muscle/lose weight/improve endurance/general fitness)",
+                'message': "Perfect! What are your main fitness goals? (muscle_building/weight_loss/strength/endurance)",
                 'used_systems': ['profile_manager']
             }
-        elif not profile.get('time_available'):
+        elif not profile.goals or not profile.goals.session_duration:
             return {
                 'type': 'interview',
                 'question': 'time_available', 
-                'message': "Perfect! How much time do you typically have for workouts? (30 minutes/45 minutes/60 minutes/90+ minutes)",
+                'message': "Excellent! How much time do you typically have for workouts? (30/45/60/90 minutes)",
                 'used_systems': ['profile_manager']
             }
-        elif not profile.get('equipment_access'):
+        elif not profile.available_equipment:
             return {
                 'type': 'interview',
                 'question': 'equipment_access',
-                'message': "Almost done! What equipment do you have access to? (home/commercial gym/bodyweight only)",
+                'message': "Almost done! What equipment do you have access to? (commercial gym/home gym/bodyweight only)",
                 'used_systems': ['profile_manager']
             }
         else:
