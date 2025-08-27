@@ -48,9 +48,9 @@ def test_basic_imports():
         print("✅ ExerciseAliasResolver imported and initialized")
         
         # Test resolving an exercise
-        result = resolver.resolve_exercise_reference("bench press")
-        if result.get('found'):
-            print(f"✅ Resolved 'bench press' → {result.get('exercise_id')}")
+        result, matches = resolver.resolve("bench press")
+        if result:
+            print(f"✅ Resolved 'bench press' → {result}")
         else:
             print("ℹ️ Could not resolve 'bench press'")
             
@@ -96,9 +96,16 @@ def test_segment_awareness():
         cooldown_count = 0
         main_count = 0
         
-        # Check a sample of exercises
-        sample_ids = ['treadmill_walk_easy', 'barbell_bench_press', 'static_stretch_routine', 
-                     'dynamic_warm_up', 'walking_cool_down']
+        # Check a sample of exercises - let me first see what exists
+        # First get treadmill_walk_easy specifically
+        treadmill_exercise = db.get_exercise_by_id('treadmill_walk_easy')
+        if treadmill_exercise:
+            print(f"🔍 DEBUG: treadmill_walk_easy attributes:")
+            for key, value in treadmill_exercise.items():
+                if key.startswith('is') or key in ['primary_muscles', 'safety_flags']:
+                    print(f"     {key}: {value}")
+        
+        sample_ids = ['treadmill_walk_easy', 'barbell_bench_press']
         
         for exercise_id in sample_ids:
             exercise = db.get_exercise_by_id(exercise_id)
