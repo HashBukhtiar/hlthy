@@ -9,6 +9,9 @@ from datetime import datetime
 
 # Try to import exercise database with fallback
 try:
+    import sys
+    import os
+    sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
     from core.exercise_database import CANONICAL_EXERCISES, NAME_TO_ID_MAP
     CANONICAL_DATABASE_AVAILABLE = True
 except ImportError:

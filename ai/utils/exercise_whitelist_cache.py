@@ -11,6 +11,9 @@ from pathlib import Path
 
 # Try to import exercise database with fallback
 try:
+    import sys
+    import os
+    sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
     from core.exercise_database import get_all_allowed_exercises, CANONICAL_EXERCISES
     CANONICAL_DATABASE_AVAILABLE = True
 except ImportError:

@@ -5,6 +5,7 @@ Provides long-term memory through semantic search of conversations, workouts, an
 
 import json
 import os
+import re
 from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional, Tuple
 import numpy as np
@@ -28,17 +29,16 @@ except ImportError:
 
 # Import exercise normalization for ID-aligned RAG
 try:
+    import sys
+    import os
+    sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
     from core.exercise_database import NAME_TO_ID_MAP, CANONICAL_EXERCISES
     CANONICAL_DATABASE_AVAILABLE = True
 except ImportError:
-    try:
-        from exercise_database import NAME_TO_ID_MAP, CANONICAL_EXERCISES
-        CANONICAL_DATABASE_AVAILABLE = True
-    except ImportError:
-        print("Warning: Exercise database not available for semantic memory normalization")
-        CANONICAL_DATABASE_AVAILABLE = False
-        NAME_TO_ID_MAP = {}
-        CANONICAL_EXERCISES = {}
+    print("Warning: Exercise database not available for semantic memory normalization")
+    CANONICAL_DATABASE_AVAILABLE = False
+    NAME_TO_ID_MAP = {}
+    CANONICAL_EXERCISES = {}
 
 def _normalize_text_for_embedding(text: str) -> str:
     """Normalize exercise mentions to canonical IDs for better semantic retrieval"""
