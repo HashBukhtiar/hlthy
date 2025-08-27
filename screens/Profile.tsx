@@ -9,6 +9,7 @@ import { getFunctions, httpsCallable } from 'firebase/functions';
 import { app } from '@/firebaseConfig';
 import { BOTTOM_BAR_HEIGHT } from '@/styles/globalStyles';
 import { useBlockEnforcement } from '@/utils/blockUtils';
+import { useUnits } from '@/hooks/useUnits';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/firebaseConfig';
 
@@ -71,6 +72,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
   } = useProfileData(routeUserId, currentUserProfile);
   const createdWorkouts = workouts || [];
   const { isUserBlocked } = useBlockEnforcement();
+  const { getWeightUnit, getDistanceUnit, formatWeight, formatDistance, convertWeight } = useUnits();
   const [isBlockedByUser, setIsBlockedByUser] = useState(false);
   const [hasBlockedUser, setHasBlockedUser] = useState(false);
 
@@ -163,8 +165,22 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
     // Parse weight string like "275 lbs" into value and unit
     const weightString = milestone.details.weight || '';
     const weightParts = weightString.split(' ');
-    const weightValue = weightParts[0] || '';
-    const weightUnit = weightParts.length > 1 ? weightParts[1] : '';
+    const rawWeightValue = parseFloat(weightParts[0]) || 0;
+    const storedWeightUnit = weightParts.length > 1 ? weightParts[1] : '';
+    
+    // Convert weight to user's preferred unit
+    let convertedWeight = rawWeightValue;
+    let displayWeightUnit = storedWeightUnit || getWeightUnit();
+    
+    if (storedWeightUnit && storedWeightUnit !== getWeightUnit()) {
+      const userPreferredUnit = getWeightUnit() as 'kg' | 'lbs';
+      const storedUnit = storedWeightUnit as 'kg' | 'lbs';
+      convertedWeight = convertWeight(rawWeightValue, storedUnit, userPreferredUnit);
+      displayWeightUnit = userPreferredUnit;
+    }
+    
+    // Round to 1 decimal place
+    const displayWeight = Math.round(convertedWeight * 10) / 10;
 
     if (milestone.milestoneType === 'PR') {
       return (
@@ -180,8 +196,8 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
             <View style={styles.previousPRContent}>
               <View style={styles.prMetricsRow}>
                 <View style={styles.prMetricGroup}>
-                  <Text style={styles.prMetricValue}>{weightValue}</Text>
-                  <Text style={styles.prMetricLabel}>{weightUnit}</Text>
+                  <Text style={styles.prMetricValue}>{displayWeight}</Text>
+                  <Text style={styles.prMetricLabel}>{displayWeightUnit}</Text>
                 </View>
                 {milestone.details.reps != null && (
                   <>
@@ -209,8 +225,8 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
             <View style={styles.previousPRContent}>
               <View style={styles.prMetricsRow}>
                 <View style={styles.prMetricGroup}>
-                  <Text style={styles.prMetricValue}>{weightValue}</Text>
-                  <Text style={styles.prMetricLabel}>{weightUnit}</Text>
+                  <Text style={styles.prMetricValue}>{displayWeight}</Text>
+                  <Text style={styles.prMetricLabel}>{displayWeightUnit}</Text>
                 </View>
               </View>
             </View>

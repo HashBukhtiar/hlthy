@@ -25,7 +25,7 @@ export default function ViewMilestone() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const { getWeightUnit, getDistanceUnit, formatWeight, formatDistance } = useUnits();
+  const { getWeightUnit, getDistanceUnit, formatWeight, formatDistance, convertWeight, convertDistance } = useUnits();
   const [milestone, setMilestone] = useState<Milestone | null>(null);
   const [isPinned, setIsPinned] = useState(false);
   const [isTop5Percent, setIsTop5Percent] = useState(false);
@@ -394,6 +394,30 @@ export default function ViewMilestone() {
     return unit === 'kg' || unit === 'lbs';
   };
 
+  // Helper function to convert and format value with proper units
+  const convertAndFormatValue = (value: number, storedUnit: string) => {
+    if (isWeightUnit(storedUnit)) {
+      const userPreferredUnit = getWeightUnit() as 'kg' | 'lbs';
+      const convertedValue = storedUnit !== userPreferredUnit 
+        ? convertWeight(value, storedUnit as 'kg' | 'lbs', userPreferredUnit)
+        : value;
+      return {
+        value: Math.round(convertedValue * 10) / 10,
+        unit: userPreferredUnit
+      };
+    } else if (isDistanceUnit(storedUnit)) {
+      const userPreferredUnit = getDistanceUnit() as 'km' | 'miles';
+      const convertedValue = storedUnit !== userPreferredUnit 
+        ? convertDistance(value, storedUnit as 'km' | 'miles', userPreferredUnit)
+        : value;
+      return {
+        value: Math.round(convertedValue * 10) / 10,
+        unit: userPreferredUnit
+      };
+    }
+    return { value, unit: storedUnit };
+  };
+
   const renderMilestoneDetails = () => {
     if (!milestone) return null;
     
@@ -410,14 +434,11 @@ export default function ViewMilestone() {
             </View>
             
             <View style={styles.previousPRContent}>
-              {/* Handle different exercise types */}
-              
-              {/* Weight + Reps (e.g., Bench Press) */}
               {details.value && details.reps && details.weightUnit && isWeightUnit(details.weightUnit) && (
                 <View style={styles.prMetricsRow}>
                   <View style={styles.prMetricGroup}>
-                    <Text style={styles.prMetricValue}>{details.value}</Text>
-                    <Text style={styles.prMetricLabel}>{details.weightUnit}</Text>
+                    <Text style={styles.prMetricValue}>{convertAndFormatValue(details.value, details.weightUnit).value}</Text>
+                    <Text style={styles.prMetricLabel}>{convertAndFormatValue(details.value, details.weightUnit).unit}</Text>
                   </View>
                   <Text style={styles.prMetricSeparator}>×</Text>
                   <View style={styles.prMetricGroup}>
@@ -441,8 +462,8 @@ export default function ViewMilestone() {
               {details.value && details.weightUnit && isDistanceUnit(details.weightUnit) && !details.duration && (
                 <View style={styles.prMetricsRow}>
                   <View style={styles.prMetricGroup}>
-                    <Text style={styles.prMetricValue}>{details.value}</Text>
-                    <Text style={styles.prMetricLabel}>{details.weightUnit}</Text>
+                    <Text style={styles.prMetricValue}>{convertAndFormatValue(details.value, details.weightUnit).value}</Text>
+                    <Text style={styles.prMetricLabel}>{convertAndFormatValue(details.value, details.weightUnit).unit}</Text>
                   </View>
                 </View>
               )}
@@ -452,8 +473,8 @@ export default function ViewMilestone() {
                 <View style={styles.prMetricsColumn}>
                   <View style={styles.prMetricsRow}>
                     <View style={styles.prMetricGroup}>
-                      <Text style={styles.prMetricValue}>{details.value}</Text>
-                      <Text style={styles.prMetricLabel}>{details.weightUnit}</Text>
+                      <Text style={styles.prMetricValue}>{convertAndFormatValue(details.value, details.weightUnit).value}</Text>
+                      <Text style={styles.prMetricLabel}>{convertAndFormatValue(details.value, details.weightUnit).unit}</Text>
                     </View>
                   </View>
                   <View style={styles.prMetricsRow}>
@@ -466,9 +487,9 @@ export default function ViewMilestone() {
                   <View style={styles.prMetricsRow}>
                     <View style={styles.prMetricGroup}>
                       <Text style={styles.prMetricValue}>
-                        {formatDuration(Math.round(details.duration / details.value))}
+                        {formatDuration(Math.round(details.duration / convertAndFormatValue(details.value, details.weightUnit).value))}
                       </Text>
-                      <Text style={styles.prMetricLabel}>per {details.weightUnit.slice(0, -1)}</Text>
+                      <Text style={styles.prMetricLabel}>per {convertAndFormatValue(details.value, details.weightUnit).unit.slice(0, -1)}</Text>
                     </View>
                   </View>
                 </View>
@@ -510,10 +531,10 @@ export default function ViewMilestone() {
               <Text style={styles.previousBestLabel}>Previous Best:</Text>
               
               {/* Previous Weight + Reps */}
-              {details.previousValue && details.previousReps && (
+              {details.previousValue && details.previousReps && details.weightUnit && (
                 <View style={styles.prMetricGroup}>
-                  <Text style={styles.previousBestValue}>{details.previousValue}</Text>
-                  <Text style={styles.previousBestUnit}>{details.weightUnit || getWeightUnit()}</Text>
+                  <Text style={styles.previousBestValue}>{convertAndFormatValue(details.previousValue, details.weightUnit).value}</Text>
+                  <Text style={styles.previousBestUnit}>{convertAndFormatValue(details.previousValue, details.weightUnit).unit}</Text>
                   <Text style={styles.previousBestSeparator}>×</Text>
                   <Text style={styles.previousBestValue}>{details.previousReps}</Text>
                   <Text style={styles.previousBestUnit}>reps</Text>
@@ -531,8 +552,8 @@ export default function ViewMilestone() {
               {/* Previous Distance */}
               {details.previousValue && !details.previousReps && details.weightUnit && isDistanceUnit(details.weightUnit) && (
                 <View style={styles.prMetricGroup}>
-                  <Text style={styles.previousBestValue}>{details.previousValue}</Text>
-                  <Text style={styles.previousBestUnit}>{details.weightUnit}</Text>
+                  <Text style={styles.previousBestValue}>{convertAndFormatValue(details.previousValue, details.weightUnit).value}</Text>
+                  <Text style={styles.previousBestUnit}>{convertAndFormatValue(details.previousValue, details.weightUnit).unit}</Text>
                 </View>
               )}
               
@@ -584,9 +605,15 @@ export default function ViewMilestone() {
             <View style={styles.previousPRContent}>
               <View style={styles.prMetricsRow}>
                 <View style={styles.prMetricGroup}>
-                  <Text style={styles.prMetricValue}>{milestone.details.newWeight}</Text>
+                  <Text style={styles.prMetricValue}>
+                    {milestone.details.newWeight && milestone.details.newWeightUnit 
+                      ? convertAndFormatValue(milestone.details.newWeight, milestone.details.newWeightUnit).value
+                      : milestone.details.newWeight}
+                  </Text>
                   <Text style={styles.prMetricLabel}>
-                    {milestone.details.newWeightUnit || getWeightUnit()}
+                    {milestone.details.newWeight && milestone.details.newWeightUnit 
+                      ? convertAndFormatValue(milestone.details.newWeight, milestone.details.newWeightUnit).unit
+                      : getWeightUnit()}
                   </Text>
                 </View>
               </View>
@@ -598,9 +625,15 @@ export default function ViewMilestone() {
             <View style={styles.outsidePreviousBestRow}>
               <Text style={styles.previousBestLabel}>Previous Weight:</Text>
               <View style={styles.prMetricGroup}>
-                <Text style={styles.previousBestValue}>{milestone.details.previousWeight}</Text>
+                <Text style={styles.previousBestValue}>
+                  {milestone.details.previousWeight && milestone.details.previousWeightUnit 
+                    ? convertAndFormatValue(milestone.details.previousWeight, milestone.details.previousWeightUnit).value
+                    : milestone.details.previousWeight}
+                </Text>
                 <Text style={styles.previousBestUnit}>
-                  {milestone.details.previousWeightUnit || milestone.details.newWeightUnit || getWeightUnit()}
+                  {milestone.details.previousWeight && milestone.details.previousWeightUnit 
+                    ? convertAndFormatValue(milestone.details.previousWeight, milestone.details.previousWeightUnit).unit
+                    : getWeightUnit()}
                 </Text>
               </View>
             </View>
@@ -610,7 +643,9 @@ export default function ViewMilestone() {
           {milestone.details.totalLoss && (
             <View style={styles.outsideImprovementBadge}>
               <Text style={styles.improvementText}>
-                {isLoss ? '↓' : '↑'} {milestone.details.totalLoss} {milestone.details.newWeightUnit || getWeightUnit()}
+                {isLoss ? '↓' : '↑'} {milestone.details.totalLoss} {milestone.details.newWeight && milestone.details.newWeightUnit 
+                  ? convertAndFormatValue(milestone.details.newWeight, milestone.details.newWeightUnit).unit
+                  : getWeightUnit()}
               </Text>
             </View>
           )}
