@@ -2,6 +2,7 @@
 Focus Router - Main entry point and orchestrator for Focus Planner system
 """
 import json
+import re
 from typing import Dict, List, Any, Optional, Tuple
 from focus_rules import normalize_focus, parse_combo
 from focus_whitelist import build_focus_whitelist
@@ -11,6 +12,172 @@ from focus_validator import FocusValidator
 from focus_rulesets import FocusRuleset
 from exercise_database import ExerciseDatabase
 from user_profiles import UserProfileManager
+
+
+def is_nonsense_or_unknown(text: str) -> bool:
+    """
+    Detect if the request is nonsense or doesn't map to any workout concept
+    
+    Args:
+        text: User input text
+        
+    Returns:
+        True if the text appears to be nonsense or unrelated to fitness
+    """
+    if not text or len(text.strip()) < 2:
+        return True
+    
+    normalized = text.lower().strip()
+    
+    # Known nonsense/unrelated terms
+    nonsense_terms = {
+        'toenails', 'fingernails', 'hair', 'teeth', 'ears', 'nose', 
+        'eyebrows', 'eyelashes', 'tongue', 'lips', 'skin', 'nails',
+        'weather', 'politics', 'movies', 'music', 'food', 'cooking',
+        'sleeping', 'driving', 'reading', 'writing', 'painting'
+    }
+    
+    # Check for exact nonsense matches
+    for term in nonsense_terms:
+        if term in normalized:
+            return True
+    
+    # Check if it contains any fitness-related terms
+    fitness_terms = {
+        'workout', 'exercise', 'train', 'build', 'strength', 'muscle',
+        'chest', 'back', 'shoulders', 'legs', 'arms', 'abs', 'core',
+        'push', 'pull', 'squat', 'press', 'row', 'curl', 'fly',
+        'cardio', 'hiit', 'circuit', 'superset', 'dropset',
+        'hypertrophy', 'power', 'endurance', 'mobility', 'flexibility',
+        'upper', 'lower', 'full body', 'split', 'bro split',
+        'glutes', 'quads', 'hamstrings', 'calves', 'biceps', 'triceps',
+        'delts', 'traps', 'lats', 'rhomboids', 'obliques'
+    }
+    
+    has_fitness_term = any(term in normalized for term in fitness_terms)
+    
+    # If no fitness terms found, likely nonsense
+    if not has_fitness_term:
+        return True
+    
+    return False
+
+def needs_interview(text: str, profile: dict) -> bool:
+    """
+    Determine if we need to conduct an interview before planning
+    
+    Args:
+        text: User input text
+        profile: User profile data
+        
+    Returns:
+        True if interview is needed
+    """
+    normalized = text.lower().strip()
+    
+    # Generic/vague requests that need clarification
+    vague_patterns = [
+        r'^build my \w+$',  # "build my back"
+        r'^train \w+$',     # "train legs"
+        r'^workout$',       # just "workout"
+        r'^help me$',       # "help me"
+        r'^make me strong$',
+        r'^get me fit$',
+        r'^i want to workout$',
+        r'^i need a workout$',
+        r'^give me a workout$',
+        r'^create a workout$'
+    ]
+    
+    is_vague = any(re.match(pattern, normalized) for pattern in vague_patterns)
+    
+    if not is_vague:
+        return False
+    
+    # Check if profile has recent workout context (within last 7 days)
+    if not profile:
+        return True
+    
+    last_interview = profile.get('last_interview_date')
+    if not last_interview:
+        return True
+    
+    # Check if we have necessary information
+    required_fields = ['workout_goal', 'available_time', 'equipment_access', 'experience_level']
+    missing_info = any(field not in profile or not profile[field] for field in required_fields)
+    
+    if missing_info:
+        return True
+    
+    # Check if last interview was more than 7 days ago
+    from datetime import datetime, timedelta
+    try:
+        last_date = datetime.fromisoformat(last_interview)
+        if datetime.now() - last_date > timedelta(days=7):
+            return True
+    except:
+        return True
+    
+    return False
+
+def detect_focus(text: str) -> Dict[str, str]:
+    """Detect focus from user message."""
+    text_lower = text.lower()
+    
+    # Focus keywords mapping
+    focus_patterns = {
+        'chest': ['chest', 'pecs', 'pectoral', 'bench'],
+        'back': ['back', 'lats', 'latissimus', 'rows', 'pull-up', 'pullup'],
+        'shoulders': ['shoulder', 'delts', 'deltoid', 'overhead', 'press'],
+        'arms': ['arms', 'biceps', 'triceps', 'curls'],
+        'legs': ['legs', 'leg day', 'lower body', 'squat', 'deadlift'],
+        'quads': ['quads', 'quadriceps', 'front leg', 'knee extension'],
+        'hamstrings': ['hamstrings', 'hams', 'back leg', 'rdl'],
+        'glutes': ['glutes', 'butt', 'hip thrust', 'bridge'],
+        'calves': ['calves', 'calf'],
+        'core': ['core', 'abs', 'abdominal', 'planks'],
+        'push': ['push day', 'pushing', 'press'],
+        'pull': ['pull day', 'pulling'],
+        'upper': ['upper body', 'upper'],
+        'lower': ['lower body', 'lower'],
+        'full_body': ['full body', 'fullbody', 'total body', 'whole body']
+    }
+    
+    # Check for combo patterns first
+    combo_patterns = [
+        'back and biceps', 'back+biceps', 'back & biceps',
+        'chest and triceps', 'chest+triceps', 'chest & triceps',
+        'shoulders and triceps', 'shoulders+triceps', 'shoulders & triceps',
+        'glutes and hamstrings', 'glutes+hamstrings', 'glutes & hamstrings',
+        'quads and calves', 'quads+calves', 'quads & calves'
+    ]
+    
+    for pattern in combo_patterns:
+        if pattern in text_lower:
+            return {
+                'detected_type': pattern.replace(' and ', '+').replace(' & ', '+'),
+                'confidence': 0.9
+            }
+    
+    # Check for single focus
+    detected_focuses = []
+    for focus, patterns in focus_patterns.items():
+        if any(pattern in text_lower for pattern in patterns):
+            detected_focuses.append(focus)
+    
+    # Return most specific focus if multiple detected
+    if len(detected_focuses) == 1:
+        return {'detected_type': detected_focuses[0], 'confidence': 0.8}
+    elif len(detected_focuses) > 1:
+        # Prefer more specific focuses
+        priority = ['biceps', 'triceps', 'quads', 'hamstrings', 'glutes', 'calves', 
+                   'chest', 'back', 'shoulders', 'arms', 'legs', 'push', 'pull', 
+                   'upper', 'lower', 'full_body']
+        for focus in priority:
+            if focus in detected_focuses:
+                return {'detected_type': focus, 'confidence': 0.7}
+    
+    return {'detected_type': None, 'confidence': 0.0}
 
 
 class FocusPlanner:
