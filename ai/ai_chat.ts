@@ -31,7 +31,8 @@ export async function sendMessage(history: ChatMessage[], currentMessage: string
     });
 
     const requestBody: any = {
-      history: history
+      message: currentMessage,
+      conversation_history: history
     };
 
     // Include user_id if provided for profile management
@@ -54,15 +55,16 @@ export async function sendMessage(history: ChatMessage[], currentMessage: string
 
     const data = await response.json();
     
-    // The backend returns {"text": "response"} format
-    if (data.text) {
-      return data.text;
-    } else if (data.response) {
-      // Fallback for alternative response format
+    // Handle different response formats from the AI service
+    if (data.response) {
       return data.response;
+    } else if (data.text) {
+      return data.text;
+    } else if (data.message) {
+      return data.message;
     } else {
       console.error('Invalid response format from AI service:', data);
-      throw new Error(data.message || data.error || 'Invalid response from AI service');
+      throw new Error(data.error || 'Invalid response from AI service');
     }
   } catch (error) {
     console.error('Error communicating with AI service:', error);
@@ -99,7 +101,8 @@ export async function sendMessageWithIntent(history: ChatMessage[], currentMessa
     console.log('Intent classification result:', intentResult);
 
     const requestBody: any = {
-      history: history,
+      message: currentMessage,
+      conversation_history: history,
       intent: intentResult.intent,
       confidence: intentResult.confidence
     };
