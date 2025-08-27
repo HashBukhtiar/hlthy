@@ -8,6 +8,7 @@ import json
 from core.focus_router_enhanced import route_focus_request, process_interview_response
 from core.exercise_alias_resolver import ExerciseAliasResolver
 from core.equipment_catalog import EquipmentCatalog
+from core.trainer_brain import PersonalTrainerBrain
 
 
 class InterviewSession:
