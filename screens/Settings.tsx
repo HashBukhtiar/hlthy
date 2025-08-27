@@ -308,19 +308,9 @@ export default function Settings() {
   }, [settings, originalSettings, profileImage, userProfile?.profileImageUrl]);
 
   useEffect(() => {
-    console.log('🖼️ Profile Image State:', {
-      profileImage,
-      userProfileImage: userProfile?.profileImageUrl,
-      isSaving,
-      hasUnsavedChanges
-    });
-  }, [profileImage, userProfile?.profileImageUrl, isSaving, hasUnsavedChanges]);
-
-  useEffect(() => {
     // Monitor network connectivity
     const unsubscribe = NetInfo.addEventListener(state => {
       setIsOnline(state.isConnected ?? false);
-      console.log('Network status:', state.isConnected ? 'Online' : 'Offline');
     });
 
     return () => unsubscribe();
@@ -334,10 +324,8 @@ export default function Settings() {
 
     const autoSaveTimer = setTimeout(async () => {
       try {
-        console.log('🔄 Auto-saving settings...');
         await handleSaveSettings();
         setLastAutoSave(new Date());
-        console.log('✅ Auto-save completed');
       } catch (error) {
         console.error('❌ Auto-save failed:', error);
         // Don't show alert for auto-save failures to avoid interrupting user
@@ -347,27 +335,16 @@ export default function Settings() {
     return () => clearTimeout(autoSaveTimer);
   }, [hasUnsavedChanges, autoSaveEnabled, isOnline, isSaving, settings]);
 
-  useEffect(() => {
-    console.log('🔄 Modal State Debug:', {
-      activeModal,
-      modalQueue,
-      lastModalAction: new Date(lastModalAction).toLocaleTimeString(),
-      hasUnsavedChanges
-    });
-  }, [activeModal, modalQueue, lastModalAction, hasUnsavedChanges]);
-
   const openModal = useCallback((modalId: string) => {
     Keyboard.dismiss();
   
     const now = Date.now();
     if (now - lastModalAction < MODAL_DEBOUNCE_MS) {
-      console.log('Modal action debounced');
       return;
     }
     
     // Close any currently active modal first
     if (activeModal && activeModal !== modalId) {
-      console.log(`Closing ${activeModal} to open ${modalId}`);
       closeModal(activeModal);
       
       // Queue the new modal to open after current one closes
@@ -377,20 +354,17 @@ export default function Settings() {
     
     setActiveModal(modalId);
     setLastModalAction(now);
-    console.log(`Opened modal: ${modalId}`);
   }, [activeModal, lastModalAction]);
 
   const closeModal = useCallback((modalId: string) => {
     const now = Date.now();
     if (now - lastModalAction < MODAL_DEBOUNCE_MS) {
-      console.log('Modal close debounced');
       return;
     }
     
     if (activeModal === modalId) {
       setActiveModal(null);
       setLastModalAction(now);
-      console.log(`Closed modal: ${modalId}`);
       
       // Process modal queue if any
       if (modalQueue.length > 0) {
@@ -597,11 +571,6 @@ export default function Settings() {
         profileVisibility: sanitizedSettings.profileVisibility,
       };
       
-      console.log('Saving settings with profile image:', {
-        profileImageUrl: profileImage,
-        settingsKeys: Object.keys(settingsToSave)
-      });
-      
       // Save using existing logic...
       if (!functions || !functions.app) {
         console.warn('Functions not properly initialized, falling back to direct Firestore update');
@@ -615,13 +584,7 @@ export default function Settings() {
         try {
           const updateUserSettings = httpsCallable(functions, 'updateUserSettings');
           
-          console.log('📤 Sending to Cloud Function:', {
-            profileImageUrl: settingsToSave.profileImageUrl,
-            userId: currentUser!.uid
-          });
-          
           await updateUserSettings({ settings: settingsToSave });
-          console.log('Settings updated via Cloud Function');
         } catch (functionError) {
           console.error('Cloud Function failed, falling back to direct update:', functionError);
           
@@ -634,7 +597,6 @@ export default function Settings() {
       }
       
       if (imageHasChanged) {
-        console.log(`Settings saved. Deleting old profile image: ${oldImageUrl}`);
         try {
           await deleteImageFromStorage(oldImageUrl);
         } catch (deleteError) {
@@ -1004,7 +966,6 @@ export default function Settings() {
             label="Date of Birth"
             value={settings.dateOfBirth}
             onPress={() => {
-              console.log('Date picker button pressed');
               setDateModalVisible(true);
             }}
             placeholder="Select your birth date"
@@ -1421,8 +1382,6 @@ export default function Settings() {
                 mode="date"
                 display="spinner"
                 onChange={(event, selectedDate) => {
-                  console.log('Date picker event:', event, 'Selected date:', selectedDate);
-                  
                   if (selectedDate && event.type !== 'dismissed') {
                     const now = new Date();
                     const minDate = new Date(1900, 0, 1);
@@ -1438,7 +1397,6 @@ export default function Settings() {
                     }
                     
                     // Use selectedDate directly - no need to "clean" it
-                    console.log('Setting date to:', selectedDate);
                     updateSetting('dateOfBirth', selectedDate);
                   }
                 }}
