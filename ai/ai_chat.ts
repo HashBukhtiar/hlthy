@@ -128,15 +128,16 @@ export async function sendMessageWithIntent(history: ChatMessage[], currentMessa
 
     const data = await response.json();
     
-    // The backend returns {"text": "response"} format
-    if (data.text) {
-      return data.text;
-    } else if (data.response) {
-      // Fallback for alternative response format
+    // Handle different response formats from the AI service  
+    if (data.response) {
       return data.response;
+    } else if (data.text) {
+      return data.text;
+    } else if (data.message) {
+      return data.message;
     } else {
       console.error('Invalid response format from AI service:', data);
-      throw new Error(data.message || data.error || 'Invalid response from AI service');
+      throw new Error(data.error || 'Invalid response from AI service');
     }
   } catch (error) {
     console.error('Error communicating with AI service (with intent):', error);
