@@ -6,6 +6,7 @@ import json
 import os
 import sys
 import re
+import vertexai
 from datetime import datetime
 from google.oauth2 import service_account
 
@@ -1362,8 +1363,8 @@ def chat():
             try:
                 # Use the enhanced system
                 result = focus_integration.handle_workout_request(
-                    user_message,
                     user_id,
+                    user_message,
                     context
                 )
                 

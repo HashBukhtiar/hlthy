@@ -149,8 +149,8 @@ def test_focus_integration_system():
         
         if hasattr(focus_integration, 'handle_workout_request'):
             result = focus_integration.handle_workout_request(
-                'I need a chest workout',
                 'test_user_123',
+                'I need a chest workout',
                 test_context
             )
             
