@@ -530,7 +530,19 @@ def run_comprehensive_test():
     for suite_name, results in all_results.items():
         if isinstance(results, dict):
             suite_tests = len([k for k in results.keys() if not k.endswith('_error')])
-            suite_passed = len([v for k, v in results.items() if v is True and not k.endswith('_error')])
+            # Count successful tests - True, or specific successful status codes/values
+            successful_values = []
+            for k, v in results.items():
+                if k.endswith('_error'):
+                    continue
+                # Count as successful: True, exercise_count > 0, status codes 200/201, etc.
+                if (v is True or 
+                    (k == 'exercise_count' and isinstance(v, int) and v > 0) or
+                    (k in ['chat_endpoint', 'profile_creation'] and v in [200, 201]) or
+                    (isinstance(v, int) and v in [200, 201])):
+                    successful_values.append(v)
+            
+            suite_passed = len(successful_values)
             suite_failed = suite_tests - suite_passed
             
             total_tests += suite_tests

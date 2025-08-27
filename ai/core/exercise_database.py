@@ -1841,6 +1841,10 @@ class ExerciseDatabase:
     def __init__(self):
         self.exercises = CANONICAL_EXERCISES
     
+    def get_exercise_count(self) -> int:
+        """Get total number of exercises in database"""
+        return len(CANONICAL_EXERCISES)
+    
     def get_exercise(self, exercise_id: str) -> Dict:
         """Get exercise by ID (simple method for testing)"""
         return self.get_exercise_by_id(exercise_id)
