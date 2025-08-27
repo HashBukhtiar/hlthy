@@ -1,11 +1,191 @@
 """
-Focus Composer - Generate slot templates and compose focus-specific prompts
+Focus Composer - Generate slot templates and compose focus-specific prompts with segment awareness
 """
 from typing import Dict, List, Any, Optional, Tuple
 from focus_rules import (
     BASE_FOCI, VOLUME_BOUNDS, normalize_focus, parse_combo,
     get_muscle_families_for_focus
 )
+from exercise_database import CANONICAL_EXERCISES
+
+
+def compose_segment_aware_plan(focus_intent: Dict, whitelist: List[str], user_context: Dict, slot_template: Dict = None) -> Dict:
+    """
+    Compose a workout plan with proper warm-up and cool-down segments
+    
+    Returns plan with three segments: warmup, main, cooldown
+    """
+    from focus_whitelist import build_warmup_pool, build_cooldown_pool
+    
+    # Get separate pools for segments
+    warmup_pool = build_warmup_pool(user_context, focus_intent)
+    cooldown_pool = build_cooldown_pool(user_context, focus_intent)
+    
+    # Compose warm-up segment (1 cardio + 1-2 activation)
+    warmup_segment = []
+    
+    # Add one cardio warmup
+    cardio_exercises = [ex_id for ex_id in warmup_pool 
+                       if CANONICAL_EXERCISES.get(ex_id) and 
+                       CANONICAL_EXERCISES[ex_id].isCardioWarmup]
+    
+    if cardio_exercises:
+        selected_cardio = cardio_exercises[0]  # Pick first available
+        warmup_segment.append({
+            'exercise_id': selected_cardio,
+            'sets': 1,
+            'reps': '3-5 min',
+            'segment': 'warmup',
+            'role': 'cardio'
+        })
+    
+    # Add 1-2 activation exercises relevant to focus
+    activation_exercises = [ex_id for ex_id in warmup_pool 
+                          if CANONICAL_EXERCISES.get(ex_id) and 
+                          CANONICAL_EXERCISES[ex_id].isActivation]
+    
+    # Filter activation by focus relevance
+    focus_relevant_activation = []
+    focus_type = focus_intent.get('detected_type', '')
+    
+    for ex_id in activation_exercises:
+        exercise = CANONICAL_EXERCISES[ex_id]
+        # Check if muscles align with focus
+        if focus_type in ['chest', 'push'] and any(
+            m in ['chest_activation', 'serratus', 'rotator_cuff', 'chest', 'triceps'] 
+            for m in exercise.primary_muscles
+        ):
+            focus_relevant_activation.append(ex_id)
+        elif focus_type in ['back', 'pull'] and any(
+            m in ['lats', 'lower_traps', 'rear_delts', 'rhomboids', 'traps']
+            for m in exercise.primary_muscles
+        ):
+            focus_relevant_activation.append(ex_id)
+        elif focus_type in ['legs', 'lower'] and any(
+            m in ['glutes', 'hip_stabilizers', 'adductors', 'tibialis', 'calves', 'hamstrings']
+            for m in exercise.primary_muscles
+        ):
+            focus_relevant_activation.append(ex_id)
+    
+    # Select 1-2 activation exercises
+    for i, ex_id in enumerate(focus_relevant_activation[:2]):
+        warmup_segment.append({
+            'exercise_id': ex_id,
+            'sets': 1 if i == 0 else 2,
+            'reps': '10-15',
+            'segment': 'warmup',
+            'role': 'activation'
+        })
+    
+    # Compose main segment using existing logic
+    main_segment = compose_workout_plan(focus_intent, whitelist, user_context, slot_template)
+    for exercise in main_segment:
+        exercise['segment'] = 'main'
+    
+    # Compose cool-down segment (1-2 mobility/stretch)
+    cooldown_segment = []
+    
+    # Get mobility/stretch exercises
+    cooldown_exercises = [ex_id for ex_id in cooldown_pool 
+                         if CANONICAL_EXERCISES.get(ex_id) and 
+                         (CANONICAL_EXERCISES[ex_id].isMobility or 
+                          CANONICAL_EXERCISES[ex_id].isStretch)]
+    
+    # Prioritize exercises targeting prime movers from main workout
+    main_muscles = set()
+    for exercise in main_segment:
+        if exercise.get('exercise_id') in CANONICAL_EXERCISES:
+            main_muscles.update(CANONICAL_EXERCISES[exercise['exercise_id']].primary_muscles)
+    
+    # Find cool-down exercises targeting same or antagonist muscles
+    relevant_cooldown = []
+    for ex_id in cooldown_exercises:
+        exercise = CANONICAL_EXERCISES[ex_id]
+        muscle_overlap = any(m in main_muscles for m in exercise.primary_muscles)
+        if muscle_overlap:
+            relevant_cooldown.append(ex_id)
+    
+    # If not enough relevant, use any available
+    if len(relevant_cooldown) < 2:
+        relevant_cooldown.extend([ex for ex in cooldown_exercises 
+                                 if ex not in relevant_cooldown])
+    
+    # Select 1-2 cooldown exercises
+    for i, ex_id in enumerate(relevant_cooldown[:2]):
+        cooldown_segment.append({
+            'exercise_id': ex_id,
+            'sets': 1,
+            'reps': '30-60 sec' if CANONICAL_EXERCISES[ex_id].isStretch else '10-15',
+            'segment': 'cooldown',
+            'role': 'mobility' if CANONICAL_EXERCISES[ex_id].isMobility else 'stretch'
+        })
+    
+    # Ensure no duplication between segments
+    warmup_ids = {ex['exercise_id'] for ex in warmup_segment}
+    cooldown_ids = {ex['exercise_id'] for ex in cooldown_segment}
+    main_ids = {ex['exercise_id'] for ex in main_segment}
+    
+    # Remove any duplicates
+    if warmup_ids & cooldown_ids:
+        # Remove from cooldown
+        cooldown_segment = [ex for ex in cooldown_segment 
+                           if ex['exercise_id'] not in warmup_ids]
+    
+    # Combine all segments
+    complete_plan = {
+        'warmup': warmup_segment,
+        'main': main_segment,
+        'cooldown': cooldown_segment,
+        'metadata': {
+            'focus': focus_intent.get('detected_type', 'unknown'),
+            'total_sets': len(warmup_segment) + sum(ex.get('sets', 3) for ex in main_segment) + len(cooldown_segment),
+            'segment_aware': True
+        }
+    }
+    
+    return complete_plan
+
+def compose_workout_plan(focus_intent: Dict, whitelist: List[str], user_context: Dict, slot_template: Dict = None) -> List[Dict]:
+    """
+    Compose main workout segment using existing logic
+    """
+    # Simplified main workout composition
+    main_exercises = []
+    
+    # Use slot template if available
+    if slot_template and 'patterns' in slot_template:
+        for pattern in slot_template['patterns'][:4]:  # Limit to 4 exercises
+            pattern_exercises = [e for e in whitelist if _matches_pattern(e, pattern)]
+            if pattern_exercises:
+                chosen = pattern_exercises[0]
+                main_exercises.append({
+                    'exercise_id': chosen,
+                    'sets': 4,
+                    'reps': '8-12',
+                    'role': 'primary'
+                })
+    else:
+        # Fallback: use first 3-4 exercises from whitelist
+        for ex_id in whitelist[:4]:
+            main_exercises.append({
+                'exercise_id': ex_id,
+                'sets': 3,
+                'reps': '8-12',
+                'role': 'primary'
+            })
+    
+    return main_exercises
+
+def _matches_pattern(exercise_id: str, pattern: str) -> bool:
+    """Check if exercise matches movement pattern."""
+    exercise = CANONICAL_EXERCISES.get(exercise_id)
+    if not exercise:
+        return False
+    
+    # Check various pattern indicators
+    return (pattern in exercise_id or 
+            pattern in exercise.display_name.lower() or
+            any(pattern in muscle for muscle in exercise.primary_muscles))
 
 
 def get_slot_template_for_focus(focus: str) -> List[Dict[str, Any]]:
