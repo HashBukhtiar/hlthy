@@ -8,11 +8,12 @@ from focus_rules import (
 )
 
 try:
-    from exercise_database import get_exercises_by_filters
+    from exercise_database import get_exercises_by_filters, CANONICAL_EXERCISES
 except ImportError:
     # Fallback for testing
     def get_exercises_by_filters(*args, **kwargs):
         return ['barbell_bench_press', 'dumbbell_bench_press', 'push_ups']
+    CANONICAL_EXERCISES = {}
 
 try:
     from exercise_database import get_exercise_data
@@ -35,6 +36,146 @@ except ImportError:
         pass
 
 import json
+
+
+def build_warmup_pool(user_ctx: Dict[str, Any], focus_intent: Dict) -> List[str]:
+    """
+    Build pool of exercises suitable for warm-up based on focus.
+    
+    Returns exercises flagged for warm-up in the canonical database.
+    """
+    warmup_exercises = []
+    
+    # Get all exercises flagged for warm-up
+    for exercise_id, exercise in CANONICAL_EXERCISES.items():
+        # Include if suitable for warm-up
+        if (exercise.isCardioWarmup or exercise.isActivation):
+            # Check user constraints
+            if _matches_user_constraints(exercise, user_ctx):
+                warmup_exercises.append(exercise_id)
+    
+    # Prefer focus-relevant activation exercises
+    focus_type = focus_intent.get('detected_type', '').lower()
+    focus_relevant = []
+    general_warmup = []
+    
+    for ex_id in warmup_exercises:
+        exercise = CANONICAL_EXERCISES[ex_id]
+        
+        # Categorize by relevance to focus
+        if _is_focus_relevant_warmup(exercise, focus_type):
+            focus_relevant.append(ex_id)
+        else:
+            general_warmup.append(ex_id)
+    
+    # Return focus-relevant first, then general
+    return focus_relevant + general_warmup
+
+
+def build_cooldown_pool(user_ctx: Dict[str, Any], focus_intent: Dict) -> List[str]:
+    """
+    Build pool of exercises suitable for cool-down based on focus.
+    
+    Returns exercises flagged for cool-down in the canonical database.
+    """
+    cooldown_exercises = []
+    
+    # Get all exercises flagged for cool-down
+    for exercise_id, exercise in CANONICAL_EXERCISES.items():
+        # Include if suitable for cool-down
+        if (exercise.isMobility or exercise.isStretch or exercise.isCooldownSafe):
+            # Check user constraints
+            if _matches_user_constraints(exercise, user_ctx):
+                cooldown_exercises.append(exercise_id)
+    
+    # Prefer stretches/mobility targeting prime movers from focus
+    focus_type = focus_intent.get('detected_type', '').lower()
+    focus_relevant = []
+    general_cooldown = []
+    
+    for ex_id in cooldown_exercises:
+        exercise = CANONICAL_EXERCISES[ex_id]
+        
+        # Categorize by relevance to focus
+        if _is_focus_relevant_cooldown(exercise, focus_type):
+            focus_relevant.append(ex_id)
+        else:
+            general_cooldown.append(ex_id)
+    
+    # Return focus-relevant first, then general
+    return focus_relevant + general_cooldown
+
+
+def _matches_user_constraints(exercise, user_ctx: Dict[str, Any]) -> bool:
+    """Check if exercise matches user equipment, injuries, etc."""
+    # Check equipment availability
+    user_equipment = set(user_ctx.get('equipment', []))
+    exercise_equipment = set(exercise.required_equipment)
+    
+    if exercise_equipment and not exercise_equipment.issubset(user_equipment):
+        return False
+    
+    # Check injury constraints
+    user_injuries = set(user_ctx.get('injuries', []))
+    exercise_risks = set(exercise.injury_risks)
+    
+    if user_injuries.intersection(exercise_risks):
+        return False
+    
+    # Check experience level
+    user_exp = user_ctx.get('experience', 'intermediate')
+    exp_levels = {'beginner': 1, 'intermediate': 2, 'advanced': 3}
+    
+    user_level = exp_levels.get(user_exp, 2)
+    required_level = exp_levels.get(exercise.experience_level, 2)
+    
+    if user_level < required_level:
+        return False
+    
+    return True
+
+
+def _is_focus_relevant_warmup(exercise, focus_type: str) -> bool:
+    """Check if warmup exercise is relevant to the workout focus."""
+    if not exercise.isActivation:
+        return True  # Cardio warmups are always relevant
+    
+    focus_muscle_map = {
+        'chest': ['chest', 'serratus', 'rotator_cuff', 'triceps'],
+        'push': ['chest', 'serratus', 'rotator_cuff', 'triceps', 'front_delts'],
+        'back': ['lats', 'lower_traps', 'rear_delts', 'rhomboids', 'traps'],
+        'pull': ['lats', 'lower_traps', 'rear_delts', 'rhomboids', 'traps', 'biceps'],
+        'shoulders': ['rotator_cuff', 'rear_delts', 'front_delts', 'side_delts'],
+        'legs': ['glutes', 'hip_stabilizers', 'adductors', 'tibialis', 'calves'],
+        'lower': ['glutes', 'hip_stabilizers', 'adductors', 'tibialis', 'calves'],
+        'arms': ['triceps', 'biceps', 'forearms'],
+        'core': ['core', 'lower_back', 'hip_stabilizers']
+    }
+    
+    target_muscles = focus_muscle_map.get(focus_type, [])
+    exercise_muscles = exercise.primary_muscles + exercise.secondary_muscles
+    
+    return any(muscle in target_muscles for muscle in exercise_muscles)
+
+
+def _is_focus_relevant_cooldown(exercise, focus_type: str) -> bool:
+    """Check if cooldown exercise is relevant to the workout focus."""
+    focus_muscle_map = {
+        'chest': ['chest', 'triceps', 'front_delts'],
+        'push': ['chest', 'triceps', 'front_delts', 'side_delts'],
+        'back': ['lats', 'traps', 'rhomboids', 'rear_delts'],
+        'pull': ['lats', 'traps', 'rhomboids', 'rear_delts', 'biceps'],
+        'shoulders': ['front_delts', 'side_delts', 'rear_delts', 'traps'],
+        'legs': ['quads', 'hamstrings', 'glutes', 'calves', 'hip_flexors'],
+        'lower': ['quads', 'hamstrings', 'glutes', 'calves', 'hip_flexors'],
+        'arms': ['triceps', 'biceps', 'forearms'],
+        'core': ['core', 'hip_flexors', 'lower_back']
+    }
+    
+    target_muscles = focus_muscle_map.get(focus_type, [])
+    exercise_muscles = exercise.primary_muscles + exercise.secondary_muscles
+    
+    return any(muscle in target_muscles for muscle in exercise_muscles)
 
 
 def get_required_patterns_for_focus(focus: str) -> List[str]:
