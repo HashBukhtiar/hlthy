@@ -107,7 +107,9 @@ try:
     # Try new enhanced integration system first
     import sys
     import os
-    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    # Add the ai directory to path (parent of tests directory)
+    ai_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    sys.path.insert(0, ai_dir)
     
     from integration.focus_integration_complete import FocusIntegrationSystem
     from core.exercise_database import ExerciseDatabase
@@ -120,7 +122,12 @@ try:
     print("✅ Enhanced Focus Planner system available with interview flow")
 except ImportError as e:
     try:
-        # Fallback to old integration
+        # Fallback to old integration - add ai directory to path first
+        import sys
+        import os
+        ai_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        sys.path.insert(0, ai_dir)
+        
         from focus_integration import FocusIntegration
         from exercise_database import ExerciseDatabase
         FOCUS_PLANNER_AVAILABLE = True
@@ -1851,7 +1858,7 @@ def get_inferred_context_from_conversation(current_message, conversation_history
             
             if CANONICAL_DATABASE_AVAILABLE:
                 # Use canonical database for precise injury bans
-                from exercise_database import INJURY_BANNED_EXERCISES, InjuryType
+                from core.exercise_database import INJURY_BANNED_EXERCISES, InjuryType
                 banned_ids = INJURY_BANNED_EXERCISES.get(InjuryType.ELBOW, set())
                 # Convert to display names for legacy compatibility
                 banned_names = []
@@ -1871,7 +1878,7 @@ def get_inferred_context_from_conversation(current_message, conversation_history
             context["healthSummary"]["activeInjuries"] = ["shoulder"]
             
             if CANONICAL_DATABASE_AVAILABLE:
-                from exercise_database import INJURY_BANNED_EXERCISES, InjuryType
+                from core.exercise_database import INJURY_BANNED_EXERCISES, InjuryType
                 banned_ids = INJURY_BANNED_EXERCISES.get(InjuryType.SHOULDER, set())
                 banned_names = []
                 for exercise_id in banned_ids:
@@ -1887,7 +1894,7 @@ def get_inferred_context_from_conversation(current_message, conversation_history
             context["healthSummary"]["activeInjuries"] = ["lower_back"]
             
             if CANONICAL_DATABASE_AVAILABLE:
-                from exercise_database import INJURY_BANNED_EXERCISES, InjuryType
+                from core.exercise_database import INJURY_BANNED_EXERCISES, InjuryType
                 banned_ids = INJURY_BANNED_EXERCISES.get(InjuryType.LOWER_BACK, set())
                 banned_names = []
                 for exercise_id in banned_ids:
@@ -1903,7 +1910,7 @@ def get_inferred_context_from_conversation(current_message, conversation_history
             context["healthSummary"]["activeInjuries"] = ["knee"]
             
             if CANONICAL_DATABASE_AVAILABLE:
-                from exercise_database import INJURY_BANNED_EXERCISES, InjuryType
+                from core.exercise_database import INJURY_BANNED_EXERCISES, InjuryType
                 banned_ids = INJURY_BANNED_EXERCISES.get(InjuryType.KNEE, set())
                 banned_names = []
                 for exercise_id in banned_ids:
