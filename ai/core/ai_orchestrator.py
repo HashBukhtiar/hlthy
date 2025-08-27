@@ -97,27 +97,19 @@ class AIOrchestrator:
         Use AI to understand intent, then orchestrate your systems
         """
         try:
-            print(f"Processing message: {message}")
-            
             # 1. Load user's complete context from YOUR systems
             user_context = self._load_complete_context(user_id, message)
-            print(f"Context loaded: {type(user_context)}")
             
             # 2. Let Gemini understand the message WITH all your context
-            print("About to call AI understanding...")
             understanding = self._ai_understand_with_context(message, user_context)
-            print(f"Understanding result: {type(understanding)} - {understanding}")
             
             if not understanding or not isinstance(understanding, dict):
-                print("Understanding failed, using fallback")
                 return {
                     'type': 'interview',
                     'message': "I'd like to help you! Could you tell me more about what you're looking for?",
                     'used_systems': ['fallback']
                 }
                 
-            print(f"Understanding successful, intent: {understanding.get('intent')}")
-            
             # 3. Based on understanding, orchestrate YOUR systems
             result = None
             if understanding.get('intent') == 'workout_request':
@@ -253,7 +245,6 @@ class AIOrchestrator:
         """
         Use Gemini to understand intent, but with ALL your context
         """
-        print("Starting AI understanding with context...")
         try:
             # Safe access to context data
             profile = context.get('profile') or {}  # Handle None case
@@ -288,9 +279,7 @@ class AIOrchestrator:
             }}
             """
             
-            print("Calling Gemini model...")
             response = self.gemini.generate_content(prompt)
-            print(f"Gemini response: {response.text}")
             
             # Clean the response text to handle markdown code blocks
             response_text = response.text.strip()
@@ -302,13 +291,9 @@ class AIOrchestrator:
             
             # Try to parse JSON
             result = json.loads(response_text)
-            print(f"AI understanding successful: {result}")
             return result
             
         except Exception as e:
-            print(f"AI understanding error: {e}")
-            import traceback
-            traceback.print_exc()
             
             # Safe fallback
             return {
@@ -333,6 +318,20 @@ class AIOrchestrator:
             actions.append('general_advice')
             
         return actions
+    
+    def _save_conversation_context(self, user_id: str, message: str, response: Dict):
+        """Save conversation to semantic memory for context in future interactions"""
+        try:
+            if hasattr(self.semantic_memory, 'store_conversation'):
+                conversation_entry = {
+                    'user_message': message,
+                    'ai_response': response.get('message', ''),
+                    'intent': response.get('type', 'unknown'),
+                    'timestamp': datetime.now().isoformat()
+                }
+                self.semantic_memory.store_conversation(user_id, conversation_entry)
+        except Exception as e:
+            print(f"Failed to save conversation context: {e}")
     
     def _generate_workout_with_systems(
         self, 
@@ -369,7 +368,17 @@ class AIOrchestrator:
                 last_workout = {}
             
             # 3. Use AI to create workout from YOUR validated exercises
-            exercise_names = [e.get('name', '') for e in valid_exercises[:30] if e.get('name')]
+            
+            # Handle both exercise objects and exercise names
+            exercise_names = []
+            for e in valid_exercises[:30]:
+                if isinstance(e, dict):
+                    exercise_names.append(e.get('name', ''))
+                elif isinstance(e, str):
+                    exercise_names.append(e)
+            
+            # Filter out empty names
+            exercise_names = [name for name in exercise_names if name]
             
             prompt = f"""
             Create a workout plan using ONLY these validated exercises from our database:
@@ -403,7 +412,16 @@ class AIOrchestrator:
             """
             
             response = self.gemini.generate_content(prompt)
-            workout = json.loads(response.text)
+            
+            # Clean the response text to handle markdown code blocks
+            response_text = response.text.strip()
+            if response_text.startswith('```json'):
+                response_text = response_text[7:]  # Remove ```json
+            if response_text.endswith('```'):
+                response_text = response_text[:-3]  # Remove ```
+            response_text = response_text.strip()
+            
+            workout = json.loads(response_text)
             
             # 4. Validate the workout with YOUR validator
             validated_workout = workout
