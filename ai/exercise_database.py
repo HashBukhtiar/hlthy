@@ -1191,6 +1191,409 @@ CANONICAL_EXERCISES: Dict[str, ExerciseProfile] = {
         safety_flags={"controlled_range"},
         substitutions=["bicep_curls", "cable_curls"]
     ),
+
+    # === SEGMENT-SPECIFIC EXERCISES ===
+    
+    # CARDIO WARM-UPS
+    "treadmill_walk_easy": ExerciseProfile(
+        exercise_id="treadmill_walk_easy",
+        display_name="Easy Treadmill Walk",
+        common_names=["walking warmup", "treadmill warmup", "light walk"],
+        risk_level=RiskLevel.LOW,
+        primary_muscles=["cardio", "legs"],
+        equipment_required=["treadmill"],
+        injury_contraindications=set(),
+        injury_cautions={InjuryType.KNEE, InjuryType.ANKLE},
+        min_experience_level=ExperienceLevel.BEGINNER,
+        safety_flags={"warmup_only", "low_intensity"},
+        substitutions=["assault_bike_easy", "elliptical_easy"],
+        isCardioWarmup=True
+    ),
+    
+    "assault_bike_easy": ExerciseProfile(
+        exercise_id="assault_bike_easy",
+        display_name="Easy Assault Bike",
+        common_names=["airbike warmup", "assault warmup", "air bike"],
+        risk_level=RiskLevel.LOW,
+        primary_muscles=["cardio", "full_body"],
+        equipment_required=["assault_bike"],
+        injury_contraindications=set(),
+        injury_cautions={InjuryType.KNEE},
+        min_experience_level=ExperienceLevel.BEGINNER,
+        safety_flags={"warmup_only", "low_intensity"},
+        substitutions=["treadmill_walk_easy", "rower_light_5min"],
+        isCardioWarmup=True
+    ),
+    
+    "rower_light_5min": ExerciseProfile(
+        exercise_id="rower_light_5min",
+        display_name="Light Rowing (5 min)",
+        common_names=["row warmup", "rowing machine warmup", "erg warmup"],
+        risk_level=RiskLevel.LOW,
+        primary_muscles=["cardio", "back", "legs"],
+        equipment_required=["rowing_machine"],
+        injury_contraindications={InjuryType.LOWER_BACK},
+        injury_cautions={InjuryType.KNEE},
+        min_experience_level=ExperienceLevel.BEGINNER,
+        safety_flags={"warmup_only", "low_intensity"},
+        substitutions=["assault_bike_easy", "elliptical_easy"],
+        isCardioWarmup=True
+    ),
+    
+    "elliptical_easy": ExerciseProfile(
+        exercise_id="elliptical_easy",
+        display_name="Easy Elliptical",
+        common_names=["elliptical warmup"],
+        risk_level=RiskLevel.LOW,
+        primary_muscles=["cardio", "full_body"],
+        equipment_required=["elliptical"],
+        injury_contraindications=set(),
+        injury_cautions={InjuryType.KNEE, InjuryType.HIP},
+        min_experience_level=ExperienceLevel.BEGINNER,
+        safety_flags={"warmup_only", "low_intensity"},
+        substitutions=["treadmill_walk_easy", "assault_bike_easy"],
+        isCardioWarmup=True
+    ),
+    
+    # ACTIVATION EXERCISES - CHEST/PUSH
+    "scap_pushup": ExerciseProfile(
+        exercise_id="scap_pushup",
+        display_name="Scapular Push-Ups",
+        common_names=["scap pushups", "serratus pushups", "scapular pushups"],
+        risk_level=RiskLevel.LOW,
+        primary_muscles=["serratus", "chest_activation"],
+        equipment_required=["bodyweight"],
+        injury_contraindications=set(),
+        injury_cautions={InjuryType.WRIST},
+        min_experience_level=ExperienceLevel.BEGINNER,
+        safety_flags={"activation_exercise", "low_load"},
+        substitutions=["band_external_rotation"],
+        isActivation=True
+    ),
+    
+    "band_external_rotation": ExerciseProfile(
+        exercise_id="band_external_rotation",
+        display_name="Band External Rotation",
+        common_names=["external rotations", "rotator cuff warmup", "band ER"],
+        risk_level=RiskLevel.LOW,
+        primary_muscles=["rotator_cuff"],
+        equipment_required=["resistance_band"],
+        injury_contraindications=set(),
+        injury_cautions={InjuryType.SHOULDER},
+        min_experience_level=ExperienceLevel.BEGINNER,
+        safety_flags={"activation_exercise", "shoulder_health"},
+        substitutions=["band_pull_aparts"],
+        isActivation=True
+    ),
+    
+    "band_pull_aparts": ExerciseProfile(
+        exercise_id="band_pull_aparts",
+        display_name="Band Pull-Aparts",
+        common_names=["band pulls", "rear delt activation", "band pullaparts"],
+        risk_level=RiskLevel.LOW,
+        primary_muscles=["rear_delts", "rhomboids"],
+        equipment_required=["resistance_band"],
+        injury_contraindications=set(),
+        injury_cautions=set(),
+        min_experience_level=ExperienceLevel.BEGINNER,
+        safety_flags={"activation_exercise", "posture_prep"},
+        substitutions=["band_face_pulls"],
+        isActivation=True
+    ),
+    
+    "empty_bar_bench_groove": ExerciseProfile(
+        exercise_id="empty_bar_bench_groove",
+        display_name="Empty Bar Bench Groove",
+        common_names=["bench warmup", "bar only bench", "empty bar bench"],
+        risk_level=RiskLevel.LOW,
+        primary_muscles=["chest", "triceps"],
+        equipment_required=["barbell", "bench"],
+        injury_contraindications=set(),
+        injury_cautions={InjuryType.SHOULDER},
+        min_experience_level=ExperienceLevel.BEGINNER,
+        safety_flags={"activation_exercise", "movement_prep"},
+        substitutions=["scap_pushup"],
+        isActivation=True
+    ),
+    
+    # ACTIVATION EXERCISES - BACK/PULL
+    "band_face_pulls": ExerciseProfile(
+        exercise_id="band_face_pulls",
+        display_name="Band Face Pulls",
+        common_names=["face pull warmup", "band facepulls"],
+        risk_level=RiskLevel.LOW,
+        primary_muscles=["rear_delts", "traps"],
+        equipment_required=["resistance_band"],
+        injury_contraindications=set(),
+        injury_cautions={InjuryType.SHOULDER},
+        min_experience_level=ExperienceLevel.BEGINNER,
+        safety_flags={"activation_exercise", "shoulder_health"},
+        substitutions=["band_pull_aparts"],
+        isActivation=True
+    ),
+    
+    "scap_pullups": ExerciseProfile(
+        exercise_id="scap_pullups",
+        display_name="Scapular Pull-Ups",
+        common_names=["scap pulls", "lat activation", "scapular pullups"],
+        risk_level=RiskLevel.LOW,
+        primary_muscles=["lats", "lower_traps"],
+        equipment_required=["pull_up_bar"],
+        injury_contraindications=set(),
+        injury_cautions={InjuryType.SHOULDER},
+        min_experience_level=ExperienceLevel.BEGINNER,
+        safety_flags={"activation_exercise", "lat_prep"},
+        substitutions=["lat_primer_circles"],
+        isActivation=True
+    ),
+    
+    "lat_primer_circles": ExerciseProfile(
+        exercise_id="lat_primer_circles",
+        display_name="Lat Primer Circles",
+        common_names=["arm circles", "lat activation circles", "lat circles"],
+        risk_level=RiskLevel.LOW,
+        primary_muscles=["lats", "shoulders"],
+        equipment_required=["bodyweight"],
+        injury_contraindications=set(),
+        injury_cautions=set(),
+        min_experience_level=ExperienceLevel.BEGINNER,
+        safety_flags={"activation_exercise", "dynamic_prep"},
+        substitutions=["band_face_pulls"],
+        isActivation=True
+    ),
+    
+    # ACTIVATION EXERCISES - LEGS
+    "glute_bridge_bodyweight": ExerciseProfile(
+        exercise_id="glute_bridge_bodyweight",
+        display_name="Bodyweight Glute Bridge",
+        common_names=["glute activation", "glute bridge warmup", "hip bridge"],
+        risk_level=RiskLevel.LOW,
+        primary_muscles=["glutes", "hamstrings"],
+        equipment_required=["bodyweight"],
+        injury_contraindications=set(),
+        injury_cautions={InjuryType.LOWER_BACK},
+        min_experience_level=ExperienceLevel.BEGINNER,
+        safety_flags={"activation_exercise", "glute_prep"},
+        substitutions=["hip_airplanes"],
+        isActivation=True
+    ),
+    
+    "hip_airplanes": ExerciseProfile(
+        exercise_id="hip_airplanes",
+        display_name="Hip Airplanes",
+        common_names=["hip mobility", "hip activation", "single leg hip airplanes"],
+        risk_level=RiskLevel.LOW,
+        primary_muscles=["hip_stabilizers", "glutes"],
+        equipment_required=["bodyweight"],
+        injury_contraindications={InjuryType.HIP},
+        injury_cautions={InjuryType.KNEE},
+        min_experience_level=ExperienceLevel.BEGINNER,
+        safety_flags={"activation_exercise", "balance_prep"},
+        substitutions=["glute_bridge_bodyweight"],
+        isActivation=True
+    ),
+    
+    "copenhagen_side_plank_easy": ExerciseProfile(
+        exercise_id="copenhagen_side_plank_easy",
+        display_name="Copenhagen Side Plank (Easy)",
+        common_names=["adductor plank", "copenhagen warmup", "copenhagen plank"],
+        risk_level=RiskLevel.LOW,
+        primary_muscles=["adductors", "core"],
+        equipment_required=["bench"],
+        injury_contraindications={InjuryType.HIP},
+        injury_cautions={InjuryType.KNEE},
+        min_experience_level=ExperienceLevel.INTERMEDIATE,
+        safety_flags={"activation_exercise", "adductor_prep"},
+        substitutions=["glute_bridge_bodyweight"],
+        isActivation=True
+    ),
+    
+    "ankle_dorsiflexion_drill": ExerciseProfile(
+        exercise_id="ankle_dorsiflexion_drill",
+        display_name="Ankle Dorsiflexion Drill",
+        common_names=["ankle mobility", "ankle warmup", "dorsiflexion drill"],
+        risk_level=RiskLevel.LOW,
+        primary_muscles=["tibialis", "calves"],
+        equipment_required=["bodyweight"],
+        injury_contraindications={InjuryType.ANKLE},
+        injury_cautions=set(),
+        min_experience_level=ExperienceLevel.BEGINNER,
+        safety_flags={"activation_exercise", "ankle_prep"},
+        substitutions=["glute_bridge_bodyweight"],
+        isActivation=True
+    ),
+    
+    # MOBILITY/STRETCH - CHEST/SHOULDER
+    "doorway_pec_stretch": ExerciseProfile(
+        exercise_id="doorway_pec_stretch",
+        display_name="Doorway Pec Stretch",
+        common_names=["chest stretch", "pec doorway stretch", "pec stretch"],
+        risk_level=RiskLevel.LOW,
+        primary_muscles=["chest", "anterior_deltoids"],
+        equipment_required=["doorway"],
+        injury_contraindications=set(),
+        injury_cautions={InjuryType.SHOULDER},
+        min_experience_level=ExperienceLevel.BEGINNER,
+        safety_flags={"static_stretch", "cooldown_safe"},
+        substitutions=["thoracic_extension_foam_roll"],
+        isMobility=True,
+        isStretch=True,
+        isCooldownSafe=True
+    ),
+    
+    "thoracic_extension_foam_roll": ExerciseProfile(
+        exercise_id="thoracic_extension_foam_roll",
+        display_name="Thoracic Extension (Foam Roll)",
+        common_names=["t-spine mobility", "upper back foam roll", "thoracic mobility"],
+        risk_level=RiskLevel.LOW,
+        primary_muscles=["thoracic_spine", "upper_back"],
+        equipment_required=["foam_roller"],
+        injury_contraindications=set(),
+        injury_cautions={InjuryType.LOWER_BACK},
+        min_experience_level=ExperienceLevel.BEGINNER,
+        safety_flags={"mobility_work", "cooldown_safe"},
+        substitutions=["cat_cow_slow"],
+        isMobility=True,
+        isCooldownSafe=True
+    ),
+    
+    "sleeper_stretch_light": ExerciseProfile(
+        exercise_id="sleeper_stretch_light",
+        display_name="Sleeper Stretch (Light)",
+        common_names=["shoulder internal rotation stretch", "sleeper stretch"],
+        risk_level=RiskLevel.LOW,
+        primary_muscles=["rotator_cuff", "posterior_capsule"],
+        equipment_required=["mat"],
+        injury_contraindications={InjuryType.SHOULDER},
+        injury_cautions=set(),
+        min_experience_level=ExperienceLevel.BEGINNER,
+        safety_flags={"static_stretch", "cooldown_safe"},
+        substitutions=["doorway_pec_stretch"],
+        isMobility=True,
+        isStretch=True,
+        isCooldownSafe=True
+    ),
+    
+    # MOBILITY/STRETCH - BACK
+    "child_pose_breathing": ExerciseProfile(
+        exercise_id="child_pose_breathing",
+        display_name="Child's Pose with Breathing",
+        common_names=["child pose", "yoga child pose", "prayer stretch"],
+        risk_level=RiskLevel.LOW,
+        primary_muscles=["lats", "lower_back", "shoulders"],
+        equipment_required=["mat"],
+        injury_contraindications=set(),
+        injury_cautions={InjuryType.KNEE},
+        min_experience_level=ExperienceLevel.BEGINNER,
+        safety_flags={"recovery_position", "cooldown_safe"},
+        substitutions=["cat_cow_slow"],
+        isMobility=True,
+        isStretch=True,
+        isCooldownSafe=True
+    ),
+    
+    "cat_cow_slow": ExerciseProfile(
+        exercise_id="cat_cow_slow",
+        display_name="Cat-Cow (Slow)",
+        common_names=["cat cow stretch", "spine mobility", "spinal flexion extension"],
+        risk_level=RiskLevel.LOW,
+        primary_muscles=["spine", "core"],
+        equipment_required=["mat"],
+        injury_contraindications=set(),
+        injury_cautions={InjuryType.LOWER_BACK},
+        min_experience_level=ExperienceLevel.BEGINNER,
+        safety_flags={"spine_mobility", "cooldown_safe"},
+        substitutions=["child_pose_breathing"],
+        isMobility=True,
+        isCooldownSafe=True
+    ),
+    
+    "thread_the_needle": ExerciseProfile(
+        exercise_id="thread_the_needle",
+        display_name="Thread the Needle",
+        common_names=["thoracic rotation stretch", "t-spine rotation", "threading the needle"],
+        risk_level=RiskLevel.LOW,
+        primary_muscles=["thoracic_spine", "shoulders"],
+        equipment_required=["mat"],
+        injury_contraindications=set(),
+        injury_cautions={InjuryType.SHOULDER},
+        min_experience_level=ExperienceLevel.BEGINNER,
+        safety_flags={"rotation_stretch", "cooldown_safe"},
+        substitutions=["cat_cow_slow"],
+        isMobility=True,
+        isStretch=True,
+        isCooldownSafe=True
+    ),
+    
+    # MOBILITY/STRETCH - LEGS
+    "pigeon_stretch_light": ExerciseProfile(
+        exercise_id="pigeon_stretch_light",
+        display_name="Pigeon Stretch (Light)",
+        common_names=["hip opener", "pigeon pose"],
+        risk_level=RiskLevel.LOW,
+        primary_muscles=["hip_flexors", "glutes"],
+        equipment_required=["mat"],
+        injury_contraindications={InjuryType.KNEE, InjuryType.HIP},
+        injury_cautions=set(),
+        min_experience_level=ExperienceLevel.BEGINNER,
+        safety_flags={"hip_stretch", "cooldown_safe"},
+        substitutions=["couch_stretch_light"],
+        isMobility=True,
+        isStretch=True,
+        isCooldownSafe=True
+    ),
+    
+    "couch_stretch_light": ExerciseProfile(
+        exercise_id="couch_stretch_light",
+        display_name="Couch Stretch (Light)",
+        common_names=["hip flexor stretch", "couch stretch"],
+        risk_level=RiskLevel.LOW,
+        primary_muscles=["hip_flexors", "quadriceps"],
+        equipment_required=["bench"],
+        injury_contraindications={InjuryType.KNEE},
+        injury_cautions={InjuryType.HIP},
+        min_experience_level=ExperienceLevel.BEGINNER,
+        safety_flags={"hip_stretch", "cooldown_safe"},
+        substitutions=["pigeon_stretch_light"],
+        isMobility=True,
+        isStretch=True,
+        isCooldownSafe=True
+    ),
+    
+    "hamstring_band_stretch": ExerciseProfile(
+        exercise_id="hamstring_band_stretch",
+        display_name="Hamstring Band Stretch",
+        common_names=["supine hamstring stretch", "lying hamstring stretch", "hamstring stretch"],
+        risk_level=RiskLevel.LOW,
+        primary_muscles=["hamstrings"],
+        equipment_required=["resistance_band", "mat"],
+        injury_contraindications=set(),
+        injury_cautions={InjuryType.LOWER_BACK},
+        min_experience_level=ExperienceLevel.BEGINNER,
+        safety_flags={"static_stretch", "cooldown_safe"},
+        substitutions=["calf_wall_stretch"],
+        isMobility=True,
+        isStretch=True,
+        isCooldownSafe=True
+    ),
+    
+    "calf_wall_stretch": ExerciseProfile(
+        exercise_id="calf_wall_stretch",
+        display_name="Calf Wall Stretch",
+        common_names=["wall calf stretch", "gastrocnemius stretch"],
+        risk_level=RiskLevel.LOW,
+        primary_muscles=["calves"],
+        equipment_required=["wall"],
+        injury_contraindications=set(),
+        injury_cautions={InjuryType.ANKLE},
+        min_experience_level=ExperienceLevel.BEGINNER,
+        safety_flags={"static_stretch", "cooldown_safe"},
+        substitutions=["hamstring_band_stretch"],
+        isMobility=True,
+        isStretch=True,
+        isCooldownSafe=True
+    ),
+    
 }
 
 # Injury-specific banned exercise sets (by ID only)
