@@ -9,8 +9,15 @@ from google.oauth2 import service_account
 
 # Load environment variables from .env file
 try:
-    from load_env import load_env_file
+    # Add ai directory to path for config module
+    import sys
+    import os
+    ai_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    sys.path.insert(0, ai_dir)
+    
+    from config.load_env import load_env_file
     load_env_file()
+    print("✅ Environment configuration loaded")
 except ImportError:
     print("Warning: Could not load load_env.py - using system environment variables only")
 
@@ -67,7 +74,7 @@ except ImportError:
 
 try:
     # Import semantic memory with fallback for lightweight deployment
-    from semantic_memory import memory_system
+    from utils.semantic_memory import memory_system
     print("✅ Semantic memory system available")
 except ImportError as e:
     print(f"⚠️  Semantic memory system not available: {e}")
@@ -75,8 +82,9 @@ except ImportError as e:
 
 # New integrated systems
 try:
-    from profile_sync import sync_memory_to_profile
+    from utils.profile_sync import sync_memory_to_profile
     PROFILE_SYNC_AVAILABLE = True
+    print("✅ Profile sync system available")
 except ImportError:
     print("Warning: Profile sync system not available")
     PROFILE_SYNC_AVAILABLE = False
