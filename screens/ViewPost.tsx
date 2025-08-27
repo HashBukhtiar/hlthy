@@ -458,7 +458,12 @@ export default function ViewPost() {
       
       if (replyingToCommentId) {
         // Handle reply - extract the actual reply text without the @username prefix
-        const replyTextWithoutPrefix = commentText.replace(/^@\w+\s+/, '').trim();
+        // Use the stored username for precise removal instead of regex pattern matching
+        const expectedPrefix = `@${replyingToUsername} `;
+        const replyTextWithoutPrefix = commentText.startsWith(expectedPrefix) 
+          ? commentText.slice(expectedPrefix.length).trim()
+          : commentText.trim(); // Fallback if prefix doesn't match exactly
+        
         if (!replyTextWithoutPrefix) return;
         
         const newReply = await addReplyToComment(post.id, replyingToCommentId, replyTextWithoutPrefix);
