@@ -551,6 +551,88 @@ def validate_exercises():
         print(f"Error validating exercises: {e}")
         return jsonify({"error": "Failed to validate exercises"}), 500
 
+@app.route('/api/intent/classify', methods=['POST'])
+def classify_intent():
+    """
+    Intent classification endpoint for mobile app compatibility
+    """
+    try:
+        print("=== RECEIVED /api/intent/classify REQUEST ===")
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({"error": "No JSON data received"}), 400
+            
+        message = data.get('message', '')
+        user_id = data.get('user_id', 'anonymous_user')
+        
+        if not message:
+            return jsonify({"error": "Missing message field"}), 400
+        
+        print(f"Classifying intent for message: {message[:50]}...")
+        
+        # Use AI system for intent classification if available
+        if INTELLIGENT_SYSTEM_AVAILABLE and intelligent_system:
+            try:
+                # Get intent from our AI orchestrator
+                result = intelligent_system.handle_request(user_id, message)
+                
+                # Map our response types to intent classification format
+                intent_mapping = {
+                    'interview': 'workout_request',
+                    'workout': 'workout_request', 
+                    'advice': 'general_advice',
+                    'technique': 'technique_question',
+                    'error': 'unknown'
+                }
+                
+                intent = intent_mapping.get(result.get('response_type', 'advice'), 'general_advice')
+                confidence = 0.8 if intent != 'unknown' else 0.3
+                
+                return jsonify({
+                    "success": True,
+                    "intent": intent,
+                    "confidence": confidence,
+                    "response_type": result.get('response_type', 'advice'),
+                    "system_used": "ai_orchestrator"
+                })
+                
+            except Exception as e:
+                print(f"AI intent classification error: {e}")
+                
+        # Fallback to simple keyword-based classification
+        message_lower = message.lower()
+        
+        if any(word in message_lower for word in ['workout', 'exercise', 'train', 'routine', 'program']):
+            intent = 'workout_request'
+            confidence = 0.7
+        elif any(word in message_lower for word in ['technique', 'form', 'how to', 'proper']):
+            intent = 'technique_question'
+            confidence = 0.7
+        elif any(word in message_lower for word in ['advice', 'help', 'recommend', 'suggest']):
+            intent = 'general_advice'
+            confidence = 0.6
+        else:
+            intent = 'general_advice'
+            confidence = 0.4
+            
+        return jsonify({
+            "success": True,
+            "intent": intent,
+            "confidence": confidence,
+            "response_type": "advice",
+            "system_used": "fallback_classifier"
+        })
+        
+    except Exception as e:
+        print(f"Intent classification error: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "intent": "unknown",
+            "confidence": 0.0
+        }), 500
+
 # Start the Flask application
 if __name__ == "__main__":
     print("Starting HLTHY Coach Flask server...")
