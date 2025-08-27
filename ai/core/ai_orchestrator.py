@@ -119,30 +119,36 @@ class AIOrchestrator:
             print(f"Understanding successful, intent: {understanding.get('intent')}")
             
             # 3. Based on understanding, orchestrate YOUR systems
+            result = None
             if understanding.get('intent') == 'workout_request':
-                return self._generate_workout_with_systems(
+                result = self._generate_workout_with_systems(
                     user_id, 
                     understanding, 
                     user_context
                 )
             elif understanding['intent'] == 'technique_question':
-                return self._provide_technique_from_library(
+                result = self._provide_technique_from_library(
                     understanding.get('specific_exercise', ''),
                     user_context
                 )
             elif understanding['intent'] == 'progress_check':
-                return self._check_progress_with_tracker(user_id)
+                result = self._check_progress_with_tracker(user_id)
             elif understanding['intent'] == 'profile_update':
-                return self._update_profile_with_systems(
+                result = self._update_profile_with_systems(
                     user_id, 
                     understanding, 
                     user_context
                 )
             else:
-                return self._generate_contextual_response(
+                result = self._generate_contextual_response(
                     understanding,
                     user_context
                 )
+            
+            # Save conversation to memory for context
+            self._save_conversation_context(user_id, message, result)
+            
+            return result
                 
         except Exception as e:
             print(f"AIOrchestrator error: {e}")
@@ -253,6 +259,14 @@ class AIOrchestrator:
             profile = context.get('profile') or {}  # Handle None case
             exercise_db = context.get('exercise_database') or {}
             allowed_exercises = context.get('allowed_exercises') or []
+            relevant_history = context.get('relevant_history', [])
+            
+            # Build conversation context
+            conversation_context = ""
+            if relevant_history:
+                conversation_context = "\n\nRecent conversation:\n" + "\n".join([
+                    f"- {item.get('content', '')[:100]}" for item in relevant_history[:3]
+                ])
             
             # Simplified, robust prompt
             prompt = f"""
@@ -263,6 +277,7 @@ class AIOrchestrator:
             User info:
             - Experience: {profile.get('experience_level', 'unknown')}
             - Available exercises: {len(allowed_exercises)}
+            {conversation_context}
             - Total exercises in database: {exercise_db.get('total_exercises', 0)}
             
             Respond with ONLY this JSON format:
@@ -331,12 +346,14 @@ class AIOrchestrator:
         
         try:
             # 1. Get valid exercises from YOUR database
-            valid_exercises = context['allowed_exercises']
-            if context['profile'].get('injuries'):
+            valid_exercises = context.get('allowed_exercises', [])
+            profile = context.get('profile') or {}
+            
+            if profile.get('injuries'):
                 try:
                     valid_exercises = self.validator.filter_safe_exercises(
                         valid_exercises,
-                        context['profile'].get('injuries', [])
+                        profile.get('injuries', [])
                     ) if hasattr(self.validator, 'filter_safe_exercises') else valid_exercises
                 except Exception:
                     pass
@@ -362,9 +379,9 @@ class AIOrchestrator:
             
             WORKOUT REQUIREMENTS:
             - Focus: {understanding.get('exercise_focus', 'general')}
-            - Experience: {context['profile'].get('experience_level', 'intermediate')}
-            - Time available: {context['profile'].get('time_available', '60 minutes')}
-            - Must avoid: {context['profile'].get('injuries', [])}
+            - Experience: {profile.get('experience_level', 'intermediate')}
+            - Time available: {profile.get('time_available', '60 minutes')}
+            - Must avoid: {profile.get('injuries', [])}
             
             LAST WORKOUT (for progression):
             {json.dumps(last_workout, indent=2) if last_workout else 'No previous workout data'}
@@ -385,13 +402,13 @@ class AIOrchestrator:
             - notes: any form cues
             """
             
-            response = self.gemini_model.generate_content(prompt)
+            response = self.gemini.generate_content(prompt)
             workout = json.loads(response.text)
             
             # 4. Validate the workout with YOUR validator
             validated_workout = workout
             try:
-                validated_workout = self.validator.validate_workout(workout, context['profile']) if hasattr(self.validator, 'validate_workout') else workout
+                validated_workout = self.validator.validate_workout(workout, profile) if hasattr(self.validator, 'validate_workout') else workout
             except Exception:
                 pass
             
@@ -565,8 +582,8 @@ class AIOrchestrator:
             
             USER INTENT: {understanding.get('intent', 'advice')}
             CONFIDENCE: {understanding.get('confidence', 0)}
-            USER PROFILE: {context['profile']}
-            AVAILABLE EXERCISES: {len(context['allowed_exercises'])}
+            USER PROFILE: {context.get('profile', {})}
+            AVAILABLE EXERCISES: {len(context.get('allowed_exercises', []))}
             
             Provide helpful, personalized advice based on their profile and available systems.
             Be conversational and knowledgeable like a real personal trainer.
