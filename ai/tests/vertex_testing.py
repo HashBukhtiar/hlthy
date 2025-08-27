@@ -1361,25 +1361,75 @@ def chat():
         # Use enhanced focus integration if available
         if FOCUS_PLANNER_AVAILABLE and focus_integration:
             try:
-                # Use the enhanced system
+                print("Using enhanced personal trainer system")
+                
+                # Get user profile from context or build basic one
+                user_profile = context.get('user_profile', {})
+                
+                # Use the enhanced personal trainer system
                 result = focus_integration.handle_workout_request(
                     user_id,
                     user_message,
-                    context
+                    user_profile
                 )
                 
-                return jsonify({
+                print(f"Enhanced system result type: {result.get('response_type')}")
+                
+                # Transform result to API format
+                api_response = {
                     "success": True,
-                    "response": result.get('response', 'Enhanced AI response generated'),
                     "route": route,
-                    "workout_plan": result.get('workout_plan'),
-                    "interview_mode": result.get('interview_mode', False),
-                    "session_status": result.get('session_status', 'completed'),
-                    "enhanced_system": True
-                })
+                    "enhanced_system": True,
+                    "response_type": result.get('response_type', 'unknown')
+                }
+                
+                if result.get('response_type') == 'workout_plan':
+                    # Workout plan response
+                    api_response.update({
+                        "response": result.get('message', 'Workout plan generated'),
+                        "workout_plan": result.get('workout'),
+                        "planning_notes": result.get('planning_notes'),
+                        "confidence": result.get('confidence', 1.0)
+                    })
+                    
+                elif result.get('response_type') == 'interview_question':
+                    # Interview question response
+                    api_response.update({
+                        "response": result.get('message', 'Let me ask you a question'),
+                        "interview_mode": True,
+                        "session_id": result.get('session_id'),
+                        "question": result.get('question'),
+                        "progress": result.get('progress', {})
+                    })
+                    
+                elif result.get('response_type') == 'advice':
+                    # Educational/advice response
+                    api_response.update({
+                        "response": result.get('message', 'Here\'s some training advice'),
+                        "advice_category": result.get('advice_category'),
+                        "follow_up_suggestions": result.get('follow_up_suggestions', [])
+                    })
+                    
+                elif result.get('response_type') == 'clarification':
+                    # Clarification needed
+                    api_response.update({
+                        "response": result.get('message', 'Could you clarify your request?'),
+                        "suggestions": result.get('suggestions', [])
+                    })
+                    
+                else:
+                    # Default response
+                    api_response.update({
+                        "response": result.get('message', 'I processed your request'),
+                        "suggestions": result.get('suggestions', [])
+                    })
+                
+                return jsonify(api_response)
                 
             except Exception as e:
-                print(f"Enhanced system error, falling back: {e}")
+                print(f"Enhanced system error: {e}")
+                import traceback
+                traceback.print_exc()
                 # Fall through to legacy system
         
         # Legacy/fallback system
