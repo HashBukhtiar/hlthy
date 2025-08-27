@@ -1140,7 +1140,9 @@ export default function Settings() {
             label="Theme"
             value={settings.theme}
             options={themeOptions}
-            onPress={() => openModal('theme')}
+            onPress={() => {}}
+            disabled={true}
+            helperText="Coming Soon"
           />
 
           <SettingsItem
@@ -1148,7 +1150,9 @@ export default function Settings() {
             label="Language"
             value={settings.language}
             options={languageOptions}
-            onPress={() => openModal('language')}
+            onPress={() => {}}
+            disabled={true}
+            helperText="Coming Soon"
           />
 
           <SettingsItem
