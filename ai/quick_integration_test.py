@@ -103,15 +103,26 @@ def test_segment_awareness():
         for exercise_id in sample_ids:
             exercise = db.get_exercise_by_id(exercise_id)
             if exercise:
-                if exercise.get('isCardioWarmup') or exercise.get('isActivation') or exercise.get('isMobility'):
+                # Check if it's a warm-up type exercise
+                is_warmup = (exercise.get('isCardioWarmup', False) or 
+                           exercise.get('isActivation', False) or 
+                           exercise.get('isMobility', False))
+                
+                # Check if it's a cool-down type exercise  
+                is_cooldown = (exercise.get('isCooldownSafe', False) or 
+                             exercise.get('isStretch', False))
+                
+                if is_warmup:
                     warmup_count += 1
-                    print(f"✅ {exercise_id} → Warm-up exercise")
-                elif exercise.get('isCooldownSafe') or exercise.get('isStretch'):
+                    print(f"✅ {exercise_id} → Warm-up exercise (cardio={exercise.get('isCardioWarmup', False)}, activation={exercise.get('isActivation', False)}, mobility={exercise.get('isMobility', False)})")
+                elif is_cooldown:
                     cooldown_count += 1
-                    print(f"✅ {exercise_id} → Cool-down exercise")
+                    print(f"✅ {exercise_id} → Cool-down exercise (cooldown={exercise.get('isCooldownSafe', False)}, stretch={exercise.get('isStretch', False)})")
                 else:
                     main_count += 1
                     print(f"✅ {exercise_id} → Main workout exercise")
+            else:
+                print(f"❌ Could not find exercise: {exercise_id}")
         
         print(f"\n📊 Segment Distribution:")
         print(f"   Warm-up exercises: {warmup_count}")
