@@ -22,6 +22,7 @@ import { trackSettingsChange, generateSettingsInsights, calculatePrivacyLevel } 
 import { Ionicons } from '@expo/vector-icons';
 import { uploadProfileThumbnail } from '@/services/profileStorage';
 import NetInfo from '@react-native-community/netinfo';
+import { getFullVersionString } from '@/utils/appVersion';
 
 const archetypeData: SelectorItem[] = [
   { 
@@ -1260,7 +1261,7 @@ export default function Settings() {
           <SettingsItem
             type="info"
             label="App Version"
-            value="1.0.0"
+            value={getFullVersionString()}
           />
 
           <SettingsItem

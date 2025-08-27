@@ -80,7 +80,7 @@ Here's a comprehensive testing checklist for your Settings system. Test these sc
   - Test each language option
   - Verify selection persists
 
-- [ ] **Unit Preferences**
+- [X] **Unit Preferences**
   - Test Metric vs Imperial for weight
   - Test Metric vs Imperial for distance
   - Test both combinations
