@@ -206,6 +206,8 @@ async function convertFirestoreDoc(
     role: roleType,
     createdAt: messageDate,
     intent: data.intent, // Include intent data
+    workoutPlan: data.workoutPlan, // Include workout plan data
+    responseType: data.responseType, // Include response type
     sharedPost: resolvedSharedPost,
     sharedMilestone: resolvedSharedMilestone,
     sharedWorkout: resolvedSharedWorkout,
