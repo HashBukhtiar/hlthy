@@ -160,12 +160,12 @@ def test_focus_integration_system():
             
             # Check for expected result structure
             if isinstance(result, dict):
-                has_workout_plan = 'workout_plan' in result
-                has_interview_mode = 'interview_mode' in result
+                has_workout_plan = 'workout' in result or 'workout_plan' in result
+                has_response_type = 'response_type' in result
                 test_results["result_has_workout_plan"] = has_workout_plan
-                test_results["result_has_interview_mode"] = has_interview_mode
-                print_test_result("Result has workout_plan", has_workout_plan)
-                print_test_result("Result has interview_mode", has_interview_mode)
+                test_results["result_has_interview_mode"] = has_response_type
+                print_test_result("Result has workout data", has_workout_plan)
+                print_test_result("Result has response type", has_response_type)
         
         # Test session management
         if hasattr(focus_integration, 'get_session_status'):

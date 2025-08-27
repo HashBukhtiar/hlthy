@@ -1841,6 +1841,10 @@ class ExerciseDatabase:
     def __init__(self):
         self.exercises = CANONICAL_EXERCISES
     
+    def get_exercise(self, exercise_id: str) -> Dict:
+        """Get exercise by ID (simple method for testing)"""
+        return self.get_exercise_by_id(exercise_id)
+    
     def get_exercise_by_id(self, exercise_id: str) -> Dict:
         """Get exercise by ID with full segment flag data"""
         exercise = CANONICAL_EXERCISES.get(exercise_id)
