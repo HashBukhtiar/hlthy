@@ -50,7 +50,13 @@ def is_nonsense_or_unknown(text: str) -> bool:
         'gains', 'pump', 'conditioning', 'athletic', 'performance',
         'leg day', 'push day', 'pull day', 'chest day', 'back day',
         'arm day', 'shoulder day', 'leg workout', 'upper body',
-        'lower body', 'leg', 'leg training', 'fitness', 'gym'
+        'lower body', 'leg', 'leg training', 'fitness', 'gym',
+        # Added missing muscle-specific terms that were causing rejections
+        'quad', 'quadriceps', 'hamstring', 'hams', 'glute', 'calf',
+        'lat', 'latissimus', 'pecs', 'pectoral', 'delt', 'deltoid',
+        'trap', 'trapezius', 'rhomboid', 'oblique', 'frequency',
+        'volume', 'intensity', 'rep', 'reps', 'set', 'sets',
+        'grow', 'growing', 'development', 'how many times', 'times per week'
     }
     
     has_fitness_term = any(term in normalized for term in fitness_terms)

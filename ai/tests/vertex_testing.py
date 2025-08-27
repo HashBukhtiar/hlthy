@@ -778,46 +778,6 @@ The allowedExercises list above has been filtered for your injuries/experience/e
 - PRIMARY: shoulder-focused exercises (overhead press, lateral raises)
 - Exercise selection should be 70%+ shoulder-primary movements  
 """
-        elif "pull" in message_lower and "day" in message_lower:
-            muscle_group_focus = """
-🎯 MUSCLE GROUP FOCUS: PULL DAY (CRITICAL INSTRUCTION)
-- PRIMARY REQUIREMENT: 80%+ exercises must be PULLING movements
-- ALLOWED: pull-ups, chin-ups, rows (all types), lat pulldowns, face pulls, bicep curls, reverse flies
-- SUPPORTING: rear delts, biceps, rhomboids, traps (secondary)
-- FORBIDDEN: squats, deadlifts, bench press, push-ups, leg exercises, pushing movements
-- This is a PULL workout - focus ONLY on pulling movement patterns
-- Exercise selection should be 80%+ pull-primary movements ONLY
-"""
-        elif "pull" in message_lower and any(word in message_lower for word in ["workout", "training", "session", "exercises"]):
-            muscle_group_focus = """
-🎯 MUSCLE GROUP FOCUS: PULL WORKOUT (CRITICAL INSTRUCTION)
-- PRIMARY REQUIREMENT: 80%+ exercises must be PULLING movements
-- ALLOWED: pull-ups, chin-ups, rows (all types), lat pulldowns, face pulls, bicep curls, reverse flies
-- SUPPORTING: rear delts, biceps, rhomboids, traps (secondary)
-- FORBIDDEN: squats, deadlifts, bench press, push-ups, leg exercises, pushing movements
-- This is a PULL workout - focus ONLY on pulling movement patterns
-- Exercise selection should be 80%+ pull-primary movements ONLY
-"""
-        elif "push" in message_lower and "day" in message_lower:
-            muscle_group_focus = """
-🎯 MUSCLE GROUP FOCUS: PUSH DAY (CRITICAL INSTRUCTION)
-- PRIMARY REQUIREMENT: 80%+ exercises must be PUSHING movements
-- ALLOWED: bench press, overhead press, push-ups, dips, lateral raises, tricep extensions
-- SUPPORTING: shoulders, triceps, chest (secondary)
-- FORBIDDEN: pull-ups, rows, deadlifts, leg exercises, pulling movements
-- This is a PUSH workout - focus ONLY on pushing movement patterns
-- Exercise selection should be 80%+ push-primary movements ONLY
-"""
-        elif "push" in message_lower and any(word in message_lower for word in ["workout", "training", "session", "exercises"]):
-            muscle_group_focus = """
-🎯 MUSCLE GROUP FOCUS: PUSH WORKOUT (CRITICAL INSTRUCTION)
-- PRIMARY REQUIREMENT: 80%+ exercises must be PUSHING movements
-- ALLOWED: bench press, overhead press, push-ups, dips, lateral raises, tricep extensions
-- SUPPORTING: shoulders, triceps, chest (secondary)
-- FORBIDDEN: pull-ups, rows, deadlifts, leg exercises, pulling movements
-- This is a PUSH workout - focus ONLY on pushing movement patterns
-- Exercise selection should be 80%+ push-primary movements ONLY
-"""
 
         template = f"""{context_str}
 
@@ -1408,18 +1368,14 @@ def chat():
                     context
                 )
                 
-                # Extract the appropriate response text based on response type
-                response_text = result.get('message', result.get('response', 'Enhanced AI response generated'))
-                
                 return jsonify({
                     "success": True,
-                    "response": response_text,
+                    "response": result.get('response', 'Enhanced AI response generated'),
                     "route": route,
-                    "workout_plan": result.get('workout'),
-                    "interview_mode": result.get('response_type') == 'interview_question',
+                    "workout_plan": result.get('workout_plan'),
+                    "interview_mode": result.get('interview_mode', False),
                     "session_status": result.get('session_status', 'completed'),
-                    "enhanced_system": True,
-                    "response_type": result.get('response_type')
+                    "enhanced_system": True
                 })
                 
             except Exception as e:
@@ -1469,7 +1425,8 @@ def chat():
         return jsonify({"error": f"Internal server error: {str(e)}"}), 500
 
 # Exercise lookup and validation endpoints
-@app.route('/api/exercises/canonical', methods=['GET'])
+        cached_response = None
+        
 def get_canonical_exercises():
     """Get information about canonical exercise database"""
     try:
