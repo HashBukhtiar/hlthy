@@ -144,7 +144,6 @@ export default function PostsFeed() {
     return () => {
       // Prevent multiple rapid taps
       if (likingInProgress.current[postId]) {
-        console.log('Like operation already in progress for', postId);
         return;
       }
 
