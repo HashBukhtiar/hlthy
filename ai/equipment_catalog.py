@@ -373,3 +373,36 @@ def resolve_to_canonical(exercise_name: str) -> Tuple[Optional[str], List[str]]:
         return mapping.canonical_candidates[0], mapping.canonical_candidates[1:]
     
     return None, []
+
+
+class EquipmentCatalog:
+    """
+    Main equipment catalog class for integration
+    """
+    
+    def __init__(self):
+        self.catalog = EQUIPMENT_CATALOG
+    
+    def get_equipment_mapping(self, brand_name: str) -> Optional[EquipmentMapping]:
+        """Get equipment mapping by brand name"""
+        return get_equipment_mapping(brand_name)
+    
+    def get_exercises_for_equipment(self, brand_name: str) -> List[str]:
+        """Get canonical exercises for branded equipment"""
+        return get_canonical_exercises_for_brand(brand_name)
+    
+    def get_all_brands(self) -> List[str]:
+        """Get all available brand names"""
+        return get_all_brand_names()
+    
+    def resolve_equipment(self, exercise_name: str) -> Tuple[Optional[str], List[str]]:
+        """Resolve branded equipment to canonical exercises"""
+        return resolve_to_canonical(exercise_name)
+    
+    def get_brands_by_muscle(self, muscle_family: str) -> List[str]:
+        """Get brands that target specific muscle family"""
+        return get_brands_for_muscle_family(muscle_family)
+    
+    def get_brands_by_movement(self, movement_pattern: str) -> List[str]:
+        """Get brands for specific movement pattern"""
+        return get_brands_for_movement_pattern(movement_pattern)
