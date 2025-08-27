@@ -4,27 +4,33 @@ Focus Integration - Integrates Focus Planner with the existing AI chat system
 import json
 import time
 from typing import Dict, List, Any, Optional, Tuple
-from focus_router import FocusPlanner
-from exercise_database import ExerciseDatabase
+from focus_router import (
+    is_nonsense_or_unknown, needs_interview, detect_focus, 
+    route_focus_request, process_interview_response
+)
+from exercise_database import CANONICAL_EXERCISES
+from exercise_alias_resolver import ExerciseAliasResolver
 from user_profiles import UserProfileManager
 
 
 class FocusIntegration:
     """
-    Integration layer between Focus Planner and AI chat system.
-    Handles focus detection, context building, and prompt enhancement.
+    Integration layer between Focus Planner and AI chat system with interview flow.
+    Handles focus detection, context building, and interactive consultation.
     """
     
-    def __init__(self, exercise_db: ExerciseDatabase, user_profiles: UserProfileManager):
+    def __init__(self, user_profiles: UserProfileManager):
         """Initialize with required dependencies."""
-        self.focus_planner = FocusPlanner(exercise_db, user_profiles)
+        self.user_profiles = user_profiles
+        self.alias_resolver = ExerciseAliasResolver()
+        self.interview_sessions = {}  # Track ongoing interviews
     
-    def enhance_workout_request(self, 
+    def process_workout_request(self, 
                                user_message: str, 
                                user_id: str, 
                                conversation_context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
-        Analyze user message and enhance with Focus Planner if workout request detected.
+        Process workout request with intelligent routing and interview flow.
         
         Args:
             user_message: User's message text
@@ -32,243 +38,385 @@ class FocusIntegration:
             conversation_context: Previous conversation context
             
         Returns:
-            Enhanced request with focus planning data or original request
+            Response with workout plan, interview questions, or error handling
         """
-        # Detect if this is a workout request
-        workout_intent = self._detect_workout_intent(user_message)
+        # Check for ongoing interview
+        if user_id in self.interview_sessions:
+            return self._handle_interview_response(user_message, user_id)
         
-        if not workout_intent['is_workout_request']:
+        # Route the request
+        routing_result = self._route_request(user_message, user_id)
+        
+        if routing_result['type'] == 'nonsense':
+            return self._handle_nonsense_request(user_message, routing_result)
+        
+        elif routing_result['type'] == 'interview_needed':
+            return self._start_interview(user_message, user_id, routing_result)
+        
+        elif routing_result['type'] == 'direct_plan':
+            return self._generate_direct_plan(user_message, user_id, routing_result)
+        
+        else:  # Error or unknown
+            return self._handle_error(user_message, routing_result)
+    
+    def _route_request(self, user_message: str, user_id: str) -> Dict[str, Any]:
+        """Route the user request through focus router logic."""
+        # Check for nonsense first
+        if is_nonsense_or_unknown(user_message):
             return {
-                "original_message": user_message,
-                "user_id": user_id,
-                "enhanced": False,
-                "workout_intent": workout_intent
+                'type': 'nonsense',
+                'reason': 'Request contains nonsense or unknown terms',
+                'message': user_message
             }
         
-        # Extract focus from message
-        detected_focus = self._extract_focus_from_message(user_message, conversation_context)
+        # Detect focus
+        focus_result = detect_focus(user_message)
         
-        if not detected_focus:
-            # Workout request but no clear focus - return with suggestion
-            return {
-                "original_message": user_message,
-                "user_id": user_id,
-                "enhanced": False,
-                "workout_intent": workout_intent,
-                "suggestion": "Please specify a focus (e.g., chest, back, legs, full body) for a more targeted workout plan."
-            }
-        
-        # Process with Focus Planner
-        try:
-            # Extract additional context from message
-            additional_context = self._extract_context_from_message(user_message)
-            
-            # Determine appropriate ruleset
-            ruleset = self._determine_ruleset(user_message, user_id)
-            
-            # Process focus request
-            focus_result = self.focus_planner.process_focus_request(
-                focus=detected_focus,
-                user_id=user_id,
-                context=additional_context,
-                ruleset=ruleset
-            )
-            
-            # Build enhanced prompt
-            enhanced_prompt = self._build_enhanced_prompt(user_message, focus_result)
-            
-            return {
-                "original_message": user_message,
-                "user_id": user_id,
-                "enhanced": True,
-                "workout_intent": workout_intent,
-                "focus_result": focus_result,
-                "enhanced_prompt": enhanced_prompt,
-                "metadata": {
-                    "detected_focus": detected_focus,
-                    "applied_ruleset": ruleset,
-                    "enhancement_timestamp": self._get_timestamp()
+        if not focus_result['detected']:
+            # Check if interview needed
+            if needs_interview(user_message):
+                return {
+                    'type': 'interview_needed',
+                    'reason': 'Request too vague, needs consultation',
+                    'detected_intent': focus_result.get('partial_intent'),
+                    'message': user_message
                 }
-            }
-            
-        except Exception as e:
-            # Log error but don't break the flow
+            else:
+                return {
+                    'type': 'nonsense',
+                    'reason': 'No clear workout intent detected',
+                    'message': user_message
+                }
+        
+        # Check if specific enough for direct planning
+        if focus_result['confidence'] >= 0.8 and focus_result['specificity'] >= 0.7:
             return {
-                "original_message": user_message,
-                "user_id": user_id,
-                "enhanced": False,
-                "workout_intent": workout_intent,
-                "error": f"Focus enhancement failed: {str(e)}"
+                'type': 'direct_plan',
+                'focus': focus_result['focus'],
+                'confidence': focus_result['confidence'],
+                'details': focus_result,
+                'message': user_message
+            }
+        else:
+            return {
+                'type': 'interview_needed',
+                'reason': 'Request needs clarification for optimal planning',
+                'detected_focus': focus_result.get('focus'),
+                'confidence': focus_result.get('confidence', 0),
+                'message': user_message
             }
     
-    def validate_ai_response(self, 
-                           ai_response: str, 
-                           enhanced_request: Dict[str, Any]) -> Tuple[bool, List[str], Dict[str, Any]]:
-        """
-        Validate AI response against focus requirements if it was an enhanced request.
-        
-        Args:
-            ai_response: AI's response text
-            enhanced_request: Result from enhance_workout_request
-            
-        Returns:
-            (is_valid, violations, validation_details)
-        """
-        if not enhanced_request.get('enhanced'):
-            # Not an enhanced request, skip validation
-            return True, [], {"skipped": True, "reason": "Not enhanced request"}
-        
-        # Parse workout plan from AI response
-        workout_plan = self._parse_workout_plan_from_response(ai_response)
-        
-        if not workout_plan:
-            return False, ["Could not parse workout plan from AI response"], {"parse_error": True}
-        
-        # Validate with Focus Planner
-        focus_result = enhanced_request['focus_result']
-        return self.focus_planner.validate_workout_plan(workout_plan, focus_result)
+    def _handle_nonsense_request(self, user_message: str, routing_result: Dict) -> Dict[str, Any]:
+        """Handle nonsense or invalid requests with helpful guidance."""
+        return {
+            'type': 'error_response',
+            'category': 'invalid_request',
+            'message': self._generate_rejection_message(user_message),
+            'suggestions': [
+                "Try asking for a specific muscle group workout (e.g., 'chest workout', 'leg day')",
+                "Request a training split (e.g., 'push day', 'pull workout', 'upper body')", 
+                "Ask for a full body workout routine",
+                "Specify your goals (e.g., 'strength training', 'muscle building')"
+            ],
+            'examples': [
+                "Create a chest and triceps workout",
+                "I need a leg day routine",
+                "Help me with a full body workout",
+                "Design a back and biceps session"
+            ]
+        }
     
-    def suggest_corrections(self, 
-                          ai_response: str, 
-                          enhanced_request: Dict[str, Any], 
-                          violations: List[str]) -> Dict[str, Any]:
-        """
-        Suggest corrections for invalid AI response.
-        
-        Args:
-            ai_response: Invalid AI response
-            enhanced_request: Enhanced request data
-            violations: List of validation violations
-            
-        Returns:
-            Correction suggestions and alternative prompts
-        """
-        focus_result = enhanced_request['focus_result']
-        workout_plan = self._parse_workout_plan_from_response(ai_response)
-        
-        suggestions = {
-            "violations": violations,
-            "correction_type": "focus_validation_failed",
-            "suggested_fixes": [],
-            "alternative_exercises": [],
-            "retry_prompt": None
+    def _start_interview(self, user_message: str, user_id: str, routing_result: Dict) -> Dict[str, Any]:
+        """Start interactive interview process for vague requests."""
+        # Create interview session
+        interview_data = {
+            'original_request': user_message,
+            'detected_focus': routing_result.get('detected_focus'),
+            'confidence': routing_result.get('confidence', 0),
+            'stage': 'goals',  # Start with goals clarification
+            'responses': {},
+            'started_at': self._get_timestamp()
         }
         
-        if not workout_plan:
-            suggestions["retry_prompt"] = self._build_retry_prompt_for_parsing(enhanced_request)
-            return suggestions
+        self.interview_sessions[user_id] = interview_data
         
-        # Analyze specific violations
-        exercises = self.focus_planner.validator._extract_exercises_from_plan(workout_plan)
-        allowed_exercises = focus_result['whitelist_result']['allowed_exercises']
-        allowed_set = set(allowed_exercises)
-        
-        for exercise in exercises:
-            exercise_id = exercise.get('exerciseId') or exercise.get('id')
-            if exercise_id and exercise_id not in allowed_set:
-                # Find substitutions
-                substitutes = self.focus_planner.suggest_exercise_substitutions(exercise_id, focus_result)
-                if substitutes:
-                    suggestions["alternative_exercises"].append({
-                        "invalid_exercise": exercise_id,
-                        "alternatives": substitutes[:3]  # Top 3 suggestions
-                    })
-        
-        # Build retry prompt
-        suggestions["retry_prompt"] = self._build_retry_prompt_with_corrections(enhanced_request, suggestions)
-        
-        return suggestions
-    
-    def _detect_workout_intent(self, message: str) -> Dict[str, Any]:
-        """Detect if message is requesting a workout."""
-        message_lower = message.lower()
-        
-        # Workout request indicators
-        workout_keywords = [
-            'workout', 'exercise', 'training', 'routine', 'program',
-            'gym', 'lift', 'sets', 'reps', 'muscle', 'strength'
-        ]
-        
-        request_keywords = [
-            'create', 'make', 'build', 'design', 'plan', 'give me',
-            'show me', 'help me', 'want', 'need', 'looking for'
-        ]
-        
-        has_workout = any(keyword in message_lower for keyword in workout_keywords)
-        has_request = any(keyword in message_lower for keyword in request_keywords)
-        
-        confidence = 0.0
-        if has_workout and has_request:
-            confidence = 0.9
-        elif has_workout:
-            confidence = 0.6
-        elif any(word in message_lower for word in ['train', 'exercise']):
-            confidence = 0.4
+        # Generate first interview question
+        first_question = self._generate_interview_question(interview_data, user_id)
         
         return {
-            "is_workout_request": confidence > 0.5,
-            "confidence": confidence,
-            "detected_keywords": {
-                "workout_terms": [kw for kw in workout_keywords if kw in message_lower],
-                "request_terms": [kw for kw in request_keywords if kw in message_lower]
+            'type': 'interview_question',
+            'stage': 'goals',
+            'question': first_question,
+            'context': f"I'd like to help you create the perfect workout! Based on your request '{user_message}', I have a few questions to design something optimal for you.",
+            'options': self._get_goals_options(),
+            'interview_id': user_id
+        }
+    
+    def _handle_interview_response(self, user_message: str, user_id: str) -> Dict[str, Any]:
+        """Handle responses during ongoing interview."""
+        interview_data = self.interview_sessions[user_id]
+        current_stage = interview_data['stage']
+        
+        # Process response for current stage
+        interview_data['responses'][current_stage] = user_message
+        
+        # Determine next stage
+        next_stage = self._get_next_interview_stage(interview_data)
+        
+        if next_stage == 'complete':
+            # Interview complete, generate workout
+            return self._complete_interview(user_id)
+        else:
+            # Continue interview
+            interview_data['stage'] = next_stage
+            next_question = self._generate_interview_question(interview_data, user_id)
+            
+            return {
+                'type': 'interview_question',
+                'stage': next_stage,
+                'question': next_question,
+                'context': "Thanks for that information! One more question:",
+                'options': self._get_stage_options(next_stage),
+                'interview_id': user_id
+            }
+    
+    def _complete_interview(self, user_id: str) -> Dict[str, Any]:
+        """Complete interview and generate workout plan."""
+        interview_data = self.interview_sessions[user_id]
+        
+        # Build focus from interview responses
+        focus_intent = self._build_focus_from_interview(interview_data)
+        
+        # Generate workout plan
+        workout_result = self._generate_segment_aware_plan(focus_intent, user_id)
+        
+        # Clean up interview session
+        del self.interview_sessions[user_id]
+        
+        return {
+            'type': 'workout_plan',
+            'plan': workout_result['plan'],
+            'context': f"Perfect! Based on our conversation, I've created a {focus_intent['focus']} workout for you.",
+            'interview_summary': self._summarize_interview(interview_data),
+            'metadata': {
+                'generated_from_interview': True,
+                'focus': focus_intent['focus'],
+                'timestamp': self._get_timestamp()
             }
         }
     
-    def _extract_focus_from_message(self, message: str, context: Optional[Dict[str, Any]] = None) -> Optional[str]:
-        """Extract focus from user message."""
-        message_lower = message.lower()
-        
-        # Focus keywords mapping
-        focus_patterns = {
-            'chest': ['chest', 'pecs', 'pectoral', 'bench'],
-            'back': ['back', 'lats', 'latissimus', 'rows', 'pull-up', 'pullup'],
-            'shoulders': ['shoulder', 'delts', 'deltoid', 'overhead', 'press'],
-            'arms': ['arms', 'biceps', 'triceps', 'curls'],
-            'legs': ['legs', 'leg day', 'lower body', 'squat', 'deadlift'],
-            'quads': ['quads', 'quadriceps', 'front leg', 'knee extension'],
-            'hamstrings': ['hamstrings', 'hams', 'back leg', 'rdl'],
-            'glutes': ['glutes', 'butt', 'hip thrust', 'bridge'],
-            'calves': ['calves', 'calf'],
-            'core': ['core', 'abs', 'abdominal', 'planks'],
-            'push': ['push day', 'pushing', 'press'],
-            'pull': ['pull day', 'pulling'],
-            'upper': ['upper body', 'upper'],
-            'lower': ['lower body', 'lower'],
-            'full_body': ['full body', 'fullbody', 'total body', 'whole body']
+    def _generate_direct_plan(self, user_message: str, user_id: str, routing_result: Dict) -> Dict[str, Any]:
+        """Generate workout plan directly without interview."""
+        focus_intent = {
+            'focus': routing_result['focus'],
+            'detected_type': routing_result['focus'],
+            'confidence': routing_result['confidence'],
+            'specificity': routing_result['details'].get('specificity', 0.8),
+            'user_context': {}
         }
         
-        # Check for combo patterns first
-        combo_patterns = [
-            'back and biceps', 'back+biceps', 'back & biceps',
-            'chest and triceps', 'chest+triceps', 'chest & triceps',
-            'shoulders and triceps', 'shoulders+triceps', 'shoulders & triceps',
-            'glutes and hamstrings', 'glutes+hamstrings', 'glutes & hamstrings',
-            'quads and calves', 'quads+calves', 'quads & calves'
+        # Add any context from message
+        focus_intent['user_context'] = self._extract_context_from_message(user_message)
+        
+        # Generate segment-aware workout
+        workout_result = self._generate_segment_aware_plan(focus_intent, user_id)
+        
+        return {
+            'type': 'workout_plan',
+            'plan': workout_result['plan'],
+            'context': f"Here's your {focus_intent['focus']} workout plan:",
+            'metadata': {
+                'generated_from_direct': True,
+                'focus': focus_intent['focus'],
+                'confidence': focus_intent['confidence'],
+                'timestamp': self._get_timestamp()
+            }
+        }
+    
+    def _generate_segment_aware_plan(self, focus_intent: Dict, user_id: str) -> Dict[str, Any]:
+        """Generate a complete segment-aware workout plan."""
+        from focus_composer import compose_segment_aware_plan
+        from focus_whitelist import build_focus_whitelist
+        
+        # Get user context
+        user_profile = self.user_profiles.get_profile(user_id)
+        user_context = {
+            'equipment': user_profile.get('equipment', ['dumbbells', 'barbell', 'cables']),
+            'experience': user_profile.get('experience_level', 'intermediate'),
+            'injuries': user_profile.get('injuries', []),
+            'dislikes': user_profile.get('disliked_exercises', [])
+        }
+        
+        # Merge with focus intent context
+        user_context.update(focus_intent.get('user_context', {}))
+        
+        # Build exercise whitelist
+        whitelist = build_focus_whitelist(user_context, focus_intent['focus'])
+        
+        # Compose complete workout
+        complete_plan = compose_segment_aware_plan(
+            focus_intent=focus_intent,
+            whitelist=whitelist,
+            user_context=user_context
+        )
+        
+        return {'plan': complete_plan, 'whitelist': whitelist}
+    
+    def _generate_interview_question(self, interview_data: Dict, user_id: str) -> str:
+        """Generate appropriate interview question for current stage."""
+        stage = interview_data['stage']
+        
+        questions = {
+            'goals': "What's your main goal for this workout?",
+            'focus': "Which muscle groups would you like to prioritize?",
+            'equipment': "What equipment do you have access to?",
+            'experience': "How would you describe your training experience?",
+            'time': "How much time do you have for this workout?",
+            'intensity': "What intensity level are you looking for?"
+        }
+        
+        return questions.get(stage, "What additional details can you provide?")
+    
+    def _get_goals_options(self) -> List[str]:
+        """Get goal options for first interview question."""
+        return [
+            "Build muscle/hypertrophy",
+            "Increase strength",
+            "General fitness",
+            "Lose weight/tone up",
+            "Athletic performance",
+            "Rehabilitation/recovery"
         ]
+    
+    def _get_stage_options(self, stage: str) -> List[str]:
+        """Get options for specific interview stage."""
+        options_map = {
+            'focus': [
+                "Upper body", "Lower body", "Full body",
+                "Chest", "Back", "Shoulders", "Arms", "Legs",
+                "Push muscles", "Pull muscles", "Core"
+            ],
+            'equipment': [
+                "Full gym", "Home gym with weights", "Dumbbells only",
+                "Bodyweight only", "Resistance bands", "Limited equipment"
+            ],
+            'experience': [
+                "Beginner (less than 6 months)",
+                "Intermediate (6 months - 2 years)", 
+                "Advanced (2+ years)",
+                "Expert/competitive athlete"
+            ],
+            'time': [
+                "15-30 minutes", "30-45 minutes", "45-60 minutes",
+                "60-90 minutes", "90+ minutes", "Flexible"
+            ],
+            'intensity': [
+                "Light/recovery", "Moderate", "Challenging",
+                "Very intense", "Maximum effort", "Depends on exercise"
+            ]
+        }
         
-        for pattern in combo_patterns:
-            if pattern in message_lower:
-                return pattern.replace(' and ', '+').replace(' & ', '+')
+        return options_map.get(stage, [])
+    
+    def _get_next_interview_stage(self, interview_data: Dict) -> str:
+        """Determine next stage in interview flow."""
+        current_stage = interview_data['stage']
+        responses = interview_data['responses']
         
-        # Check for single focus
-        detected_focuses = []
-        for focus, patterns in focus_patterns.items():
-            if any(pattern in message_lower for pattern in patterns):
-                detected_focuses.append(focus)
+        stage_flow = ['goals', 'focus', 'equipment', 'experience', 'time']
         
-        # Return most specific focus if multiple detected
-        if len(detected_focuses) == 1:
-            return detected_focuses[0]
-        elif len(detected_focuses) > 1:
-            # Prefer more specific focuses
-            priority = ['biceps', 'triceps', 'quads', 'hamstrings', 'glutes', 'calves', 
-                       'chest', 'back', 'shoulders', 'arms', 'legs', 'push', 'pull', 
-                       'upper', 'lower', 'full_body']
-            for focus in priority:
-                if focus in detected_focuses:
-                    return focus
+        try:
+            current_index = stage_flow.index(current_stage)
+            if current_index + 1 < len(stage_flow):
+                return stage_flow[current_index + 1]
+            else:
+                return 'complete'
+        except ValueError:
+            return 'complete'
+    
+    def _build_focus_from_interview(self, interview_data: Dict) -> Dict[str, Any]:
+        """Build focus intent from interview responses."""
+        responses = interview_data['responses']
         
-        return None
+        # Extract focus from responses
+        focus_response = responses.get('focus', '').lower()
+        goals_response = responses.get('goals', '').lower()
+        
+        # Map responses to focus types
+        focus_mapping = {
+            'upper body': 'upper',
+            'lower body': 'lower', 
+            'full body': 'full_body',
+            'chest': 'chest',
+            'back': 'back',
+            'shoulders': 'shoulders',
+            'arms': 'arms',
+            'legs': 'legs',
+            'push muscles': 'push',
+            'pull muscles': 'pull',
+            'core': 'core'
+        }
+        
+        detected_focus = None
+        for key, value in focus_mapping.items():
+            if key in focus_response:
+                detected_focus = value
+                break
+        
+        # Fallback to original detected focus
+        if not detected_focus:
+            detected_focus = interview_data.get('detected_focus', 'full_body')
+        
+        # Build context from other responses
+        user_context = {}
+        
+        # Equipment mapping
+        equipment_response = responses.get('equipment', '').lower()
+        if 'bodyweight' in equipment_response:
+            user_context['equipment'] = ['bodyweight']
+        elif 'dumbbells only' in equipment_response:
+            user_context['equipment'] = ['dumbbells']
+        elif 'home gym' in equipment_response:
+            user_context['equipment'] = ['dumbbells', 'barbell', 'bench']
+        else:
+            user_context['equipment'] = ['dumbbells', 'barbell', 'cables', 'machines']
+        
+        # Experience mapping  
+        exp_response = responses.get('experience', '').lower()
+        if 'beginner' in exp_response:
+            user_context['experience'] = 'beginner'
+        elif 'advanced' in exp_response or 'expert' in exp_response:
+            user_context['experience'] = 'advanced'
+        else:
+            user_context['experience'] = 'intermediate'
+        
+        return {
+            'focus': detected_focus,
+            'detected_type': detected_focus,
+            'confidence': 0.9,  # High confidence from interview
+            'specificity': 0.9,
+            'user_context': user_context,
+            'interview_based': True
+        }
+    
+    def _summarize_interview(self, interview_data: Dict) -> str:
+        """Create summary of interview responses."""
+        responses = interview_data['responses']
+        
+        summary_parts = []
+        
+        if 'goals' in responses:
+            summary_parts.append(f"Goal: {responses['goals']}")
+        if 'focus' in responses:
+            summary_parts.append(f"Focus: {responses['focus']}")
+        if 'equipment' in responses:
+            summary_parts.append(f"Equipment: {responses['equipment']}")
+        if 'experience' in responses:
+            summary_parts.append(f"Experience: {responses['experience']}")
+        if 'time' in responses:
+            summary_parts.append(f"Time: {responses['time']}")
+        
+        return " | ".join(summary_parts)
     
     def _extract_context_from_message(self, message: str) -> Dict[str, Any]:
         """Extract additional context from message."""
