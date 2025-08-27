@@ -70,9 +70,10 @@ class FocusIntegrationSystem:
         self.exercise_db = exercise_db
         self.user_profiles = user_profiles
         
-        # Initialize alias resolver and equipment catalog
+        # Initialize components
         self.alias_resolver = ExerciseAliasResolver()
         self.equipment_catalog = EquipmentCatalog()
+        self.trainer_brain = PersonalTrainerBrain()
         
         # Active interview sessions
         self.active_sessions = {}
@@ -80,98 +81,224 @@ class FocusIntegrationSystem:
     def handle_workout_request(self, user_id: str, message: str, 
                              user_profile: Dict = None) -> Dict[str, Any]:
         """
-        Main entry point for handling workout requests
+        Main entry point for handling ALL user messages - acts like a personal trainer
         
         Args:
             user_id: User identifier
-            message: User's workout request
+            message: User's message (could be question, workout request, etc.)
             user_profile: User profile data (optional)
             
         Returns:
             Response with action type and data
         """
-        # Route the request
-        routing_result = route_focus_request(message, user_profile)
+        # Use trainer brain to understand what the user really wants
+        message_intent = self.trainer_brain.analyze_message_intent(message)
         
-        if routing_result['action'] == 'reject_nonsense':
-            return {
-                'response_type': 'rejection',
-                'message': "I can't help with that request. I'm designed to help with workout planning.",
-                'suggestions': routing_result['suggestions'],
-                'reason': routing_result['reason']
-            }
+        # Ensure we have a user profile dict
+        if user_profile is None:
+            user_profile = {}
+        
+        # Handle different types of user messages
+        if message_intent['type'] == 'advice_request':
+            return self._handle_advice_request(message_intent, user_profile, user_id)
             
-        elif routing_result['action'] == 'start_interview':
-            # Start new interview session
-            session = InterviewSession(user_id, message)
-            self.active_sessions[user_id] = session
+        elif message_intent['type'] == 'general_question':
+            return self._handle_general_question(message_intent, user_profile, user_id)
             
-            # Get first question
-            questions = routing_result['suggested_questions']
-            if questions:
-                first_question = questions[0]
-                session.current_question = first_question
-                session.questions_asked.append(first_question)
+        elif message_intent['type'] == 'workout_request':
+            return self._handle_workout_request(message_intent, user_profile, user_id)
+            
+        elif message_intent['type'] == 'follow_up':
+            return self._handle_follow_up(message_intent, user_profile, user_id)
+        
+        # Fallback for unclear messages
+        return {
+            'response_type': 'clarification',
+            'message': "I'm not sure what you're looking for. I can help with:\n\n• **Workout planning** - \"Give me a chest workout\"\n• **Training advice** - \"How do I build bigger arms?\"\n• **General questions** - \"How often should I train?\"\n\nWhat would you like help with?",
+            'suggestions': [
+                'Ask for a specific workout',
+                'Get training advice',
+                'Learn about exercise techniques'
+            ]
+        }
+    
+    def _handle_advice_request(self, message_intent: Dict, user_profile: Dict, user_id: str) -> Dict[str, Any]:
+        """Handle requests for training advice and education"""
+        
+        # Check if we need more context to give good advice
+        if self.trainer_brain.should_interview(user_profile, message_intent):
+            # Start interview to gather context for better advice
+            question = self.trainer_brain.get_next_interview_question(user_profile)
+            
+            if question:
+                # Create interview session
+                session = InterviewSession(user_id, message_intent['original_message'])
+                session.current_question = question
+                session.questions_asked.append(question)
+                self.active_sessions[user_id] = session
                 
                 return {
                     'response_type': 'interview_question',
-                    'question': first_question,
+                    'message': f"Great question! To give you the best advice, I'd like to know: {question['question']}",
+                    'question': question,
                     'session_id': session.session_id,
-                    'message': f"I'd like to understand your workout goals better. {first_question['text']}",
-                    'context': "Starting workout consultation",
-                    'partial_intent': routing_result.get('partial_intent', {})
+                    'context': f"Gathering context for: {message_intent['original_message']}"
                 }
-            else:
-                return {
-                    'response_type': 'error',
-                    'message': "Unable to generate interview questions. Please be more specific about your workout goals."
-                }
-            
-        elif routing_result['action'] == 'direct_planning':
-            # We have enough info to plan directly
-            return self._plan_workout_direct(
-                user_id=user_id,
-                focus=routing_result['focus'],
-                user_profile=user_profile,
-                confidence=routing_result['confidence'],
-                focus_details=routing_result.get('focus_details', {})
-            )
-            
-        elif routing_result['action'] == 'confirm_and_interview':
-            # Ask for confirmation then start interview if needed
-            return {
-                'response_type': 'confirmation_with_interview',
-                'message': routing_result['confirmation_text'],
-                'focus': routing_result['focus'],
-                'confidence': routing_result['confidence'],
-                'backup_action': 'start_interview'
-            }
-            
-        elif routing_result['action'] == 'confirm_focus':
-            return {
-                'response_type': 'confirmation',
-                'message': routing_result['confirmation_text'],
-                'focus': routing_result['focus'],
-                'confidence': routing_result['confidence']
-            }
-            
-        elif routing_result['action'] == 'clarify_focus':
-            return {
-                'response_type': 'clarification',
-                'message': "I'm not sure what kind of workout you're looking for.",
-                'suggestions': routing_result['suggestions']
-            }
-            
-        # Default fallback
+        
+        # We have enough context - provide advice
+        advice_response = self.trainer_brain.generate_advice_response(message_intent, user_profile)
+        
         return {
-            'response_type': 'error',
-            'message': "I couldn't understand your request. Could you be more specific?",
-            'suggestions': [
-                'Try specifying muscle groups (chest, back, legs)',
-                'Mention your training goal (strength, muscle, endurance)',
-                'Ask for a specific workout type (push day, full body, etc.)'
+            'response_type': 'advice',
+            'message': advice_response,
+            'advice_category': message_intent.get('advice_category', 'general'),
+            'follow_up_suggestions': [
+                "Would you like a specific workout plan?",
+                "Any other questions about training?",
+                "Want to know more about nutrition?"
             ]
         }
+    
+    def _handle_general_question(self, message_intent: Dict, user_profile: Dict, user_id: str) -> Dict[str, Any]:
+        """Handle general training questions like frequency, etc."""
+        
+        question_category = message_intent.get('question_category', 'unclear')
+        
+        if question_category == 'training_frequency':
+            frequency_advice = self.trainer_brain.generate_frequency_advice(user_profile)
+            return {
+                'response_type': 'advice',
+                'message': frequency_advice,
+                'question_category': 'frequency',
+                'follow_up_suggestions': [
+                    "Would you like me to create a workout schedule?",
+                    "Want to know about rest and recovery?",
+                    "Need help choosing a training split?"
+                ]
+            }
+        
+        elif question_category == 'unclear':
+            return {
+                'response_type': 'clarification',
+                'message': "I want to help, but I'm not sure what you're asking about. Could you be more specific?\n\nI can help with:\n• Training frequency and scheduling\n• Exercise selection and technique\n• Workout programming\n• Nutrition basics",
+                'suggestions': [
+                    "How often should I train each muscle group?",
+                    "How do I build muscle?",
+                    "What's the best workout split?"
+                ]
+            }
+        
+        # Default general response
+        return {
+            'response_type': 'advice',
+            'message': "That's a great training question! To give you the most helpful answer, could you provide a bit more context about your goals and experience level?",
+            'suggestions': [
+                "Tell me about your training experience",
+                "What are your main fitness goals?",
+                "Ask a more specific question"
+            ]
+        }
+    
+    def _handle_workout_request(self, message_intent: Dict, user_profile: Dict, user_id: str) -> Dict[str, Any]:
+        """Handle requests for specific workouts - with mandatory interview if needed"""
+        
+        # Check if we need to interview before creating workout
+        if self.trainer_brain.should_interview(user_profile, message_intent):
+            # Start interview to gather essential info
+            question = self.trainer_brain.get_next_interview_question(user_profile)
+            
+            if question:
+                session = InterviewSession(user_id, message_intent['original_message'])
+                session.current_question = question
+                session.questions_asked.append(question)
+                self.active_sessions[user_id] = session
+                
+                return {
+                    'response_type': 'interview_question',
+                    'message': f"I'd love to create the perfect workout for you! First, {question['question']}",
+                    'question': question,
+                    'session_id': session.session_id,
+                    'context': f"Creating workout: {message_intent['original_message']}"
+                }
+        
+        # We have enough info - create the workout
+        return self._create_workout_from_intent(message_intent, user_profile, user_id)
+    
+    def _handle_follow_up(self, message_intent: Dict, user_profile: Dict, user_id: str) -> Dict[str, Any]:
+        """Handle follow-up responses in conversations"""
+        
+        # Check if there's an active interview session
+        session = self.active_sessions.get(user_id)
+        if session:
+            return self.handle_interview_response(user_id, message_intent['original_message'])
+        
+        # No active session - treat as new request
+        return {
+            'response_type': 'clarification',
+            'message': "I'm not sure what you're referring to. Could you ask a new question or request?",
+            'suggestions': [
+                "Ask for a workout plan",
+                "Get training advice",
+                "Learn about exercises"
+            ]
+        }
+    
+    def _create_workout_from_intent(self, message_intent: Dict, user_profile: Dict, user_id: str) -> Dict[str, Any]:
+        """Create workout based on user intent and profile"""
+        try:
+            focus = message_intent.get('focus', 'full_body')
+            confidence = message_intent.get('confidence', 0.8)
+            
+            # Build enhanced context from user profile
+            context = {
+                'user_id': user_id,
+                'focus': focus,
+                'confidence': confidence,
+                'planning_method': 'direct_from_intent',
+                'original_message': message_intent.get('original_message', '')
+            }
+            
+            # Add user profile info
+            context.update({
+                'equipment_access': user_profile.get('equipment_access', 'commercial_gym'),
+                'experience_level': user_profile.get('experience_level', 'intermediate'),
+                'available_time': user_profile.get('time_available', '60_minutes'),
+                'injuries': user_profile.get('injuries', []),
+                'goals': user_profile.get('goals', 'general_fitness')
+            })
+            
+            # Generate workout structure
+            workout_structure = self._generate_workout_structure(focus, context)
+            
+            # Create personalized message
+            focus_name = focus.replace('_', ' ')
+            message = f"Perfect! Here's your {focus_name} workout based on your profile:"
+            
+            return {
+                'response_type': 'workout_plan',
+                'focus': focus,
+                'confidence': confidence,
+                'message': message,
+                'workout': workout_structure,
+                'context': context,
+                'planning_notes': f"Generated from '{message_intent.get('original_message', '')}'",
+                'suggestions': [
+                    "Let me know if you'd like to modify any exercises",
+                    "I can adjust based on your equipment or time",
+                    "Ask me about form tips for any exercise"
+                ]
+            }
+        except Exception as e:
+            return {
+                'response_type': 'error',
+                'message': f"Error generating workout: {str(e)}",
+                'focus': message_intent.get('focus', 'unknown'),
+                'debug_info': {
+                    'user_id': user_id,
+                    'intent': message_intent,
+                    'error_type': type(e).__name__
+                }
+            }
     
     def handle_interview_response(self, user_id: str, response: str) -> Dict[str, Any]:
         """
