@@ -3,6 +3,30 @@ import { getFirestore, doc, updateDoc, increment, runTransaction } from 'firebas
 
 const db = getFirestore();
 
+// Helper function to calculate accurate age from date of birth
+const calculateAge = (dateOfBirth: Date | string): number | null => {
+  try {
+    const birthDate = typeof dateOfBirth === 'string' ? new Date(dateOfBirth) : dateOfBirth;
+    if (!birthDate || typeof birthDate.getFullYear !== 'function') {
+      return null;
+    }
+    
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    
+    // If birthday hasn't occurred this year yet, subtract 1 from age
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    
+    return age;
+  } catch (error) {
+    console.error('Error calculating age:', error);
+    return null;
+  }
+};
+
 export interface SettingsUsageStats {
   lastSettingsUpdate: Date;
   settingsUpdateCount: number;
@@ -58,8 +82,10 @@ export const calculatePrivacyLevel = (settings: Partial<UserSettings>): 'open' |
   
   // Age consideration (weight: 1)
   if (settings.dateOfBirth) {
-    const age = new Date().getFullYear() - new Date(settings.dateOfBirth).getFullYear();
-    if (age < 18 && settings.profileVisibility === 'private') score += 1;
+    const age = calculateAge(settings.dateOfBirth);
+    if (age !== null && age < 18 && settings.profileVisibility === 'private') {
+      score += 1;
+    }
   }
   
   // Scoring:
@@ -127,26 +153,17 @@ export const generateSettingsInsights = (settings: Partial<UserSettings>): strin
 
   // Age-related insights
   if (settings.dateOfBirth) {
-    try {
-      // Ensure dateOfBirth is a Date object
-      let dateOfBirth = settings.dateOfBirth;
-      if (typeof dateOfBirth === 'string') {
-        dateOfBirth = new Date(dateOfBirth);
+    const age = calculateAge(settings.dateOfBirth);
+    if (age !== null) {
+      if (age < 18 && settings.profileVisibility === 'public') {
+        insights.push('👤 Consider making your profile private for better safety');
       }
-      if (dateOfBirth && typeof dateOfBirth.getFullYear === 'function') {
-        const age = new Date().getFullYear() - dateOfBirth.getFullYear();
-        if (age < 18 && settings.profileVisibility === 'public') {
-          insights.push('👤 Consider making your profile private for better safety');
-        }
-        if (age < 16) {
-          insights.push('🔒 Young users should use strict privacy settings');
-        }
-        if (age > 65 && settings.messagePermission === 'everyone') {
-          insights.push('👥 Consider limiting messages to followers only');
-        }
+      if (age < 16) {
+        insights.push('🔒 Young users should use strict privacy settings');
       }
-    } catch (error) {
-      console.error('Error processing dateOfBirth in insights:', error);
+      if (age > 65 && settings.messagePermission === 'everyone') {
+        insights.push('👥 Consider limiting messages to followers only');
+      }
     }
   }
 
