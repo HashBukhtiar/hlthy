@@ -15,6 +15,8 @@ import { safeParseAssistant, WorkoutPlanData, TechniqueAdviceData, SchedulePlanD
 interface MessageRendererProps {
   message: string;
   intent?: string;
+  workoutPlan?: any;
+  responseType?: string;
   onFormatAgain?: () => void;
   onSaveWorkout?: (data: WorkoutPlanData) => void;
   onStartWorkout?: (data: WorkoutPlanData) => void;
@@ -27,6 +29,8 @@ interface MessageRendererProps {
 export const MessageRenderer: React.FC<MessageRendererProps> = ({
   message,
   intent,
+  workoutPlan,
+  responseType,
   onFormatAgain,
   onSaveWorkout,
   onStartWorkout,
@@ -35,8 +39,10 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({
   onShowExamples,
   onApplySubstitutions,
 }) => {
-  const parsed = safeParseAssistant(message);
   const intentConfig = getIntentConfig(intent);
+
+  // Fallback to parsing message text for most cases
+  const parsed = safeParseAssistant(message);
 
   // Handle card actions
   const handleSaveWorkout = (data: WorkoutPlanData) => {
@@ -66,6 +72,24 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({
     onApplySubstitutions?.(data);
     Alert.alert('Substitutions Applied', 'Your workout has been updated with safer alternatives.');
   };
+
+  // If we have structured workout plan data from the API, use it directly
+  if (workoutPlan && responseType === 'workout_plan') {
+    const workoutData: WorkoutPlanData = {
+      dayType: workoutPlan.dayType || 'Full Body',
+      segments: workoutPlan.segments || [],
+      safetyNotes: workoutPlan.safetyNotes || undefined
+    };
+
+    return (
+      <WorkoutPlanCard
+        data={workoutData}
+        intent={intent}
+        onSave={handleSaveWorkout}
+        onExplain={handleExplainChoices}
+      />
+    );
+  }
 
   // Render based on parsed type
   switch (parsed.type) {

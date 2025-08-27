@@ -402,6 +402,8 @@ const MessageItem = React.memo<{ item: Message; onLongPress: (m: Message) => voi
           <MessageRenderer
             message={item.text}
             intent={item.intent}
+            workoutPlan={item.workoutPlan}
+            responseType={item.responseType}
             onFormatAgain={() => onReprompt?.(item.text)}
           />
         ) : (
