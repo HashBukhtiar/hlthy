@@ -4,6 +4,8 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import json
 import os
+import sys
+import re
 from datetime import datetime
 from google.oauth2 import service_account
 
@@ -23,7 +25,8 @@ except ImportError:
 
 # Import exercise safety knowledge and canonical exercise database
 try:
-    from exercise_safety import EXERCISE_SAFETY_GUIDELINES, get_safety_context_for_injury
+    from utils.exercise_safety import EXERCISE_SAFETY_GUIDELINES, get_safety_context_for_injury
+    print("✅ Exercise safety guidelines loaded")
 except ImportError:
     EXERCISE_SAFETY_GUIDELINES = "Safety guidelines not loaded"
     def get_safety_context_for_injury(injury_type):
@@ -38,22 +41,14 @@ try:
         NAME_TO_ID_MAP, RiskLevel
     )
     CANONICAL_DATABASE_AVAILABLE = True
-except ImportError:
-    try:
-        from exercise_database import (
-            CANONICAL_EXERCISES, validate_workout_plan_exercises,
-            is_exercise_allowed, get_safe_substitutions,
-            get_all_allowed_exercises, get_all_allowed_exercises_cached,
-            suggest_exercise_id_from_name, InjuryType, ExperienceLevel,
-            NAME_TO_ID_MAP, RiskLevel
-        )
-        CANONICAL_DATABASE_AVAILABLE = True
-    except ImportError:
-        print("Warning: Canonical exercise database not available - falling back to legacy safety")
-        CANONICAL_DATABASE_AVAILABLE = False
+    print("✅ Canonical exercise database loaded from core module")
+except ImportError as e:
+    print(f"Warning: Canonical exercise database not available - falling back to legacy safety: {e}")
+    CANONICAL_DATABASE_AVAILABLE = False
 
 try:
-    from user_profiles import profile_manager, UserProfile, InjuryRecord, FitnessGoals
+    from utils.user_profiles import profile_manager, UserProfile, InjuryRecord, FitnessGoals
+    print("✅ User profile system available")
 except ImportError:
     print("Warning: User profile system not available")
     profile_manager = None
@@ -61,6 +56,7 @@ except ImportError:
 try:
     from technique_library import get_technique_cues_for_exercise, get_substitutions_for_injury, get_compact_technique_response
     TECHNIQUE_LIBRARY_AVAILABLE = True
+    print("✅ Technique library available")
 except ImportError:
     print("Warning: Technique library not available")
     TECHNIQUE_LIBRARY_AVAILABLE = False
@@ -68,6 +64,7 @@ except ImportError:
 try:
     from progression_tracker import progression_tracker, get_progression_suggestions, record_workout_performance
     PROGRESSION_TRACKER_AVAILABLE = True
+    print("✅ Progression tracker available")
 except ImportError:
     print("Warning: Progression tracker not available")
     PROGRESSION_TRACKER_AVAILABLE = False
@@ -90,22 +87,25 @@ except ImportError:
     PROFILE_SYNC_AVAILABLE = False
 
 try:
-    from rate_limiting import is_within_rate_limit, cache_prompt, get_cached_response
+    from utils.rate_limiting import is_within_rate_limit, cache_prompt, get_cached_response
     RATE_LIMITING_AVAILABLE = True
+    print("✅ Rate limiting system available")
 except ImportError:
     print("Warning: Rate limiting system not available") 
     RATE_LIMITING_AVAILABLE = False
 
 try:
-    from exercise_whitelist_cache import get_cached_allowed_exercises, invalidate_user_exercise_cache
+    from utils.exercise_whitelist_cache import get_cached_allowed_exercises, invalidate_user_exercise_cache
     EXERCISE_CACHE_AVAILABLE = True
+    print("✅ Exercise whitelist cache available")
 except ImportError:
     print("Warning: Exercise whitelist cache not available")
     EXERCISE_CACHE_AVAILABLE = False
 
 try:
-    from observability_dashboard import log_violation, log_substitution, log_metric
+    from utils.observability_dashboard import log_violation, log_substitution, log_metric
     OBSERVABILITY_AVAILABLE = True
+    print("✅ Observability dashboard available")
 except ImportError:
     print("Warning: Observability dashboard not available")
     OBSERVABILITY_AVAILABLE = False
@@ -129,27 +129,10 @@ try:
     focus_integration = FocusIntegrationSystem(exercise_db=exercise_database, user_profiles=profile_manager)
     print("✅ Enhanced Focus Planner system available with interview flow")
 except ImportError as e:
-    try:
-        # Fallback to old integration - add ai directory to path first
-        import sys
-        import os
-        ai_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        sys.path.insert(0, ai_dir)
-        
-        from focus_integration import FocusIntegration
-        from exercise_database import ExerciseDatabase
-        FOCUS_PLANNER_AVAILABLE = True
-        ENHANCED_INTEGRATION = False
-        
-        # Initialize old Focus Planner system
-        exercise_database = ExerciseDatabase()
-        focus_integration = FocusIntegration(exercise_database, profile_manager or None)
-        print("⚠️ Using old Focus Planner system")
-    except ImportError as e2:
-        print(f"❌ Focus Planner system not available: {e}, {e2}")
-        FOCUS_PLANNER_AVAILABLE = False
-        ENHANCED_INTEGRATION = False
-        focus_integration = None
+    print(f"❌ Focus Planner system not available: {e}")
+    FOCUS_PLANNER_AVAILABLE = False
+    ENHANCED_INTEGRATION = False
+    focus_integration = None
 
 app = Flask(__name__)
 CORS(app, resources={r"/api/*": {"origins": "*"}})
