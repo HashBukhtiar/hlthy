@@ -41,6 +41,12 @@ class ExerciseProfile:
     min_experience_level: ExperienceLevel
     safety_flags: Set[str]  # Additional safety considerations
     substitutions: List[str]  # Safer alternative exercise IDs
+    # NEW SEGMENT FLAGS
+    isCardioWarmup: bool = False
+    isActivation: bool = False
+    isMobility: bool = False
+    isStretch: bool = False
+    isCooldownSafe: bool = False
 
 # Canonical Exercise Database - The single source of truth
 CANONICAL_EXERCISES: Dict[str, ExerciseProfile] = {

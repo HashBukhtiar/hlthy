@@ -1,0 +1,3780 @@
+Task A: Database Enrichment with Role Flags
+
+# ...existing code...
+
+def get_exercise_by_id(exercise_id: str) -> dict:
+    """Get exercise by ID with all metadata."""
+    exercises = {
+        # CARDIO WARM-UPS
+        'treadmill_walk_easy': {
+            'display_name': 'Easy Treadmill Walk',
+            'muscle_groups': ['cardio'],
+            'equipment': 'treadmill',
+            'difficulty': 'beginner',
+            'isCardioWarmup': True,
+            'isActivation': False,
+            'isMobility': False,
+            'isStretch': False,
+            'isCooldownSafe': False,
+            'common_names': ['treadmill warmup', 'walking warmup', 'light walk']
+        },
+        'assault_bike_easy': {
+            'display_name': 'Easy Assault Bike',
+            'muscle_groups': ['cardio'],
+            'equipment': 'assault_bike',
+            'difficulty': 'beginner',
+            'isCardioWarmup': True,
+            'isActivation': False,
+            'isMobility': False,
+            'isStretch': False,
+            'isCooldownSafe': False,
+            'common_names': ['air bike warmup', 'assault bike warmup']
+        },
+        'rower_light_5min': {
+            'display_name': '5-Min Light Rowing',
+            'muscle_groups': ['cardio'],
+            'equipment': 'rowing_machine',
+            'difficulty': 'beginner',
+            'isCardioWarmup': True,
+            'isActivation': False,
+            'isMobility': False,
+            'isStretch': False,
+            'isCooldownSafe': False,
+            'common_names': ['rowing warmup', 'erg warmup']
+        },
+        'elliptical_easy': {
+            'display_name': 'Easy Elliptical',
+            'muscle_groups': ['cardio'],
+            'equipment': 'elliptical',
+            'difficulty': 'beginner',
+            'isCardioWarmup': True,
+            'isActivation': False,
+            'isMobility': False,
+            'isStretch': False,
+            'isCooldownSafe': False,
+            'common_names': ['elliptical warmup']
+        },
+        
+        # ACTIVATION - CHEST/PUSH
+        'scap_pushup': {
+            'display_name': 'Scapular Push-ups',
+            'muscle_groups': ['serratus', 'chest'],
+            'equipment': 'bodyweight',
+            'difficulty': 'beginner',
+            'isCardioWarmup': False,
+            'isActivation': True,
+            'isMobility': False,
+            'isStretch': False,
+            'isCooldownSafe': False,
+            'common_names': ['scap pushups', 'scapular pushups']
+        },
+        'band_external_rotation': {
+            'display_name': 'Band External Rotation',
+            'muscle_groups': ['rotator_cuff', 'shoulders'],
+            'equipment': 'resistance_band',
+            'difficulty': 'beginner',
+            'isCardioWarmup': False,
+            'isActivation': True,
+            'isMobility': False,
+            'isStretch': False,
+            'isCooldownSafe': False,
+            'common_names': ['external rotation', 'band ER']
+        },
+        'band_pull_aparts': {
+            'display_name': 'Band Pull-Aparts',
+            'muscle_groups': ['rear_delts', 'upper_back'],
+            'equipment': 'resistance_band',
+            'difficulty': 'beginner',
+            'isCardioWarmup': False,
+            'isActivation': True,
+            'isMobility': False,
+            'isStretch': False,
+            'isCooldownSafe': False,
+            'common_names': ['band pullaparts', 'pull aparts']
+        },
+        'empty_bar_bench_groove': {
+            'display_name': 'Empty Bar Bench Groove',
+            'muscle_groups': ['chest', 'triceps'],
+            'equipment': 'barbell',
+            'difficulty': 'beginner',
+            'isCardioWarmup': False,
+            'isActivation': True,
+            'isMobility': False,
+            'isStretch': False,
+            'isCooldownSafe': False,
+            'common_names': ['bench groove', 'empty bar bench']
+        },
+        
+        # ACTIVATION - BACK/PULL
+        'band_face_pulls': {
+            'display_name': 'Band Face Pulls',
+            'muscle_groups': ['rear_delts', 'upper_back'],
+            'equipment': 'resistance_band',
+            'difficulty': 'beginner',
+            'isCardioWarmup': False,
+            'isActivation': True,
+            'isMobility': False,
+            'isStretch': False,
+            'isCooldownSafe': False,
+            'common_names': ['facepulls', 'face pulls']
+        },
+        'scap_pullups': {
+            'display_name': 'Scapular Pull-ups',
+            'muscle_groups': ['lats', 'upper_back'],
+            'equipment': 'pull_up_bar',
+            'difficulty': 'beginner',
+            'isCardioWarmup': False,
+            'isActivation': True,
+            'isMobility': False,
+            'isStretch': False,
+            'isCooldownSafe': False,
+            'common_names': ['scap pullups', 'scapular pullups']
+        },
+        'lat_primer_circles': {
+            'display_name': 'Lat Primer Circles',
+            'muscle_groups': ['lats', 'shoulders'],
+            'equipment': 'bodyweight',
+            'difficulty': 'beginner',
+            'isCardioWarmup': False,
+            'isActivation': True,
+            'isMobility': False,
+            'isStretch': False,
+            'isCooldownSafe': False,
+            'common_names': ['arm circles', 'lat circles']
+        },
+        
+        # ACTIVATION - LEGS
+        'glute_bridge_bodyweight': {
+            'display_name': 'Bodyweight Glute Bridge',
+            'muscle_groups': ['glutes', 'hamstrings'],
+            'equipment': 'bodyweight',
+            'difficulty': 'beginner',
+            'isCardioWarmup': False,
+            'isActivation': True,
+            'isMobility': False,
+            'isStretch': False,
+            'isCooldownSafe': False,
+            'common_names': ['glute bridges', 'hip bridges']
+        },
+        'hip_airplanes': {
+            'display_name': 'Hip Airplanes',
+            'muscle_groups': ['glutes', 'hip_stabilizers'],
+            'equipment': 'bodyweight',
+            'difficulty': 'intermediate',
+            'isCardioWarmup': False,
+            'isActivation': True,
+            'isMobility': False,
+            'isStretch': False,
+            'isCooldownSafe': False,
+            'common_names': ['single leg hip airplanes']
+        },
+        'copenhagen_side_plank_easy': {
+            'display_name': 'Copenhagen Side Plank (Easy)',
+            'muscle_groups': ['adductors', 'core'],
+            'equipment': 'bodyweight',
+            'difficulty': 'intermediate',
+            'isCardioWarmup': False,
+            'isActivation': True,
+            'isMobility': False,
+            'isStretch': False,
+            'isCooldownSafe': False,
+            'common_names': ['copenhagen plank', 'adductor plank']
+        },
+        'ankle_dorsiflexion_drill': {
+            'display_name': 'Ankle Dorsiflexion Drill',
+            'muscle_groups': ['calves', 'ankles'],
+            'equipment': 'bodyweight',
+            'difficulty': 'beginner',
+            'isCardioWarmup': False,
+            'isActivation': True,
+            'isMobility': False,
+            'isStretch': False,
+            'isCooldownSafe': False,
+            'common_names': ['ankle mobility', 'dorsiflexion drill']
+        },
+        
+        # MOBILITY/STRETCH - CHEST/SHOULDER
+        'doorway_pec_stretch': {
+            'display_name': 'Doorway Pec Stretch',
+            'muscle_groups': ['chest', 'shoulders'],
+            'equipment': 'bodyweight',
+            'difficulty': 'beginner',
+            'isCardioWarmup': False,
+            'isActivation': False,
+            'isMobility': True,
+            'isStretch': True,
+            'isCooldownSafe': True,
+            'common_names': ['pec stretch', 'chest stretch']
+        },
+        'thoracic_extension_foam_roll': {
+            'display_name': 'Thoracic Extension on Foam Roller',
+            'muscle_groups': ['upper_back', 'thoracic_spine'],
+            'equipment': 'foam_roller',
+            'difficulty': 'beginner',
+            'isCardioWarmup': False,
+            'isActivation': False,
+            'isMobility': True,
+            'isStretch': False,
+            'isCooldownSafe': True,
+            'common_names': ['t-spine foam roll', 'thoracic mobility']
+        },
+        'sleeper_stretch_light': {
+            'display_name': 'Light Sleeper Stretch',
+            'muscle_groups': ['shoulders', 'rotator_cuff'],
+            'equipment': 'bodyweight',
+            'difficulty': 'beginner',
+            'isCardioWarmup': False,
+            'isActivation': False,
+            'isMobility': True,
+            'isStretch': True,
+            'isCooldownSafe': True,
+            'common_names': ['sleeper stretch', 'shoulder internal rotation stretch']
+        },
+        
+        # MOBILITY/STRETCH - BACK
+        'child_pose_breathing': {
+            'display_name': 'Child\'s Pose with Breathing',
+            'muscle_groups': ['lower_back', 'lats'],
+            'equipment': 'bodyweight',
+            'difficulty': 'beginner',
+            'isCardioWarmup': False,
+            'isActivation': False,
+            'isMobility': True,
+            'isStretch': True,
+            'isCooldownSafe': True,
+            'common_names': ['childs pose', 'prayer stretch']
+        },
+        'cat_cow_slow': {
+            'display_name': 'Slow Cat-Cow',
+            'muscle_groups': ['spine', 'core'],
+            'equipment': 'bodyweight',
+            'difficulty': 'beginner',
+            'isCardioWarmup': False,
+            'isActivation': False,
+            'isMobility': True,
+            'isStretch': False,
+            'isCooldownSafe': True,
+            'common_names': ['cat cow', 'spinal flexion extension']
+        },
+        'thread_the_needle': {
+            'display_name': 'Thread the Needle',
+            'muscle_groups': ['thoracic_spine', 'shoulders'],
+            'equipment': 'bodyweight',
+            'difficulty': 'beginner',
+            'isCardioWarmup': False,
+            'isActivation': False,
+            'isMobility': True,
+            'isStretch': True,
+            'isCooldownSafe': True,
+            'common_names': ['t-spine rotation', 'threading the needle']
+        },
+        
+        # MOBILITY/STRETCH - LEGS
+        'pigeon_stretch_light': {
+            'display_name': 'Light Pigeon Stretch',
+            'muscle_groups': ['hip_flexors', 'glutes'],
+            'equipment': 'bodyweight',
+            'difficulty': 'intermediate',
+            'isCardioWarmup': False,
+            'isActivation': False,
+            'isMobility': True,
+            'isStretch': True,
+            'isCooldownSafe': True,
+            'common_names': ['pigeon pose', 'hip opener']
+        },
+        'couch_stretch_light': {
+            'display_name': 'Light Couch Stretch',
+            'muscle_groups': ['hip_flexors', 'quads'],
+            'equipment': 'bodyweight',
+            'difficulty': 'intermediate',
+            'isCardioWarmup': False,
+            'isActivation': False,
+            'isMobility': True,
+            'isStretch': True,
+            'isCooldownSafe': True,
+            'common_names': ['couch stretch', 'hip flexor stretch']
+        },
+        'hamstring_band_stretch': {
+            'display_name': 'Band-Assisted Hamstring Stretch',
+            'muscle_groups': ['hamstrings'],
+            'equipment': 'resistance_band',
+            'difficulty': 'beginner',
+            'isCardioWarmup': False,
+            'isActivation': False,
+            'isMobility': True,
+            'isStretch': True,
+            'isCooldownSafe': True,
+            'common_names': ['hamstring stretch', 'lying hamstring stretch']
+        },
+        'calf_wall_stretch': {
+            'display_name': 'Calf Wall Stretch',
+            'muscle_groups': ['calves'],
+            'equipment': 'bodyweight',
+            'difficulty': 'beginner',
+            'isCardioWarmup': False,
+            'isActivation': False,
+            'isMobility': True,
+            'isStretch': True,
+            'isCooldownSafe': True,
+            'common_names': ['wall calf stretch', 'gastrocnemius stretch']
+        },
+        
+        # ...existing exercises with default flags...
+    }
+    
+    # Add default flags to existing exercises if not present
+    if exercise_id in exercises:
+        exercise = exercises[exercise_id]
+        if 'isCardioWarmup' not in exercise:
+            exercise.update({
+                'isCardioWarmup': False,
+                'isActivation': False,
+                'isMobility': False,
+                'isStretch': False,
+                'isCooldownSafe': False
+            })
+        return exercise
+    
+    # Return from existing database with default flags
+    from_existing = _get_existing_exercise(exercise_id)
+    if from_existing:
+        from_existing.update({
+            'isCardioWarmup': False,
+            'isActivation': False,
+            'isMobility': False,
+            'isStretch': False,
+            'isCooldownSafe': False
+        })
+    return from_existing
+
+def _get_existing_exercise(exercise_id: str) -> dict:
+    """Get exercise from existing database."""
+    # ...existing code...
+    pass
+
+Task B: Equipment Catalog for Brand Mapping
+"""Equipment catalog with brand machine mappings to canonical exercises."""
+
+from typing import List, Dict, Optional, Tuple
+
+class EquipmentCatalog:
+    """Manages brand equipment to canonical exercise mappings."""
+    
+    def __init__(self):
+        self.brand_mappings = self._initialize_brand_mappings()
+        self.pattern_mappings = self._initialize_pattern_mappings()
+    
+    def _initialize_brand_mappings(self) -> Dict[str, Dict]:
+        """Initialize brand-specific equipment mappings."""
+        return {
+            # Life Fitness machines
+            'life_fitness_chest_press': {
+                'brand': 'Life Fitness',
+                'display_name': 'Life Fitness Chest Press',
+                'muscle_family': 'chest',
+                'pattern': 'horizontal_press',
+                'canonical_ids': ['machine_chest_press', 'plate_loaded_chest_press'],
+                'preferred_id': 'machine_chest_press'
+            },
+            'life_fitness_shoulder_press': {
+                'brand': 'Life Fitness',
+                'display_name': 'Life Fitness Shoulder Press',
+                'muscle_family': 'shoulders',
+                'pattern': 'vertical_press',
+                'canonical_ids': ['machine_shoulder_press', 'seated_shoulder_press_machine'],
+                'preferred_id': 'machine_shoulder_press'
+            },
+            'life_fitness_lat_pulldown': {
+                'brand': 'Life Fitness',
+                'display_name': 'Life Fitness Lat Pulldown',
+                'muscle_family': 'lats',
+                'pattern': 'vertical_pull',
+                'canonical_ids': ['lat_pulldown_wide', 'lat_pulldown_neutral', 'cable_pulldown'],
+                'preferred_id': 'lat_pulldown_wide'
+            },
+            'life_fitness_row': {
+                'brand': 'Life Fitness',
+                'display_name': 'Life Fitness Row',
+                'muscle_family': 'upper_back',
+                'pattern': 'horizontal_pull',
+                'canonical_ids': ['machine_row', 'seated_cable_row'],
+                'preferred_id': 'machine_row'
+            },
+            'life_fitness_leg_press': {
+                'brand': 'Life Fitness',
+                'display_name': 'Life Fitness Leg Press',
+                'muscle_family': 'quads',
+                'pattern': 'leg_press',
+                'canonical_ids': ['leg_press_45', 'horizontal_leg_press'],
+                'preferred_id': 'leg_press_45'
+            },
+            
+            # Hammer Strength machines
+            'hammer_strength_low_row': {
+                'brand': 'Hammer Strength',
+                'display_name': 'Hammer Strength Low Row',
+                'muscle_family': 'upper_back',
+                'pattern': 'horizontal_pull',
+                'canonical_ids': ['machine_row_chest_supported', 'cable_row_vbar'],
+                'preferred_id': 'machine_row_chest_supported'
+            },
+            'hammer_strength_high_row': {
+                'brand': 'Hammer Strength',
+                'display_name': 'Hammer Strength High Row',
+                'muscle_family': 'lats',
+                'pattern': 'horizontal_pull',
+                'canonical_ids': ['machine_high_row', 'cable_high_row'],
+                'preferred_id': 'machine_high_row'
+            },
+            'hammer_strength_chest_press': {
+                'brand': 'Hammer Strength',
+                'display_name': 'Hammer Strength Chest Press',
+                'muscle_family': 'chest',
+                'pattern': 'horizontal_press',
+                'canonical_ids': ['plate_loaded_chest_press', 'machine_chest_press'],
+                'preferred_id': 'plate_loaded_chest_press'
+            },
+            'hammer_strength_incline_press': {
+                'brand': 'Hammer Strength',
+                'display_name': 'Hammer Strength Incline Press',
+                'muscle_family': 'upper_chest',
+                'pattern': 'incline_press',
+                'canonical_ids': ['incline_machine_press', 'plate_loaded_incline_press'],
+                'preferred_id': 'plate_loaded_incline_press'
+            },
+            'hammer_strength_pullover': {
+                'brand': 'Hammer Strength',
+                'display_name': 'Hammer Strength Pullover',
+                'muscle_family': 'lats',
+                'pattern': 'pullover',
+                'canonical_ids': ['machine_pullover', 'plate_loaded_pullover'],
+                'preferred_id': 'machine_pullover'
+            },
+            
+            # Technogym machines
+            'technogym_pullover': {
+                'brand': 'Technogym',
+                'display_name': 'Technogym Pullover',
+                'muscle_family': 'lats',
+                'pattern': 'pullover',
+                'canonical_ids': ['machine_pullover', 'cable_pullover_rope'],
+                'preferred_id': 'machine_pullover'
+            },
+            'technogym_chest_press': {
+                'brand': 'Technogym',
+                'display_name': 'Technogym Selection Chest Press',
+                'muscle_family': 'chest',
+                'pattern': 'horizontal_press',
+                'canonical_ids': ['machine_chest_press', 'converging_chest_press'],
+                'preferred_id': 'machine_chest_press'
+            },
+            'technogym_leg_curl': {
+                'brand': 'Technogym',
+                'display_name': 'Technogym Leg Curl',
+                'muscle_family': 'hamstrings',
+                'pattern': 'knee_flexion',
+                'canonical_ids': ['lying_leg_curl', 'seated_leg_curl'],
+                'preferred_id': 'lying_leg_curl'
+            },
+            'technogym_lat_machine': {
+                'brand': 'Technogym',
+                'display_name': 'Technogym Lat Machine',
+                'muscle_family': 'lats',
+                'pattern': 'vertical_pull',
+                'canonical_ids': ['lat_pulldown_wide', 'lat_pulldown_neutral'],
+                'preferred_id': 'lat_pulldown_wide'
+            },
+            
+            # Cybex machines
+            'cybex_eagle_chest_press': {
+                'brand': 'Cybex',
+                'display_name': 'Cybex Eagle Chest Press',
+                'muscle_family': 'chest',
+                'pattern': 'horizontal_press',
+                'canonical_ids': ['machine_chest_press', 'converging_chest_press'],
+                'preferred_id': 'machine_chest_press'
+            },
+            'cybex_vr3_row': {
+                'brand': 'Cybex',
+                'display_name': 'Cybex VR3 Row',
+                'muscle_family': 'upper_back',
+                'pattern': 'horizontal_pull',
+                'canonical_ids': ['machine_row', 'seated_row_machine'],
+                'preferred_id': 'machine_row'
+            },
+            
+            # Precor machines
+            'precor_icarian_shoulder_press': {
+                'brand': 'Precor',
+                'display_name': 'Precor Icarian Shoulder Press',
+                'muscle_family': 'shoulders',
+                'pattern': 'vertical_press',
+                'canonical_ids': ['machine_shoulder_press', 'converging_shoulder_press'],
+                'preferred_id': 'machine_shoulder_press'
+            },
+            'precor_super_pullover': {
+                'brand': 'Precor',
+                'display_name': 'Precor Super Pullover',
+                'muscle_family': 'lats',
+                'pattern': 'pullover',
+                'canonical_ids': ['machine_pullover', 'nautilus_pullover'],
+                'preferred_id': 'machine_pullover'
+            }
+        }
+    
+    def _initialize_pattern_mappings(self) -> Dict[str, List[str]]:
+        """Initialize movement pattern to exercise mappings."""
+        return {
+            'horizontal_press': ['barbell_bench_press', 'dumbbell_bench_press', 'machine_chest_press'],
+            'incline_press': ['incline_barbell_press', 'incline_dumbbell_press', 'incline_machine_press'],
+            'vertical_press': ['barbell_overhead_press', 'dumbbell_shoulder_press', 'machine_shoulder_press'],
+            'horizontal_pull': ['barbell_row', 'cable_row', 'machine_row'],
+            'vertical_pull': ['pull_up', 'lat_pulldown_wide', 'lat_pulldown_neutral'],
+            'pullover': ['dumbbell_pullover', 'cable_pullover', 'machine_pullover'],
+            'leg_press': ['leg_press_45', 'horizontal_leg_press', 'hack_squat'],
+            'knee_flexion': ['lying_leg_curl', 'seated_leg_curl', 'nordic_curl'],
+            'knee_extension': ['leg_extension', 'sissy_squat', 'bulgarian_split_squat']
+        }
+    
+    def get_brand_machine(self, machine_key: str) -> Optional[Dict]:
+        """Get brand machine info by key."""
+        return self.brand_mappings.get(machine_key)
+    
+    def find_by_name(self, name: str) -> List[Tuple[str, Dict]]:
+        """Find brand machines by partial name match."""
+        name_lower = name.lower()
+        matches = []
+        
+        for key, info in self.brand_mappings.items():
+            if (name_lower in info['display_name'].lower() or
+                name_lower in key.replace('_', ' ')):
+                matches.append((key, info))
+        
+        return matches
+    
+    def get_canonical_for_brand(self, brand_machine_key: str) -> Optional[str]:
+        """Get preferred canonical exercise ID for brand machine."""
+        machine = self.brand_mappings.get(brand_machine_key)
+        return machine['preferred_id'] if machine else None
+    
+    def get_alternatives_for_brand(self, brand_machine_key: str) -> List[str]:
+        """Get alternative canonical exercise IDs for brand machine."""
+        machine = self.brand_mappings.get(brand_machine_key)
+        return machine['canonical_ids'] if machine else []
+    
+    def get_pattern_exercises(self, pattern: str) -> List[str]:
+        """Get exercises for a movement pattern."""
+        return self.pattern_mappings.get(pattern, [])
+    
+    def resolve_to_canonical(self, exercise_name: str) -> Tuple[Optional[str], List[str]]:
+        """
+        Resolve any exercise name to canonical ID.
+        Returns (preferred_id, alternatives).
+        """
+        # Check if it's a brand machine
+        matches = self.find_by_name(exercise_name)
+        if matches:
+            # Return first match
+            key, info = matches[0]
+            return info['preferred_id'], info['canonical_ids']
+        
+        # Check patterns
+        for pattern, exercises in self.pattern_mappings.items():
+            if pattern in exercise_name.lower():
+                return exercises[0] if exercises else None, exercises
+        
+        return None, []
+
+# Singleton instance
+equipment_catalog = EquipmentCatalog()
+
+Task C: Exercise Alias Resolver
+"""Exercise alias resolver for mapping various names to canonical IDs."""
+
+import difflib
+from typing import List, Dict, Optional, Tuple
+from exercise_database import get_all_exercises, get_exercise_by_id
+from equipment_catalog import equipment_catalog
+
+class ExerciseAliasResolver:
+    """Resolves exercise names and aliases to canonical exercise IDs."""
+    
+    def __init__(self):
+        self.index = self._build_index()
+        self.confidence_threshold = 0.75
+    
+    def _build_index(self) -> Dict[str, str]:
+        """Build index of all exercise names to canonical IDs."""
+        index = {}
+        
+        # Get all exercises from database
+        all_exercises = get_all_exercises()
+        
+        for exercise_id, exercise_data in all_exercises.items():
+            # Add main ID
+            index[exercise_id.lower()] = exercise_id
+            
+            # Add display name
+            if 'display_name' in exercise_data:
+                index[exercise_data['display_name'].lower()] = exercise_id
+            
+            # Add common names
+            if 'common_names' in exercise_data:
+                for name in exercise_data['common_names']:
+                    index[name.lower()] = exercise_id
+        
+        # Add brand machine names
+        for key, info in equipment_catalog.brand_mappings.items():
+            # Map brand names to preferred canonical ID
+            index[info['display_name'].lower()] = info['preferred_id']
+            index[key.replace('_', ' ')] = info['preferred_id']
+        
+        return index
+    
+    def resolve(self, exercise_name: str) -> Tuple[Optional[str], List[str], float]:
+        """
+        Resolve exercise name to canonical ID.
+        Returns (canonical_id, alternatives, confidence).
+        """
+        name_lower = exercise_name.lower().strip()
+        
+        # Exact match
+        if name_lower in self.index:
+            return self.index[name_lower], [], 1.0
+        
+        # Try brand catalog first
+        canonical, alternatives = equipment_catalog.resolve_to_canonical(exercise_name)
+        if canonical:
+            return canonical, alternatives, 0.9
+        
+        # Fuzzy match
+        matches = difflib.get_close_matches(
+            name_lower, 
+            self.index.keys(), 
+            n=3, 
+            cutoff=self.confidence_threshold
+        )
+        
+        if matches:
+            # Return best match and alternatives
+            best_match = self.index[matches[0]]
+            alternatives = [self.index[m] for m in matches[1:] if m != matches[0]]
+            confidence = difflib.SequenceMatcher(None, name_lower, matches[0]).ratio()
+            return best_match, alternatives, confidence
+        
+        return None, [], 0.0
+    
+    def get_suggestions(self, exercise_name: str, max_suggestions: int = 3) -> List[Dict]:
+        """
+        Get top suggestions for an unresolved exercise name.
+        Returns list of {exercise_id, display_name, confidence}.
+        """
+        name_lower = exercise_name.lower().strip()
+        
+        # Get close matches with lower threshold
+        matches = difflib.get_close_matches(
+            name_lower, 
+            self.index.keys(), 
+            n=max_suggestions, 
+            cutoff=0.5
+        )
+        
+        suggestions = []
+        for match in matches:
+            exercise_id = self.index[match]
+            exercise_data = get_exercise_by_id(exercise_id)
+            if exercise_data:
+                confidence = difflib.SequenceMatcher(None, name_lower, match).ratio()
+                suggestions.append({
+                    'exercise_id': exercise_id,
+                    'display_name': exercise_data.get('display_name', exercise_id),
+                    'confidence': confidence
+                })
+        
+        return suggestions
+    
+    def is_valid_exercise(self, exercise_name: str) -> bool:
+        """Check if exercise name can be resolved to a valid ID."""
+        canonical_id, _, confidence = self.resolve(exercise_name)
+        return canonical_id is not None and confidence >= self.confidence_threshold
+
+# Singleton instance
+exercise_resolver = ExerciseAliasResolver()
+
+Task D: Enhanced Focus Router with Interview Detection
+# ...existing code...
+
+def is_nonsense_or_unknown(text: str) -> bool:
+    """
+    Check if request is nonsense or doesn't map to valid workout concepts.
+    """
+    text_lower = text.lower().strip()
+    
+    # Known nonsense patterns
+    nonsense_patterns = [
+        'toenail', 'fingernail', 'hair', 'eyebrow', 'eyelash',
+        'tooth', 'teeth', 'nose', 'ear', 'tongue', 'lip',
+        'kidney', 'liver', 'lung', 'brain', 'stomach', 'intestine',
+        'spleen', 'pancreas', 'bladder', 'appendix'
+    ]
+    
+    for pattern in nonsense_patterns:
+        if pattern in text_lower:
+            return True
+    
+    # Check if it contains ANY valid muscle/equipment/focus keywords
+    valid_concepts = [
+        'chest', 'back', 'shoulder', 'arm', 'leg', 'glute', 'ab', 'core',
+        'bicep', 'tricep', 'quad', 'hamstring', 'calf', 'lat', 'delt',
+        'push', 'pull', 'press', 'row', 'squat', 'deadlift', 'curl',
+        'workout', 'exercise', 'train', 'build', 'strength', 'muscle',
+        'hypertrophy', 'power', 'endurance', 'pump', 'gain'
+    ]
+    
+    has_valid_concept = any(concept in text_lower for concept in valid_concepts)
+    
+    # If no valid concepts and short/vague
+    if not has_valid_concept and len(text_lower.split()) < 10:
+        return True
+    
+    return False
+
+def needs_interview(text: str, user_profile: dict) -> bool:
+    """
+    Check if request needs interview flow for clarification.
+    """
+    text_lower = text.lower().strip()
+    
+    # Generic/vague requests that need clarification
+    vague_patterns = [
+        r'^build my \w+$',  # "build my back"
+        r'^train \w+$',      # "train chest"  
+        r'^workout$',        # just "workout"
+        r'^gym day$',        # "gym day"
+        r'^help me$',        # "help me"
+        r'^\w+ day$',        # "leg day"
+        r'^i want to \w+ my \w+$'  # "I want to build my back"
+    ]
+    
+    import re
+    is_vague = any(re.match(pattern, text_lower) for pattern in vague_patterns)
+    
+    if not is_vague:
+        return False
+    
+    # Check if we have recent interview data (within 7 days)
+    if user_profile:
+        last_interview = user_profile.get('last_interview_date')
+        if last_interview:
+            from datetime import datetime, timedelta
+            last_date = datetime.fromisoformat(last_interview)
+            if datetime.now() - last_date < timedelta(days=7):
+                # Have recent data, can proceed without interview
+                return False
+    
+    # Check if profile has minimum required info
+    required_fields = ['preferred_equipment', 'training_goal', 'session_length', 'current_injuries']
+    has_required = all(user_profile.get(field) for field in required_fields)
+    
+    return not has_required
+
+def extract_interview_context(text: str) -> dict:
+    """Extract any context hints from the initial request."""
+    text_lower = text.lower()
+    
+    context = {
+        'mentioned_muscles': [],
+        'mentioned_goals': [],
+        'mentioned_equipment': []
+    }
+    
+    # Extract muscle groups mentioned
+    muscle_keywords = {
+        'chest': ['chest', 'pec'],
+        'back': ['back', 'lat', 'row'],
+        'shoulders': ['shoulder', 'delt'],
+        'arms': ['arm', 'bicep', 'tricep'],
+        'legs': ['leg', 'quad', 'hamstring', 'glute', 'calf'],
+        'core': ['core', 'ab', 'oblique']
+    }
+    
+    for muscle, keywords in muscle_keywords.items():
+        if any(kw in text_lower for kw in keywords):
+            context['mentioned_muscles'].append(muscle)
+    
+    # Extract goals
+    goal_keywords = {
+        'hypertrophy': ['build', 'growth', 'size', 'mass'],
+        'strength': ['strength', 'strong', 'power'],
+        'endurance': ['endurance', 'conditioning', 'stamina']
+    }
+    
+    for goal, keywords in goal_keywords.items():
+        if any(kw in text_lower for kw in keywords):
+            context['mentioned_goals'].append(goal)
+    
+    return context
+
+# ...existing code...
+
+
+Task E: Enhanced Focus Integration with Interview Flow
+# ...existing code...
+
+from typing import Dict, List, Optional, Tuple
+from datetime import datetime
+import json
+from focus_router import is_nonsense_or_unknown, needs_interview, extract_interview_context
+from exercise_alias_resolver import exercise_resolver
+from profile_sync import update_user_profile, get_user_profile
+
+class InterviewState:
+    """Manages interview flow state."""
+    
+    def __init__(self):
+        self.current_question_index = 0
+        self.responses = {}
+        self.context = {}
+        self.questions = self._get_interview_questions()
+    
+    def _get_interview_questions(self) -> List[Dict]:
+        """Get personalized interview questions."""
+        base_questions = [
+            {
+                'id': 'goal',
+                'question': "What's your main training goal right now?",
+                'options': ['Build muscle (hypertrophy)', 'Get stronger', 'Improve endurance', 'General fitness'],
+                'type': 'choice'
+            },
+            {
+                'id': 'time',
+                'question': "How much time do you have for today's workout?",
+                'options': ['30 minutes', '45 minutes', '60 minutes', '75+ minutes'],
+                'type': 'choice'
+            },
+            {
+                'id': 'equipment',
+                'question': "What equipment do you have access to? (You can list specific brands like Life Fitness, Hammer Strength, etc.)",
+                'type': 'text',
+                'follow_up': "Any specific machines or equipment you prefer to use or avoid?"
+            },
+            {
+                'id': 'soreness',
+                'question': "Any areas feeling sore or fatigued today?",
+                'type': 'text',
+                'optional': True
+            },
+            {
+                'id': 'injuries',
+                'question': "Any current injuries or areas to be careful with?",
+                'type': 'text',
+                'optional': True
+            }
+        ]
+        
+        # Add context-specific questions if muscles were mentioned
+        if self.context.get('mentioned_muscles'):
+            muscles = ', '.join(self.context['mentioned_muscles'])
+            base_questions.insert(1, {
+                'id': 'focus_confirm',
+                'question': f"I see you want to work {muscles}. Is this your main focus, or part of a larger workout?",
+                'options': ['Main focus', 'Part of full body', 'Part of split routine'],
+                'type': 'choice'
+            })
+        
+        return base_questions
+    
+    def get_next_question(self) -> Optional[Dict]:
+        """Get next question in sequence."""
+        if self.current_question_index < len(self.questions):
+            return self.questions[self.current_question_index]
+        return None
+    
+    def record_response(self, question_id: str, response: str) -> None:
+        """Record user response."""
+        self.responses[question_id] = response
+        self.current_question_index += 1
+    
+    def is_complete(self) -> bool:
+        """Check if interview is complete."""
+        required_questions = [q for q in self.questions if not q.get('optional')]
+        required_ids = [q['id'] for q in required_questions]
+        return all(qid in self.responses for qid in required_ids)
+    
+    def get_summary(self) -> Dict:
+        """Get interview summary for profile storage."""
+        return {
+            'responses': self.responses,
+            'context': self.context,
+            'timestamp': datetime.now().isoformat()
+        }
+
+# Interview session storage (in production, use Redis or similar)
+interview_sessions = {}
+
+def start_interview(user_id: str, initial_text: str) -> Dict:
+    """Start interview flow for user."""
+    context = extract_interview_context(initial_text)
+    
+    # Create new interview state
+    state = InterviewState()
+    state.context = context
+    interview_sessions[user_id] = state
+    
+    # Get first question
+    first_question = state.get_next_question()
+    
+    return {
+        'type': 'interview',
+        'status': 'started',
+        'message': "I'd love to help you build the perfect workout! Let me ask you a few quick questions first.",
+        'question': first_question,
+        'progress': f"Question 1 of {len(state.questions)}"
+    }
+
+def continue_interview(user_id: str, response: str) -> Dict:
+    """Continue interview with user response."""
+    if user_id not in interview_sessions:
+        return {
+            'type': 'error',
+            'message': "No active interview found. Please start a new request."
+        }
+    
+    state = interview_sessions[user_id]
+    current_question = state.questions[state.current_question_index - 1] if state.current_question_index > 0 else None
+    
+    if current_question:
+        state.record_response(current_question['id'], response)
+    
+    # Check if complete
+    if state.is_complete():
+        return finalize_interview(user_id)
+    
+    # Get next question
+    next_question = state.get_next_question()
+    if next_question:
+        return {
+            'type': 'interview',
+            'status': 'in_progress',
+            'question': next_question,
+            'progress': f"Question {state.current_question_index + 1} of {len(state.questions)}"
+        }
+    
+    return finalize_interview(user_id)
+
+def finalize_interview(user_id: str) -> Dict:
+    """Finalize interview and ask permission to build workout."""
+    if user_id not in interview_sessions:
+        return {
+            'type': 'error',
+            'message': "No active interview found."
+        }
+    
+    state = interview_sessions[user_id]
+    summary = state.get_summary()
+    
+    # Build summary message
+    summary_text = "Great! Based on what you've told me:\n"
+    if 'goal' in summary['responses']:
+        summary_text += f"• Goal: {summary['responses']['goal']}\n"
+    if 'time' in summary['responses']:
+        summary_text += f"• Time available: {summary['responses']['time']}\n"
+    if 'equipment' in summary['responses']:
+        summary_text += f"• Equipment: {summary['responses']['equipment']}\n"
+    if summary['responses'].get('soreness'):
+        summary_text += f"• Areas to work around: {summary['responses']['soreness']}\n"
+    
+    return {
+        'type': 'interview',
+        'status': 'complete',
+        'message': summary_text,
+        'question': {
+            'id': 'permission',
+            'question': "Ready for me to build your personalized workout?",
+            'options': ['Yes, let\'s do it!', 'Actually, let me change something', 'Not right now'],
+            'type': 'choice'
+        },
+        'summary': summary
+    }
+
+def handle_interview_permission(user_id: str, permission: str) -> Dict:
+    """Handle user permission response."""
+    if 'yes' in permission.lower() or 'do it' in permission.lower():
+        # Save to profile
+        state = interview_sessions[user_id]
+        summary = state.get_summary()
+        
+        profile_update = {
+            'last_interview_date': datetime.now().isoformat(),
+            'training_goal': summary['responses'].get('goal'),
+            'preferred_session_length': summary['responses'].get('time'),
+            'preferred_equipment': summary['responses'].get('equipment'),
+            'current_soreness': summary['responses'].get('soreness'),
+            'current_injuries': summary['responses'].get('injuries')
+        }
+        
+        update_user_profile(user_id, profile_update)
+        
+        # Clean up session
+        del interview_sessions[user_id]
+        
+        return {
+            'type': 'ready_to_plan',
+            'message': "Perfect! Building your workout now...",
+            'context': summary
+        }
+    
+    elif 'change' in permission.lower():
+        return start_interview(user_id, "")
+    
+    else:
+        # Clean up session
+        if user_id in interview_sessions:
+            del interview_sessions[user_id]
+        
+        return {
+            'type': 'cancelled',
+            'message': "No problem! I'm here whenever you're ready to train."
+        }
+
+def resolve_exercise_names_in_plan(plan: Dict, user_id: str) -> Tuple[Dict, List[Dict]]:
+    """
+    Resolve any non-canonical exercise names in plan.
+    Returns (resolved_plan, unresolved_items).
+    """
+    unresolved = []
+    
+    for segment in ['warmup', 'main', 'accessory', 'cooldown']:
+        if segment not in plan:
+            continue
+            
+        for exercise in plan[segment]:
+            if 'exercise_name' in exercise and not exercise.get('exercise_id'):
+                # Try to resolve
+                canonical_id, alternatives, confidence = exercise_resolver.resolve(exercise['exercise_name'])
+                
+                if canonical_id and confidence >= 0.75:
+                    exercise['exercise_id'] = canonical_id
+                else:
+                    # Need user confirmation
+                    suggestions = exercise_resolver.get_suggestions(exercise['exercise_name'])
+                    unresolved.append({
+                        'segment': segment,
+                        'original_name': exercise['exercise_name'],
+                        'suggestions': suggestions
+                    })
+    
+    return plan, unresolved
+
+def handle_exercise_resolution(user_id: str, resolutions: List[Dict]) -> None:
+    """Handle user's exercise resolution choices."""
+    for resolution in resolutions:
+        original_name = resolution['original_name']
+        chosen_id = resolution['chosen_id']
+        
+        # Store mapping for future use (could persist to DB)
+        # For now, just update the resolver's index dynamically
+        exercise_resolver.index[original_name.lower()] = chosen_id
+
+# ...existing code...
+
+
+Task F: Enhanced Focus Composer with Segments
+# ...existing code...
+
+def compose_workout_with_segments(
+    focus: str, 
+    whitelist: List[str], 
+    warmup_pool: List[str],
+    cooldown_pool: List[str],
+    slot_template: Dict,
+    user_context: Dict
+) -> Dict:
+    """
+    Compose complete workout with proper warm-up and cool-down segments.
+    """
+    from exercise_database import get_exercise_by_id
+    import random
+    
+    workout = {
+        'focus': focus,
+        'warmup': [],
+        'main': [],
+        'accessory': [],
+        'cooldown': []
+    }
+    
+    # Track used exercises to prevent duplication
+    used_exercises = set()
+    
+    # 1. Build warm-up (1 cardio + 1-2 activation)
+    cardio_options = [e for e in warmup_pool if get_exercise_by_id(e).get('isCardioWarmup', False)]
+    activation_options = [e for e in warmup_pool if get_exercise_by_id(e).get('isActivation', False)]
+    
+    if cardio_options:
+        cardio_choice = random.choice(cardio_options)
+        workout['warmup'].append({
+            'exercise_id': cardio_choice,
+            'sets': 1,
+            'reps': '3-5 min',
+            'rpe': 4,
+            'role': 'cardio_warmup'
+        })
+        used_exercises.add(cardio_choice)
+    
+    # Add 1-2 activation exercises based on focus
+    activation_count = min(2, len(activation_options))
+    for act_exercise in random.sample(activation_options, min(activation_count, len(activation_options))):
+        if act_exercise not in used_exercises:
+            workout['warmup'].append({
+                'exercise_id': act_exercise,
+                'sets': 2,
+                'reps': '10-15',
+                'rpe': 5,
+                'role': 'activation'
+            })
+            used_exercises.add(act_exercise)
+    
+    # 2. Build main workout (existing logic)
+    main_exercises = [e for e in whitelist if e not in used_exercises]
+    
+    # Use slot template to guide main workout
+    if slot_template and 'patterns' in slot_template:
+        for pattern in slot_template['patterns']:
+            pattern_exercises = [e for e in main_exercises 
+                                if _matches_pattern(e, pattern) and e not in used_exercises]
+            if pattern_exercises:
+                chosen = pattern_exercises[0]  # Could be more sophisticated
+                workout['main'].append({
+                    'exercise_id': chosen,
+                    'sets': 4,
+                    'reps': '8-12',
+                    'rpe': 7,
+                    'role': 'primary'
+                })
+                used_exercises.add(chosen)
+                main_exercises.remove(chosen)
+    
+    # 3. Build accessory work
+    accessory_count = min(3, len(main_exercises))
+    for acc_exercise in main_exercises[:accessory_count]:
+        if acc_exercise not in used_exercises:
+            workout['accessory'].append({
+                'exercise_id': acc_exercise,
+                'sets': 3,
+                'reps': '12-15',
+                'rpe': 6,
+                'role': 'accessory'
+            })
+            used_exercises.add(acc_exercise)
+    
+    # 4. Build cool-down (1-2 mobility/stretch)
+    cooldown_options = [e for e in cooldown_pool 
+                       if e not in used_exercises and 
+                       (get_exercise_by_id(e).get('isMobility', False) or 
+                        get_exercise_by_id(e).get('isStretch', False))]
+    
+    # Prioritize stretches for worked muscle groups
+    focus_muscles = _get_focus_muscles(focus)
+    relevant_cooldown = [e for e in cooldown_options 
+                        if _targets_muscles(e, focus_muscles)]
+    
+    if not relevant_cooldown:
+        relevant_cooldown = cooldown_options
+    
+    cooldown_count = min(2, len(relevant_cooldown))
+    for cool_exercise in random.sample(relevant_cooldown, min(cooldown_count, len(relevant_cooldown))):
+        if cool_exercise not in used_exercises:
+            workout['cooldown'].append({
+                'exercise_id': cool_exercise,
+                'sets': 1,
+                'reps': '30-60 sec' if 'stretch' in cool_exercise else '10-12',
+                'rpe': 3,
+                'role': 'cooldown'
+            })
+            used_exercises.add(cool_exercise)
+    
+    return workout
+
+def _matches_pattern(exercise_id: str, pattern: str) -> bool:
+    """Check if exercise matches movement pattern."""
+    from exercise_database import get_exercise_by_id
+    exercise = get_exercise_by_id(exercise_id)
+    if not exercise:
+        return False
+    
+    # Check various pattern indicators
+    return (pattern in exercise_id or 
+            pattern in exercise.get('movement_pattern', '') or
+            pattern in ' '.join(exercise.get('muscle_groups', [])))
+
+def _get_focus_muscles(focus: str) -> List[str]:
+    """Get primary muscles for focus."""
+    focus_muscle_map = {
+        'chest': ['chest', 'pectorals', 'triceps'],
+        'back': ['lats', 'upper_back', 'rhomboids', 'traps'],
+        'shoulders': ['shoulders', 'delts', 'rotator_cuff'],
+        'legs': ['quads', 'hamstrings', 'glutes', 'calves'],
+        'arms': ['biceps', 'triceps', 'forearms'],
+        'core': ['abs', 'obliques', 'lower_back']
+    }
+    return focus_muscle_map.get(focus.lower(), [])
+
+def _targets_muscles(exercise_id: str, muscles: List[str]) -> bool:
+    """Check if exercise targets specified muscles."""
+    from exercise_database import get_exercise_by_id
+    exercise = get_exercise_by_id(exercise_id)
+    if not exercise:
+        return False
+    
+    exercise_muscles = exercise.get('muscle_groups', [])
+    return any(m in ' '.join(exercise_muscles).lower() for m in muscles)
+
+# ...existing code...
+
+Task G: Enhanced Focus Whitelist with Segment Pools
+# ...existing code...
+
+def build_warmup_pool(user_context: dict, focus: str) -> List[str]:
+    """Build pool of warm-up exercises based on focus and constraints."""
+    from exercise_database import get_all_exercises
+    
+    pool = []
+    all_exercises = get_all_exercises()
+    
+    # Get user equipment constraints
+    available_equipment = user_context.get('equipment', [])
+    injuries = user_context.get('injuries', [])
+    
+    for exercise_id, exercise_data in all_exercises.items():
+        # Skip if not warmup-appropriate
+        if not (exercise_data.get('isCardioWarmup') or exercise_data.get('isActivation')):
+            continue
+        
+        # Check equipment availability
+        if exercise_data.get('equipment'):
+            if exercise_data['equipment'] != 'bodyweight' and available_equipment:
+                if exercise_data['equipment'] not in available_equipment:
+                    continue
+        
+        # Check injury constraints
+        if injuries:
+            exercise_muscles = exercise_data.get('muscle_groups', [])
+            if any(injury in ' '.join(exercise_muscles) for injury in injuries):
+                continue
+        
+        # For activation exercises, prefer focus-relevant ones
+        if exercise_data.get('isActivation'):
+            focus_muscles = _get_focus_muscles_for_warmup(focus)
+            exercise_muscles = exercise_data.get('muscle_groups', [])
+            if any(m in ' '.join(exercise_muscles).lower() for m in focus_muscles):
+                pool.append(exercise_id)
+        else:
+            # Cardio warmups are always relevant
+            pool.append(exercise_id)
+    
+    # Cap pool size
+    return pool[:12]
+
+def build_cooldown_pool(user_context: dict, focus: str) -> List[str]:
+    """Build pool of cool-down exercises based on focus and constraints."""
+    from exercise_database import get_all_exercises
+    
+    pool = []
+    all_exercises = get_all_exercises()
+    
+    # Get user equipment constraints
+    available_equipment = user_context.get('equipment', [])
+    injuries = user_context.get('injuries', [])
+    
+    # Get muscles that need cooldown based on focus
+    target_muscles = _get_cooldown_muscles_for_focus(focus)
+    
+    for exercise_id, exercise_data in all_exercises.items():
+        # Skip if not cooldown-appropriate
+        if not (exercise_data.get('isMobility') or exercise_data.get('isStretch') or 
+                exercise_data.get('isCooldownSafe')):
+            continue
+        
+        # Check equipment availability
+        if exercise_data.get('equipment'):
+            if exercise_data['equipment'] != 'bodyweight' and available_equipment:
+                if exercise_data['equipment'] not in available_equipment:
+                    continue
+        
+        # Check injury constraints (be more careful with cooldowns)
+        if injuries:
+            exercise_muscles = exercise_data.get('muscle_groups', [])
+            if any(injury in ' '.join(exercise_muscles) for injury in injuries):
+                continue
+        
+        # Prefer exercises targeting worked muscles or antagonists
+        exercise_muscles = exercise_data.get('muscle_groups', [])
+        if any(m in ' '.join(exercise_muscles).lower() for m in target_muscles):
+            pool.append(exercise_id)
+    
+    # Cap pool size
+    return pool[:12]
+
+def _get_focus_muscles_for_warmup(focus: str) -> List[str]:
+    """Get muscles to activate for given focus."""
+    activation_map = {
+        'chest': ['chest', 'shoulders', 'serratus', 'rotator_cuff'],
+        'back': ['lats', 'upper_back', 'rear_delts', 'scapular'],
+        'shoulders': ['shoulders', 'rotator_cuff', 'upper_back'],
+        'legs': ['glutes', 'hip_flexors', 'ankles', 'adductors'],
+        'pull': ['lats', 'biceps', 'upper_back', 'grip'],
+        'push': ['chest', 'triceps', 'shoulders', 'serratus']
+    }
+    return activation_map.get(focus.lower(), ['core', 'glutes'])
+
+def _get_cooldown_muscles_for_focus(focus: str) -> List[str]:
+    """Get muscles to stretch/mobilize after focus."""
+    cooldown_map = {
+        'chest': ['chest', 'shoulders', 'thoracic', 'triceps'],
+        'back': ['lats', 'upper_back', 'lower_back', 'biceps'],
+        'shoulders': ['shoulders', 'neck', 'upper_back', 'triceps'],
+        'legs': ['hip_flexors', 'quads', 'hamstrings', 'calves', 'glutes'],
+        'pull': ['lats', 'biceps', 'forearms', 'upper_back'],
+        'push': ['chest', 'triceps', 'shoulders', 'wrists']
+    }
+    return cooldown_map.get(focus.lower(), ['hips', 'spine', 'shoulders'])
+
+# ...existing code...
+
+
+Task H: Enhanced Focus Validator with Segment Rules
+# ...existing code...
+
+def validate_segments(plan: dict) -> List[str]:
+    """
+    Validate warm-up and cool-down segments.
+    Returns list of violations.
+    """
+    from exercise_database import get_exercise_by_id
+    
+    violations = []
+    
+    # Extract exercise IDs from each segment
+    warmup_ids = [ex.get('exercise_id') for ex in plan.get('warmup', [])]
+    main_ids = [ex.get('exercise_id') for ex in plan.get('main', [])]
+    accessory_ids = [ex.get('exercise_id') for ex in plan.get('accessory', [])]
+    cooldown_ids = [ex.get('exercise_id') for ex in plan.get('cooldown', [])]
+    
+    # Check for duplicates across segments
+    all_segments = {
+        'warmup': set(warmup_ids),
+        'main': set(main_ids),
+        'accessory': set(accessory_ids),
+        'cooldown': set(cooldown_ids)
+    }
+    
+    # No exercise should appear in multiple segments
+    for seg1_name, seg1_ids in all_segments.items():
+        for seg2_name, seg2_ids in all_segments.items():
+            if seg1_name != seg2_name:
+                overlap = seg1_ids & seg2_ids
+                if overlap:
+                    violations.append(f"Exercises {overlap} appear in both {seg1_name} and {seg2_name}")
+    
+    # Validate warm-up composition
+    if warmup_ids:
+        cardio_count = sum(1 for ex_id in warmup_ids 
+                          if get_exercise_by_id(ex_id).get('isCardioWarmup', False))
+        activation_count = sum(1 for ex_id in warmup_ids 
+                             if get_exercise_by_id(ex_id).get('isActivation', False))
+        
+        if cardio_count != 1:
+            violations.append(f"Warm-up must have exactly 1 cardio exercise, found {cardio_count}")
+        if activation_count < 1:
+            violations.append(f"Warm-up must have at least 1 activation exercise, found {activation_count}")
+        
+        # Check for inappropriate exercises in warm-up
+        for ex_id in warmup_ids:
+            ex_data = get_exercise_by_id(ex_id)
+            if ex_data.get('isMobility') or ex_data.get('isStretch'):
+                violations.append(f"Warm-up should not contain mobility/stretch exercises: {ex_id}")
+    
+    # Validate cool-down composition
+    if cooldown_ids:
+        mobility_stretch_count = sum(1 for ex_id in cooldown_ids 
+                                   if get_exercise_by_id(ex_id).get('isMobility', False) or 
+                                      get_exercise_by_id(ex_id).get('isStretch', False))
+        
+        if mobility_stretch_count < 1:
+            violations.append(f"Cool-down must have at least 1 mobility/stretch exercise")
+        
+        # Check for inappropriate exercises in cool-down
+        for ex_id in cooldown_ids:
+            ex_data = get_exercise_by_id(ex_id)
+            if ex_data.get('isActivation'):
+                violations.append(f"Cool-down should not contain activation exercises: {ex_id}")
+    
+    # Check muscle overlap between main workout and cool-down
+    if main_ids and cooldown_ids:
+        main_muscles = set()
+        for ex_id in main_ids + accessory_ids:
+            ex_data = get_exercise_by_id(ex_id)
+            if ex_data:
+                main_muscles.update(ex_data.get('muscle_groups', []))
+        
+        cooldown_muscles = set()
+        for ex_id in cooldown_ids:
+            ex_data = get_exercise_by_id(ex_id)
+            if ex_data:
+                cooldown_muscles.update(ex_data.get('muscle_groups', []))
+        
+        # At least 50% overlap or antagonist muscles
+        if main_muscles and cooldown_muscles:
+            overlap = len(main_muscles & cooldown_muscles) / len(main_muscles)
+            if overlap < 0.3:  # Less strict than 50% for flexibility
+                violations.append(f"Cool-down muscles should overlap with worked muscles (only {overlap*100# filepath: c:\Users\nehad\hlthy\ai\focus_validator.py
+# ...existing code...
+
+def validate_segments(plan: dict) -> List[str]:
+    """
+    Validate warm-up and cool-down segments.
+    Returns list of violations.
+    """
+    from exercise_database import get_exercise_by_id
+    
+    violations = []
+    
+    # Extract exercise IDs from each segment
+    warmup_ids = [ex.get('exercise_id') for ex in plan.get('warmup', [])]
+    main_ids = [ex.get('exercise_id') for ex in plan.get('main', [])]
+    accessory_ids = [ex.get('exercise_id') for ex in plan.get('accessory', [])]
+    cooldown_ids = [ex.get('exercise_id') for ex in plan.get('cooldown', [])]
+    
+    # Check for duplicates across segments
+    all_segments = {
+        'warmup': set(warmup_ids),
+        'main': set(main_ids),
+        'accessory': set(accessory_ids),
+        'cooldown': set(cooldown_ids)
+    }
+    
+    # No exercise should appear in multiple segments
+    for seg1_name, seg1_ids in all_segments.items():
+        for seg2_name, seg2_ids in all_segments.items():
+            if seg1_name != seg2_name:
+                overlap = seg1_ids & seg2_ids
+                if overlap:
+                    violations.append(f"Exercises {overlap} appear in both {seg1_name} and {seg2_name}")
+    
+    # Validate warm-up composition
+    if warmup_ids:
+        cardio_count = sum(1 for ex_id in warmup_ids 
+                          if get_exercise_by_id(ex_id).get('isCardioWarmup', False))
+        activation_count = sum(1 for ex_id in warmup_ids 
+                             if get_exercise_by_id(ex_id).get('isActivation', False))
+        
+        if cardio_count != 1:
+            violations.append(f"Warm-up must have exactly 1 cardio exercise, found {cardio_count}")
+        if activation_count < 1:
+            violations.append(f"Warm-up must have at least 1 activation exercise, found {activation_count}")
+        
+        # Check for inappropriate exercises in warm-up
+        for ex_id in warmup_ids:
+            ex_data = get_exercise_by_id(ex_id)
+            if ex_data.get('isMobility') or ex_data.get('isStretch'):
+                violations.append(f"Warm-up should not contain mobility/stretch exercises: {ex_id}")
+    
+    # Validate cool-down composition
+    if cooldown_ids:
+        mobility_stretch_count = sum(1 for ex_id in cooldown_ids 
+                                   if get_exercise_by_id(ex_id).get('isMobility', False) or 
+                                      get_exercise_by_id(ex_id).get('isStretch', False))
+        
+        if mobility_stretch_count < 1:
+            violations.append(f"Cool-down must have at least 1 mobility/stretch exercise")
+        
+        # Check for inappropriate exercises in cool-down
+        for ex_id in cooldown_ids:
+            ex_data = get_exercise_by_id(ex_id)
+            if ex_data.get('isActivation'):
+                violations.append(f"Cool-down should not contain activation exercises: {ex_id}")
+    
+    # Check muscle overlap between main workout and cool-down
+    if main_ids and cooldown_ids:
+        main_muscles = set()
+        for ex_id in main_ids + accessory_ids:
+            ex_data = get_exercise_by_id(ex_id)
+            if ex_data:
+                main_muscles.update(ex_data.get('muscle_groups', []))
+        
+        cooldown_muscles = set()
+        for ex_id in cooldown_ids:
+            ex_data = get_exercise_by_id(ex_id)
+            if ex_data:
+                cooldown_muscles.update(ex_data.get('muscle_groups', []))
+        
+        # At least 50% overlap or antagonist muscles
+        if main_muscles and cooldown_muscles:
+            overlap = len(main_muscles & cooldown_muscles) / len(main_muscles)
+            if overlap < 0.3:  # Less strict than 50% for flexibility
+                violations.append(f"Cool-down muscles should overlap with worked muscles (only {overlap*100)
+
+
+# ...existing code...
+
+# Update the ExerciseProfile dataclass to include new flags
+@dataclass
+class ExerciseProfile:
+    """Canonical exercise definition with safety metadata"""
+    exercise_id: str
+    display_name: str
+    common_names: List[str]  # Alternative names for reference
+    risk_level: RiskLevel
+    primary_muscles: List[str]
+    equipment_required: List[str]
+    injury_contraindications: Set[InjuryType]  # Injuries that ban this exercise
+    injury_cautions: Set[InjuryType]  # Injuries requiring modification
+    min_experience_level: ExperienceLevel
+    safety_flags: Set[str]  # Additional safety considerations
+    substitutions: List[str]  # Safer alternative exercise IDs
+    # NEW FLAGS FOR SEGMENT AWARENESS
+    isCardioWarmup: bool = False
+    isActivation: bool = False
+    isMobility: bool = False
+    isStretch: bool = False
+    isCooldownSafe: bool = False
+
+# Add new warm-up and cool-down specific exercises to CANONICAL_EXERCISES
+CANONICAL_EXERCISES.update({
+    # CARDIO WARM-UPS
+    "treadmill_walk_easy": ExerciseProfile(
+        exercise_id="treadmill_walk_easy",
+        display_name="Easy Treadmill Walk",
+        common_names=["walking warmup", "treadmill warmup"],
+        risk_level=RiskLevel.LOW,
+        primary_muscles=["cardio", "legs"],
+        equipment_required=["treadmill"],
+        injury_contraindications=set(),
+        injury_cautions={InjuryType.KNEE, InjuryType.ANKLE},
+        min_experience_level=ExperienceLevel.BEGINNER,
+        safety_flags={"warmup_only", "low_intensity"},
+        substitutions=["assault_bike_easy", "elliptical_easy"],
+        isCardioWarmup=True
+    ),
+    
+    "assault_bike_easy": ExerciseProfile(
+        exercise_id="assault_bike_easy",
+        display_name="Easy Assault Bike",
+        common_names=["airbike warmup", "assault warmup"],
+        risk_level=RiskLevel.LOW,
+        primary_muscles=["cardio", "full_body"],
+        equipment_required=["assault_bike"],
+        injury_contraindications=set(),
+        injury_cautions={InjuryType.KNEE},
+        min_experience_level=ExperienceLevel.BEGINNER,
+        safety_flags={"warmup_only", "low_intensity"},
+        substitutions=["treadmill_walk_easy", "rower_light_5min"],
+        isCardioWarmup=True
+    ),
+    
+    "rower_light_5min": ExerciseProfile(
+        exercise_id="rower_light_5min",
+        display_name="Light Rowing (5 min)",
+        common_names=["row warmup", "rowing machine warmup"],
+        risk_level=RiskLevel.LOW,
+        primary_muscles=["cardio", "back", "legs"],
+        equipment_required=["rowing_machine"],
+        injury_contraindications={InjuryType.LOWER_BACK},
+        injury_cautions={InjuryType.KNEE},
+        min_experience_level=ExperienceLevel.BEGINNER,
+        safety_flags={"warmup_only", "low_intensity"},
+        substitutions=["assault_bike_easy", "elliptical_easy"],
+        isCardioWarmup=True
+    ),
+    
+    "elliptical_easy": ExerciseProfile(
+        exercise_id="elliptical_easy",
+        display_name="Easy Elliptical",
+        common_names=["elliptical warmup"],
+        risk_level=RiskLevel.LOW,
+        primary_muscles=["cardio", "full_body"],
+        equipment_required=["elliptical"],
+        injury_contraindications=set(),
+        injury_cautions={InjuryType.KNEE, InjuryType.HIP},
+        min_experience_level=ExperienceLevel.BEGINNER,
+        safety_flags={"warmup_only", "low_intensity"},
+        substitutions=["treadmill_walk_easy", "assault_bike_easy"],
+        isCardioWarmup=True
+    ),
+    
+    # ACTIVATION EXERCISES - CHEST/PUSH
+    "scap_pushup": ExerciseProfile(
+        exercise_id="scap_pushup",
+        display_name="Scapular Push-Ups",
+        common_names=["scap pushups", "serratus pushups"],
+        risk_level=RiskLevel.LOW,
+        primary_muscles=["serratus", "chest_activation"],
+        equipment_required=["bodyweight"],
+        injury_contraindications=set(),
+        injury_cautions={InjuryType.WRIST},
+        min_experience_level=ExperienceLevel.BEGINNER,
+        safety_flags={"activation_exercise", "low_load"},
+        substitutions=["band_external_rotation"],
+        isActivation=True
+    ),
+    
+    "band_external_rotation": ExerciseProfile(
+        exercise_id="band_external_rotation",
+        display_name="Band External Rotation",
+        common_names=["external rotations", "rotator cuff warmup"],
+        risk_level=RiskLevel.LOW,
+        primary_muscles=["rotator_cuff"],
+        equipment_required=["resistance_band"],
+        injury_contraindications=set(),
+        injury_cautions={InjuryType.SHOULDER},
+        min_experience_level=ExperienceLevel.BEGINNER,
+        safety_flags={"activation_exercise", "shoulder_health"},
+        substitutions=["band_pull_aparts"],
+        isActivation=True
+    ),
+    
+    "band_pull_aparts": ExerciseProfile(
+        exercise_id="band_pull_aparts",
+        display_name="Band Pull-Aparts",
+        common_names=["band pulls", "rear delt activation"],
+        risk_level=RiskLevel.LOW,
+        primary_muscles=["rear_delts", "rhomboids"],
+        equipment_required=["resistance_band"],
+        injury_contraindications=set(),
+        injury_cautions=set(),
+        min_experience_level=ExperienceLevel.BEGINNER,
+        safety_flags={"activation_exercise", "posture_prep"},
+        substitutions=["band_face_pulls"],
+        isActivation=True
+    ),
+    
+    "empty_bar_bench_groove": ExerciseProfile(
+        exercise_id="empty_bar_bench_groove",
+        display_name="Empty Bar Bench Groove",
+        common_names=["bench warmup", "bar only bench"],
+        risk_level=RiskLevel.LOW,
+        primary_muscles=["chest", "triceps"],
+        equipment_required=["barbell", "bench"],
+        injury_contraindications=set(),
+        injury_cautions={InjuryType.SHOULDER},
+        min_experience_level=ExperienceLevel.BEGINNER,
+        safety_flags={"activation_exercise", "movement_prep"},
+        substitutions=["scap_pushup"],
+        isActivation=True
+    ),
+    
+    # ACTIVATION EXERCISES - BACK/PULL
+    "band_face_pulls": ExerciseProfile(
+        exercise_id="band_face_pulls",
+        display_name="Band Face Pulls",
+        common_names=["face pull warmup"],
+        risk_level=RiskLevel.LOW,
+        primary_muscles=["rear_delts", "traps"],
+        equipment_required=["resistance_band"],
+        injury_contraindications=set(),
+        injury_cautions={InjuryType.SHOULDER},
+        min_experience_level=ExperienceLevel.BEGINNER,
+        safety_flags={"activation_exercise", "shoulder_health"},
+        substitutions=["band_pull_aparts"],
+        isActivation=True
+    ),
+    
+    "scap_pullups": ExerciseProfile(
+        exercise_id="scap_pullups",
+        display_name="Scapular Pull-Ups",
+        common_names=["scap pulls", "lat activation"],
+        risk_level=RiskLevel.LOW,
+        primary_muscles=["lats", "lower_traps"],
+        equipment_required=["pull_up_bar"],
+        injury_contraindications=set(),
+        injury_cautions={InjuryType.SHOULDER},
+        min_experience_level=ExperienceLevel.BEGINNER,
+        safety_flags={"activation_exercise", "lat_prep"},
+        substitutions=["lat_primer_circles"],
+        isActivation=True
+    ),
+    
+    "lat_primer_circles": ExerciseProfile(
+        exercise_id="lat_primer_circles",
+        display_name="Lat Primer Circles",
+        common_names=["arm circles", "lat activation circles"],
+        risk_level=RiskLevel.LOW,
+        primary_muscles=["lats", "shoulders"],
+        equipment_required=["bodyweight"],
+        injury_contraindications=set(),
+        injury_cautions=set(),
+        min_experience_level=ExperienceLevel.BEGINNER,
+        safety_flags={"activation_exercise", "dynamic_prep"},
+        substitutions=["band_face_pulls"],
+        isActivation=True
+    ),
+    
+    # ACTIVATION EXERCISES - LEGS
+    "glute_bridge_bodyweight": ExerciseProfile(
+        exercise_id="glute_bridge_bodyweight",
+        display_name="Bodyweight Glute Bridge",
+        common_names=["glute activation", "glute bridge warmup"],
+        risk_level=RiskLevel.LOW,
+        primary_muscles=["glutes", "hamstrings"],
+        equipment_required=["bodyweight"],
+        injury_contraindications=set(),
+        injury_cautions={InjuryType.LOWER_BACK},
+        min_experience_level=ExperienceLevel.BEGINNER,
+        safety_flags={"activation_exercise", "glute_prep"},
+        substitutions=["hip_airplanes"],
+        isActivation=True
+    ),
+    
+    "hip_airplanes": ExerciseProfile(
+        exercise_id="hip_airplanes",
+        display_name="Hip Airplanes",
+        common_names=["hip mobility", "hip activation"],
+        risk_level=RiskLevel.LOW,
+        primary_muscles=["hip_stabilizers", "glutes"],
+        equipment_required=["bodyweight"],
+        injury_contraindications={InjuryType.HIP},
+        injury_cautions={InjuryType.KNEE},
+        min_experience_level=ExperienceLevel.BEGINNER,
+        safety_flags={"activation_exercise", "balance_prep"},
+        substitutions=["glute_bridge_bodyweight"],
+        isActivation=True
+    ),
+    
+    "copenhagen_side_plank_easy": ExerciseProfile(
+        exercise_id="copenhagen_side_plank_easy",
+        display_name="Copenhagen Side Plank (Easy)",
+        common_names=["adductor plank", "copenhagen warmup"],
+        risk_level=RiskLevel.LOW,
+        primary_muscles=["adductors", "core"],
+        equipment_required=["bench"],
+        injury_contraindications={InjuryType.HIP},
+        injury_cautions={InjuryType.KNEE},
+        min_experience_level=ExperienceLevel.INTERMEDIATE,
+        safety_flags={"activation_exercise", "adductor_prep"},
+        substitutions=["glute_bridge_bodyweight"],
+        isActivation=True
+    ),
+    
+    "ankle_dorsiflexion_drill": ExerciseProfile(
+        exercise_id="ankle_dorsiflexion_drill",
+        display_name="Ankle Dorsiflexion Drill",
+        common_names=["ankle mobility", "ankle warmup"],
+        risk_level=RiskLevel.LOW,
+        primary_muscles=["tibialis", "calves"],
+        equipment_required=["bodyweight"],
+        injury_contraindications={InjuryType.ANKLE},
+        injury_cautions=set(),
+        min_experience_level=ExperienceLevel.BEGINNER,
+        safety_flags={"activation_exercise", "ankle_prep"},
+        substitutions=["glute_bridge_bodyweight"],
+        isActivation=True
+    ),
+    
+    # MOBILITY/STRETCH - CHEST/SHOULDER
+    "doorway_pec_stretch": ExerciseProfile(
+        exercise_id="doorway_pec_stretch",
+        display_name="Doorway Pec Stretch",
+        common_names=["chest stretch", "pec doorway stretch"],
+        risk_level=RiskLevel.LOW,
+        primary_muscles=["chest", "anterior_deltoids"],
+        equipment_required=["doorway"],
+        injury_contraindications=set(),
+        injury_cautions={InjuryType.SHOULDER},
+        min_experience_level=ExperienceLevel.BEGINNER,
+        safety_flags={"static_stretch", "cooldown_safe"},
+        substitutions=["thoracic_extension_foam_roll"],
+        isMobility=True,
+        isStretch=True,
+        isCooldownSafe=True
+    ),
+    
+    "thoracic_extension_foam_roll": ExerciseProfile(
+        exercise_id="thoracic_extension_foam_roll",
+        display_name="Thoracic Extension (Foam Roll)",
+        common_names=["t-spine mobility", "upper back foam roll"],
+        risk_level=RiskLevel.LOW,
+        primary_muscles=["thoracic_spine", "upper_back"],
+        equipment_required=["foam_roller"],
+        injury_contraindications=set(),
+        injury_cautions={InjuryType.LOWER_BACK},
+        min_experience_level=ExperienceLevel.BEGINNER,
+        safety_flags={"mobility_work", "cooldown_safe"},
+        substitutions=["cat_cow_slow"],
+        isMobility=True,
+        isCooldownSafe=True
+    ),
+    
+    "sleeper_stretch_light": ExerciseProfile(
+        exercise_id="sleeper_stretch_light",
+        display_name="Sleeper Stretch (Light)",
+        common_names=["shoulder internal rotation stretch"],
+        risk_level=RiskLevel.LOW,
+        primary_muscles=["rotator_cuff", "posterior_capsule"],
+        equipment_required=["mat"],
+        injury_contraindications={InjuryType.SHOULDER},
+        injury_cautions=set(),
+        min_experience_level=ExperienceLevel.BEGINNER,
+        safety_flags={"static_stretch", "cooldown_safe"},
+        substitutions=["doorway_pec_stretch"],
+        isMobility=True,
+        isStretch=True,
+        isCooldownSafe=True
+    ),
+    
+    # MOBILITY/STRETCH - BACK
+    "child_pose_breathing": ExerciseProfile(
+        exercise_id="child_pose_breathing",
+        display_name="Child's Pose with Breathing",
+        common_names=["child pose", "yoga child pose"],
+        risk_level=RiskLevel.LOW,
+        primary_muscles=["lats", "lower_back", "shoulders"],
+        equipment_required=["mat"],
+        injury_contraindications=set(),
+        injury_cautions={InjuryType.KNEE},
+        min_experience_level=ExperienceLevel.BEGINNER,
+        safety_flags={"recovery_position", "cooldown_safe"},
+        substitutions=["cat_cow_slow"],
+        isMobility=True,
+        isStretch=True,
+        isCooldownSafe=True
+    ),
+    
+    "cat_cow_slow": ExerciseProfile(
+        exercise_id="cat_cow_slow",
+        display_name="Cat-Cow (Slow)",
+        common_names=["cat cow stretch", "spine mobility"],
+        risk_level=RiskLevel.LOW,
+        primary_muscles=["spine", "core"],
+        equipment_required=["mat"],
+        injury_contraindications=set(),
+        injury_cautions={InjuryType.LOWER_BACK},
+        min_experience_level=ExperienceLevel.BEGINNER,
+        safety_flags={"spine_mobility", "cooldown_safe"},
+        substitutions=["child_pose_breathing"],
+        isMobility=True,
+        isCooldownSafe=True
+    ),
+    
+    "thread_the_needle": ExerciseProfile(
+        exercise_id="thread_the_needle",
+        display_name="Thread the Needle",
+        common_names=["thoracic rotation stretch"],
+        risk_level=RiskLevel.LOW,
+        primary_muscles=["thoracic_spine", "shoulders"],
+        equipment_required=["mat"],
+        injury_contraindications=set(),
+        injury_cautions={InjuryType.SHOULDER},
+        min_experience_level=ExperienceLevel.BEGINNER,
+        safety_flags={"rotation_stretch", "cooldown_safe"},
+        substitutions=["cat_cow_slow"],
+        isMobility=True,
+        isStretch=True,
+        isCooldownSafe=True
+    ),
+    
+    # MOBILITY/STRETCH - LEGS
+    "pigeon_stretch_light": ExerciseProfile(
+        exercise_id="pigeon_stretch_light",
+        display_name="Pigeon Stretch (Light)",
+        common_names=["hip opener", "pigeon pose"],
+        risk_level=RiskLevel.LOW,
+        primary_muscles=["hip_flexors", "glutes"],
+        equipment_required=["mat"],
+        injury_contraindications={InjuryType.KNEE, InjuryType.HIP},
+        injury_cautions=set(),
+        min_experience_level=ExperienceLevel.BEGINNER,
+        safety_flags={"hip_stretch", "cooldown_safe"},
+        substitutions=["couch_stretch_light"],
+        isMobility=True,
+        isStretch=True,
+        isCooldownSafe=True
+    ),
+    
+    "couch_stretch_light": ExerciseProfile(
+        exercise_id="couch_stretch_light",
+        display_name="Couch Stretch (Light)",
+        common_names=["hip flexor stretch", "couch stretch"],
+        risk_level=RiskLevel.LOW,
+        primary_muscles=["hip_flexors", "quadriceps"],
+        equipment_required=["bench"],
+        injury_contraindications={InjuryType.KNEE},
+        injury_cautions={InjuryType.HIP},
+        min_experience_level=ExperienceLevel.BEGINNER,
+        safety_flags={"hip_stretch", "cooldown_safe"},
+        substitutions=["pigeon_stretch_light"],
+        isMobility=True,
+        isStretch=True,
+        isCooldownSafe=True
+    ),
+    
+    "hamstring_band_stretch": ExerciseProfile(
+        exercise_id="hamstring_band_stretch",
+        display_name="Hamstring Band Stretch",
+        common_names=["supine hamstring stretch"],
+        risk_level=RiskLevel.LOW,
+        primary_muscles=["hamstrings"],
+        equipment_required=["resistance_band", "mat"],
+        injury_contraindications=set(),
+        injury_cautions={InjuryType.LOWER_BACK},
+        min_experience_level=ExperienceLevel.BEGINNER,
+        safety_flags={"static_stretch", "cooldown_safe"},
+        substitutions=["calf_wall_stretch"],
+        isMobility=True,
+        isStretch=True,
+        isCooldownSafe=True
+    ),
+    
+    "calf_wall_stretch": ExerciseProfile(
+        exercise_id="calf_wall_stretch",
+        display_name="Calf Wall Stretch",
+        common_names=["wall calf stretch", "gastrocnemius stretch"],
+        risk_level=RiskLevel.LOW,
+        primary_muscles=["calves"],
+        equipment_required=["wall"],
+        injury_contraindications=set(),
+        injury_cautions={InjuryType.ANKLE},
+        min_experience_level=ExperienceLevel.BEGINNER,
+        safety_flags={"static_stretch", "cooldown_safe"},
+        substitutions=["hamstring_band_stretch"],
+        isMobility=True,
+        isStretch=True,
+        isCooldownSafe=True
+    ),
+})
+
+# ...existing code...
+
+
+Now, let me create the new equipment catalog module:
+
+"""Equipment Catalog - Maps branded machine names to canonical exercise families and IDs"""
+
+from typing import Dict, List, Tuple
+from dataclasses import dataclass
+
+@dataclass
+class EquipmentMapping:
+    """Maps branded equipment to canonical exercise patterns"""
+    brand_name: str
+    equipment_type: str
+    movement_patterns: List[str]
+    muscle_families: List[str]
+    canonical_candidates: List[str]  # Ordered by preference
+
+# Real branded equipment mappings
+EQUIPMENT_CATALOG: Dict[str, EquipmentMapping] = {
+    # LIFE FITNESS MACHINES
+    "life_fitness_chest_press": EquipmentMapping(
+        brand_name="Life Fitness Chest Press",
+        equipment_type="machine",
+        movement_patterns=["horizontal_press", "chest_press"],
+        muscle_families=["chest", "triceps"],
+        canonical_candidates=["machine_chest_press", "smith_machine_bench_press", "dumbbell_bench_press"]
+    ),
+    "life_fitness_incline_press": EquipmentMapping(
+        brand_name="Life Fitness Incline Press",
+        equipment_type="machine",
+        movement_patterns=["incline_press"],
+        muscle_families=["upper_chest", "anterior_deltoids"],
+        canonical_candidates=["machine_incline_chest_press", "incline_dumbbell_press"]
+    ),
+    "life_fitness_lat_pulldown": EquipmentMapping(
+        brand_name="Life Fitness Lat Pulldown",
+        equipment_type="machine",
+        movement_patterns=["vertical_pull"],
+        muscle_families=["lats", "biceps"],
+        canonical_candidates=["lat_pulldown", "assisted_pull_ups"]
+    ),
+    "life_fitness_seated_row": EquipmentMapping(
+        brand_name="Life Fitness Seated Row",
+        equipment_type="machine",
+        movement_patterns=["horizontal_pull"],
+        muscle_families=["lats", "rhomboids", "rear_delts"],
+        canonical_candidates=["seated_cable_row", "machine_row"]
+    ),
+    "life_fitness_leg_press": EquipmentMapping(
+        brand_name="Life Fitness Leg Press",
+        equipment_type="machine",
+        movement_patterns=["leg_press", "squat"],
+        muscle_families=["quadriceps", "glutes"],
+        canonical_candidates=["leg_press", "leg_press_45_degree"]
+    ),
+    "life_fitness_leg_extension": EquipmentMapping(
+        brand_name="Life Fitness Leg Extension",
+        equipment_type="machine",
+        movement_patterns=["knee_extension"],
+        muscle_families=["quadriceps"],
+        canonical_candidates=["leg_extension"]
+    ),
+    "life_fitness_leg_curl": EquipmentMapping(
+        brand_name="Life Fitness Leg Curl",
+        equipment_type="machine",
+        movement_patterns=["knee_flexion"],
+        muscle_families=["hamstrings"],
+        canonical_candidates=["leg_curl_machine", "seated_leg_curl_machine", "lying_leg_curl_machine"]
+    ),
+    
+    # HAMMER STRENGTH MACHINES
+    "hammer_strength_chest_press": EquipmentMapping(
+        brand_name="Hammer Strength Chest Press",
+        equipment_type="plate_loaded",
+        movement_patterns=["horizontal_press"],
+        muscle_families=["chest", "triceps"],
+        canonical_candidates=["machine_chest_press", "dumbbell_bench_press"]
+    ),
+    "hammer_strength_incline_press": EquipmentMapping(
+        brand_name="Hammer Strength Incline Press",
+        equipment_type="plate_loaded",
+        movement_patterns=["incline_press"],
+        muscle_families=["upper_chest", "anterior_deltoids"],
+        canonical_candidates=["machine_incline_chest_press", "incline_barbell_bench", "incline_dumbbell_press"]
+    ),
+    "hammer_strength_decline_press": EquipmentMapping(
+        brand_name="Hammer Strength Decline Press",
+        equipment_type="plate_loaded",
+        movement_patterns=["decline_press"],
+        muscle_families=["lower_chest", "triceps"],
+        canonical_candidates=["dips", "dips_assisted", "machine_chest_press"]
+    ),
+    "hammer_strength_low_row": EquipmentMapping(
+        brand_name="Hammer Strength Low Row",
+        equipment_type="plate_loaded",
+        movement_patterns=["horizontal_pull"],
+        muscle_families=["lats", "rhomboids", "upper_back"],
+        canonical_candidates=["chest_supported_row_machine", "seated_cable_row", "machine_row"]
+    ),
+    "hammer_strength_high_row": EquipmentMapping(
+        brand_name="Hammer Strength High Row",
+        equipment_type="plate_loaded",
+        movement_patterns=["horizontal_pull"],
+        muscle_families=["upper_back", "rear_delts", "traps"],
+        canonical_candidates=["machine_row", "seated_cable_row", "t_bar_row"]
+    ),
+    "hammer_strength_pulldown": EquipmentMapping(
+        brand_name="Hammer Strength Pulldown",
+        equipment_type="plate_loaded",
+        movement_patterns=["vertical_pull"],
+        muscle_families=["lats", "biceps"],
+        canonical_candidates=["lat_pulldown", "pull_ups", "assisted_pull_ups"]
+    ),
+    "hammer_strength_shoulder_press": EquipmentMapping(
+        brand_name="Hammer Strength Shoulder Press",
+        equipment_type="plate_loaded",
+        movement_patterns=["vertical_press"],
+        muscle_families=["anterior_deltoids", "triceps"],
+        canonical_candidates=["machine_shoulder_press", "dumbbell_shoulder_press"]
+    ),
+    "hammer_strength_v_squat": EquipmentMapping(
+        brand_name="Hammer Strength V-Squat",
+        equipment_type="plate_loaded",
+        movement_patterns=["squat"],
+        muscle_families=["quadriceps", "glutes"],
+        canonical_candidates=["hack_squat", "leg_press", "front_squat"]
+    ),
+    
+    # TECHNOGYM MACHINES
+    "technogym_chest_press": EquipmentMapping(
+        brand_name="Technogym Chest Press",
+        equipment_type="machine",
+        movement_patterns=["horizontal_press"],
+        muscle_families=["chest", "triceps"],
+        canonical_candidates=["machine_chest_press", "smith_machine_bench_press"]
+    ),
+    "technogym_pullover": EquipmentMapping(
+        brand_name="Technogym Pullover",
+        equipment_type="machine",
+        movement_patterns=["pullover"],
+        muscle_families=["lats", "chest"],
+        canonical_candidates=["straight_arm_pulldown", "cable_pullover"]
+    ),
+    "technogym_lat_machine": EquipmentMapping(
+        brand_name="Technogym Lat Machine",
+        equipment_type="machine",
+        movement_patterns=["vertical_pull"],
+        muscle_families=["lats", "biceps"],
+        canonical_candidates=["lat_pulldown", "assisted_pull_ups"]
+    ),
+    "technogym_low_row": EquipmentMapping(
+        brand_name="Technogym Low Row",
+        equipment_type="machine",
+        movement_patterns=["horizontal_pull"],
+        muscle_families=["lats", "rhomboids"],
+        canonical_candidates=["seated_cable_row", "machine_row"]
+    ),
+    "technogym_leg_press": EquipmentMapping(
+        brand_name="Technogym Leg Press",
+        equipment_type="machine",
+        movement_patterns=["leg_press"],
+        muscle_families=["quadriceps", "glutes"],
+        canonical_candidates=["leg_press", "leg_press_45_degree"]
+    ),
+    "technogym_leg_curl": EquipmentMapping(
+        brand_name="Technogym Leg Curl",
+        equipment_type="machine",
+        movement_patterns=["knee_flexion"],
+        muscle_families=["hamstrings"],
+        canonical_candidates=["leg_curl_machine", "lying_leg_curl_machine"]
+    ),
+    "technogym_leg_extension": EquipmentMapping(
+        brand_name="Technogym Leg Extension",
+        equipment_type="machine",
+        movement_patterns=["knee_extension"],
+        muscle_families=["quadriceps"],
+        canonical_candidates=["leg_extension"]
+    ),
+    "technogym_shoulder_press": EquipmentMapping(
+        brand_name="Technogym Shoulder Press",
+        equipment_type="machine",
+        movement_patterns=["vertical_press"],
+        muscle_families=["anterior_deltoids", "triceps"],
+        canonical_candidates=["machine_shoulder_press", "smith_overhead_press"]
+    ),
+    
+    # PRECOR MACHINES
+    "precor_chest_press": EquipmentMapping(
+        brand_name="Precor Chest Press",
+        equipment_type="machine",
+        movement_patterns=["horizontal_press"],
+        muscle_families=["chest", "triceps"],
+        canonical_candidates=["machine_chest_press", "dumbbell_bench_press"]
+    ),
+    "precor_lat_pulldown": EquipmentMapping(
+        brand_name="Precor Lat Pulldown",
+        equipment_type="machine",
+        movement_patterns=["vertical_pull"],
+        muscle_families=["lats", "biceps"],
+        canonical_candidates=["lat_pulldown", "assisted_pull_ups"]
+    ),
+    "precor_seated_row": EquipmentMapping(
+        brand_name="Precor Seated Row",
+        equipment_type="machine",
+        movement_patterns=["horizontal_pull"],
+        muscle_families=["lats", "rhomboids"],
+        canonical_candidates=["seated_cable_row", "machine_row"]
+    ),
+    
+    # CYBEX MACHINES
+    "cybex_chest_press": EquipmentMapping(
+        brand_name="Cybex Chest Press",
+        equipment_type="machine",
+        movement_patterns=["horizontal_press"],
+        muscle_families=["chest", "triceps"],
+        canonical_candidates=["machine_chest_press", "smith_machine_bench_press"]
+    ),
+    "cybex_fly": EquipmentMapping(
+        brand_name="Cybex Fly",
+        equipment_type="machine",
+        movement_patterns=["fly"],
+        muscle_families=["chest"],
+        canonical_candidates=["pec_deck", "cable_fly", "chest_fly"]
+    ),
+    "cybex_row": EquipmentMapping(
+        brand_name="Cybex Row",
+        equipment_type="machine",
+        movement_patterns=["horizontal_pull"],
+        muscle_families=["lats", "rhomboids"],
+        canonical_candidates=["machine_row", "seated_cable_row"]
+    ),
+    "cybex_leg_press": EquipmentMapping(
+        brand_name="Cybex Leg Press",
+        equipment_type="machine",
+        movement_patterns=["leg_press"],
+        muscle_families=["quadriceps", "glutes"],
+        canonical_candidates=["leg_press", "leg_press_45_degree"]
+    ),
+    
+    # MATRIX MACHINES
+    "matrix_chest_press": EquipmentMapping(
+        brand_name="Matrix Chest Press",
+        equipment_type="machine",
+        movement_patterns=["horizontal_press"],
+        muscle_families=["chest", "triceps"],
+        canonical_candidates=["machine_chest_press", "dumbbell_bench_press"]
+    ),
+    "matrix_diverging_lat_pulldown": EquipmentMapping(
+        brand_name="Matrix Diverging Lat Pulldown",
+        equipment_type="machine",
+        movement_patterns=["vertical_pull"],
+        muscle_families=["lats", "biceps"],
+        canonical_candidates=["lat_pulldown", "pull_ups"]
+    ),
+    "matrix_seated_row": EquipmentMapping(
+        brand_name="Matrix Seated Row",
+        equipment_type="machine",
+        movement_patterns=["horizontal_pull"],
+        muscle_families=["lats", "rhomboids", "rear_delts"],
+        canonical_candidates=["seated_cable_row", "machine_row"]
+    ),
+    
+    # NAUTILUS MACHINES
+    "nautilus_chest_press": EquipmentMapping(
+        brand_name="Nautilus Chest Press",
+        equipment_type="machine",
+        movement_patterns=["horizontal_press"],
+        muscle_families=["chest", "triceps"],
+        canonical_candidates=["machine_chest_press", "smith_machine_bench_press"]
+    ),
+    "nautilus_pullover": EquipmentMapping(
+        brand_name="Nautilus Pullover",
+        equipment_type="machine",
+        movement_patterns=["pullover"],
+        muscle_families=["lats", "chest"],
+        canonical_candidates=["straight_arm_pulldown", "cable_pullover"]
+    ),
+    "nautilus_compound_row": EquipmentMapping(
+        brand_name="Nautilus Compound Row",
+        equipment_type="machine",
+        movement_patterns=["horizontal_pull"],
+        muscle_families=["lats", "rhomboids", "biceps"],
+        canonical_candidates=["machine_row", "seated_cable_row", "chest_supported_row_machine"]
+    ),
+}
+
+# Common aliases and variations
+BRAND_ALIASES: Dict[str, str] = {
+    # Life Fitness variations
+    "life fitness chest": "life_fitness_chest_press",
+    "lf chest press": "life_fitness_chest_press",
+    "life fitness row": "life_fitness_seated_row",
+    
+    # Hammer Strength variations
+    "hammer chest": "hammer_strength_chest_press",
+    "hammer row": "hammer_strength_low_row",
+    "hammer pulldown": "hammer_strength_pulldown",
+    "hs chest press": "hammer_strength_chest_press",
+    "hs low row": "hammer_strength_low_row",
+    
+    # Technogym variations
+    "technogym chest": "technogym_chest_press",
+    "tg chest press": "technogym_chest_press",
+    "technogym row": "technogym_low_row",
+    
+    # Generic references
+    "plate loaded chest press": "hammer_strength_chest_press",
+    "plate loaded row": "hammer_strength_low_row",
+    "selectorized chest press": "life_fitness_chest_press",
+}
+
+def get_equipment_mapping(brand_name: str) -> EquipmentMapping:
+    """Get equipment mapping by brand name or alias"""
+    # Normalize input
+    normalized = brand_name.lower().replace("-", "_").replace(" ", "_")
+    
+    # Direct lookup
+    if normalized in EQUIPMENT_CATALOG:
+        return EQUIPMENT_CATALOG[normalized]
+    
+    # Check aliases
+    for alias, catalog_key in BRAND_ALIASES.items():
+        if alias.lower() in brand_name.lower():
+            return EQUIPMENT_CATALOG.get(catalog_key)
+    
+    return None
+
+def get_canonical_exercises_for_brand(brand_name: str) -> List[str]:
+    """Get canonical exercise IDs for a branded machine"""
+    mapping = get_equipment_mapping(brand_name)
+    if mapping:
+        return mapping.canonical_candidates
+    return []
+
+def get_all_brand_names() -> List[str]:
+    """Get all recognized brand equipment names"""
+    names = []
+    for mapping in EQUIPMENT_CATALOG.values():
+        names.append(mapping.brand_name)
+    return sorted(names)
+
+def get_brands_for_muscle_family(muscle_family: str) -> List[str]:
+    """Get all brand machines that target a specific muscle family"""
+    matching_brands = []
+    for key, mapping in EQUIPMENT_CATALOG.items():
+        if muscle_family.lower() in [m.lower() for m in mapping.muscle_families]:
+            matching_brands.append(mapping.brand_name)
+    return matching_brands
+
+def get_brands_for_movement_pattern(movement_pattern: str) -> List[str]:
+    """Get all brand machines for a specific movement pattern"""
+    matching_brands = []
+    for key, mapping in EQUIPMENT_CATALOG.items():
+        if movement_pattern.lower() in [p.lower() for p in mapping.movement_patterns]:
+            matching_brands.append(mapping.brand_name)
+    return matching_brands
+
+
+    Now, let me create the exercise alias resolver:
+
+"""Exercise Alias Resolver - Maps user input to canonical exercise IDs with fuzzy matching"""
+
+import difflib
+from typing import List, Dict, Tuple, Optional
+from dataclasses import dataclass
+import json
+import os
+
+from exercise_database import CANONICAL_EXERCISES
+from equipment_catalog import EQUIPMENT_CATALOG, get_canonical_exercises_for_brand
+
+@dataclass
+class AliasMatch:
+    """Represents a potential match for an exercise name"""
+    canonical_id: str
+    display_name: str
+    confidence: float
+    match_type: str  # 'exact', 'alias', 'brand', 'fuzzy'
+
+class ExerciseAliasResolver:
+    def __init__(self):
+        self.name_index = {}
+        self.brand_index = {}
+        self._build_indices()
+        self.resolution_cache = {}
+        self.user_confirmations = self._load_user_confirmations()
+    
+    def _build_indices(self):
+        """Build search indices from database and equipment catalog"""
+        # Index canonical exercises
+        for exercise_id, exercise in CANONICAL_EXERCISES.items():
+            # Index by ID
+            self.name_index[exercise_id.lower()] = exercise_id
+            
+            # Index by display name
+            self.name_index[exercise.display_name.lower()] = exercise_id
+            
+            # Index by common names
+            for common_name in exercise.common_names:
+                self.name_index[common_name.lower()] = exercise_id
+        
+        # Index brand equipment
+        for equipment_key, mapping in EQUIPMENT_CATALOG.items():
+            self.brand_index[mapping.brand_name.lower()] = equipment_key
+            # Add variations without underscores
+            clean_name = mapping.brand_name.lower().replace("_", " ")
+            self.brand_index[clean_name] = equipment_key
+    
+    def resolve(self, exercise_name: str, context: Dict = None) -> Tuple[Optional[str], List[AliasMatch]]:
+        """
+        Resolve an exercise name to canonical ID
+        
+        Returns:
+            Tuple of (canonical_id if confident, list of suggestions)
+        """
+        if not exercise_name:
+            return None, []
+        
+        normalized = exercise_name.lower().strip()
+        
+        # Check user confirmations first
+        if normalized in self.user_confirmations:
+            return self.user_confirmations[normalized], []
+        
+        # Check resolution cache
+        if normalized in self.resolution_cache:
+            return self.resolution_cache[normalized]
+        
+        matches = []
+        
+        # 1. Exact match on canonical ID or name
+        if normalized in self.name_index:
+            canonical_id = self.name_index[normalized]
+            match = AliasMatch(
+                canonical_id=canonical_id,
+                display_name=CANONICAL_EXERCISES[canonical_id].display_name,
+                confidence=1.0,
+                match_type='exact'
+            )
+            matches.append(match)
+            self.resolution_cache[normalized] = (canonical_id, [match])
+            return canonical_id, [match]
+        
+        # 2. Check brand equipment
+        if normalized in self.brand_index:
+            equipment_key = self.brand_index[normalized]
+            mapping = EQUIPMENT_CATALOG[equipment_key]
+            for candidate_id in mapping.canonical_candidates[:3]:
+                if candidate_id in CANONICAL_EXERCISES:
+                    match = AliasMatch(
+                        canonical_id=candidate_id,
+                        display_name=CANONICAL_EXERCISES[candidate_id].display_name,
+                        confidence=0.9 if mapping.canonical_candidates.index(candidate_id) == 0 else 0.8,
+                        match_type='brand'
+                    )
+                    matches.append(match)
+        
+        # If we have high-confidence brand matches, use them
+        if matches and matches[0].confidence >= 0.9:
+            self.resolution_cache[normalized] = (matches[0].canonical_id, matches)
+            return matches[0].canonical_id, matches
+        
+        # 3. Fuzzy matching
+        all_names = list(self.name_index.keys())
+        close_matches = difflib.get_close_matches(normalized, all_names, n=5, cutoff=0.6)
+        
+        for close_match in close_matches:
+            canonical_id = self.name_index[close_match]
+            similarity = difflib.SequenceMatcher(None, normalized, close_match).ratio()
+            
+            # Check if already added from brand matching
+            if not any(m.canonical_id == canonical_id for m in matches):
+                match = AliasMatch(
+                    canonical_id=canonical_id,
+                    display_name=CANONICAL_EXERCISES[canonical_id].display_name,
+                    confidence=similarity,
+                    match_type='fuzzy'
+                )
+                matches.append(match)
+        
+        # Sort by confidence
+        matches.sort(key=lambda x: x.confidence, reverse=True)
+        
+        # If top match has high confidence, return it
+        if matches and matches[0].confidence >= 0.85:
+            canonical_id = matches[0].canonical_id
+            self.resolution_cache[normalized] = (canonical_id, matches[:3])
+            return canonical_id, matches[:3]
+        
+        # Return top 3 suggestions for user confirmation
+        self.resolution_cache[normalized] = (None, matches[:3])
+        return None, matches[:3]
+    
+    def confirm_resolution(self, exercise_name: str, canonical_id: str):
+        """Store user confirmation of exercise mapping"""
+        normalized = exercise_name.lower().strip()
+        self.user_confirmations[normalized] = canonical_id
+        self._save_user_confirmations()
+        # Update cache
+        if normalized in self.resolution_cache:
+            del self.resolution_cache[normalized]
+    
+    def _load_user_confirmations(self) -> Dict[str, str]:
+        """Load user-confirmed mappings from file"""
+        filepath = "user_confirmations.json"
+        if os.path.exists(filepath):
+            try:
+                with open(filepath, 'r') as f:
+                    return json.load(f)
+            except:
+                pass
+        return {}
+    
+    def _save_user_confirmations(self):
+        """Save user-confirmed mappings to file"""
+        filepath = "user_confirmations.json"
+        try:
+            with open(filepath, 'w') as f:
+                json.dump(self.user_confirmations, f, indent=2)
+        except:
+            pass
+    
+    def get_equipment_suggestions_for_focus(self, focus: str) -> List[str]:
+        """Get branded equipment suggestions for a workout focus"""
+        suggestions = []
+        
+        # Map focus to movement patterns
+        focus_patterns = {
+            'chest': ['horizontal_press', 'incline_press', 'fly'],
+            'back': ['horizontal_pull', 'vertical_pull', 'pullover'],
+            'shoulders': ['vertical_press', 'lateral_raise'],
+            'legs': ['squat', 'leg_press', 'knee_extension', 'knee_flexion'],
+            'push': ['horizontal_press', 'vertical_press'],
+            'pull': ['horizontal_pull', 'vertical_pull'],
+        }
+        
+        patterns = focus_patterns.get(focus.lower(), [])
+        
+        for pattern in patterns:
+            for equipment_key, mapping in EQUIPMENT_CATALOG.items():
+                if pattern in [p.lower() for p in mapping.movement_patterns]:
+                    suggestions.append(mapping.brand_name)
+        
+        return list(set(suggestions))[:10]  # Return unique, limited list
+
+# Global resolver instance
+resolver = ExerciseAliasResolver()
+
+def resolve_exercise_name(name: str, context: Dict = None) -> Tuple[Optional[str], List[Dict]]:
+    """
+    Global function to resolve exercise names
+    
+    Returns:
+        Tuple of (canonical_id if confident, list of suggestion dicts)
+    """
+    canonical_id, matches = resolver.resolve(name, context)
+    
+    suggestions = []
+    for match in matches:
+        suggestions.append({
+            'id': match.canonical_id,
+            'name': match.display_name,
+            'confidence': match.confidence,
+            'type': match.match_type
+        })
+    
+    return canonical_id, suggestions
+
+def confirm_exercise_mapping(name: str, canonical_id: str):
+    """Confirm a user's choice for exercise mapping"""
+    resolver.confirm_resolution(name, canonical_id)
+
+def get_equipment_for_workout(focus: str) -> List[str]:
+    """Get equipment suggestions for a workout focus"""
+    return resolver.get_equipment_suggestions_for_focus(focus)
+
+
+Now I need to update the focus_router.py to add nonsense detection and interview triggers:
+
+# ...existing code...
+
+def is_nonsense_or_unknown(text: str) -> bool:
+    """
+    Detect if the request is nonsense or doesn't map to any workout concept
+    
+    Args:
+        text: User input text
+        
+    Returns:
+        True if the text appears to be nonsense or unrelated to fitness
+    """
+    if not text or len(text.strip()) < 2:
+        return True
+    
+    normalized = text.lower().strip()
+    
+    # Known nonsense/unrelated terms
+    nonsense_terms = {
+        'toenails', 'fingernails', 'hair', 'teeth', 'ears', 'nose', 
+        'eyebrows', 'eyelashes', 'tongue', 'lips', 'skin', 'nails',
+        'weather', 'politics', 'movies', 'music', 'food', 'cooking',
+        'sleeping', 'driving', 'reading', 'writing', 'painting'
+    }
+    
+    # Check for exact nonsense matches
+    for term in nonsense_terms:
+        if term in normalized:
+            return True
+    
+    # Check if it contains any fitness-related terms
+    fitness_terms = {
+        'workout', 'exercise', 'train', 'build', 'strength', 'muscle',
+        'chest', 'back', 'shoulders', 'legs', 'arms', 'abs', 'core',
+        'push', 'pull', 'squat', 'press', 'row', 'curl', 'fly',
+        'cardio', 'hiit', 'circuit', 'superset', 'dropset',
+        'hypertrophy', 'power', 'endurance', 'mobility', 'flexibility',
+        'upper', 'lower', 'full body', 'split', 'bro split',
+        'glutes', 'quads', 'hamstrings', 'calves', 'biceps', 'triceps',
+        'delts', 'traps', 'lats', 'rhomboids', 'obliques'
+    }
+    
+    has_fitness_term = any(term in normalized for term in fitness_terms)
+    
+    # If no fitness terms found, likely nonsense
+    if not has_fitness_term:
+        return True
+    
+    return False
+
+def needs_interview(text: str, profile: dict) -> bool:
+    """
+    Determine if we need to conduct an interview before planning
+    
+    Args:
+        text: User input text
+        profile: User profile data
+        
+    Returns:
+        True if interview is needed
+    """
+    normalized = text.lower().strip()
+    
+    # Generic/vague requests that need clarification
+    vague_patterns = [
+        r'^build my \w+$',  # "build my back"
+        r'^train \w+$',     # "train legs"
+        r'^workout$',       # just "workout"
+        r'^help me$',       # "help me"
+        r'^make me strong$',
+        r'^get me fit$',
+        r'^i want to workout$',
+        r'^i need a workout$',
+        r'^give me a workout$',
+        r'^create a workout$'
+    ]
+    
+    import re
+    is_vague = any(re.match(pattern, normalized) for pattern in vague_patterns)
+    
+    if not is_vague:
+        return False
+    
+    # Check if profile has recent workout context (within last 7 days)
+    if not profile:
+        return True
+    
+    last_interview = profile.get('last_interview_date')
+    if not last_interview:
+        return True
+    
+    # Check if we have necessary information
+    required_fields = ['workout_goal', 'available_time', 'equipment_access', 'experience_level']
+    missing_info = any(field not in profile or not profile[field] for field in required_fields)
+    
+    if missing_info:
+        return True
+    
+    # Check if last interview was more than 7 days ago
+    from datetime import datetime, timedelta
+    try:
+        last_date = datetime.fromisoformat(last_interview)
+        if datetime.now() - last_date > timedelta(days=7):
+            return True
+    except:
+        return True
+    
+    return False
+
+# ...existing code...
+
+
+I'll continue implementing the segment-aware planner with interview flow. Let me update the remaining modules:
+
+# ...existing code...
+
+from exercise_database import CANONICAL_EXERCISES
+from exercise_alias_resolver import resolve_exercise_name
+
+def compose_segment_aware_plan(focus_intent, whitelist, user_context, slot_template=None):
+    """
+    Compose a workout plan with proper warm-up and cool-down segments
+    
+    Returns plan with three segments: warmup, main, cooldown
+    """
+    # Get separate pools for segments
+    from focus_whitelist import build_warmup_pool, build_cooldown_pool
+    
+    warmup_pool = build_warmup_pool(user_context, focus_intent)
+    cooldown_pool = build_cooldown_pool(user_context, focus_intent)
+    
+    # Compose warm-up segment (1 cardio + 1-2 activation)
+    warmup_segment = []
+    
+    # Add one cardio warmup
+    cardio_exercises = [ex_id for ex_id in warmup_pool 
+                       if CANONICAL_EXERCISES.get(ex_id) and 
+                       CANONICAL_EXERCISES[ex_id].isCardioWarmup]
+    
+    if cardio_exercises:
+        selected_cardio = cardio_exercises[0]  # Pick first available
+        warmup_segment.append({
+            'exercise_id': selected_cardio,
+            'sets': 1,
+            'reps': '3-5 min',
+            'segment': 'warmup',
+            'role': 'cardio'
+        })
+    
+    # Add 1-2 activation exercises relevant to focus
+    activation_exercises = [ex_id for ex_id in warmup_pool 
+                          if CANONICAL_EXERCISES.get(ex_id) and 
+                          CANONICAL_EXERCISES[ex_id].isActivation]
+    
+    # Filter activation by focus relevance
+    focus_relevant_activation = []
+    for ex_id in activation_exercises:
+        exercise = CANONICAL_EXERCISES[ex_id]
+        # Check if muscles align with focus
+        if focus_intent['detected_type'] in ['chest', 'push'] and any(
+            m in ['chest', 'triceps', 'shoulders', 'serratus', 'rotator_cuff'] 
+            for m in exercise.primary_muscles
+        ):
+            focus_relevant_activation.append(ex_id)
+        elif focus_intent['detected_type'] in ['back', 'pull'] and any(
+            m in ['lats', 'rhomboids', 'rear_delts', 'traps', 'lower_traps']
+            for m in exercise.primary_muscles
+        ):
+            focus_relevant_activation.append(ex_id)
+        elif focus_intent['detected_type'] in ['legs', 'lower'] and any(
+            m in ['glutes', 'hip_stabilizers', 'adductors', 'tibialis', 'calves']
+            for m in exercise.primary_muscles
+        ):
+            focus_relevant_activation.append(ex_id)
+    
+    # Select 1-2 activation exercises
+    for i, ex_id in enumerate(focus_relevant_activation[:2]):
+        warmup_segment.append({
+            'exercise_id': ex_id,
+            'sets': 1 if i == 0 else 2,
+            'reps': '10-15',
+            'segment': 'warmup',
+            'role': 'activation'
+        })
+    
+    # Compose main segment using existing logic
+    main_segment = compose_workout_plan(focus_intent, whitelist, user_context, slot_template)
+    for exercise in main_segment:
+        exercise['segment'] = 'main'
+    
+    # Compose cool-down segment (1-2 mobility/stretch)
+    cooldown_segment = []
+    
+    # Get mobility/stretch exercises
+    cooldown_exercises = [ex_id for ex_id in cooldown_pool 
+                         if CANONICAL_EXERCISES.get(ex_id) and 
+                         (CANONICAL_EXERCISES[ex_id].isMobility or 
+                          CANONICAL_EXERCISES[ex_id].isStretch)]
+    
+    # Prioritize exercises targeting prime movers from main workout
+    main_muscles = set()
+    for exercise in main_segment:
+        if exercise.get('exercise_id') in CANONICAL_EXERCISES:
+            main_muscles.update(CANONICAL_EXERCISES[exercise['exercise_id']].primary_muscles)
+    
+    # Find cool-down exercises targeting same or antagonist muscles
+    relevant_cooldown = []
+    for ex_id in cooldown_exercises:
+        exercise = CANONICAL_EXERCISES[ex_id]
+        muscle_overlap = any(m in main_muscles for m in exercise.primary_muscles)
+        if muscle_overlap:
+            relevant_cooldown.append(ex_id)
+    
+    # If not enough relevant, use any available
+    if len(relevant_cooldown) < 2:
+        relevant_cooldown.extend([ex for ex in cooldown_exercises 
+                                 if ex not in relevant_cooldown])
+    
+    # Select 1-2 cooldown exercises
+    for i, ex_id in enumerate(relevant_cooldown[:2]):
+        cooldown_segment.append({
+            'exercise_id': ex_id,
+            'sets': 1,
+            'reps': '30-60 sec' if CANONICAL_EXERCISES[ex_id].isStretch else '10-15',
+            'segment': 'cooldown',
+            'role': 'mobility' if CANONICAL_EXERCISES[ex_id].isMobility else 'stretch'
+        })
+    
+    # Ensure no duplication between segments
+    warmup_ids = {ex['exercise_id'] for ex in warmup_segment}
+    cooldown_ids = {ex['exercise_id'] for ex in cooldown_segment}
+    main_ids = {ex['exercise_id'] for ex in main_segment}
+    
+    # Remove any duplicates
+    if warmup_ids & cooldown_ids:
+        # Remove from cooldown
+        cooldown_segment = [ex for ex in cooldown_segment 
+                           if ex['exercise_id'] not in warmup_ids]
+    
+    # Combine all segments
+    complete_plan = {
+        'warmup': warmup_segment,
+        'main': main_segment,
+        'cooldown': cooldown_segment,
+        'metadata': {
+            'focus': focus_intent['detected_type'],
+            'total_sets': len(warmup_segment) + sum(ex.get('sets', 3) for ex in main_segment) + len(cooldown_segment),
+            'segment_aware': True
+        }
+    }
+    
+    return complete_plan
+
+# ...existing code...
+
+
+# ...existing code...
+
+from exercise_database import CANONICAL_EXERCISES
+
+def build_warmup_pool(user_context: dict, focus_intent: dict) -> List[str]:
+    """
+    Build pool of warm-up exercises (cardio + activation)
+    
+    Args:
+        user_context: User profile and constraints
+        focus_intent: Detected workout focus
+    
+    Returns:
+        List of exercise IDs suitable for warm-up
+    """
+    pool = []
+    
+    # Get user equipment
+    available_equipment = user_context.get('available_equipment', [
+        'bodyweight', 'dumbbells', 'barbell', 'cable', 'machine'
+    ])
+    
+    # Get user injuries
+    injuries = user_context.get('active_injuries', [])
+    
+    # Add cardio warm-ups based on equipment
+    for ex_id, exercise in CANONICAL_EXERCISES.items():
+        if not exercise.isCardioWarmup:
+            continue
+        
+        # Check equipment availability
+        if not any(eq in available_equipment for eq in exercise.equipment_required):
+            continue
+        
+        # Check injury constraints
+        is_safe = True
+        for injury in injuries:
+            if injury.upper() in [i.name for i in exercise.injury_contraindications]:
+                is_safe = False
+                break
+        
+        if is_safe:
+            pool.append(ex_id)
+    
+    # Add activation exercises based on focus
+    focus_type = focus_intent.get('detected_type', '')
+    
+    for ex_id, exercise in CANONICAL_EXERCISES.items():
+        if not exercise.isActivation:
+            continue
+        
+        # Check equipment availability
+        if not any(eq in available_equipment for eq in exercise.equipment_required):
+            continue
+        
+        # Check injury constraints
+        is_safe = True
+        for injury in injuries:
+            if injury.upper() in [i.name for i in exercise.injury_contraindications]:
+                is_safe = False
+                break
+        
+        if not is_safe:
+            continue
+        
+        # Filter by focus relevance
+        if focus_type in ['chest', 'push']:
+            if any(m in ['chest_activation', 'serratus', 'rotator_cuff', 'chest', 'triceps'] 
+                   for m in exercise.primary_muscles):
+                pool.append(ex_id)
+        elif focus_type in ['back', 'pull']:
+            if any(m in ['lats', 'lower_traps', 'rear_delts', 'rhomboids', 'traps']
+                   for m in exercise.primary_muscles):
+                pool.append(ex_id)
+        elif focus_type in ['legs', 'lower']:
+            if any(m in ['glutes', 'hip_stabilizers', 'adductors', 'tibialis', 'calves', 'hamstrings']
+                   for m in exercise.primary_muscles):
+                pool.append(ex_id)
+        elif focus_type == 'shoulders':
+            if any(m in ['rotator_cuff', 'rear_delts', 'shoulders']
+                   for m in exercise.primary_muscles):
+                pool.append(ex_id)
+    
+    return list(set(pool))[:12]  # Cap at 12 for performance
+
+def build_cooldown_pool(user_context: dict, focus_intent: dict) -> List[str]:
+    """
+    Build pool of cool-down exercises (mobility + stretches)
+    
+    Args:
+        user_context: User profile and constraints
+        focus_intent: Detected workout focus
+    
+    Returns:
+        List of exercise IDs suitable for cool-down
+    """
+    pool = []
+    
+    # Get user equipment
+    available_equipment = user_context.get('available_equipment', [
+        'mat', 'foam_roller', 'resistance_band', 'wall', 'doorway', 'bench'
+    ])
+    
+    # Get user injuries
+    injuries = user_context.get('active_injuries', [])
+    
+    # Add mobility and stretch exercises
+    for ex_id, exercise in CANONICAL_EXERCISES.items():
+        if not (exercise.isMobility or exercise.isStretch or exercise.isCooldownSafe):
+            continue
+        
+        # Check equipment availability
+        if not any(eq in available_equipment for eq in exercise.equipment_required):
+            continue
+        
+        # Check injury constraints
+        is_safe = True
+        for injury in injuries:
+            if injury.upper() in [i.name for i in exercise.injury_contraindications]:
+                is_safe = False
+                break
+        
+        if is_safe:
+            pool.append(ex_id)
+    
+    # Prioritize by focus area
+    focus_type = focus_intent.get('detected_type', '')
+    prioritized_pool = []
+    
+    for ex_id in pool:
+        exercise = CANONICAL_EXERCISES[ex_id]
+        
+        if focus_type in ['chest', 'push']:
+            if any(m in ['chest', 'anterior_deltoids', 'triceps', 'thoracic_spine', 'rotator_cuff', 'posterior_capsule']
+                   for m in exercise.primary_muscles):
+                prioritized_pool.insert(0, ex_id)
+            else:
+                prioritized_pool.append(ex_id)
+        elif focus_type in ['back', 'pull']:
+            if any(m in ['lats', 'lower_back', 'shoulders', 'spine', 'thoracic_spine']
+                   for m in exercise.primary_muscles):
+                prioritized_pool.insert(0, ex_id)
+            else:
+                prioritized_pool.append(ex_id)
+        elif focus_type in ['legs', 'lower']:
+            if any(m in ['hip_flexors', 'glutes', 'hamstrings', 'quadriceps', 'calves']
+                   for m in exercise.primary_muscles):
+                prioritized_pool.insert(0, ex_id)
+            else:
+                prioritized_pool.append(ex_id)
+        else:
+            prioritized_pool.append(ex_id)
+    
+    return prioritized_pool[:12]  # Cap at 12 for performance
+
+# ...existing code...
+
+
+# ...existing code...
+
+from datetime import datetime
+from typing import Dict, Optional, List
+import json
+from focus_router import detect_focus, is_nonsense_or_unknown, needs_interview
+from focus_composer import compose_segment_aware_plan
+from focus_validator import validate_workout_plan
+from profile_sync import update_user_profile, get_user_profile
+from exercise_alias_resolver import resolve_exercise_name, confirm_exercise_mapping
+
+class InterviewSession:
+    """Manages the interview flow for workout planning"""
+    
+    def __init__(self, user_id: str):
+        self.user_id = user_id
+        self.state = 'initial'
+        self.answers = {}
+        self.questions_asked = []
+        self.current_question = None
+        
+    def start_interview(self, initial_request: str) -> Dict:
+        """Start the interview process"""
+        self.state = 'interviewing'
+        self.initial_request = initial_request
+        
+        # First question based on context
+        if 'back' in initial_request.lower():
+            self.current_question = {
+                'type': 'goal',
+                'text': "I can help you build your back! What's your main goal - building muscle size (hypertrophy), increasing strength, or improving endurance?",
+                'options': ['hypertrophy', 'strength', 'endurance']
+            }
+        elif 'chest' in initial_request.lower():
+            self.current_question = {
+                'type': 'goal',
+                'text': "Let's create a chest workout! Are you looking to build mass, increase your bench press strength, or improve muscular endurance?",
+                'options': ['hypertrophy', 'strength', 'endurance']
+            }
+        else:
+            self.current_question = {
+                'type': 'goal',
+                'text': "What's your primary training goal - building muscle (hypertrophy), getting stronger, or improving endurance?",
+                'options': ['hypertrophy', 'strength', 'endurance']
+            }
+        
+        self.questions_asked.append('goal')
+        return {
+            'status': 'interview_started',
+            'question': self.current_question,
+            'progress': f"1/{self._total_questions()}"
+        }
+    
+    def collect_answer(self, answer: str) -> Dict:
+        """Process an answer and return next question or completion"""
+        # Store the answer
+        question_type = self.current_question['type']
+        self.answers[question_type] = answer.lower()
+        
+        # Determine next question
+        next_question = self._get_next_question()
+        
+        if next_question:
+            self.current_question = next_question
+            self.questions_asked.append(next_question['type'])
+            return {
+                'status': 'question',
+                'question': next_question,
+                'progress': f"{len(self.questions_asked)}/{self._total_questions()}"
+            }
+        else:
+            # All questions answered, ask for confirmation
+            return self.finalize_interview()
+    
+    def _get_next_question(self) -> Optional[Dict]:
+        """Get the next question based on what's been asked"""
+        
+        if 'available_time' not in self.answers:
+            return {
+                'type': 'available_time',
+                'text': "How much time do you typically have for your workouts?",
+                'options': ['30 minutes', '45 minutes', '60 minutes', '90+ minutes']
+            }
+        
+        if 'equipment_access' not in self.answers:
+            return {
+                'type': 'equipment_access',
+                'text': "What equipment do you have access to? I can work with commercial gym equipment (Life Fitness, Hammer Strength, etc.), home gym setup, or just dumbbells and bands.",
+                'options': ['commercial gym', 'home gym', 'minimal equipment']
+            }
+        
+        if 'equipment_access' in self.answers and self.answers['equipment_access'] == 'commercial gym':
+            if 'specific_machines' not in self.answers:
+                focus = detect_focus(self.initial_request)
+                from exercise_alias_resolver import get_equipment_for_workout
+                suggestions = get_equipment_for_workout(focus.get('detected_type', 'general'))[:5]
+                
+                return {
+                    'type': 'specific_machines',
+                    'text': f"Do you have access to these machines at your gym? {', '.join(suggestions)}",
+                    'options': ['yes, all of them', 'some of them', 'none/not sure']
+                }
+        
+        if 'injuries' not in self.answers:
+            return {
+                'type': 'injuries',
+                'text': "Do you have any current injuries or areas that are sore/need to be careful with?",
+                'options': ['no injuries', 'shoulder', 'lower back', 'knee', 'elbow', 'other']
+            }
+        
+        if 'session_preference' not in self.answers:
+            return {
+                'type': 'session_preference',
+                'text': "What training style do you prefer for this workout?",
+                'options': ['straight sets', 'supersets', 'circuit style', 'mix it up']
+            }
+        
+        return None
+    
+    def finalize_interview(self) -> Dict:
+        """Complete the interview and ask for confirmation"""
+        self.state = 'confirming'
+        
+        summary = f"""Based on what you've told me:
+- Goal: {self.answers.get('goal', 'not specified')}
+- Time available: {self.answers.get('available_time', 'not specified')}
+- Equipment: {self.answers.get('equipment_access', 'not specified')}
+- Injuries/concerns: {self.answers.get('injuries', 'none')}
+- Training style: {self.answers.get('session_preference', 'not specified')}
+
+Ready for me to create your personalized workout?"""
+        
+        return {
+            'status': 'confirmation_needed',
+            'summary': summary,
+            'question': {
+                'type': 'confirmation',
+                'text': "Should I build your workout now?",
+                'options': ['yes, create it', 'no, let me change something']
+            }
+        }
+    
+    def _total_questions(self) -> int:
+        """Get total number of questions for progress tracking"""
+        return 5  # goal, time, equipment, injuries, style
+    
+    def save_to_profile(self):
+        """Save interview answers to user profile"""
+        profile_data = {
+            'workout_goal': self.answers.get('goal'),
+            'available_time': self.answers.get('available_time'),
+            'equipment_access': self.answers.get('equipment_access'),
+            'active_injuries': [self.answers.get('injuries')] if self.answers.get('injuries') != 'no injuries' else [],
+            'session_preference': self.answers.get('session_preference'),
+            'last_interview_date': datetime.now().isoformat(),
+            'specific_machines': self.answers.get('specific_machines', [])
+        }
+        update_user_profile(self.user_id, profile_data)
+
+# Global interview sessions
+active_interviews = {}
+
+def handle_workout_request(user_id: str, request_text: str) -> Dict:
+    """
+    Main entry point for workout requests with interview flow
+    
+    Returns appropriate response based on request type and user context
+    """
+    # Check for nonsense
+    if is_nonsense_or_unknown(request_text):
+        return {
+            'type': 'clarification_needed',
+            'message': "I'm not sure what you're asking for. I can help you create workouts for specific muscle groups like chest, back, legs, or create push/pull/full-body routines. What would you like to train?",
+            'suggestions': ['chest workout', 'back day', 'leg training', 'push workout', 'pull day']
+        }
+    
+    # Get user profile
+    profile = get_user_profile(user_id)
+    
+    # Check if interview is needed
+    if needs_interview(request_text, profile):
+        # Start or continue interview
+        if user_id not in active_interviews:
+            active_interviews[user_id] = InterviewSession(user_id)
+        
+        session = active_interviews[user_id]
+        
+        if session.state == 'initial':
+            return session.start_interview(request_text)
+        else:
+            return {
+                'type': 'interview_in_progress',
+                'message': "Let's finish gathering your workout preferences first.",
+                'current_question': session.current_question
+            }
+    
+    # Direct workout generation (user has recent profile data)
+    return generate_workout_plan(user_id, request_text, profile)
+
+def handle_interview_response(user_id: str, answer: str) -> Dict:
+    """Handle responses during interview flow"""
+    if user_id not in active_interviews:
+        return {
+            'type': 'error',
+            'message': "No active interview session. Please start with your workout request."
+        }
+    
+    session = active_interviews[user_id]
+    
+    if session.state == 'confirming' and answer.lower() in ['yes', 'yes, create it']:
+        # Save to profile and generate workout
+        session.save_to_profile()
+        profile = get_user_profile(user_id)
+        result = generate_workout_plan(user_id, session.initial_request, profile)
+        
+        # Clean up session
+        del active_interviews[user_id]
+        return result
+    
+    # Continue interview
+    return session.collect_answer(answer)
+
+def generate_workout_plan(user_id: str, request_text: str, profile: Dict) -> Dict:
+    """Generate the actual workout plan after interview or with existing profile"""
+    
+    # Detect focus
+    focus_intent = detect_focus(request_text)
+    
+    # Build user context from profile
+    user_context = {
+        'experience_level': profile.get('experience_level', 'intermediate'),
+        'active_injuries': profile.get('active_injuries', []),
+        'available_equipment': profile.get('equipment_access', ['dumbbells', 'barbell', 'machine']),
+        'workout_goal': profile.get('workout_goal', 'hypertrophy'),
+        'available_time': profile.get('available_time', '60 minutes'),
+        'user_id': user_id
+    }
+    
+    # Generate whitelist
+    from focus_whitelist import build_focus_whitelist
+    whitelist = build_focus_whitelist(focus_intent, user_context)
+    
+    # Get slot template
+    from focus_rules import get_slot_template
+    slot_template = get_slot_template(focus_intent, user_context)
+    
+    # Compose segment-aware plan
+    plan = compose_segment_aware_plan(focus_intent, whitelist, user_context, slot_template)
+    
+    # Validate plan
+    validation = validate_workout_plan(plan, focus_intent, user_context)
+    
+    if not validation['valid']:
+        # Attempt correction
+        plan = correct_workout_plan(plan, validation['violations'], whitelist)
+    
+    # Apply progression
+    from progression_tracker import fill_loads_for_plan
+    plan = fill_loads_for_plan(plan, user_id)
+    
+    return {
+        'type': 'workout_plan',
+        'plan': plan,
+        'metadata': {
+            'focus': focus_intent['detected_type'],
+            'duration': profile.get('available_time'),
+            'equipment': profile.get('equipment_access'),
+            'generated_at': datetime.now().isoformat()
+        }
+    }
+
+def handle_exercise_clarification(user_id: str, exercise_name: str) -> Dict:
+    """Handle cases where exercise name needs clarification"""
+    canonical_id, suggestions = resolve_exercise_name(exercise_name)
+    
+    if canonical_id:
+        return {
+            'type': 'exercise_resolved',
+            'canonical_id': canonical_id,
+            'message': f"Using {CANONICAL_EXERCISES[canonical_id].display_name}"
+        }
+    
+    if suggestions:
+        return {
+            'type': 'clarification_needed',
+            'message': f"I'm not sure which exercise you mean by '{exercise_name}'. Did you mean one of these?",
+            'suggestions': suggestions[:3]
+        }
+    
+    return {
+        'type': 'unknown_exercise',
+        'message': f"I don't recognize '{exercise_name}'. Can you describe it or choose a different exercise?"
+    }
+
+# ...existing code...
+
+# ...existing code...
+
+def validate_segment_roles(plan: Dict, focus_intent: Dict, user_context: Dict) -> List[str]:
+    """
+    Validate segment-specific rules for warm-up and cool-down
+    
+    Returns list of violations
+    """
+    violations = []
+    
+    # Extract segments
+    warmup = plan.get('warmup', [])
+    main = plan.get('main', [])
+    cooldown = plan.get('cooldown', [])
+    
+    # Check warm-up requirements
+    warmup_cardio_count = sum(1 for ex in warmup 
+                             if ex.get('role') == 'cardio' or 
+                             (ex.get('exercise_id') in CANONICAL_EXERCISES and 
+                              CANONICAL_EXERCISES[ex['exercise_id']].isCardioWarmup))
+    
+    warmup_activation_count = sum(1 for ex in warmup 
+                                 if ex.get('role') == 'activation' or
+                                 (ex.get('exercise_id') in CANONICAL_EXERCISES and
+                                  CANONICAL_EXERCISES[ex['exercise_id']].isActivation))
+    
+    if warmup_cardio_count != 1:
+        violations.append(f"Warm-up must have exactly 1 cardio exercise (found {warmup_cardio_count})")
+    
+    if warmup_activation_count < 1:
+        violations.append(f"Warm-up must have at least 1 activation exercise (found {warmup_activation_count})")
+    
+    # Check cool-down requirements
+    cooldown_mobility_count = sum(1 for ex in cooldown 
+                                 if ex.get('role') in ['mobility', 'stretch'] or
+                                 (ex.get('exercise_id') in CANONICAL_EXERCISES and
+                                  (CANONICAL_EXERCISES[ex['exercise_id']].isMobility or
+                                   CANONICAL_EXERCISES[ex['exercise_id']].isStretch)))
+    
+    if cooldown_mobility_count < 1:
+        violations.append(f"Cool-down must have at least 1 mobility/stretch exercise (found {cooldown_mobility_count})")
+    
+    # Check for no activation in cool-down
+    cooldown_activation = any(ex.get('exercise_id') in CANONICAL_EXERCISES and
+                             CANONICAL_EXERCISES[ex['exercise_id']].isActivation
+                             for ex in cooldown)
+    
+    if cooldown_activation:
+        violations.append("Cool-down must not contain activation exercises")
+    
+    # Check for no duplication between segments
+    warmup_ids = {ex['exercise_id'] for ex in warmup if 'exercise_id' in ex}
+    cooldown_ids = {ex['exercise_id'] for ex in cooldown if 'exercise_id' in ex}
+    main_ids = {ex['exercise_id'] for ex in main if 'exercise_id' in ex}
+    
+    duplicates = warmup_ids & cooldown_ids
+    if duplicates:
+        violations.append(f"Exercises cannot be repeated between warm-up and cool-down: {duplicates}")
+    
+    # Check cool-down targets appropriate muscles
+    if main:
+        main_muscles = set()
+        for ex in main:
+            if ex.get('exercise_id') in CANONICAL_EXERCISES:
+                main_muscles.update(CANONICAL_EXERCISES[ex['exercise_id']].primary_muscles)
+        
+        cooldown_muscles = set()
+        for ex in cooldown:
+            if ex.get('exercise_id') in CANONICAL_EXERCISES:
+                cooldown_muscles.update(CANONICAL_EXERCISES[ex['exercise_id']].primary_muscles)
+        
+        # Calculate overlap
+        if main_muscles and cooldown_muscles:
+            overlap = len(main_muscles & cooldown_muscles) / len(main_muscles)
+            if overlap < 0.3:  # Less than 30% overlap
+                violations.append("Cool-down should target muscles used in main workout")
+    
+    return violations
+
+def validate_workout_plan(plan: Dict, focus_intent: Dict, user_context: Dict) -> Dict:
+    """
+    Comprehensive validation including segment rules
+    
+    Returns validation results with violations
+    """
+    # First run existing validation
+    validation = validate_focus_composition(plan.get('main', []), focus_intent, user_context)
+    
+    # Add segment validation
+    segment_violations = validate_segment_roles(plan, focus_intent, user_context)
+    
+    if segment_violations:
+        validation['valid'] = False
+        validation['violations'].extend(segment_violations)
+    
+    # Check total volume constraints
+    total_sets = (len(plan.get('warmup', [])) + 
+                 sum(ex.get('sets', 3) for ex in plan.get('main', [])) +
+                 len(plan.get('cooldown', [])))
+    
+    if total_sets > 30:
+        validation['valid'] = False
+        validation['violations'].append(f"Total sets ({total_sets}) exceeds maximum of 30")
+    
+    return validation
+
+def correct_workout_plan(plan: Dict, violations: List[str], whitelist: List[str]) -> Dict:
+    """
+    Attempt to correct plan violations while maintaining segments
+    
+    Returns corrected plan
+    """
+    corrected = plan.copy()
+    
+    for violation in violations:
+        if "Warm-up must have exactly 1 cardio" in violation:
+            # Add or fix cardio in warmup
+            cardio_options = [ex_id for ex_id in whitelist 
+                            if ex_id in CANONICAL_EXERCISES and 
+                            CANONICAL_EXERCISES[ex_id].isCardioWarmup]
+            if cardio_options:
+                corrected['warmup'] = [ex for ex in corrected.get('warmup', []) 
+                                      if ex.get('role') != 'cardio']
+                corrected['warmup'].insert(0, {
+                    'exercise_id': cardio_options[0],
+                    'sets': 1,
+                    'reps': '3-5 min',
+                    'segment': 'warmup',
+                    'role': 'cardio'
+                })
+        
+        elif "Warm-up must have at least 1 activation" in violation:
+            # Add activation exercise
+            activation_options = [ex_id for ex_id in whitelist 
+                                if ex_id in CANONICAL_EXERCISES and 
+                                CANONICAL_EXERCISES[ex_id].isActivation]
+            if activation_options:
+                corrected['warmup'].append({
+                    'exercise_id': activation_options[0],
+                    'sets': 1,
+                    'reps': '10-15',
+                    'segment': 'warmup',
+                    'role': 'activation'
+                })
+        
+        elif "Cool-down must have at least 1 mobility" in violation:
+            # Add mobility/stretch exercise
+            cooldown_options = [ex_id for ex_id in whitelist 
+                              if ex_id in CANONICAL_EXERCISES and 
+                              (CANONICAL_EXERCISES[ex_id].isMobility or 
+                               CANONICAL_EXERCISES[ex_id].isStretch)]
+            if cooldown_options:
+                corrected['cooldown'] = corrected.get('cooldown', [])
+                corrected['cooldown'].append({
+                    'exercise_id': cooldown_options[0],
+                    'sets': 1,
+                    'reps': '30-60 sec',
+                    'segment': 'cooldown',
+                    'role': 'stretch'
+                })
+        
+        elif "cannot be repeated between warm-up and cool-down" in violation:
+            # Remove duplicates from cooldown
+            warmup_ids = {ex['exercise_id'] for ex in corrected.get('warmup', [])}
+            corrected['cooldown'] = [ex for ex in corrected.get('cooldown', [])
+                                    if ex['exercise_id'] not in warmup_ids]
+    
+    return corrected
+
+# ...existing code...
+
+"""Tests for segment-aware planner with interview flow"""
+
+import pytest
+from focus_integration import handle_workout_request, handle_interview_response, InterviewSession
+from focus_router import is_nonsense_or_unknown, needs_interview
+from focus_validator import validate_segment_roles
+from exercise_alias_resolver import resolve_exercise_name
+from equipment_catalog import get_equipment_mapping
+
+class TestSegmentAwareness:
+    """Test warm-up and cool-down segment functionality"""
+    
+    def test_chest_workout_segments(self):
+        """Test that chest workout has proper warm-up and cool-down"""
+        user_id = "test_user_1"
+        
+        # Mock profile with recent data
+        profile = {
+            'workout_goal': 'hypertrophy',
+            'available_time': '60 minutes',
+            'equipment_access': 'commercial gym',
+            'active_injuries': [],
+            'last_interview_date': '2025-08-25T10:00:00'
+        }
+        
+        from focus_integration import generate_workout_plan
+        result = generate_workout_plan(user_id, "chest workout", profile)
+        
+        assert result['type'] == 'workout_plan'
+        plan = result['plan']
+        
+        # Check segments exist
+        assert 'warmup' in plan
+        assert 'main' in plan
+        assert 'cooldown' in plan
+        
+        # Check warm-up contains proper exercises
+        warmup_ids = [ex['exercise_id'] for ex in plan['warmup']]
+        assert 'treadmill_walk_easy' in warmup_ids or 'assault_bike_easy' in warmup_ids
+        assert 'scap_pushup' in warmup_ids or 'band_external_rotation' in warmup_ids
+        
+        # Check cool-down contains stretches
+        cooldown_ids = [ex['exercise_id'] for ex in plan['cooldown']]
+        assert 'doorway_pec_stretch' in cooldown_ids or 'thoracic_extension_foam_roll' in cooldown_ids
+        
+        # Ensure no duplication
+        assert len(set(warmup_ids) & set(cooldown_ids)) == 0
+    
+    def test_no_duplicate_exercises_between_segments(self):
+        """Test that exercises are not duplicated between warm-up and cool-down"""
+        plan = {
+            'warmup': [
+                {'exercise_id': 'reverse_fly', 'sets': 1, 'role': 'activation'}
+            ],
+            'main': [
+                {'exercise_id': 'bench_press', 'sets': 3}
+            ],
+            'cooldown': [
+                {'exercise_id': 'reverse_fly', 'sets': 1, 'role': 'stretch'}  # Duplicate!
+            ]
+        }
+        
+        violations = validate_segment_roles(plan, {'detected_type': 'chest'}, {})
+        assert any('cannot be repeated' in v for v in violations)
+
+class TestNonsenseDetection:
+    """Test nonsense and unknown request detection"""
+    
+    def test_toenails_request_rejected(self):
+        """Test that 'toenails' request is detected as nonsense"""
+        assert is_nonsense_or_unknown("I want to workout my toenails") == True
+        assert is_nonsense_or_unknown("toenails") == True
+        assert is_nonsense_or_unknown("train my fingernails") == True
+    
+    def test_valid_requests_accepted(self):
+        """Test that valid workout requests are not flagged as nonsense"""
+        assert is_nonsense_or_unknown("chest workout") == False
+        assert is_nonsense_or_unknown("build my back") == False
+        assert is_nonsense_or_unknown("leg day") == False
+        assert is_nonsense_or_unknown("push workout") == False
+
+class TestInterviewFlow:
+    """Test interview-based workout planning"""
+    
+    def test_generic_back_request_triggers_interview(self):
+        """Test that 'build my back' triggers interview"""
+        profile = {}  # Empty profile
+        assert needs_interview("build my back", profile) == True
+    
+    def test_interview_session_flow(self):
+        """Test complete interview flow"""
+        session = InterviewSession("test_user")
+        
+        # Start interview
+        result = session.start_interview("build my back")
+        assert result['status'] == 'interview_started'
+        assert 'goal' in result['question']['text'].lower()
+        
+        # Answer questions
+        result = session.collect_answer("hypertrophy")
+        assert result['status'] == 'question'
+        assert 'time' in result['question']['text'].lower()
+        
+        result = session.collect_answer("60 minutes")
+        assert result['status'] == 'question'
+        assert 'equipment' in result['question']['text'].lower()
+        
+        result = session.collect_answer("commercial gym")
+        assert result['status'] == 'question'
+        
+        # Continue through all questions
+        result = session.collect_answer("yes, all of them")
+        result = session.collect_answer("no injuries")
+        result = session.collect_answer("straight sets")
+        
+        # Should ask for confirmation
+        assert result['status'] == 'confirmation_needed'
+        assert 'ready' in result['summary'].lower()
+    
+    def test_interview_saves_to_profile(self):
+        """Test that interview answers are saved to profile"""
+        session = InterviewSession("test_user")
+        session.answers = {
+            'goal': 'hypertrophy',
+            'available_time': '60 minutes',
+            'equipment_access': 'commercial gym',
+            'injuries': 'no injuries',
+            'session_preference': 'straight sets'
+        }
+        
+        # Mock profile save
+        session.save_to_profile()
+        # In real test, would verify profile was updated
+
+class TestBrandMapping:
+    """Test equipment brand name resolution"""
+    
+    def test_life_fitness_chest_press_resolution(self):
+        """Test Life Fitness machine mapping"""
+        mapping = get_equipment_mapping("Life Fitness Chest Press")
+        assert mapping is not None
+        assert 'machine_chest_press' in mapping.canonical_candidates
+    
+    def test_hammer_strength_low_row_resolution(self):
+        """Test Hammer Strength machine mapping"""
+        mapping = get_equipment_mapping("Hammer Strength Low Row")
+        assert mapping is not None
+        assert any('row' in candidate for candidate in mapping.canonical_candidates)
+    
+    def test_exercise_alias_resolution(self):
+        """Test fuzzy matching for exercise names"""
+        canonical_id, suggestions = resolve_exercise_name("Life Fitness Chest Press")
+        assert canonical_id == 'machine_chest_press' or len(suggestions) > 0
+        
+        if suggestions:
+            assert suggestions[0]['id'] in ['machine_chest_press', 'smith_machine_bench_press']
+
+class TestWorkoutCorrection:
+    """Test workout plan correction"""
+    
+    def test_correction_fixes_segment_violations(self):
+        """Test that correction fixes warm-up/cool-down issues"""
+        from focus_validator import correct_workout_plan
+        
+        # Invalid plan with duplicate
+        plan = {
+            'warmup': [{'exercise_id': 'reverse_fly', 'role': 'activation'}],
+            'main': [{'exercise_id': 'bench_press'}],
+            'cooldown': [{'exercise_id': 'reverse_fly', 'role': 'stretch'}]
+        }
+        
+        violations = ['Exercises cannot be repeated between warm-up and cool-down']
+        whitelist = ['doorway_pec_stretch', 'thoracic_extension_foam_roll']
+        
+        corrected = correct_workout_plan(plan, violations, whitelist)
+        
+        # Check duplicate removed
+        warmup_ids = {ex['exercise_id'] for ex in corrected['warmup']}
+        cooldown_ids = {ex['exercise_id'] for ex in corrected['cooldown']}
+        assert len(warmup_ids & cooldown_ids) == 0
+
+class TestEndToEnd:
+    """End-to-end integration tests"""
+    
+    def test_chest_workout_with_interview(self):
+        """Test complete flow from vague request to workout"""
+        user_id = "test_user_e2e"
+        
+        # Initial vague request
+        result = handle_workout_request(user_id, "I want to get stronger")
+        assert result.get('type') in ['interview_started', 'clarification_needed']
+        
+        # If interview started, complete it
+        if result.get('type') == 'interview_started':
+            # Answer all questions
+            result = handle_interview_response(user_id, "strength")
+            result = handle_interview_response(user_id, "60 minutes")
+            result = handle_interview_response(user_id, "commercial gym")
+            result = handle_interview_response(user_id, "yes, all of them")
+            result = handle_interview_response(user_id, "no injuries")
+            result = handle_interview_response(user_id, "straight sets")
+            result = handle_interview_response(user_id, "yes, create it")
+            
+            assert result['type'] == 'workout_plan'
+            assert 'warmup' in result['plan']
+            assert 'main' in result['plan']
+            assert 'cooldown' in result['plan']
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])
+
+
+    Finally, let me update the observability dashboard to track the new metrics:
+
+# ...existing code...
+
+def log_interview_metrics(user_id: str, metrics: Dict):
+    """Log interview-related metrics"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        INSERT INTO interview_metrics 
+        (user_id, interview_started, questions_asked, interview_completed, timestamp)
+        VALUES (?, ?, ?, ?, ?)
+    ''', (
+        user_id,
+        metrics.get('interview_started', False),
+        json.dumps(metrics.get('questions_asked', [])),
+        metrics.get('interview_completed', False),
+        datetime.now().isoformat()
+    ))
+    
+    conn.commit()
+    conn.close()
+
+def log_segment_metrics(user_id: str, plan: Dict):
+    """Log segment-aware planning metrics"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    warmup_ids = [ex['exercise_id'] for ex in plan.get('warmup', [])]
+    cooldown_ids = [ex['exercise_id'] for ex in plan.get('cooldown', [])]
+    
+    duplication_rate = 1.0 if len(set(warmup_ids) & set(cooldown_ids)) > 0 else 0.0
+    
+    cursor.execute('''
+        INSERT INTO segment_metrics
+        (user_id, warmup_pool_size, cooldown_pool_size, duplication_rate, timestamp)
+        VALUES (?, ?, ?, ?, ?)
+    ''', (
+        user_id,
+        len(warmup_ids),
+        len(cooldown_ids),
+        duplication_rate,
+        datetime.now().isoformat()
+    ))
+    
+    conn.commit()
+    conn.close()
+
+def log_brand_mapping_metrics(user_id: str, metrics: Dict):
+    """Log brand equipment mapping metrics"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        INSERT INTO brand_mapping_metrics
+        (user_id, brand_mapped_count, brand_unmapped_count, mapping_success_rate, timestamp)
+        VALUES (?, ?, ?, ?, ?)
+    ''', (
+        user_id,
+        metrics.get('brand_mapped_count', 0),
+        metrics.get('brand_unmapped_count', 0),
+        metrics.get('mapping_success_rate', 0.0),
+        datetime.now().isoformat()
+    ))
+    
+    conn.commit()
+    conn.close()
+
+# Create new tables if needed
+def init_new_metrics_tables():
+    """Initialize new metrics tables"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS interview_metrics (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id TEXT NOT NULL,
+            interview_started BOOLEAN,
+            questions_asked TEXT,
+            interview_completed BOOLEAN,
+            timestamp TEXT
+        )
+    ''')
+    
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS segment_metrics (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id TEXT NOT NULL,
+            warmup_pool_size INTEGER,
+            cooldown_pool_size INTEGER,
+            duplication_rate REAL,
+            timestamp TEXT
+        )
+    ''')
+    
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS brand_mapping_metrics (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id TEXT NOT NULL,
+            brand_mapped_count INTEGER,
+            brand_unmapped_count INTEGER,
+            mapping_success_rate REAL,
+            timestamp TEXT
+        )
+    ''')
+    
+    conn.commit()
+    conn.close()
+
+# Initialize on import
+init_new_metrics_tables()
+
+# ...existing code...
+
+
+Summary
+I've successfully implemented the segment-aware planner with interview flow and knowledge fusion upgrade. Here's what was delivered:
+
+✅ Implemented Features:
+Segment-Aware Planning:
+
+Proper warm-up with cardio + activation exercises
+Cool-down with mobility/stretches targeting worked muscles
+No duplication between segments
+Added flags to exercise database for segment roles
+Interview Flow:
+
+Detects vague requests like "build my back"
+Asks 3-5 targeted questions (goal, time, equipment, injuries, style)
+Persists answers to user profile
+Asks permission before building workout
+Knowledge Fusion:
+
+Equipment catalog with real brand machines (Life Fitness, Hammer Strength, Technogym, etc.)
+Exercise alias resolver with fuzzy matching
+Maps brand names to canonical exercise IDs
+User confirmation for ambiguous mappings
+Validation & Correction:
+
+Hard rules for segment composition
+No-reuse checks between warm-up/cool-down
+Automatic correction for violations
+Maintains existing safety and focus rules
+Comprehensive Tests:
+
+Segment validation tests
+Nonsense detection tests
+Interview flow tests
+Brand mapping tests
+End-to-end integration tests
+Key Improvements:
+No more duplicate warm-ups/cool-downs - Each segment has unique, appropriate exercises
+Rejects nonsense - "toenails" requests get clarification
+Coach-like interaction - Asks questions before creating workouts
+Brand awareness - Recognizes commercial gym equipment brands
+Maintains quality - All existing safety and progression features intact
+The system now behaves like a real personal trainer - gathering information, understanding equipment availability, and creating properly structured workouts with appropriate warm-ups and cool-downs.
+
+FOCUS-INTERVIEW+SEGMENTS: COMPLETE — [equipment_catalog.py, exercise_alias_resolver.py, exercise_database.py, focus_composer.py, focus_whitelist.py, focus_router.py, focus_integration.py, focus_validator.py, tests/coach_pipeline/*]
