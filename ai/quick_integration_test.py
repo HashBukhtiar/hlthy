@@ -110,21 +110,27 @@ def test_segment_awareness():
         for exercise_id in sample_ids:
             exercise = db.get_exercise_by_id(exercise_id)
             if exercise:
-                # Check if it's a warm-up type exercise
-                is_warmup = (exercise.get('isCardioWarmup', False) or 
-                           exercise.get('isActivation', False) or 
-                           exercise.get('isMobility', False))
-                
-                # Check if it's a cool-down type exercise  
+                # Check if it's a cool-down type exercise FIRST (priority)
                 is_cooldown = (exercise.get('isCooldownSafe', False) or 
                              exercise.get('isStretch', False))
                 
-                if is_warmup:
-                    warmup_count += 1
-                    print(f"✅ {exercise_id} → Warm-up exercise (cardio={exercise.get('isCardioWarmup', False)}, activation={exercise.get('isActivation', False)}, mobility={exercise.get('isMobility', False)})")
-                elif is_cooldown:
+                # Check if it's a warm-up type exercise
+                is_warmup = (exercise.get('isCardioWarmup', False) or 
+                           exercise.get('isActivation', False))
+                
+                # Check mobility (can be either warm-up or cool-down)
+                is_mobility = exercise.get('isMobility', False)
+                
+                if is_cooldown:
                     cooldown_count += 1
-                    print(f"✅ {exercise_id} → Cool-down exercise (cooldown={exercise.get('isCooldownSafe', False)}, stretch={exercise.get('isStretch', False)})")
+                    print(f"✅ {exercise_id} → Cool-down exercise (cooldown={exercise.get('isCooldownSafe', False)}, stretch={exercise.get('isStretch', False)}, mobility={is_mobility})")
+                elif is_warmup:
+                    warmup_count += 1
+                    print(f"✅ {exercise_id} → Warm-up exercise (cardio={exercise.get('isCardioWarmup', False)}, activation={exercise.get('isActivation', False)}, mobility={is_mobility})")
+                elif is_mobility:
+                    # Pure mobility can be either - categorize as warm-up by default for counting
+                    warmup_count += 1
+                    print(f"✅ {exercise_id} → Warm-up exercise (mobility only)")
                 else:
                     main_count += 1
                     print(f"✅ {exercise_id} → Main workout exercise")
