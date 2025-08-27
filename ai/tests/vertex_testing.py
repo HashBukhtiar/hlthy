@@ -209,6 +209,24 @@ except Exception as e:
             coach_model = None
             router_model = None
 
+# Initialize AI-powered intelligent system now that models are ready
+INTELLIGENT_SYSTEM_AVAILABLE = False
+intelligent_system = None
+legacy_wrapper = None
+
+if coach_model:
+    try:
+        from integration.intelligent_integration import IntelligentIntegration, LegacyCompatibilityWrapper
+        intelligent_system = IntelligentIntegration(coach_model)
+        legacy_wrapper = LegacyCompatibilityWrapper(coach_model)
+        INTELLIGENT_SYSTEM_AVAILABLE = True
+        print("✅ AI-powered intelligent system initialized with Gemini brain")
+    except ImportError as e:
+        print(f"Warning: AI intelligent system not available: {e}")
+        INTELLIGENT_SYSTEM_AVAILABLE = False
+else:
+    print("Warning: No coach_model available, intelligent system disabled")
+
 # Router prompt
 ROUTER_PROMPT = """You are a fitness coach intent classifier. Classify the user's intent into exactly one label:
 
@@ -1358,6 +1376,85 @@ def chat():
         # Get or build context
         context = data.get('context', get_default_context())
         
+        # Use AI-powered intelligent system if available
+        if INTELLIGENT_SYSTEM_AVAILABLE and intelligent_system:
+            try:
+                print("Using AI-powered intelligent system with Gemini brain")
+                
+                # Use the intelligent system that orchestrates all your systems
+                result = intelligent_system.handle_request(user_id, user_message)
+                
+                print(f"Intelligent system result type: {result.get('type')}")
+                
+                # Transform result to API format
+                api_response = {
+                    "success": True,
+                    "route": result.get('intent', route),
+                    "intelligent_system": True,
+                    "response_type": result.get('type', 'unknown'),
+                    "used_systems": result.get('used_systems', [])
+                }
+                
+                if result.get('type') == 'workout':
+                    # Workout plan response
+                    api_response.update({
+                        "response": result.get('message', 'Workout plan generated'),
+                        "workout_plan": result.get('workout'),
+                        "planning_notes": result.get('planning_notes', ''),
+                        "confidence": result.get('confidence', 1.0),
+                        "exercise_count": len(result.get('workout', {}).get('exercises', []))
+                    })
+                    
+                elif result.get('type') == 'interview':
+                    # Interview question response
+                    api_response.update({
+                        "response": result.get('message', 'Let me ask you a question'),
+                        "interview_mode": True,
+                        "session_id": result.get('session_id'),
+                        "question": result.get('question'),
+                        "progress": result.get('progress', {})
+                    })
+                    
+                elif result.get('type') == 'advice':
+                    # Educational/advice response
+                    api_response.update({
+                        "response": result.get('message', 'Here\'s some training advice'),
+                        "advice_category": result.get('intent', 'general'),
+                        "follow_up_suggestions": result.get('follow_up_suggestions', [])
+                    })
+                    
+                elif result.get('type') == 'technique':
+                    # Exercise technique response
+                    api_response.update({
+                        "response": result.get('message', 'Here\'s technique information'),
+                        "exercise": result.get('exercise'),
+                        "technique": result.get('technique'),
+                        "common_mistakes": result.get('common_mistakes', []),
+                        "progressions": result.get('progressions', [])
+                    })
+                    
+                elif result.get('type') == 'clarification':
+                    # Clarification needed
+                    api_response.update({
+                        "response": result.get('message', 'Could you clarify your request?'),
+                        "suggestions": result.get('suggestions', [])
+                    })
+                    
+                else:
+                    # Default response
+                    api_response.update({
+                        "response": result.get('message', 'I processed your request'),
+                        "suggestions": result.get('suggestions', [])
+                    })
+                
+                return jsonify(api_response)
+                
+            except Exception as e:
+                print(f"Intelligent system error: {e}")
+                import traceback
+                traceback.print_exc()
+                # Fall through to legacy systems
+
         # Use enhanced focus integration if available
         if FOCUS_PLANNER_AVAILABLE and focus_integration:
             try:
