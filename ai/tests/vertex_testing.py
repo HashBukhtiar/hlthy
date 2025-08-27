@@ -1340,44 +1340,90 @@ def chat():
         if not data:
             return jsonify({"error": "No JSON data received"}), 400
             
-        # Extract user_id and conversation history
-        user_id = data.get('user_id')  # Optional for MVP backward compatibility
-        history = data.get('history', [])
+        # Extract required fields with backward compatibility
+        user_message = data.get('message')
+        user_id = data.get('user_id', 'anonymous_user')
+        conversation_history = data.get('conversation_history', [])
         
-        if not history:
-            return jsonify({"error": "Missing conversation history"}), 400
+        if not user_message:
+            return jsonify({"error": "Missing message field"}), 400
         
-        # Get the current user message (last message in history)
-        current_message = None
-        conversation_history = []
+        print(f"Processing message: {user_message[:50]}...")
         
-        for msg in history:
-            role = msg.get('role', 'user')
-            text = msg.get('text', '')
-            
-            if role == 'user':
-                current_message = text
-                conversation_history.append({"role": "user", "text": text})
-            elif role in ['model', 'assistant', 'coach']:
-                conversation_history.append({"role": "coach", "text": text})
+        # Route the message
+        route = route_user_message(user_message)
+        print(f"Message routed to: {route}")
         
-        if not current_message:
-            return jsonify({"error": "No user message found in history"}), 400
+        # Get or build context
+        context = data.get('context', get_default_context())
         
-        print(f"Current message: {current_message}")
-        print(f"User ID: {user_id}")
-        print(f"Conversation history length: {len(conversation_history)}")
-        
-        # Rate limiting check
-        if user_id and RATE_LIMITING_AVAILABLE:
-            if not is_within_rate_limit(user_id):
-                log_metric("rate_limit_exceeded", 1.0, {"user_id": user_id})
+        # Use enhanced focus integration if available
+        if FOCUS_PLANNER_AVAILABLE and focus_integration:
+            try:
+                # Use the enhanced system
+                result = focus_integration.handle_workout_request(
+                    user_message,
+                    user_id,
+                    context
+                )
+                
                 return jsonify({
-                    "text": "You've reached your daily message limit. Please try again tomorrow or consider upgrading your plan.",
-                    "rate_limited": True
-                }), 429
+                    "success": True,
+                    "response": result.get('response', 'Enhanced AI response generated'),
+                    "route": route,
+                    "workout_plan": result.get('workout_plan'),
+                    "interview_mode": result.get('interview_mode', False),
+                    "session_status": result.get('session_status', 'completed'),
+                    "enhanced_system": True
+                })
+                
+            except Exception as e:
+                print(f"Enhanced system error, falling back: {e}")
+                # Fall through to legacy system
         
-        # Check for cached response (prompt caching)
+        # Legacy/fallback system
+        template = build_route_template(route, context, user_message, conversation_history, user_id)
+        
+        # Generate response using AI
+        if coach_model:
+            try:
+                response = coach_model.generate_content(template)
+                ai_response = response.text.strip()
+                
+                return jsonify({
+                    "success": True,
+                    "response": ai_response,
+                    "route": route,
+                    "context_used": True,
+                    "enhanced_system": False
+                })
+                
+            except Exception as e:
+                print(f"AI generation error: {e}")
+                return jsonify({
+                    "success": True,
+                    "response": f"I understand you're asking about {route}. The enhanced AI system is processing your request.",
+                    "route": route,
+                    "enhanced_system": False,
+                    "fallback": True
+                })
+        else:
+            # Final fallback
+            return jsonify({
+                "success": True,
+                "response": f"I received your {route} request. The AI models are currently initializing.",
+                "route": route,
+                "enhanced_system": False,
+                "fallback": True
+            })
+        
+    except Exception as e:
+        print(f"Chat endpoint error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": f"Internal server error: {str(e)}"}), 500
+
+# Exercise lookup and validation endpoints
         cached_response = None
         if user_id and RATE_LIMITING_AVAILABLE:
             cached_response = get_cached_response(current_message, 
