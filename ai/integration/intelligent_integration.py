@@ -2,10 +2,18 @@
 Intelligent Integration - AI brain orchestrating all your systems
 """
 from typing import Dict, Any
-from ..core.ai_orchestrator import AIOrchestrator
-from ..core.trainer_brain import PersonalTrainerBrain  # Your existing logic
-from ..utils.rate_limiting import RateLimiter
-from ..utils.observability_dashboard import ObservabilityDashboard
+import sys
+import os
+
+# Add parent directory to path for imports
+parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if parent_dir not in sys.path:
+    sys.path.insert(0, parent_dir)
+
+from core.ai_orchestrator import AIOrchestrator
+from core.trainer_brain import PersonalTrainerBrain  # Your existing logic
+from utils.rate_limiting import RateLimiter
+from utils.observability_dashboard import ObservabilityDashboard
 
 
 class IntelligentIntegration:

@@ -5,17 +5,69 @@ Not a wrapper - a conductor that makes all your systems work together
 from typing import Dict, Any, List, Optional
 import json
 import asyncio
+import sys
+import os
 from datetime import datetime
 
+# Add parent directory to path for imports
+parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if parent_dir not in sys.path:
+    sys.path.insert(0, parent_dir)
+
 # Import all your existing systems
-from .exercise_database import ExerciseDatabase
-from ..utils.semantic_memory import SemanticMemorySystem
-from ..utils.user_profiles import UserProfileManager
-from .progression_tracker_complete import ProgressionTracker
-from .technique_library_complete import TechniqueLibrary
-from ..validators.comprehensive_validator import ComprehensiveValidator
-from .equipment_catalog import EquipmentCatalog
-from ..utils.observability_dashboard import ObservabilityDashboard
+try:
+    from core.exercise_database import ExerciseDatabase
+except ImportError:
+    print("Warning: ExerciseDatabase not available")
+    ExerciseDatabase = None
+
+try:
+    from utils.semantic_memory import SemanticMemorySystem
+except ImportError:
+    print("Warning: SemanticMemorySystem not available")
+    SemanticMemorySystem = None
+
+try:
+    from utils.user_profiles import UserProfileManager
+except ImportError:
+    print("Warning: UserProfileManager not available")
+    UserProfileManager = None
+
+try:
+    from core.progression_tracker_complete import ProgressionTracker
+except ImportError:
+    try:
+        from progression_tracker import ProgressionTracker
+    except ImportError:
+        print("Warning: ProgressionTracker not available")
+        ProgressionTracker = None
+
+try:
+    from core.technique_library_complete import TechniqueLibrary
+except ImportError:
+    try:
+        from technique_library import TechniqueLibrary
+    except ImportError:
+        print("Warning: TechniqueLibrary not available")
+        TechniqueLibrary = None
+
+try:
+    from validators.comprehensive_validator import ComprehensiveValidator
+except ImportError:
+    print("Warning: ComprehensiveValidator not available")
+    ComprehensiveValidator = None
+
+try:
+    from core.equipment_catalog import EquipmentCatalog
+except ImportError:
+    print("Warning: EquipmentCatalog not available")
+    EquipmentCatalog = None
+
+try:
+    from utils.observability_dashboard import ObservabilityDashboard
+except ImportError:
+    print("Warning: ObservabilityDashboard not available")
+    ObservabilityDashboard = None
 
 
 class AIOrchestrator:
