@@ -1410,6 +1410,15 @@ def chat():
                         "follow_up_suggestions": result.get('follow_up_suggestions', [])
                     })
                     
+                elif result.get('response_type') == 'profile_acknowledgment':
+                    # Profile information acknowledged
+                    api_response.update({
+                        "response": result.get('message', 'Thanks for the information!'),
+                        "extracted_info": result.get('extracted_info', {}),
+                        "follow_up_suggestions": result.get('follow_up_suggestions', []),
+                        "profile_updated": result.get('profile_updated', False)
+                    })
+                    
                 elif result.get('response_type') == 'clarification':
                     # Clarification needed
                     api_response.update({

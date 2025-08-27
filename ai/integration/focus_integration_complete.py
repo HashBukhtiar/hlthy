@@ -99,7 +99,10 @@ class FocusIntegrationSystem:
             user_profile = {}
         
         # Handle different types of user messages
-        if message_intent['type'] == 'advice_request':
+        if message_intent['type'] == 'profile_statement':
+            return self._handle_profile_statement(message_intent, user_profile, user_id)
+            
+        elif message_intent['type'] == 'advice_request':
             return self._handle_advice_request(message_intent, user_profile, user_id)
             
         elif message_intent['type'] == 'general_question':
@@ -120,6 +123,67 @@ class FocusIntegrationSystem:
                 'Get training advice',
                 'Learn about exercise techniques'
             ]
+        }
+    
+    def _handle_profile_statement(self, message_intent: Dict, user_profile: Dict, user_id: str) -> Dict[str, Any]:
+        """Handle user profile statements like 'I'm an advanced lifter'"""
+        
+        extracted_info = message_intent.get('extracted_info', {})
+        original_message = message_intent.get('original_message', '')
+        
+        # Build response acknowledging the information
+        info_parts = []
+        if extracted_info.get('experience_level'):
+            level = extracted_info['experience_level'].replace('_', ' ')
+            info_parts.append(f"an **{level}** lifter")
+        
+        if extracted_info.get('goals'):
+            goal = extracted_info['goals'].replace('_', ' ')
+            info_parts.append(f"focused on **{goal}**")
+        
+        if extracted_info.get('equipment_access'):
+            equipment = extracted_info['equipment_access'].replace('_', ' ')
+            info_parts.append(f"with **{equipment}** access")
+        
+        if extracted_info.get('time_available'):
+            time = extracted_info['time_available'].replace('_', ' ')
+            info_parts.append(f"with **{time}** available")
+        
+        if info_parts:
+            acknowledgment = f"Got it! I understand you're {' and '.join(info_parts)}."
+        else:
+            acknowledgment = "Thanks for sharing that information!"
+        
+        # Determine what to do next based on what we learned
+        next_suggestions = []
+        
+        if extracted_info.get('experience_level'):
+            if extracted_info['experience_level'] == 'advanced':
+                next_suggestions.extend([
+                    "Would you like an advanced training program?",
+                    "Need help with periodization or specialization?",
+                    "Want advice on breaking through plateaus?"
+                ])
+            elif extracted_info['experience_level'] == 'beginner':
+                next_suggestions.extend([
+                    "Would you like a beginner-friendly workout plan?",
+                    "Want to learn about proper form and technique?",
+                    "Need guidance on training frequency?"
+                ])
+        
+        if not next_suggestions:
+            next_suggestions = [
+                "What specific help are you looking for?",
+                "Would you like a workout plan?",
+                "Have any training questions?"
+            ]
+        
+        return {
+            'response_type': 'profile_acknowledgment',
+            'message': f"{acknowledgment}\n\n{next_suggestions[0]}",
+            'extracted_info': extracted_info,
+            'follow_up_suggestions': next_suggestions,
+            'profile_updated': True
         }
     
     def _handle_advice_request(self, message_intent: Dict, user_profile: Dict, user_id: str) -> Dict[str, Any]:

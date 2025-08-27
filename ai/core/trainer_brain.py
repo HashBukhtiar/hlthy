@@ -127,6 +127,35 @@ class PersonalTrainerBrain:
             r'anything else'
         ]
         
+        # Profile statement patterns - user sharing info about themselves
+        profile_statement_patterns = [
+            r'i\'m a',
+            r'i am a',
+            r'i\'m an',
+            r'i am an',
+            r'i have',
+            r'i\'ve been',
+            r'i have been',
+            r'my experience',
+            r'my goal is',
+            r'my goals are',
+            r'i work out',
+            r'i train',
+            r'i\'ve trained',
+            r'i can only',
+            r'i only have'
+        ]
+        
+        # Check for profile statements first
+        for pattern in profile_statement_patterns:
+            if re.search(pattern, normalized):
+                return {
+                    'type': 'profile_statement',
+                    'confidence': 0.9,
+                    'extracted_info': self._extract_profile_info(normalized),
+                    'original_message': message
+                }
+        
         # Check for advice requests first (highest priority)
         for pattern in advice_patterns:
             if re.search(pattern, normalized):
@@ -201,6 +230,60 @@ class PersonalTrainerBrain:
             'question_category': 'unclear',
             'original_message': message
         }
+    
+    def _extract_profile_info(self, message: str) -> Dict[str, Any]:
+        """Extract profile information from user statements"""
+        extracted = {}
+        
+        # Experience level
+        if any(term in message for term in ['advanced', 'expert', 'experienced']):
+            extracted['experience_level'] = 'advanced'
+        elif any(term in message for term in ['intermediate', 'medium']):
+            extracted['experience_level'] = 'intermediate'
+        elif any(term in message for term in ['beginner', 'new', 'novice', 'starting']):
+            extracted['experience_level'] = 'beginner'
+        
+        # Goals
+        if any(term in message for term in ['build muscle', 'gain mass', 'hypertrophy', 'bigger']):
+            extracted['goals'] = 'build_muscle'
+        elif any(term in message for term in ['lose weight', 'cut', 'fat loss', 'lean']):
+            extracted['goals'] = 'lose_weight'
+        elif any(term in message for term in ['get stronger', 'strength', 'power']):
+            extracted['goals'] = 'get_stronger'
+        elif any(term in message for term in ['endurance', 'cardio', 'conditioning']):
+            extracted['goals'] = 'improve_endurance'
+        
+        # Equipment
+        if any(term in message for term in ['home gym', 'home']):
+            extracted['equipment_access'] = 'home_gym'
+        elif any(term in message for term in ['commercial gym', 'gym']):
+            extracted['equipment_access'] = 'commercial_gym'
+        elif any(term in message for term in ['dumbbells only', 'dumbbells']):
+            extracted['equipment_access'] = 'dumbbells_only'
+        elif any(term in message for term in ['bodyweight', 'no equipment']):
+            extracted['equipment_access'] = 'bodyweight_only'
+        
+        # Time constraints
+        if any(term in message for term in ['30 minutes', '30 min', 'half hour']):
+            extracted['time_available'] = '30_minutes'
+        elif any(term in message for term in ['45 minutes', '45 min']):
+            extracted['time_available'] = '45_minutes'
+        elif any(term in message for term in ['60 minutes', '1 hour', 'hour']):
+            extracted['time_available'] = '60_minutes'
+        elif any(term in message for term in ['90 minutes', '1.5 hours']):
+            extracted['time_available'] = '90_minutes'
+        
+        # Injuries
+        if any(term in message for term in ['bad back', 'back pain', 'lower back']):
+            extracted['injuries'] = ['lower_back']
+        elif any(term in message for term in ['shoulder pain', 'bad shoulder']):
+            extracted['injuries'] = ['shoulder']
+        elif any(term in message for term in ['knee pain', 'bad knee']):
+            extracted['injuries'] = ['knee']
+        elif any(term in message for term in ['no injuries', 'healthy', 'no problems']):
+            extracted['injuries'] = []
+        
+        return extracted
     
     def _categorize_advice_request(self, message: str) -> str:
         """Categorize what kind of advice the user is seeking"""
