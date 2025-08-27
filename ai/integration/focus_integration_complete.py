@@ -441,6 +441,46 @@ class FocusIntegrationSystem:
                 {'name': 'Barbell Rows', 'sets': 4, 'reps': '8-10', 'exercise_id': 'barbell_bent_over_row'},
                 {'name': 'Lat Pulldowns', 'sets': 3, 'reps': '10-12', 'exercise_id': 'lat_pulldown'}
             ]
+        elif focus == 'pull':
+            # Pull day workout - all pulling movements for back and biceps
+            base_structure['exercises'] = [
+                {'name': 'Pull-ups', 'sets': 4, 'reps': '6-10', 'exercise_id': 'pull_up'},
+                {'name': 'Barbell Bent Over Rows', 'sets': 4, 'reps': '8-10', 'exercise_id': 'barbell_bent_over_row'},
+                {'name': 'Lat Pulldowns', 'sets': 3, 'reps': '10-12', 'exercise_id': 'lat_pulldown'},
+                {'name': 'Seated Cable Rows', 'sets': 3, 'reps': '10-12', 'exercise_id': 'seated_cable_row'},
+                {'name': 'Dumbbell Rows', 'sets': 3, 'reps': '10-12', 'exercise_id': 'dumbbell_row'},
+                {'name': 'Barbell Curls', 'sets': 3, 'reps': '10-12', 'exercise_id': 'barbell_curl'},
+                {'name': 'Hammer Curls', 'sets': 3, 'reps': '12-15', 'exercise_id': 'hammer_curl'}
+            ]
+        elif focus == 'push':
+            # Push day workout - all pushing movements for chest, shoulders, triceps
+            base_structure['exercises'] = [
+                {'name': 'Barbell Bench Press', 'sets': 4, 'reps': '8-10', 'exercise_id': 'barbell_bench_press'},
+                {'name': 'Overhead Press', 'sets': 4, 'reps': '8-10', 'exercise_id': 'overhead_press'},
+                {'name': 'Incline Dumbbell Press', 'sets': 3, 'reps': '10-12', 'exercise_id': 'incline_dumbbell_press'},
+                {'name': 'Dips', 'sets': 3, 'reps': '8-12', 'exercise_id': 'dips'},
+                {'name': 'Lateral Raises', 'sets': 3, 'reps': '12-15', 'exercise_id': 'lateral_raise'},
+                {'name': 'Tricep Pushdowns', 'sets': 3, 'reps': '10-12', 'exercise_id': 'tricep_pushdown'},
+                {'name': 'Close Grip Bench Press', 'sets': 3, 'reps': '10-12', 'exercise_id': 'close_grip_bench_press'}
+            ]
+        elif focus == 'legs':
+            base_structure['exercises'] = [
+                {'name': 'Barbell Squats', 'sets': 4, 'reps': '8-10', 'exercise_id': 'barbell_squat'},
+                {'name': 'Romanian Deadlifts', 'sets': 3, 'reps': '8-10', 'exercise_id': 'romanian_deadlift'},
+                {'name': 'Bulgarian Split Squats', 'sets': 3, 'reps': '10-12', 'exercise_id': 'bulgarian_split_squat'},
+                {'name': 'Leg Curls', 'sets': 3, 'reps': '12-15', 'exercise_id': 'leg_curl'},
+                {'name': 'Calf Raises', 'sets': 4, 'reps': '15-20', 'exercise_id': 'calf_raise'}
+            ]
+        elif focus == 'upper':
+            # Upper body workout
+            base_structure['exercises'] = [
+                {'name': 'Pull-ups', 'sets': 3, 'reps': '6-10', 'exercise_id': 'pull_up'},
+                {'name': 'Bench Press', 'sets': 3, 'reps': '8-10', 'exercise_id': 'barbell_bench_press'},
+                {'name': 'Overhead Press', 'sets': 3, 'reps': '8-10', 'exercise_id': 'overhead_press'},
+                {'name': 'Barbell Rows', 'sets': 3, 'reps': '8-10', 'exercise_id': 'barbell_bent_over_row'},
+                {'name': 'Dips', 'sets': 3, 'reps': '8-12', 'exercise_id': 'dips'},
+                {'name': 'Barbell Curls', 'sets': 3, 'reps': '10-12', 'exercise_id': 'barbell_curl'}
+            ]
         else:
             # Generic full body or other focus
             base_structure['exercises'] = [

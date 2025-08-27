@@ -75,10 +75,61 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({
 
   // If we have structured workout plan data from the API, use it directly
   if (workoutPlan && responseType === 'workout_plan') {
+    // Transform API response format to match WorkoutPlanData interface
+    const segments = [];
+    
+    // Add warm-up segment if present
+    if (workoutPlan.warm_up && workoutPlan.warm_up.length > 0) {
+      segments.push({
+        name: 'Warm-up',
+        exercises: workoutPlan.warm_up.map((exercise: any) => ({
+          exerciseId: exercise.exercise_id || exercise.id || '',
+          exerciseName: exercise.name || exercise.exercise_name || '',
+          sets: exercise.sets || 1,
+          reps: exercise.reps || exercise.duration || '30 seconds',
+          load: exercise.load || '',
+          restSec: exercise.rest_seconds || 30,
+          notes: exercise.notes || ''
+        }))
+      });
+    }
+    
+    // Add main workout segment if present
+    if (workoutPlan.exercises && workoutPlan.exercises.length > 0) {
+      segments.push({
+        name: 'Main Workout',
+        exercises: workoutPlan.exercises.map((exercise: any) => ({
+          exerciseId: exercise.exercise_id || exercise.id || '',
+          exerciseName: exercise.name || exercise.exercise_name || '',
+          sets: exercise.sets || 3,
+          reps: exercise.reps || '8-12',
+          load: exercise.load || '',
+          restSec: exercise.rest_seconds || 60,
+          notes: exercise.notes || ''
+        }))
+      });
+    }
+    
+    // Add cool-down segment if present
+    if (workoutPlan.cool_down && workoutPlan.cool_down.length > 0) {
+      segments.push({
+        name: 'Cool-down',
+        exercises: workoutPlan.cool_down.map((exercise: any) => ({
+          exerciseId: exercise.exercise_id || exercise.id || '',
+          exerciseName: exercise.name || exercise.exercise_name || '',
+          sets: exercise.sets || 1,
+          reps: exercise.reps || exercise.duration || '30 seconds',
+          load: exercise.load || '',
+          restSec: exercise.rest_seconds || 15,
+          notes: exercise.notes || ''
+        }))
+      });
+    }
+
     const workoutData: WorkoutPlanData = {
-      dayType: workoutPlan.dayType || 'Full Body',
-      segments: workoutPlan.segments || [],
-      safetyNotes: workoutPlan.safetyNotes || undefined
+      dayType: workoutPlan.focus || 'Full Body',
+      segments: segments,
+      safetyNotes: workoutPlan.safety_considerations?.join('. ') || undefined
     };
 
     return (
