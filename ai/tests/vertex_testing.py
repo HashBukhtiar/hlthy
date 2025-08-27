@@ -23,7 +23,7 @@ except ImportError:
         return {"avoid": [], "prefer": [], "modifications": []}
 
 try:
-    from exercise_database import (
+    from core.exercise_database import (
         CANONICAL_EXERCISES, validate_workout_plan_exercises,
         is_exercise_allowed, get_safe_substitutions,
         get_all_allowed_exercises, get_all_allowed_exercises_cached,
@@ -32,8 +32,18 @@ try:
     )
     CANONICAL_DATABASE_AVAILABLE = True
 except ImportError:
-    print("Warning: Canonical exercise database not available - falling back to legacy safety")
-    CANONICAL_DATABASE_AVAILABLE = False
+    try:
+        from exercise_database import (
+            CANONICAL_EXERCISES, validate_workout_plan_exercises,
+            is_exercise_allowed, get_safe_substitutions,
+            get_all_allowed_exercises, get_all_allowed_exercises_cached,
+            suggest_exercise_id_from_name, InjuryType, ExperienceLevel,
+            NAME_TO_ID_MAP, RiskLevel
+        )
+        CANONICAL_DATABASE_AVAILABLE = True
+    except ImportError:
+        print("Warning: Canonical exercise database not available - falling back to legacy safety")
+        CANONICAL_DATABASE_AVAILABLE = False
 
 try:
     from user_profiles import profile_manager, UserProfile, InjuryRecord, FitnessGoals
