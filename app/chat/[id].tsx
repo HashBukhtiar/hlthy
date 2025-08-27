@@ -752,7 +752,7 @@ export default function ChatScreen() {
         historyForAPI.push({ text: textToSend, role: 'user' });
 
         // Use the enhanced sendMessage function
-        const aiResponseText = await sendMessage(historyForAPI, textToSend);
+        const aiResponseText = await sendMessage(historyForAPI, textToSend, currentUser.uid);
 
         // Save AI's response to Firestore using current user's ID with isAiResponse flag
         const aiMessageData: any = {
