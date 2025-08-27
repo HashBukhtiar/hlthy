@@ -4,7 +4,7 @@ Focus Router - Enhanced router with nonsense detection and interview triggers
 import re
 from typing import Dict, List, Any, Optional, Tuple
 from datetime import datetime, timedelta
-from focus_rules import normalize_focus, BASE_FOCI
+from .focus_rules import normalize_focus, BASE_FOCI
 
 
 def is_nonsense_or_unknown(text: str) -> bool:

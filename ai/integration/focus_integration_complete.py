@@ -5,9 +5,9 @@ from typing import Dict, List, Any, Optional, Tuple
 from datetime import datetime, timedelta
 import json
 
-from focus_router_enhanced import route_focus_request, process_interview_response
-from exercise_alias_resolver import ExerciseAliasResolver
-from equipment_catalog import EquipmentCatalog
+from core.focus_router_enhanced import route_focus_request, process_interview_response
+from core.exercise_alias_resolver import ExerciseAliasResolver
+from core.equipment_catalog import EquipmentCatalog
 
 
 class InterviewSession:
@@ -70,11 +70,7 @@ class FocusIntegrationSystem:
         self.user_profiles = user_profiles
         
         # Initialize alias resolver and equipment catalog
-        if exercise_db:
-            self.alias_resolver = ExerciseAliasResolver(exercise_db)
-        else:
-            self.alias_resolver = None
-            
+        self.alias_resolver = ExerciseAliasResolver()
         self.equipment_catalog = EquipmentCatalog()
         
         # Active interview sessions

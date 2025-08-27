@@ -6,8 +6,8 @@ from dataclasses import dataclass
 import json
 import os
 
-from exercise_database import CANONICAL_EXERCISES
-from equipment_catalog import EQUIPMENT_CATALOG, get_canonical_exercises_for_brand
+from .exercise_database import CANONICAL_EXERCISES
+from .equipment_catalog import EQUIPMENT_CATALOG, get_canonical_exercises_for_brand
 
 @dataclass
 class AliasMatch:

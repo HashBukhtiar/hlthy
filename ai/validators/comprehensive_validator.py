@@ -6,9 +6,9 @@ from dataclasses import dataclass
 from enum import Enum
 import re
 
-from exercise_database import ExerciseDatabase
-from technique_library_complete import TechniqueLibrary
-from equipment_catalog import EquipmentCatalog
+from core.exercise_database import ExerciseDatabase
+from core.technique_library_complete import TechniqueLibrary
+from core.equipment_catalog import EquipmentCatalog
 
 
 class ValidationLevel(Enum):
