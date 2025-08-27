@@ -1842,8 +1842,50 @@ class ExerciseDatabase:
         self.exercises = CANONICAL_EXERCISES
     
     def get_exercise_by_id(self, exercise_id: str) -> Dict:
-        """Get exercise by ID"""
-        return get_exercise_data(exercise_id)
+        """Get exercise by ID with full segment flag data"""
+        exercise = CANONICAL_EXERCISES.get(exercise_id)
+        if not exercise:
+            return None
+        
+        # Return a dictionary with all exercise data including segment flags
+        result = {
+            'id': exercise.exercise_id,
+            'name': exercise.display_name,
+            'movement_patterns': [exercise.display_name.lower()],
+            'muscle_families': exercise.primary_muscles,
+            'equipment': exercise.equipment_required,
+            'risk_level': exercise.risk_level.value,
+            'experience_level': exercise.min_experience_level.value,
+            'common_names': exercise.common_names,
+            'safety_flags': exercise.safety_flags,
+            'injury_contraindications': list(exercise.injury_contraindications),
+            'injury_cautions': list(exercise.injury_cautions),
+            'substitutions': exercise.substitutions
+        }
+        
+        # Add all segment flags if they exist
+        if hasattr(exercise, 'isCardioWarmup'):
+            result['isCardioWarmup'] = exercise.isCardioWarmup
+        if hasattr(exercise, 'isActivation'):
+            result['isActivation'] = exercise.isActivation
+        if hasattr(exercise, 'isMobility'):
+            result['isMobility'] = exercise.isMobility
+        if hasattr(exercise, 'isStretch'):
+            result['isStretch'] = exercise.isStretch
+        if hasattr(exercise, 'isCooldownSafe'):
+            result['isCooldownSafe'] = exercise.isCooldownSafe
+        if hasattr(exercise, 'isAccessory'):
+            result['isAccessory'] = exercise.isAccessory
+        if hasattr(exercise, 'isCore'):
+            result['isCore'] = exercise.isCore
+        if hasattr(exercise, 'isCompound'):
+            result['isCompound'] = exercise.isCompound
+        if hasattr(exercise, 'isIsolation'):
+            result['isIsolation'] = exercise.isIsolation
+        if hasattr(exercise, 'isPrehab'):
+            result['isPrehab'] = exercise.isPrehab
+        
+        return result
     
     def get_exercises_by_movement_patterns(self, patterns: List[str]) -> List[str]:
         """Get exercises matching movement patterns"""
