@@ -397,7 +397,7 @@ def chat():
                 if result.get('type') == 'workout':
                     api_response.update({
                         "response": result.get('message', 'Workout plan generated'),
-                        "workout_plan": result.get('workout'),
+                        "workoutPlan": result.get('workout'),  # Changed to camelCase
                         "planning_notes": result.get('planning_notes', ''),
                         "confidence": result.get('confidence', 1.0),
                         "exercise_count": len(result.get('workout', {}).get('exercises', []))
@@ -477,7 +477,7 @@ def chat():
                 if result.get('response_type') == 'workout_plan':
                     api_response.update({
                         "response": result.get('message', 'Workout plan generated'),
-                        "workout_plan": result.get('workout'),
+                        "workoutPlan": result.get('workout'),  # Changed to camelCase
                         "planning_notes": result.get('planning_notes'),
                         "confidence": result.get('confidence', 1.0)
                     })

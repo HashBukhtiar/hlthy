@@ -112,7 +112,14 @@ class AIOrchestrator:
                 
             # 3. Based on understanding, orchestrate YOUR systems
             result = None
-            if understanding.get('intent') == 'workout_request':
+            
+            # Check if user needs interview (new user or incomplete profile)
+            profile = user_context.get('profile') or {}
+            needs_interview = self._should_interview_user(profile, understanding)
+            
+            if needs_interview:
+                result = self._start_user_interview(user_id, understanding, user_context)
+            elif understanding.get('intent') == 'workout_request':
                 result = self._generate_workout_with_systems(
                     user_id, 
                     understanding, 
@@ -160,8 +167,8 @@ class AIOrchestrator:
         Load ALL context from YOUR existing systems
         """
         try:
-            # Load user profile
-            profile = self.profile_manager.load_profile(user_id) if hasattr(self.profile_manager, 'load_profile') else {}
+            # Load user profile as UserProfile object
+            profile = self.profile_manager.load_profile(user_id) if hasattr(self.profile_manager, 'load_profile') else None
             
             # Get relevant conversation history from semantic memory
             relevant_history = []
@@ -174,14 +181,34 @@ class AIOrchestrator:
             except Exception:
                 relevant_history = []
             
-            # Get allowed exercises from database
+            # Get allowed exercises from database using full profile
             allowed_exercises = []
             try:
-                allowed_exercises = self.exercise_db.get_exercises_for_user(
-                    experience_level=profile.get('experience_level', 'beginner'),
-                    injuries=profile.get('injuries', []),
-                    equipment=profile.get('equipment_access', 'commercial_gym')
-                ) if hasattr(self.exercise_db, 'get_exercises_for_user') else self.exercise_db.get_all_exercises()
+                if profile:
+                    # Extract injury types from active injuries
+                    active_injury_types = [injury.injury_type for injury in (profile.active_injuries or [])]
+                    
+                    # Get equipment from profile (handle complex structure)
+                    equipment_access = 'commercial_gym'  # default
+                    if profile.available_equipment:
+                        # If they have any equipment, assume gym access, otherwise check
+                        if any(profile.available_equipment.values()):
+                            equipment_access = 'commercial_gym'
+                        else:
+                            equipment_access = 'bodyweight'
+                    
+                    allowed_exercises = self.exercise_db.get_exercises_for_user(
+                        experience_level=profile.experience_level,
+                        injuries=active_injury_types,
+                        equipment=equipment_access
+                    ) if hasattr(self.exercise_db, 'get_exercises_for_user') else self.exercise_db.get_all_exercises()
+                else:
+                    # New user - get basic exercises
+                    allowed_exercises = self.exercise_db.get_exercises_for_user(
+                        experience_level='beginner',
+                        injuries=[],
+                        equipment='commercial_gym'
+                    ) if hasattr(self.exercise_db, 'get_exercises_for_user') else self.exercise_db.get_all_exercises()
             except Exception:
                 allowed_exercises = self.exercise_db.get_all_exercises()
             
@@ -200,13 +227,13 @@ class AIOrchestrator:
                 equipment_catalog = []
             
             context = {
-                # From User Profiles system
+                # From User Profiles system - full UserProfile object
                 'profile': profile,
                 
                 # From Semantic Memory - get relevant past conversations
                 'relevant_history': relevant_history,
                 
-                # From Exercise Database - get user's allowed exercises
+                # From Exercise Database - get user's allowed exercises (filtered by injuries/experience)
                 'allowed_exercises': allowed_exercises[:50],  # Limit for prompt size
                 
                 # From Progression Tracker - get current progress
@@ -247,10 +274,24 @@ class AIOrchestrator:
         """
         try:
             # Safe access to context data
-            profile = context.get('profile') or {}  # Handle None case
+            profile = context.get('profile')  # UserProfile object or None
             exercise_db = context.get('exercise_database') or {}
             allowed_exercises = context.get('allowed_exercises') or []
             relevant_history = context.get('relevant_history', [])
+            
+            # Extract user info from UserProfile object
+            if profile:
+                experience_level = profile.experience_level
+                primary_goal = profile.goals.primary_goal if profile.goals else 'general fitness'
+                active_injuries = [injury.injury_type for injury in (profile.active_injuries or [])]
+                session_duration = profile.goals.session_duration if profile.goals else 60
+                training_frequency = profile.goals.training_frequency if profile.goals else 3
+            else:
+                experience_level = 'unknown'
+                primary_goal = 'unknown'
+                active_injuries = []
+                session_duration = 60
+                training_frequency = 3
             
             # Build conversation context
             conversation_context = ""
@@ -259,14 +300,18 @@ class AIOrchestrator:
                     f"- {item.get('content', '')[:100]}" for item in relevant_history[:3]
                 ])
             
-            # Simplified, robust prompt
+            # Simplified, robust prompt with full profile context
             prompt = f"""
             Analyze this fitness message and respond with JSON:
             
             Message: "{message}"
             
-            User info:
-            - Experience: {profile.get('experience_level', 'unknown')}
+            User profile:
+            - Experience: {experience_level}
+            - Primary goal: {primary_goal}
+            - Active injuries: {active_injuries}
+            - Session duration: {session_duration} minutes
+            - Training frequency: {training_frequency} days/week
             - Available exercises: {len(allowed_exercises)}
             {conversation_context}
             - Total exercises in database: {exercise_db.get('total_exercises', 0)}
@@ -642,6 +687,63 @@ class AIOrchestrator:
                 similar.append(name)
         
         return similar[:5] if similar else exercise_names[:5]
+    
+    def _should_interview_user(self, profile: Dict, understanding: Dict) -> bool:
+        """
+        Check if user needs to be interviewed based on profile completeness
+        """
+        # New user with no profile
+        if not profile:
+            return True
+            
+        # Check for essential profile fields for workout generation
+        required_fields = ['experience_level', 'fitness_goals', 'time_available']
+        missing_fields = [field for field in required_fields if not profile.get(field)]
+        
+        # If user is requesting workout but missing key info, interview them
+        if understanding.get('intent') == 'workout_request' and missing_fields:
+            return True
+            
+        return False
+    
+    def _start_user_interview(self, user_id: str, understanding: Dict, context: Dict) -> Dict:
+        """
+        Start interview process for new or incomplete users
+        """
+        profile = context.get('profile') or {}
+        
+        # Determine what information we need
+        if not profile.get('experience_level'):
+            return {
+                'type': 'interview',
+                'question': 'experience_level',
+                'message': "Hi! I'd love to create a personalized workout for you. What's your training experience level? (beginner/intermediate/advanced)",
+                'used_systems': ['profile_manager']
+            }
+        elif not profile.get('fitness_goals'):
+            return {
+                'type': 'interview', 
+                'question': 'fitness_goals',
+                'message': "Great! What are your main fitness goals? (build muscle/lose weight/improve endurance/general fitness)",
+                'used_systems': ['profile_manager']
+            }
+        elif not profile.get('time_available'):
+            return {
+                'type': 'interview',
+                'question': 'time_available', 
+                'message': "Perfect! How much time do you typically have for workouts? (30 minutes/45 minutes/60 minutes/90+ minutes)",
+                'used_systems': ['profile_manager']
+            }
+        elif not profile.get('equipment_access'):
+            return {
+                'type': 'interview',
+                'question': 'equipment_access',
+                'message': "Almost done! What equipment do you have access to? (home/commercial gym/bodyweight only)",
+                'used_systems': ['profile_manager']
+            }
+        else:
+            # Profile complete, proceed with workout generation
+            return self._generate_workout_with_systems(user_id, understanding, context)
     
     def _get_available_equipment(self) -> List[Dict]:
         """
