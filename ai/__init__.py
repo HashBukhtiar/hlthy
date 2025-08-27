@@ -19,11 +19,11 @@ from validators.comprehensive_validator import ComprehensiveFocusValidator
 
 # Utilities
 from utils.user_profiles import UserProfileManager
-from utils.semantic_memory import SemanticMemory
+from utils.semantic_memory import SemanticMemorySystem
 from utils.rate_limiting import RateLimiter
 
 # Configuration
-from config.load_env import load_config
+from config.load_env import load_env_file
 
 __version__ = "2.0.0"
 __author__ = "hlthy AI Team"
@@ -39,12 +39,12 @@ __all__ = [
     'InterviewSession',
     'ComprehensiveFocusValidator',
     'UserProfileManager',
-    'SemanticMemory',
+    'SemanticMemorySystem',
     'RateLimiter',
     'route_focus_request',
     'detect_focus',
     'is_nonsense_or_unknown',
-    'load_config'
+    'load_env_file'
 ]
 
 # Quick access to main system

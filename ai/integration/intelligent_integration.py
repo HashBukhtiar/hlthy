@@ -11,7 +11,11 @@ if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)
 
 from core.ai_orchestrator import AIOrchestrator
-from core.trainer_brain import PersonalTrainerBrain  # Your existing logic
+try:
+    from core.trainer_brain import PersonalTrainerBrain  # Your existing logic
+except ImportError:
+    print("Warning: PersonalTrainerBrain not available")
+    PersonalTrainerBrain = None
 from utils.rate_limiting import RateLimiter
 from utils.observability_dashboard import ObservabilityDashboard
 
@@ -23,7 +27,7 @@ class IntelligentIntegration:
     
     def __init__(self, gemini_model):
         self.orchestrator = AIOrchestrator(gemini_model)
-        self.trainer_brain = PersonalTrainerBrain()  # Keep your existing logic
+        self.trainer_brain = PersonalTrainerBrain() if PersonalTrainerBrain else None
         self.rate_limiter = RateLimiter() if self._has_rate_limiter() else None
         self.observability = ObservabilityDashboard() if self._has_observability() else None
         
