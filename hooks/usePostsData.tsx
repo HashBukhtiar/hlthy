@@ -433,7 +433,6 @@ export function usePostsData() {
       // Check if user has already liked this post
       const likerDoc = await getDoc(likerRef);
       if (likerDoc.exists()) {
-        console.log(`User ${currentUser.uid} has already liked post ${postId}`);
         return; // Don't throw error, just return silently
       }
 

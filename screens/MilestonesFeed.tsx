@@ -541,7 +541,6 @@ export default function MilestonesFeed() {
         </Text>
         <TouchableOpacity 
           style={styles.createButton}
-          // onPress={() => router.push('/(tabs)/')}
         >
           <Text style={styles.createButtonText}>Create Milestone</Text>
         </TouchableOpacity>
