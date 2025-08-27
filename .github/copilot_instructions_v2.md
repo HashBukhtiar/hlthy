@@ -1,130 +1,336 @@
-You are a senior backend engineer for the hlthy AI coach. Implement a **segment-aware planner + interview flow + knowledge-fusion** upgrade that fixes warm-ups/cool-downs, rejects nonsense intents (e.g., “toenails”), asks smart follow-ups like a real coach, and fuses our canonical exercise database with branded machine names. **No mocks, no placeholders.** Ship real modules, integrated with our repo.
+We don't want to throw away all the sophisticated infrastructure you've built. The solution is to use Gemini as the brain that orchestrates all your existing systems, not replace them. Let me show you how to properly integrate everything:
 
-## Context (assume these files exist in repo)
-- Core: exercise_database.py, exercise_safety.py, exercise_whitelist_cache.py
-- Focus pipeline: focus_router.py, focus_composer.py, focus_rules.py, focus_rulesets.py, focus_rubrics.py, focus_whitelist.py, focus_validator.py, focus_integration.py
-- Integration & infra: user_profiles.py, profile_sync.py, semantic_memory.py, progression_tracker.py, observability_dashboard.py, rate_limiting.py, vertex_testing.py
+"""
+AI Orchestrator - Uses Gemini to intelligently coordinate all existing systems
+Not a wrapper - a conductor that makes all your systems work together
+"""
+from typing import Dict, Any, List, Optional
+import json
+from ..core.exercise_database import ExerciseDatabase
+from ..utils.semantic_memory import SemanticMemorySystem
+from ..utils.user_profiles import UserProfileManager
+from ..core.progression_tracker_complete import ProgressionTracker
+from ..core.technique_library_complete import TechniqueLibrary
+from ..validators.comprehensive_validator import ComprehensiveValidator
 
-## Objective
-1) **Segment roles**: Warm-up ≠ Cool-down by design. Warm-ups must be general cardio + activation; cool-downs must be mobility/stretch; never reuse the same exercise between segments.
-2) **Interview flow**: When request is vague (“build my back”) or nonsense (“toenails”), do not generate a plan. Ask 3–5 targeted questions (goal, time, equipment access, injuries/soreness, session length), then **ask permission** to build the workout. Persist answers to the user profile and only then plan.
-3) **Knowledge fusion**: Use our DB **plus** LLM knowledge of name variants and brand machines (Life Fitness, Hammer Strength, Technogym). Map branded names → canonical exercise_id deterministically. If unmapped, ask user to confirm or choose from top-3 canonical options.
-4) **Guardrails**: Keep all existing focus rubrics/slot templates/validators. Add **role checks** and **no-reuse** checks. Maintain progression logic for loads/RPE after validation.
+class AIOrchestrator:
+    """
+    Uses Gemini's intelligence to orchestrate your existing systems:
+    - Exercise Database for valid exercises
+    - Semantic Memory for user history
+    - User Profiles for persistent data
+    - Validators for safety checks
+    - Progression Tracker for workout advancement
+    """
+    
+    def __init__(self, gemini_model):
+        self.gemini = gemini_model
+        self.exercise_db = ExerciseDatabase()
+        self.semantic_memory = SemanticMemorySystem()
+        self.profile_manager = UserProfileManager()
+        self.progression_tracker = ProgressionTracker()
+        self.technique_library = TechniqueLibrary()
+        self.validator = ComprehensiveValidator()
+        
+    async def process_message(self, user_id: str, message: str) -> Dict:
+        """
+        Use AI to understand intent, then orchestrate your systems
+        """
+        
+        # 1. Load user's complete context from YOUR systems
+        user_context = self._load_complete_context(user_id, message)
+        
+        # 2. Let Gemini understand the message WITH all your context
+        understanding = await self._ai_understand_with_context(message, user_context)
+        
+        # 3. Based on understanding, orchestrate YOUR systems
+        if understanding['intent'] == 'workout_request':
+            return await self._generate_workout_with_systems(
+                user_id, 
+                understanding, 
+                user_context
+            )
+        elif understanding['intent'] == 'technique_question':
+            return self._provide_technique_from_library(
+                understanding['exercise'],
+                user_context
+            )
+        elif understanding['intent'] == 'progress_check':
+            return self._check_progress_with_tracker(user_id)
+        else:
+            return await self._generate_contextual_response(
+                understanding,
+                user_context
+            )
+    
+    def _load_complete_context(self, user_id: str, message: str) -> Dict:
+        """
+        Load ALL context from YOUR existing systems
+        """
+        context = {
+            # From User Profiles system
+            'profile': self.profile_manager.load_profile(user_id),
+            
+            # From Semantic Memory - get relevant past conversations
+            'relevant_history': self.semantic_memory.retrieve_relevant_snippets(
+                user_id, 
+                message, 
+                k=5
+            ),
+            
+            # From Exercise Database - get user's allowed exercises
+            'allowed_exercises': self.exercise_db.get_exercises_for_user(
+                experience_level=self.profile_manager.get_experience(user_id),
+                injuries=self.profile_manager.get_injuries(user_id),
+                equipment=self.profile_manager.get_equipment(user_id)
+            ),
+            
+            # From Progression Tracker - get current progress
+            'current_progress': self.progression_tracker.get_user_progress(user_id),
+            
+            # Available equipment brands from your catalog
+            'equipment_catalog': self._get_available_equipment(),
+            
+            # Canonical exercise list
+            'exercise_database': {
+                'total_exercises': len(self.exercise_db.CANONICAL_EXERCISES),
+                'categories': self.exercise_db.get_categories()
+            }
+        }
+        
+        return context
+    
+    async def _ai_understand_with_context(self, message: str, context: Dict) -> Dict:
+        """
+        Use Gemini to understand intent, but with ALL your context
+        """
+        
+        prompt = f"""
+        You are the AI brain for a sophisticated fitness training system.
+        You have access to these REAL systems and data:
+        
+        USER PROFILE:
+        - Experience: {context['profile'].get('experience_level', 'unknown')}
+        - Goals: {context['profile'].get('goals', 'unknown')}
+        - Injuries: {context['profile'].get('injuries', [])}
+        - Equipment: {context['profile'].get('equipment', 'unknown')}
+        
+        EXERCISE DATABASE:
+        - {context['exercise_database']['total_exercises']} validated exercises available
+        - User can safely do: {len(context['allowed_exercises'])} exercises
+        - Categories available: {context['exercise_database']['categories']}
+        
+        RELEVANT HISTORY (from semantic memory):
+        {json.dumps(context['relevant_history'][:3], indent=2)}
+        
+        USER'S CURRENT PROGRESS:
+        {json.dumps(context['current_progress'], indent=2)}
+        
+        USER MESSAGE: "{message}"
+        
+        Analyze this message and determine:
+        1. What is the user's intent?
+        2. What information do we need that we don't have?
+        3. Should we use existing workout data or create new?
+        4. What systems should we engage?
+        
+        Return JSON with:
+        - intent: workout_request/technique_question/progress_check/advice/profile_update
+        - confidence: 0-1
+        - missing_info: [] (what we need to know)
+        - should_interview: boolean
+        - exercise_focus: (if workout request)
+        - specific_exercise: (if technique question)
+        - use_systems: [] (which of our systems to use)
+        - response_type: interview/workout/advice/technique
+        """
+        
+        response = await self.gemini.generate_content(prompt)
+        return json.loads(response.text)
+    
+    async def _generate_workout_with_systems(
+        self, 
+        user_id: str, 
+        understanding: Dict, 
+        context: Dict
+    ) -> Dict:
+        """
+        Generate workout using YOUR exercise database and validators
+        """
+        
+        # 1. Get valid exercises from YOUR database
+        valid_exercises = self.validator.filter_safe_exercises(
+            context['allowed_exercises'],
+            context['profile'].get('injuries', [])
+        )
+        
+        # 2. Check progression history
+        last_workout = self.progression_tracker.get_last_workout(
+            user_id, 
+            understanding.get('exercise_focus')
+        )
+        
+        # 3. Use AI to create workout from YOUR validated exercises
+        prompt = f"""
+        Create a workout plan using ONLY these validated exercises from our database:
+        
+        AVAILABLE EXERCISES (use ONLY these):
+        {json.dumps([e['name'] for e in valid_exercises[:30]], indent=2)}
+        
+        WORKOUT REQUIREMENTS:
+        - Focus: {understanding.get('exercise_focus', 'general')}
+        - Experience: {context['profile'].get('experience_level')}
+        - Time available: {context['profile'].get('time_available', '60 minutes')}
+        - Must avoid: {context['profile'].get('injuries', [])}
+        
+        LAST WORKOUT (for progression):
+        {json.dumps(last_workout, indent=2)}
+        
+        Create a workout using 6-8 exercises from the available list.
+        Include sets, reps, rest periods.
+        
+        Return JSON with:
+        - warm_up: [] (2-3 exercises from the list)
+        - main_workout: [] (4-6 exercises from the list)
+        - cool_down: [] (1-2 exercises from the list)
+        
+        Each exercise should have:
+        - exercise_id: (from our database)
+        - sets: number
+        - reps: number/range
+        - rest: seconds
+        - notes: any form cues
+        """
+        
+        response = await self.gemini.generate_content(prompt)
+        workout = json.loads(response.text)
+        
+        # 4. Validate the workout with YOUR validator
+        validated_workout = self.validator.validate_workout(workout, context['profile'])
+        
+        # 5. Save to YOUR progression tracker
+        self.progression_tracker.log_workout(user_id, validated_workout)
+        
+        # 6. Store in semantic memory for future retrieval
+        self.semantic_memory.store_interaction(
+            user_id,
+            message=understanding['original_message'],
+            response=f"Generated {understanding.get('exercise_focus', 'general')} workout",
+            metadata={'workout': validated_workout}
+        )
+        
+        return {
+            'type': 'workout',
+            'workout': validated_workout,
+            'message': f"Here's your {understanding.get('exercise_focus', '')} workout using our validated exercise database:",
+            'used_systems': ['exercise_database', 'validator', 'progression_tracker', 'semantic_memory']
+        }
+    
+    def _provide_technique_from_library(self, exercise_name: str, context: Dict) -> Dict:
+        """
+        Use YOUR technique library, not generic AI knowledge
+        """
+        
+        # Find exercise in YOUR database
+        exercise = self.exercise_db.find_exercise(exercise_name)
+        if not exercise:
+            return {
+                'type': 'error',
+                'message': f"'{exercise_name}' not found in our exercise database. Try: {self._suggest_similar_exercises(exercise_name)}"
+            }
+        
+        # Get technique from YOUR library
+        technique_info = self.technique_library.get_technique(exercise['id'])
+        
+        # Get common mistakes from YOUR data
+        common_mistakes = self.technique_library.get_common_mistakes(exercise['id'])
+        
+        # Get progression options from YOUR tracker
+        progressions = self.progression_tracker.get_progression_options(exercise['id'])
+        
+        return {
+            'type': 'technique',
+            'exercise': exercise,
+            'technique': technique_info,
+            'common_mistakes': common_mistakes,
+            'progressions': progressions,
+            'message': f"Here's the proper technique for {exercise['name']} from our technique library:",
+            'used_systems': ['exercise_database', 'technique_library', 'progression_tracker']
+        }
+    
+    def _check_progress_with_tracker(self, user_id: str) -> Dict:
+        """
+        Use YOUR progression tracking system
+        """
+        progress_data = self.progression_tracker.get_comprehensive_progress(user_id)
+        
+        return {
+            'type': 'progress',
+            'data': progress_data,
+            'message': "Here's your progress from our tracking system:",
+            'used_systems': ['progression_tracker', 'semantic_memory']
+        }
 
-## Absolute rules
-- **No mock functions**. Implement working modules and wire them into the real flow.
-- Use canonical **exercise_id** as the single source of truth for planning, safety, and validation.
-- Correction loop must be **tiny**: send previous JSON + violation bullets only. Do not resend full chat context.
-- All new behavior must be covered by unit+integration tests.
 
-## Tasks (implement in this order)
+"""
+Intelligent Integration - AI brain orchestrating all your systems
+"""
+from typing import Dict, Any
+from ..core.ai_orchestrator import AIOrchestrator
+from ..core.trainer_brain import PersonalTrainerBrain  # Your existing logic
+from ..utils.rate_limiting import RateLimiter
+from ..utils.observability_dashboard import ObservabilityDashboard
 
-### A) Data & taxonomy — real DB enrichment
-1. **exercise_database.py**: Add per-exercise boolean flags:
-   - `isCardioWarmup`, `isActivation`, `isMobility`, `isStretch`, `isCooldownSafe` (default False).
-2. Seed real candidates (low risk):
-   - Cardio warm-ups: `treadmill_walk_easy`, `assault_bike_easy`, `rower_light_5min`, `elliptical_easy`
-   - Activation (tag by focus): 
-     - chest/push: `scap_pushup`, `band_external_rotation`, `band_pull_aparts`, `empty_bar_bench_groove`
-     - back/pull: `band_face_pulls`, `scap_pullups`, `lat_primer_circles`
-     - legs: `glute_bridge_bodyweight`, `hip_airplanes`, `copenhagen_side_plank_easy`, `ankle_dorsiflexion_drill`
-   - Mobility/Stretch (cool-down): 
-     - chest/shoulder: `doorway_pec_stretch`, `thoracic_extension_foam_roll`, `sleeper_stretch_light`
-     - back: `child_pose_breathing`, `cat_cow_slow`, `thread_the_needle`
-     - legs: `pigeon_stretch_light`, `couch_stretch_light`, `hamstring_band_stretch`, `calf_wall_stretch`
-3. Ensure these **do not** enter main/accessory whitelists by pattern—selection for warmup/cooldown must come from role flags, not generic pattern filters.
+class IntelligentIntegration:
+    def __init__(self, gemini_model):
+        self.orchestrator = AIOrchestrator(gemini_model)
+        self.trainer_brain = PersonalTrainerBrain()  # Keep your existing logic
+        self.rate_limiter = RateLimiter()
+        self.observability = ObservabilityDashboard()
+        
+    async def handle_request(self, user_id: str, message: str) -> Dict:
+        """
+        Intelligently handle requests using ALL your systems
+        """
+        
+        # 1. Check rate limiting
+        if not self.rate_limiter.check_limit(user_id):
+            return {
+                'type': 'error',
+                'message': 'Rate limit exceeded. Please wait a moment.'
+            }
+        
+        # 2. Log to observability
+        self.observability.log_request(user_id, message)
+        
+        # 3. First use your trainer brain for initial classification
+        intent = self.trainer_brain.analyze_message_intent(message)
+        
+        # 4. Then use AI orchestrator with all your systems
+        result = await self.orchestrator.process_message(user_id, message)
+        
+        # 5. Log the result
+        self.observability.log_response(user_id, result)
+        
+        return result
 
-### B) Segment-aware composer & whitelist
-4. **focus_composer.py**: 
-   - Prepend WARMUP segment: pick exactly **1** `isCardioWarmup` (3–6 min) + **1–2** `isActivation` exercises relevant to detected focus.
-   - Append COOLDOWN segment: pick **1–2** from `isMobility|isStretch` that target prime movers and/or antagonists of the session.
-   - Ensure warm-up and cool-down sets do not exceed 6 total sets; main plan remains driven by focus slot template.
-5. **focus_whitelist.py**:
-   - Keep current main/accessory whitelist logic for focus.
-   - Add **separate pools**: `build_warmup_pool(user_ctx, focus)` and `build_cooldown_pool(user_ctx, focus)` using the new flags. Pools must respect equipment/injury constraints.
-   - Composer uses these pools; **never** pull warm-up/cool-down from the main whitelist.
+# Bad - just using AI for everything
+response = gemini.generate("Give me a chest workout")
+return response  # Generic AI-generated workout
 
-### C) Interview gate (coach-like dialog)
-6. **focus_router.py**: 
-   - Implement `detect_focus(text)` and `parse_combo(text)` (existing) plus:
-     - `is_nonsense_or_unknown(text) -> bool` (reject words not mapping to muscles/equipment; e.g., “toenails”).
-     - `needs_interview(text, profile) -> bool` (true for generic asks like “build my back” when profile lacks recent answers: goal/time/equipment/injury/length).
-7. **focus_integration.py**:
-   - Implement a stateful **Interview** path (`start_interview`, `collect_answer`, `finalize_interview`).
-   - Ask 3–5 **targeted** questions: goal (hypertrophy/strength/endurance), time available, equipment @gym/home/brands, current soreness/injury flags, session length.
-   - Final prompt: “Want me to build the workout now?” Yes → call planner. No → store context and end.
-   - Persist answers via `profile_sync.py`. Cache in session too for latency.
 
-### D) Knowledge fusion (brand machines + aliases)
-8. **NEW: equipment_catalog.py**
-   - Hard-code a minimal but real mapping: brand name → canonical families/patterns + canonical candidates, e.g., 
-     - “Life Fitness Chest Press” → `horizontal_press`/`chest` → preferred ids: [`machine_chest_press`, `plate_loaded_chest_press`]
-     - “Hammer Strength Low Row” → `horizontal_pull`/`upper_back` → [`machine_row_chest_supported`, `cable_row_vbar`]
-     - “Technogym Pullover” → `pullover`/`lats` → [`machine_pullover`, `cable_pullover_rope`]
-9. **NEW: exercise_alias_resolver.py**
-   - Build an index from:
-     - exercise_id, display_name, `common_names` in DB, plus **equipment_catalog** names.
-   - Implement deterministic fuzzy match (e.g., difflib + threshold). Return canonical `exercise_id` if confident; else top-3 suggestions.
-10. **focus_integration.py** (response validation path):
-    - For any non-ID exercise name in model output: resolve via alias_resolver; if unresolved, ask user to pick from suggestions; persist choice.
+# Good - AI orchestrates YOUR systems
+valid_exercises = exercise_database.get_chest_exercises()
+filtered = validator.filter_for_user(valid_exercises, user_profile)
+history = semantic_memory.get_relevant_history(user_id)
+workout = gemini.create_from_validated_exercises(filtered, history)
+progression_tracker.log_workout(workout)
+return workout  # Workout from YOUR database with YOUR rules
 
-### E) Validator hard rules (no reuse; role correctness)
-11. **focus_validator.py**:
-    - Add role checks:
-      - Warm-up must include **exactly one** `isCardioWarmup` and **≥1** `isActivation`.
-      - Cool-down must include **≥1** `isMobility|isStretch` and **no** `isActivation`.
-      - **No duplication**: `warmup_ids ∩ cooldown_ids == ∅`.
-      - Cool-down muscles should overlap prime movers or antagonists (use muscle families to compute overlap ≥ 50%).
-    - Keep existing focus composition, bans, volume bounds, proportion rules.
-12. Keep the tiny **correction loop** intact:
-    - Input: previous JSON + violations list + `allowedExercises_focus`.
-    - Output: corrected JSON only. Re-validate once.
-
-### F) Prompt integration (planner route)
-13. Planner prompt must include:
-    - `allowedExercises_focus[]` for main/accessory only (from whitelist).
-    - `slotTemplate` as hint (unchanged).
-    - A brief **segment policy note**:
-      - “Do not place activation or mobility in main sets; warm-ups use activation only; cool-downs use mobility/stretch only; never repeat the same item for warm-up and cool-down.”
-    - Keep RAG snippets K=2–3 biasing to the detected focus and recent user context (milestones, injuries).
-
-### G) Progression + safety (unchanged behavior)
-14. After validation (and correction if needed), call `progression_tracker.fill_loads_for_plan(plan, user_id)` to set loads reps/RPE deterministically.
-15. Keep `exercise_safety.py` checks; no exercise with active contraindication may pass.
-
-### H) Observability & quality metrics
-16. **observability_dashboard.py**: log the following for each planner attempt:
-    - `interview_started`, `interview_questions`, `interview_completed`
-    - `focus_detected`, `combo_detected`, `whitelist_size`, `warmup_pool_size`, `cooldown_pool_size`
-    - `violations_count`, `correction_runs`, `auto_subs_applied`
-    - `brand_mapped_count`, `brand_unmapped_count`
-    - Token/latency: `tokens_in`, `tokens_out`, `latency_ms`
-17. Targets (assert in tests where feasible):
-    - Warm-up/Cool-down duplication rate: **0%**
-    - Brand mapping success on known items: **≥90%**
-    - Average correction runs: **≤1**
-
-## Tests (pytest; no mocks for logic)
-Create `tests/coach_pipeline/` with:
-1) **Warmup/Cooldown**: Chest plan includes `treadmill_walk_easy` + `scap_pushup`; cooldown uses `doorway_pec_stretch` + `thoracic_extension_foam_roll`. Assert **no shared IDs**; roles valid.
-2) **Toenails**: `is_nonsense_or_unknown` returns True; flow returns interview/clarification, not a workout.
-3) **Back (generic)**: triggers interview; after answers, produces valid Pull/Back plan; roles OK; volumes in bounds.
-4) **Brand mapping**: “Life Fitness Chest Press” resolves to `machine_chest_press`; if ambiguity, returns top-3; user choice persisted then used in plan.
-5) **Injury**: Shoulder pain → DB/neutral-grip subs enforced; still valid.
-6) **Combo**: “hamstrings-focused back day” → hamstrings ≥60% of sets; back required patterns present; roles valid.
-7) **Correction**: feed invalid plan with warm-up=reverse_fly, cooldown=reverse_fly → single correction pass fixes duplication + roles.
-
-## Performance & cost guardrails
-- Keep planner prompt under **1.5k tokens**; correction prompt under **200 tokens**.
-- Do **not** include full chat history; keep only last 3–6 user/coach turns relevant to focus.
-- Whitelists: cap at **25** IDs, pools at **12** each.
-- Timeouts: model 12s; DB/resolver 150ms average; total end-to-end p95 < 2.0s (excluding model time).
-
-## Deliverables (must exist and be wired)
-- NEW: equipment_catalog.py, exercise_alias_resolver.py
-- UPDATED: exercise_database.py, focus_composer.py, focus_whitelist.py, focus_router.py, focus_integration.py, focus_validator.py
-- Tests: `tests/coach_pipeline/*`
-
-## Finish line
-When everything passes, print exactly:
-FOCUS-INTERVIEW+SEGMENTS: COMPLETE — [equipment_catalog.py, exercise_alias_resolver.py, exercise_database.py, focus_composer.py, focus_whitelist.py, focus_router.py, focus_integration.py, focus_validator.py, tests/coach_pipeline/*]
+✅ What This Gives You:
+Uses YOUR Exercise Database: Only suggests exercises from your 108 validated exercises
+Uses YOUR Semantic Memory: Remembers past conversations and workouts
+Uses YOUR Validators: Ensures safety with injury checking
+Uses YOUR Progression Tracker: Builds on previous workouts
+Uses YOUR Technique Library: Provides your curated form tips
+Uses YOUR User Profiles: Persistent user data

@@ -146,7 +146,17 @@ class PersonalTrainerBrain:
             r'i only have'
         ]
         
-        # Check for profile statements first
+        # Check for general training questions BEFORE profile statements
+        for pattern in general_question_patterns:
+            if re.search(pattern, normalized):
+                return {
+                    'type': 'general_question',
+                    'confidence': 0.9,
+                    'question_category': 'training_frequency',
+                    'original_message': message
+                }
+        
+        # Check for profile statements
         for pattern in profile_statement_patterns:
             if re.search(pattern, normalized):
                 return {
