@@ -119,16 +119,19 @@ export function safeParseAssistant(rawMessage: string): ParsedAIMessage {
   const cleanedJSON = cleanJSONString(rawMessage);
   
   try {
-    const parsed = JSON.parse(cleanedJSON);
-    
-    // Type checking and classification
-    if (isWorkoutPlan(parsed)) {
-      return {
-        type: 'workoutPlan',
-        data: parsed,
-        text: rawMessage,
-      };
-    } else if (isTechniqueAdvice(parsed)) {
+    // Only try to parse as JSON if it looks like JSON (starts with { or [)
+    const trimmed = cleanedJSON.trim();
+    if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+      const parsed = JSON.parse(cleanedJSON);
+      
+      // Type checking and classification
+      if (isWorkoutPlan(parsed)) {
+        return {
+          type: 'workoutPlan',
+          data: parsed,
+          text: rawMessage,
+        };
+      } else if (isTechniqueAdvice(parsed)) {
       return {
         type: 'techniqueAdvice',
         data: parsed,
@@ -146,6 +149,7 @@ export function safeParseAssistant(rawMessage: string): ParsedAIMessage {
         data: parsed,
         text: rawMessage,
       };
+    }
     }
   } catch (error) {
     // JSON parsing failed or didn't match any known structure

@@ -42,7 +42,7 @@ import {
 import { useAuth } from '@/context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { sendMessage, sendMessageWithIntent, IntentClassificationResult } from '@/ai/ai_chat';
+import { sendMessage, sendMessageWithIntent, IntentClassificationResult, AIResponse } from '@/ai/ai_chat';
 import { SmartChatInput } from '@/components/SmartChatInput';
 import { IntentMessageWrapper } from '@/components/IntentBadge';
 import { MessageRenderer } from '@/components/ai/MessageRenderer';
@@ -56,6 +56,8 @@ interface FirestoreMessageData {
   createdAt: Timestamp;
   isAiResponse?: boolean; // Flag to identify AI responses
   intent?: string; // Add intent field
+  workoutPlan?: any; // Add workout plan data
+  responseType?: string; // Add response type
   sharedPost?: {
     id: string;
     imageUrl: string | null;
@@ -98,6 +100,8 @@ interface Message {
   role: 'user' | 'model';
   createdAt?: Date;
   intent?: string; // Add intent field
+  workoutPlan?: any; // Add workout plan data
+  responseType?: string; // Add response type
   sharedPost?: {
     id: string;
     imageUrl: string | null;
@@ -752,15 +756,21 @@ export default function ChatScreen() {
         historyForAPI.push({ text: textToSend, role: 'user' });
 
         // Use the enhanced sendMessage function
-        const aiResponseText = await sendMessage(historyForAPI, textToSend, currentUser.uid);
+        const aiResponse = await sendMessage(historyForAPI, textToSend, currentUser.uid);
 
         // Save AI's response to Firestore using current user's ID with isAiResponse flag
         const aiMessageData: any = {
-          text: aiResponseText,
+          text: aiResponse.text,
           createdAt: serverTimestamp(),
           senderId: currentUser.uid, // Use current user's ID to avoid permission issues
           isAiResponse: true, // Flag to identify this as an AI response
         };
+        
+        // Add workout plan data if present
+        if (aiResponse.workoutPlan) {
+          aiMessageData.workoutPlan = aiResponse.workoutPlan;
+          aiMessageData.responseType = aiResponse.type;
+        }
         
         // Only add intent field if intentResult exists and has intent property
         if (intentResult?.intent) {

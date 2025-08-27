@@ -1,6 +1,6 @@
 import { API_BASE_URL } from '@/config/api';
 import { db } from '@/firebaseConfig';
-import { doc, updateDoc, deleteDoc, collection, query, where, getDocs, writeBatch } from 'firebase/firestore';
+import { doc, updateDoc, deleteDoc, collection, query, writeBatch } from 'firebase/firestore';
 
 export interface IntentClassificationResult {
   intent: string;
@@ -14,14 +14,22 @@ export interface ChatMessage {
   role: 'user' | 'model';
 }
 
+export interface AIResponse {
+  text: string;
+  type?: string;
+  workoutPlan?: any;
+  interviewMode?: boolean;
+  responseType?: string;
+}
+
 /**
  * Send a message to the HLTHY AI Coach backend service
  * @param history - Array of previous chat messages for context
  * @param currentMessage - The current message from the user
  * @param userId - The user's unique ID for profile management
- * @returns Promise<string> - AI response text
+ * @returns Promise<AIResponse> - AI response with text and optional structured data
  */
-export async function sendMessage(history: ChatMessage[], currentMessage: string, userId?: string): Promise<string> {
+export async function sendMessage(history: ChatMessage[], currentMessage: string, userId?: string): Promise<AIResponse> {
   try {
     console.log('Sending message to AI backend:', { 
       url: `${API_BASE_URL}/api/chat`,
@@ -57,12 +65,16 @@ export async function sendMessage(history: ChatMessage[], currentMessage: string
     console.log('Raw API response:', data);
     
     // Handle different response formats from the AI service
-    if (data.response) {
-      return data.response;
-    } else if (data.text) {
-      return data.text;
-    } else if (data.message) {
-      return data.message;
+    const responseText = data.response || data.text || data.message;
+    
+    if (responseText) {
+      return {
+        text: responseText,
+        type: data.response_type || 'text',
+        workoutPlan: data.workout_plan,
+        interviewMode: data.interview_mode || false,
+        responseType: data.response_type
+      };
     } else {
       console.error('Invalid response format from AI service:', data);
       throw new Error(data.error || 'Invalid response from AI service');
@@ -72,11 +84,11 @@ export async function sendMessage(history: ChatMessage[], currentMessage: string
     
     // Provide helpful error messages based on the error type
     if (error instanceof TypeError && error.message.includes('fetch')) {
-      return "I'm having trouble connecting to the AI service. Please check your internet connection and try again.";
+      return { text: "I'm having trouble connecting to the AI service. Please check your internet connection and try again." };
     } else if (error instanceof Error && error.message.includes('AI service error')) {
-      return "The AI service is temporarily unavailable. Please try again in a moment.";
+      return { text: "The AI service is temporarily unavailable. Please try again in a moment." };
     } else {
-      return "Sorry, I encountered an unexpected error. Please try again later.";
+      return { text: "Sorry, I encountered an unexpected error. Please try again later." };
     }
   }
 }
@@ -88,7 +100,7 @@ export async function sendMessage(history: ChatMessage[], currentMessage: string
  * @param userId - The user's unique ID for profile management
  * @returns Promise<string> - AI response text with intent processing
  */
-export async function sendMessageWithIntent(history: ChatMessage[], currentMessage: string, userId?: string): Promise<string> {
+export async function sendMessageWithIntent(history: ChatMessage[], currentMessage: string, userId?: string): Promise<AIResponse> {
   try {
     console.log('Sending message with intent to AI backend:', { 
       url: `${API_BASE_URL}/api/chat`,
@@ -130,22 +142,21 @@ export async function sendMessageWithIntent(history: ChatMessage[], currentMessa
     const data = await response.json();
     console.log('Raw API response (with intent):', data);
     
-    // Handle different response formats from the AI service  
-    if (data.response) {
-      return data.response;
-    } else if (data.text) {
-      return data.text;
-    } else if (data.message) {
-      return data.message;
-    } else {
-      console.error('Invalid response format from AI service:', data);
-      throw new Error(data.error || 'Invalid response from AI service');
-    }
+    // Parse response into structured format
+    const responseText = data.response || data.text || data.message || "I'm sorry, I received an invalid response format from the AI service.";
+    
+    return {
+      text: responseText,
+      type: data.workout_plan ? 'workout_plan' : 'message',
+      workoutPlan: data.workout_plan || null,
+      interviewMode: data.interview_mode || false,
+      responseType: 'with_intent'
+    };
   } catch (error) {
     console.error('Error communicating with AI service (with intent):', error);
     
     // Fallback to regular message sending if intent processing fails
-    return await sendMessage(history, currentMessage);
+    return await sendMessage(history, currentMessage, userId);
   }
 }
 
