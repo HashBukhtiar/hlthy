@@ -6,7 +6,20 @@ Extracts durable facts from conversations and updates user profiles
 import re
 from typing import Dict, List, Set
 from datetime import datetime
-from exercise_database import CANONICAL_EXERCISES, NAME_TO_ID_MAP
+
+# Try to import exercise database with fallback
+try:
+    from core.exercise_database import CANONICAL_EXERCISES, NAME_TO_ID_MAP
+    CANONICAL_DATABASE_AVAILABLE = True
+except ImportError:
+    try:
+        from exercise_database import CANONICAL_EXERCISES, NAME_TO_ID_MAP
+        CANONICAL_DATABASE_AVAILABLE = True
+    except ImportError:
+        print("Warning: Exercise database not available for profile sync normalization")
+        CANONICAL_DATABASE_AVAILABLE = False
+        CANONICAL_EXERCISES = {}
+        NAME_TO_ID_MAP = {}
 
 class ProfileExtractor:
     """Extracts durable facts from chat for profile updates"""
@@ -121,6 +134,9 @@ class ProfileExtractor:
 
     def _normalize_to_exercise_id(self, text: str) -> str:
         """Try to normalize text to canonical exercise ID"""
+        if not CANONICAL_DATABASE_AVAILABLE:
+            return None
+            
         text_clean = text.lower().strip()
         
         # Direct lookup in NAME_TO_ID_MAP
