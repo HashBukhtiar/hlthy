@@ -353,6 +353,11 @@ export default function LoginForm({ visible, onBackPress, onForgotPasswordPress,
                   underlineColor={showEmailError && submitted ? "#FF5555" : "rgba(255, 255, 255, 0.3)"}
                   activeUnderlineColor={showEmailError && submitted ? "#FF5555" : "#FFFFFF"}
                   editable={!loading}
+                  autoComplete="off"
+                  textContentType="none"
+                  autoCorrect={false}
+                  spellCheck={false}
+                  importantForAutofill="no"
                 />
                 <TextInput
                   label="Password"
@@ -383,6 +388,11 @@ export default function LoginForm({ visible, onBackPress, onForgotPasswordPress,
                   underlineColor={(showPasswordError && submitted) || (!password && submitted) ? '#FF5555' : 'rgba(255, 255, 255, 0.3)'}
                   activeUnderlineColor={(showPasswordError && submitted) || (!password && submitted) ? '#FF5555' : '#FFFFFF'}
                   editable={!loading}
+                  autoComplete="off"
+                  textContentType="none"
+                  autoCorrect={false}
+                  spellCheck={false}
+                  importantForAutofill="no"
                 />
                 <TouchableOpacity
                   style={[

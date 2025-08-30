@@ -483,6 +483,11 @@ export default function ForgotPasswordForm({ visible, onBackPress, onBackToLogin
                       error={submitted && !isEmailValid}
                       underlineColor={submitted && !isEmailValid ? "#FF5555" : "rgba(255, 255, 255, 0.3)"}
                       activeUnderlineColor={submitted && !isEmailValid ? "#FF5555" : "#FFFFFF"}
+                      autoComplete="off"
+                      textContentType="none"
+                      autoCorrect={false}
+                      spellCheck={false}
+                      importantForAutofill="no"
                     />
                   </Animated.View>
                   <TouchableOpacity
