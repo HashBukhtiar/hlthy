@@ -256,6 +256,9 @@ export default function ForgotPasswordForm({ visible, onBackPress, onBackToLogin
                     onPress={handleBackToLanding}
                     activeOpacity={0.8}
                   >
+                    <View style={styles.primaryIconContainer}>
+                      <Ionicons name="arrow-undo-outline" size={18} color="#000000" />
+                    </View>
                     <Text style={styles.primaryButtonText}>Return to Login</Text>
                   </TouchableOpacity>
 
@@ -754,6 +757,14 @@ const styles = StyleSheet.create({
     color: '#000000',
     fontSize: 16,
     fontWeight: '600',
+  },
+  primaryIconContainer: {
+    width: 22,
+    height: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
+    overflow: 'visible',
   },
   secondaryButton: {
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
