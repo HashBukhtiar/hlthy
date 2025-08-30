@@ -435,6 +435,9 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     borderWidth: 1,
     borderColor: '#FFFFFF',
+    // alternative styling:
+    // backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    // borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   buttonText: {
     fontSize: 16,
