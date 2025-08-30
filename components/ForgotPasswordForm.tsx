@@ -147,12 +147,6 @@ export default function ForgotPasswordForm({ visible, onBackPress, onBackToLogin
   };
 
   useEffect(() => {
-    // simple cooldown timer for resend button used in success UI
-    if (resendCooldown > 0) {
-      const t = setTimeout(() => setResendCooldown(resendCooldown - 1), 1000);
-      return () => clearTimeout(t);
-    }
-
     const keyboardDidShowListener = Keyboard.addListener(
       'keyboardDidShow',
       () => {
@@ -178,6 +172,15 @@ export default function ForgotPasswordForm({ visible, onBackPress, onBackToLogin
       keyboardDidShowListener?.remove();
     };
   }, [contentTranslateY]);
+
+  // Cooldown timer for resend button — runs whenever resendCooldown changes
+  useEffect(() => {
+    if (resendCooldown > 0) {
+      const t = setTimeout(() => setResendCooldown(resendCooldown - 1), 1000);
+      return () => clearTimeout(t);
+    }
+    return undefined;
+  }, [resendCooldown]);
 
   useEffect(() => {
     if (loading) {
