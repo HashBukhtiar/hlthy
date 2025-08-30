@@ -35,10 +35,17 @@ export default function ForgotPasswordForm({ visible, onBackPress, onBackToLogin
   const [emailFocused, setEmailFocused] = useState<boolean>(false);
   const [isResending, setIsResending] = useState<boolean>(false);
   const [resendCooldown, setResendCooldown] = useState<number>(0);
+  const [showResendSuccess, setShowResendSuccess] = useState<boolean>(false);
 
   const emailShakeAnim = React.useRef(new Animated.Value(0)).current;
   const contentTranslateY = useRef(new Animated.Value(0)).current;
   const loaderFadeAnim = useRef(new Animated.Value(0)).current;
+  
+  // Animation refs for resend button feedback
+  const sendIconYAnim = useRef(new Animated.Value(0)).current;
+  const checkIconYAnim = useRef(new Animated.Value(-30)).current;
+  const outlineOpacityAnim = useRef(new Animated.Value(0)).current;
+  const resendSuccessAnim = useRef(new Animated.Value(0)).current;
 
   // Check if the email is valid
   const isValidEmail = (email: string): boolean => {
@@ -242,6 +249,14 @@ export default function ForgotPasswordForm({ visible, onBackPress, onBackToLogin
 
                 <View style={styles.buttonContainer}> 
                   <TouchableOpacity
+                    style={styles.primaryButton}
+                    onPress={handleBackToLanding}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.primaryButtonText}>Return to Login</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
                     style={[styles.secondaryButton, (isResending || resendCooldown > 0) && styles.disabledButton]}
                     onPress={async () => {
                       if (isResending || resendCooldown > 0) return;
@@ -253,6 +268,84 @@ export default function ForgotPasswordForm({ visible, onBackPress, onBackToLogin
                         await sendPasswordResetEmail(authInstance, emailAddress);
                         console.log('[ForgotPassword] Password reset email resent to', emailAddress);
                         setResendCooldown(60);
+                        
+                        // Trigger success animation with smooth icon transitions
+                        setShowResendSuccess(true);
+                        resendSuccessAnim.setValue(0);
+                        
+                        // Phase 1: Send icon slides down, check icon slides down from top
+                        checkIconYAnim.setValue(-60);
+                        sendIconYAnim.setValue(0);
+                        outlineOpacityAnim.setValue(0);
+
+                        Animated.parallel([
+                          // Send icon slides down
+                          Animated.timing(sendIconYAnim, {
+                            toValue: 35,
+                            duration: 350,
+                            useNativeDriver: true,
+                          }),
+                          // Check icon slides down from top to center
+                          Animated.timing(checkIconYAnim, {
+                            toValue: 0,
+                            duration: 350,
+                            useNativeDriver: true,
+                          }),
+                          // Outline fades in
+                          Animated.timing(outlineOpacityAnim, {
+                            toValue: 1,
+                            duration: 250,
+                            useNativeDriver: true,
+                          }),
+                          // Success animation
+                          Animated.timing(resendSuccessAnim, {
+                            toValue: 1,
+                            duration: 600,
+                            useNativeDriver: false,
+                          }),
+                        ]).start();
+
+                        // After delay, animate everything back with send icon coming from below
+                        setTimeout(() => {
+                          Animated.sequence([
+                            // Nudge send icon further down off-screen quickly
+                            Animated.timing(sendIconYAnim, {
+                              toValue: 60,
+                              duration: 180,
+                              useNativeDriver: true,
+                            }),
+                            // Then animate check icon out while send slides up into place
+                            Animated.parallel([
+                              // Check icon slides up and out
+                              Animated.timing(checkIconYAnim, {
+                                toValue: -35,
+                                duration: 350,
+                                useNativeDriver: true,
+                              }),
+                              // Send icon slides up from bottom to center
+                              Animated.timing(sendIconYAnim, {
+                                toValue: 0,
+                                duration: 400,
+                                useNativeDriver: true,
+                              }),
+                              // Outline fades out
+                              Animated.timing(outlineOpacityAnim, {
+                                toValue: 0,
+                                duration: 250,
+                                useNativeDriver: true,
+                              }),
+                              // Success animation out
+                              Animated.timing(resendSuccessAnim, {
+                                toValue: 0,
+                                duration: 300,
+                                useNativeDriver: false,
+                              }),
+                            ]),
+                          ]).start(() => {
+                            setShowResendSuccess(false);
+                          });
+                        }, 1400); // Hold the success state for 1.4 seconds
+                        
                       } catch (error) {
                         console.error('[ForgotPassword] Error resending reset email:', error);
                         // Could show an error toast here, but for now just log it
@@ -263,11 +356,66 @@ export default function ForgotPasswordForm({ visible, onBackPress, onBackToLogin
                     activeOpacity={0.8}
                     disabled={isResending || resendCooldown > 0}
                   >
+                    {/* Animated green outline */}
+                    <Animated.View
+                      style={[
+                        styles.successOutline,
+                        {
+                          opacity: outlineOpacityAnim,
+                        }
+                      ]}
+                      pointerEvents="none"
+                    />
+                    
+                    {/* Icon container with transitions */}
                     <View style={styles.buttonIconContainer}>
-                      {isResending ? <CustomSpinner size={16} /> : <Ionicons name="send" size={16} color="#FFFFFF" />}
+                      {isResending ? (
+                        <CustomSpinner size={16} />
+                      ) : (
+                        <>
+                          {/* Send icon - slides down and back up */}
+                          <Animated.View
+                            style={[
+                              styles.iconWrapper,
+                              {
+                                transform: [{ translateY: sendIconYAnim }],
+                                opacity: sendIconYAnim.interpolate({
+                                  inputRange: [-10, 0, 10, 40],
+                                  outputRange: [0, 1, 0.8, 0],
+                                  extrapolate: 'clamp',
+                                }),
+                              }
+                            ]}
+                          >
+                            <Ionicons name="send" size={16} color="#FFFFFF" />
+                          </Animated.View>
+                          
+                          {/* Check icon - slides in from top */}
+                          <Animated.View
+                            style={[
+                              styles.iconWrapper,
+                              {
+                                transform: [{ translateY: checkIconYAnim }],
+                                opacity: checkIconYAnim.interpolate({
+                                  inputRange: [-40, -10, 0, 10],
+                                  outputRange: [0, 0, 1, 0],
+                                  extrapolate: 'clamp',
+                                }),
+                              }
+                            ]}
+                          >
+                            <Ionicons name="checkmark" size={18} color="#22C55E" />
+                          </Animated.View>
+                        </>
+                      )}
                     </View>
+                    
                     <Text style={styles.secondaryButtonText}>
-                      {isResending ? 'Sending...' : resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend Email'}
+                      {isResending
+                        ? 'Sending...'
+                        : resendCooldown > 0
+                        ? `Resend in ${resendCooldown}s`
+                        : 'Resend Email'}
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -588,6 +736,22 @@ const styles = StyleSheet.create({
     gap: 16,
     marginTop: 20,
   },
+  primaryButton: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 25,
+    height: 52,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+    overflow: 'visible',
+    position: 'relative',
+  },
+  primaryButtonText: {
+    color: '#000000',
+    fontSize: 16,
+    fontWeight: '600',
+  },
   secondaryButton: {
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
     borderRadius: 25,
@@ -601,6 +765,17 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     position: 'relative',
   },
+  successOutline: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 25,
+    borderWidth: 2,
+    borderColor: '#22C55E',
+    zIndex: 1,
+  },
   disabledButton: {
     opacity: 0.6,
   },
@@ -611,6 +786,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 8,
+  },
+  iconWrapper: {
+    position: 'absolute',
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 20,
+    height: 20,
   },
   secondaryButtonText: {
     color: '#FFFFFF',
