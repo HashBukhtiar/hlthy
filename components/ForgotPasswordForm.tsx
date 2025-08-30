@@ -12,6 +12,7 @@ import {
   Platform
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { TextInput } from 'react-native-paper';
 import CustomSpinner from '@/components/CustomSpinner';
 
@@ -32,6 +33,8 @@ export default function ForgotPasswordForm({ visible, onBackPress, onBackToLogin
   const [submitted, setSubmitted] = useState<boolean>(false);
   const [success, setSuccess] = useState<boolean>(false);
   const [emailFocused, setEmailFocused] = useState<boolean>(false);
+  const [isResending, setIsResending] = useState<boolean>(false);
+  const [resendCooldown, setResendCooldown] = useState<number>(0);
 
   const emailShakeAnim = React.useRef(new Animated.Value(0)).current;
   const contentTranslateY = useRef(new Animated.Value(0)).current;
@@ -172,8 +175,8 @@ export default function ForgotPasswordForm({ visible, onBackPress, onBackToLogin
       }
       // If email exists, proceed with sending reset link (simulate API call)
       if (emailExists) {
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        setSuccess(true);
+  await new Promise(resolve => setTimeout(resolve, 2000));
+  setSuccess(true);
       }
     } catch (error) {
       setErrorMessage("An error occurred. Please try again later.");
@@ -184,6 +187,12 @@ export default function ForgotPasswordForm({ visible, onBackPress, onBackToLogin
   };
 
   useEffect(() => {
+    // simple cooldown timer for resend button used in success UI
+    if (resendCooldown > 0) {
+      const t = setTimeout(() => setResendCooldown(resendCooldown - 1), 1000);
+      return () => clearTimeout(t);
+    }
+
     const keyboardDidShowListener = Keyboard.addListener(
       'keyboardDidShow',
       () => {
@@ -264,16 +273,44 @@ export default function ForgotPasswordForm({ visible, onBackPress, onBackToLogin
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
           <Animated.View style={[styles.forgotPasswordFullContainer, { transform: [{ translateY: contentTranslateY }] }]}> 
             {success ? (
-              // Success State
+              // Success State (EmailVerification-style UI)
               <View style={styles.forgotPasswordCenteredContent}>
-                <View style={styles.successHeader}>
-                  <Text style={styles.successTitle}>Check Your Email</Text>
-                  <Text style={styles.successMessage}>
-                    {`We've sent a password reset link to ${emailAddress}`}
-                  </Text>
-                  <Text style={styles.instructionText}>
-                    Click the link in your email to reset your password, then return to login.
-                  </Text>
+                <View style={styles.emailIconContainer}>
+                  <Ionicons name="mail" size={44} color="#FFFFFF" />
+                </View>
+                <Text style={styles.successTitle}>Check Your Email</Text>
+                <Text style={styles.successMessage}>
+                  {`We've sent a password reset link to\n`}
+                  <Text style={styles.emailText}>{emailAddress}</Text>
+                </Text>
+                <Text style={styles.instructionText}>
+                  Follow the instructions in the email to reset your password.
+                </Text>
+
+                <View style={styles.buttonContainer}> 
+                  <TouchableOpacity
+                    style={[styles.secondaryButton, (isResending || resendCooldown > 0) && styles.disabledButton]}
+                    onPress={async () => {
+                      if (isResending || resendCooldown > 0) return;
+                      setIsResending(true);
+                      try {
+                        // Simulate resend
+                        await new Promise(r => setTimeout(r, 1200));
+                        setResendCooldown(60);
+                      } finally {
+                        setIsResending(false);
+                      }
+                    }}
+                    activeOpacity={0.8}
+                    disabled={isResending || resendCooldown > 0}
+                  >
+                    <View style={styles.buttonIconContainer}>
+                      {isResending ? <CustomSpinner size={16} /> : <Ionicons name="send" size={16} color="#FFFFFF" />}
+                    </View>
+                    <Text style={styles.secondaryButtonText}>
+                      {isResending ? 'Sending...' : resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend Email'}
+                    </Text>
+                  </TouchableOpacity>
                 </View>
               </View>
             ) : (
@@ -386,8 +423,9 @@ const styles = StyleSheet.create({
   },
   forgotPasswordCenteredContent: {
     flex: 1,
-    justifyContent: 'center',
-    paddingTop: 60,
+  justifyContent: 'center',
+  alignItems: 'center',
+  paddingTop: 40,
   },
   backButtonTop: {
     position: 'absolute',
@@ -569,5 +607,55 @@ const styles = StyleSheet.create({
     bottom: 0,
     backgroundColor: 'transparent',
     zIndex: 999,
+  },
+  // EmailVerification-like styles used in success UI
+  emailIconContainer: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 32,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  emailText: {
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  buttonContainer: {
+    width: '100%',
+    gap: 16,
+    marginTop: 20,
+  },
+  secondaryButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 25,
+    height: 52,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  disabledButton: {
+    opacity: 0.6,
+  },
+  buttonIconContainer: {
+    position: 'relative',
+    width: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
+  },
+  secondaryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '500',
   },
 });
