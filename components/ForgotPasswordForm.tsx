@@ -243,11 +243,10 @@ export default function ForgotPasswordForm({ visible, onBackPress, onBackToLogin
                 </View>
                 <Text style={styles.successTitle}>Check Your Email</Text>
                 <Text style={styles.successMessage}>
-                  {`We've sent a password reset link to\n`}
-                  <Text style={styles.emailText}>{emailAddress}</Text>
+                  A reset link was sent to <Text style={styles.emailText}>{emailAddress}</Text>.
                 </Text>
                 <Text style={styles.instructionText}>
-                  Follow the instructions in the email to reset your password.
+                  Open the link to reset your password.
                 </Text>
 
                 <View style={styles.buttonContainer}> 

@@ -415,7 +415,7 @@ export default function EmailVerificationScreen({
         </Text>
         
         <Text style={styles.description}>
-          Follow the instructions in the email to verify.
+          Open the link to verify your email.
         </Text>
 
         <View style={styles.buttonContainer}>
