@@ -9,10 +9,10 @@ const BYPASS_AUTH = false;
 const DEV_EMAIL = 'dev2@gmail.com';
 const DEV_PASSWORD = 'dev1232';
 
-if (typeof window !== "undefined") {
-  const auth = getAuth();
-  setPersistence(auth, browserSessionPersistence);
-}
+// if (typeof window !== "undefined") {
+//   const auth = getAuth();
+//   setPersistence(auth, browserSessionPersistence);
+// }
 
 export default function Index() {
   const [isLoading, setIsLoading] = useState(true);
