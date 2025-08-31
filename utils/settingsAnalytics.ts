@@ -190,18 +190,6 @@ export const generateSettingsInsights = (settings: Partial<UserSettings>): strin
     }
   }
 
-  // Language and accessibility
-  if (settings.language && settings.language !== 'en') {
-    insights.push('🌍 Great choice using the app in your preferred language!');
-  }
-
-  // Theme insights
-  if (settings.theme === 'light') {
-    insights.push('☀️ Light theme can be easier on the eyes during daytime use');
-  } else if (settings.theme === 'dark') {
-    insights.push('🌙 Dark theme can help reduce eye strain in low light');
-  }
-
   // Final check - if no insights, add a positive message
   if (insights.length === 0) {
     insights.push('✅ Your settings look great! No recommendations at this time.');
