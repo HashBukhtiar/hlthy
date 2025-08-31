@@ -144,7 +144,7 @@ export const generateSettingsInsights = (settings: Partial<UserSettings>): strin
       if (age < 18 && settings.profileVisibility === 'public') {
         insights.push('👤 Consider making your profile private for better safety');
       }
-      if (age < 16) {
+      if (age < 16 && privacyLevel !== 'strict') {
         insights.push('🔒 Young users should use strict privacy settings');
       }
       if (age > 65 && settings.messagePermission === 'everyone') {
