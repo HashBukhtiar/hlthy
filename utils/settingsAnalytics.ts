@@ -135,7 +135,7 @@ export const generateSettingsInsights = (settings: Partial<UserSettings>): strin
   // Bio privacy insights
   if (settings.bio) {
     const bio = settings.bio.toLowerCase();
-    if (bio.includes('phone') || bio.includes('email') || bio.includes('@')) {
+    if (bio.includes('phone') || bio.includes('email')) {
       insights.push('⚠️ Consider removing personal contact info from your bio');
     }
     if (bio.includes('location') || bio.includes('address') || bio.includes('live in') || bio.includes('from ')) {
