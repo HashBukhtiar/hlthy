@@ -168,9 +168,6 @@ export const generateSettingsInsights = (settings: Partial<UserSettings>): strin
   if (!settings.bio || settings.bio.trim().length < 10) {
     insights.push('📝 Consider adding a bio to help others understand your fitness journey');
   }
-  if (!settings.archetype) {
-    insights.push('🎯 Select a fitness archetype to get more relevant content');
-  }
   if (!settings.dateOfBirth) {
     insights.push('📅 Adding your birth date helps with age-appropriate content');
   }
@@ -184,9 +181,6 @@ export const generateSettingsInsights = (settings: Partial<UserSettings>): strin
   if (settings.displayName) {
     if (settings.displayName.length < 3) {
       insights.push('📛 Consider using a longer display name for better recognition');
-    }
-    if (/\d{4,}/.test(settings.displayName)) {
-      insights.push('🔢 Avoid using long numbers in your display name for better privacy');
     }
   }
 
