@@ -1,5 +1,5 @@
 import { UserSettings } from '@/types/settings';
-import { getFirestore, doc, updateDoc, increment, runTransaction } from 'firebase/firestore';
+import { getFirestore, doc, updateDoc, increment } from 'firebase/firestore';
 
 const db = getFirestore();
 
@@ -133,7 +133,7 @@ export const generateSettingsInsights = (settings: Partial<UserSettings>): strin
   }
 
   // Message permission insights
-  if (settings.messagePermission === 'everyone' && settings.profileVisibility === 'public') {
+  if (settings.messagePermission === 'everyone') {
     insights.push('💬 Consider limiting messages to followers only for better privacy');
   }
 
@@ -153,23 +153,9 @@ export const generateSettingsInsights = (settings: Partial<UserSettings>): strin
     }
   }
 
-  // Archetype-specific insights
-  if (settings.archetype === 'athlete' && settings.profileVisibility === 'private') {
-    insights.push('🏃‍♂️ Athletes often benefit from public profiles for networking');
-  }
-  if (settings.archetype === 'bodybuilder' && settings.profileVisibility === 'private') {
-    insights.push('💪 Bodybuilders often share progress publicly for motivation');
-  }
-  if (settings.archetype === 'crossfitter' && settings.profileVisibility === 'private') {
-    insights.push('🏋️‍♀️ CrossFit community thrives on public sharing and competition');
-  }
-
   // Profile completeness insights
   if (!settings.bio || settings.bio.trim().length < 10) {
     insights.push('📝 Consider adding a bio to help others understand your fitness journey');
-  }
-  if (!settings.dateOfBirth) {
-    insights.push('📅 Adding your birth date helps with age-appropriate content');
   }
 
   // Security insights

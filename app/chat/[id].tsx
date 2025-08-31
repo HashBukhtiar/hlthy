@@ -48,8 +48,6 @@ import { IntentMessageWrapper } from '@/components/IntentBadge';
 import { calculateImprovementPercentage } from '@/logic/milesonteUtils';
 import { getOptimalImageUrl } from '@/utils/imageUtils';
 import { useUnits } from '@/hooks/useUnits';
-import { httpsCallable } from 'firebase/functions';
-import { functions } from '@/firebaseConfig';
 
 interface FirestoreMessageData {
   senderId: string;
