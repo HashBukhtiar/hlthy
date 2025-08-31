@@ -147,9 +147,6 @@ export const generateSettingsInsights = (settings: Partial<UserSettings>): strin
       if (age < 16 && privacyLevel !== 'strict') {
         insights.push('🔒 Young users should use strict privacy settings');
       }
-      if (age > 65 && settings.messagePermission === 'everyone') {
-        insights.push('👥 Consider limiting messages to followers only');
-      }
     }
   }
 
