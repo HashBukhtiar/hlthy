@@ -132,20 +132,6 @@ export const generateSettingsInsights = (settings: Partial<UserSettings>): strin
     }
   }
 
-  // Bio privacy insights
-  if (settings.bio) {
-    const bio = settings.bio.toLowerCase();
-    if (bio.includes('phone') || bio.includes('email')) {
-      insights.push('⚠️ Consider removing personal contact info from your bio');
-    }
-    if (bio.includes('location') || bio.includes('address') || bio.includes('live in') || bio.includes('from ')) {
-      insights.push('📍 Avoid sharing specific location details in your bio');
-    }
-    if (bio.includes('age') || bio.includes('years old') || bio.includes('born')) {
-      insights.push('🎂 Consider removing age information from your bio');
-    }
-  }
-
   // Message permission insights
   if (settings.messagePermission === 'everyone' && settings.profileVisibility === 'public') {
     insights.push('💬 Consider limiting messages to followers only for better privacy');
