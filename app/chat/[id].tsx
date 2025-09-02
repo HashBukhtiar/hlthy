@@ -27,7 +27,7 @@ import {
   setDoc,
   startAfter, 
   collection, 
-  addDoc, 
+  addDoc,
   query, 
   orderBy, 
   onSnapshot, 
@@ -42,12 +42,12 @@ import {
 import { useAuth } from '@/context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { sendMessage, sendMessageWithIntent, IntentClassificationResult } from '@/ai/ai_chat';
+import { sendMessage, IntentClassificationResult } from '@/ai/ai_chat';
 import { SmartChatInput } from '@/components/SmartChatInput';
 import { IntentMessageWrapper } from '@/components/IntentBadge';
 import { calculateImprovementPercentage } from '@/logic/milesonteUtils';
-import { generateId } from '@/logic/idGenerator';
 import { getOptimalImageUrl } from '@/utils/imageUtils';
+import { useUnits } from '@/hooks/useUnits';
 
 interface FirestoreMessageData {
   senderId: string;
@@ -212,6 +212,32 @@ async function convertFirestoreDoc(
 const MessageItem = React.memo<{ item: Message; onLongPress: (m: Message) => void; conversationId: string; onReprompt?: (message: string) => void }>(
   ({ item, onLongPress, conversationId, onReprompt }) => {
     const router = useRouter();
+    const { getWeightUnit, getDistanceUnit, convertWeight, convertDistance } = useUnits();
+    
+    // Helper function to convert and format value with proper units
+    const convertAndFormatValue = (value: number, storedUnit: string) => {
+      if (storedUnit === 'kg' || storedUnit === 'lbs') {
+        const userPreferredUnit = getWeightUnit() as 'kg' | 'lbs';
+        const convertedValue = storedUnit !== userPreferredUnit 
+          ? convertWeight(value, storedUnit as 'kg' | 'lbs', userPreferredUnit)
+          : value;
+        return {
+          value: Math.round(convertedValue * 10) / 10,
+          unit: userPreferredUnit
+        };
+      } else if (storedUnit === 'km' || storedUnit === 'miles') {
+        const userPreferredUnit = getDistanceUnit() as 'km' | 'miles';
+        const convertedValue = storedUnit !== userPreferredUnit 
+          ? convertDistance(value, storedUnit as 'km' | 'miles', userPreferredUnit)
+          : value;
+        return {
+          value: Math.round(convertedValue * 10) / 10,
+          unit: userPreferredUnit
+        };
+      }
+      return { value, unit: storedUnit };
+    };
+    
     if (item.type === 'dateHeader') {
       return (
         <View style={styles.dateHeaderContainer}>
@@ -293,12 +319,24 @@ const MessageItem = React.memo<{ item: Message; onLongPress: (m: Message) => voi
               </Text>
               <View style={styles.milestoneStatsRow}>
                 <Text style={styles.milestoneValue}>
-                  {item.sharedMilestone.details.value}{item.sharedMilestone.details.weightUnit}
+                  {item.sharedMilestone.details.value && item.sharedMilestone.details.weightUnit
+                    ? (() => {
+                        const converted = convertAndFormatValue(item.sharedMilestone.details.value, item.sharedMilestone.details.weightUnit);
+                        return `${converted.value} ${converted.unit}`;
+                      })()
+                    : `${item.sharedMilestone.details.value}${item.sharedMilestone.details.weightUnit || 'lbs'}`
+                  }
                   {item.sharedMilestone.details.reps != null && item.sharedMilestone.details.reps > 1 && ` × ${item.sharedMilestone.details.reps}`}
                 </Text>
                 {item.sharedMilestone.details.previousValue != null && (
                   <Text style={styles.milestonePrevious}>
-                    from {item.sharedMilestone.details.previousValue}{item.sharedMilestone.details.weightUnit}
+                    from {item.sharedMilestone.details.previousValue && item.sharedMilestone.details.weightUnit
+                      ? (() => {
+                          const converted = convertAndFormatValue(item.sharedMilestone.details.previousValue, item.sharedMilestone.details.weightUnit);
+                          return `${converted.value} ${converted.unit}`;
+                        })()
+                      : `${item.sharedMilestone.details.previousValue}${item.sharedMilestone.details.weightUnit || 'lbs'}`
+                    }
                     {item.sharedMilestone.details.previousReps != null && item.sharedMilestone.details.previousReps > 1 && ` × ${item.sharedMilestone.details.previousReps}`}
                   </Text>
                 )}
@@ -325,11 +363,28 @@ const MessageItem = React.memo<{ item: Message; onLongPress: (m: Message) => voi
               </Text>
               <Text style={styles.weightChangeValue}>
                 {item.sharedMilestone.type === 'weightLoss' ? '↓' : '↑'} 
-                {item.sharedMilestone.details.totalLoss} {item.sharedMilestone.details.newWeightUnit}
+                {item.sharedMilestone.details.totalLoss && item.sharedMilestone.details.newWeightUnit
+                  ? (() => {
+                      const converted = convertAndFormatValue(item.sharedMilestone.details.totalLoss, item.sharedMilestone.details.newWeightUnit);
+                      return `${converted.value} ${converted.unit}`;
+                    })()
+                  : `${item.sharedMilestone.details.totalLoss} ${item.sharedMilestone.details.newWeightUnit || getWeightUnit()}`
+                }
               </Text>
               <Text style={styles.weightChangeDetails}>
-                {item.sharedMilestone.details.previousWeight} → {item.sharedMilestone.details.newWeight}
-                {item.sharedMilestone.details.newWeightUnit}
+                {item.sharedMilestone.details.previousWeight && item.sharedMilestone.details.newWeightUnit
+                  ? (() => {
+                      const convertedPrevious = convertAndFormatValue(item.sharedMilestone.details.previousWeight, item.sharedMilestone.details.newWeightUnit);
+                      return convertedPrevious.value;
+                    })()
+                  : item.sharedMilestone.details.previousWeight
+                } → {item.sharedMilestone.details.newWeight && item.sharedMilestone.details.newWeightUnit
+                  ? (() => {
+                      const convertedNew = convertAndFormatValue(item.sharedMilestone.details.newWeight, item.sharedMilestone.details.newWeightUnit);
+                      return `${convertedNew.value} ${convertedNew.unit}`;
+                    })()
+                  : `${item.sharedMilestone.details.newWeight} ${item.sharedMilestone.details.newWeightUnit || getWeightUnit()}`
+                }
               </Text>
               <Text style={styles.milestoneImprovement}>
                 {item.sharedMilestone.details.percentageLoss} change
@@ -1164,239 +1219,192 @@ export default function ChatScreen() {
   }, [loading]);
 
   useEffect(() => {
-  const isAiChat = conversationId.endsWith('_ai_conversation');
-  if (isAiChat) {
-    setChatTitle('AI Assistant');
-    setProfileImageUrl(null); // Or a specific AI avatar if you have one
-    return;
-  }
+    const isAiChat = conversationId.endsWith('_ai_conversation');
+    if (isAiChat) {
+      setChatTitle('AI Assistant');
+      setProfileImageUrl(null); // Or a specific AI avatar if you have one
+      return;
+    }
 
-  if (!currentUser || !conversationId) return;
-  
-  const fetchHeaderData = async () => {
-    const convRef = doc(db, "conversations", conversationId);
-    const convSnap = await getDoc(convRef);
+    if (!currentUser || !conversationId) return;
+    
+    const fetchHeaderData = async () => {
+      const convRef = doc(db, "conversations", conversationId);
+      const convSnap = await getDoc(convRef);
 
-    if (!convSnap.exists()) return;
+      if (!convSnap.exists()) return;
 
-    const data = convSnap.data();
-    const otherId = data.participants?.find((uid: string) => uid !== currentUser.uid);
+      const data = convSnap.data();
+      const otherId = data.participants?.find((uid: string) => uid !== currentUser.uid);
 
-    if (!otherId) return;
+      if (!otherId) return;
 
-    setOtherParticipantId(otherId);
-    setChatTitle(data.participantUsernames?.[otherId] || 'Chat');
+      setOtherParticipantId(otherId);
+      setChatTitle(data.participantUsernames?.[otherId] || 'Chat');
 
-    // Fetch the user document for the latest profile image
-    try {
-      const userRef = doc(db, 'users', otherId);
-      const userSnap = await getDoc(userRef);
-      if (userSnap.exists()) {
-        const userData = userSnap.data();
-        // Use getOptimalImageUrl to handle thumbnails if they exist
-        const optimalImageUrl = getOptimalImageUrl(userData.profileThumbnailUrl, userData.profileImageUrl);
-        setProfileImageUrl(optimalImageUrl);
-      } else {
-        // Fallback to the potentially outdated image if the user doc is not found
+      // Fetch the user document for the latest profile image
+      try {
+        const userRef = doc(db, 'users', otherId);
+        const userSnap = await getDoc(userRef);
+        if (userSnap.exists()) {
+          const userData = userSnap.data();
+          // Use getOptimalImageUrl to handle thumbnails if they exist
+          const optimalImageUrl = getOptimalImageUrl(userData.profileThumbnailUrl, userData.profileImageUrl);
+          setProfileImageUrl(optimalImageUrl);
+        } else {
+          // Fallback to the potentially outdated image if the user doc is not found
+          setProfileImageUrl(data.participantProfileImages?.[otherId] || null);
+        }
+      } catch (error) {
+        console.error("Error fetching user profile for chat header:", error);
         setProfileImageUrl(data.participantProfileImages?.[otherId] || null);
       }
+    };
+
+    fetchHeaderData();
+  }, [currentUser, conversationId]);
+
+  const updateConversationMetadata = async (conversationId: string, senderId: string, messageText: string) => {
+    if (!currentUser || !otherParticipantId) return;
+    
+    try {
+      const conversationRef = doc(db, "conversations", conversationId);
+      
+      // Update main conversation document
+      await updateDoc(conversationRef, {
+        lastMessageAt: serverTimestamp(),
+        lastMessageText: messageText,
+        lastMessageSenderId: senderId,
+      });
+
+      // Update user conversation references for both participants
+      const userConvRef1 = doc(db, `users/${senderId}/conversations`, conversationId);
+      await setDoc(userConvRef1, {
+        otherParticipantId: otherParticipantId,
+        otherParticipantUsername: chatTitle,
+        otherParticipantProfileImage: profileImageUrl || '',
+        otherParticipantThumbnailUrl: profileImageUrl || '', // Add thumbnail support
+        lastMessageAt: serverTimestamp(),
+        lastMessageText: messageText,
+      }, { merge: true });
+
+      const userConvRef2 = doc(db, `users/${otherParticipantId}/conversations`, conversationId);
+      await setDoc(userConvRef2, {
+        otherParticipantId: senderId,
+        otherParticipantUsername: currentUser.displayName || currentUser.email || 'User',
+        otherParticipantProfileImage: currentUser.photoURL || '',
+        otherParticipantThumbnailUrl: currentUser.photoURL || '', // Add thumbnail support
+        lastMessageAt: serverTimestamp(),
+        lastMessageText: messageText,
+      }, { merge: true });
+
     } catch (error) {
-      console.error("Error fetching user profile for chat header:", error);
-      setProfileImageUrl(data.participantProfileImages?.[otherId] || null);
+      console.error('Error updating conversation metadata:', error);
+      // Don't throw error - this is not critical for message sending
     }
   };
 
-  fetchHeaderData();
-}, [currentUser, conversationId]);
-
-
   const handleSend = async (textToSend: string, intentResult?: IntentClassificationResult) => {
-  Keyboard.dismiss();
-  
-  console.log("Current user:", currentUser);
-  console.log("Current user UID:", currentUser?.uid);
-  console.log("Conversation ID:", conversationId);
-  console.log("Intent result:", intentResult);
-  
-  if (!textToSend.trim() || !currentUser || !conversationId) {
-    console.log("Validation failed - input:", textToSend.trim(), "currentUser:", !!currentUser, "conversationId:", conversationId);
-    return;
-  }
-
-  setInput('');
-
-  const isAiChat = conversationId.endsWith('_ai_conversation');
-  
-  try {
-    // Ensure conversation document exists for AI chats
-    if (isAiChat) {
-      const conversationRef = doc(db, "conversations", conversationId);
-      console.log("Checking if AI conversation exists for ID:", conversationId);
-      const conversationSnap = await getDoc(conversationRef);
-      
-      if (!conversationSnap.exists()) {
-        console.log("Creating AI conversation document");
-        const conversationData = {
-          participants: [currentUser.uid, 'ai_conversation'],
-          participantUsernames: {
-            [currentUser.uid]: currentUser.displayName || currentUser.email,
-            'ai_conversation': 'AI Assistant'
-          },
-          participantProfileImages: {
-            [currentUser.uid]: currentUser.photoURL || null,
-            'ai_conversation': null
-          },
-          createdAt: serverTimestamp(),
-          lastMessageAt: serverTimestamp(),
-          lastMessageText: textToSend,
-          lastMessageSenderId: currentUser.uid,
-        };
-        console.log("Conversation data to be saved:", conversationData);
-        await setDoc(conversationRef, conversationData);
-        console.log("AI conversation document created successfully");
-      } else {
-        console.log("AI conversation document already exists");
-      }
+    Keyboard.dismiss();
+    
+    if (!textToSend.trim() || !currentUser || !conversationId) {
+      return;
     }
 
-    const messagesRef = collection(db, "conversations", conversationId, "messages");
-
-    // Add user's message to Firestore with intent information
-    console.log("Adding user message to Firestore:", textToSend);
-    const messageData: any = {
-      text: textToSend,
-      createdAt: serverTimestamp(),
-      senderId: currentUser.uid,
-    };
+    setInput('');
+    const isAiChat = conversationId.endsWith('_ai_conversation');
     
-    // Only add intent field if intentResult exists and has intent property
-    if (intentResult?.intent) {
-      messageData.intent = intentResult.intent;
-    }
-    
-    await addDoc(messagesRef, messageData);
-    console.log("User message added successfully");
-
-    if (isAiChat) {
-      setIsAiThinking(true); // Show thinking indicator
-      try {
-        // The `messages` state is ordered descending. We need ascending for the API.
-        const historyForAPI = [...messages]
-          .reverse() // Create a reversed copy
-          .map(m => ({ text: m.text, role: m.role }));
-
-        // Add the new user message to the history for the API call
-        historyForAPI.push({ text: textToSend, role: 'user' });
-
-        // Use the enhanced sendMessage function
-        const aiResponseText = await sendMessage(historyForAPI, textToSend);
-
-        // Save AI's response to Firestore using current user's ID with isAiResponse flag
-        const aiMessageData: any = {
-          text: aiResponseText,
-          createdAt: serverTimestamp(),
-          senderId: currentUser.uid, // Use current user's ID to avoid permission issues
-          isAiResponse: true, // Flag to identify this as an AI response
-        };
-        
-        // Only add intent field if intentResult exists and has intent property
-        if (intentResult?.intent) {
-          aiMessageData.intent = intentResult.intent;
-        }
-        
-        await addDoc(messagesRef, aiMessageData);
-      } catch (error) {
-        console.error('Error sending message to AI:', error);
-        // Add an error message to the chat
-        await addDoc(messagesRef, {
-          text: "Sorry, I'm having trouble connecting. Please try again later.",
-          createdAt: serverTimestamp(),
-          senderId: currentUser.uid,
-          isAiResponse: true,
-        });
-      } finally {
-        setIsAiThinking(false); // Hide thinking indicator
-      }
-    } else {
-      // Handle user-to-user chat with message permissions from main branch
-      try {
-        // --- Message Permission Logic from main branch ---
-        if (otherParticipantId && currentUser.uid !== otherParticipantId) {
-          // Fetch recipient's messagePermission
-          const recipientDoc = await getDoc(doc(db, "users", otherParticipantId));
-          const recipientData = recipientDoc.data();
-          const messagePermission = recipientData?.messagePermission || "everyone";
-
-          // Check if sender is a follower
-          let isFollower = false;
-          if (messagePermission === "followers") {
-            const followerDoc = await getDoc(doc(db, "users", otherParticipantId, "followers", currentUser.uid));
-            isFollower = followerDoc.exists();
-          }
-
-          if (messagePermission === "followers" && !isFollower) {
-            // Store as message request
-            await setDoc(
-              doc(db, "users", otherParticipantId, "messageRequests", conversationId),
-              {
-                fromUserId: currentUser.uid,
-                text: textToSend,
-                createdAt: serverTimestamp(),
-                status: "pending",
-                conversationId,
-              }
-            );
-            Alert.alert(
-              "Message Request Sent",
-              "Your message was sent as a request. The user must approve it before you can continue messaging."
-            );
-            return;
-          }
-        }
-
-        // --- Normal Message Send Logic from main branch ---
+    try {
+      // Ensure conversation document exists for AI chats
+      if (isAiChat) {
         const conversationRef = doc(db, "conversations", conversationId);
-
-        await updateDoc(conversationRef, {
-          lastMessageAt: serverTimestamp(),
-          lastMessageText: textToSend,
-          lastMessageSenderId: currentUser.uid,
-        });
-
-        const userConvRef1 = doc(db, `users/${currentUser.uid}/conversations`, conversationId);
-        await setDoc(
-          userConvRef1,
-          {
-            otherParticipantId,
-            otherParticipantUsername: chatTitle,
-            otherParticipantProfileImage: profileImageUrl || '',
+        const conversationSnap = await getDoc(conversationRef);
+        
+        if (!conversationSnap.exists()) {
+          const conversationData = {
+            participants: [currentUser.uid, 'ai_conversation'],
+            participantUsernames: {
+              [currentUser.uid]: currentUser.displayName || currentUser.email,
+              'ai_conversation': 'AI Assistant'
+            },
+            participantProfileImages: {
+              [currentUser.uid]: currentUser.photoURL || null,
+              'ai_conversation': null
+            },
+            createdAt: serverTimestamp(),
             lastMessageAt: serverTimestamp(),
             lastMessageText: textToSend,
-          },
-          { merge: true }
-        );
-
-        // Update other participant's conversation reference if exists
-        if (otherParticipantId) {
-          const userConvRef2 = doc(db, `users/${otherParticipantId}/conversations`, conversationId);
-          const otherUserConvSnap = await getDoc(userConvRef2);
-          if (otherUserConvSnap.exists()) {
-            await updateDoc(userConvRef2, {
-              lastMessageAt: serverTimestamp(),
-              lastMessageText: textToSend,
-            });
-          }
+            lastMessageSenderId: currentUser.uid,
+          };
+          await setDoc(conversationRef, conversationData);
         }
-      } catch (error) {
-        console.error('Error updating conversation metadata:', error);
-        Alert.alert("Error", "Failed to update conversation. Please try again.");
       }
+
+      const messagesRef = collection(db, "conversations", conversationId, "messages");
+
+      // Add user's message to Firestore
+      const messageData: any = {
+        text: textToSend,
+        createdAt: serverTimestamp(),
+        senderId: currentUser.uid,
+      };
+      
+      if (intentResult?.intent) {
+        messageData.intent = intentResult.intent;
+      }
+      
+      await addDoc(messagesRef, messageData);
+      console.log("User message added successfully");
+
+      if (isAiChat) {
+        setIsAiThinking(true); // Show thinking indicator
+        try {
+          // The `messages` state is ordered descending. We need ascending for the API.
+          const historyForAPI = [...messages]
+            .reverse() // Create a reversed copy
+            .map(m => ({ text: m.text, role: m.role }));
+
+          // Add the new user message to the history for the API call
+          historyForAPI.push({ text: textToSend, role: 'user' });
+
+          // Use the enhanced sendMessage function
+          const aiResponseText = await sendMessage(historyForAPI, textToSend);
+
+          // Save AI's response to Firestore using current user's ID with isAiResponse flag
+          const aiMessageData: any = {
+            text: aiResponseText,
+            createdAt: serverTimestamp(),
+            senderId: currentUser.uid, // Use current user's ID to avoid permission issues
+            isAiResponse: true, // Flag to identify this as an AI response
+          };
+          
+          // Only add intent field if intentResult exists and has intent property
+          if (intentResult?.intent) {
+            aiMessageData.intent = intentResult.intent;
+          }
+          
+          await addDoc(messagesRef, aiMessageData);
+        } catch (error) {
+          console.error('Error sending message to AI:', error);
+          // Add an error message to the chat
+          await addDoc(messagesRef, {
+            text: "Sorry, I'm having trouble connecting. Please try again later.",
+            createdAt: serverTimestamp(),
+            senderId: currentUser.uid,
+            isAiResponse: true,
+          });
+        } finally {
+          setIsAiThinking(false); // Hide thinking indicator
+        }
+      } else {
+        // Handle normal conversation updates
+        await updateConversationMetadata(conversationId, currentUser.uid, textToSend);
+      }
+    } catch (error) {
+      console.error('Error in handleSend:', error);
+      Alert.alert("Error", "Failed to send message. Please try again.");
     }
-  } catch (error) {
-    console.error('Error in handleSend:', error);
-    Alert.alert("Error", "Failed to send message. Please try again.");
-  }
-};
+  };
 
   const handleDeleteMessage = async () => {
     if (!selectedMessage || !currentUser || !conversationId || conversationId === 'ai_conversation' || selectedMessage.user !== 'user') {
@@ -1664,10 +1672,11 @@ export default function ChatScreen() {
           value={input}
           onChangeText={setInput}
           onSend={handleSend}
-          placeholder={conversationId.endsWith('_ai_conversation') ? "Ask me anything about fitness..." : "Type your message..."}
           disabled={isAiThinking}
+          conversationId={conversationId}
+          otherParticipantId={otherParticipantId}
+          isAiConversation={conversationId.endsWith('_ai_conversation')}
         />
-
       </View>
     </KeyboardAvoidingView>
   );

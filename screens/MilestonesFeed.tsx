@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import { 
   StyleSheet, 
   Text, 
@@ -20,54 +20,26 @@ import { useFeedData } from '@/hooks/useFeedData';
 import { usePostsData } from '@/hooks/usePostsData';
 import { getOptimalImageUrl } from '@/utils/imageUtils';
 import { useBlockEnforcement } from '@/utils/blockUtils';
-
-// Define interfaces for milestone data
-export interface MilestoneStats {
-  likes: number;
-}
-
-export interface MilestoneDetails {
-  exerciseName?: string;
-  value?: number;
-  weightUnit?: string;
-  reps?: number;
-  newWeight?: number;
-  newWeightUnit?: string;
-  previousWeight?: number;
-  previousWeightUnit?: string;
-  previousValue?: number;
-  previousReps?: number;
-  improvement?: string;
-  totalLoss?: number;
-  percentageLoss?: string;
-  type: 'PR' | 'weightLoss' | 'weightGain';
-}
-
-export interface Milestone {
-  id: string;
-  authorId: string;
-  authorUsername: string;
-  authorProfileImageUrl: string;
-  authorProfileThumbnailUrl: string;
-  createdAt: any;
-  milestoneType: 'PR' | 'weightLoss' | 'weightGain' | string;
-  milestoneDetails: MilestoneDetails;
-  reactionCount: number;
-  isLiked: boolean;
-  associatedPostId?: string;
-  imageUrl?: string;
-  pinned?: boolean;
-  top5Percent?: boolean;
-}
+import { FeedMilestone, MilestoneDetails, MilestoneStats } from '@/types/milestone';
+import { useUnits } from '@/hooks/useUnits';
 
 export default function MilestonesFeed() {
   const router = useRouter();
   const { currentUser } = useAuth();
-  const { milestones, loading, refreshing, loadingMore, hasMore, error, refreshFeed, loadMorePosts } = useFeedData();
+  const { milestones: feedMilestones, loading, refreshing, loadingMore, hasMore, error, refreshFeed, loadMorePosts } = useFeedData();
   const { likePost, unlikePost } = usePostsData();
   const { canInteractWithUser, isUserBlocked } = useBlockEnforcement();
   const [shareModalVisible, setShareModalVisible] = useState(false);
-  const milestoneToShare = useRef<Milestone | null>(null);
+  const milestoneToShare = useRef<FeedMilestone | null>(null);
+  const { getWeightUnit, getDistanceUnit } = useUnits();
+  
+  // Local state for optimistic updates  
+  const [milestones, setMilestones] = useState<typeof feedMilestones>([]);
+
+  // Update local milestones when feedMilestones change
+  useEffect(() => {
+    setMilestones(feedMilestones);
+  }, [feedMilestones]);
 
   // Format the time as "X time ago"
   const formatTimeAgo = useCallback((date: any): string => {
@@ -89,6 +61,21 @@ export default function MilestonesFeed() {
       return;
     }
 
+    // Optimistic update - update UI immediately
+    setMilestones(prevMilestones => 
+      prevMilestones.map(milestone => 
+        milestone.id === milestoneId 
+          ? {
+              ...milestone,
+              isLiked: !isCurrentlyLiked,
+              reactionCount: isCurrentlyLiked 
+                ? Math.max(0, (milestone.reactionCount || 0) - 1)
+                : (milestone.reactionCount || 0) + 1
+            }
+          : milestone
+      )
+    );
+
     try {
       if (isCurrentlyLiked) {
         await unlikePost(milestoneId);
@@ -97,6 +84,20 @@ export default function MilestonesFeed() {
       }
     } catch (error) {
       console.error('Error toggling milestone like:', error);
+      // Revert optimistic update on error
+      setMilestones(prevMilestones => 
+        prevMilestones.map(milestone => 
+          milestone.id === milestoneId 
+            ? {
+                ...milestone,
+                isLiked: isCurrentlyLiked,
+                reactionCount: isCurrentlyLiked 
+                  ? (milestone.reactionCount || 0) + 1
+                  : Math.max(0, (milestone.reactionCount || 0) - 1)
+              }
+            : milestone
+        )
+      );
       Alert.alert('Error', 'Could not update like status. Please try again.');
     }
   }, [currentUser, likePost, unlikePost]);
@@ -115,7 +116,7 @@ export default function MilestonesFeed() {
     router.push(`/profile/${userId}`);
   }, [router]);
 
-  const handleShare = useCallback((milestone: Milestone) => {
+  const handleShare = useCallback((milestone: FeedMilestone) => {
     console.log("🎯 sharing milestone payload:", milestone);
     if (!currentUser) {
       Alert.alert("Please log in", "You need to be logged in to share milestones.");
@@ -151,10 +152,62 @@ export default function MilestonesFeed() {
     }
   }, [currentUser]);
 
-  const renderMilestoneDetails = useCallback((milestone: Milestone) => {
+  const renderMilestoneDetails = useCallback((milestone: FeedMilestone) => {
     const details = milestone.milestoneDetails;
     
     if (details.type === 'PR') {
+      // Format weight/distance units based on user preferences
+      const displayValue = details.value;
+      const originalUnit = details.weightUnit;
+      let displayUnit = originalUnit;
+      let convertedValue = displayValue;
+      
+      // Convert to user's preferred unit if different
+      if (originalUnit === 'kg' || originalUnit === 'lbs') {
+        const preferredWeightUnit = getWeightUnit();
+        if (originalUnit !== preferredWeightUnit) {
+          if (originalUnit === 'kg' && preferredWeightUnit === 'lbs') {
+            convertedValue = Math.round(displayValue * 2.20462 * 10) / 10;
+          } else if (originalUnit === 'lbs' && preferredWeightUnit === 'kg') {
+            convertedValue = Math.round(displayValue * 0.453592 * 10) / 10;
+          }
+          displayUnit = `${preferredWeightUnit} (${displayValue} ${originalUnit})`;
+        } else {
+          displayUnit = preferredWeightUnit;
+        }
+      } else if (originalUnit === 'km' || originalUnit === 'miles') {
+        const preferredDistanceUnit = getDistanceUnit();
+        if (originalUnit !== preferredDistanceUnit) {
+          if (originalUnit === 'km' && preferredDistanceUnit === 'miles') {
+            convertedValue = Math.round(displayValue * 0.621371 * 10) / 10;
+          } else if (originalUnit === 'miles' && preferredDistanceUnit === 'km') {
+            convertedValue = Math.round(displayValue * 1.60934 * 10) / 10;
+          }
+          displayUnit = `${preferredDistanceUnit} (${displayValue} ${originalUnit})`;
+        } else {
+          displayUnit = preferredDistanceUnit;
+        }
+      }
+
+      // Format previous value similarly
+      let previousDisplayValue = details.previousValue;
+      let previousDisplayUnit = originalUnit;
+      if (details.previousValue && originalUnit !== displayUnit.split(' ')[0]) {
+        if (originalUnit === 'kg' && displayUnit.includes('lbs')) {
+          previousDisplayValue = Math.round(details.previousValue * 2.20462 * 10) / 10;
+          previousDisplayUnit = getWeightUnit();
+        } else if (originalUnit === 'lbs' && displayUnit.includes('kg')) {
+          previousDisplayValue = Math.round(details.previousValue * 0.453592 * 10) / 10;
+          previousDisplayUnit = getWeightUnit();
+        } else if (originalUnit === 'km' && displayUnit.includes('miles')) {
+          previousDisplayValue = Math.round(details.previousValue * 0.621371 * 10) / 10;
+          previousDisplayUnit = getDistanceUnit();
+        } else if (originalUnit === 'miles' && displayUnit.includes('km')) {
+          previousDisplayValue = Math.round(details.previousValue * 1.60934 * 10) / 10;
+          previousDisplayUnit = getDistanceUnit();
+        }
+      }
+      
       return (
         <View style={styles.detailsContainer}>
           <View style={styles.previousPRCard}>
@@ -169,8 +222,8 @@ export default function MilestonesFeed() {
             <View style={styles.previousPRContent}>
               <View style={styles.prMetricsRow}>
                 <View style={styles.prMetricGroup}>
-                  <Text style={styles.prMetricValue}>{details.value}</Text>
-                  <Text style={styles.prMetricLabel}>{details.weightUnit}</Text>
+                  <Text style={styles.prMetricValue}>{convertedValue}</Text>
+                  <Text style={styles.prMetricLabel}>{displayUnit}</Text>
                 </View>
                 {details.reps && (
                   <>
@@ -190,8 +243,8 @@ export default function MilestonesFeed() {
               <View style={styles.previousBestRow}>
                 <Text style={styles.previousBestLabel}>Previous Best:</Text>
                 <View style={styles.prMetricGroup}>
-                  <Text style={styles.previousBestValue}>{details.previousValue}</Text>
-                  <Text style={styles.previousBestUnit}>{details.weightUnit}</Text>
+                  <Text style={styles.previousBestValue}>{previousDisplayValue}</Text>
+                  <Text style={styles.previousBestUnit}>{previousDisplayUnit}</Text>
                 </View>
                 {details.previousReps && (
                   <>
@@ -210,6 +263,36 @@ export default function MilestonesFeed() {
     } else if (details.type === 'weightLoss' || details.type === 'weightGain') {
       const isLoss = details.type === 'weightLoss';
       
+      // Format weight units based on user preferences
+      const originalWeightUnit = details.newWeightUnit;
+      const preferredWeightUnit = getWeightUnit();
+      let displayWeight = details.newWeight;
+      let displayWeightUnit = originalWeightUnit;
+      
+      if (originalWeightUnit !== preferredWeightUnit) {
+        if (originalWeightUnit === 'kg' && preferredWeightUnit === 'lbs') {
+          displayWeight = Math.round(details.newWeight * 2.20462 * 10) / 10;
+        } else if (originalWeightUnit === 'lbs' && preferredWeightUnit === 'kg') {
+          displayWeight = Math.round(details.newWeight * 0.453592 * 10) / 10;
+        }
+        displayWeightUnit = `${preferredWeightUnit} (${details.newWeight} ${originalWeightUnit})`;
+      } else {
+        displayWeightUnit = preferredWeightUnit;
+      }
+
+      // Format previous weight similarly
+      let previousDisplayWeight = details.previousWeight;
+      let previousDisplayWeightUnit = details.previousWeightUnit;
+      if (details.previousWeight && details.previousWeightUnit !== preferredWeightUnit) {
+        if (details.previousWeightUnit === 'kg' && preferredWeightUnit === 'lbs') {
+          previousDisplayWeight = Math.round(details.previousWeight * 2.20462 * 10) / 10;
+          previousDisplayWeightUnit = preferredWeightUnit;
+        } else if (details.previousWeightUnit === 'lbs' && preferredWeightUnit === 'kg') {
+          previousDisplayWeight = Math.round(details.previousWeight * 0.453592 * 10) / 10;
+          previousDisplayWeightUnit = preferredWeightUnit;
+        }
+      }
+      
       return (
         <View style={styles.detailsContainer}>
           <View style={styles.previousPRCard}>
@@ -222,8 +305,8 @@ export default function MilestonesFeed() {
             <View style={styles.previousPRContent}>
               <View style={styles.prMetricsRow}>
                 <View style={styles.prMetricGroup}>
-                  <Text style={styles.prMetricValue}>{details.newWeight}</Text>
-                  <Text style={styles.prMetricLabel}>{details.newWeightUnit}</Text>
+                  <Text style={styles.prMetricValue}>{displayWeight}</Text>
+                  <Text style={styles.prMetricLabel}>{displayWeightUnit}</Text>
                 </View>
               </View>
             </View>
@@ -234,8 +317,8 @@ export default function MilestonesFeed() {
               <View style={styles.previousBestRow}>
                 <Text style={styles.previousBestLabel}>Previous Weight:</Text>
                 <View style={styles.prMetricGroup}>
-                  <Text style={styles.previousBestValue}>{details.previousWeight}</Text>
-                  <Text style={styles.previousBestUnit}>{details.previousWeightUnit}</Text>
+                  <Text style={styles.previousBestValue}>{previousDisplayWeight}</Text>
+                  <Text style={styles.previousBestUnit}>{previousDisplayWeightUnit}</Text>
                 </View>
               </View>
             </View>
@@ -245,16 +328,29 @@ export default function MilestonesFeed() {
     }
     
     return null;
-  }, [formatTimeAgo]);
+  }, [formatTimeAgo, getWeightUnit, getDistanceUnit]);
 
-  const renderMilestoneCard = useCallback((item: Milestone) => {
+  const formatDuration = (durationSeconds: number): string => {
+    const hours = Math.floor(durationSeconds / 3600);
+    const minutes = Math.floor((durationSeconds % 3600) / 60);
+    const seconds = durationSeconds % 60;
+    
+    let result = '';
+    if (hours > 0) result += `${hours}h `;
+    if (minutes > 0 || hours > 0) result += `${minutes}m `;
+    result += `${seconds}s`;
+    
+    return result.trim();
+  };
+
+  const renderMilestoneCard = useCallback((item: typeof milestones[0]) => {
     // Convert Post to Milestone format
-    const milestone: Milestone = {
+    const milestone: FeedMilestone = {
       id: item.id,
       authorId: item.authorId,
       authorUsername: item.authorUsername,
-      authorProfileImageUrl: item.authorProfileImageUrl,
-      authorProfileThumbnailUrl: item.authorProfileThumbnailUrl,
+      authorProfileImageUrl: item.authorProfileImageUrl || '',
+      authorProfileThumbnailUrl: item.authorProfileThumbnailUrl || '',
       createdAt: item.createdAt,
       milestoneType: item.milestoneDetails?.type || 'PR',
       milestoneDetails: item.milestoneDetails as MilestoneDetails,
@@ -330,7 +426,7 @@ export default function MilestonesFeed() {
   }, [milestones, canInteractWithUser, currentUser?.uid]);
 
   // Helper function to render the card content
-  const renderCardContent = useCallback((item: Milestone, hasStatus = false, statusText = '', statusColor = '') => {
+  const renderCardContent = useCallback((item: FeedMilestone, hasStatus = false, statusText = '', statusColor = '') => {
     const canInteract = !isUserBlocked(item.authorId);
     
     return (
@@ -445,7 +541,6 @@ export default function MilestonesFeed() {
         </Text>
         <TouchableOpacity 
           style={styles.createButton}
-          onPress={() => router.push('/create-post')}
         >
           <Text style={styles.createButtonText}>Create Milestone</Text>
         </TouchableOpacity>

@@ -111,7 +111,10 @@ export interface UserProfile {
   };
   
   // App Preferences
-  units?: 'metric' | 'imperial';
+  units?: {
+    weight: 'metric' | 'imperial';
+    distance: 'metric' | 'imperial';
+  };
   language?: string;
   region?: string;
   

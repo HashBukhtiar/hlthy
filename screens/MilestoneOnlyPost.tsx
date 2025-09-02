@@ -26,6 +26,7 @@ import {
     SECONDARY_COLOR,
     ErrorMessage,
 } from './PostComponents';
+import { useUnits } from '@/hooks/useUnits';
 
 interface MilestoneOnlyPostProps {
     onBack?: () => void;
@@ -41,6 +42,7 @@ export default function MilestoneOnlyPost({ onBack }: MilestoneOnlyPostProps) {
     const [formError, setFormError] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [valueVisibility, setValueVisibility] = useState<string | null>('public');
+    const { getWeightUnit, getDistanceUnit } = useUnits();
     
     // Previous PR data
     const [previousPR, setPreviousPR] = useState<PreviousPRData | null>(null);
@@ -256,7 +258,9 @@ export default function MilestoneOnlyPost({ onBack }: MilestoneOnlyPostProps) {
                                 <View style={styles.prMetricsRow}>
                                     <View style={styles.prMetricGroup}>
                                         <Text style={styles.prMetricValue}>{previousPR.weight}</Text>
-                                        <Text style={styles.prMetricLabel}>lbs</Text>
+                                        <Text style={styles.prMetricLabel}>
+                                            {previousPR.weightUnit || getWeightUnit()}
+                                        </Text>
                                     </View>
                                     <Text style={styles.prMetricSeparator}>×</Text>
                                     <View style={styles.prMetricGroup}>
@@ -288,19 +292,23 @@ export default function MilestoneOnlyPost({ onBack }: MilestoneOnlyPostProps) {
                                 <View style={styles.prMetricsRow}>
                                     <View style={styles.prMetricGroup}>
                                         <Text style={styles.prMetricValue}>{previousPR.distance}</Text>
-                                        <Text style={styles.prMetricLabel}>miles</Text>
+                                        <Text style={styles.prMetricLabel}>
+                                            {previousPR.distanceUnit || getDistanceUnit()}
+                                        </Text>
                                     </View>
                                 </View>
                             )}
                             
                             {selectedExercise.metricType === 'distance_time' && 
-                             previousPR.distance !== undefined && 
-                             previousPR.duration !== undefined && (
+                            previousPR.distance !== undefined && 
+                            previousPR.duration !== undefined && (
                                 <View style={styles.prMetricsColumn}>
                                     <View style={styles.prMetricsRow}>
                                         <View style={styles.prMetricGroup}>
                                             <Text style={styles.prMetricValue}>{previousPR.distance}</Text>
-                                            <Text style={styles.prMetricLabel}>miles</Text>
+                                            <Text style={styles.prMetricLabel}>
+                                                {previousPR.distanceUnit || getDistanceUnit()}
+                                            </Text>
                                         </View>
                                     </View>
                                     <View style={styles.prMetricsRow}>
@@ -314,7 +322,9 @@ export default function MilestoneOnlyPost({ onBack }: MilestoneOnlyPostProps) {
                                             <Text style={styles.prMetricValue}>
                                                 {formatDuration(Math.round(previousPR.duration / previousPR.distance))}
                                             </Text>
-                                            <Text style={styles.prMetricLabel}>per mile</Text>
+                                            <Text style={styles.prMetricLabel}>
+                                                per {(previousPR.distanceUnit || getDistanceUnit()).slice(0, -1)}
+                                            </Text>
                                         </View>
                                     </View>
                                 </View>
@@ -389,7 +399,7 @@ export default function MilestoneOnlyPost({ onBack }: MilestoneOnlyPostProps) {
                     }
                     milestoneDetails.value = parseFloat(weight);
                     milestoneDetails.reps = parseInt(reps, 10);
-                    milestoneDetails.weightUnit = 'lbs';
+                    milestoneDetails.weightUnit = getWeightUnit();
                     if (previousPR) {
                         milestoneDetails.previousValue = previousPR.weight;
                         milestoneDetails.previousReps = previousPR.reps;
@@ -429,7 +439,7 @@ export default function MilestoneOnlyPost({ onBack }: MilestoneOnlyPostProps) {
                         throw new Error("Please enter a distance");
                     }
                     milestoneDetails.value = parseFloat(distance);
-                    milestoneDetails.weightUnit = 'miles';
+                    milestoneDetails.weightUnit = getDistanceUnit();
                     if (metricType === 'distance_time') {
                         const timeSeconds = (parseInt(hours || '0') * 3600) + (parseInt(minutes || '0') * 60) + parseInt(seconds || '0');
                         if (timeSeconds <= 0) {
@@ -497,7 +507,7 @@ export default function MilestoneOnlyPost({ onBack }: MilestoneOnlyPostProps) {
                     <>
                         <View style={styles.metricRow}>
                             <View style={styles.metricField}>
-                                <Text style={styles.metricLabel}>Weight (lbs)</Text>
+                                <Text style={styles.metricLabel}>Weight ({getWeightUnit()})</Text>
                                 <View style={styles.inputWithIcon}>
                                     <TextInput
                                         style={styles.metricInput}
@@ -507,7 +517,12 @@ export default function MilestoneOnlyPost({ onBack }: MilestoneOnlyPostProps) {
                                         placeholderTextColor="#666"
                                         keyboardType="numeric"
                                     />
-                                    <MaterialCommunityIcons name="weight-pound" size={18} color="#777" style={styles.inputIcon} />
+                                    <MaterialCommunityIcons 
+                                        name={getWeightUnit() === 'kg' ? "weight-kilogram" : "weight-pound"} 
+                                        size={18} 
+                                        color="#777" 
+                                        style={styles.inputIcon} 
+                                    />
                                 </View>
                             </View>
                             
@@ -618,7 +633,7 @@ export default function MilestoneOnlyPost({ onBack }: MilestoneOnlyPostProps) {
 
                 {selectedExercise.metricType === 'distance' && (
                     <View style={styles.metricField}>
-                        <Text style={styles.metricLabel}>Distance (miles)</Text>
+                        <Text style={styles.metricLabel}>Distance ({getDistanceUnit()})</Text>
                         <View style={styles.inputWithIcon}>
                             <TextInput
                                 style={styles.metricInput}
@@ -636,7 +651,7 @@ export default function MilestoneOnlyPost({ onBack }: MilestoneOnlyPostProps) {
                 {selectedExercise.metricType === 'distance_time' && (
                     <View style={styles.metricContainer}>
                         <View style={styles.metricField}>
-                            <Text style={styles.metricLabel}>Distance (miles)</Text>
+                            <Text style={styles.metricLabel}>Distance ({getDistanceUnit()})</Text>
                             <View style={styles.inputWithIcon}>
                                 <TextInput
                                     style={styles.metricInput}

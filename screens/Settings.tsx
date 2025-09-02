@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Alert, Image, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, Keyboard, Alert, Image, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useAuth } from '@/context/AuthContext';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db, auth, functions } from '@/firebaseConfig';
@@ -21,6 +21,8 @@ import { exportSettings, importSettings } from '@/utils/settingsExport';
 import { trackSettingsChange, generateSettingsInsights, calculatePrivacyLevel } from '@/utils/settingsAnalytics';
 import { Ionicons } from '@expo/vector-icons';
 import { uploadProfileThumbnail } from '@/services/profileStorage';
+import NetInfo from '@react-native-community/netinfo';
+import { getFullVersionString } from '@/utils/appVersion';
 
 const archetypeData: SelectorItem[] = [
   { 
@@ -126,22 +128,22 @@ export default function Settings() {
   ]);
 
   const [profileImage, setProfileImage] = useState(userProfile?.profileImageUrl);
-  const [archetypeModalVisible, setArchetypeModalVisible] = useState(false);
   const [dateModalVisible, setDateModalVisible] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [privacyModalVisible, setPrivacyModalVisible] = useState(false);
-  const [messageModalVisible, setMessageModalVisible] = useState(false);
-  const [themeModalVisible, setThemeModalVisible] = useState(false);
-  const [languageModalVisible, setLanguageModalVisible] = useState(false);
-  const [weightUnitModalVisible, setWeightUnitModalVisible] = useState(false);
-  const [distanceUnitModalVisible, setDistanceUnitModalVisible] = useState(false);
   const [insights, setInsights] = useState<string[]>([]);
-  const [showInsights, setShowInsights] = useState(false);
   const [privacyLevel, setPrivacyLevel] = useState<'open' | 'moderate' | 'strict'>('moderate');
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [originalSettings, setOriginalSettings] = useState<Partial<UserSettings>>({});
   const [isSaving, setIsSaving] = useState(false);
   const [imageManuallyChanged, setImageManuallyChanged] = useState(false);
+  const [isOnline, setIsOnline] = useState(true);
+  const [autoSaveEnabled, setAutoSaveEnabled] = useState(false);
+  const [lastAutoSave, setLastAutoSave] = useState<Date | null>(null);
+  const [activeModal, setActiveModal] = useState<string | null>(null);
+  const [modalQueue, setModalQueue] = useState<string[]>([]);
+  const [lastModalAction, setLastModalAction] = useState<number>(0);
+
+  const MODAL_DEBOUNCE_MS = 300;
 
   // Update settings when userProfile changes
   useEffect(() => {
@@ -306,13 +308,77 @@ export default function Settings() {
   }, [settings, originalSettings, profileImage, userProfile?.profileImageUrl]);
 
   useEffect(() => {
-    console.log('🖼️ Profile Image State:', {
-      profileImage,
-      userProfileImage: userProfile?.profileImageUrl,
-      isSaving,
-      hasUnsavedChanges
+    // Monitor network connectivity
+    const unsubscribe = NetInfo.addEventListener(state => {
+      setIsOnline(state.isConnected ?? false);
     });
-  }, [profileImage, userProfile?.profileImageUrl, isSaving, hasUnsavedChanges]);
+
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    // Auto-save functionality
+    if (!hasUnsavedChanges || !autoSaveEnabled || !isOnline || isSaving) {
+      return;
+    }
+
+    const autoSaveTimer = setTimeout(async () => {
+      try {
+        await handleSaveSettings();
+        setLastAutoSave(new Date());
+      } catch (error) {
+        console.error('❌ Auto-save failed:', error);
+        // Don't show alert for auto-save failures to avoid interrupting user
+      }
+    }, 5000); // Auto-save after 5 seconds of no changes
+
+    return () => clearTimeout(autoSaveTimer);
+  }, [hasUnsavedChanges, autoSaveEnabled, isOnline, isSaving, settings]);
+
+  const openModal = useCallback((modalId: string) => {
+    Keyboard.dismiss();
+  
+    const now = Date.now();
+    if (now - lastModalAction < MODAL_DEBOUNCE_MS) {
+      return;
+    }
+    
+    // Close any currently active modal first
+    if (activeModal && activeModal !== modalId) {
+      closeModal(activeModal);
+      
+      // Queue the new modal to open after current one closes
+      setModalQueue(prev => [...prev, modalId]);
+      return;
+    }
+    
+    setActiveModal(modalId);
+    setLastModalAction(now);
+  }, [activeModal, lastModalAction]);
+
+  const closeModal = useCallback((modalId: string) => {
+    const now = Date.now();
+    if (now - lastModalAction < MODAL_DEBOUNCE_MS) {
+      return;
+    }
+    
+    if (activeModal === modalId) {
+      setActiveModal(null);
+      setLastModalAction(now);
+      
+      // Process modal queue if any
+      if (modalQueue.length > 0) {
+        const nextModal = modalQueue[0];
+        setModalQueue(prev => prev.slice(1));
+        setTimeout(() => openModal(nextModal), 100);
+      }
+    }
+  }, [activeModal, lastModalAction, modalQueue, openModal]);
+
+  // Enhanced modal visibility getters
+  const isModalVisible = useCallback((modalId: string) => {
+    return activeModal === modalId;
+  }, [activeModal]);
 
   const handleBackPress = () => {
     if (hasUnsavedChanges) {
@@ -431,6 +497,16 @@ export default function Settings() {
   const handleSaveSettings = async () => {
     if (!currentUser) return;
     
+    // Check network connectivity
+    if (!isOnline) {
+      Alert.alert(
+        'No Internet Connection',
+        'Please check your internet connection and try again.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+    
     try {
       setLoading(true);
       
@@ -462,7 +538,15 @@ export default function Settings() {
       await saveSettingsAfterValidation();
     } catch (error) {
       console.error("Error updating settings:", error);
-      Alert.alert("Error", "Failed to update settings: " + (error?.message || 'Unknown error'));
+      
+      // Enhanced error handling
+      const errorMessage = error?.code === 'unavailable' 
+        ? 'Service temporarily unavailable. Please try again.'
+        : error?.code === 'permission-denied'
+        ? 'You don\'t have permission to update these settings.'
+        : 'Failed to update settings: ' + (error?.message || 'Unknown error');
+      
+      Alert.alert("Error", errorMessage);
       setLoading(false);
     }
   };
@@ -487,11 +571,6 @@ export default function Settings() {
         profileVisibility: sanitizedSettings.profileVisibility,
       };
       
-      console.log('Saving settings with profile image:', {
-        profileImageUrl: profileImage,
-        settingsKeys: Object.keys(settingsToSave)
-      });
-      
       // Save using existing logic...
       if (!functions || !functions.app) {
         console.warn('Functions not properly initialized, falling back to direct Firestore update');
@@ -505,13 +584,7 @@ export default function Settings() {
         try {
           const updateUserSettings = httpsCallable(functions, 'updateUserSettings');
           
-          console.log('📤 Sending to Cloud Function:', {
-            profileImageUrl: settingsToSave.profileImageUrl,
-            userId: currentUser!.uid
-          });
-          
           await updateUserSettings({ settings: settingsToSave });
-          console.log('Settings updated via Cloud Function');
         } catch (functionError) {
           console.error('Cloud Function failed, falling back to direct update:', functionError);
           
@@ -524,7 +597,6 @@ export default function Settings() {
       }
       
       if (imageHasChanged) {
-        console.log(`Settings saved. Deleting old profile image: ${oldImageUrl}`);
         try {
           await deleteImageFromStorage(oldImageUrl);
         } catch (deleteError) {
@@ -571,7 +643,38 @@ export default function Settings() {
           {
             text: "Import",
             onPress: () => {
-              setSettings(prev => ({ ...prev, ...importedSettings }));
+              // Parse the dateOfBirth properly when importing
+              const parseDateOfBirth = (dateValue: any) => {
+                if (!dateValue) return undefined;
+                
+                try {
+                  if (dateValue instanceof Date) {
+                    return isNaN(dateValue.getTime()) ? undefined : dateValue;
+                  }
+                  
+                  if (dateValue.toDate && typeof dateValue.toDate === 'function') {
+                    return dateValue.toDate();
+                  }
+                  
+                  if (typeof dateValue === 'string') {
+                    const parsed = new Date(dateValue);
+                    return isNaN(parsed.getTime()) ? undefined : parsed;
+                  }
+                  
+                  return undefined;
+                } catch (error) {
+                  console.error('Error parsing date of birth from import:', error);
+                  return undefined;
+                }
+              };
+
+              // Process the imported data before setting it
+              const processedImport = {
+                ...importedSettings,
+                dateOfBirth: parseDateOfBirth(importedSettings.dateOfBirth)
+              };
+
+              setSettings(prev => ({ ...prev, ...processedImport }));
               Alert.alert("Success", "Settings imported successfully!");
             }
           }
@@ -591,7 +694,40 @@ export default function Settings() {
           {
             text: "Restore",
             onPress: () => {
-              setSettings(prev => ({ ...prev, ...backup }));
+              // Parse the dateOfBirth properly when restoring
+              const parseDateOfBirth = (dateValue: any) => {
+                if (!dateValue) return undefined;
+                
+                try {
+                  if (dateValue instanceof Date) {
+                    return isNaN(dateValue.getTime()) ? undefined : dateValue;
+                  }
+                  
+                  // Handle Firestore Timestamp
+                  if (dateValue.toDate && typeof dateValue.toDate === 'function') {
+                    return dateValue.toDate();
+                  }
+                  
+                  // Handle string dates (from backup)
+                  if (typeof dateValue === 'string') {
+                    const parsed = new Date(dateValue);
+                    return isNaN(parsed.getTime()) ? undefined : parsed;
+                  }
+                  
+                  return undefined;
+                } catch (error) {
+                  console.error('Error parsing date of birth from backup:', error);
+                  return undefined;
+                }
+              };
+
+              // Process the backup data before setting it
+              const processedBackup = {
+                ...backup,
+                dateOfBirth: parseDateOfBirth(backup.dateOfBirth)
+              };
+
+              setSettings(prev => ({ ...prev, ...processedBackup }));
               Alert.alert("Success", "Settings restored from backup!");
             }
           }
@@ -830,7 +966,6 @@ export default function Settings() {
             label="Date of Birth"
             value={settings.dateOfBirth}
             onPress={() => {
-              console.log('Date picker button pressed');
               setDateModalVisible(true);
             }}
             placeholder="Select your birth date"
@@ -866,7 +1001,7 @@ export default function Settings() {
             type="select"
             label="Archetype"
             value={settings.archetype}
-            onPress={() => setArchetypeModalVisible(true)}
+            onPress={() => openModal('archetype')}
             options={archetypeData.map(item => ({ label: item.label, value: item.value }))}
           />
 
@@ -925,7 +1060,7 @@ export default function Settings() {
             label="Profile Visibility"
             value={settings.profileVisibility}
             options={privacyOptions}
-            onPress={() => setPrivacyModalVisible(true)}
+            onPress={() => openModal('privacy')}
           />
 
           <SettingsItem
@@ -933,7 +1068,7 @@ export default function Settings() {
             label="Who Can Message You"
             value={settings.messagePermission}
             options={permissionOptions}
-            onPress={() => setMessageModalVisible(true)}
+            onPress={() => openModal('message')}
           />
 
           <SettingsItem
@@ -1005,7 +1140,9 @@ export default function Settings() {
             label="Theme"
             value={settings.theme}
             options={themeOptions}
-            onPress={() => setThemeModalVisible(true)}
+            onPress={() => {}}
+            disabled={true}
+            helperText="Coming Soon"
           />
 
           <SettingsItem
@@ -1013,7 +1150,9 @@ export default function Settings() {
             label="Language"
             value={settings.language}
             options={languageOptions}
-            onPress={() => setLanguageModalVisible(true)}
+            onPress={() => {}}
+            disabled={true}
+            helperText="Coming Soon"
           />
 
           <SettingsItem
@@ -1024,7 +1163,7 @@ export default function Settings() {
               { label: 'Metric (kg)', value: 'metric' },
               { label: 'Imperial (lbs)', value: 'imperial' }
             ]}
-            onPress={() => setWeightUnitModalVisible(true)}
+            onPress={() => openModal('weightUnit')}
           />
 
           <SettingsItem
@@ -1035,7 +1174,7 @@ export default function Settings() {
               { label: 'Metric (km)', value: 'metric' },
               { label: 'Imperial (mi)', value: 'imperial' }
             ]}
-            onPress={() => setDistanceUnitModalVisible(true)}
+            onPress={() => openModal('distanceUnit')}
           />
         </SettingsSection>
 
@@ -1087,19 +1226,19 @@ export default function Settings() {
           <SettingsItem
             type="info"
             label="App Version"
-            value="1.0.0"
+            value={getFullVersionString()}
           />
 
           <SettingsItem
             type="button"
             label="Privacy Policy"
-            onPress={() => Alert.alert("Coming Soon", "Privacy policy will be available in a future update.")}
+            onPress={() => router.push('/privacy-policy')}
           />
 
           <SettingsItem
             type="button"
             label="Terms of Service"
-            onPress={() => Alert.alert("Coming Soon", "Terms of service will be available in a future update.")}
+            onPress={() => router.push('/terms-of-service')}
           />
         </SettingsSection>
 
@@ -1130,7 +1269,7 @@ export default function Settings() {
           <SettingsItem
             type="button"
             label={`Privacy Insights (${insights.length})`}
-            onPress={() => setShowInsights(true)}
+            onPress={() => openModal('insights')}
           />
 
           <SettingsItem
@@ -1161,26 +1300,70 @@ export default function Settings() {
 
         {/* Action Buttons */}
         <View style={styles.actionButtons}>
+          {/* Network Status Indicator */}
+          {!isOnline && (
+            <View style={styles.networkStatusIndicator}>
+              <Ionicons name="wifi-outline" size={16} color="#FF3B30" />
+              <Text style={styles.networkStatusText}>
+                No internet connection - changes will be saved when online
+              </Text>
+            </View>
+          )}
+
+          {/* Auto-save Status */}
+          {lastAutoSave && (
+            <View style={styles.autoSaveIndicator}>
+              <Ionicons name="checkmark-circle" size={16} color="#34C759" />
+              <Text style={styles.autoSaveText}>
+                Auto-saved {lastAutoSave.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </Text>
+            </View>
+          )}
+
+          {/* Unsaved Changes Indicator */}
           {hasUnsavedChanges && (
             <View style={styles.unsavedChangesIndicator}>
+              <Ionicons name="warning" size={16} color="#FF9500" />
               <Text style={styles.unsavedChangesText}>
                 You have unsaved changes
+                {autoSaveEnabled && isOnline ? ' (auto-saving in 5s)' : ''}
               </Text>
             </View>
           )}
           
+          {/* Save Button */}
           <TouchableOpacity 
             style={[
               styles.saveButton,
-              hasUnsavedChanges && styles.saveButtonHighlighted
+              hasUnsavedChanges && styles.saveButtonHighlighted,
+              !isOnline && styles.saveButtonDisabled
             ]} 
             onPress={handleSaveSettings}
-            disabled={loading}
+            disabled={loading || !isOnline}
           >
-            <Text style={styles.saveButtonText}>
-              {loading ? 'Saving...' : hasUnsavedChanges ? 'Save Changes' : 'Settings Saved'}
-            </Text>
+            <View style={styles.saveButtonContent}>
+              {loading && <ActivityIndicator size="small" color="white" style={{ marginRight: 8 }} />}
+              <Text style={[
+                styles.saveButtonText,
+                !isOnline && styles.saveButtonTextDisabled
+              ]}>
+                {loading ? 'Saving...' : 
+                !isOnline ? 'No Connection' :
+                hasUnsavedChanges ? 'Save Changes' : 'Settings Saved'}
+              </Text>
+            </View>
           </TouchableOpacity>
+
+          {/* Auto-save Toggle */}
+          <View style={styles.autoSaveToggle}>
+            <Text style={styles.autoSaveToggleLabel}>Auto-save changes</Text>
+            <TouchableOpacity
+              style={[styles.toggleSwitch, autoSaveEnabled && styles.toggleSwitchActive]}
+              onPress={() => setAutoSaveEnabled(!autoSaveEnabled)}
+            >
+              <View style={[styles.toggleThumb, autoSaveEnabled && styles.toggleThumbActive]} />
+            </TouchableOpacity>
+          </View>
 
           <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
             <Text style={styles.logoutButtonText}>Logout</Text>
@@ -1203,8 +1386,6 @@ export default function Settings() {
                 mode="date"
                 display="spinner"
                 onChange={(event, selectedDate) => {
-                  console.log('Date picker event:', event, 'Selected date:', selectedDate);
-                  
                   if (selectedDate && event.type !== 'dismissed') {
                     const now = new Date();
                     const minDate = new Date(1900, 0, 1);
@@ -1220,7 +1401,6 @@ export default function Settings() {
                     }
                     
                     // Use selectedDate directly - no need to "clean" it
-                    console.log('Setting date to:', selectedDate);
                     updateSetting('dateOfBirth', selectedDate);
                   }
                 }}
@@ -1240,8 +1420,7 @@ export default function Settings() {
         )}
       </ScrollView>
 
-      {/* Only render CustomSelector when modal should be visible */}
-      {archetypeModalVisible && (
+      {isModalVisible('archetype') && (
         <CustomSelector
           items={archetypeData}
           value={settings.archetype || null}
@@ -1249,14 +1428,13 @@ export default function Settings() {
           placeholder="Select archetype"
           title="Archetype"
           icon="body"
-          modalVisible={archetypeModalVisible}
-          setModalVisible={setArchetypeModalVisible}
+          modalVisible={isModalVisible('archetype')}
+          setModalVisible={(visible) => visible ? openModal('archetype') : closeModal('archetype')}
           variant="fullWidth"
         />
       )}
 
-      {/* Privacy Modals */}
-      {privacyModalVisible && (
+      {isModalVisible('privacy') && (
         <CustomSelector
           items={privacyOptions}
           value={settings.profileVisibility ?? 'public'}
@@ -1264,13 +1442,13 @@ export default function Settings() {
           placeholder="Select visibility"
           title="Profile Visibility"
           icon="eye"
-          modalVisible={privacyModalVisible}
-          setModalVisible={setPrivacyModalVisible}
+          modalVisible={isModalVisible('privacy')}
+          setModalVisible={(visible) => visible ? openModal('privacy') : closeModal('privacy')}
           variant="fullWidth"
         />
       )}
 
-      {messageModalVisible && (
+      {isModalVisible('message') && (
         <CustomSelector
           items={permissionOptions.map(opt => ({ 
             label: opt.label, 
@@ -1283,14 +1461,13 @@ export default function Settings() {
           placeholder="Select message permission"
           title="Who Can Message You"
           icon="mail"
-          modalVisible={messageModalVisible}
-          setModalVisible={setMessageModalVisible}
+          modalVisible={isModalVisible('message')}
+          setModalVisible={(visible) => visible ? openModal('message') : closeModal('message')}
           variant="fullWidth"
         />
       )}
 
-      {/* Preference Modals */}
-      {themeModalVisible && (
+      {isModalVisible('theme') && (
         <CustomSelector
           items={themeOptions.map(opt => ({ 
             label: opt.label, 
@@ -1305,13 +1482,13 @@ export default function Settings() {
           placeholder="Select theme"
           title="App Theme"
           icon="color-palette"
-          modalVisible={themeModalVisible}
-          setModalVisible={setThemeModalVisible}
+          modalVisible={isModalVisible('theme')}
+          setModalVisible={(visible) => visible ? openModal('theme') : closeModal('theme')}
           variant="fullWidth"
         />
       )}
 
-      {languageModalVisible && (
+      {isModalVisible('language') && (
         <CustomSelector
           items={languageOptions.map(opt => ({ 
             label: opt.label, 
@@ -1323,13 +1500,13 @@ export default function Settings() {
           placeholder="Select language"
           title="App Language"
           icon="globe"
-          modalVisible={languageModalVisible}
-          setModalVisible={setLanguageModalVisible}
+          modalVisible={isModalVisible('language')}
+          setModalVisible={(visible) => visible ? openModal('language') : closeModal('language')}
           variant="fullWidth"
         />
       )}
 
-      {weightUnitModalVisible && (
+      {isModalVisible('weightUnit') && (
         <CustomSelector
           items={[
             { label: 'Metric (kg)', value: 'metric', icon: 'barbell', description: 'Kilograms for weight measurements' },
@@ -1340,13 +1517,13 @@ export default function Settings() {
           placeholder="Select weight unit"
           title="Weight Unit"
           icon="barbell"
-          modalVisible={weightUnitModalVisible}
-          setModalVisible={setWeightUnitModalVisible}
+          modalVisible={isModalVisible('weightUnit')}
+          setModalVisible={(visible) => visible ? openModal('weightUnit') : closeModal('weightUnit')}
           variant="fullWidth"
         />
       )}
 
-      {distanceUnitModalVisible && (
+      {isModalVisible('distanceUnit') && (
         <CustomSelector
           items={[
             { label: 'Metric (km)', value: 'metric', icon: 'walk', description: 'Kilometers for distance measurements' },
@@ -1357,25 +1534,24 @@ export default function Settings() {
           placeholder="Select distance unit"
           title="Distance Unit"
           icon="walk"
-          modalVisible={distanceUnitModalVisible}
-          setModalVisible={setDistanceUnitModalVisible}
+          modalVisible={isModalVisible('distanceUnit')}
+          setModalVisible={(visible) => visible ? openModal('distanceUnit') : closeModal('distanceUnit')}
           variant="fullWidth"
         />
       )}
 
-      {/* Insights Modal */}
-      {showInsights && (
+      {isModalVisible('insights') && (
         <View style={styles.modalOverlay}>
           <View style={styles.insightsModal}>
             <View style={styles.insightsHeader}>
               <Text style={styles.insightsTitle}>Privacy Insights</Text>
-              <TouchableOpacity onPress={() => setShowInsights(false)}>
+              <TouchableOpacity onPress={() => closeModal('insights')}>
                 <Text style={styles.closeButton}>✕</Text>
               </TouchableOpacity>
             </View>
-            
+
             <View style={styles.privacyLevelSection}>
-              <Text style={styles.privacyLevelLabel}>Your Privacy Level:</Text>
+              <Text style={styles.privacyLevelLabel}>Current Level:</Text>
               <View style={[
                 styles.privacyLevelBadge,
                 { backgroundColor: 
@@ -1389,19 +1565,19 @@ export default function Settings() {
               </View>
             </View>
 
-            <View style={styles.insightsList}>
-              {insights.map((insight, index) => (
-                <View key={index} style={styles.insightItem}>
-                  <Text style={styles.insightText}>{insight}</Text>
-                </View>
-              ))}
-              
-              {insights.length === 0 && (
+            <ScrollView style={styles.insightsList} showsVerticalScrollIndicator={false}>
+              {insights.length === 0 ? (
                 <Text style={styles.noInsightsText}>
                   No insights available. Your settings look good! 👍
                 </Text>
+              ) : (
+                insights.map((insight, index) => (
+                  <View key={index} style={styles.insightItem}>
+                    <Text style={styles.insightText}>{insight}</Text>
+                  </View>
+                ))
               )}
-            </View>
+            </ScrollView>
           </View>
         </View>
       )}
@@ -1661,5 +1837,92 @@ const styles = StyleSheet.create({
   },
   placeholder: {
     width: 40,
+  },
+  networkStatusIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 59, 48, 0.1)',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 59, 48, 0.3)',
+  },
+  networkStatusText: {
+    color: '#FF3B30',
+    fontSize: 14,
+    fontWeight: '500',
+    marginLeft: 8,
+    flex: 1,
+  },
+  autoSaveIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(52, 199, 89, 0.1)',
+    padding: 8,
+    borderRadius: 6,
+    marginBottom: 8,
+    alignSelf: 'center',
+  },
+  autoSaveText: {
+    color: '#34C759',
+    fontSize: 12,
+    fontWeight: '500',
+    marginLeft: 6,
+  },
+  
+  // Enhanced Save Button
+  saveButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  saveButtonDisabled: {
+    backgroundColor: '#666',
+    opacity: 0.6,
+  },
+  saveButtonTextDisabled: {
+    color: '#999',
+  },
+  
+  // Auto-save Toggle
+  autoSaveToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 12,
+    backgroundColor: '#2C2C2E',
+    borderRadius: 8,
+    marginBottom: 16,
+  },
+  autoSaveToggleLabel: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  toggleSwitch: {
+    width: 50,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: '#666',
+    justifyContent: 'center',
+    padding: 2,
+  },
+  toggleSwitchActive: {
+    backgroundColor: '#34C759',
+  },
+  toggleThumb: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  toggleThumbActive: {
+    transform: [{ translateX: 20 }],
   },
 });
