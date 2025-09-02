@@ -160,7 +160,7 @@ export const WorkoutPlanCard: React.FC<WorkoutPlanCardProps> = ({
               {expandedSegments.has(segmentIndex) && (
                 <View style={{ gap: Layout.gap.sm }}>
                   {segment.exercises.map((exercise, exerciseIndex) => {
-                    const resolvedName = resolveExerciseName(exercise.exerciseId, exercises);
+                    const resolvedName = exercise.exerciseName || resolveExerciseName(exercise.exerciseId, exercises);
                     const rpe = parseRPE(exercise.load);
                     
                     return (
