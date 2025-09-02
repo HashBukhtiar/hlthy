@@ -113,36 +113,42 @@ class AIOrchestrator:
             # 3. Based on understanding, orchestrate YOUR systems
             result = None
             
-            # Check if user needs interview (new user or incomplete profile)
-            profile = user_context.get('profile') or {}
-            needs_interview = self._should_interview_user(profile, understanding)
+            # Check if user is responding to an interview question
+            profile = user_context.get('profile')
+            is_interview_response = self._is_interview_response(message, profile)
             
-            if needs_interview:
-                result = self._start_user_interview(user_id, understanding, user_context)
-            elif understanding.get('intent') == 'workout_request':
-                result = self._generate_workout_with_systems(
-                    user_id, 
-                    understanding, 
-                    user_context
-                )
-            elif understanding['intent'] == 'technique_question':
-                result = self._provide_technique_from_library(
-                    understanding.get('specific_exercise', ''),
-                    user_context
-                )
-            elif understanding['intent'] == 'progress_check':
-                result = self._check_progress_with_tracker(user_id)
-            elif understanding['intent'] == 'profile_update':
-                result = self._update_profile_with_systems(
-                    user_id, 
-                    understanding, 
-                    user_context
-                )
+            if is_interview_response:
+                result = self._handle_interview_response(user_id, message, user_context)
             else:
-                result = self._generate_contextual_response(
-                    understanding,
-                    user_context
-                )
+                # Check if user needs interview (new user or incomplete profile)
+                needs_interview = self._should_interview_user(profile, understanding)
+                
+                if needs_interview:
+                    result = self._start_user_interview(user_id, understanding, user_context)
+                elif understanding.get('intent') == 'workout_request':
+                    result = self._generate_workout_with_systems(
+                        user_id, 
+                        understanding, 
+                        user_context
+                    )
+                elif understanding['intent'] == 'technique_question':
+                    result = self._provide_technique_from_library(
+                        understanding.get('specific_exercise', ''),
+                        user_context
+                    )
+                elif understanding['intent'] == 'progress_check':
+                    result = self._check_progress_with_tracker(user_id)
+                elif understanding['intent'] == 'profile_update':
+                    result = self._update_profile_with_systems(
+                        user_id, 
+                        understanding, 
+                        user_context
+                    )
+                else:
+                    result = self._generate_contextual_response(
+                        understanding,
+                        user_context
+                    )
             
             # Save conversation to memory for context
             self._save_conversation_context(user_id, message, result)
@@ -711,6 +717,71 @@ class AIOrchestrator:
                 similar.append(name)
         
         return similar[:5] if similar else exercise_names[:5]
+    
+    def _is_interview_response(self, message: str, profile) -> bool:
+        """
+        Check if the message is likely a response to an interview question
+        """
+        # Simple heuristics to detect interview responses
+        interview_keywords = [
+            'beginner', 'intermediate', 'advanced',  # experience level
+            'muscle', 'weight', 'strength', 'endurance', 'fitness',  # goals
+            '30', '45', '60', '90', 'minutes',  # time
+            'gym', 'home', 'bodyweight', 'equipment'  # equipment
+        ]
+        
+        message_lower = message.lower()
+        
+        # If user profile is incomplete and message contains interview keywords
+        if not profile or not self._is_profile_complete(profile):
+            return any(keyword in message_lower for keyword in interview_keywords)
+            
+        return False
+    
+    def _is_profile_complete(self, profile) -> bool:
+        """Check if user profile has all essential information"""
+        if not profile:
+            return False
+            
+        # Check for essential profile fields
+        has_experience = profile.experience_level and profile.experience_level != 'beginner'
+        has_goals = profile.goals and profile.goals.primary_goal
+        has_duration = profile.goals and profile.goals.session_duration
+        has_equipment = profile.available_equipment
+        
+        return has_experience and has_goals and has_duration and has_equipment
+    
+    def _handle_interview_response(self, user_id: str, message: str, context: Dict) -> Dict:
+        """
+        Handle user's response to interview questions
+        """
+        try:
+            profile = context.get('profile')
+            
+            # Determine what the user is responding to based on profile completeness
+            if not profile:
+                # New user responding to experience level
+                return self._update_profile_from_interview(user_id, 'experience_level', message)
+            elif not profile.experience_level or profile.experience_level == 'beginner':
+                return self._update_profile_from_interview(user_id, 'experience_level', message)
+            elif not profile.goals or not profile.goals.primary_goal:
+                return self._update_profile_from_interview(user_id, 'fitness_goals', message)
+            elif not profile.goals or not profile.goals.session_duration:
+                return self._update_profile_from_interview(user_id, 'time_available', message)
+            elif not profile.available_equipment:
+                return self._update_profile_from_interview(user_id, 'equipment_access', message)
+            else:
+                # Profile is complete, treat as regular message
+                understanding = {'intent': 'workout_request', 'confidence': 0.8}
+                return self._generate_workout_with_systems(user_id, understanding, context)
+                
+        except Exception as e:
+            print(f"Interview response handling error: {e}")
+            return {
+                'type': 'interview',
+                'message': "I didn't quite catch that. Could you please repeat your answer?",
+                'error': str(e)
+            }
     
     def _should_interview_user(self, profile, understanding: Dict) -> bool:
         """

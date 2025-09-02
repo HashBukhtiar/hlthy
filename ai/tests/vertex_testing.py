@@ -552,6 +552,7 @@ def validate_exercises():
         return jsonify({"error": "Failed to validate exercises"}), 500
 
 @app.route('/api/intent/classify', methods=['POST'])
+@app.route('/api/classify-intent', methods=['POST'])  # Alternative endpoint for frontend compatibility
 def classify_intent():
     """
     Intent classification endpoint for mobile app compatibility
