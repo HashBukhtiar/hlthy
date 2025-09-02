@@ -75,6 +75,8 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({
 
   // If we have structured workout plan data from the API, use it directly
   if (workoutPlan && (responseType === 'workout_plan' || responseType === 'workout')) {
+    console.log('MessageRenderer: Processing workout plan', { workoutPlan, responseType });
+    
     // Transform API response format to match WorkoutPlanData interface
     const segments = [];
     
@@ -84,11 +86,11 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({
         name: 'Warm-up',
         exercises: workoutPlan.warm_up.map((exercise: any) => ({
           exerciseId: exercise.exercise_id || exercise.id || '',
-          exerciseName: exercise.name || exercise.exercise_name || '',
+          exerciseName: exercise.name || exercise.exercise_name || exercise.exerciseName || 'Unknown Exercise',
           sets: exercise.sets || 1,
           reps: exercise.reps || exercise.duration || '30 seconds',
           load: exercise.load || '',
-          restSec: exercise.rest_seconds || 30,
+          restSec: exercise.rest_seconds || exercise.rest || 30,
           notes: exercise.notes || ''
         }))
       });
@@ -100,11 +102,11 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({
         name: 'Main Workout',
         exercises: workoutPlan.main_workout.map((exercise: any) => ({
           exerciseId: exercise.exercise_id || exercise.id || '',
-          exerciseName: exercise.name || exercise.exercise_name || '',
+          exerciseName: exercise.name || exercise.exercise_name || exercise.exerciseName || 'Unknown Exercise',
           sets: exercise.sets || 3,
           reps: exercise.reps || '8-12',
           load: exercise.load || '',
-          restSec: exercise.rest_seconds || 60,
+          restSec: exercise.rest_seconds || exercise.rest || 60,
           notes: exercise.notes || ''
         }))
       });
@@ -116,11 +118,11 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({
         name: 'Main Workout',
         exercises: workoutPlan.exercises.map((exercise: any) => ({
           exerciseId: exercise.exercise_id || exercise.id || '',
-          exerciseName: exercise.name || exercise.exercise_name || '',
+          exerciseName: exercise.name || exercise.exercise_name || exercise.exerciseName || 'Unknown Exercise',
           sets: exercise.sets || 3,
           reps: exercise.reps || '8-12',
           load: exercise.load || '',
-          restSec: exercise.rest_seconds || 60,
+          restSec: exercise.rest_seconds || exercise.rest || 60,
           notes: exercise.notes || ''
         }))
       });
@@ -132,11 +134,11 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({
         name: 'Cool-down',
         exercises: workoutPlan.cool_down.map((exercise: any) => ({
           exerciseId: exercise.exercise_id || exercise.id || '',
-          exerciseName: exercise.name || exercise.exercise_name || '',
+          exerciseName: exercise.name || exercise.exercise_name || exercise.exerciseName || 'Unknown Exercise',
           sets: exercise.sets || 1,
           reps: exercise.reps || exercise.duration || '30 seconds',
           load: exercise.load || '',
-          restSec: exercise.rest_seconds || 15,
+          restSec: exercise.rest_seconds || exercise.rest || 15,
           notes: exercise.notes || ''
         }))
       });
@@ -147,6 +149,8 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({
       segments: segments,
       safetyNotes: workoutPlan.safety_considerations?.join('. ') || undefined
     };
+
+    console.log('MessageRenderer: Created workout data', { workoutData, segments: segments.length });
 
     return (
       <WorkoutPlanCard
