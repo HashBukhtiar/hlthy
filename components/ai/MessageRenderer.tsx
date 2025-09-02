@@ -95,6 +95,22 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({
     }
     
     // Add main workout segment if present
+    if (workoutPlan.main_workout && workoutPlan.main_workout.length > 0) {
+      segments.push({
+        name: 'Main Workout',
+        exercises: workoutPlan.main_workout.map((exercise: any) => ({
+          exerciseId: exercise.exercise_id || exercise.id || '',
+          exerciseName: exercise.name || exercise.exercise_name || '',
+          sets: exercise.sets || 3,
+          reps: exercise.reps || '8-12',
+          load: exercise.load || '',
+          restSec: exercise.rest_seconds || 60,
+          notes: exercise.notes || ''
+        }))
+      });
+    }
+    
+    // Fallback for old format
     if (workoutPlan.exercises && workoutPlan.exercises.length > 0) {
       segments.push({
         name: 'Main Workout',
