@@ -70,8 +70,8 @@ export async function sendMessage(history: ChatMessage[], currentMessage: string
     if (responseText) {
       return {
         text: responseText,
-        type: data.response_type || 'text',
-        workoutPlan: data.workout_plan,
+        type: data.workoutPlan ? 'workout_plan' : (data.response_type || 'text'),
+        workoutPlan: data.workoutPlan || data.workout_plan,
         interviewMode: data.interview_mode || false,
         responseType: data.response_type
       };

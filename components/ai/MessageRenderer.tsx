@@ -74,7 +74,7 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({
   };
 
   // If we have structured workout plan data from the API, use it directly
-  if (workoutPlan && responseType === 'workout_plan') {
+  if (workoutPlan && (responseType === 'workout_plan' || responseType === 'workout')) {
     // Transform API response format to match WorkoutPlanData interface
     const segments = [];
     
