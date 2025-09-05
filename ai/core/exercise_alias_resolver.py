@@ -168,8 +168,8 @@ class ExerciseAliasResolver:
         focus_patterns = {
             'chest': ['horizontal_press', 'incline_press', 'fly'],
             'back': ['horizontal_pull', 'vertical_pull', 'pullover'],
-            'shoulders': ['vertical_press', 'lateral_raise'],
-            'legs': ['squat', 'leg_press', 'knee_extension', 'knee_flexion'],
+            'shoulders': ['vertical_press', 'lateral_delt'],
+            'legs': ['squat', 'leg_press', 'quad_iso', 'ham_iso'],
             'push': ['horizontal_press', 'vertical_press'],
             'pull': ['horizontal_pull', 'vertical_pull'],
         }

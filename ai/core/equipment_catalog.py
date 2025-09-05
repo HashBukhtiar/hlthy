@@ -2,6 +2,7 @@
 
 from typing import Dict, List, Tuple, Optional
 from dataclasses import dataclass
+from .focus_rules import MOVEMENT_PATTERNS
 
 @dataclass
 class EquipmentMapping:
@@ -18,7 +19,7 @@ EQUIPMENT_CATALOG: Dict[str, EquipmentMapping] = {
     "life_fitness_chest_press": EquipmentMapping(
         brand_name="Life Fitness Chest Press",
         equipment_type="machine",
-        movement_patterns=["horizontal_press", "chest_press"],
+        movement_patterns=["horizontal_press"],
         muscle_families=["chest", "triceps"],
         canonical_candidates=["machine_chest_press", "smith_machine_bench_press", "dumbbell_bench_press"]
     ),
@@ -53,14 +54,14 @@ EQUIPMENT_CATALOG: Dict[str, EquipmentMapping] = {
     "life_fitness_leg_extension": EquipmentMapping(
         brand_name="Life Fitness Leg Extension",
         equipment_type="machine",
-        movement_patterns=["knee_extension"],
+        movement_patterns=["quad_iso"],
         muscle_families=["quadriceps"],
         canonical_candidates=["leg_extension"]
     ),
     "life_fitness_leg_curl": EquipmentMapping(
         brand_name="Life Fitness Leg Curl",
         equipment_type="machine",
-        movement_patterns=["knee_flexion"],
+        movement_patterns=["ham_iso"],
         muscle_families=["hamstrings"],
         canonical_candidates=["leg_curl_machine", "seated_leg_curl_machine", "lying_leg_curl_machine"]
     ),
@@ -83,7 +84,7 @@ EQUIPMENT_CATALOG: Dict[str, EquipmentMapping] = {
     "hammer_strength_decline_press": EquipmentMapping(
         brand_name="Hammer Strength Decline Press",
         equipment_type="plate_loaded",
-        movement_patterns=["decline_press"],
+        movement_patterns=["horizontal_press"],
         muscle_families=["lower_chest", "triceps"],
         canonical_candidates=["dips", "dips_assisted", "machine_chest_press"]
     ),
@@ -162,14 +163,14 @@ EQUIPMENT_CATALOG: Dict[str, EquipmentMapping] = {
     "technogym_leg_curl": EquipmentMapping(
         brand_name="Technogym Leg Curl",
         equipment_type="machine",
-        movement_patterns=["knee_flexion"],
+        movement_patterns=["ham_iso"],
         muscle_families=["hamstrings"],
         canonical_candidates=["leg_curl_machine", "lying_leg_curl_machine"]
     ),
     "technogym_leg_extension": EquipmentMapping(
         brand_name="Technogym Leg Extension",
         equipment_type="machine",
-        movement_patterns=["knee_extension"],
+        movement_patterns=["quad_iso"],
         muscle_families=["quadriceps"],
         canonical_candidates=["leg_extension"]
     ),
