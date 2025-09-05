@@ -1,59 +1,21 @@
 """
 Progression Tracker - Enhanced progression tracking with segment awareness
 """
-from typing import Dict, List, Any, Optional, Tuple
+from typing import Dict, List, Any, Optional, Tuple, TypedDict
 from datetime import datetime, timedelta
 from dataclasses import dataclass
 import json
 
 
-@dataclass
-class ProgressionRecord:
-    """Individual progression record for an exercise"""
-    exercise_id: str
-    date: datetime
-    sets: List[Dict[str, Any]]  # [{'reps': 10, 'weight': 135, 'rpe': 7}]
-    notes: str = ""
-    form_rating: Optional[int] = None  # 1-10 scale
-    perceived_difficulty: Optional[int] = None  # 1-10 scale
-    
-    def calculate_volume(self) -> float:
-        """Calculate total volume (sets * reps * weight)"""
-        total_volume = 0
-        for set_data in self.sets:
-            reps = set_data.get('reps', 0)
-            weight = set_data.get('weight', 0)
-            total_volume += reps * weight
-        return total_volume
-    
-    def get_max_weight(self) -> float:
-        """Get maximum weight used in this session"""
-        if not self.sets:
-            return 0
-        return max(set_data.get('weight', 0) for set_data in self.sets)
-    
-    def get_total_reps(self) -> int:
-        """Get total reps performed"""
-        return sum(set_data.get('reps', 0) for set_data in self.sets)
-    
-    def estimate_1rm(self) -> float:
-        """Estimate 1RM using Brzycki formula"""
-        max_weight = self.get_max_weight()
-        if max_weight == 0:
-            return 0
-        
-        # Find the set with max weight
-        max_weight_set = max(self.sets, key=lambda x: x.get('weight', 0))
-        reps = max_weight_set.get('reps', 1)
-        
-        if reps == 1:
-            return max_weight
-        elif reps <= 10:
-            # Brzycki formula: 1RM = weight / (1.0278 - (0.0278 * reps))
-            return max_weight / (1.0278 - (0.0278 * reps))
-        else:
-            # For higher reps, use Epley formula
-            return max_weight * (1 + reps / 30)
+# Task C: Correct TypedDict structure as per copilot instructions
+ProgressionRecord = TypedDict("ProgressionRecord", {
+    "date": str, 
+    "exercise_id": str, 
+    "sets": int, 
+    "reps": List[int], 
+    "rpe": List[float], 
+    "load": List[float]
+})
 
 
 @dataclass
@@ -107,7 +69,8 @@ class ProgressionTracker:
     
     def __init__(self, storage_path: str = "progression_data"):
         self.storage_path = storage_path
-        self.progression_records: Dict[str, List[ProgressionRecord]] = {}
+        # Task C: Correct type hints - per-user→per-exercise→list of records
+        self.progression_records: Dict[str, Dict[str, List[ProgressionRecord]]] = {}
         self.user_profiles: Dict[str, Dict] = {}
         
         # Load existing data
@@ -142,15 +105,25 @@ class ProgressionTracker:
                 if not sets_data:
                     continue
                 
-                # Create progression record
-                record = ProgressionRecord(
-                    exercise_id=exercise_id,
-                    date=session_date,
-                    sets=sets_data,
-                    notes=exercise.get('notes', ''),
-                    form_rating=exercise.get('form_rating'),
-                    perceived_difficulty=exercise.get('difficulty')
-                )
+                # Transform sets data to match TypedDict format
+                reps_list = []
+                rpe_list = []
+                load_list = []
+                
+                for set_info in sets_data:
+                    reps_list.append(set_info.get('reps', 0))
+                    rpe_list.append(float(set_info.get('rpe', 7.0)))
+                    load_list.append(float(set_info.get('weight', 0.0) or set_info.get('load', 0.0)))
+                
+                # Create progression record with new TypedDict structure
+                record: ProgressionRecord = {
+                    "date": session_date.isoformat(),
+                    "exercise_id": exercise_id,
+                    "sets": len(sets_data),
+                    "reps": reps_list,
+                    "rpe": rpe_list,
+                    "load": load_list
+                }
                 
                 # Store record
                 if exercise_id not in self.progression_records[user_id]:
@@ -548,15 +521,148 @@ class ProgressionTracker:
         
         # Convert set to list for JSON serialization
         profile['equipment_used'] = list(profile['equipment_used'])
+
+    def fill_loads_for_plan(self, user_id: str, workout_plan: Dict[str, Any], num_records: int = 3) -> Dict[str, Any]:
+        """
+        Fill loads for workout plan based on progression history.
+        Safely handles missing user/exercise keys and computes deload/progression per rules.
+        
+        Args:
+            user_id: User identifier
+            workout_plan: Workout plan to fill with loads
+            num_records: Number of recent records to consider
+            
+        Returns:
+            Workout plan with suggested loads/reps/RPE
+        """
+        filled_plan = workout_plan.copy()
+        
+        # Safely check if user exists
+        if user_id not in self.progression_records:
+            # No history - use beginner defaults
+            return self._apply_beginner_defaults(filled_plan)
+        
+        user_records = self.progression_records[user_id]
+        
+        # Process each exercise in the plan
+        exercises = filled_plan.get('exercises', [])
+        for exercise in exercises:
+            exercise_id = exercise.get('exercise_id')
+            if not exercise_id:
+                continue
+                
+            # Safely check if exercise has history
+            if exercise_id not in user_records:
+                # No history for this exercise - use conservative defaults
+                exercise.update(self._get_conservative_defaults(exercise_id))
+                continue
+            
+            # Get recent records safely
+            recent_records = user_records[exercise_id][-num_records:] if user_records[exercise_id] else []
+            
+            if not recent_records:
+                exercise.update(self._get_conservative_defaults(exercise_id))
+                continue
+                
+            # Calculate progression/deload based on recent performance
+            suggested_loads = self._calculate_load_progression(recent_records)
+            exercise.update(suggested_loads)
+        
+        return filled_plan
+    
+    def _apply_beginner_defaults(self, workout_plan: Dict[str, Any]) -> Dict[str, Any]:
+        """Apply beginner-friendly defaults when no history exists"""
+        for exercise in workout_plan.get('exercises', []):
+            exercise.update({
+                'sets': 3,
+                'reps': [8, 8, 8],
+                'load': [45.0, 45.0, 45.0],  # Start with just the bar for most exercises
+                'rpe': [6.0, 6.5, 7.0]  # Conservative RPE progression
+            })
+        return workout_plan
+    
+    def _get_conservative_defaults(self, exercise_id: str) -> Dict[str, Any]:
+        """Get conservative defaults for exercises without history"""
+        return {
+            'sets': 3,
+            'reps': [10, 8, 6],
+            'load': [45.0, 45.0, 45.0],
+            'rpe': [6.0, 6.5, 7.0]
+        }
+    
+    def _calculate_load_progression(self, recent_records: List[ProgressionRecord]) -> Dict[str, Any]:
+        """Calculate load progression based on recent performance"""
+        if not recent_records:
+            return self._get_conservative_defaults("")
+        
+        # Get the most recent record
+        latest_record = recent_records[-1]
+        
+        # Base progression on recent performance
+        base_loads = latest_record["load"]
+        base_reps = latest_record["reps"]
+        base_rpe = latest_record["rpe"]
+        
+        # Simple progression: +2.5-5lbs if last RPE was manageable
+        avg_rpe = sum(base_rpe) / len(base_rpe) if base_rpe else 7.0
+        
+        if avg_rpe < 7.5:
+            # Can progress - increase load by 2.5-5lbs
+            progression_loads = [load + 2.5 for load in base_loads]
+        elif avg_rpe > 8.5:
+            # Deload - reduce by 10%
+            progression_loads = [load * 0.9 for load in base_loads]
+        else:
+            # Maintain current loads
+            progression_loads = base_loads.copy()
+        
+        return {
+            'sets': len(base_loads),
+            'reps': base_reps.copy(),
+            'load': progression_loads,
+            'rpe': [min(rpe + 0.5, 9.0) for rpe in base_rpe] if avg_rpe < 8.0 else base_rpe
+        }
     
     def _load_data(self):
-        """Load progression data from storage"""
-        # Implementation would load from file/database
-        # For now, initialize empty
-        pass
+        """Load progression data from storage with correct deserialization"""
+        try:
+            import os
+            data_file = f"{self.storage_path}.json"
+            if os.path.exists(data_file):
+                with open(data_file, 'r') as f:
+                    data = json.load(f)
+                    
+                    # Load progression records with correct structure
+                    self.progression_records = data.get('progression_records', {})
+                    self.user_profiles = data.get('user_profiles', {})
+                    
+                    # Ensure the structure is correct: user_id -> exercise_id -> list[ProgressionRecord]
+                    for user_id in self.progression_records:
+                        if not isinstance(self.progression_records[user_id], dict):
+                            # Fix old structure if needed
+                            self.progression_records[user_id] = {}
+                            
+        except Exception as e:
+            print(f"Error loading progression data: {e}")
+            self.progression_records = {}
+            self.user_profiles = {}
     
     def _save_data(self):
-        """Save progression data to storage"""
-        # Implementation would save to file/database
-        # For now, just pass
-        pass
+        """Save progression data to storage with correct serialization"""
+        try:
+            import os
+            os.makedirs(os.path.dirname(self.storage_path) if os.path.dirname(self.storage_path) else '.', exist_ok=True)
+            
+            data = {
+                'progression_records': self.progression_records,
+                'user_profiles': self.user_profiles,
+                'version': '2.0',  # Mark as updated structure
+                'last_updated': datetime.now().isoformat()
+            }
+            
+            data_file = f"{self.storage_path}.json"
+            with open(data_file, 'w') as f:
+                json.dump(data, f, indent=2, default=str)
+                
+        except Exception as e:
+            print(f"Error saving progression data: {e}")
