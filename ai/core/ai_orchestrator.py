@@ -372,8 +372,21 @@ class AIOrchestrator:
                 response_text = response_text[:-3]  # Remove ```
             response_text = response_text.strip()
             
-            # Try to parse JSON
+            # Try to parse JSON with validation
             result = json.loads(response_text)
+            
+            # Validate required fields
+            if not all(key in result for key in ['intent', 'reason', 'confidence']):
+                logger.warning(f"Invalid intent format from Gemini: {response_text}")
+                return self._fallback_intent(message)
+            
+            # Validate intent value
+            valid_intents = ['workout_request', 'interview_needed', 'technique_question', 'progress_check', 'advice', 'nonsense']
+            if result['intent'] not in valid_intents:
+                logger.warning(f"Invalid intent value: {result['intent']}")
+                return self._fallback_intent(message)
+            
+            logger.info(f"Intent classified as: {result['intent']} (confidence: {result['confidence']}, reason: {result['reason']})")
             return result
             
         except Exception as e:
