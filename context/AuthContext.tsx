@@ -21,6 +21,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       try {
         // Reload user to get latest email verification status
         await reload(currentUser);
+        console.log('Reloaded user:', currentUser.uid);
         
         const userDoc = await getDoc(doc(db, "users", currentUser.uid));
         if (userDoc.exists()) {
@@ -34,8 +35,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
             });
             userData.emailVerified = currentUser.emailVerified;
           }
+          console.log('Updated blocked users:', userData.blockedUsers);
           
           setUserProfile({
+            uid: userDoc.id, // Use 'uid' instead of 'id' to match UserProfile type
             ...userData,
             profileImageUrl: userData.profileImageUrl,
             profileThumbnailUrl: userData.profileThumbnailUrl,
@@ -73,8 +76,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
               });
               userData.emailVerified = user.emailVerified;
             }
+            console.log('Updated blocked users:', userData.blockedUsers);
             
             setUserProfile({
+              uid: userDoc.id, // Use 'uid' instead of 'id' to match UserProfile type
               ...userData,
               profileImageUrl: userData.profileImageUrl,
               profileThumbnailUrl: userData.profileThumbnailUrl,

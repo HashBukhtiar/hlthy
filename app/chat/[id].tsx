@@ -15,14 +15,19 @@ import {
   Image,
   Alert,
   Modal,
+  Animated,
+  Share,
+  Clipboard,
+  ScrollView,
 } from 'react-native';
 import { db } from '@/firebaseConfig';
 import { 
   doc, 
   getDoc,
+  setDoc,
   startAfter, 
   collection, 
-  addDoc, 
+  addDoc,
   query, 
   orderBy, 
   onSnapshot, 
@@ -30,23 +35,26 @@ import {
   Timestamp, 
   updateDoc, 
   deleteDoc, 
-  getDocs, 
-  setDoc, 
+  getDocs,
   limit,
   QueryDocumentSnapshot,
 } from 'firebase/firestore';
 import { useAuth } from '@/context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { sendMessage } from '@/ai/ai_chat';
+import { sendMessage, IntentClassificationResult } from '@/ai/ai_chat';
+import { SmartChatInput } from '@/components/SmartChatInput';
+import { IntentMessageWrapper } from '@/components/IntentBadge';
 import { calculateImprovementPercentage } from '@/logic/milesonteUtils';
-import { generateId } from '@/logic/idGenerator';
 import { getOptimalImageUrl } from '@/utils/imageUtils';
+import { useUnits } from '@/hooks/useUnits';
 
 interface FirestoreMessageData {
   senderId: string;
   text: string;
   createdAt: Timestamp;
+  isAiResponse?: boolean; // Flag to identify AI responses
+  intent?: string; // Add intent field
   sharedPost?: {
     id: string;
     imageUrl: string | null;
@@ -86,7 +94,9 @@ interface Message {
   id: string;
   text: string;
   user: 'user' | 'other' | 'ai';
+  role: 'user' | 'model';
   createdAt?: Date;
+  intent?: string; // Add intent field
   sharedPost?: {
     id: string;
     imageUrl: string | null;
@@ -181,11 +191,16 @@ async function convertFirestoreDoc(
     }
   }
 
+  const userType = data.isAiResponse ? 'ai' : (data.senderId === myUid ? "user" : (data.senderId === 'ai_conversation' ? 'ai' : 'other'));
+  const roleType = userType === 'user' ? 'user' : 'model';
+
   return {
     id: docSnap.id,
     text: data.text,
-    user: data.senderId === myUid ? "user" : "other",
+    user: userType,
+    role: roleType,
     createdAt: messageDate,
+    intent: data.intent, // Include intent data
     sharedPost: resolvedSharedPost,
     sharedMilestone: resolvedSharedMilestone,
     sharedWorkout: resolvedSharedWorkout,
@@ -194,9 +209,35 @@ async function convertFirestoreDoc(
 }
 
 
-const MessageItem = React.memo<{ item: Message; onLongPress: (m: Message) => void }>(
-  ({ item, onLongPress }) => {
+const MessageItem = React.memo<{ item: Message; onLongPress: (m: Message) => void; conversationId: string; onReprompt?: (message: string) => void }>(
+  ({ item, onLongPress, conversationId, onReprompt }) => {
     const router = useRouter();
+    const { getWeightUnit, getDistanceUnit, convertWeight, convertDistance } = useUnits();
+    
+    // Helper function to convert and format value with proper units
+    const convertAndFormatValue = (value: number, storedUnit: string) => {
+      if (storedUnit === 'kg' || storedUnit === 'lbs') {
+        const userPreferredUnit = getWeightUnit() as 'kg' | 'lbs';
+        const convertedValue = storedUnit !== userPreferredUnit 
+          ? convertWeight(value, storedUnit as 'kg' | 'lbs', userPreferredUnit)
+          : value;
+        return {
+          value: Math.round(convertedValue * 10) / 10,
+          unit: userPreferredUnit
+        };
+      } else if (storedUnit === 'km' || storedUnit === 'miles') {
+        const userPreferredUnit = getDistanceUnit() as 'km' | 'miles';
+        const convertedValue = storedUnit !== userPreferredUnit 
+          ? convertDistance(value, storedUnit as 'km' | 'miles', userPreferredUnit)
+          : value;
+        return {
+          value: Math.round(convertedValue * 10) / 10,
+          unit: userPreferredUnit
+        };
+      }
+      return { value, unit: storedUnit };
+    };
+    
     if (item.type === 'dateHeader') {
       return (
         <View style={styles.dateHeaderContainer}>
@@ -232,7 +273,7 @@ const MessageItem = React.memo<{ item: Message; onLongPress: (m: Message) => voi
           </View>
           {item.sharedPost.imageUrl && (
             <Image 
-              source={{ uri: getOptimalImageUrl(item.sharedPost.thumbnailUrl, item.sharedPost.imageUrl) }} 
+              source={{ uri: getOptimalImageUrl(item.sharedPost.imageUrl, item.sharedPost.thumbnailUrl) || undefined }} 
               style={styles.sharedPostImage} 
             />
           )}
@@ -278,12 +319,24 @@ const MessageItem = React.memo<{ item: Message; onLongPress: (m: Message) => voi
               </Text>
               <View style={styles.milestoneStatsRow}>
                 <Text style={styles.milestoneValue}>
-                  {item.sharedMilestone.details.value}{item.sharedMilestone.details.weightUnit}
+                  {item.sharedMilestone.details.value && item.sharedMilestone.details.weightUnit
+                    ? (() => {
+                        const converted = convertAndFormatValue(item.sharedMilestone.details.value, item.sharedMilestone.details.weightUnit);
+                        return `${converted.value} ${converted.unit}`;
+                      })()
+                    : `${item.sharedMilestone.details.value}${item.sharedMilestone.details.weightUnit || 'lbs'}`
+                  }
                   {item.sharedMilestone.details.reps != null && item.sharedMilestone.details.reps > 1 && ` × ${item.sharedMilestone.details.reps}`}
                 </Text>
                 {item.sharedMilestone.details.previousValue != null && (
                   <Text style={styles.milestonePrevious}>
-                    from {item.sharedMilestone.details.previousValue}{item.sharedMilestone.details.weightUnit}
+                    from {item.sharedMilestone.details.previousValue && item.sharedMilestone.details.weightUnit
+                      ? (() => {
+                          const converted = convertAndFormatValue(item.sharedMilestone.details.previousValue, item.sharedMilestone.details.weightUnit);
+                          return `${converted.value} ${converted.unit}`;
+                        })()
+                      : `${item.sharedMilestone.details.previousValue}${item.sharedMilestone.details.weightUnit || 'lbs'}`
+                    }
                     {item.sharedMilestone.details.previousReps != null && item.sharedMilestone.details.previousReps > 1 && ` × ${item.sharedMilestone.details.previousReps}`}
                   </Text>
                 )}
@@ -310,11 +363,28 @@ const MessageItem = React.memo<{ item: Message; onLongPress: (m: Message) => voi
               </Text>
               <Text style={styles.weightChangeValue}>
                 {item.sharedMilestone.type === 'weightLoss' ? '↓' : '↑'} 
-                {item.sharedMilestone.details.totalLoss} {item.sharedMilestone.details.newWeightUnit}
+                {item.sharedMilestone.details.totalLoss && item.sharedMilestone.details.newWeightUnit
+                  ? (() => {
+                      const converted = convertAndFormatValue(item.sharedMilestone.details.totalLoss, item.sharedMilestone.details.newWeightUnit);
+                      return `${converted.value} ${converted.unit}`;
+                    })()
+                  : `${item.sharedMilestone.details.totalLoss} ${item.sharedMilestone.details.newWeightUnit || getWeightUnit()}`
+                }
               </Text>
               <Text style={styles.weightChangeDetails}>
-                {item.sharedMilestone.details.previousWeight} → {item.sharedMilestone.details.newWeight}
-                {item.sharedMilestone.details.newWeightUnit}
+                {item.sharedMilestone.details.previousWeight && item.sharedMilestone.details.newWeightUnit
+                  ? (() => {
+                      const convertedPrevious = convertAndFormatValue(item.sharedMilestone.details.previousWeight, item.sharedMilestone.details.newWeightUnit);
+                      return convertedPrevious.value;
+                    })()
+                  : item.sharedMilestone.details.previousWeight
+                } → {item.sharedMilestone.details.newWeight && item.sharedMilestone.details.newWeightUnit
+                  ? (() => {
+                      const convertedNew = convertAndFormatValue(item.sharedMilestone.details.newWeight, item.sharedMilestone.details.newWeightUnit);
+                      return `${convertedNew.value} ${convertedNew.unit}`;
+                    })()
+                  : `${item.sharedMilestone.details.newWeight} ${item.sharedMilestone.details.newWeightUnit || getWeightUnit()}`
+                }
               </Text>
               <Text style={styles.milestoneImprovement}>
                 {item.sharedMilestone.details.percentageLoss} change
@@ -352,9 +422,15 @@ const MessageItem = React.memo<{ item: Message; onLongPress: (m: Message) => voi
             </Text>
           </View>
           {item.sharedWorkout.coverImageUrl && (
-            <Image 
-              source={{ uri: getOptimalImageUrl(item.sharedWorkout.thumbnailUrl, item.sharedWorkout.coverImageUrl) }} 
-              style={styles.sharedWorkoutImage} 
+
+            <Image
+              source={{
+                uri: getOptimalImageUrl(
+                  item.sharedWorkout.coverImageUrl,
+                  item.sharedWorkout.thumbnailUrl
+                ) || undefined
+              }}
+              style={styles.sharedWorkoutImage}
             />
           )}
           <Text style={styles.sharedWorkoutTitle} numberOfLines={2}>
@@ -365,31 +441,44 @@ const MessageItem = React.memo<{ item: Message; onLongPress: (m: Message) => voi
     }
 
     return (
-      <TouchableOpacity
-        style={[
-          styles.messageBubble,
-          item.user === 'user'
-            ? styles.currentUserMessage
-            : item.user === 'other'
-            ? styles.otherUserMessage
-            : styles.aiMessage,
-        ]}
-        onLongPress={() => onLongPress(item)}
-        delayLongPress={500}
-        activeOpacity={0.7}
+      <IntentMessageWrapper 
+        intent={item.intent} 
+        isUserMessage={item.user === 'user'} 
+        showIntentBadge={!!item.intent}
       >
-        <Text
-          style={
-            item.user === 'user'
-              ? styles.currentUserText
-              : item.user === 'other'
-              ? styles.otherUserText
-              : styles.aiText
-          }
-        >
-          {item.text}
-        </Text>
-      </TouchableOpacity>
+        {item.user === 'ai' ? (
+          <AIMessageBubble 
+            message={item.text}
+            intent={item.intent}
+            onLongPress={() => onLongPress(item)}
+            isAiConversation={conversationId.endsWith('_ai_conversation')}
+            timestamp={item.createdAt}
+            onReprompt={onReprompt}
+          />
+        ) : (
+          <TouchableOpacity
+            style={[
+              styles.messageBubble,
+              item.user === 'user'
+                ? styles.currentUserMessage
+                : styles.otherUserMessage,
+            ]}
+            onLongPress={() => onLongPress(item)}
+            delayLongPress={500}
+            activeOpacity={0.7}
+          >
+            <Text
+              style={
+                item.user === 'user'
+                  ? styles.currentUserText
+                  : styles.otherUserText
+              }
+            >
+              {item.text}
+            </Text>
+          </TouchableOpacity>
+        )}
+      </IntentMessageWrapper>
     );
   },
   (prev, next) => {
@@ -417,56 +506,565 @@ function addDateHeaders(msgs: Message[]): Message[] {
     day: 'numeric',
   };
 
-  let currentDayMessages: Message[] = [];
-  let currentDayStr: string | null = msgs[0].createdAt
-    ? msgs[0].createdAt.toLocaleDateString(undefined, dateOptions)
-    : null;
+  return msgs.reduce((acc: Message[], message, index) => {
+    acc.push(message);
 
-  for (let i = 0; i < msgs.length; i++) {
-    const msg = msgs[i];
-    const msgDayStr = msg.createdAt ? msg.createdAt.toLocaleDateString(undefined, dateOptions) : null;
+    const currentMessageDate = message.createdAt;
+    const nextMessageDate = msgs[index + 1]?.createdAt;
+    
+    const currentDateString = currentMessageDate?.toLocaleDateString(undefined, dateOptions);
+    const nextDateString = nextMessageDate?.toLocaleDateString(undefined, dateOptions);
 
-    if (msgDayStr !== currentDayStr) {
-      if (currentDayMessages.length > 0) {
-        out.push(...currentDayMessages);
-      }
-      if (currentDayStr) {
-        out.push({
-          id: `date-${currentDayStr}`,
-          text: currentDayStr,
-          type: 'dateHeader',
-          user: 'other',
-          createdAt: currentDayMessages.length > 0 ? currentDayMessages[currentDayMessages.length-1].createdAt : undefined
-        });
-      }
-      currentDayMessages = [];
-      currentDayStr = msgDayStr;
+    // Add a header if this is the last message OR if the next message is on a different day.
+    if (currentDateString && (index === msgs.length - 1 || currentDateString !== nextDateString)) {
+      acc.push({
+        id: `date-${currentDateString}`,
+        text: currentDateString,
+        type: 'dateHeader',
+        user: 'other',
+        role: 'model',
+        createdAt: currentMessageDate,
+      });
     }
 
-    // Add current message to its day's collection, if it has a date
-    if (msgDayStr) {
-      currentDayMessages.push(msg);
-    } else {
-      out.push(msg);
-    }
-  }
-
-  // After the loop, add any remaining messages and their header
-  if (currentDayMessages.length > 0) {
-    out.push(...currentDayMessages);
-  }
-  if (currentDayStr && currentDayMessages.length > 0) {
-    out.push({
-      id: `date-${currentDayStr}`,
-      text: currentDayStr,
-      type: 'dateHeader',
-      user: 'other',
-      createdAt: currentDayMessages.length > 0 ? currentDayMessages[currentDayMessages.length-1].createdAt : undefined
-    });
-  }
-  
-  return out;
+    return acc;
+  }, []);
 }
+
+// Enhanced AI Message Component
+interface AIMessageBubbleProps {
+  message: string;
+  intent?: string;
+  onLongPress: () => void;
+  isAiConversation?: boolean;
+  timestamp?: Date;
+  onReprompt?: (message: string) => void;
+}
+
+const AIMessageBubble: React.FC<AIMessageBubbleProps> = ({ message, intent, onLongPress, isAiConversation, timestamp, onReprompt }) => {
+  const [isLiked, setIsLiked] = useState(false);
+  const [shareModalVisible, setShareModalVisible] = useState(false);
+
+  // Handler functions for action buttons
+  const handleCopy = async () => {
+    try {
+      await Clipboard.setString(message);
+      Alert.alert("Copied!", "Message copied to clipboard");
+    } catch (error) {
+      Alert.alert("Error", "Failed to copy message");
+    }
+  };
+
+  const handleShare = () => {
+    setShareModalVisible(true);
+  };
+
+  const handleLike = () => {
+    setIsLiked(!isLiked);
+  };
+
+  const handleReprompt = () => {
+    if (onReprompt) {
+      onReprompt(message);
+    }
+  };
+
+  const intentConfigs = {
+    planner: { 
+      icon: '🏋️', 
+      color: '#FF6B35', 
+      gradient: ['#FF6B35', '#F7931E'],
+      label: 'WORKOUT PLANNER'
+    },
+    technique: { 
+      icon: '🎯', 
+      color: '#F7931E', 
+      gradient: ['#F7931E', '#FFD700'],
+      label: 'TECHNIQUE HELP'
+    },
+    explain: { 
+      icon: '📚', 
+      color: '#4ECDC4', 
+      gradient: ['#4ECDC4', '#45B7D1'],
+      label: 'EDUCATION'
+    },
+    schedule: { 
+      icon: '📅', 
+      color: '#45B7D1', 
+      gradient: ['#45B7D1', '#96CEB4'],
+      label: 'SCHEDULING'
+    },
+    chit_chat: { 
+      icon: '💬', 
+      color: '#96CEB4', 
+      gradient: ['#96CEB4', '#FFEAA7'],
+      label: 'CHAT'
+    },
+  } as const;
+
+  const config = intent && intentConfigs[intent as keyof typeof intentConfigs] 
+    ? intentConfigs[intent as keyof typeof intentConfigs] 
+    : { icon: '🤖', color: '#d466ff', gradient: ['#d466ff', '#9f44ff'], label: 'AI ASSISTANT' };
+
+  // Format message with better structure
+  const formatMessage = (text: string) => {
+    // Clean and split the text
+    const cleanText = text.replace(/```json\s*|\s*```/g, '').trim();
+    const paragraphs = cleanText.split('\n\n').filter(p => p.trim());
+    
+    return paragraphs.map((paragraph, index) => {
+      const trimmedParagraph = paragraph.trim();
+      
+      // Handle workout routines (often contain structured data)
+      if (trimmedParagraph.includes('Week') || trimmedParagraph.includes('Day') || trimmedParagraph.includes('Sets:')) {
+        const lines = trimmedParagraph.split('\n').map(line => line.trim()).filter(line => line);
+        return (
+          <View key={index} style={styles.workoutBlock}>
+            {lines.map((line, lineIndex) => (
+              <Text key={lineIndex} style={styles.workoutLine}>
+                {line}
+              </Text>
+            ))}
+          </View>
+        );
+      }
+      
+      // Handle bullet points and lists
+      if (trimmedParagraph.includes('•') || trimmedParagraph.includes('-') || /^\d+\./.test(trimmedParagraph)) {
+        const lines = trimmedParagraph.split('\n').map(line => line.trim()).filter(line => line);
+        return (
+          <View key={index} style={styles.aiParagraph}>
+            {lines.map((line, lineIndex) => {
+              const cleanLine = line.replace(/^[•\-]\s*/, '').replace(/^\d+\.\s*/, '');
+              const isNumbered = /^\d+\./.test(line);
+              const bulletChar = isNumbered ? `${line.match(/^\d+/)?.[0]}.` : '•';
+              
+              return (
+                <Text key={lineIndex} style={styles.aiListItem}>
+                  <Text style={styles.bulletPoint}>{bulletChar} </Text>
+                  {cleanLine}
+                </Text>
+              );
+            })}
+          </View>
+        );
+      }
+      
+      // Handle headers (lines that are short and followed by content)
+      if (trimmedParagraph.length < 50 && !trimmedParagraph.includes('.') && index < paragraphs.length - 1) {
+        return (
+          <Text key={index} style={styles.aiSectionHeader}>
+            {trimmedParagraph}
+          </Text>
+        );
+      }
+      
+      // Regular paragraphs
+      return (
+        <Text key={index} style={[styles.aiText, styles.aiParagraph]}>
+          {trimmedParagraph}
+        </Text>
+      );
+    });
+  };
+
+  return (
+    <TouchableOpacity
+      onLongPress={onLongPress}
+      delayLongPress={500}
+      activeOpacity={0.7}
+      style={styles.aiMessageContainer}
+    >
+      {/* AI Header */}
+      <View style={styles.aiHeader}>
+        <View style={[styles.aiIconContainer, { backgroundColor: `${config.color}15` }]}>
+          {isAiConversation ? (
+            <Image 
+              source={require('@/assets/images/logo-dark.png')} 
+              style={styles.aiLogo}
+              resizeMode="contain"
+            />
+          ) : (
+            <Text style={styles.aiIcon}>{config.icon}</Text>
+          )}
+        </View>
+        <View style={styles.aiHeaderInfo}>
+          <Text style={styles.aiTitle}>HLTHY Coach</Text>
+          <View style={styles.aiSubtitleRow}>
+            <Text style={[styles.aiSubtitle, { color: config.color }]}>
+              {config.label}
+            </Text>
+            {timestamp && (
+              <Text style={styles.aiTimestamp}>
+                • {timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </Text>
+            )}
+          </View>
+        </View>
+        <View style={styles.aiStatus}>
+          <View style={[styles.aiStatusDot, { backgroundColor: config.color }]} />
+          <Text style={styles.aiStatusText}>ONLINE</Text>
+        </View>
+      </View>
+
+      {/* Message Content */}
+      <View style={styles.aiContentContainer}>
+        <View style={[styles.aiContentBubble]}>
+          <View style={styles.aiMessageContent}>
+            <Text style={styles.aiText}>{message}</Text>
+          </View>
+          
+          {/* Action Buttons */}
+          <View style={styles.aiActions}>
+            <TouchableOpacity 
+              style={styles.aiActionButton}
+              onPress={handleCopy}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="copy-outline" size={16} color="#888" />
+              <Text style={styles.aiActionLabel}>Copy</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.aiActionButton}
+              onPress={handleShare}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="share-outline" size={16} color="#888" />
+              <Text style={styles.aiActionLabel}>Share</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.aiActionButton, isLiked && styles.aiActionButtonActive]}
+              onPress={handleLike}
+              activeOpacity={0.7}
+            >
+              <Ionicons 
+                name={isLiked ? "thumbs-up" : "thumbs-up-outline"} 
+                size={16} 
+                color={isLiked ? "#4CD964" : "#888"} 
+              />
+              <Text style={[styles.aiActionLabel, isLiked && { color: "#4CD964" }]}>
+                {isLiked ? "Liked" : "Like"}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.aiActionButton}
+              onPress={handleReprompt}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="refresh-outline" size={16} color="#888" />
+              <Text style={styles.aiActionLabel}>Retry</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+      
+      {/* Share Modal */}
+      <ShareModal
+        visible={shareModalVisible}
+        onClose={() => setShareModalVisible(false)}
+        message={message}
+        intent={intent}
+      />
+    </TouchableOpacity>
+  );
+};
+
+// Share Modal Component for sharing AI responses with app users
+interface ShareModalProps {
+  visible: boolean;
+  onClose: () => void;
+  message: string;
+  intent?: string;
+}
+
+const ShareModal: React.FC<ShareModalProps> = ({ visible, onClose, message, intent }) => {
+  const { currentUser } = useAuth();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [selectedUsers, setSelectedUsers] = useState<any[]>([]);
+  const [following, setFollowing] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [sharing, setSharing] = useState(false);
+
+  // Fetch user's following list when modal opens
+  useEffect(() => {
+    if (visible && currentUser) {
+      fetchFollowing();
+    }
+  }, [visible, currentUser]);
+
+  const fetchFollowing = async () => {
+    if (!currentUser) return;
+    
+    try {
+      setLoading(true);
+      const followingRef = collection(db, `users/${currentUser.uid}/following`);
+      const followingSnap = await getDocs(followingRef);
+      
+      const followingData = await Promise.all(
+        followingSnap.docs.map(async (docRef) => {
+          const userRef = doc(db, 'users', docRef.id);
+          const userDoc = await getDoc(userRef);
+          if (userDoc.exists()) {
+            return {
+              id: docRef.id,
+              ...userDoc.data(),
+            };
+          }
+          return null;
+        })
+      );
+      
+      setFollowing(followingData.filter(Boolean));
+    } catch (error) {
+      console.error('Error fetching following:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const searchUsers = async (searchQuery: string) => {
+    if (!searchQuery.trim() || !currentUser) {
+      setSearchResults([]);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      // Search users by username or display name
+      const usersRef = collection(db, 'users');
+      
+      // We'll use a simple approach since Firestore has limited query capabilities
+      const allUsersSnap = await getDocs(usersRef);
+      const searchResults: any[] = [];
+      
+      allUsersSnap.forEach(doc => {
+        if (doc.id !== currentUser.uid) {
+          const userData = doc.data();
+          const username = userData.username?.toLowerCase() || '';
+          const displayName = userData.displayName?.toLowerCase() || '';
+          const search = searchQuery.toLowerCase();
+          
+          if (username.includes(search) || displayName.includes(search)) {
+            searchResults.push({
+              id: doc.id,
+              ...userData
+            });
+          }
+        }
+      });
+
+      setSearchResults(searchResults.slice(0, 10)); // Limit to 10 results
+    } catch (error) {
+      console.error('Error searching users:', error);
+      setSearchResults([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const toggleUserSelection = (user: any) => {
+    setSelectedUsers(prev => {
+      const isSelected = prev.some(u => u.id === user.id);
+      if (isSelected) {
+        return prev.filter(u => u.id !== user.id);
+      } else {
+        return [...prev, user];
+      }
+    });
+  };
+
+  const shareWithUsers = async () => {
+    if (selectedUsers.length === 0 || !currentUser) return;
+
+    try {
+      setSharing(true);
+      
+      const sharePromises = selectedUsers.map(async (user) => {
+        // Create or get conversation with the user
+        const conversationId = [currentUser.uid, user.id].sort().join('_');
+        const conversationRef = doc(db, 'conversations', conversationId);
+        
+        // Ensure conversation exists
+        const conversationSnap = await getDoc(conversationRef);
+        if (!conversationSnap.exists()) {
+          await setDoc(conversationRef, {
+            participants: [currentUser.uid, user.id],
+            participantUsernames: {
+              [currentUser.uid]: currentUser.displayName || currentUser.email,
+              [user.id]: user.displayName || user.username
+            },
+            participantProfileImages: {
+              [currentUser.uid]: currentUser.photoURL || null,
+              [user.id]: user.profileImageUrl || null
+            },
+            createdAt: serverTimestamp(),
+            lastMessageAt: serverTimestamp(),
+            lastMessageText: `Shared AI response: ${message.substring(0, 100)}...`,
+            lastMessageSenderId: currentUser.uid,
+          });
+        }
+
+        // Add the AI response as a shared message
+        const messagesRef = collection(db, 'conversations', conversationId, 'messages');
+        const shareMessage = `🤖 HLTHY Coach Response${intent ? ` (${intent.toUpperCase()})` : ''}:\n\n${message}`;
+        
+        await addDoc(messagesRef, {
+          text: shareMessage,
+          createdAt: serverTimestamp(),
+          senderId: currentUser.uid,
+          isSharedAiResponse: true,
+          ...(intent && { originalIntent: intent }),
+        });
+
+        // Update conversation metadata
+        await updateDoc(conversationRef, {
+          lastMessageAt: serverTimestamp(),
+          lastMessageText: `Shared AI response: ${message.substring(0, 50)}...`,
+          lastMessageSenderId: currentUser.uid,
+        });
+      });
+
+      await Promise.all(sharePromises);
+      
+      Alert.alert(
+        "Shared Successfully!", 
+        `AI response shared with ${selectedUsers.length} user${selectedUsers.length === 1 ? '' : 's'}.`
+      );
+      
+      // Reset and close modal
+      setSelectedUsers([]);
+      setSearchQuery('');
+      setSearchResults([]);
+      onClose();
+      
+    } catch (error) {
+      console.error('Error sharing with users:', error);
+      Alert.alert("Error", "Failed to share AI response. Please try again.");
+    } finally {
+      setSharing(false);
+    }
+  };
+
+  const renderUser = (user: any, isFromFollowing: boolean = false) => (
+    <TouchableOpacity
+      key={user.id}
+      style={[
+        styles.shareUserItem,
+        selectedUsers.some(u => u.id === user.id) && styles.shareUserItemSelected
+      ]}
+      onPress={() => toggleUserSelection(user)}
+    >
+      <Image
+        source={
+          user.profileImageUrl 
+            ? { uri: user.profileImageUrl }
+            : require('@/assets/images/profile-icon.png')
+        }
+        style={styles.shareUserAvatar}
+      />
+      <View style={styles.shareUserInfo}>
+        <Text style={styles.shareUserName}>
+          {user.displayName || user.username}
+        </Text>
+        <Text style={styles.shareUserHandle}>
+          @{user.username}
+          {isFromFollowing && <Text style={styles.followingTag}> • Following</Text>}
+        </Text>
+      </View>
+      {selectedUsers.some(u => u.id === user.id) && (
+        <Ionicons name="checkmark-circle" size={24} color="#4CD964" />
+      )}
+    </TouchableOpacity>
+  );
+
+  return (
+    <Modal
+      visible={visible}
+      animationType="slide"
+      presentationStyle="pageSheet"
+      onRequestClose={onClose}
+    >
+      <SafeAreaView style={styles.shareModalContainer}>
+        <View style={styles.shareModalHeader}>
+          <TouchableOpacity onPress={onClose} style={styles.shareModalCloseButton}>
+            <Ionicons name="close" size={24} color="white" />
+          </TouchableOpacity>
+          <Text style={styles.shareModalTitle}>Share AI Response</Text>
+          <TouchableOpacity 
+            onPress={shareWithUsers}
+            disabled={selectedUsers.length === 0 || sharing}
+            style={[
+              styles.shareModalSendButton,
+              (selectedUsers.length === 0 || sharing) && styles.shareModalSendButtonDisabled
+            ]}
+          >
+            <Text style={[
+              styles.shareModalSendButtonText,
+              (selectedUsers.length === 0 || sharing) && styles.shareModalSendButtonTextDisabled
+            ]}>
+              {sharing ? 'Sharing...' : `Share${selectedUsers.length > 0 ? ` (${selectedUsers.length})` : ''}`}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Preview of what's being shared */}
+        <View style={styles.sharePreview}>
+          <Text style={styles.sharePreviewTitle}>Sharing:</Text>
+          <Text style={styles.sharePreviewText} numberOfLines={3}>
+            🤖 HLTHY Coach Response{intent ? ` (${intent.toUpperCase()})` : ''}:{'\n\n'}{message}
+          </Text>
+        </View>
+
+        {/* Search Bar */}
+        <View style={styles.shareSearchContainer}>
+          <Ionicons name="search" size={20} color="#888" style={styles.shareSearchIcon} />
+          <TextInput
+            style={styles.shareSearchInput}
+            placeholder="Search users..."
+            placeholderTextColor="#888"
+            value={searchQuery}
+            onChangeText={(text) => {
+              setSearchQuery(text);
+              searchUsers(text);
+            }}
+          />
+        </View>
+
+        {/* User Lists */}
+        <ScrollView style={styles.shareUsersList}>
+          {/* Search Results */}
+          {searchQuery.length > 0 && (
+            <>
+              <Text style={styles.shareUsersListTitle}>Search Results</Text>
+              {loading ? (
+                <ActivityIndicator size="small" color="#4CD964" style={styles.shareLoadingIndicator} />
+              ) : searchResults.length === 0 ? (
+                <Text style={styles.shareNoResults}>No users found</Text>
+              ) : (
+                searchResults.map(user => renderUser(user))
+              )}
+            </>
+          )}
+
+          {/* Following List (when no search) */}
+          {searchQuery.length === 0 && (
+            <>
+              <Text style={styles.shareUsersListTitle}>People You Follow</Text>
+              {loading ? (
+                <ActivityIndicator size="small" color="#4CD964" style={styles.shareLoadingIndicator} />
+              ) : following.length === 0 ? (
+                <Text style={styles.shareNoResults}>You're not following anyone yet</Text>
+              ) : (
+                following.map(user => renderUser(user, true))
+              )}
+            </>
+          )}
+        </ScrollView>
+      </SafeAreaView>
+    </Modal>
+  );
+};
 
 export default function ChatScreen() {
   const router = useRouter();
@@ -482,11 +1080,47 @@ export default function ChatScreen() {
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [otherParticipantId, setOtherParticipantId] = useState<string | null>(null);
+  const [isAiThinking, setIsAiThinking] = useState(false);
+  const thinkingDotAnimations = useRef([
+    new Animated.Value(0.4),
+    new Animated.Value(0.4),
+    new Animated.Value(0.4),
+  ]).current;
   
   const BATCH_SIZE = 20; // number of messages to fetch at a time
   const [lastVisible, setLastVisible] = useState<any>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMoreMessages, setHasMoreMessages] = useState(true);
+
+  // Animate thinking dots when AI is thinking
+  useEffect(() => {
+    if (isAiThinking) {
+      const animations = thinkingDotAnimations.map((anim, index) =>
+        Animated.loop(
+          Animated.sequence([
+            Animated.delay(index * 150),
+            Animated.timing(anim, {
+              toValue: 1,
+              duration: 500,
+              useNativeDriver: false,
+            }),
+            Animated.timing(anim, {
+              toValue: 0.4,
+              duration: 500,
+              useNativeDriver: false,
+            }),
+          ])
+        )
+      );
+      
+      animations.forEach(anim => anim.start());
+      
+      return () => {
+        animations.forEach(anim => anim.stop());
+        thinkingDotAnimations.forEach(anim => anim.setValue(0.4));
+      };
+    }
+  }, [isAiThinking]);
 
   useEffect(() => {
     if (!currentUser || !conversationId) {
@@ -494,8 +1128,6 @@ export default function ChatScreen() {
       setHasMoreMessages(false);
       return;
     }
-    // setLoading(true); // Handled by the effect above or initial state
-    // setHasMoreMessages(true); // Reset when conversationId changes
 
     const messagesRef = collection(db, "conversations", conversationId, "messages");
 
@@ -587,160 +1219,190 @@ export default function ChatScreen() {
   }, [loading]);
 
   useEffect(() => {
-  if (!currentUser || conversationId === 'ai_conversation') return;
-  const convRef = doc(db, "conversations", conversationId);
-  getDoc(convRef).then(snap => {
-    if (!snap.exists()) return;
-    const data = snap.data() as any;
-    const otherId = data.participants.find((uid: string) => uid !== currentUser.uid);
-    if (!otherId) return;
-    setOtherParticipantId(otherId);
-    setChatTitle(data.participantUsernames[otherId]);
-    setProfileImageUrl(data.participantProfileImages[otherId]);
-  });
-}, [currentUser, conversationId]);
+    const isAiChat = conversationId.endsWith('_ai_conversation');
+    if (isAiChat) {
+      setChatTitle('AI Assistant');
+      setProfileImageUrl(null); // Or a specific AI avatar if you have one
+      return;
+    }
 
+    if (!currentUser || !conversationId) return;
+    
+    const fetchHeaderData = async () => {
+      const convRef = doc(db, "conversations", conversationId);
+      const convSnap = await getDoc(convRef);
 
-  const handleSend = async () => {
-    Keyboard.dismiss();
-    if (!input.trim() || !currentUser || !conversationId) return;
+      if (!convSnap.exists()) return;
 
-    const textToSend = input.trim();
+      const data = convSnap.data();
+      const otherId = data.participants?.find((uid: string) => uid !== currentUser.uid);
 
-    const newMessage: Message = {
-      id: generateId(),
-      text: textToSend,
-      user: 'user', 
-      createdAt: new Date(),
+      if (!otherId) return;
+
+      setOtherParticipantId(otherId);
+      setChatTitle(data.participantUsernames?.[otherId] || 'Chat');
+
+      // Fetch the user document for the latest profile image
+      try {
+        const userRef = doc(db, 'users', otherId);
+        const userSnap = await getDoc(userRef);
+        if (userSnap.exists()) {
+          const userData = userSnap.data();
+          // Use getOptimalImageUrl to handle thumbnails if they exist
+          const optimalImageUrl = getOptimalImageUrl(userData.profileThumbnailUrl, userData.profileImageUrl);
+          setProfileImageUrl(optimalImageUrl);
+        } else {
+          // Fallback to the potentially outdated image if the user doc is not found
+          setProfileImageUrl(data.participantProfileImages?.[otherId] || null);
+        }
+      } catch (error) {
+        console.error("Error fetching user profile for chat header:", error);
+        setProfileImageUrl(data.participantProfileImages?.[otherId] || null);
+      }
     };
 
-    setInput('');
-    setMessages(previousMessages => [...previousMessages, newMessage]);
+    fetchHeaderData();
+  }, [currentUser, conversationId]);
 
-    if (conversationId === 'ai_conversation') {
-      // AI conversation handling
-      try {
-        const aiResponse = await sendMessage(textToSend);
-        const aiMessage: Message = {
-          id: generateId(), 
-          text: aiResponse,
-          user: 'ai',
-          createdAt: new Date(),
-        };
-        setMessages(prevMessages => [...prevMessages, aiMessage]);
-      } catch (error) {
-        console.error('Error sending message to AI:', error);
-      }
-    } else {
-      try {
+  const updateConversationMetadata = async (conversationId: string, senderId: string, messageText: string) => {
+    if (!currentUser || !otherParticipantId) return;
+    
+    try {
+      const conversationRef = doc(db, "conversations", conversationId);
+      
+      // Update main conversation document
+      await updateDoc(conversationRef, {
+        lastMessageAt: serverTimestamp(),
+        lastMessageText: messageText,
+        lastMessageSenderId: senderId,
+      });
+
+      // Update user conversation references for both participants
+      const userConvRef1 = doc(db, `users/${senderId}/conversations`, conversationId);
+      await setDoc(userConvRef1, {
+        otherParticipantId: otherParticipantId,
+        otherParticipantUsername: chatTitle,
+        otherParticipantProfileImage: profileImageUrl || '',
+        otherParticipantThumbnailUrl: profileImageUrl || '', // Add thumbnail support
+        lastMessageAt: serverTimestamp(),
+        lastMessageText: messageText,
+      }, { merge: true });
+
+      const userConvRef2 = doc(db, `users/${otherParticipantId}/conversations`, conversationId);
+      await setDoc(userConvRef2, {
+        otherParticipantId: senderId,
+        otherParticipantUsername: currentUser.displayName || currentUser.email || 'User',
+        otherParticipantProfileImage: currentUser.photoURL || '',
+        otherParticipantThumbnailUrl: currentUser.photoURL || '', // Add thumbnail support
+        lastMessageAt: serverTimestamp(),
+        lastMessageText: messageText,
+      }, { merge: true });
+
+    } catch (error) {
+      console.error('Error updating conversation metadata:', error);
+      // Don't throw error - this is not critical for message sending
+    }
+  };
+
+  const handleSend = async (textToSend: string, intentResult?: IntentClassificationResult) => {
+    Keyboard.dismiss();
+    
+    if (!textToSend.trim() || !currentUser || !conversationId) {
+      return;
+    }
+
+    setInput('');
+    const isAiChat = conversationId.endsWith('_ai_conversation');
+    
+    try {
+      // Ensure conversation document exists for AI chats
+      if (isAiChat) {
         const conversationRef = doc(db, "conversations", conversationId);
         const conversationSnap = await getDoc(conversationRef);
         
         if (!conversationSnap.exists()) {
-          console.log("Conversation document not found, recreating...");
-          const userConvRef = doc(db, `users/${currentUser.uid}/conversations`, conversationId);
-          const userConvSnap = await getDoc(userConvRef);
-          
-          if (userConvSnap.exists()) {
-            const userData = userConvSnap.data();
-            const otherUserId = userData.otherParticipantId;
-            
-            if (otherUserId) {
-              const otherUserRef = doc(db, 'users', otherUserId);
-              const otherUserSnap = await getDoc(otherUserRef);
-              let otherUsername = userData.otherParticipantUsername || 'User';
-              let otherProfileImg = userData.otherParticipantProfileImage || '';
-              if (otherUserSnap.exists()) {
-                const otherUserData = otherUserSnap.data();
-                if (otherUserData.username) otherUsername = otherUserData.username;
-                if (otherUserData.profileImageUrl) otherProfileImg = otherUserData.profileImageUrl;
-              }
-              
-              await setDoc(conversationRef, {
-                participants: [currentUser.uid, otherUserId],
-                lastMessageAt: serverTimestamp(),
-                lastMessageText: textToSend,
-                lastMessageSenderId: currentUser.uid,
-                participantUsernames: {
-                  [currentUser.uid]: currentUser.displayName || currentUser.email || 'User',
-                  [otherUserId]: otherUsername,
-                },
-                participantProfileImages: {
-                  [currentUser.uid]: currentUser.photoURL || '',
-                  [otherUserId]: otherProfileImg,
-                },
-              });
-            } else { throw new Error("Could not find other participant ID"); }
-          } else { throw new Error("User conversation reference not found"); }
-        }
-        
-        const messagesRef = collection(db, "conversations", conversationId, "messages");
-        await addDoc(messagesRef, {
-          text: textToSend,
-          createdAt: serverTimestamp(),
-          senderId: currentUser.uid,
-        });
-
-        await updateDoc(conversationRef, {
-          lastMessageAt: serverTimestamp(),
-          lastMessageText: textToSend,
-          lastMessageSenderId: currentUser.uid,
-        });
-
-        // Update user conversation refs (userConvRef1 for current user)
-        const userConvRef1 = doc(db, `users/${currentUser.uid}/conversations`, conversationId);
-        const userConvSnap1 = await getDoc(userConvRef1);
-        const conversationDataForUserRef = (await getDoc(conversationRef)).data(); // Re-fetch to ensure data consistency
-
-        if (!userConvSnap1.exists()) {
-          const otherParticipantForUserRef = conversationDataForUserRef?.participants?.find((uid: string) => uid !== currentUser.uid);
-          if (otherParticipantForUserRef) {
-            await setDoc(userConvRef1, {
-              otherParticipantId: otherParticipantForUserRef,
-              otherParticipantUsername: conversationDataForUserRef?.participantUsernames?.[otherParticipantForUserRef] || 'User',
-              otherParticipantProfileImage: conversationDataForUserRef?.participantProfileImages?.[otherParticipantForUserRef] || '',
-              lastMessageAt: serverTimestamp(),
-              lastMessageText: textToSend,
-            });
-          }
-        } else {
-          await updateDoc(userConvRef1, {
+          const conversationData = {
+            participants: [currentUser.uid, 'ai_conversation'],
+            participantUsernames: {
+              [currentUser.uid]: currentUser.displayName || currentUser.email,
+              'ai_conversation': 'AI Assistant'
+            },
+            participantProfileImages: {
+              [currentUser.uid]: currentUser.photoURL || null,
+              'ai_conversation': null
+            },
+            createdAt: serverTimestamp(),
             lastMessageAt: serverTimestamp(),
             lastMessageText: textToSend,
-          });
+            lastMessageSenderId: currentUser.uid,
+          };
+          await setDoc(conversationRef, conversationData);
         }
-
-        // Update other user's conversation reference (userConvRef2)
-        const otherUserId = conversationDataForUserRef?.participants?.find((uid: string) => uid !== currentUser.uid);
-        if (otherUserId) {
-          const userConvRef2 = doc(db, `users/${otherUserId}/conversations`, conversationId);
-          const userConvSnap2 = await getDoc(userConvRef2);
-          const currentUserDataForOtherUserRef = (await getDoc(doc(db, 'users', currentUser.uid))).data();
-
-          if (!userConvSnap2.exists()) {
-             if (currentUserDataForOtherUserRef) {
-                await setDoc(userConvRef2, {
-                    otherParticipantId: currentUser.uid,
-                    otherParticipantUsername: currentUserDataForOtherUserRef?.username || currentUser.displayName || 'User',
-                    otherParticipantProfileImage: currentUserDataForOtherUserRef?.profileImageUrl || currentUser.photoURL || '',
-                    lastMessageAt: serverTimestamp(),
-                    lastMessageText: textToSend,
-                });
-             }
-          } else {
-            await updateDoc(userConvRef2, {
-              lastMessageAt: serverTimestamp(),
-              lastMessageText: textToSend,
-            });
-          }
-        }
-      } catch (error) {
-        console.error('Error sending message to Firestore:', error);
-        Alert.alert(
-          "Error", 
-          "Failed to send message. Please try again or restart the conversation."
-        );
       }
+
+      const messagesRef = collection(db, "conversations", conversationId, "messages");
+
+      // Add user's message to Firestore
+      const messageData: any = {
+        text: textToSend,
+        createdAt: serverTimestamp(),
+        senderId: currentUser.uid,
+      };
+      
+      if (intentResult?.intent) {
+        messageData.intent = intentResult.intent;
+      }
+      
+      await addDoc(messagesRef, messageData);
+      console.log("User message added successfully");
+
+      if (isAiChat) {
+        setIsAiThinking(true); // Show thinking indicator
+        try {
+          // The `messages` state is ordered descending. We need ascending for the API.
+          const historyForAPI = [...messages]
+            .reverse() // Create a reversed copy
+            .map(m => ({ text: m.text, role: m.role }));
+
+          // Add the new user message to the history for the API call
+          historyForAPI.push({ text: textToSend, role: 'user' });
+
+          // Use the enhanced sendMessage function
+          const aiResponseText = await sendMessage(historyForAPI, textToSend);
+
+          // Save AI's response to Firestore using current user's ID with isAiResponse flag
+          const aiMessageData: any = {
+            text: aiResponseText,
+            createdAt: serverTimestamp(),
+            senderId: currentUser.uid, // Use current user's ID to avoid permission issues
+            isAiResponse: true, // Flag to identify this as an AI response
+          };
+          
+          // Only add intent field if intentResult exists and has intent property
+          if (intentResult?.intent) {
+            aiMessageData.intent = intentResult.intent;
+          }
+          
+          await addDoc(messagesRef, aiMessageData);
+        } catch (error) {
+          console.error('Error sending message to AI:', error);
+          // Add an error message to the chat
+          await addDoc(messagesRef, {
+            text: "Sorry, I'm having trouble connecting. Please try again later.",
+            createdAt: serverTimestamp(),
+            senderId: currentUser.uid,
+            isAiResponse: true,
+          });
+        } finally {
+          setIsAiThinking(false); // Hide thinking indicator
+        }
+      } else {
+        // Handle normal conversation updates
+        await updateConversationMetadata(conversationId, currentUser.uid, textToSend);
+      }
+    } catch (error) {
+      console.error('Error in handleSend:', error);
+      Alert.alert("Error", "Failed to send message. Please try again.");
     }
   };
 
@@ -784,27 +1446,36 @@ export default function ChatScreen() {
         lastMessageSenderId: newLastMessageSenderId,
         lastMessageAt: newLastMessageAt
       });
-        
+
       const userConvRef1 = doc(db, `users/${currentUser.uid}/conversations`, conversationId);
-      await updateDoc(userConvRef1, {
-        lastMessageText: newLastMessageText,
-        lastMessageAt: newLastMessageAt
-      });
+      await setDoc(
+        userConvRef1,
+        {
+          otherParticipantId,
+          otherParticipantUsername: chatTitle,
+          otherParticipantProfileImage: profileImageUrl || '',
+          lastMessageAt: newLastMessageAt,
+          lastMessageText: newLastMessageText,
+        },
+        { merge: true }
+      );
         
       const conversationSnap = await getDoc(conversationRef);
       const conversationData = conversationSnap.data();
-      const otherUserId = conversationData?.participants?.find((uid: string) => uid !== currentUser.uid);
-        
-      if (otherUserId) {
-        const userConvRef2 = doc(db, `users/${otherUserId}/conversations`, conversationId);
-        // Ensure the other user's ref exists before trying to update
-        const otherUserConvSnap = await getDoc(userConvRef2);
-        if (otherUserConvSnap.exists()) {
-            await updateDoc(userConvRef2, {
-                lastMessageText: newLastMessageText,
-                lastMessageAt: newLastMessageAt
-            });
-        }
+      const userConvRef2 = conversationData?.participants?.find((uid: string) => uid !== currentUser.uid);
+
+      if (userConvRef2) {
+        await setDoc(
+          userConvRef2,
+          {
+            otherParticipantId: currentUser.uid,
+            otherParticipantUsername: currentUser.displayName || currentUser.email || 'Current User',
+            otherParticipantProfileImage: currentUser.photoURL || '',
+            lastMessageAt: newLastMessageAt,
+            lastMessageText: newLastMessageText,
+          },
+          { merge: true }
+        );
       }
     } catch (error) {
       console.error("Error deleting message:", error);
@@ -819,6 +1490,20 @@ export default function ChatScreen() {
     }
   }, []);
 
+  const handleReprompt = useCallback(async (repromptMessage: string) => {
+    if (!conversationId.endsWith('_ai_conversation')) return;
+    
+    // Get the last user message from the conversation
+    const lastUserMessage = messages.find(msg => msg.user === 'user');
+    if (!lastUserMessage) return;
+    
+    // Create a reprompt based on the last user question
+    const reprompt = `${lastUserMessage.text}\n\nPlease provide a different or more detailed response.`;
+    
+    // Send the reprompt message using the existing handleSend function
+    await handleSend(reprompt);
+  }, [conversationId, messages, handleSend]);
+
   const navigateToUserProfile = () => {
     if (conversationId !== 'ai_conversation' && otherParticipantId) {
       router.push(`/profile/${otherParticipantId}`);
@@ -826,8 +1511,8 @@ export default function ChatScreen() {
   };
 
   const renderMessage = useCallback<ListRenderItem<Message>>(
-    ({ item }) => <MessageItem item={item} onLongPress={handleLongPress} />,
-    [handleLongPress]
+    ({ item }) => <MessageItem item={item} onLongPress={handleLongPress} conversationId={conversationId} onReprompt={handleReprompt} />,
+    [handleLongPress, conversationId, handleReprompt]
   );
 
   return (
@@ -847,14 +1532,28 @@ export default function ChatScreen() {
               onPress={navigateToUserProfile}
               disabled={conversationId === 'ai_conversation' || !otherParticipantId}
             >
-              {profileImageUrl ? (
+              {conversationId.endsWith('_ai_conversation') ? (
+                <Image 
+                  source={require('@/assets/images/logo-dark.png')} 
+                  style={styles.headerLogo} 
+                  resizeMode="contain"
+                />
+              ) : profileImageUrl ? (
                 <Image source={{ uri: profileImageUrl }} style={styles.profilePic} />
               ) : (
                 <Image source={require('@/assets/images/profile-icon.png')} style={styles.profilePic} />
               )}
-              <Text style={styles.headerText} numberOfLines={1} ellipsizeMode="tail">
-                {chatTitle}
-              </Text>
+              <View style={styles.headerTextContainer}>
+                <Text style={styles.headerText} numberOfLines={1} ellipsizeMode="tail">
+                  {chatTitle}
+                </Text>
+                {conversationId.endsWith('_ai_conversation') && (
+                  <View style={styles.aiStatusRow}>
+                    <View style={styles.onlineDot} />
+                    <Text style={styles.onlineText}>AI Assistant • Online</Text>
+                  </View>
+                )}
+              </View>
             </TouchableOpacity>
           </View>
         </SafeAreaView>
@@ -887,6 +1586,49 @@ export default function ChatScreen() {
 
             contentContainerStyle={styles.messagesContainer}
           />
+        )}
+
+        {/* AI Thinking Indicator */}
+        {isAiThinking && (
+          <View style={styles.thinkingIndicator}>
+            <View style={styles.aiHeader}>
+              <View style={[styles.aiIconContainer, { backgroundColor: '#d466ff15' }]}>
+                <Image 
+                  source={require('@/assets/images/logo-dark.png')} 
+                  style={styles.aiLogo}
+                  resizeMode="contain"
+                />
+              </View>
+              <View style={styles.aiHeaderInfo}>
+                <Text style={styles.aiTitle}>HLTHY Coach</Text>
+                <Text style={[styles.aiSubtitle, { color: '#d466ff' }]}>
+                  PROCESSING...
+                </Text>
+              </View>
+              <View style={styles.aiStatus}>
+                <View style={[styles.aiStatusDot, { backgroundColor: '#d466ff' }]} />
+                <Text style={styles.aiStatusText}>THINKING</Text>
+              </View>
+            </View>
+            <View style={styles.aiContentContainer}>
+              <View style={styles.thinkingBubble}>
+                <View style={styles.thinkingDots}>
+                  {thinkingDotAnimations.map((anim, index) => (
+                    <Animated.View
+                      key={index}
+                      style={[
+                        styles.thinkingDot,
+                        {
+                          opacity: anim,
+                        }
+                      ]}
+                    />
+                  ))}
+                </View>
+                <Text style={styles.thinkingText}>Analyzing your request...</Text>
+              </View>
+            </View>
+          </View>
         )}
 
         {/* Delete Message Modal */}
@@ -925,23 +1667,16 @@ export default function ChatScreen() {
             </View>
           </TouchableOpacity>
         </Modal>
-
-        {/* Input */}
-        <View style={styles.inputContainer}>
-          <TextInput
-            style={styles.input}
-            value={input}
-            onChangeText={setInput}
-            placeholder="Type your message..."
-            placeholderTextColor="#888"
-            autoCorrect={true}
-            spellCheck={true}
-            autoCapitalize="sentences"
-          />
-          <TouchableOpacity style={styles.sendButton} onPress={handleSend}>
-            <Ionicons name="send" size={24} color="white" />
-          </TouchableOpacity>
-        </View>
+        {/* Smart Input with Intent Classification */}
+        <SmartChatInput
+          value={input}
+          onChangeText={setInput}
+          onSend={handleSend}
+          disabled={isAiThinking}
+          conversationId={conversationId}
+          otherParticipantId={otherParticipantId}
+          isAiConversation={conversationId.endsWith('_ai_conversation')}
+        />
       </View>
     </KeyboardAvoidingView>
   );
@@ -984,6 +1719,31 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     marginRight: 10,
   },
+  headerLogo: {
+    width: 24,
+    height: 24,
+    marginRight: 10,
+  },
+  headerTextContainer: {
+    flex: 1,
+  },
+  aiStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 2,
+  },
+  onlineDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#4CD964',
+    marginRight: 4,
+  },
+  onlineText: {
+    color: '#888',
+    fontSize: 12,
+    fontWeight: '500',
+  },
   messagesContainer: {
     padding: 10,
     justifyContent: 'flex-start',
@@ -1005,8 +1765,12 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   aiMessage: {
-    backgroundColor: '#d466ff',
+    backgroundColor: 'transparent',
     alignSelf: 'flex-start',
+    maxWidth: '85%',
+    borderRadius: 0,
+    padding: 0,
+    marginVertical: 8,
   },
   currentUserText: {
     color: 'white',
@@ -1016,6 +1780,8 @@ const styles = StyleSheet.create({
   },
   aiText: {
     color: 'white',
+    fontSize: 16,
+    lineHeight: 22,
   },
   unavailableItemBubble: {
     backgroundColor: '#3A3A3A',
@@ -1038,6 +1804,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     borderRadius: 25,
     marginRight: 10,
+    maxHeight: 120,
   },
   sendButton: {
     backgroundColor: '#007AFF',
@@ -1241,5 +2008,362 @@ const styles = StyleSheet.create({
     fontSize: 14,
     padding: 10,
     textAlign: 'center',
+  },
+  thinkingIndicator: {
+    paddingHorizontal: 10,
+    paddingBottom: 10,
+    alignSelf: 'flex-start',
+    maxWidth: '90%',
+    marginVertical: 8,
+  },
+  thinkingBubble: {
+    backgroundColor: 'rgba(30, 30, 30, 0.95)',
+    alignSelf: 'flex-start',
+    borderRadius: 16,
+    borderTopLeftRadius: 4,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  thinkingDots: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  thinkingDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+  },
+  thinkingText: {
+    color: 'white',
+    fontSize: 13,
+    fontStyle: 'italic',
+    opacity: 0.8,
+  },
+  // Enhanced AI Message Styles
+  aiMessageContainer: {
+    alignSelf: 'flex-start',
+    maxWidth: '90%',
+    marginVertical: 8,
+    marginHorizontal: 10,
+  },
+  aiHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    paddingHorizontal: 4,
+  },
+  aiIconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  aiLogo: {
+    width: 20,
+    height: 20,
+  },
+  aiIcon: {
+    fontSize: 16,
+  },
+  aiHeaderInfo: {
+    flex: 1,
+  },
+  aiTitle: {
+    color: 'white',
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  aiSubtitle: {
+    fontSize: 11,
+    fontWeight: '600',
+    opacity: 0.8,
+    marginTop: 1,
+  },
+  aiSubtitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 1,
+  },
+  aiTimestamp: {
+    color: '#666',
+    fontSize: 10,
+    marginLeft: 4,
+  },
+  aiStatus: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 4,
+  },
+  aiStatusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  aiStatusText: {
+    color: '#888',
+    fontSize: 9,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+  },
+  aiContentContainer: {
+    paddingLeft: 42, // Align with header text
+  },
+  aiContentBubble: {
+    backgroundColor: 'rgba(30, 30, 30, 0.95)',
+    borderRadius: 16,
+    borderTopLeftRadius: 4,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  aiMessageContent: {
+    padding: 16,
+  },
+  aiParagraph: {
+    marginBottom: 12,
+  },
+  aiListItem: {
+    color: 'white',
+    fontSize: 15,
+    lineHeight: 21,
+    marginBottom: 4,
+    paddingLeft: 8,
+    flex: 1,
+  },
+  aiListItemContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 4,
+  },
+  aiListBullet: {
+    color: '#4ECDC4',
+    fontWeight: '600',
+    fontSize: 15,
+    marginRight: 8,
+    marginTop: 1,
+  },
+  aiNumberedItem: {
+    color: 'white',
+    fontSize: 15,
+    lineHeight: 21,
+    marginBottom: 4,
+  },
+  aiHeading: {
+    color: '#4ECDC4',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 8,
+    marginTop: 4,
+  },
+  aiWorkoutBlock: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+    borderLeftWidth: 3,
+    borderLeftColor: '#4ECDC4',
+  },
+  aiWorkoutText: {
+    color: 'white',
+    fontSize: 14,
+    lineHeight: 20,
+    fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
+  },
+  bulletPoint: {
+    color: '#4ECDC4',
+    fontWeight: '600',
+  },
+  workoutBlock: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+    borderLeftWidth: 3,
+    borderLeftColor: '#4ECDC4',
+  },
+  workoutLine: {
+    color: 'white',
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 2,
+    fontFamily: 'monospace',
+  },
+  aiSectionHeader: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 8,
+    marginTop: 4,
+  },
+  aiActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+    gap: 12,
+  },
+  aiActionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 8,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    gap: 4,
+  },
+  aiActionButtonActive: {
+    backgroundColor: 'rgba(76, 217, 100, 0.2)',
+  },
+  aiActionLabel: {
+    color: '#888',
+    fontSize: 11,
+    fontWeight: '500',
+  },
+  // Share Modal Styles
+  shareModalContainer: {
+    flex: 1,
+    backgroundColor: '#000',
+  },
+  shareModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#1a1a1a',
+    borderBottomWidth: 1,
+    borderBottomColor: '#333',
+  },
+  shareModalCloseButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  shareModalTitle: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  shareModalSendButton: {
+    backgroundColor: '#4CD964',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 16,
+  },
+  shareModalSendButtonDisabled: {
+    backgroundColor: '#333',
+  },
+  shareModalSendButtonText: {
+    color: 'white',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  shareModalSendButtonTextDisabled: {
+    color: '#888',
+  },
+  sharePreview: {
+    backgroundColor: '#1a1a1a',
+    margin: 16,
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  sharePreviewTitle: {
+    color: '#4CD964',
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  sharePreviewText: {
+    color: '#DDD',
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  shareSearchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1a1a1a',
+    marginHorizontal: 16,
+    marginBottom: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  shareSearchIcon: {
+    marginRight: 8,
+  },
+  shareSearchInput: {
+    flex: 1,
+    color: 'white',
+    fontSize: 16,
+  },
+  shareUsersList: {
+    flex: 1,
+    paddingHorizontal: 16,
+  },
+  shareUsersListTitle: {
+    color: '#888',
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 12,
+    marginTop: 8,
+  },
+  shareLoadingIndicator: {
+    marginVertical: 20,
+  },
+  shareNoResults: {
+    color: '#666',
+    fontSize: 14,
+    textAlign: 'center',
+    fontStyle: 'italic',
+    marginVertical: 20,
+  },
+  shareUserItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 4,
+    borderRadius: 12,
+    backgroundColor: 'transparent',
+  },
+  shareUserItemSelected: {
+    backgroundColor: 'rgba(76, 217, 100, 0.1)',
+  },
+  shareUserAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 12,
+  },
+  shareUserInfo: {
+    flex: 1,
+  },
+  shareUserName: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  shareUserHandle: {
+    color: '#888',
+    fontSize: 14,
+    marginTop: 2,
+  },
+  followingTag: {
+    color: '#4CD964',
+    fontSize: 12,
+    fontWeight: '500',
   },
 });

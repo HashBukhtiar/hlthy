@@ -20,6 +20,7 @@ import { db, app } from '@/firebaseConfig';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { collection, query, where, orderBy, onSnapshot, Timestamp } from 'firebase/firestore';
 import { getOptimalImageUrl } from '@/utils/imageUtils';
+import { useBlockEnforcement } from '@/utils/blockUtils';
 
 // Helper function to display shortened string
 const displayShortenedString = (str: string, maxLength: number): string => {
@@ -29,13 +30,16 @@ const displayShortenedString = (str: string, maxLength: number): string => {
 
 export interface ActivityItem {
     id: string; 
-    type: 'follow_request' | 'new_follower' | 'post_like' | 'post_comment' | 'workout_save' | string;
+    type: 'follow_request' | 'new_follower' | 'post_like' | 'post_comment' | 'comment_like' | 'reply_like' | 'comment_reply' | 'workout_save' | string;
     fromUserId: string;
     fromUsername: string;
     fromProfileImageUrl?: string;
+    fromProfileThumbnailUrl?: string;
     postId?: string;
     postImageUrl?: string;
     postThumbnailUrl?: string;
+    commentId?: string;
+    replyId?: string;
     workoutId?: string; 
     workoutTitle?: string;
     workoutThumbnailUrl?: string;
@@ -50,6 +54,7 @@ export default function Pulse() {
     const authData = useAuth() as any;
     const currentUser = authData?.currentUser;
     const functions = getFunctions(app, 'northamerica-northeast2');
+    const { canInteractWithUser, isUserBlocked } = useBlockEnforcement();
 
     const [followRequests, setFollowRequests] = useState<ActivityItem[]>([]);
     const [otherActivities, setOtherActivities] = useState<ActivityItem[]>([]);    
@@ -90,7 +95,12 @@ export default function Pulse() {
         const unsubscribeFollowRequests = onSnapshot(followRequestsQuery, (querySnapshot) => {
             const fetchedFollowRequests: ActivityItem[] = [];
             querySnapshot.forEach((doc) => {
-                fetchedFollowRequests.push({ id: doc.id, ...doc.data() } as ActivityItem);
+                const activityData = doc.data() as ActivityItem;
+                
+                // Filter out follow requests from blocked users
+                if (!isUserBlocked(activityData.fromUserId)) {
+                    fetchedFollowRequests.push({ ...activityData, id: doc.id });
+                }
             });
             setFollowRequests(fetchedFollowRequests);
             setLoadingRequests(false);
@@ -102,9 +112,8 @@ export default function Pulse() {
         return () => {
             unsubscribeFollowRequests();
         };
-    }, [currentUser]);
+    }, [currentUser?.uid, isUserBlocked]);
 
-    // useEffect for Other Activities
     useEffect(() => {
         if (!currentUser) {
             setLoadingActivities(false);
@@ -115,10 +124,9 @@ export default function Pulse() {
         setLoadingActivities(true);
         const activityRef = collection(db, 'activity', currentUser.uid, 'userActivity');
 
-        // Query for activities that are NOT pending follow requests.
         const otherActivitiesQuery = query(
             activityRef,
-            where('status', '!=', 'pending'),
+            where('type', '!=', 'follow_request'),
             orderBy('createdAt', 'desc')
         );
 
@@ -126,11 +134,16 @@ export default function Pulse() {
             const fetchedOtherActivities: ActivityItem[] = [];
             querySnapshot.forEach((doc) => {
                 const activityData = doc.data();
+                
+                // Skip follow requests and blocked users
                 if (activityData.type === 'follow_request') {
                     return;
                 }
-
-                fetchedOtherActivities.push({ id: doc.id, ...activityData } as ActivityItem);
+                
+                // Filter out activities from blocked users
+                if (!isUserBlocked(activityData.fromUserId)) {
+                    fetchedOtherActivities.push({ ...activityData, id: doc.id } as ActivityItem);
+                }
             });
             setOtherActivities(fetchedOtherActivities);
             setLoadingActivities(false);
@@ -142,7 +155,7 @@ export default function Pulse() {
         return () => {
             unsubscribeOtherActivities();
         };
-    }, [currentUser]);
+    }, [currentUser?.uid, isUserBlocked]);
 
     const formatTimeAgo = (timestamp: Timestamp | undefined): string => {
         if (!timestamp) return '';
@@ -190,6 +203,12 @@ export default function Pulse() {
                     <View style={activityStyles.activityView}>
                         {followRequests.map((request, index) => {
                             const maxUsernameLength = 12;
+                            
+                            // Additional check for blocked users (defensive programming)
+                            if (isUserBlocked(request.fromUserId)) {
+                                return null;
+                            }
+                            
                             return (
                                 <View
                                     key={request.id}
@@ -198,73 +217,80 @@ export default function Pulse() {
                                         index !== followRequests.length - 1 && activityStyles.elementBorder
                                     ]}
                                 >
-                            <TouchableOpacity
-                                style={activityStyles.mainRowContent}
-                                onPress={() => {
-                                    if (request.fromUserId) router.push({ pathname: "/profile/[userId]", params: { userId: request.fromUserId } });
-                                    console.log("Follow request: Row pressed, navigating to user:", request.fromUserId);
-                                }}
-                                activeOpacity={0.6}
-                            >
-                                <View style={activityStyles.activityPostImage}>
-                                    <Image
-                                        source={request.fromProfileImageUrl ? { uri: request.fromProfileImageUrl } : profileIcon}
-                                        style={activityStyles.profileImage}
-                                    />
+                                    <TouchableOpacity
+                                        style={activityStyles.mainRowContent}
+                                        onPress={() => {
+                                            // Check if we can interact before navigating
+                                            if (request.fromUserId && !isUserBlocked(request.fromUserId)) {
+                                                router.push({ pathname: "/profile/[userId]", params: { userId: request.fromUserId } });
+                                            }
+                                            console.log("Follow request: Row pressed, navigating to user:", request.fromUserId);
+                                        }}
+                                        activeOpacity={0.6}
+                                    >
+                                        <View style={activityStyles.activityPostImage}>
+                                            <Image
+                                                source={
+                                                    getOptimalImageUrl(request.fromProfileThumbnailUrl, request.fromProfileImageUrl)
+                                                    ? { uri: getOptimalImageUrl(request.fromProfileThumbnailUrl, request.fromProfileImageUrl) }
+                                                    : profileIcon
+                                                }
+                                                style={activityStyles.profileImage}
+                                            />
+                                        </View>
+
+                                        <View style={activityStyles.textContent}>
+                                            <Text style={activityStyles.activityDescription} numberOfLines={2}>
+                                                <Text style={activityStyles.usernameText}>
+                                                    @{displayShortenedString(request.fromUsername, maxUsernameLength)}
+                                                </Text>
+                                            </Text>
+                                            <Text style={activityStyles.timeText}>{formatTimeAgo(request.createdAt)}</Text>
+                                        </View>
+                                    </TouchableOpacity>
+
+                                    <View style={activityStyles.actionButtonsContainer}>
+                                        <TouchableOpacity
+                                            style={[
+                                                activityStyles.actionButton,
+                                                activityStyles.acceptButton,
+                                                processingRequestInfo?.id === request.id && activityStyles.disabledButton
+                                            ]}
+                                            onPress={() => handleAcceptFollowRequest(request.id, request.fromUserId)}
+                                            disabled={processingRequestInfo?.id === request.id}
+                                        >
+                                            {processingRequestInfo?.id === request.id && processingRequestInfo?.action === 'accept' ? (
+                                                <ActivityIndicator size="small" color="#000" />
+                                            ) : (
+                                                <>
+                                                    <MaterialIcons name="check" size={16} color="#000" />
+                                                    <Text style={activityStyles.acceptButtonText}>Accept</Text>
+                                                </>
+                                            )}
+                                        </TouchableOpacity>
+
+                                        <TouchableOpacity
+                                            style={[
+                                                activityStyles.actionButton,
+                                                activityStyles.ignoreButton,
+                                                processingRequestInfo?.id === request.id && activityStyles.disabledButton
+                                            ]}
+                                            onPress={() => handleIgnoreFollowRequest(request.id, request.fromUserId)}
+                                            disabled={processingRequestInfo?.id === request.id}
+                                        >
+                                            {processingRequestInfo?.id === request.id && processingRequestInfo?.action === 'ignore' ? (
+                                                <ActivityIndicator size="small" color="#666" />
+                                            ) : (
+                                                <>
+                                                    <MaterialIcons name="close" size={16} color="#666" />
+                                                    <Text style={activityStyles.ignoreButtonText}>Ignore</Text>
+                                                </>
+                                            )}
+                                        </TouchableOpacity>
+                                    </View>
                                 </View>
-
-                                <View style={activityStyles.textContent}>
-                                    <Text style={activityStyles.activityDescription} numberOfLines={2}>
-                                        <Text style={activityStyles.usernameText}>
-                                            @{displayShortenedString(request.fromUsername, maxUsernameLength)}
-                                        </Text>
-                                    </Text>
-                                    <Text style={activityStyles.timeText}>{formatTimeAgo(request.createdAt)}</Text>
-                                </View>
-                            </TouchableOpacity>
-
-                            <View style={activityStyles.actionButtonsContainer}>
-                                <TouchableOpacity
-                                    style={[
-                                        activityStyles.actionButton,
-                                        activityStyles.acceptButton,
-                                        processingRequestInfo?.id === request.id && activityStyles.disabledButton
-                                    ]}
-                                    onPress={() => handleAcceptFollowRequest(request.id, request.fromUserId)}
-                                    disabled={processingRequestInfo?.id === request.id}
-                                >
-                                    {processingRequestInfo?.id === request.id && processingRequestInfo?.action === 'accept' ? (
-                                        <ActivityIndicator size="small" color="#000" />
-                                    ) : (
-                                        <>
-                                            <MaterialIcons name="check" size={16} color="#000" />
-                                            <Text style={activityStyles.acceptButtonText}>Accept</Text>
-                                        </>
-                                    )}
-                                </TouchableOpacity>
-
-                                <TouchableOpacity
-                                    style={[
-                                        activityStyles.actionButton,
-                                        activityStyles.ignoreButton,
-                                        processingRequestInfo?.id === request.id && activityStyles.disabledButton
-                                    ]}
-                                    onPress={() => handleIgnoreFollowRequest(request.id, request.fromUserId)}
-                                    disabled={processingRequestInfo?.id === request.id}
-                                >
-                                    {processingRequestInfo?.id === request.id && processingRequestInfo?.action === 'ignore' ? (
-                                        <ActivityIndicator size="small" color="#666" />
-                                    ) : (
-                                        <>
-                                            <MaterialIcons name="close" size={16} color="#666" />
-                                            <Text style={activityStyles.ignoreButtonText}>Ignore</Text>
-                                        </>
-                                    )}
-                                </TouchableOpacity>
-                            </View>
-                        </View>
-                    );
-                        })}
+                            );
+                        }).filter(Boolean)}
                     </View>
                 )}
             </View>
@@ -276,15 +302,15 @@ export default function Pulse() {
             console.error("Pulse.tsx: No current user found to accept follow request.");
             return;
         }
-        setProcessingRequestInfo({ id: activityId, action: 'accept' }); // New
-        console.log(`Pulse.tsx: Attempting to accept follow request. activityId=${activityId}, requestingUserId=${requestingUserId}`);
         
-        if (!functions) { 
-            console.error("Pulse.tsx: Firebase Functions instance is not initialized (this shouldn't happen if getFunctions was called correctly)!");
-            setProcessingRequestInfo(null); // New
+        // Check if the user is blocked before accepting
+        if (isUserBlocked(requestingUserId)) {
+            console.log("Cannot accept follow request from blocked user:", requestingUserId);
             return;
         }
-        console.log("Pulse.tsx: Firebase Functions instance seems okay (region specified).");
+        
+        setProcessingRequestInfo({ id: activityId, action: 'accept' });
+        console.log(`Pulse.tsx: Attempting to accept follow request. activityId=${activityId}, requestingUserId=${requestingUserId}`);
 
         try {
             const callableFunc = httpsCallable(functions, 'acceptfollowrequest');
@@ -306,8 +332,13 @@ export default function Pulse() {
             console.error("No current user found to ignore follow request.");
             return;
         }
+        
+        // Check if the user is blocked before ignoring (though we should still allow ignoring blocked users)
+        // Actually, let's allow ignoring even blocked users to clean up old requests
+        
         setProcessingRequestInfo({ id: activityId, action: 'ignore' });
         console.log(`Attempting to ignore follow request: activityId=${activityId}, requestingUserId=${requestingUserId}`);
+    
         try {
             const ignoreRequestFunction = httpsCallable(functions, 'ignorefollowrequest');
             const result = await ignoreRequestFunction({ activityId, requestingUserId });
@@ -346,17 +377,23 @@ export default function Pulse() {
         const getActivityIcon = (type: string) => {
             switch (type) {
                 case 'post_like':
-                    return <MaterialIcons name="favorite" size={16} color="#ff2d55" />;
+                return <MaterialIcons name="favorite" size={16} color="#ff2d55" />;
                 case 'post_comment':
-                    return <MaterialIcons name="chat-bubble" size={16} color="#ff2d55" />;
+                return <MaterialIcons name="chat-bubble" size={16} color="#ff2d55" />;
+                case 'comment_like':
+                return <MaterialIcons name="favorite" size={16} color="#ff2d55" />;
+                case 'reply_like':
+                return <MaterialIcons name="favorite" size={16} color="#ff2d55" />;
+                case 'comment_reply':
+                return <MaterialIcons name="reply" size={16} color="#ff2d55" />;
                 case 'workout_save':
-                    return <MaterialIcons name="bookmark" size={16} color="#ff2d55" />;
+                return <MaterialIcons name="bookmark" size={16} color="#ff2d55" />;
                 case 'new_follower':
-                    return <MaterialIcons name="person-add" size={16} color="#ff2d55" />;
+                return <MaterialIcons name="person-add" size={16} color="#ff2d55" />;
                 case 'follow_accepted':
-                    return <MaterialIcons name="check-circle" size={16} color="#ff2d55" />;
+                return <MaterialIcons name="check-circle" size={16} color="#ff2d55" />;
                 default:
-                    return <MaterialIcons name="notifications" size={16} color="#ff2d55" />;
+                return <MaterialIcons name="notifications" size={16} color="#ff2d55" />;
             }
         };
 
@@ -369,97 +406,126 @@ export default function Pulse() {
                     </View>
                 </View>
                 <View style={activityStyles.activityView}>
-                    {otherActivities.map((activity, index) => (
-                        <View
-                            key={activity.id}
-                            style={[
-                                activityStyles.activityElement,
-                                index !== otherActivities.length - 1 && activityStyles.elementBorder
-                            ]}
-                        >
-                            <TouchableOpacity
-                                style={activityStyles.mainRowContent}
-                                onPress={() => {
-                                    if (activity.type === 'post_like' || activity.type === 'post_comment') {
-                                        if (activity.postId) router.push({ pathname: "/view-post/[id]", params: { id: activity.postId } });
-                                    } else if (activity.type === 'workout_save') {
-                                        if (activity.workoutId) router.push({ pathname: "/view-workout/[id]", params: { id: activity.workoutId } });
-                                    } else if (activity.type === 'new_follower' || activity.type === 'follow_accepted') {
-                                        if (activity.fromUserId) router.push({ pathname: "/profile/[userId]", params: { userId: activity.fromUserId } });
-                                    }
-                                    console.log("Activity element pressed:", activity.type, activity.id);
-                                }}
-                                activeOpacity={0.7}
+                    {otherActivities.map((activity, index) => {
+                        // Additional check for blocked users (defensive programming)
+                        if (isUserBlocked(activity.fromUserId)) {
+                            return null;
+                        }
+                        
+                        return (
+                            <View
+                                key={activity.id}
+                                style={[
+                                    activityStyles.activityElement,
+                                    index !== otherActivities.length - 1 && activityStyles.elementBorder
+                                ]}
                             >
                                 <TouchableOpacity
+                                    style={activityStyles.mainRowContent}
                                     onPress={() => {
-                                        if (activity.fromUserId) router.push({ pathname: "/profile/[userId]", params: { userId: activity.fromUserId } });
-                                        console.log("Profile image pressed, navigating to user:", activity.fromUserId);
-                                    }}
-                                    style={activityStyles.activityPostImage}
-                                >
-                                    <Image
-                                        source={
-                                            activity.fromProfileImageUrl 
-                                                ? { uri: activity.fromProfileImageUrl } 
-                                                : profileIcon
+                                        // Check if we can interact before navigating
+                                        if (isUserBlocked(activity.fromUserId)) {
+                                            console.log("Cannot interact with blocked user:", activity.fromUserId);
+                                            return;
                                         }
-                                        style={activityStyles.activityUserImageStyle}
-                                    />
-                                </TouchableOpacity>
-
-                                <View style={activityStyles.textContent}>
-                                    <Text style={activityStyles.activityDescription} numberOfLines={3}>
-                                        <Text
-                                            style={activityStyles.usernameText}
-                                            onPress={() => {
-                                                if (activity.fromUserId) router.push({ pathname: "/profile/[userId]", params: { userId: activity.fromUserId } });
-                                                console.log("Username pressed, navigating to user:", activity.fromUserId);
-                                            }}
-                                        >
-                                            @{displayShortenedString(activity.fromUsername || 'User', maxUsernameLength)}
-                                        </Text>
-                                        <Text style={activityStyles.actionText}>
-                                            {activity.type === 'post_like' && ' liked your post'}
-                                            {activity.type === 'post_comment' && ` commented: "${displayShortenedString(activity.commentText || '', maxCommentLength)}"`}
-                                            {activity.type === 'workout_save' && ` saved your workout: ${displayShortenedString(activity.workoutTitle || 'Workout', maxWorkoutTitleLength)}`}
-                                            {activity.type === 'new_follower' && ' started following you'}
-                                            {activity.type === 'follow_accepted' && ' accepted your follow request'}
-                                        </Text>
-                                    </Text>
-                                    <Text style={activityStyles.timeText}>{formatTimeAgo(activity.createdAt)}</Text>
-                                </View>
-                            </TouchableOpacity>
-
-                            {(activity.type === 'post_like' || activity.type === 'post_comment') && activity.postImageUrl && (
-                                <TouchableOpacity
-                                    onPress={() => {
-                                        if (activity.postId) router.push({ pathname: "/view-post/[id]", params: { id: activity.postId } });
+                                        
+                                        if (activity.type === 'post_like' || activity.type === 'post_comment' || activity.type === 'comment_like' || activity.type === 'reply_like') {
+                                            if (activity.postId) router.push({ pathname: "/view-post/[id]", params: { id: activity.postId } });
+                                        } else if (activity.type === 'workout_save') {
+                                            if (activity.workoutId) router.push({ pathname: "/view-workout/[id]", params: { id: activity.workoutId } });
+                                        } else if (activity.type === 'new_follower' || activity.type === 'follow_accepted') {
+                                            if (activity.fromUserId) router.push({ pathname: "/profile/[userId]", params: { userId: activity.fromUserId } });
+                                        }
+                                        console.log("Activity element pressed:", activity.type, activity.id);
                                     }}
-                                    style={activityStyles.activityContentPreviewImageContainer}
+                                    activeOpacity={0.7}
                                 >
-                                    <Image
-                                        source={{ uri: getOptimalImageUrl(activity.postThumbnailUrl, activity.postImageUrl) }}
-                                        style={activityStyles.activityContentPreviewImageStyle}
-                                    />
-                                </TouchableOpacity>
-                            )}
+                                    <TouchableOpacity
+                                        onPress={() => {
+                                            // Check if we can interact before navigating to profile
+                                            if (activity.fromUserId && !isUserBlocked(activity.fromUserId)) {
+                                                router.push({ pathname: "/profile/[userId]", params: { userId: activity.fromUserId } });
+                                            }
+                                            console.log("Profile image pressed, navigating to user:", activity.fromUserId);
+                                        }}
+                                        style={activityStyles.activityPostImage}
+                                    >
+                                        <Image
+                                            source={
+                                                getOptimalImageUrl(activity.fromProfileThumbnailUrl, activity.fromProfileImageUrl)
+                                                ? { uri: getOptimalImageUrl(activity.fromProfileThumbnailUrl, activity.fromProfileImageUrl) }
+                                                : profileIcon
+                                            }
+                                            style={activityStyles.activityUserImageStyle}
+                                        />
+                                    </TouchableOpacity>
 
-                            {activity.type === 'workout_save' && activity.postImageUrl && (
-                                <TouchableOpacity
-                                    onPress={() => {
-                                        if (activity.workoutId) router.push({ pathname: "/view-workout/[id]", params: { id: activity.workoutId } });
-                                    }}
-                                    style={activityStyles.activityContentPreviewImageContainer}
-                                >
-                                    <Image
-                                        source={{ uri: getOptimalImageUrl(activity.workoutThumbnailUrl, activity.postImageUrl) }}
-                                        style={activityStyles.activityContentPreviewImageStyle}
-                                    />
+                                    <View style={activityStyles.textContent}>
+                                        <Text style={activityStyles.activityDescription} numberOfLines={3}>
+                                            <Text
+                                                style={activityStyles.usernameText}
+                                                onPress={() => {
+                                                    // Check if we can interact before navigating to profile
+                                                    if (activity.fromUserId && !isUserBlocked(activity.fromUserId)) {
+                                                        router.push({ pathname: "/profile/[userId]", params: { userId: activity.fromUserId } });
+                                                    }
+                                                    console.log("Username pressed, navigating to user:", activity.fromUserId);
+                                                }}
+                                            >
+                                                @{displayShortenedString(activity.fromUsername || 'User', maxUsernameLength)}
+                                            </Text>
+                                            <Text style={activityStyles.actionText}>
+                                                {activity.type === 'post_like' && ' liked your post'}
+                                                {activity.type === 'post_comment' && ` commented: "${displayShortenedString(activity.commentText || '', maxCommentLength)}"`}
+                                                {activity.type === 'comment_like' && ` liked your comment: "${displayShortenedString(activity.commentText || '', maxCommentLength)}"`}
+                                                {activity.type === 'reply_like' && ` liked your reply: "${displayShortenedString(activity.commentText || '', maxCommentLength)}"`}
+                                                {activity.type === 'comment_reply' && ` replied to your comment: "${displayShortenedString(activity.commentText || '', maxCommentLength)}"`}
+                                                {activity.type === 'workout_save' && ` saved your workout: ${displayShortenedString(activity.workoutTitle || 'Workout', maxWorkoutTitleLength)}`}
+                                                {activity.type === 'new_follower' && ' started following you'}
+                                                {activity.type === 'follow_accepted' && ' accepted your follow request'}
+                                            </Text>
+                                        </Text>
+                                        <Text style={activityStyles.timeText}>{formatTimeAgo(activity.createdAt)}</Text>
+                                    </View>
                                 </TouchableOpacity>
-                            )}
-                        </View>
-                    ))}
+
+                                {/* Content preview images with block checking */}
+                                {(activity.type === 'post_like' || activity.type === 'post_comment' || activity.type === 'comment_like' || activity.type === 'reply_like') && activity.postImageUrl && (
+                                    <TouchableOpacity
+                                        onPress={() => {
+                                            // Check if we can interact before navigating to post
+                                            if (!isUserBlocked(activity.fromUserId) && activity.postId) {
+                                                router.push({ pathname: "/view-post/[id]", params: { id: activity.postId } });
+                                            }
+                                        }}
+                                        style={activityStyles.activityContentPreviewImageContainer}
+                                    >
+                                        <Image
+                                            source={{ uri: getOptimalImageUrl(activity.postThumbnailUrl, activity.postImageUrl) }}
+                                            style={activityStyles.activityContentPreviewImageStyle}
+                                        />
+                                    </TouchableOpacity>
+                                )}
+
+                                {activity.type === 'workout_save' && activity.postImageUrl && (
+                                    <TouchableOpacity
+                                        onPress={() => {
+                                            // Check if we can interact before navigating to workout
+                                            if (!isUserBlocked(activity.fromUserId) && activity.workoutId) {
+                                                router.push({ pathname: "/view-workout/[id]", params: { id: activity.workoutId } });
+                                            }
+                                        }}
+                                        style={activityStyles.activityContentPreviewImageContainer}
+                                    >
+                                        <Image
+                                            source={{ uri: getOptimalImageUrl(activity.workoutThumbnailUrl, activity.postImageUrl) }}
+                                            style={activityStyles.activityContentPreviewImageStyle}
+                                        />
+                                    </TouchableOpacity>
+                                )}
+                            </View>
+                        );
+                    }).filter(Boolean)}
                 </View>
             </View>
         );

@@ -37,6 +37,12 @@ service cloud.firestore {
          !isBlocked(postData.authorId, currentUserId) && 
          !isBlocked(currentUserId, postData.authorId));
     }
+    
+    function canInteractWithPost(postData, currentUserId) {
+      return canViewPost(postData, currentUserId) &&
+        !isBlocked(postData.authorId, currentUserId) &&
+        !isBlocked(currentUserId, postData.authorId);
+    }
 
     // Users collection
     match /users/{userId} {
@@ -107,8 +113,18 @@ service cloud.firestore {
         request.resource.data.keys().hasAll(['authorId', 'createdAt']) &&
         request.resource.data.createdAt is timestamp;
       
-      allow update: if isAuthenticated() && 
-        request.auth.uid == resource.data.authorId;
+      allow update: if isAuthenticated() && (
+        (request.auth.uid == resource.data.authorId) ||
+        (
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactionCount']) &&
+          resource.data.get('visibility', 'public') == 'public'
+        ) ||
+        (
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactionCount']) &&
+          resource.data.get('visibility', 'public') == 'followers' &&
+          isFollowing(resource.data.authorId, request.auth.uid)
+        )
+      );
       
       allow delete: if isAuthenticated() && 
         request.auth.uid == resource.data.authorId;
@@ -116,7 +132,7 @@ service cloud.firestore {
       // Post subcollections
       match /likers/{userId} {
         allow read: if isAuthenticated();
-        allow write: if isAuthenticated() && request.auth.uid == userId;
+        allow create, delete: if isAuthenticated() && request.auth.uid == userId;
       }
       
       match /comments/{commentId} {
@@ -128,14 +144,42 @@ service cloud.firestore {
           request.resource.data.keys().hasAll(['authorId', 'text', 'createdAt']) &&
           request.resource.data.text is string &&
           request.resource.data.text.size() > 0;
-        allow update, delete: if isAuthenticated() && 
+        
+        // Allow comment author to update/delete their own comment,
+        // OR allow anyone who can interact with the post to update replyCount,
+        // OR allow anyone who can interact with the post to update likes/likedBy for liking
+        allow update: if isAuthenticated() && (
+          (request.auth.uid == resource.data.authorId) ||
+          (
+            canInteractWithPost(get(/databases/$(database)/documents/posts/$(postId)).data, request.auth.uid) &&
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['replyCount']) &&
+            request.resource.data.replyCount == resource.data.replyCount + 1
+          ) ||
+          (
+            canInteractWithPost(get(/databases/$(database)/documents/posts/$(postId)).data, request.auth.uid) &&
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'likedBy'])
+          )
+        );
+        
+        allow delete: if isAuthenticated() && 
           request.auth.uid == resource.data.authorId;
         
         match /replies/{replyId} {
           allow read: if isAuthenticated();
           allow create: if isAuthenticated() && 
-            request.auth.uid == request.resource.data.authorId;
-          allow update, delete: if isAuthenticated() && 
+            request.auth.uid == request.resource.data.authorId &&
+            canInteractWithPost(get(/databases/$(database)/documents/posts/$(postId)).data, request.auth.uid) &&
+            request.resource.data.keys().hasAll(['authorId', 'text', 'createdAt', 'parentCommentId']) &&
+            request.resource.data.text is string &&
+            request.resource.data.text.size() > 0;
+          allow update: if isAuthenticated() && (
+            (request.auth.uid == resource.data.authorId) ||
+            (
+              canInteractWithPost(get(/databases/$(database)/documents/posts/$(postId)).data, request.auth.uid) &&
+              request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'likedBy'])
+            )
+          );
+          allow delete: if isAuthenticated() && 
             request.auth.uid == resource.data.authorId;
         }
       }
@@ -150,7 +194,12 @@ service cloud.firestore {
     // Activity collection
     match /activity/{userId}/userActivity/{activityId} {
       allow read: if isOwner(userId);
-      allow write: if false;
+      allow create: if isAuthenticated() && 
+        request.resource.data.keys().hasAll(['type', 'fromUserId', 'fromUsername', 'createdAt']) &&
+        request.auth.uid == request.resource.data.fromUserId;
+      allow update: if false;
+      allow delete: if isAuthenticated() && 
+        request.auth.uid == resource.data.fromUserId;
     }
 
     // Workouts collection

@@ -1,41 +1,55 @@
 import { Redirect } from 'expo-router';
 import { useState, useEffect } from 'react';
-import { View, ActivityIndicator } from 'react-native';
+import { View, ActivityIndicator, Platform } from 'react-native';
 import { auth } from '@/firebaseConfig';
-import { onAuthStateChanged, signInWithEmailAndPassword } from 'firebase/auth';
+import { onAuthStateChanged, signInWithEmailAndPassword, setPersistence, browserSessionPersistence } from 'firebase/auth';
 
 // Backdoor to bypass login. must be false in production
 const BYPASS_AUTH = false;
 const DEV_EMAIL = 'dev2@gmail.com';
 const DEV_PASSWORD = 'dev1232';
 
+
 export default function Index() {
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
-    // If bypass is enabled, automatically login with dev credentials
-    if (BYPASS_AUTH) {
-      signInWithEmailAndPassword(auth, DEV_EMAIL, DEV_PASSWORD)
-        .then(() => {
+    let unsubscribe: (() => void) | undefined;
+
+    (async () => {
+      // Only set persistence for web builds
+      if (Platform.OS === 'web') {
+        try {
+          await setPersistence(auth, browserSessionPersistence);
+          console.log('Web environment detected. Using session persistence for auth.');
+        } catch (err) {
+          console.warn('setPersistence failed:', err);
+        }
+      }
+
+      // If bypass is enabled, automatically login with dev credentials
+      if (BYPASS_AUTH) {
+        try {
+          await signInWithEmailAndPassword(auth, DEV_EMAIL, DEV_PASSWORD);
           setIsAuthenticated(true);
-          setIsLoading(false);
-        })
-        .catch((error) => {
+        } catch (error: any) {
           console.error('Auto-login failed:', error.message);
           // Even if auto-login fails, we'll still consider bypass active
           setIsAuthenticated(true);
+        } finally {
           setIsLoading(false);
-        });
-      return;
-    }
+        }
+        return;
+      }
 
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setIsAuthenticated(!!user);
-      setIsLoading(false);
-    });
+      unsubscribe = onAuthStateChanged(auth, (user) => {
+        setIsAuthenticated(!!user);
+        setIsLoading(false);
+      });
+    })();
 
-    return () => unsubscribe();
+    return () => unsubscribe?.();
   }, []);
 
   if (isLoading) {

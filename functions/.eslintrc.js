@@ -27,7 +27,7 @@ module.exports = {
     "quotes": ["error", "double"],
     "import/no-unresolved": 0,
     "indent": ["error", 2],
-    "linebreak-style": ["error", "unix"],
+    "linebreak-style": "off",
     "object-curly-spacing": ["error", "never"],
     "max-len": ["error", {"code": 200, "ignoreComments": true, "ignoreUrls": true}],
     "no-trailing-spaces": "error",

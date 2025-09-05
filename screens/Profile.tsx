@@ -1,13 +1,18 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { View, ScrollView, Text, Image, StyleSheet, Dimensions, FlatList, TouchableOpacity, SafeAreaView, Animated, ActivityIndicator, RefreshControl, Modal } from 'react-native';
+import { View, ScrollView, Text, Image, StyleSheet, Dimensions, FlatList, TouchableOpacity, SafeAreaView, Animated, ActivityIndicator, RefreshControl, Modal, Platform, ActionSheetIOS, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useProfileData } from '@/hooks/useProfileData';
 import { useAuth } from '@/context/AuthContext';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { formatCount } from '@/logic/formattingFunctions';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { app } from '@/firebaseConfig';
 import { BOTTOM_BAR_HEIGHT } from '@/styles/globalStyles';
-import { doc, updateDoc } from 'firebase/firestore';
+import { useBlockEnforcement } from '@/utils/blockUtils';
+import { useUnits } from '@/hooks/useUnits';
+import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/firebaseConfig';
+
 const archetypeIcons = {
   'athlete': require('@/assets/images/athlete.png'),
   'bodybuilder': require('@/assets/images/bodybuilder.png'),
@@ -15,7 +20,8 @@ const archetypeIcons = {
   'generalist': require('@/assets/images/generalist.png'),
   'powerlifter': require('@/assets/images/powerlifter.png'),
 };
-// Archetype descriptions for tooltips. Should we add this to the DB?
+
+// Archetype descriptions for tooltips
 const archetypeDescriptions = {
   'athlete': 'Balanced all-round athletic performance with focus on endurance and strength.',
   'bodybuilder': 'Focus on muscle hypertrophy, symmetry, and aesthetic physique development.',
@@ -23,14 +29,8 @@ const archetypeDescriptions = {
   'generalist': 'Well-rounded fitness approach with balanced strength, cardio, and flexibility goals.',
   'powerlifter': 'Specialized in maximizing strength in the squat, bench press, and deadlift.',
 };
-import { getOptimalImageUrl } from '@/utils/imageUtils';
-
-interface Workout {
-  id: number;
-  name: string;
-  date: Date;
-  favorites: number;
-}
+import { getOptimalImageUrl, getCoverImageSource } from '@/utils/imageUtils';
+import { MilestoneDetails } from '@/types/milestone';
 
 interface ProfileScreenProps {
   userId?: string;
@@ -42,21 +42,11 @@ enum TabType {
   WORKOUTS = 'WORKOUTS'
 }
 
-export interface MilestoneDetails {
-  exerciseName?: string;
-  value?: number;
-  weightUnit?: string;
-  reps?: number;
-  newWeight?: number;
-  newWeightUnit?: string;
-  previousWeight?: number;
-  previousWeightUnit?: string;
-  previousValue?: number;
-  previousReps?: number;
-  improvement?: string;
-  totalLoss?: number;
-  percentageLoss?: string;
-}
+const generateConversationId = (userId1: string, userId2: string): string => {
+  // Sort user IDs alphabetically to ensure consistent conversation ID
+  const sortedIds = [userId1, userId2].sort();
+  return `${sortedIds[0]}_${sortedIds[1]}`;
+};
 
 const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
   const { currentUser, userProfile: currentUserProfile, refreshUserProfile } = useAuth();
@@ -79,8 +69,12 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
     unfollowUser,
     followActionLoading,
     viewedProfileId,
-  } = useProfileData(routeUserId);
+  } = useProfileData(routeUserId, currentUserProfile);
   const createdWorkouts = workouts || [];
+  const { isUserBlocked } = useBlockEnforcement();
+  const { getWeightUnit, getDistanceUnit, formatWeight, formatDistance, convertWeight } = useUnits();
+  const [isBlockedByUser, setIsBlockedByUser] = useState(false);
+  const [hasBlockedUser, setHasBlockedUser] = useState(false);
 
   const displayablePosts = useMemo(() => {
     if (!posts) return [];
@@ -97,11 +91,51 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
   const tabWidth = screenWidth / 3;
   const [tooltipVisible, setTooltipVisible] = useState(false);
   const [tooltipText, setTooltipText] = useState('');
-  const [isArchetypeModalVisible, setIsArchetypeModalVisible] = useState(false);
-  const [isUpdatingArchetype, setIsUpdatingArchetype] = useState(false);
 
   const isOwnProfile = !routeUserId || routeUserId === currentUser?.uid;
   const displayProfileData = isOwnProfile ? (profileData || currentUserProfile) : profileData;
+
+  useEffect(() => {
+    if (displayProfileData?.blockedUsers && currentUser) {
+      setIsBlockedByUser(displayProfileData.blockedUsers.includes(currentUser.uid));
+    }
+    if (currentUserProfile?.blockedUsers && displayProfileData?.id) {
+      setHasBlockedUser(currentUserProfile.blockedUsers.includes(displayProfileData.id));
+    }
+  }, [displayProfileData, currentUserProfile, currentUser]);
+  
+  // Process profile data to ensure consistent count structure
+  const processedProfileData = useMemo(() => {
+    if (!displayProfileData) return null;
+    
+    return {
+      ...displayProfileData,
+      // Prioritize top-level counts (current Firebase structure)
+      followerCount: displayProfileData.followerCount ?? displayProfileData.stats?.followerCount ?? 0,
+      followingCount: displayProfileData.followingCount ?? displayProfileData.stats?.followingCount ?? 0,
+      
+      // Ensure stats object exists with consistent data
+      stats: {
+        ...displayProfileData.stats,
+        followerCount: displayProfileData.followerCount ?? displayProfileData.stats?.followerCount ?? 0,
+        followingCount: displayProfileData.followingCount ?? displayProfileData.stats?.followingCount ?? 0,
+        postCount: displayProfileData.stats?.postCount ?? 0,
+        workoutCount: displayProfileData.stats?.workoutCount ?? 0,
+      }
+    };
+  }, [displayProfileData]);
+
+  const isPrivate = processedProfileData?.profileVisibility === 'private';
+  const canViewContent = useMemo(() => {
+    // If blocked by the user, cannot view content
+    if (isBlockedByUser && !isOwnProfile) return false;
+    
+    // If we've blocked the user, we can still view their profile but with limited interactions
+    // (This maintains current behavior while showing block status)
+    
+    // Original private profile logic
+    return isOwnProfile || !isPrivate || isFollowingStatus;
+  }, [isOwnProfile, isPrivate, isFollowingStatus, isBlockedByUser]);
 
   const indicatorPosition = tabIndicator.interpolate({
     inputRange: [0, screenWidth, screenWidth * 2],
@@ -131,8 +165,22 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
     // Parse weight string like "275 lbs" into value and unit
     const weightString = milestone.details.weight || '';
     const weightParts = weightString.split(' ');
-    const weightValue = weightParts[0] || '';
-    const weightUnit = weightParts.length > 1 ? weightParts[1] : '';
+    const rawWeightValue = parseFloat(weightParts[0]) || 0;
+    const storedWeightUnit = weightParts.length > 1 ? weightParts[1] : '';
+    
+    // Convert weight to user's preferred unit
+    let convertedWeight = rawWeightValue;
+    let displayWeightUnit = storedWeightUnit || getWeightUnit();
+    
+    if (storedWeightUnit && storedWeightUnit !== getWeightUnit()) {
+      const userPreferredUnit = getWeightUnit() as 'kg' | 'lbs';
+      const storedUnit = storedWeightUnit as 'kg' | 'lbs';
+      convertedWeight = convertWeight(rawWeightValue, storedUnit, userPreferredUnit);
+      displayWeightUnit = userPreferredUnit;
+    }
+    
+    // Round to 1 decimal place
+    const displayWeight = Math.round(convertedWeight * 10) / 10;
 
     if (milestone.milestoneType === 'PR') {
       return (
@@ -148,8 +196,8 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
             <View style={styles.previousPRContent}>
               <View style={styles.prMetricsRow}>
                 <View style={styles.prMetricGroup}>
-                  <Text style={styles.prMetricValue}>{weightValue}</Text>
-                  <Text style={styles.prMetricLabel}>{weightUnit}</Text>
+                  <Text style={styles.prMetricValue}>{displayWeight}</Text>
+                  <Text style={styles.prMetricLabel}>{displayWeightUnit}</Text>
                 </View>
                 {milestone.details.reps != null && (
                   <>
@@ -177,8 +225,8 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
             <View style={styles.previousPRContent}>
               <View style={styles.prMetricsRow}>
                 <View style={styles.prMetricGroup}>
-                  <Text style={styles.prMetricValue}>{weightValue}</Text>
-                  <Text style={styles.prMetricLabel}>{weightUnit}</Text>
+                  <Text style={styles.prMetricValue}>{displayWeight}</Text>
+                  <Text style={styles.prMetricLabel}>{displayWeightUnit}</Text>
                 </View>
               </View>
             </View>
@@ -188,21 +236,129 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
     return null;
   };
 
-  const handleArchetypeSelect = async (newArchetype: string) => {
-    if (!currentUser) return;
-    setIsUpdatingArchetype(true);
+  const handleDirectMessage = async () => {
+    if (!currentUser || !displayProfileData?.id) return;
+    
+    const conversationId = generateConversationId(currentUser.uid, displayProfileData.id);
+    
     try {
-      const userDocRef = doc(db, 'users', currentUser.uid);
-      await updateDoc(userDocRef, {
-        archetype: newArchetype,
-      });
-      await refreshUserProfile(); // Refresh profile data from auth context
-      setIsArchetypeModalVisible(false);
+      // Check if conversation already exists
+      const conversationRef = doc(db, 'conversations', conversationId);
+      const conversationSnap = await getDoc(conversationRef);
+      
+      if (conversationSnap.exists()) {
+        // Conversation exists, navigate directly
+        router.push(`/chat/${conversationId}`);
+      } else {
+        // New conversation, navigate and let SmartChatInput handle permission checking
+        router.push(`/chat/${conversationId}`);
+      }
     } catch (error) {
-      console.error("Failed to update archetype:", error);
-      // Optionally, show an error message to the user
-    } finally {
-      setIsUpdatingArchetype(false);
+      console.error('Error navigating to chat:', error);
+      Alert.alert('Error', 'Failed to open chat. Please try again.');
+    }
+  };
+
+  const handleBlockUser = async () => {
+    if (!displayProfileData?.id) return;
+    const username = displayProfileData.username || 'this user';
+
+    Alert.alert(
+      'Block User',
+      `Are you sure you want to block @${username}? They will not be able to interact with you.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Block',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const functions = getFunctions(app, 'northamerica-northeast2');
+              const blockUserFn = httpsCallable(functions, 'blockUser');
+              await blockUserFn({ targetUserId: displayProfileData.id });
+              
+              // Refresh user profile to update blocked users list
+              if (refreshUserProfile) {
+                await refreshUserProfile();
+              }
+              
+              Alert.alert('Blocked', `You have blocked @${username}.`);
+              router.replace('/');
+            } catch (error) {
+              Alert.alert('Error', 'Failed to block user. Please try again.');
+              console.error('Block user error:', error);
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  // Add new handleUnblockUser function
+  const handleUnblockUser = async () => {
+    if (!displayProfileData?.id) return;
+    const username = displayProfileData.username || 'this user';
+
+    Alert.alert(
+      'Unblock User',
+      `Are you sure you want to unblock @${username}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Unblock',
+          style: 'default',
+          onPress: async () => {
+            try {
+              const functions = getFunctions(app, 'northamerica-northeast2');
+              const unblockUserFn = httpsCallable(functions, 'unblockUser');
+              await unblockUserFn({ targetUserId: displayProfileData.id });
+              Alert.alert('Success', `@${username} has been unblocked.`);
+              // Refresh the profile data to update the UI
+              await refreshProfileData();
+            } catch (error) {
+              Alert.alert('Error', 'Failed to unblock user. Please try again.');
+              console.error('Unblock user error:', error);
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  // Show action sheet (three dots)
+  const showMoreOptions = () => {
+    if (!displayProfileData?.id) return;
+    
+    const isBlocked = isUserBlocked(displayProfileData.id);
+    const actionText = isBlocked ? 'Unblock User' : 'Block User';
+    const actionHandler = isBlocked ? handleUnblockUser : handleBlockUser;
+    
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: ['Cancel', actionText],
+          destructiveButtonIndex: isBlocked ? -1 : 1,
+          cancelButtonIndex: 0,
+          userInterfaceStyle: 'dark',
+        },
+        (buttonIndex) => {
+          if (buttonIndex === 1) actionHandler();
+        }
+      );
+    } else {
+      // Android fallback
+      Alert.alert(
+        'More Options',
+        '',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { 
+            text: actionText, 
+            style: isBlocked ? 'default' : 'destructive', 
+            onPress: actionHandler 
+          }
+        ]
+      );
     }
   };
 
@@ -281,13 +437,9 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
       style={styles.workoutItem} 
       onPress={() => router.push(`/view-workout/${item.id}`)}
     >
-      <Image 
-        source={
-          getOptimalImageUrl(item.thumbnailUrl, item.coverImageUrl) 
-            ? { uri: getOptimalImageUrl(item.thumbnailUrl, item.coverImageUrl)! } 
-            : require('@/assets/images/default_workout_cover.png')
-        } 
-        style={styles.workoutItemImage} 
+      <Image
+        source={getCoverImageSource(item.thumbnailUrl, item.coverImageUrl)}
+        style={styles.workoutItemImage}
       />
       <View style={styles.workoutItemTextContainer}>
         <Text style={styles.workoutItemTitle} numberOfLines={1}>{item.title}</Text>
@@ -327,7 +479,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
       data={displayablePosts}
       renderItem={({ item }) => (
         <TouchableOpacity onPress={() => handleImagePress(item)}>
-          <Image source={{ uri: item.thumbnailUrl || item.imageUrl }} style={styles.postImage} />
+          <Image source={{ uri: getOptimalImageUrl(item.thumbnailUrl, item.imageUrl) }} style={styles.postImage} />
         </TouchableOpacity>
       )}
       keyExtractor={(item) => item.id}
@@ -470,13 +622,9 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
               onPress={() => handleWorkoutPress(item.id)} 
               style={styles.workoutListItemRowStyle}
             >
-              <Image 
-                source={
-                  getOptimalImageUrl(item.thumbnailUrl, item.coverImageUrl) 
-                    ? { uri: getOptimalImageUrl(item.thumbnailUrl, item.coverImageUrl)! } 
-                    : require('@/assets/images/default_workout_cover.png')
-                } 
-                style={styles.workoutListItemImageStyle} 
+              <Image
+                source={getCoverImageSource(item.thumbnailUrl, item.coverImageUrl)}
+                style={styles.workoutListItemImageStyle}
               />
               <View style={styles.workoutListItemTextContainerStyle}>
                 <Text style={styles.workoutListItemTitleStyle} numberOfLines={2}>{item.title || 'Unnamed Workout'}</Text>
@@ -573,19 +721,45 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
       </View>
     );
   }
+
+  if (isBlockedByUser && !isOwnProfile) {
+    return (
+      <SafeAreaView style={styles.container}>
+        {/* Back Button */}
+        {router.canGoBack() && (
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => router.back()}
+          >
+            <Ionicons name="arrow-back" size={28} color="white" />
+          </TouchableOpacity>
+        )}
+        
+        <View style={styles.blockedContainer}>
+          <Ionicons name="person-remove" size={64} color="#666" />
+          <Text style={styles.blockedTitle}>User Not Available</Text>
+          <Text style={styles.blockedSubtitle}>
+            This user has restricted access to their profile.
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
   
   if (error) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.profileHeader}>
           <Image
-            source={{ 
+            source={{
               uri: getOptimalImageUrl(
-                displayProfileData?.profileThumbnailUrl, 
-                displayProfileData?.profileImageUrl
-              ) || 'https://thumbs.dreamstime.com/b/creative-illustration-default-avatar-profile-placeholder-isolated-background-art-design-grey-photo-blank-template-mockup-144855718.jpg' 
+                processedProfileData?.profileThumbnailUrl,
+                processedProfileData?.profileImageUrl
+              ),
+              cache: 'reload'
             }}
             style={styles.profileImage}
+            key={processedProfileData?.profileImageUrl || 'default-profile'}
           />
           <Text style={styles.profileName}>{currentUserProfile?.displayName || 'User'}</Text>
           <Text style={styles.profileBio}>Error loading complete profile data</Text>
@@ -600,7 +774,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
       </SafeAreaView>
     );
   }
-
+  
   // Main return statement for the component
   return (
     <SafeAreaView style={styles.container}>
@@ -626,127 +800,132 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
         )}
 
         {/* Follow/Unfollow Button (Other's Profile) */}
-        {!isOwnProfile && displayProfileData && (
+        {!isOwnProfile && displayProfileData && !isBlockedByUser && (
           <TouchableOpacity
             style={[
               styles.followButton,
-              isFollowingStatus 
-                ? styles.unfollowButtonActive 
-                : isRequestPending
-                  ? styles.requestedButtonActive // Add a new style for "Requested"
-                  : styles.followButtonActive,
-              followActionLoading && styles.followButtonDisabled
+              hasBlockedUser
+                ? styles.blockedButtonActive
+                : isFollowingStatus 
+                  ? styles.unfollowButtonActive 
+                  : isRequestPending
+                    ? styles.requestedButtonActive
+                    : styles.followButtonActive,
+              (followActionLoading || hasBlockedUser) && styles.followButtonDisabled
             ]}
             onPress={() => {
-              if (followActionLoading) return;
+              if (followActionLoading || hasBlockedUser) return;
               if (isFollowingStatus) {
-                unfollowUser(displayProfileData.id); // This will also cancel a request if isFollowingStatus is false but isRequestPending is true
+                unfollowUser(displayProfileData.id);
               } else if (isRequestPending) {
-                // Optionally, allow cancelling the request by pressing "Requested" again
-                // This would call unfollowUser which now handles cancelling pending requests
                 unfollowUser(displayProfileData.id); 
               } else {
                 followUser(displayProfileData.id);
               }
             }}
-            disabled={followActionLoading}
+            disabled={followActionLoading || hasBlockedUser}
           >
             {followActionLoading ? (
               <ActivityIndicator size="small" color="#FFF" />
             ) : (
               <Text style={styles.followButtonText}>
-                {isFollowingStatus 
-                  ? "Unfollow" 
-                  : isRequestPending 
-                    ? "Requested" 
-                    : "Follow"}
+                {hasBlockedUser 
+                  ? "Blocked" 
+                  : isFollowingStatus 
+                    ? "Unfollow" 
+                    : isRequestPending 
+                      ? "Requested" 
+                      : "Follow"}
               </Text>
             )}
           </TouchableOpacity>
         )}
-
         <Image
-          source={{ 
-            uri: getOptimalImageUrl(
-              displayProfileData?.profileThumbnailUrl, 
-              displayProfileData?.profileImageUrl
-            ) || 'https://thumbs.dreamstime.com/b/creative-illustration-default-avatar-profile-placeholder-isolated-background-art-design-grey-photo-blank-template-mockup-144855718.jpg' 
-          }}
+          source={{ uri: getOptimalImageUrl(
+            processedProfileData?.profileThumbnailUrl,
+            processedProfileData?.profileImageUrl
+          ) }}
           style={styles.profileImage}
         />
-        <Text style={styles.profileName}>{displayProfileData?.displayName || 'User'}</Text>
-        <Text style={styles.profileUsername}>@{displayProfileData?.username || 'username'}</Text>
-        <Text style={styles.profileBio}>{displayProfileData?.bio || 'No bio yet'}</Text>
+        <Text style={styles.profileName}>{processedProfileData?.displayName || 'User'}</Text>
+        <View style={styles.profileNameRow}>
+          <Text style={styles.profileUsername}>
+            @{processedProfileData?.username || 'username'}
+          </Text>
+          
+          {/* DM Button (Other's Profile) */}
+          {!isOwnProfile && displayProfileData && !isBlockedByUser && !hasBlockedUser && (
+            <TouchableOpacity
+              style={styles.dmButton}
+              onPress={handleDirectMessage}
+            >
+              <Ionicons name="chatbubble-outline" size={18} color="#007AFF" />
+            </TouchableOpacity>
+          )}
+          
+          {/* Three dots button (Other's Profile) */}
+          {!isOwnProfile && displayProfileData && (
+            <TouchableOpacity
+              style={styles.inlineMoreButton}
+              onPress={showMoreOptions}
+            >
+              <Ionicons name="ellipsis-horizontal" size={22} color="white" />
+            </TouchableOpacity>
+          )}
+        </View>
+        <Text style={styles.profileBio}>{processedProfileData?.bio || 'No bio yet'}</Text>
 
         <View style={styles.statsContainer}>
           <TouchableOpacity
             style={styles.statItem}
             onPress={() => {
-              if (isOwnProfile) {
-                setIsArchetypeModalVisible(true);
-              } else if (displayProfileData?.archetype) {
-                setTooltipText(archetypeDescriptions[displayProfileData.archetype.toLowerCase() || 'generalist']);
+              if (processedProfileData?.archetype && !isBlockedByUser) {
+                setTooltipText(archetypeDescriptions[processedProfileData.archetype.toLowerCase() || 'generalist']);
                 setTooltipVisible(true);
               }
             }}
-            disabled={!displayProfileData?.archetype && !isOwnProfile}
+            disabled={!processedProfileData?.archetype || isBlockedByUser}
           >
             <Image
-              source={archetypeIcons[displayProfileData?.archetype?.toLowerCase() || 'generalist']}
-              style={styles.archetypeIcon}
+              source={archetypeIcons[processedProfileData?.archetype?.toLowerCase() || 'generalist']}
+              style={[styles.archetypeIcon, isBlockedByUser && styles.disabledIcon]}
             />
-            <Text style={styles.statLabel}>Archetype</Text>
+            <Text style={[styles.statLabel, isBlockedByUser && styles.disabledText]}>Archetype</Text>
           </TouchableOpacity>
+          
           <TouchableOpacity
             style={styles.statItem}
-            onPress={() => router.push(`/followers/${viewedProfileId || currentUser?.uid}`)}
+            onPress={() => {
+              if (isPrivate && !isOwnProfile) return;
+              if (isBlockedByUser) return;
+              router.push(`/followers/${viewedProfileId}`);
+            }}
+            disabled={(isPrivate && !isOwnProfile) || isBlockedByUser}
           >
-            <Text style={styles.statNumber}>{profileData?.followerCount !== undefined ? profileData.followerCount : followers.length}</Text>
-            <Text style={styles.statLabel}>Followers</Text>
+            <Text style={[styles.statNumber, isBlockedByUser && styles.disabledText]}>
+              {isBlockedByUser ? "••" : (processedProfileData?.followerCount ?? followers.length)}
+            </Text>
+            <Text style={[styles.statLabel, isBlockedByUser && styles.disabledText]}>Followers</Text>
           </TouchableOpacity>
+          
           <TouchableOpacity
             style={styles.statItem}
-            onPress={() => router.push(`/following/${viewedProfileId || currentUser?.uid}`)}
+            onPress={() => {
+              if (isPrivate && !isOwnProfile) return;
+              if (isBlockedByUser) return;
+              router.push(`/following/${viewedProfileId}`);
+            }}
+            disabled={(isPrivate && !isOwnProfile) || isBlockedByUser}
           >
-            <Text style={styles.statNumber}>{profileData?.followingCount !== undefined ? profileData.followingCount : following.length}</Text>
-            <Text style={styles.statLabel}>Following</Text>
+            <Text style={[styles.statNumber, isBlockedByUser && styles.disabledText]}>
+              {isBlockedByUser ? "••" : (processedProfileData?.followingCount ?? following.length)}
+            </Text>
+            <Text style={[styles.statLabel, isBlockedByUser && styles.disabledText]}>Following</Text>
           </TouchableOpacity>
         </View>
       </View>
 
-      <Modal
-        transparent={true}
-        visible={isArchetypeModalVisible}
-        animationType="fade"
-        onRequestClose={() => setIsArchetypeModalVisible(false)}
-      >
-        <TouchableOpacity
-          style={styles.modalContainer}
-          activeOpacity={1}
-          onPressOut={() => setIsArchetypeModalVisible(false)}
-        >
-          <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
-            <Text style={styles.modalTitle}>Choose Your Archetype</Text>
-            {isUpdatingArchetype ? (
-              <ActivityIndicator size="large" color="#FFF" style={{ marginVertical: 20 }} />
-            ) : (
-              Object.keys(archetypeIcons).map((key) => (
-                <TouchableOpacity
-                  key={key}
-                  style={styles.archetypeChoice}
-                  onPress={() => handleArchetypeSelect(key)}
-                >
-                  <Image source={archetypeIcons[key]} style={styles.archetypeChoiceIcon} />
-                  <Text style={styles.archetypeChoiceText}>
-                    {key.charAt(0).toUpperCase() + key.slice(1)}
-                  </Text>
-                </TouchableOpacity>
-              ))
-            )}
-          </View>
-        </TouchableOpacity>
-      </Modal>
-
+      {/* Archetype Tooltip Modal - For all profiles */}
       <Modal
         transparent={true}
         visible={tooltipVisible}
@@ -761,11 +940,11 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
           <View style={styles.tooltip}>
             <View style={styles.tooltipHeader}>
               <Image
-                source={archetypeIcons[displayProfileData?.archetype?.toLowerCase() || 'generalist']}
+                source={archetypeIcons[processedProfileData?.archetype?.toLowerCase() || 'generalist']}
                 style={styles.tooltipIcon}
               />
               <Text style={styles.tooltipTitle}>
-                {displayProfileData?.archetype?.split(' ').map(word =>
+                {processedProfileData?.archetype?.split(' ').map(word =>
                   word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
                 ).join(' ') || 'Generalist'}
               </Text>
@@ -784,24 +963,39 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
 
       {renderCustomTabBar()}
 
-      <View style={styles.tabContent}>
-        <FlatList
-          ref={flatListRef}
-          data={tabScenes}
-          horizontal
-          pagingEnabled
-          showsHorizontalScrollIndicator={false}
-          onScroll={handleScroll}
-          onMomentumScrollEnd={handleScrollEnd}
-          renderItem={({ item }) => (
-            <View style={[styles.tabContentContainer, { width: screenWidth }]}>
-              {item.component}
-            </View>
-          )}
-          keyExtractor={(item) => item.key}
-          initialScrollIndex={0}
-        />
-      </View>
+      {canViewContent ? (
+        <View style={styles.tabContent}>
+          <FlatList
+            ref={flatListRef}
+            data={tabScenes}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onScroll={handleScroll}
+            onMomentumScrollEnd={handleScrollEnd}
+            renderItem={({ item }) => (
+              <View style={[styles.tabContentContainer, { width: screenWidth }]}>
+                {item.component}
+              </View>
+            )}
+            keyExtractor={(item) => item.key}
+            initialScrollIndex={0}
+          />
+        </View>
+      ) : (
+        <View style={styles.lockedContainer}>
+          <Ionicons 
+            name={isBlockedByUser ? "person-remove" : "lock-closed"} 
+            size={48} 
+            color="gray" 
+          />
+          <Text style={styles.lockedText}>
+            {isBlockedByUser 
+              ? "This user has restricted access to their profile" 
+              : "This account is private"}
+          </Text>
+        </View>
+      )}
     </SafeAreaView>
   );
 };
@@ -844,6 +1038,28 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     marginVertical: 10,
+  },
+  profileNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 5,
+  },
+  dmButton: {
+    marginLeft: 8,
+    padding: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0, 122, 255, 0.1)',
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 122, 255, 0.3)',
+  },
+  inlineMoreButton: {
+    marginLeft: 8,
+    padding: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   profileUsername: {
     color: '#a6a6a6',
@@ -1105,6 +1321,13 @@ const styles = StyleSheet.create({
     zIndex: 1,
     padding: 8,
   },
+  moreButton: {
+    position: 'absolute',
+    top: 15,
+    right: 15 + 48 + 8,
+    zIndex: 1,
+    padding: 8,
+  },
   followButton: {
     position: 'absolute',
     top: 15,
@@ -1247,41 +1470,46 @@ const styles = StyleSheet.create({
     color: '#FF9500',
     fontWeight: 'bold',
   },
-  modalContainer: {
+  lockedContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-  },
-  modalContent: {
-    backgroundColor: '#2C2C2E',
-    borderRadius: 14,
     padding: 20,
-    width: '85%',
-    maxHeight: '80%',
   },
-  modalTitle: {
-    color: '#FFF',
-    fontSize: 20,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 20,
+  lockedText: {
+    color: 'gray',
+    fontSize: 16,
+    marginTop: 12,
   },
-  archetypeChoice: {
-    flexDirection: 'row',
+  blockedContainer: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#3A3A3C',
+    padding: 40,
   },
-  archetypeChoiceIcon: {
-    width: 30,
-    height: 30,
-    marginRight: 15,
+  blockedTitle: {
+    color: '#fff',
+    fontSize: 20,
+    fontWeight: '600',
+    marginTop: 20,
+    marginBottom: 8,
   },
-  archetypeChoiceText: {
-    color: '#FFF',
-    fontSize: 18,
+  blockedSubtitle: {
+    color: '#999',
+    fontSize: 16,
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  blockedButtonActive: {
+    backgroundColor: '#444',
+    borderColor: '#666',
+  },
+  disabledIcon: {
+    opacity: 0.5,
+  },
+  disabledText: {
+    opacity: 0.5,
+    color: '#666',
   },
 });
 

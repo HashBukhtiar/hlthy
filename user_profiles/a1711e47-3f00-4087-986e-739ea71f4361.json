@@ -1,0 +1,76 @@
+{
+  "user_id": "a1711e47-3f00-4087-986e-739ea71f4361",
+  "created_at": "2025-08-19T22:01:12.929619",
+  "updated_at": "2025-08-19T22:01:12.978997",
+  "age": 28,
+  "gender": "male",
+  "height_cm": null,
+  "weight_kg": null,
+  "experience_level": "intermediate",
+  "goals": {
+    "primary_goal": "strength",
+    "secondary_goals": [],
+    "target_weight": null,
+    "target_body_fat": null,
+    "activity_level": "moderate",
+    "training_frequency": 4,
+    "session_duration": 60,
+    "preferred_training_style": "balanced"
+  },
+  "active_injuries": [
+    {
+      "injury_id": "585c3b05-c0d0-4c0a-88fc-9b273e5e2e99",
+      "injury_type": "elbow_pain",
+      "severity": "moderate",
+      "affected_area": "right_elbow",
+      "onset_date": "2025-08-19T22:01:12.953303",
+      "status": "recovering",
+      "notes": "Pain during overhead movements, started 3 days ago | 2025-08-19: Feeling better, reduced pain during daily activities",
+      "banned_exercises": [
+        "overhead_pressing",
+        "tricep_extensions",
+        "close_grip_exercises"
+      ],
+      "caution_movements": [
+        "reduce_range_of_motion",
+        "lighter_weights",
+        "slow_tempo"
+      ],
+      "recovery_timeline": null
+    }
+  ],
+  "injury_history": [],
+  "medical_conditions": [],
+  "medications": [],
+  "preferred_equipment": [
+    "dumbbells",
+    "barbells",
+    "machines"
+  ],
+  "available_equipment": {
+    "gym": [
+      "barbells",
+      "dumbbells",
+      "machines",
+      "cables",
+      "racks"
+    ],
+    "home": [
+      "dumbbells",
+      "resistance_bands",
+      "bodyweight"
+    ],
+    "current": "gym"
+  },
+  "disliked_exercises": [],
+  "preferred_rep_ranges": {
+    "strength": "1-5",
+    "hypertrophy": "8-12",
+    "endurance": "15+"
+  },
+  "preferred_tone": "motivational",
+  "reply_length": "standard",
+  "exercise_name_style": "common",
+  "workout_history": [],
+  "progress_metrics": {}
+}

@@ -30,11 +30,9 @@ import {
     CaptionInput,
     WorkoutAttachment,
     WorkoutSelectionModal,
-    VisibilitySelector,
-    VisibilityModal,
-    visibilityItems,
     ImagePickerModal,
 } from './PostComponents';
+import { useUnits } from '@/hooks/useUnits';
 
 interface MilestoneWithPostProps {
     onBack?: () => void;
@@ -50,6 +48,7 @@ export default function MilestoneWithPost({ onBack }: MilestoneWithPostProps) {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [formError, setFormError] = useState<string | null>(null);
     const [caption, setCaption] = useState('');
+    const { getWeightUnit, getDistanceUnit } = useUnits();
     
     // Previous PR data
     const [previousPR, setPreviousPR] = useState<PreviousPRData | null>(null);
@@ -423,7 +422,7 @@ export default function MilestoneWithPost({ onBack }: MilestoneWithPostProps) {
                     }
                     milestoneDetails.value = parseFloat(weight);
                     milestoneDetails.reps = parseInt(reps, 10);
-                    milestoneDetails.weightUnit = 'lbs';
+                    milestoneDetails.weightUnit = getWeightUnit();
                     if (previousPR) {
                         milestoneDetails.previousValue = previousPR.weight;
                         milestoneDetails.previousReps = previousPR.reps;
@@ -463,7 +462,7 @@ export default function MilestoneWithPost({ onBack }: MilestoneWithPostProps) {
                         throw new Error("Please enter a distance");
                     }
                     milestoneDetails.value = parseFloat(distance);
-                    milestoneDetails.weightUnit = 'miles';
+                    milestoneDetails.weightUnit = getDistanceUnit();
                     if (metricType === 'distance_time') {
                         const timeSeconds = (parseInt(hours || '0') * 3600) + (parseInt(minutes || '0') * 60) + parseInt(seconds || '0');
                         if (timeSeconds <= 0) {
@@ -481,11 +480,16 @@ export default function MilestoneWithPost({ onBack }: MilestoneWithPostProps) {
             }
 
             let authorArchetype = null;
+            let userVisibility = 'public'; // Default visibility
+            
             if (currentUser) {
                 const userDocRef = doc(db, 'users', currentUser.uid);
                 const userDocSnap = await getDoc(userDocRef);
                 if (userDocSnap.exists()) {
-                    authorArchetype = userDocSnap.data().archetype || null;
+                    const userData = userDocSnap.data();
+                    authorArchetype = userData.archetype || null;
+                    // Get user's default visibility preference from profile
+                    userVisibility = userData.defaultVisibility || 'public';
                 }
             }
 
@@ -494,7 +498,7 @@ export default function MilestoneWithPost({ onBack }: MilestoneWithPostProps) {
                 imageUri: imageUri ?? undefined,
                 isMilestone: true,
                 milestoneDetails: milestoneDetails,
-                visibility: (valueVisibility as 'public' | 'followers') || 'public',
+                visibility: userVisibility, // Use user's profile visibility preference
                 workoutId: selectedWorkout?.id || null,
                 authorArchetype: authorArchetype
             };
@@ -544,7 +548,7 @@ export default function MilestoneWithPost({ onBack }: MilestoneWithPostProps) {
                     <>
                         <View style={styles.metricRow}>
                             <View style={styles.metricField}>
-                                <Text style={styles.metricLabel}>Weight (lbs)</Text>
+                                <Text style={styles.metricLabel}>Weight ({getWeightUnit()})</Text>
                                 <View style={styles.inputWithIcon}>
                                     <TextInput
                                         style={styles.metricInput}
@@ -554,7 +558,12 @@ export default function MilestoneWithPost({ onBack }: MilestoneWithPostProps) {
                                         placeholderTextColor="#666"
                                         keyboardType="numeric"
                                     />
-                                    <MaterialCommunityIcons name="weight-pound" size={18} color="#777" style={styles.inputIcon} />
+                                    <MaterialCommunityIcons 
+                                        name={getWeightUnit() === 'kg' ? "weight-kilogram" : "weight-pound"} 
+                                        size={18} 
+                                        color="#777" 
+                                        style={styles.inputIcon} 
+                                    />
                                 </View>
                             </View>
                             
@@ -665,7 +674,7 @@ export default function MilestoneWithPost({ onBack }: MilestoneWithPostProps) {
 
                 {selectedExercise.metricType === 'distance' && (
                     <View style={styles.metricField}>
-                        <Text style={styles.metricLabel}>Distance (miles)</Text>
+                        <Text style={styles.metricLabel}>Distance ({getDistanceUnit()})</Text>
                         <View style={styles.inputWithIcon}>
                             <TextInput
                                 style={styles.metricInput}
@@ -683,7 +692,7 @@ export default function MilestoneWithPost({ onBack }: MilestoneWithPostProps) {
                 {selectedExercise.metricType === 'distance_time' && (
                     <View style={styles.metricContainer}>
                         <View style={styles.metricField}>
-                            <Text style={styles.metricLabel}>Distance (miles)</Text>
+                            <Text style={styles.metricLabel}>Distance ({getDistanceUnit()})</Text>
                             <View style={styles.inputWithIcon}>
                                 <TextInput
                                     style={styles.metricInput}
@@ -876,13 +885,6 @@ export default function MilestoneWithPost({ onBack }: MilestoneWithPostProps) {
                 workoutModalVisible={workoutModalVisible}
                 setWorkoutModalVisible={setWorkoutModalVisible}
                 selectWorkout={selectWorkout}
-            />
-            <VisibilityModal
-                visibilityModalVisible={visibilityModalVisible}
-                setVisibilityModalVisible={setVisibilityModalVisible}
-                valueVisibility={valueVisibility}
-                setValueVisibility={setValueVisibility}
-                itemsVisibility={visibilityItems}
             />
         </SafeAreaView>
     );

@@ -332,8 +332,8 @@ export default function CreateWorkout() {
             })).filter(ex => ex.name.trim() !== '')
           })).filter(seg => seg.exercises.length > 0 || seg.name.trim() !== ''),
           createdAt: serverTimestamp(),
-          isPublic: isPublic,
-          visibility: isPublic ? 'public' : 'private',
+          visibility: visibility, // Use the visibility selector value
+          isPublic: visibility === 'public', // Derive isPublic from visibility
           savedCount: 0,
           tags: [],
         };
@@ -376,8 +376,8 @@ export default function CreateWorkout() {
             })).filter(ex => ex.name.trim() !== '')
           })).filter(seg => seg.exercises.length > 0 || seg.name.trim() !== ''),
           createdAt: serverTimestamp(),
-          isPublic: isPublic,
-          visibility: isPublic ? 'public' : 'private',
+          visibility: visibility, // Use the visibility selector value
+          isPublic: visibility === 'public', // Derive isPublic from visibility
           savedCount: 0,
           tags: [],
         };

@@ -4,10 +4,15 @@ import {
 } from 'react-native';
 import { useAuth } from '@/context/AuthContext';
 import { db } from '@/firebaseConfig';
-import { collection, getDocs, doc, updateDoc, getDoc, Timestamp, query, where, limit, setDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, updateDoc, addDoc, getDoc, Timestamp, query, where, limit, setDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
+import { getOptimalImageUrl } from '@/utils/imageUtils';
+import { useBlockEnforcement } from '@/utils/blockUtils';
+import { httpsCallable } from 'firebase/functions';
+import { functions } from '@/firebaseConfig';
+import MessageRequestItem from '@/components/MessageRequestItem';
 
 interface UserConversationData {
     // Fields from /users/{userId}/conversations/{conversationId}
@@ -32,25 +37,44 @@ interface CombinedConversationItem extends UserConversationData, ConversationMet
     id: string;
     isPinnedAI?: boolean;
     isUnread?: boolean;
+    otherParticipantThumbnailUrl?: string;
 }
 
 interface UserData {
     id: string;
     username: string;
     profileImageUrl?: string;
+    profileThumbnailUrl?: string;
 }
 
-const ChatItem = ({ 
-    item, 
+const ChatItem = ({
+    item,
     setConversations,
-    currentUser 
-}: { 
-    item: CombinedConversationItem, 
+    currentUser
+}: {
+    item: CombinedConversationItem,
     setConversations: React.Dispatch<React.SetStateAction<CombinedConversationItem[]>>,
-    currentUser: any  
-}) => {    
+    currentUser: any
+}) => {
     const router = useRouter();
     const [isPressed, setIsPressed] = useState(false);
+
+    // static assets
+    const aiIcon   = require('@/assets/images/icon.png');
+    const fallback = require('@/assets/images/profile-icon.png');
+
+    // pick the best remote URL: full-size first, then thumbnail (or swap if your util is inverted)
+    const remoteUrl = getOptimalImageUrl(
+        item.otherParticipantThumbnailUrl,
+        item.otherParticipantProfileImage
+    );
+
+    // build your source prop
+    const source = item.isPinnedAI
+        ? aiIcon             // pinned AI uses bundled icon
+        : remoteUrl
+        ? { uri: remoteUrl } // real user → network image
+        : fallback;           // fallback → bundled default
 
     const handleDeleteConversation = async (conversationId: string, username: string) => {
         Alert.alert(
@@ -93,7 +117,14 @@ const ChatItem = ({
     };
 
     const navigateToChat = () => {
-        router.push(`/chat/${item.id}`);
+        if (item.isPinnedAI) {
+            if (currentUser) {
+                const aiConversationId = `${currentUser.uid}_ai_conversation`;
+                router.push(`/chat/${aiConversationId}`);
+            }
+        } else {
+            router.push(`/chat/${item.id}`);
+        }
     };
 
     return (
@@ -105,15 +136,13 @@ const ChatItem = ({
             onShowUnderlay={() => setIsPressed(true)}
             onHideUnderlay={() => setIsPressed(false)}
         >
-            <View
-                style={[
-                    styles.itemContainer,
-                    item.isPinnedAI ? styles.aiChatItem : null,
-                    isPressed ? styles.pressedItem : null, 
-                ]}
-            >
+            <View style={[
+                styles.itemContainer,
+                item.isPinnedAI ? styles.aiChatItem : null,
+                isPressed ? styles.pressedItem : null
+            ]}>
                 <Image
-                    source={item.isPinnedAI ? require('@/assets/images/icon.png') : item.otherParticipantProfileImage ? { uri: item.otherParticipantProfileImage } : require('@/assets/images/profile-icon.png')}
+                    source={source}
                     style={styles.profilePic}
                 />
                 <View style={styles.textContainer}>
@@ -139,6 +168,7 @@ const ChatItem = ({
 
 export default function DMs() {
     const { currentUser } = useAuth();
+    const { canInteractWithUser } = useBlockEnforcement();
     const router = useRouter();
     const [conversations, setConversations] = useState<CombinedConversationItem[]>([]);
     const [loading, setLoading] = useState(true);
@@ -148,6 +178,8 @@ export default function DMs() {
     const [searchLoading, setSearchLoading] = useState(false);
     const searchInputRef = useRef<TextInput>(null);
     const [refreshing, setRefreshing] = useState(false);
+    const [messageRequests, setMessageRequests] = useState<any[]>([]);
+    const [loadingRequests, setLoadingRequests] = useState(true);
     
     const handleComposePress = () => {
         setIsSearching(true);
@@ -163,96 +195,70 @@ export default function DMs() {
         }
         setLoading(true);
         try {
+            // 1. Fetch all of the current user's conversation references
             const userConversationsRef = collection(db, `users/${currentUser.uid}/conversations`);
             const userConversationsSnap = await getDocs(userConversationsRef);
+            if (userConversationsSnap.empty) {
+                setConversations([]);
+                setLoading(false);
+                return;
+            }
 
+            // 2. Collect all other participant IDs
+            const participantIds = new Set<string>();
+            userConversationsSnap.docs.forEach(doc => {
+                const otherId = doc.data().otherParticipantId;
+                if (otherId) participantIds.add(otherId);
+            });
+
+            // 3. Fetch all participant profiles in a single batched query
+            const profiles: Record<string, UserData> = {};
+            if (participantIds.size > 0) {
+                const usersQuery = query(collection(db, 'users'), where('__name__', 'in', Array.from(participantIds)));
+                const usersSnapshot = await getDocs(usersQuery);
+                usersSnapshot.forEach(userDoc => {
+                    const data = userDoc.data();
+                    profiles[userDoc.id] = {
+                        id: userDoc.id,
+                        username: data.username,
+                        profileImageUrl: data.profileImageUrl,
+                        profileThumbnailUrl: data.profileThumbnailUrl,
+                    };
+                });
+            }
+
+            // 4. Fetch conversation metadata and combine with fresh profile data
             const combinedDataPromises = userConversationsSnap.docs.map(async (userConvDoc) => {
                 const userConvData = userConvDoc.data() as UserConversationData;
                 const conversationId = userConvDoc.id;
+                const otherParticipantId = userConvData.otherParticipantId;
 
                 const conversationMetaRef = doc(db, 'conversations', conversationId);
                 const conversationMetaSnap = await getDoc(conversationMetaRef);
 
-                if (conversationMetaSnap.exists()) {
+                if (conversationMetaSnap.exists() && otherParticipantId) {
                     const conversationMetaData = conversationMetaSnap.data() as ConversationMetadata;
-                    
-                    // Determine if the conversation is unread
+                    const otherUserProfile = profiles[otherParticipantId];
+
                     const isUnread = conversationMetaData.lastMessageAt &&
-                                    userConvData.otherParticipantId &&
                                     !conversationMetaData.isPinnedAI &&
                                     conversationMetaData.lastMessageSenderId !== currentUser.uid &&
-                                    (
-                                        !userConvData.lastRead || 
-                                        (userConvData.lastRead && conversationMetaData.lastMessageAt.toMillis() > userConvData.lastRead.toMillis())
-                                    );
+                                    (!userConvData.lastRead || (userConvData.lastRead && conversationMetaData.lastMessageAt.toMillis() > userConvData.lastRead.toMillis()));
 
-                    // Get the other participant's ID
-                    const otherParticipantId = userConvData.otherParticipantId;
-                    
-                    // Check if profile image is missing or empty
-                    if ((!userConvData.otherParticipantProfileImage || userConvData.otherParticipantProfileImage === '') 
-                        && otherParticipantId) {
-                        
-                        let profileImageUrl = '';
-                        
-                        // First try to get it from conversation metadata
-                        if (conversationMetaData.participantProfileImages && 
-                            conversationMetaData.participantProfileImages[otherParticipantId]) {
-                            profileImageUrl = conversationMetaData.participantProfileImages[otherParticipantId];
-                        }
-                        
-                        // If still empty, fetch directly from the user's profile
-                        if (!profileImageUrl) {
-                            try {
-                                const otherUserRef = doc(db, 'users', otherParticipantId);
-                                const otherUserSnap = await getDoc(otherUserRef);
-                                
-                                if (otherUserSnap.exists() && otherUserSnap.data().profileImageUrl) {
-                                    profileImageUrl = otherUserSnap.data().profileImageUrl;
-                                    
-                                    // Also update the conversation metadata for future reference
-                                    if (conversationMetaData.participantProfileImages) {
-                                        const updatedProfileImages = {
-                                            ...conversationMetaData.participantProfileImages,
-                                            [otherParticipantId]: profileImageUrl
-                                        };
-                                        
-                                        await updateDoc(conversationMetaRef, {
-                                            participantProfileImages: updatedProfileImages
-                                        });
-                                    }
-                                }
-                            } catch (e) {
-                                console.log("Error fetching other user profile:", e);
-                            }
-                        }
-                        
-                        // If we found a profile image, update the conversation document
-                        if (profileImageUrl) {
-                            userConvData.otherParticipantProfileImage = profileImageUrl;
-                            
-                            try {
-                                const userConvRef = doc(db, `users/${currentUser.uid}/conversations`, conversationId);
-                                await updateDoc(userConvRef, {
-                                    otherParticipantProfileImage: profileImageUrl
-                                });
-                            } catch (e) {
-                                console.log("Error updating profile image:", e);
-                            }
-                        }
-                    }
-                    
                     return {
                         id: conversationId,
                         ...userConvData,
                         ...conversationMetaData,
+                        // Always use the fresh profile data
+                        otherParticipantUsername: otherUserProfile?.username || userConvData.otherParticipantUsername || 'User',
+                        otherParticipantProfileImage: otherUserProfile?.profileImageUrl,
+                        otherParticipantThumbnailUrl: otherUserProfile?.profileThumbnailUrl,
                         isUnread,
                     };
                 }
                 return null;
             });
 
-            // Rest of your function remains the same
             const fetchedConversations = (await Promise.all(combinedDataPromises))
                 .filter(conv => conv !== null) as CombinedConversationItem[];
 
@@ -289,6 +295,62 @@ export default function DMs() {
         }, [fetchConversations])
     );
 
+    useEffect(() => {
+        if (!currentUser) {
+            setMessageRequests([]);
+            setLoadingRequests(false);
+            return;
+        }
+        setLoadingRequests(true);
+        const fetchRequests = async () => {
+            try {
+                const reqSnap = await getDocs(collection(db, "users", currentUser.uid, "messageRequests"));
+                setMessageRequests(reqSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+            } catch (error) {
+                console.error("Error fetching message requests:", error);
+                setMessageRequests([]);
+            } finally {
+                setLoadingRequests(false);
+            }
+        };
+        fetchRequests();
+    }, [currentUser]);
+
+    const handleApproveRequest = async (req: any) => {
+        try {
+            const approveMessageRequest = httpsCallable(functions, 'approveMessageRequest');
+            await approveMessageRequest({
+            requestId: req.id,
+            conversationId: req.conversationId,
+            });
+
+            // Remove from state
+            setMessageRequests(msgs => msgs.filter(m => m.id !== req.id));
+            
+            // Refresh conversations to show the new chat
+            await fetchConversations();
+            
+            Alert.alert("Request Approved", "You can now chat with this user.");
+        } catch (error) {
+            console.error("Error approving request:", error);
+            Alert.alert("Error", "Failed to approve request.");
+        }
+    };
+
+    const handleIgnoreRequest = async (req: any) => {
+        try {
+            const ignoreMessageRequest = httpsCallable(functions, 'ignoreMessageRequest');
+            await ignoreMessageRequest({
+            requestId: req.id,
+            });
+
+            setMessageRequests(msgs => msgs.filter(m => m.id !== req.id));
+        } catch (error) {
+            console.error("Error ignoring request:", error);
+            Alert.alert("Error", "Failed to ignore request.");
+        }
+    };
+
     const handleRefresh = useCallback(async () => {
         setRefreshing(true);
         await fetchConversations();
@@ -308,28 +370,39 @@ export default function DMs() {
                 usersRef,
                 where('username', '>=', searchText.toLowerCase()),
                 where('username', '<=', searchText.toLowerCase() + '\uf8ff'),
-                limit(10)
+                limit(20) // Fetch more to account for filtering
             );
 
             const querySnapshot = await getDocs(q);
             const users: UserData[] = [];
+            
             querySnapshot.forEach(doc => {
-                if (doc.id !== currentUser?.uid) {
+                const userData = doc.data();
+                const userId = doc.id;
+                
+                // Skip current user and blocked users
+                if (userId === currentUser?.uid) return;
+                
+                // Check if we can interact with this user
+                if (canInteractWithUser(userId, userData.blockedUsers)) {
                     users.push({
-                        id: doc.id,
-                        username: doc.data().username,
-                        profileImageUrl: doc.data().profileImageUrl,
+                        id: userId,
+                        username: userData.username,
+                        profileImageUrl: userData.profileImageUrl,
+                        profileThumbnailUrl: userData.profileThumbnailUrl,
                     });
                 }
             });
-            setSearchResults(users);
+            
+            // Limit final results
+            setSearchResults(users.slice(0, 10));
         } catch (error) {
             console.error("Error searching users: ", error);
             setSearchResults([]);
         } finally {
             setSearchLoading(false);
         }
-    }, [searchText, currentUser]);
+    }, [searchText, currentUser, canInteractWithUser]);
 
     useEffect(() => {
         // Debounce the search function
@@ -416,18 +489,22 @@ export default function DMs() {
         );
     };
 
-    const renderSearchItem = ({ item }: { item: UserData }) => (
-        <TouchableOpacity
-            style={styles.userItem}
-            onPress={() => startConversation(item.id, item.username, item.profileImageUrl)}
-        >
-            <Image
-                source={item.profileImageUrl ? { uri: item.profileImageUrl } : require('@/assets/images/profile-icon.png')}
-                style={styles.profilePic}
-            />
-            <Text style={styles.username}>{item.username}</Text>
-        </TouchableOpacity>
-    );
+    const renderSearchItem = ({ item }: { item: UserData }) => {
+        const source = { uri: getOptimalImageUrl(item.profileThumbnailUrl, item.profileImageUrl) };
+
+        return (
+            <TouchableOpacity
+                style={styles.userItem}
+                onPress={() => startConversation(item.id, item.username, item.profileThumbnailUrl || item.profileImageUrl)}
+            >
+                <Image
+                    source={source}
+                    style={styles.profilePic}
+                />
+                <Text style={styles.username}>{item.username}</Text>
+            </TouchableOpacity>
+        );
+    };
 
     return (
         <View style={{ flex: 1, backgroundColor: 'black' }}>
@@ -466,6 +543,27 @@ export default function DMs() {
                     </View>
                 </KeyboardAvoidingView>
             ) : null}
+            {(loadingRequests && !messageRequests.length) ? (
+                <View style={styles.centered}><ActivityIndicator size="small" color="#fff" /></View>
+                ) : messageRequests.length > 0 && (
+                <View style={{ padding: 16 }}>
+                    <View style={styles.requestsHeader}>
+                    <Ionicons name="mail-outline" size={20} color="#4CD964" />
+                    <Text style={styles.requestsHeaderText}>Message Requests</Text>
+                    <View style={styles.requestsBadge}>
+                        <Text style={styles.requestsBadgeText}>{messageRequests.length}</Text>
+                    </View>
+                    </View>
+                    {messageRequests.map(req => (
+                    <MessageRequestItem
+                        key={req.id}
+                        request={req}
+                        onApprove={() => handleApproveRequest(req)}
+                        onIgnore={() => handleIgnoreRequest(req)}
+                    />
+                    ))}
+                </View>
+            )}
             {loading ? (
                 <View style={styles.centered}><ActivityIndicator size="large" color="#fff" /></View>
             ) : isSearching ? (
@@ -657,7 +755,35 @@ const styles = StyleSheet.create({
         fontSize: 16,
     },
     pressedItem: {
-    backgroundColor: '#222', 
-    borderLeftWidth: 3,
-},
+        backgroundColor: '#222', 
+        borderLeftWidth: 3,
+    },
+    requestsHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 16,
+        paddingBottom: 8,
+        borderBottomWidth: 1,
+        borderBottomColor: '#333',
+    },
+    requestsHeaderText: {
+        color: 'white',
+        fontWeight: 'bold',
+        fontSize: 16,
+        marginLeft: 8,
+        flex: 1,
+    },
+    requestsBadge: {
+        backgroundColor: '#FF2D55',
+        borderRadius: 12,
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        minWidth: 24,
+        alignItems: 'center',
+    },
+    requestsBadgeText: {
+        color: 'white',
+        fontSize: 12,
+        fontWeight: 'bold',
+    },
 });

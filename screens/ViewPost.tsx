@@ -1,5 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, Image, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform, FlatList, TextInput, Modal, ActivityIndicator, Alert } from 'react-native';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import {
+  StyleSheet, Text, View, Image, ScrollView,
+  TouchableOpacity, KeyboardAvoidingView, Platform,
+  TextInput, Modal, ActivityIndicator, Alert
+} from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,10 +11,11 @@ import ShareModal from '@/components/ShareModal';
 import { sharePost } from '@/services/ShareService';
 import { usePostsData, Post, Comment, Reply } from '@/hooks/usePostsData';
 import { useAuth } from '@/context/AuthContext';
-import { collection } from 'firebase/firestore';
+import { collection, query, where, limit, getDocs, getDoc, doc } from 'firebase/firestore';
 import { db } from '@/firebaseConfig';
-import { query, where, limit, getDocs } from 'firebase/firestore';
-import { deleteImageFromStorage, deleteMilestoneFromFirestore } from '@/utils/imageUtils';
+import { getOptimalImageUrl, deleteImageFromStorage, deleteMilestoneFromFirestore } from '@/utils/imageUtils';
+import { useBlockEnforcement } from '@/utils/blockUtils';
+import { useUnits } from '@/hooks/useUnits';
 
 export default function ViewPost() {
   const [menuVisible, setMenuVisible] = useState(false);
@@ -18,7 +23,8 @@ export default function ViewPost() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { currentUser, userProfile } = useAuth();
-  const { 
+  const { canInteractWithUser, isUserBlocked } = useBlockEnforcement();
+  const {
     getPostById, 
     getPostComments, 
     likePost, 
@@ -41,8 +47,8 @@ export default function ViewPost() {
   const [sortModalVisible, setSortModalVisible] = useState(false);
   const [sortType, setSortType] = useState('Recency');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSubmittingReply, setIsSubmittingReply] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const { getWeightUnit, getDistanceUnit } = useUnits();
 
   const [shareModalVisible, setShareModalVisible] = useState(false);
   const [searchText, setSearchText] = useState('');
@@ -50,40 +56,197 @@ export default function ViewPost() {
   const [searchLoading, setSearchLoading] = useState(false);
 
   const [replyingToCommentId, setReplyingToCommentId] = useState<string | null>(null);
-  const [replyText, setReplyText] = useState('');
+  const [replyingToUsername, setReplyingToUsername] = useState<string | null>(null);
   const [loadingReplies, setLoadingReplies] = useState<Record<string, boolean>>({});
+  const [expandedComments, setExpandedComments] = useState<Record<string, boolean>>({});
 
   const [selectedCommentForAction, setSelectedCommentForAction] = useState<Comment | null>(null);
   const [commentActionModalVisible, setCommentActionModalVisible] = useState(false);
+
+  const filteredComments = useMemo(() => {
+    return comments.filter(comment => {
+      // Always show current user's own comments
+      if (comment.authorId === currentUser?.uid) return true;
+      
+      // Filter out comments from blocked users
+      return canInteractWithUser(comment.authorId, comment.authorBlockedUsers);
+    });
+  }, [comments, canInteractWithUser, currentUser?.uid]);
+
+  const canInteractWithAuthor = useMemo(() => {
+    if (!post || !post.authorId) return false;
+    return canInteractWithUser(post.authorId, post.authorBlockedUsers);
+  }, [post, canInteractWithUser]);
+
+  // Double-tap handlers for liking
+  const handlePostDoubleTap = () => {
+    if (!post || !currentUser || !canInteractWithAuthor || isLiking) return;
+    
+    if (!post.isLiked) {
+      handleLike();
+    }
+  };
+
+  // Helper function to handle comment double-tap
+  const handleCommentDoubleTap = (commentId: string) => {
+    if (likingComments[commentId]) return;
+    
+    const comment = comments.find(c => c.id === commentId);
+    if (!comment || !currentUser) return;
+    
+    if (!canInteractWithUser(comment.authorId, comment.authorBlockedUsers)) return;
+    
+    if (!comment.isLiked) {
+      handleCommentLike(commentId);
+    }
+  };
+
+  // Helper function to handle reply double-tap
+  const handleReplyDoubleTap = (commentId: string, replyId: string) => {
+    const replyKey = `${commentId}-${replyId}`;
+    if (likingReplies[replyKey]) return;
+    
+    const comment = comments.find(c => c.id === commentId);
+    const reply = comment?.replies?.find(r => r.id === replyId);
+    if (!reply || !currentUser) return;
+    
+    if (!canInteractWithUser(reply.authorId, reply.authorBlockedUsers)) return;
+    
+    if (!reply.isLiked) {
+      handleReplyLike(commentId, replyId);
+    }
+  };
+
+  // Double-tap logic without hooks for comments/replies
+  const postTapTimers = useRef<Record<string, number>>({});
+  const commentTapTimers = useRef<Record<string, number>>({});
+  const replyTapTimers = useRef<Record<string, number>>({});
+  const likingInProgress = useRef<Record<string, boolean>>({});
+
+  const createDoubleTapHandler = (onDoubleTap: () => void, id: string, type: 'post' | 'comment' | 'reply' = 'comment') => {
+    let timers;
+    if (type === 'post') {
+      timers = postTapTimers.current;
+    } else if (type === 'reply') {
+      timers = replyTapTimers.current;
+    } else {
+      timers = commentTapTimers.current;
+    }
+    
+    return () => {
+      // Prevent multiple rapid taps
+      if (likingInProgress.current[id]) {
+        console.log('Like operation already in progress for', id);
+        return;
+      }
+
+      const now = Date.now();
+      const lastTap = timers[id];
+      
+      if (lastTap && now - lastTap < 300) {
+        // Double tap detected
+        delete timers[id];
+        try {
+          // Haptic feedback
+          import('expo-haptics').then(({ impactAsync, ImpactFeedbackStyle }) => {
+            impactAsync?.(ImpactFeedbackStyle.Light);
+          }).catch(() => {});
+          
+          // Set in progress flag
+          likingInProgress.current[id] = true;
+          
+          onDoubleTap();
+          
+          // Clear in progress flag after a delay
+          setTimeout(() => {
+            delete likingInProgress.current[id];
+          }, 1000);
+        } catch (error) {
+          console.error('Error in double tap handler:', error);
+          delete likingInProgress.current[id];
+        }
+      } else {
+        // Single tap - store timestamp
+        timers[id] = now;
+        
+        // Clear after delay to reset for next potential double tap
+        setTimeout(() => {
+          if (timers[id] === now) {
+            delete timers[id];
+          }
+        }, 300);
+      }
+    };
+  };
+
+  // Create post double-tap handler
+  const postDoubleTapHandler = {
+    onPress: createDoubleTapHandler(handlePostDoubleTap, 'post', 'post')
+  };
   
   // Fetch post and comments
   useEffect(() => {
     const fetchPostData = async () => {
       if (!postId) {
-        console.error("No post ID provided");
         setLoading(false);
         return;
       }
-
-      console.log("Fetching post with ID:", postId);
-      
+      setLoading(true);
       try {
-        setLoading(true);
-        
-        // Get post data
+        // Fetch post
         const fetchedPost = await getPostById(postId);
+        if (fetchedPost && fetchedPost.authorId) {
+          const userDoc = await getDoc(doc(db, 'users', fetchedPost.authorId));
+          if (userDoc.exists()) {
+            const userData = userDoc.data();
+            fetchedPost.authorProfileThumbnailUrl = userData.profileThumbnailUrl || '';
+            fetchedPost.authorBlockedUsers = userData.blockedUsers || [];
+          }
+        }
         setPost(fetchedPost);
-        
-        // Get comments
+
+        // Fetch comments
         const fetchedComments = await getPostComments(postId);
-        setComments(fetchedComments);
+
+        // For each comment, fetch the author's thumbnail
+        const commentsWithThumbnails = await Promise.all(
+          fetchedComments.map(async (comment) => {
+            if (comment.authorId) {
+              const userDoc = await getDoc(doc(db, 'users', comment.authorId));
+              if (userDoc.exists()) {
+                const userData = userDoc.data();
+                comment.authorProfileThumbnailUrl = userData.profileThumbnailUrl || '';
+                comment.authorBlockedUsers = userData.blockedUsers || [];
+              }
+            }
+            // For each reply, fetch the author's thumbnail and blocked users
+            if (comment.replies && comment.replies.length > 0) {
+              comment.replies = await Promise.all(
+                comment.replies.map(async (reply) => {
+                  if (reply.authorId) {
+                    const replyUserDoc = await getDoc(doc(db, 'users', reply.authorId));
+                    if (replyUserDoc.exists()) {
+                      const replyUserData = replyUserDoc.data();
+                      reply.authorProfileThumbnailUrl = replyUserData.profileThumbnailUrl || '';
+                      reply.authorBlockedUsers = replyUserData.blockedUsers || [];
+                    }
+                  }
+                  return reply;
+                })
+              );
+            }
+            return comment;
+          })
+        );
+
+        setComments(commentsWithThumbnails);
       } catch (error) {
-        console.error("Error fetching post:", error);
+        console.error("Error fetching post/comments:", error);
       } finally {
         setLoading(false);
       }
     };
-    
+
     fetchPostData();
   }, [postId]);
 
@@ -100,7 +263,9 @@ export default function ViewPost() {
     if (!details) return '';
   
     if (details.type === 'weightLoss' || details.type === 'weightGain') {
-      return `New Weight: ${details.newWeight} ${details.newWeightUnit || 'lbs'}`;
+      // Display the unit that was actually used when the milestone was created
+      const unit = details.newWeightUnit || details.weightUnit || getWeightUnit();
+      return `New Weight: ${details.newWeight} ${unit}`;
     }
   
     if (details.type === 'PR') {
@@ -109,12 +274,16 @@ export default function ViewPost() {
   
       // weight_reps
       if (details.value && details.reps) {
-        return preview + `${details.value} ${details.weightUnit || 'lbs'} × ${details.reps} reps`;
+        // Display the unit that was actually used when the milestone was created
+        const unit = details.weightUnit || getWeightUnit();
+        return preview + `${details.value} ${unit} × ${details.reps} reps`;
       }
+      
       // bodyweight_reps
-      if (details.reps) {
+      if (details.reps && !details.value) {
         return preview + `${details.reps} reps`;
       }
+      
       // duration, duration_level, distance_time
       if (details.duration) {
         const d = details.duration;
@@ -123,21 +292,35 @@ export default function ViewPost() {
         const s = d % 60;
         const time = [h > 0 ? `${h}h` : '', m > 0 ? `${m}m` : '', (s > 0 || (!h && !m)) ? `${s}s` : ''].filter(Boolean).join(' ');
   
-        if (details.value && details.weightUnit === 'miles') { // distance_time
+        // For distance_time, check if weightUnit represents distance unit
+        if (details.value && details.weightUnit && (details.weightUnit === 'miles' || details.weightUnit === 'km')) {
           return preview + `${details.value} ${details.weightUnit} in ${time}`;
         }
-        return preview + time; // duration
+        
+        // For pure duration
+        if (details.level) {
+          return preview + `${time} (Level ${details.level})`;
+        }
+        
+        return preview + time;
       }
-      // distance
-      if (details.value && details.weightUnit) {
+      
+      // distance only
+      if (details.value && details.weightUnit && (details.weightUnit === 'miles' || details.weightUnit === 'km')) {
         return preview + `${details.value} ${details.weightUnit}`;
       }
+      
+      // fallback
+      if (details.value) {
+        const unit = details.weightUnit || getWeightUnit();
+        return preview + `${details.value} ${unit}`;
+      }
+      
       return exercise;
     }
   
     return 'View Achievement';
   };
-
 
   const searchUsers = async () => {
     if (!searchText.trim()) {
@@ -152,21 +335,31 @@ export default function ViewPost() {
         usersRef,
         where('username', '>=', searchText.toLowerCase()),
         where('username', '<=', searchText.toLowerCase() + '\uf8ff'),
-        limit(10)
+        limit(20) // Fetch more to account for filtering
       );
 
       const querySnapshot = await getDocs(q);
       const users: {id: string, username: string, profileImageUrl?: string}[] = [];
+      
       querySnapshot.forEach(doc => {
-        if (doc.id !== currentUser?.uid) {
+        const userData = doc.data();
+        const userId = doc.id;
+        
+        // Skip current user and blocked users
+        if (userId === currentUser?.uid) return;
+        
+        // Check if we can interact with this user
+        if (canInteractWithUser(userId, userData.blockedUsers)) {
           users.push({
-            id: doc.id,
-            username: doc.data().username,
-            profileImageUrl: doc.data().profileImageUrl,
+            id: userId,
+            username: userData.username,
+            profileImageUrl: userData.profileImageUrl,
           });
         }
       });
-      setSearchResults(users);
+      
+      // Limit final results
+      setSearchResults(users.slice(0, 10));
     } catch (error) {
       console.error("Error searching users:", error);
     } finally {
@@ -174,13 +367,13 @@ export default function ViewPost() {
     }
   };
 
-useEffect(() => {
-  const delayDebounceFn = setTimeout(() => {
-    searchUsers();
-  }, 500);
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      searchUsers();
+    }, 500);
 
-  return () => clearTimeout(delayDebounceFn);
-}, [searchText]);
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchText]);
 
   const sharePostWithUser = async (userId: string, username: string, profileImageUrl?: string) => {
     if (!currentUser || !post) return;
@@ -191,10 +384,12 @@ useEffect(() => {
         userId,
         username,
         profileImageUrl,
+        undefined,
         {
           id: post.id,
           caption: post.caption,
           imageUrl: post.imageUrl,
+          thumbnailUrl: post.thumbnailUrl,
           authorUsername: post.authorUsername
         }
       );
@@ -207,19 +402,32 @@ useEffect(() => {
     }
   };
   
+  const [isLiking, setIsLiking] = useState(false);
+
   const handleLike = async () => {
-    if (!post || !currentUser) return;
+    if (!post || !currentUser || isLiking) return;
     
+    // Check if we can interact with the post author
+    if (!canInteractWithAuthor) {
+      Alert.alert("Cannot Like", "You cannot interact with this user.");
+      return;
+    }
+    
+    setIsLiking(true);
     try {
       if (post.isLiked) {
         await unlikePost(post.id);
-        setPost({...post, isLiked: false, reactionCount: post.reactionCount - 1});
+        setPost({...post, isLiked: false, reactionCount: Math.max(0, post.reactionCount - 1)});
       } else {
         await likePost(post.id);
         setPost({...post, isLiked: true, reactionCount: post.reactionCount + 1});
       }
     } catch (error) {
       console.error("Error toggling like:", error);
+      // Show user-friendly error message
+      Alert.alert("Error", "Failed to update like status. Please try again.");
+    } finally {
+      setIsLiking(false);
     }
   };
   
@@ -239,12 +447,54 @@ useEffect(() => {
   const handleAddComment = async () => {
     if (!post || !currentUser || !commentText.trim() || isSubmitting) return;
     
+    // Check if we can interact with the post author
+    if (!canInteractWithAuthor) {
+      Alert.alert("Cannot Comment", "You cannot interact with this user.");
+      return;
+    }
+    
     try {
       setIsSubmitting(true);
-      const newComment = await addComment(post.id, commentText.trim());
-      setComments([{ ...newComment, replies: [] }, ...comments]);
+      
+      if (replyingToCommentId) {
+        // Handle reply - extract the actual reply text without the @username prefix
+        // Use the stored username for precise removal instead of regex pattern matching
+        const expectedPrefix = `@${replyingToUsername} `;
+        const replyTextWithoutPrefix = commentText.startsWith(expectedPrefix) 
+          ? commentText.slice(expectedPrefix.length).trim()
+          : commentText.trim(); // Fallback if prefix doesn't match exactly
+        
+        if (!replyTextWithoutPrefix) return;
+        
+        const newReply = await addReplyToComment(post.id, replyingToCommentId, replyTextWithoutPrefix);
+        
+        // Update the comment with the new reply
+        setComments(prevComments => 
+          prevComments.map(comment => 
+            comment.id === replyingToCommentId 
+              ? { 
+                  ...comment, 
+                  replies: [...(comment.replies || []), newReply],
+                  replyCount: (comment.replyCount || 0) + 1
+                }
+              : comment
+          )
+        );
+        
+        // Automatically expand the comment to show the new reply
+        setExpandedComments(prev => ({ ...prev, [replyingToCommentId]: true }));
+        
+        // Clear reply mode
+        setReplyingToCommentId(null);
+        setReplyingToUsername(null);
+      } else {
+        // Handle regular comment
+        const newComment = await addComment(post.id, commentText.trim());
+        setComments([{ ...newComment, replies: [] }, ...comments]);
+        setPost(prevPost => prevPost ? {...prevPost, commentCount: (prevPost.commentCount || 0) + 1} : null);
+      }
+      
       setCommentText('');
-      setPost(prevPost => prevPost ? {...prevPost, commentCount: (prevPost.commentCount || 0) + 1} : null);
     } catch (error) {
       console.error("Error adding comment:", error);
       Alert.alert("Error", "Could not add comment. Please try again.");
@@ -365,6 +615,9 @@ useEffect(() => {
     try {
       setRefreshing(true);
       
+      // Reset expanded state
+      setExpandedComments({});
+      
       // Refetch post and comments
       const refreshedPost = await getPostById(postId);
       setPost(refreshedPost);
@@ -378,21 +631,34 @@ useEffect(() => {
     }
   };
   
+  const [likingComments, setLikingComments] = useState<Record<string, boolean>>({});
+  const [likingReplies, setLikingReplies] = useState<Record<string, boolean>>({});
+
   const handleCommentLike = async (commentId: string) => {
-    if (!post || !currentUser) return;
+    if (!post || !currentUser || likingComments[commentId]) return;
 
     const commentIndex = comments.findIndex(c => c.id === commentId);
     if (commentIndex === -1) return;
 
-    const originalComments = [...comments];
     const comment = comments[commentIndex];
+    
+    // Check if we can interact with the comment author
+    if (!canInteractWithUser(comment.authorId, comment.authorBlockedUsers)) {
+      Alert.alert("Cannot Like", "You cannot interact with this user.");
+      return;
+    }
+
+    setLikingComments(prev => ({ ...prev, [commentId]: true }));
+    
+    const originalComments = [...comments];
     const currentlyLiked = comment.isLiked;
 
+    // Optimistic UI Update
     const updatedComments = [...comments];
     updatedComments[commentIndex] = {
       ...comment,
       isLiked: !currentlyLiked,
-      likes: currentlyLiked ? (comment.likes || 0) - 1 : (comment.likes || 0) + 1,
+      likes: currentlyLiked ? Math.max(0, (comment.likes || 0) - 1) : (comment.likes || 0) + 1,
     };
     setComments(updatedComments);
 
@@ -404,65 +670,82 @@ useEffect(() => {
       }
     } catch (error) {
       console.error("Error toggling comment like:", error);
+      // Revert optimistic update
       setComments(originalComments);
       Alert.alert("Error", "Could not update like status. Please try again.");
+    } finally {
+      setLikingComments(prev => {
+        const newState = { ...prev };
+        delete newState[commentId];
+        return newState;
+      });
     }
   };
   
-  const handleToggleReplyInput = (commentId: string | null) => {
+  const handleToggleReplyInput = (commentId: string, username: string) => {
     if (replyingToCommentId === commentId) {
+      // Cancel reply mode
       setReplyingToCommentId(null);
-      setReplyText('');
+      setReplyingToUsername(null);
+      setCommentText('');
     } else {
+      // Enter reply mode
       setReplyingToCommentId(commentId);
-      setReplyText('');
+      setReplyingToUsername(username);
+      setCommentText(`@${username} `);
     }
+  };
+
+  // Custom text change handler to preserve @username prefix when replying
+  const handleCommentTextChange = (text: string) => {
+    if (replyingToCommentId && replyingToUsername) {
+      const expectedPrefix = `@${replyingToUsername} `;
+      // If user tries to delete the @username prefix, restore it
+      if (!text.startsWith(expectedPrefix)) {
+        setCommentText(expectedPrefix);
+        return;
+      }
+    }
+    setCommentText(text);
   };
 
   const handleLoadReplies = async (commentId: string) => {
     if (!post) return;
-    setLoadingReplies(prev => ({ ...prev, [commentId]: true }));
-    try {
-      const fetchedReplies = await getCommentReplies(post.id, commentId);
-      setComments(prevComments => prevComments.map(c => 
-        c.id === commentId ? { ...c, replies: fetchedReplies } : c
-      ));
-    } catch (error) {
-      console.error("Error loading replies:", error);
-      Alert.alert("Error", "Could not load replies.");
-    } finally {
-      setLoadingReplies(prev => ({ ...prev, [commentId]: false }));
+    
+    // If already expanded, collapse it
+    if (expandedComments[commentId]) {
+      setExpandedComments(prev => ({ ...prev, [commentId]: false }));
+      return;
     }
-  };
-
-  const handleAddReply = async (parentCommentId: string) => {
-    if (!post || !currentUser || !replyText.trim() || isSubmittingReply) return;
-
-    setIsSubmittingReply(true);
-    try {
-      const newReply = await addReplyToComment(post.id, parentCommentId, replyText.trim());
-      setComments(prevComments => prevComments.map(c => {
-        if (c.id === parentCommentId) {
-          return {
-            ...c,
-            replies: [newReply, ...(c.replies || [])],
-            replyCount: (c.replyCount || 0) + 1,
-          };
-        }
-        return c;
-      }));
-      setReplyText('');
-      setReplyingToCommentId(null);
-    } catch (error) {
-      console.error("Error adding reply:", error);
-      Alert.alert("Error", "Could not add reply. Please try again.");
-    } finally {
-      setIsSubmittingReply(false);
+    
+    // If not loaded yet, load the replies
+    const comment = comments.find(c => c.id === commentId);
+    if (!comment?.replies || comment.replies.length === 0) {
+      setLoadingReplies(prev => ({ ...prev, [commentId]: true }));
+      try {
+        const fetchedReplies = await getCommentReplies(post.id, commentId);
+        setComments(prevComments => prevComments.map(c => 
+          c.id === commentId ? { ...c, replies: fetchedReplies } : c
+        ));
+      } catch (error) {
+        console.error("Error loading replies:", error);
+        Alert.alert("Error", "Could not load replies.");
+        setLoadingReplies(prev => ({ ...prev, [commentId]: false }));
+        return;
+      } finally {
+        setLoadingReplies(prev => ({ ...prev, [commentId]: false }));
+      }
     }
+    
+    // Expand the comment to show replies
+    setExpandedComments(prev => ({ ...prev, [commentId]: true }));
   };
 
   const handleReplyLike = async (commentId: string, replyId: string) => {
     if (!post || !currentUser) return;
+
+    const replyKey = `${commentId}-${replyId}`;
+    if (likingReplies[replyKey]) return;
 
     const commentIndex = comments.findIndex(c => c.id === commentId);
     if (commentIndex === -1) return;
@@ -474,6 +757,15 @@ useEffect(() => {
     if (replyIndex === undefined || replyIndex === -1 || !comment.replies) return;
 
     const reply = comment.replies[replyIndex];
+    
+    // Check if we can interact with the reply author
+    if (!canInteractWithUser(reply.authorId, reply.authorBlockedUsers)) {
+      Alert.alert("Cannot Like", "You cannot interact with this user.");
+      return;
+    }
+
+    setLikingReplies(prev => ({ ...prev, [replyKey]: true }));
+
     const currentlyLiked = reply.isLiked;
 
     // Optimistic UI Update
@@ -481,7 +773,7 @@ useEffect(() => {
     updatedReplies[replyIndex] = {
       ...reply,
       isLiked: !currentlyLiked,
-      likes: currentlyLiked ? (reply.likes || 0) - 1 : (reply.likes || 0) + 1,
+      likes: currentlyLiked ? Math.max(0, (reply.likes || 0) - 1) : (reply.likes || 0) + 1,
     };
     const updatedComments = [...comments];
     updatedComments[commentIndex] = { ...comment, replies: updatedReplies };
@@ -495,9 +787,114 @@ useEffect(() => {
       }
     } catch (error) {
       console.error("Error toggling reply like:", error);
+      // Revert optimistic update
       setComments(originalComments);
       Alert.alert("Error", "Could not update reply like status.");
+    } finally {
+      setLikingReplies(prev => {
+        const newState = { ...prev };
+        delete newState[replyKey];
+        return newState;
+      });
     }
+  };
+
+  const renderCommentItem = (comment: Comment) => {
+    const canInteractWithComment = canInteractWithUser(comment.authorId, comment.authorBlockedUsers);
+    const hasReplies = comment.replyCount > 0;
+    const isExpanded = expandedComments[comment.id];
+    const isLoadingReplies = loadingReplies[comment.id];
+    
+    return (
+      <View key={comment.id}>
+        <TouchableOpacity 
+          onLongPress={canInteractWithComment ? () => handleLongPressComment(comment) : undefined}
+          onPress={canInteractWithComment ? createDoubleTapHandler(() => handleCommentDoubleTap(comment.id), comment.id, 'comment') : undefined}
+          delayLongPress={500}
+          activeOpacity={0.7}
+        >
+          <View style={styles.commentItem}>
+            <View style={styles.commentLeftSection}>
+              <TouchableOpacity 
+                onPress={canInteractWithComment ? () => navigateToProfile(comment.authorId) : undefined}
+              >
+                <Image
+                  source={{ uri: getOptimalImageUrl(comment.authorProfileThumbnailUrl, comment.authorProfileImageUrl) || 'https://via.placeholder.com/150' }}
+                  style={styles.commentProfilePic}
+                  onError={() => {
+                    console.warn('Comment profile image failed to load');
+                  }}
+                />
+              </TouchableOpacity>
+              <View style={styles.commentContent}>
+                <View style={styles.commentHeader}>
+                  <Text style={styles.commentUsername}>{comment.authorUsername}</Text>
+                  <Text style={styles.commentTimestamp}>{formatDate(comment.createdAt)}</Text>
+                </View>
+                <Text style={styles.commentText}>{comment.text}</Text>
+                {canInteractWithComment && (
+                  <View style={styles.commentActions}>
+                    <TouchableOpacity onPress={() => handleToggleReplyInput(comment.id, comment.authorUsername)} style={styles.replyButton}>
+                      <Text style={styles.replyButtonText}>Reply</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
+            </View>
+            {canInteractWithComment && (
+              <View style={styles.commentLikeContainer}>
+                <TouchableOpacity 
+                  style={styles.commentLikeButton}
+                  onPress={() => handleCommentLike(comment.id)}
+                >
+                  <Ionicons 
+                    name={comment.isLiked ? "heart" : "heart-outline"} 
+                    size={14} 
+                    color={comment.isLiked ? "#FF3B30" : "#999"}
+                  />
+                </TouchableOpacity>
+                <Text style={[
+                  styles.commentLikeCount,
+                  comment.isLiked && styles.commentLikedCount
+                ]}>
+                  {comment.likes || 0}
+                </Text>
+              </View>
+            )}
+          </View>
+        </TouchableOpacity>
+        
+        {/* View Replies Button */}
+        {hasReplies && (
+          <TouchableOpacity 
+            style={styles.viewRepliesButton}
+            onPress={() => handleLoadReplies(comment.id)}
+            disabled={isLoadingReplies}
+          >
+            {isLoadingReplies ? (
+              <ActivityIndicator size="small" color="#0A84FF" />
+            ) : (
+              <Text style={styles.viewRepliesText}>
+                {isExpanded ? 'Hide replies' : `View replies (${comment.replyCount})`}
+              </Text>
+            )}
+          </TouchableOpacity>
+        )}
+        
+        {/* Replies Container - only show if expanded */}
+        {isExpanded && comment.replies && comment.replies.length > 0 && (
+          <View style={styles.repliesContainer}>
+            {comment.replies
+              .filter(reply => 
+                reply.authorId === currentUser?.uid || 
+                canInteractWithUser(reply.authorId, reply.authorBlockedUsers)
+              )
+              .map(reply => renderReplyItem(reply, comment.id))
+            }
+          </View>
+        )}
+      </View>
+    );
   };
 
   const handleLongPressComment = (comment: Comment) => {
@@ -671,47 +1068,66 @@ useEffect(() => {
     }
   };
 
-  const renderReplyItem = (reply: Reply, commentId: string) => (
-    <View key={reply.id} style={styles.replyItem}>
-      <View style={styles.commentLeftSection}>
-        <Image source={{ uri: reply.authorProfileImageUrl || 'https://via.placeholder.com/150' }} style={styles.replyProfilePic} />
-        <View style={styles.commentContent}>
-          <View style={styles.commentHeader}>
-            <Text style={styles.commentUsername}>{reply.authorUsername}</Text>
-            <Text style={styles.commentTimestamp}>{formatDate(reply.createdAt)}</Text>
-          </View>
-          <Text style={styles.commentText}>{reply.text}</Text>
-          {/* Reply Actions (e.g., like for reply) can go here */}
-        </View>
-      </View>
-      <View style={styles.commentLikeContainer}>
-        <TouchableOpacity 
-          style={styles.commentLikeButton}
-          onPress={() => handleReplyLike(commentId, reply.id)}
-        >
-          <Ionicons 
-            name={reply.isLiked ? "heart" : "heart-outline"} 
-            size={14} 
-            color={reply.isLiked ? "#FF3B30" : "#999"}
+  const renderReplyItem = (reply: Reply, commentId: string) => {
+    const uri = getOptimalImageUrl(
+      reply.authorProfileThumbnailUrl,
+      reply.authorProfileImageUrl
+    );
+
+    const canInteractWithReply = canInteractWithUser(reply.authorId, reply.authorBlockedUsers);
+
+    return (
+      <TouchableOpacity
+        key={reply.id}
+        onPress={canInteractWithReply ? createDoubleTapHandler(() => handleReplyDoubleTap(commentId, reply.id), `${commentId}-${reply.id}`, 'reply') : undefined}
+        activeOpacity={0.7}
+        style={styles.replyItem}
+      >
+        <View style={styles.commentLeftSection}>
+          <Image
+            source={{ uri }}
+            style={styles.replyProfilePic}
+            onError={() => {
+              console.warn('Reply profile image failed to load:', uri);
+            }}
           />
-        </TouchableOpacity>
-        <Text style={[
-          styles.commentLikeCount,
-          reply.isLiked && styles.commentLikedCount
-        ]}>
-          {reply.likes || 0}
-        </Text>
-      </View>
-    </View>
-  );
+          <View style={styles.commentContent}>
+            <View style={styles.commentHeader}>
+              <Text style={styles.commentUsername}>{reply.authorUsername}</Text>
+              <Text style={styles.commentTimestamp}>{formatDate(reply.createdAt)}</Text>
+            </View>
+            <Text style={styles.commentText}>{reply.text}</Text>
+            {/* Reply Actions (e.g., like for reply) can go here */}
+          </View>
+        </View>
+        {canInteractWithReply && (
+          <View style={styles.commentLikeContainer}>
+            <TouchableOpacity 
+              style={styles.commentLikeButton}
+              onPress={() => handleReplyLike(commentId, reply.id)}
+            >
+              <Ionicons 
+                name={reply.isLiked ? "heart" : "heart-outline"} 
+                size={14} 
+                color={reply.isLiked ? "#FF3B30" : "#999"}
+              />
+            </TouchableOpacity>
+            <Text style={[
+              styles.commentLikeCount,
+              reply.isLiked && styles.commentLikedCount
+            ]}>
+              {reply.likes || 0}
+            </Text>
+          </View>
+        )}
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <KeyboardAvoidingView 
       style={{ flex: 1, backgroundColor: '#000' }}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
-      // You might need to add keyboardVerticalOffset if you have a custom fixed header
-      // that's not accounted for by `insets.top`.
-      // Example: keyboardVerticalOffset={Platform.OS === "ios" ? YOUR_HEADER_HEIGHT : 0}
     >
       <View style={[styles.container, { paddingTop: insets.top }]}>
         <ScrollView 
@@ -723,8 +1139,11 @@ useEffect(() => {
               style={styles.userInfoContainer}
               onPress={() => navigateToProfile(post.authorId)}
             >
-              <Image source={{ uri: post.authorProfileImageUrl || 'https://via.placeholder.com/150' }} style={styles.profilePic} />
-              <View>
+            <Image
+              source={{ uri: getOptimalImageUrl(post.authorProfileThumbnailUrl, post.authorProfileImageUrl) || 'https://via.placeholder.com/150' }}
+              style={styles.profilePic}
+            />
+            <View>
                 <Text style={styles.username}>{post.authorUsername}</Text>
                 <Text style={styles.location}>{formatDate(post.createdAt)}</Text>
               </View>
@@ -737,33 +1156,40 @@ useEffect(() => {
           </View>
 
           {post.imageUrl && (
-            <Image source={{ uri: post.imageUrl }} style={styles.postImage} />
+            <TouchableOpacity 
+              activeOpacity={1}
+              {...postDoubleTapHandler}
+            >
+              <Image source={{ uri: post.imageUrl }} style={styles.postImage} />
+            </TouchableOpacity>
           )}
 
-          <View style={styles.actionButtons}>
-            <View style={styles.leftActions}>
-              <TouchableOpacity style={styles.actionButton} onPress={handleLike}>
+          {canInteractWithAuthor && (
+            <View style={styles.actionButtons}>
+              <View style={styles.leftActions}>
+                <TouchableOpacity style={styles.actionButton} onPress={handleLike}>
+                  <Ionicons 
+                    name={post.isLiked ? "heart" : "heart-outline"} 
+                    size={28} 
+                    color={post.isLiked ? "#FF3B30" : "#FFF"} 
+                  />
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.actionButton}>
+                  <Ionicons name="chatbubble-outline" size={26} color="#FFF" />
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.actionButton} onPress={handleSharePost}>
+                  <Ionicons name="paper-plane-outline" size={26} color="#FFF" />
+                </TouchableOpacity>
+              </View>
+              <TouchableOpacity style={styles.actionButton} onPress={handleBookmark}>
                 <Ionicons 
-                  name={post.isLiked ? "heart" : "heart-outline"} 
-                  size={28} 
-                  color={post.isLiked ? "#FF3B30" : "#FFF"} 
+                  name={post.isBookmarked ? "bookmark" : "bookmark-outline"} 
+                  size={26} 
+                  color="#FFF" 
                 />
               </TouchableOpacity>
-              <TouchableOpacity style={styles.actionButton}>
-                <Ionicons name="chatbubble-outline" size={26} color="#FFF" />
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.actionButton} onPress={handleSharePost}>
-                <Ionicons name="paper-plane-outline" size={26} color="#FFF" />
-              </TouchableOpacity>
             </View>
-            <TouchableOpacity style={styles.actionButton} onPress={handleBookmark}>
-              <Ionicons 
-                name={post.isBookmarked ? "bookmark" : "bookmark-outline"} 
-                size={26} 
-                color="#FFF" 
-              />
-            </TouchableOpacity>
-          </View>
+          )}
 
           <TouchableOpacity onPress={navigateToLikers}>
             <Text style={styles.likes}>{post.reactionCount || 0} likes</Text>
@@ -778,7 +1204,7 @@ useEffect(() => {
           {post.workoutId && (
             <TouchableOpacity 
               style={styles.attachedWorkoutContainer}
-              onPress={() => navigateToWorkout(post.workoutId)}
+              onPress={() => post.workoutId && navigateToWorkout(post.workoutId)}
             >
               <View style={styles.attachedWorkoutContent}>
                 <View style={styles.attachedWorkoutInfo}>
@@ -835,162 +1261,70 @@ useEffect(() => {
               </TouchableOpacity>
             </View>
             
-            {comments.length === 0 && (
+            {filteredComments.length === 0 && (
               <Text style={{ color: '#999', textAlign: 'center', marginTop: 20, marginBottom: 20 }}>
-                No comments yet. Be the first to comment!
+                {canInteractWithAuthor ? "No comments yet. Be the first to comment!" : "Comments are not available."}
               </Text>
             )}
             
-            {comments.map(comment => (
-              <View key={comment.id}>
-                <TouchableOpacity 
-                  onLongPress={() => handleLongPressComment(comment)}
-                  delayLongPress={500}
-                >
-                  <View style={styles.commentItem}>
-                    <View style={styles.commentLeftSection}>
-                      <Image source={{ uri: comment.authorProfileImageUrl || 'https://via.placeholder.com/150' }} style={styles.commentProfilePic} />
-                      <View style={styles.commentContent}>
-                        <View style={styles.commentHeader}>
-                          <Text style={styles.commentUsername}>{comment.authorUsername}</Text>
-                          <Text style={styles.commentTimestamp}>{formatDate(comment.createdAt)}</Text>
-                        </View>
-                        <Text style={styles.commentText}>{comment.text}</Text>
-                        <View style={styles.commentActions}>
-                          <TouchableOpacity onPress={() => handleToggleReplyInput(comment.id)} style={styles.replyButton}>
-                            <Text style={styles.replyButtonText}>Reply</Text>
-                          </TouchableOpacity>
-                        </View>
-                      </View>
-                    </View>
-                    <View style={styles.commentLikeContainer}>
-                      <TouchableOpacity 
-                        style={styles.commentLikeButton}
-                        onPress={() => handleCommentLike(comment.id)}
-                      >
-                        <Ionicons 
-                          name={comment.isLiked ? "heart" : "heart-outline"} 
-                          size={14} 
-                          color={comment.isLiked ? "#FF3B30" : "#999"}
-                        />
-                      </TouchableOpacity>
-                      <Text style={[
-                        styles.commentLikeCount,
-                        comment.isLiked && styles.commentLikedCount
-                      ]}>
-                        {comment.likes || 0}
-                      </Text>
-                    </View>
-                  </View>
-                </TouchableOpacity>
-                {/* Reply Input Area */}
-                {replyingToCommentId === comment.id && (
-                  <View style={styles.replyInputContainer}>
-                    <Image 
-                      source={{ uri: userProfile?.profileImageUrl || 'https://via.placeholder.com/150' }} 
-                      style={styles.replyInputProfilePic} 
-                    />
-                    <TextInput
-                      style={styles.replyInput}
-                      placeholder={`Replying to ${comment.authorUsername}...`}
-                      placeholderTextColor="#666"
-                      value={replyText}
-                      onChangeText={setReplyText}
-                      autoFocus={true}
-                      autoCorrect={true}
-                      spellCheck={true}
-                    />
-                    <TouchableOpacity 
-                      style={[
-                        styles.postReplyButton, 
-                        (replyText.trim() === '' || isSubmittingReply) && styles.disabledButton
-                      ]}
-                      onPress={() => handleAddReply(comment.id)}
-                      disabled={replyText.trim() === '' || isSubmittingReply}
-                    >
-                      {isSubmittingReply ? (
-                        <ActivityIndicator size="small" color="#0A84FF" />
-                      ) : (
-                        <Text style={[
-                          styles.postButtonText, 
-                          replyText.trim() === '' && styles.disabledButtonText
-                        ]}>
-                          Post
-                        </Text>
-                      )}
-                    </TouchableOpacity>
-                  </View>
-                )}
-
-                {/* Display Replies */}
-                {(comment.replyCount || 0) > 0 && !comment.replies?.length && !loadingReplies[comment.id] && (
-                  <TouchableOpacity 
-                    style={styles.viewRepliesButton} 
-                    onPress={() => handleLoadReplies(comment.id)}
-                  >
-                    <Text style={styles.viewRepliesText}>
-                      View {comment.replyCount} {comment.replyCount === 1 ? 'reply' : 'replies'}
-                    </Text>
-                  </TouchableOpacity>
-                )}
-                {loadingReplies[comment.id] && (
-                  <ActivityIndicator size="small" color="#0A84FF" style={{alignSelf: 'flex-start', marginLeft: 50, marginVertical: 5}}/>
-                )}
-
-                {comment.replies && comment.replies.length > 0 && (
-                  <View style={styles.repliesContainer}>
-                    {comment.replies.map(reply => renderReplyItem(reply, comment.id))}
-                    {(comment.replyCount || 0) > comment.replies.length && !loadingReplies[comment.id] && (
-                      <TouchableOpacity 
-                          style={styles.viewRepliesButton} 
-                          onPress={() => handleLoadReplies(comment.id)} // Could be "load more" in future
-                        >
-                          <Text style={styles.viewRepliesText}>
-                            View more replies
-                          </Text>
-                        </TouchableOpacity>
-                    )}
-                  </View>
-                )}
-              </View>
-            ))}
+            {filteredComments.map(comment => renderCommentItem(comment))}
           </View>
         </ScrollView>
 
-        <View style={[styles.commentInputContainer, { paddingBottom: Math.max(insets.bottom, 10) }]}>
-          <Image 
-            source={{ uri: userProfile?.profileImageUrl || 'https://via.placeholder.com/150' }} 
-            style={styles.commentInputProfilePic} 
-          />
-          <TextInput
-            style={styles.commentInput}
-            placeholder="Add a comment..."
-            placeholderTextColor="#666"
-            value={commentText}
-            onChangeText={setCommentText}
-            autoCorrect={true}
-            spellCheck={true}
-          />
-          <TouchableOpacity 
-            style={[
-              styles.postButton, 
-              (commentText.trim() === '' || isSubmitting) && styles.disabledButton
-            ]}
-            onPress={handleAddComment}
-            disabled={commentText.trim() === '' || isSubmitting}
-          >
-            {isSubmitting ? (
-              <ActivityIndicator size="small" color="#0A84FF" />
-            ) : (
-              <Text style={[
-                styles.postButtonText, 
-                commentText.trim() === '' && styles.disabledButtonText
-              ]}>
-                Post
-              </Text>
+        {canInteractWithAuthor && (
+          <View style={[styles.commentInputContainer, { paddingBottom: Math.max(insets.bottom, 10) }]}>
+            {replyingToCommentId && (
+              <View style={styles.replyIndicator}>
+                <Text style={styles.replyIndicatorText}>
+                  Replying to @{replyingToUsername}
+                </Text>
+                <TouchableOpacity onPress={() => {
+                  setReplyingToCommentId(null);
+                  setReplyingToUsername(null);
+                  setCommentText('');
+                }}>
+                  <Ionicons name="close" size={16} color="#999" />
+                </TouchableOpacity>
+              </View>
             )}
-          </TouchableOpacity>
-        </View>
+            <View style={styles.inputRow}>
+              <Image
+                source={{ uri: getOptimalImageUrl(userProfile?.profileThumbnailUrl, userProfile?.profileImageUrl) || 'https://via.placeholder.com/150' }}
+                style={styles.commentInputProfilePic}
+              />
+              <TextInput
+                style={styles.commentInput}
+                placeholder={replyingToCommentId ? `Reply to @${replyingToUsername}...` : "Add a comment..."}
+                placeholderTextColor="#666"
+                value={commentText}
+                onChangeText={handleCommentTextChange}
+                autoCorrect={true}
+                spellCheck={true}
+                multiline={true}
+                maxLength={500}
+              />
+              <TouchableOpacity 
+                style={[
+                  styles.postButton, 
+                  (commentText.trim() === '' || isSubmitting) && styles.disabledButton
+                ]}
+                onPress={handleAddComment}
+                disabled={commentText.trim() === '' || isSubmitting}
+              >
+                {isSubmitting ? (
+                  <ActivityIndicator size="small" color="#0A84FF" />
+                ) : (
+                  <Text style={[
+                    styles.postButtonText, 
+                    commentText.trim() === '' && styles.disabledButtonText
+                  ]}>
+                    {replyingToCommentId ? 'Reply' : 'Post'}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
 
         <Modal
           animationType="slide"
@@ -1460,13 +1794,30 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   commentInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
     paddingHorizontal: 15,
     paddingVertical: 10,
     borderTopColor: '#222',
     borderTopWidth: 1,
     backgroundColor: '#000',
+  },
+  replyIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#111',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 15,
+    marginBottom: 8,
+  },
+  replyIndicatorText: {
+    color: '#0A84FF',
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   commentInputProfilePic: {
     width: 30,
@@ -1476,14 +1827,17 @@ const styles = StyleSheet.create({
   },
   commentInput: {
     flex: 1,
-    height: 36,
+    minHeight: 36,
+    maxHeight: 120,
     borderColor: '#333',
     borderWidth: 1,
     borderRadius: 18,
     paddingHorizontal: 15,
+    paddingVertical: 8,
     fontSize: 14,
     color: '#FFF',
     backgroundColor: '#111',
+    textAlignVertical: 'center',
   },
   postButton: {
     marginLeft: 10,
