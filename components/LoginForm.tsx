@@ -68,17 +68,21 @@ export default function LoginForm({ visible, onBackPress, onForgotPasswordPress,
 
   const handleEmailChange = (text: string) => {
     setEmailAddress(text);
-    // Validate email format on every keystroke
-    if (text && !isValidEmail(text)) {
-      setEmailError('Please provide a valid email.');
-      setIsEmailValid(false);
+    // Only show validation errors after the user has attempted to submit.
+    if (submitted) {
+      if (text && !isValidEmail(text)) {
+        setEmailError('Please provide a valid email.');
+        setIsEmailValid(false);
+      } else {
+        setEmailError('');
+        setIsEmailValid(true);
+      }
+      // Clear any generic error when editing after submit
+      setErrorMessage('');
     } else {
+      // Before submit, don't show validation errors.
       setEmailError('');
       setIsEmailValid(true);
-    }
-    // Do not check if email exists in DB here
-    if (submitted) {
-      setErrorMessage('');
     }
   };
 
