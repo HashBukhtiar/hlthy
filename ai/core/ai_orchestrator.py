@@ -333,7 +333,7 @@ class AIOrchestrator:
             
             # Simplified, robust prompt with full profile context
             prompt = f"""
-            Analyze this fitness message and respond with JSON:
+            Analyze this fitness message and determine intent with context:
             
             Message: "{message}"
             
@@ -345,13 +345,20 @@ class AIOrchestrator:
             - Training frequency: {training_frequency} days/week
             - Available exercises: {len(allowed_exercises)}
             {conversation_context}
-            - Total exercises in database: {exercise_db.get('total_exercises', 0)}
+            
+            Choose the most appropriate intent from these options:
+            - workout_request: User wants a workout plan
+            - interview_needed: User request is too vague, needs clarification
+            - technique_question: User asking about exercise form/technique
+            - progress_check: User asking about their progress
+            - advice: General fitness advice question
+            - nonsense: Unrelated to fitness
             
             Respond with ONLY this JSON format:
             {{
-                "intent": "workout_request",
-                "confidence": 0.8,
-                "response_type": "workout"
+                "intent": "workout_request|interview_needed|technique_question|progress_check|advice|nonsense",
+                "reason": "brief explanation for this classification",
+                "confidence": 0.0-1.0
             }}
             """
             
