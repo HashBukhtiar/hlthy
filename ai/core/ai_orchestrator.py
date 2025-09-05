@@ -761,19 +761,35 @@ class AIOrchestrator:
             # Determine what the user is responding to based on profile completeness
             if not profile:
                 # New user responding to experience level
-                return self._update_profile_from_interview(user_id, 'experience_level', message)
+                result = self._update_profile_from_interview(user_id, 'experience_level', message)
             elif not profile.experience_level or profile.experience_level == 'beginner':
-                return self._update_profile_from_interview(user_id, 'experience_level', message)
+                result = self._update_profile_from_interview(user_id, 'experience_level', message)
             elif not profile.goals or not profile.goals.primary_goal:
-                return self._update_profile_from_interview(user_id, 'fitness_goals', message)
+                result = self._update_profile_from_interview(user_id, 'fitness_goals', message)
             elif not profile.goals or not profile.goals.session_duration:
-                return self._update_profile_from_interview(user_id, 'time_available', message)
+                result = self._update_profile_from_interview(user_id, 'time_available', message)
             elif not profile.available_equipment:
-                return self._update_profile_from_interview(user_id, 'equipment_access', message)
+                result = self._update_profile_from_interview(user_id, 'equipment_access', message)
             else:
                 # Profile is complete, treat as regular message
                 understanding = {'intent': 'workout_request', 'confidence': 0.8}
                 return self._generate_workout_with_systems(user_id, understanding, context)
+            
+            # Check if there's a next question to continue the interview
+            if result.get('next_question'):
+                return {
+                    'type': 'interview',
+                    'question': result['next_question']['question'],
+                    'message': result['next_question']['message'],
+                    'used_systems': ['profile_manager']
+                }
+            else:
+                # Interview complete, offer to create workout
+                return {
+                    'type': 'offer_plan',
+                    'message': "Perfect! Your profile is complete. Would you like me to create a personalized workout for you now?",
+                    'used_systems': ['profile_manager']
+                }
                 
         except Exception as e:
             print(f"Interview response handling error: {e}")
