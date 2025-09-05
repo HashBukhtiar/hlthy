@@ -2,13 +2,13 @@
 Focus Whitelist - Build focus-specific exercise whitelists from exercise database
 """
 from typing import List, Dict, Any, Optional, Set
-from focus_rules import (
+from .focus_rules import (
     BASE_FOCI, get_muscle_families_for_focus, parse_combo,
     MOVEMENT_PATTERNS, normalize_focus
 )
 
 try:
-    from exercise_database import get_exercises_by_filters, CANONICAL_EXERCISES
+    from .exercise_database import get_exercises_by_filters, CANONICAL_EXERCISES
 except ImportError:
     # Fallback for testing
     def get_exercises_by_filters(*args, **kwargs):
@@ -16,7 +16,7 @@ except ImportError:
     CANONICAL_EXERCISES = {}
 
 try:
-    from exercise_database import get_exercise_data
+    from .exercise_database import get_exercise_data
 except ImportError:
     # Fallback for testing
     def get_exercise_data(*args, **kwargs):
@@ -110,14 +110,14 @@ def _matches_user_constraints(exercise, user_ctx: Dict[str, Any]) -> bool:
     """Check if exercise matches user equipment, injuries, etc."""
     # Check equipment availability
     user_equipment = set(user_ctx.get('equipment', []))
-    exercise_equipment = set(exercise.required_equipment)
+    exercise_equipment = set(exercise.equipment_required)
     
     if exercise_equipment and not exercise_equipment.issubset(user_equipment):
         return False
     
     # Check injury constraints
     user_injuries = set(user_ctx.get('injuries', []))
-    exercise_risks = set(exercise.injury_risks)
+    exercise_risks = set(exercise.injury_contraindications)
     
     if user_injuries.intersection(exercise_risks):
         return False
@@ -127,7 +127,7 @@ def _matches_user_constraints(exercise, user_ctx: Dict[str, Any]) -> bool:
     exp_levels = {'beginner': 1, 'intermediate': 2, 'advanced': 3}
     
     user_level = exp_levels.get(user_exp, 2)
-    required_level = exp_levels.get(exercise.experience_level, 2)
+    required_level = exp_levels.get(exercise.min_experience_level.value, 1)
     
     if user_level < required_level:
         return False
@@ -153,7 +153,7 @@ def _is_focus_relevant_warmup(exercise, focus_type: str) -> bool:
     }
     
     target_muscles = focus_muscle_map.get(focus_type, [])
-    exercise_muscles = exercise.primary_muscles + exercise.secondary_muscles
+    exercise_muscles = exercise.primary_muscles  # Only use primary muscles
     
     return any(muscle in target_muscles for muscle in exercise_muscles)
 
@@ -173,7 +173,7 @@ def _is_focus_relevant_cooldown(exercise, focus_type: str) -> bool:
     }
     
     target_muscles = focus_muscle_map.get(focus_type, [])
-    exercise_muscles = exercise.primary_muscles + exercise.secondary_muscles
+    exercise_muscles = exercise.primary_muscles  # Only use primary muscles
     
     return any(muscle in target_muscles for muscle in exercise_muscles)
 
@@ -347,12 +347,19 @@ def _build_single_focus_whitelist(user_ctx: Dict[str, Any], focus: str) -> List[
     # Remove duplicates and banned patterns
     whitelist = list(dict.fromkeys(whitelist))  # Preserve order, remove dupes
     
-    # Filter out banned exercises
+    # Filter out banned exercises and segment exercises
     filtered_whitelist = []
     for exercise_id in whitelist:
-        exercise_patterns = _get_exercise_patterns(exercise_id)
-        if not any(banned in exercise_patterns for banned in banned_patterns):
-            filtered_whitelist.append(exercise_id)
+        exercise = CANONICAL_EXERCISES.get(exercise_id)
+        if exercise:
+            # Exclude segment-specific exercises from main whitelist
+            if (exercise.isCardioWarmup or exercise.isActivation or 
+                exercise.isMobility or exercise.isStretch):
+                continue
+                
+            exercise_patterns = _get_exercise_patterns(exercise_id)
+            if not any(banned in exercise_patterns for banned in banned_patterns):
+                filtered_whitelist.append(exercise_id)
     
     # If too few, add more from target muscles
     if len(filtered_whitelist) < 10:
@@ -362,11 +369,18 @@ def _build_single_focus_whitelist(user_ctx: Dict[str, Any], focus: str) -> List[
         })
         for exercise_id in additional:
             if exercise_id not in filtered_whitelist:
-                exercise_patterns = _get_exercise_patterns(exercise_id)
-                if not any(banned in exercise_patterns for banned in banned_patterns):
-                    filtered_whitelist.append(exercise_id)
-                    if len(filtered_whitelist) >= 15:
-                        break
+                exercise = CANONICAL_EXERCISES.get(exercise_id)
+                if exercise:
+                    # Exclude segment-specific exercises from main whitelist
+                    if (exercise.isCardioWarmup or exercise.isActivation or 
+                        exercise.isMobility or exercise.isStretch):
+                        continue
+                        
+                    exercise_patterns = _get_exercise_patterns(exercise_id)
+                    if not any(banned in exercise_patterns for banned in banned_patterns):
+                        filtered_whitelist.append(exercise_id)
+                        if len(filtered_whitelist) >= 15:
+                            break
     
     return filtered_whitelist[:25]
 

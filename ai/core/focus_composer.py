@@ -15,7 +15,7 @@ def compose_segment_aware_plan(focus_intent: Dict, whitelist: List[str], user_co
     
     Returns plan with three segments: warmup, main, cooldown
     """
-    from focus_whitelist import build_warmup_pool, build_cooldown_pool
+    from .focus_whitelist import build_warmup_pool, build_cooldown_pool
     
     # Get separate pools for segments
     warmup_pool = build_warmup_pool(user_context, focus_intent)
@@ -125,11 +125,21 @@ def compose_segment_aware_plan(focus_intent: Dict, whitelist: List[str], user_co
     cooldown_ids = {ex['exercise_id'] for ex in cooldown_segment}
     main_ids = {ex['exercise_id'] for ex in main_segment}
     
-    # Remove any duplicates
+    # Remove any duplicates between segments
     if warmup_ids & cooldown_ids:
-        # Remove from cooldown
+        # Remove from cooldown (warmup takes priority)
         cooldown_segment = [ex for ex in cooldown_segment 
                            if ex['exercise_id'] not in warmup_ids]
+        cooldown_ids = {ex['exercise_id'] for ex in cooldown_segment}
+    
+    # Ensure main exercises don't appear in warmup/cooldown
+    if warmup_ids & main_ids:
+        warmup_segment = [ex for ex in warmup_segment 
+                         if ex['exercise_id'] not in main_ids]
+        
+    if cooldown_ids & main_ids:
+        cooldown_segment = [ex for ex in cooldown_segment 
+                           if ex['exercise_id'] not in main_ids]
     
     # Combine all segments
     complete_plan = {

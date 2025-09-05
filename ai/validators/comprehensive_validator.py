@@ -461,6 +461,136 @@ class ComprehensiveFocusValidator:
                         suggestion=f"Consider adding {', '.join(missing_types)} exercises to {segment}"
                     ))
         
+        # Task B.3: Validate segment anti-duplication
+        results.extend(self._validate_segment_anti_duplication(workout_plan))
+        
+        return results
+    
+    def _validate_segment_anti_duplication(self, workout_plan: Dict[str, Any]) -> List[ValidationResult]:
+        """Validate no exercise duplication between segments"""
+        results = []
+        
+        # Collect exercise IDs from each segment
+        warmup_ids = set()
+        cooldown_ids = set()
+        main_ids = set()
+        
+        exercises = workout_plan.get('exercises', [])
+        
+        # Also check segment-specific keys
+        if 'warmup' in workout_plan:
+            warmup_ids.update(ex.get('exercise_id') for ex in workout_plan['warmup'] if ex.get('exercise_id'))
+        if 'cooldown' in workout_plan:
+            cooldown_ids.update(ex.get('exercise_id') for ex in workout_plan['cooldown'] if ex.get('exercise_id'))
+        if 'main' in workout_plan:
+            main_ids.update(ex.get('exercise_id') for ex in workout_plan['main'] if ex.get('exercise_id'))
+        
+        # Collect from exercises list with segment tags
+        for ex in exercises:
+            exercise_id = ex.get('exercise_id')
+            if not exercise_id:
+                continue
+                
+            segment = ex.get('segment', 'main')
+            if segment in ['warm_up', 'warmup']:
+                warmup_ids.add(exercise_id)
+            elif segment in ['cool_down', 'cooldown']:
+                cooldown_ids.add(exercise_id)
+            else:
+                main_ids.add(exercise_id)
+        
+        # Check for overlaps
+        warmup_cooldown_overlap = warmup_ids & cooldown_ids
+        warmup_main_overlap = warmup_ids & main_ids
+        cooldown_main_overlap = cooldown_ids & main_ids
+        
+        if warmup_cooldown_overlap:
+            results.append(ValidationResult(
+                level=ValidationLevel.ERROR,
+                category="segments",
+                message=f"Exercise duplication between warm-up and cool-down: {', '.join(warmup_cooldown_overlap)}",
+                suggestion="Remove duplicate exercises from one segment"
+            ))
+        
+        if warmup_main_overlap:
+            results.append(ValidationResult(
+                level=ValidationLevel.ERROR,
+                category="segments", 
+                message=f"Exercise duplication between warm-up and main: {', '.join(warmup_main_overlap)}",
+                suggestion="Remove duplicate exercises from warm-up"
+            ))
+        
+        if cooldown_main_overlap:
+            results.append(ValidationResult(
+                level=ValidationLevel.ERROR,
+                category="segments",
+                message=f"Exercise duplication between cool-down and main: {', '.join(cooldown_main_overlap)}",
+                suggestion="Remove duplicate exercises from cool-down"
+            ))
+        
+        # Task B.3: Validate segment role compliance
+        results.extend(self._validate_segment_role_compliance(warmup_ids, cooldown_ids))
+        
+        return results
+    
+    def _validate_segment_role_compliance(self, warmup_ids: set, cooldown_ids: set) -> List[ValidationResult]:
+        """Validate that exercises have appropriate roles for their segments"""
+        results = []
+        
+        # Import here to avoid circular imports
+        try:
+            from ..core.exercise_database import CANONICAL_EXERCISES
+        except ImportError:
+            return results
+        
+        # Check warm-up compliance
+        for exercise_id in warmup_ids:
+            exercise = CANONICAL_EXERCISES.get(exercise_id)
+            if exercise:
+                # Warm-up should only contain cardio warmup or activation exercises
+                if not (exercise.isCardioWarmup or exercise.isActivation):
+                    results.append(ValidationResult(
+                        level=ValidationLevel.ERROR,
+                        category="segments",
+                        message=f"Inappropriate warm-up exercise: {exercise_id}",
+                        exercise_id=exercise_id,
+                        suggestion="Replace with cardio warm-up or activation exercise"
+                    ))
+                
+                # Warm-up should not contain stretch/mobility
+                if exercise.isMobility or exercise.isStretch:
+                    results.append(ValidationResult(
+                        level=ValidationLevel.ERROR,
+                        category="segments",
+                        message=f"Warm-up contains stretch/mobility exercise: {exercise_id}",
+                        exercise_id=exercise_id,
+                        suggestion="Move to cool-down or replace with activation exercise"
+                    ))
+        
+        # Check cool-down compliance
+        for exercise_id in cooldown_ids:
+            exercise = CANONICAL_EXERCISES.get(exercise_id)
+            if exercise:
+                # Cool-down should only contain mobility or stretch exercises
+                if not (exercise.isMobility or exercise.isStretch):
+                    results.append(ValidationResult(
+                        level=ValidationLevel.ERROR,
+                        category="segments",
+                        message=f"Inappropriate cool-down exercise: {exercise_id}",
+                        exercise_id=exercise_id,
+                        suggestion="Replace with mobility or stretch exercise"
+                    ))
+                
+                # Cool-down should not contain activation
+                if exercise.isActivation:
+                    results.append(ValidationResult(
+                        level=ValidationLevel.ERROR,
+                        category="segments",
+                        message=f"Cool-down contains activation exercise: {exercise_id}",
+                        exercise_id=exercise_id,
+                        suggestion="Move to warm-up or replace with stretch exercise"
+                    ))
+        
         return results
     
     def _validate_focus_alignment(self, workout_plan: Dict[str, Any], 
