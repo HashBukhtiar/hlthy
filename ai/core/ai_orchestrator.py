@@ -99,9 +99,35 @@ class AIOrchestrator:
         try:
             # 1. Load user's complete context from YOUR systems
             user_context = self._load_complete_context(user_id, message)
+            profile = user_context.get('profile')
             
-            # 2. Let Gemini understand the message WITH all your context
-            understanding = self._ai_understand_with_context(message, user_context)
+            # 2. ROUTER-FIRST GATING - Always route through focus router before any planning
+            from .focus_router_enhanced import route_focus_request
+            router_decision = route_focus_request(message, profile.__dict__ if profile else None)
+            
+            # Handle router decisions
+            if router_decision['action'] == 'reject_nonsense':
+                return {
+                    'type': 'clarify_focus',
+                    'message': "I'm here to help with your fitness goals! " + router_decision['suggestions'][0],
+                    'suggestions': router_decision['suggestions'],
+                    'used_systems': ['router']
+                }
+            elif router_decision['action'] == 'clarify_focus':
+                return {
+                    'type': 'clarify_focus', 
+                    'message': router_decision['reason'] + ". " + router_decision['suggestions'][0],
+                    'suggestions': router_decision['suggestions'],
+                    'used_systems': ['router']
+                }
+            elif router_decision['action'] == 'start_interview':
+                return self._start_user_interview(user_id, {'intent': 'interview_needed'}, user_context)
+            elif router_decision['action'] == 'direct_planning':
+                # Proceed with workout generation
+                understanding = {'intent': 'workout_request', 'confidence': 0.9, 'focus': router_decision.get('focus')}
+            else:
+                # Default understanding from AI
+                understanding = self._ai_understand_with_context(message, user_context)
             
             if not understanding or not isinstance(understanding, dict):
                 return {
@@ -114,7 +140,6 @@ class AIOrchestrator:
             result = None
             
             # Check if user is responding to an interview question
-            profile = user_context.get('profile')
             is_interview_response = self._is_interview_response(message, profile)
             
             if is_interview_response:
