@@ -27,7 +27,7 @@ except ImportError:
         }
 
 try:
-    from exercise_whitelist_cache import get_cached_whitelist, cache_whitelist
+    from ..utils.exercise_whitelist_cache import get_cached_whitelist, cache_whitelist
 except ImportError:
     # Fallback for testing
     def get_cached_whitelist(*args, **kwargs):
