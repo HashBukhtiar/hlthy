@@ -1,13 +1,18 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { auth, db } from '@/firebaseConfig';
-import { onAuthStateChanged } from 'firebase/auth';
+import { onAuthStateChanged, User } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { UserProfile, AuthContextType } from '@/types/user';
+import { NotificationService } from '@/services/NotificationService';
 
 export const AuthContext = createContext<AuthContextType | null>(null);
 
-export function AuthProvider({ children }) {
-  const [currentUser, setCurrentUser] = useState(null);
+interface AuthProviderProps {
+  children: ReactNode;
+}
+
+export function AuthProvider({ children }: AuthProviderProps) {
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
 
@@ -32,6 +37,30 @@ export function AuthProvider({ children }) {
     }
   };
 
+  // Initialize notifications for authenticated user
+  const initializeNotifications = async (user: User) => {
+    try {
+      console.log('Initializing notifications for user:', user.uid);
+      
+      // Register for push notifications
+      const success = await NotificationService.registerForPushNotifications(user.uid);
+      if (success) {
+        console.log('Successfully registered for push notifications');
+      } else {
+        console.warn('Failed to register for push notifications');
+      }
+
+      // Set up notification listeners
+      NotificationService.setupNotificationListeners();
+
+      // Update push token (in case it changed)
+      await NotificationService.updatePushToken(user.uid);
+      
+    } catch (error) {
+      console.error('Error initializing notifications:', error);
+    }
+  };
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
@@ -46,17 +75,29 @@ export function AuthProvider({ children }) {
               ...userData,
             } as UserProfile);
           }
+
+          // Initialize notifications after user data is loaded
+          await initializeNotifications(user);
+          
         } catch (error) {
           console.error("Error fetching user profile:", error);
         }
       } else {
         setUserProfile(null);
+        // Clean up notifications on logout
+        if (currentUser) {
+          try {
+            await NotificationService.removePushToken(currentUser.uid);
+          } catch (error) {
+            console.error('Error removing push token on logout:', error);
+          }
+        }
       }
       setLoading(false);
     });
     
     return unsubscribe;
-  }, []);
+  }, [currentUser]);
 
   const value: AuthContextType = {
     currentUser,

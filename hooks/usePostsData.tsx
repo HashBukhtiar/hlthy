@@ -25,6 +25,7 @@ import { app, db, storage } from '@/firebaseConfig';
 import { useAuth } from '@/context/AuthContext';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { generateUniqueFilename } from '@/logic/idGenerator';
+import { NotificationService } from '@/services/NotificationService';
 
 export interface Post {
   id: string;
@@ -463,6 +464,20 @@ export function usePostsData() {
           createdAt: serverTimestamp(),
           status: 'unread'
         });
+
+        // Send notification for the like
+        try {
+          await NotificationService.notifyLikeOrComment(
+            postData.authorId,
+            currentUser.uid,
+            userProfile.username || 'Someone',
+            postId,
+            true // isLike = true
+          );
+        } catch (error) {
+          console.error('Error sending like notification:', error);
+          // Don't throw - notification failure shouldn't stop the like action
+        }
       }
 
       console.log(`User ${currentUser.uid} liked post ${postId}`);
@@ -529,6 +544,12 @@ export function usePostsData() {
     if (!currentUser || !userProfile) throw new Error("User not authenticated");
     if (!text.trim())      throw new Error("Comment text cannot be empty");
 
+    // First, get the post data to get author info
+    const postRef = doc(db, "posts", postId);
+    const postSnap = await getDoc(postRef);
+    if (!postSnap.exists()) throw new Error("Post not found");
+    const postData = postSnap.data() as Post;
+
     const newCommentRef = await addDoc(
       collection(db, "posts", postId, "comments"),
       {
@@ -541,6 +562,36 @@ export function usePostsData() {
         replyCount:     0,
       }
     );
+
+    // Create activity and send notification for the post author (if not self-comment)
+    if (postData.authorId !== currentUser.uid) {
+      try {
+        const authorActivityColRef = collection(db, 'activity', postData.authorId, 'userActivity');
+        await addDoc(authorActivityColRef, {
+          type: 'post_comment',
+          fromUserId: currentUser.uid,
+          fromUsername: userProfile.username,
+          fromProfileImageUrl: userProfile.profileImageUrl || null,
+          postId: postId,
+          postImageUrl: postData.imageUrl || null,
+          commentText: text.substring(0, 100) + (text.length > 100 ? '...' : ''),
+          createdAt: serverTimestamp(),
+          status: 'unread'
+        });
+
+        // Send notification for the comment
+        await NotificationService.notifyLikeOrComment(
+          postData.authorId,
+          currentUser.uid,
+          userProfile.username || 'Someone',
+          postId,
+          false // isLike = false
+        );
+      } catch (error) {
+        console.error('Error sending comment notification:', error);
+        // Don't throw - notification failure shouldn't stop the comment action
+      }
+    }
 
     return {
       id: newCommentRef.id,

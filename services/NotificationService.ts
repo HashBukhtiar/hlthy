@@ -12,6 +12,8 @@ Notifications.setNotificationHandler({
     shouldShowAlert: true,
     shouldPlaySound: true,
     shouldSetBadge: false,
+    shouldShowBanner: true,
+    shouldShowList: true,
   }),
 });
 
@@ -157,7 +159,7 @@ export class NotificationService {
         senderUserId,
       });
 
-      return response.data?.success || false;
+      return (response.data as any)?.success || false;
     } catch (error) {
       console.error('Error sending notification:', error);
       return false;
@@ -386,11 +388,16 @@ export class NotificationService {
     });
 
     // Handle user tapping on notifications
-    const responseListener = Notifications.addNotificationResponseReceivedListener(response => {
+    const responseListener = Notifications.addNotificationResponseReceivedListener(async response => {
       const { notification } = response;
-      const data = notification.request.content.data;
+      const data = notification.request.content.data as any || {};
       
       console.log('Notification tapped:', data);
+      
+      // Mark related activity as read if activityId is present
+      if (typeof data.activityId === 'string' && typeof data.recipientId === 'string') {
+        await this.markActivityAsRead(data.recipientId, data.activityId);
+      }
       
       // Handle navigation based on notification type
       this.handleNotificationNavigation(data);
@@ -403,33 +410,73 @@ export class NotificationService {
   }
 
   /**
+   * Mark activity as read when notification is tapped
+   */
+  static async markActivityAsRead(userId: string, activityId: string): Promise<void> {
+    try {
+      const activityRef = doc(db, 'activity', userId, 'userActivity', activityId);
+      await updateDoc(activityRef, {
+        isRead: true,
+        readAt: new Date()
+      });
+      console.log(`Activity ${activityId} marked as read for user ${userId}`);
+    } catch (error) {
+      console.error('Error marking activity as read:', error);
+    }
+  }
+
+  /**
    * Handle navigation when notification is tapped
    */
   private static handleNotificationNavigation(data: any) {
-    // This would integrate with your navigation system
-    // Example implementation:
-    const { type, userId, postId, conversationId } = data;
-    
-    switch (type) {
-      case 'newFollower':
-      case 'followAccepted':
-        // Navigate to user profile
-        break;
-      case 'likeComment':
-      case 'taggedInComment':
-      case 'mentionedInReply':
-        // Navigate to post
-        break;
-      case 'directMessage':
-        // Navigate to conversation
-        break;
-      case 'workoutShared':
-        // Navigate to shared workout
-        break;
-      default:
-        // Navigate to home or appropriate default screen
-        break;
-    }
+    // Import router dynamically to avoid circular dependency
+    import('expo-router').then(({ router }) => {
+      const { type, userId, postId, conversationId, activityId } = data;
+      
+      switch (type) {
+        case 'new_follower':
+        case 'follow_accepted':
+        case 'follow_request':
+          // Navigate to user profile
+          if (userId) {
+            router.push(`/profile/${userId}`);
+          } else {
+            router.push('/pulse'); // Show activity feed
+          }
+          break;
+        case 'like':
+        case 'comment':
+        case 'tagged_comment':
+        case 'mentioned_reply':
+          // Navigate to post
+          if (postId) {
+            router.push(`/view-post/${postId}`);
+          } else {
+            router.push('/pulse'); // Show activity feed
+          }
+          break;
+        case 'direct_message':
+          // Navigate to conversation
+          if (conversationId) {
+            router.push(`/chat/${conversationId}`);
+          } else {
+            router.push('/dms'); // Show messages list
+          }
+          break;
+        case 'workout_shared':
+          // Navigate to shared workout
+          if (postId) {
+            router.push(`/view-workout/${postId}`);
+          }
+          break;
+        default:
+          // Navigate to activity feed for any other notifications
+          router.push('/pulse');
+          break;
+      }
+    }).catch(error => {
+      console.error('Error navigating from notification:', error);
+    });
   }
 
   /**
