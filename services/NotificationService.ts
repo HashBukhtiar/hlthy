@@ -118,8 +118,22 @@ export class NotificationService {
 
       // Save token to user document
       const userRef = doc(db, 'users', userId);
+      
+      // Get existing tokens to avoid duplicates
+      const userDoc = await getDoc(userRef);
+      let existingTokens: string[] = [];
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        existingTokens = userData.pushTokens || [];
+      }
+      
+      // Add new token if it doesn't exist
+      if (!existingTokens.includes(token)) {
+        existingTokens.push(token);
+      }
+      
       await updateDoc(userRef, {
-        pushToken: token,
+        pushTokens: existingTokens,
         deviceInfo: {
           platform: Platform.OS,
           deviceName: Device.deviceName,
@@ -153,13 +167,31 @@ export class NotificationService {
 
       const sendPushNotification = httpsCallable(functions, 'sendPushNotification');
       
-      const response = await sendPushNotification({
-        recipientIds,
-        notification: notificationData,
-        senderUserId,
-      });
+      // Send notification to each recipient individually
+      const results = await Promise.all(
+        recipientIds.map(async (recipientId) => {
+          try {
+            const response = await sendPushNotification({
+              recipientId,
+              title: notificationData.title,
+              body: notificationData.body,
+              notificationType: notificationData.type,
+              data: {
+                type: notificationData.type,
+                fromUserId: senderUserId,
+                ...notificationData.data,
+              },
+            });
+            return (response.data as any)?.success || false;
+          } catch (error) {
+            console.error(`Error sending notification to ${recipientId}:`, error);
+            return false;
+          }
+        })
+      );
 
-      return (response.data as any)?.success || false;
+      // Return true if at least one notification was sent successfully
+      return results.some(result => result);
     } catch (error) {
       console.error('Error sending notification:', error);
       return false;
@@ -494,8 +526,22 @@ export class NotificationService {
       const token = await this.getExpoPushToken();
       if (token) {
         const userRef = doc(db, 'users', userId);
+        
+        // Get existing tokens to avoid duplicates
+        const userDoc = await getDoc(userRef);
+        let existingTokens: string[] = [];
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          existingTokens = userData.pushTokens || [];
+        }
+        
+        // Add new token if it doesn't exist
+        if (!existingTokens.includes(token)) {
+          existingTokens.push(token);
+        }
+        
         await updateDoc(userRef, {
-          pushToken: token,
+          pushTokens: existingTokens,
           lastTokenUpdate: serverTimestamp(),
         });
       }
@@ -511,7 +557,7 @@ export class NotificationService {
     try {
       const userRef = doc(db, 'users', userId);
       await updateDoc(userRef, {
-        pushToken: null,
+        pushTokens: [], // Clear the array
         lastTokenUpdate: serverTimestamp(),
       });
       NotificationService.pushToken = null;
