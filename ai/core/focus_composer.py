@@ -177,15 +177,20 @@ def compose_workout_plan(focus_intent: Dict, whitelist: List[str], user_context:
     return main_exercises
 
 def _matches_pattern(exercise_id: str, pattern: str) -> bool:
-    """Check if exercise matches movement pattern."""
+    """Check if exercise matches movement pattern(s)."""
     exercise = CANONICAL_EXERCISES.get(exercise_id)
     if not exercise:
         return False
     
-    # Check various pattern indicators
-    return (pattern in exercise_id or 
-            pattern in exercise.display_name.lower() or
-            any(pattern in muscle for muscle in exercise.primary_muscles))
+    # Split pattern by | and check each one
+    pattern_options = [p.strip() for p in pattern.split('|')]
+    
+    # Check if any pattern option matches the exercise's movement_patterns
+    for pattern_option in pattern_options:
+        if pattern_option in exercise.movement_patterns:
+            return True
+    
+    return False
 
 
 def get_slot_template_for_focus(focus: str) -> List[Dict[str, Any]]:

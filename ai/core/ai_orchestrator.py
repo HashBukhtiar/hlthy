@@ -7,7 +7,11 @@ import json
 import asyncio
 import sys
 import os
+import logging
 from datetime import datetime
+
+# Setup logger
+logger = logging.getLogger(__name__)
 
 # Add parent directory to path for imports
 parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -390,12 +394,39 @@ class AIOrchestrator:
             return result
             
         except Exception as e:
-            
-            # Safe fallback
+            logger.error(f"AI understanding failed: {e}")
+            return self._fallback_intent(message)
+    
+    def _fallback_intent(self, message: str) -> Dict:
+        """
+        Safe fallback for intent classification when AI fails
+        """
+        # Simple keyword-based fallback
+        message_lower = message.lower()
+        
+        if any(word in message_lower for word in ['workout', 'routine', 'exercise', 'train']):
             return {
-                'intent': 'workout_request' if 'workout' in message.lower() else 'advice',
-                'confidence': 0.6,
-                'response_type': 'interview'
+                'intent': 'workout_request',
+                'reason': 'fallback - detected workout keywords',
+                'confidence': 0.6
+            }
+        elif any(word in message_lower for word in ['how', 'form', 'technique', 'proper']):
+            return {
+                'intent': 'technique_question', 
+                'reason': 'fallback - detected technique keywords',
+                'confidence': 0.6
+            }
+        elif any(word in message_lower for word in ['progress', 'tracking', 'results']):
+            return {
+                'intent': 'progress_check',
+                'reason': 'fallback - detected progress keywords', 
+                'confidence': 0.6
+            }
+        else:
+            return {
+                'intent': 'interview_needed',
+                'reason': 'fallback - unclear request needs clarification',
+                'confidence': 0.5
             }
     
     def _ai_select_actions(self, understanding: Dict, context: Dict) -> List[str]:
