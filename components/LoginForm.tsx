@@ -131,7 +131,16 @@ export default function LoginForm({ visible, onBackPress, onForgotPasswordPress,
       let emailExists = false;
       let dummyUserCreated = false;
       let dummyUserDeleted = false;
-      let randomPassword = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36) + Date.now();
+      // Generate a random/dummy password via helper
+      let randomPassword = '';
+      try {
+        // Lazy import the helper to keep bundle size small
+        const { default: generateDummyPassword } = await import('@/utils/generateDummyPassword');
+        randomPassword = generateDummyPassword();
+      } catch (e) {
+        // Fallback inline generation
+        randomPassword = (typeof crypto !== 'undefined' && (crypto as any).randomUUID) ? (crypto as any).randomUUID() : Math.random().toString(36) + Date.now();
+      }
       try {
         const userCredential = await signInWithEmailAndPassword(auth, emailAddress, randomPassword);
         // If this succeeds, the password was correct (should not happen)
