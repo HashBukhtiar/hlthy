@@ -4,12 +4,12 @@ Organized AI system for intelligent workout planning with segment awareness
 """
 
 # Core system components
-from core.exercise_database import ExerciseDatabase
-from core.equipment_catalog import EquipmentCatalog  
-from core.exercise_alias_resolver import ExerciseAliasResolver
-from core.technique_library_complete import TechniqueLibrary
-from core.progression_tracker_complete import ProgressionTracker
-from core.focus_router_enhanced import route_focus_request, detect_focus, is_nonsense_or_unknown
+from .core.exercise_database import ExerciseDatabase
+from .core.equipment_catalog import EquipmentCatalog  
+from .core.exercise_alias_resolver import ExerciseAliasResolver
+from .core.technique_library_complete import TechniqueLibrary
+from .core.progression_tracker_complete import ProgressionTracker
+from .core.focus_router_enhanced import route_focus_request, detect_focus, is_nonsense_or_unknown
 
 # Integration system
 from integration.focus_integration_complete import FocusIntegrationSystem, InterviewSession

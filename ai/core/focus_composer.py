@@ -2,11 +2,11 @@
 Focus Composer - Generate slot templates and compose focus-specific prompts with segment awareness
 """
 from typing import Dict, List, Any, Optional, Tuple
-from focus_rules import (
+from .focus_rules import (
     BASE_FOCI, VOLUME_BOUNDS, normalize_focus, parse_combo,
     get_muscle_families_for_focus
 )
-from exercise_database import CANONICAL_EXERCISES
+from .exercise_database import CANONICAL_EXERCISES
 
 
 def compose_segment_aware_plan(focus_intent: Dict, whitelist: List[str], user_context: Dict, slot_template: Dict = None) -> Dict:
