@@ -26,7 +26,7 @@ export class SignupService {
       // Clean up any existing unverified account first
       await this.cleanupAnyExistingUnverifiedAccount();
       
-      // Store signup data with timestamp
+      // Store signup data with timestamp - no Firebase account created yet
       const pendingData: PendingSignupData = {
         ...signupData,
         timestamp: Date.now()
@@ -37,61 +37,6 @@ export class SignupService {
       // Create temporary account just to send verification email
       const userCredential = await createUserWithEmailAndPassword(auth, signupData.email, signupData.password);
       const user = userCredential.user;
-      
-      // Reserve username in usersPublic immediately (simple reservation record)
-      try {
-        await setDoc(doc(db, 'usersPublic', user.uid), {
-          uid: user.uid,
-          username: signupData.username,
-        });
-      } catch (e) {
-        console.warn('[SignupService] Failed to reserve username in usersPublic:', e);
-      }
-
-      // Create Firestore user profile immediately with emailVerified: false
-      try {
-        await setDoc(doc(db, 'users', user.uid), {
-          uid: user.uid,
-          email: signupData.email,
-          firstName: signupData.firstName,
-          lastName: signupData.lastName,
-          username: signupData.username,
-          dateOfBirth: signupData.dateOfBirth,
-          archetype: signupData.archetype,
-          version: 1,
-          units: {weight: "metric", distance: "metric"},
-          notifications: {
-            mentionedInReplies: true, 
-            likesAndComments: true, 
-            taggedInComments: true, 
-            directMessages: true, 
-            newFollowers: true, 
-            followRequestAccepted: true
-          },
-          messagePermission: 'everyone',
-          profileVisibility: 'public',
-          createdAt: new Date().toISOString(),
-          lastModified: new Date().toISOString(),
-          language: 'en',
-          followPermission: 'anyone',
-          followerCount: 0,
-          followingCount: 0,
-          postCount: 0,
-          workoutCount: 0,
-          milestoneCount: 0,
-          displayName: `${signupData.firstName} ${signupData.lastName}`,
-          commentPermission: 'everyone',
-          theme: 'dark',
-          twoFactorEnabled: false,
-          analytics: {lastSeen: new Date().toISOString()},
-          latestPRs: {},
-          bio: '',
-          emailVerified: false, // Set to false initially
-          verifiedAt: null,
-        });
-      } catch (e) {
-        console.warn('[SignupService] Failed to create user profile in users collection:', e);
-      }
 
       // Send verification email
       await sendEmailVerification(user);
@@ -101,19 +46,9 @@ export class SignupService {
       // Clean up stored data if account creation fails
       await AsyncStorage.removeItem(PENDING_SIGNUP_KEY);
       
-      // If account was created but email sending failed, try to delete it and clean usersPublic and users
+      // If account was created but email sending failed, try to delete it
       const user = auth.currentUser;
       if (user && !user.emailVerified) {
-        try {
-          await deleteDoc(doc(db, 'usersPublic', user.uid));
-        } catch (cleanupError) {
-          console.warn('[SignupService] Could not delete usersPublic doc during cleanup:', cleanupError);
-        }
-        try {
-          await deleteDoc(doc(db, 'users', user.uid));
-        } catch (cleanupError) {
-          console.warn('[SignupService] Could not delete users doc during cleanup:', cleanupError);
-        }
         await this.safelyCleanupUnverifiedAccount(user);
         console.log('[SignupService] Cleaned up after failed account creation');
       }
@@ -170,14 +105,47 @@ export class SignupService {
         throw new Error('Email not verified');
       }
 
-      // Update Firestore user profile to mark email as verified
+      // Create Firestore user profile (full profile creation)
       await setDoc(doc(db, 'users', user.uid), {
-        emailVerified: true, // Set to true since we just verified it
-        verifiedAt: new Date().toISOString(),
+        uid: user.uid,
+        email: pendingData.email,
+        firstName: pendingData.firstName,
+        lastName: pendingData.lastName,
+        username: pendingData.username,
+        dateOfBirth: pendingData.dateOfBirth,
+        archetype: pendingData.archetype,
+        version: 1,
+        units: {weight: "metric", distance: "metric"},
+        notifications: {
+          mentionedInReplies: true, 
+          likesAndComments: true, 
+          taggedInComments: true, 
+          directMessages: true, 
+          newFollowers: true, 
+          followRequestAccepted: true
+        },
+        messagePermission: 'everyone',
+        profileVisibility: 'public',
+        createdAt: new Date().toISOString(),
         lastModified: new Date().toISOString(),
-      }, { merge: true });
+        language: 'en',
+        followPermission: 'anyone',
+        followerCount: 0,
+        followingCount: 0,
+        postCount: 0,
+        workoutCount: 0,
+        milestoneCount: 0,
+        displayName: `${pendingData.firstName} ${pendingData.lastName}`,
+        commentPermission: 'everyone',
+        theme: 'dark',
+        twoFactorEnabled: false,
+        analytics: {lastSeen: new Date().toISOString()},
+        latestPRs: {},
+        bio: '',
+        emailVerified: true
+      });
 
-      // Create/update usersPublic document (keep it minimal)
+      // Create usersPublic document
       await setDoc(doc(db, 'usersPublic', user.uid), {
         uid: user.uid,
         username: pendingData.username,
@@ -213,19 +181,7 @@ export class SignupService {
         const user = auth.currentUser;
         if (user && !user.emailVerified) {
           console.log('[SignupService] Cleaning up unverified Firebase Auth account:', user.uid);
-          // Attempt to delete Firestore documents first so there are no orphaned records
-          try {
-            await deleteDoc(doc(db, 'usersPublic', user.uid));
-            console.log('[SignupService] Deleted usersPublic document for', user.uid);
-          } catch (err) {
-            console.warn('[SignupService] Could not delete usersPublic during clearPendingSignup:', err);
-          }
-          try {
-            await deleteDoc(doc(db, 'users', user.uid));
-            console.log('[SignupService] Deleted users document for', user.uid);
-          } catch (err) {
-            console.warn('[SignupService] Could not delete users during clearPendingSignup:', err);
-          }
+          // No need to clean up Firestore docs as they weren't created yet during pending signup
           await this.safelyCleanupUnverifiedAccount(user);
         }
       } else {
@@ -269,23 +225,7 @@ export class SignupService {
   static async cancelPendingSignup(): Promise<void> {
     try {
       console.log('[SignupService] Canceling pending signup');
-      // If there's a current user, attempt to remove the usersPublic and users reservations first
-      const user = auth.currentUser;
-      if (user) {
-        try {
-          await deleteDoc(doc(db, 'usersPublic', user.uid));
-          console.log('[SignupService] Removed usersPublic reservation for', user.uid);
-        } catch (err) {
-          console.warn('[SignupService] Could not remove usersPublic reservation:', err);
-        }
-        try {
-          await deleteDoc(doc(db, 'users', user.uid));
-          console.log('[SignupService] Removed users document for', user.uid);
-        } catch (err) {
-          console.warn('[SignupService] Could not remove users document:', err);
-        }
-      }
-
+      // During pending signup, only Firebase Auth account exists, no Firestore docs yet
       await this.clearPendingSignupData();
     } catch (error) {
       console.error('[SignupService] Error canceling pending signup:', error);
@@ -301,19 +241,7 @@ export class SignupService {
       const user = auth.currentUser;
       if (user && !user.emailVerified) {
         console.log('[SignupService] Cleaning up existing unverified account:', user.uid);
-        
-        // Clean up Firestore documents first
-        try {
-          await deleteDoc(doc(db, 'usersPublic', user.uid));
-        } catch (err) {
-          console.warn('[SignupService] Could not remove usersPublic during cleanup:', err);
-        }
-        try {
-          await deleteDoc(doc(db, 'users', user.uid));
-        } catch (err) {
-          console.warn('[SignupService] Could not remove users during cleanup:', err);
-        }
-        
+        // Only Firebase Auth account exists during pending signup, no Firestore docs to clean
         await this.safelyCleanupUnverifiedAccount(user);
       }
     } catch (error) {
