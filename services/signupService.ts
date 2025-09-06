@@ -50,7 +50,30 @@ export class SignupService {
 
       // Send verification email
       await sendEmailVerification(user);
-      
+
+      // Create usersPublic document immediately with isVerified=false and schedule cleanup
+      try {
+        await setDoc(doc(db, 'usersPublic', user.uid), {
+          uid: user.uid,
+          username: signupData.username,
+          isVerified: false,
+          // schedule cleanup for 5 minutes in the future (ms since epoch)
+          cleanupScheduledAt: Date.now() + 5 * 60 * 1000,
+        });
+        console.log('[SignupService] usersPublic created with isVerified:false for uid=', user.uid);
+
+        // Schedule a Cloud Task to run the cleanup handler in 5 minutes
+        try {
+          const scheduleFn = httpsCallable(functions, 'scheduleCleanupTask');
+          await scheduleFn({ uid: user.uid, delaySeconds: 5 * 60 });
+          console.log('[SignupService] Scheduled cleanup task for uid=', user.uid);
+        } catch (taskErr) {
+          console.warn('[SignupService] Failed to schedule cleanup task:', taskErr);
+        }
+      } catch (err) {
+        console.warn('[SignupService] Failed to create usersPublic at signup time:', err);
+      }
+
       console.log('[SignupService] Verification email sent to:', signupData.email);
     } catch (error: any) {
       // Clean up stored data if account creation fails
@@ -115,7 +138,13 @@ export class SignupService {
         throw new Error('Email not verified');
       }
 
-  // No server-side mark required. The server-side cleanup is per-account.
+      // Mark usersPublic as verified so the scheduled cleanup will skip it
+      try {
+        await setDoc(doc(db, 'usersPublic', user.uid), { isVerified: true }, { merge: true });
+        console.log('[SignupService] usersPublic marked as verified for uid=', user.uid);
+      } catch (err) {
+        console.warn('[SignupService] Failed to mark usersPublic as verified:', err);
+      }
 
       // Create Firestore user profile (full profile creation)
       await setDoc(doc(db, 'users', user.uid), {
