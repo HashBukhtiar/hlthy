@@ -28,6 +28,7 @@ interface EmailVerificationScreenProps {
   onVerificationComplete: () => void;
   onBackToSignUp: () => void;
   emailSent?: boolean; // New prop to indicate when email was actually sent
+  pendingTimestamp?: number;
 }
 
 export default function EmailVerificationScreen({
@@ -36,6 +37,7 @@ export default function EmailVerificationScreen({
   onVerificationComplete,
   onBackToSignUp,
   emailSent = false,
+  pendingTimestamp,
 }: EmailVerificationScreenProps) {
   const { width, height } = Dimensions.get('window');
   const router = useRouter();
@@ -45,6 +47,9 @@ export default function EmailVerificationScreen({
   const [isCheckingVerification, setIsCheckingVerification] = useState(false);
   const [isChangingEmail, setIsChangingEmail] = useState(false);
   const [isVerificationFailed, setIsVerificationFailed] = useState(false);
+  const [isAccountDeleted, setIsAccountDeleted] = useState(false);
+  const [countdownSeconds, setCountdownSeconds] = useState<number | null>(null);
+  const [hasPendingSignup, setHasPendingSignup] = useState(false);
   // Success animation state for resend button
   const [showResendSuccess, setShowResendSuccess] = useState(false);
   const spinnerFadeAnim = useRef(new Animated.Value(0)).current;
@@ -72,6 +77,21 @@ export default function EmailVerificationScreen({
     return () => subscription?.remove();
   }, [visible]);
 
+  // Expire the flow using the local countdown only. When countdownSeconds hits 0
+  // mark the verification as expired and show the expired UI. This avoids
+  // relying on cloud checks for deletion while the user is on the device.
+  useEffect(() => {
+    if (!visible) return;
+    if (countdownSeconds === null) return;
+    if (isAccountDeleted) return;
+
+    // Only mark expired when there was a pending signup for this device/session.
+    if (countdownSeconds <= 0 && hasPendingSignup) {
+      console.log('[EmailVerificationScreen] countdown reached 0 — marking account as expired locally');
+      setIsAccountDeleted(true);
+    }
+  }, [visible, countdownSeconds, isAccountDeleted]);
+
   // Cooldown timer for resend button
   useEffect(() => {
     if (resendCooldown > 0) {
@@ -88,6 +108,102 @@ export default function EmailVerificationScreen({
       setResendCooldown(60);
     }
   }, [emailSent]);
+
+  // Countdown for verification expiry (5 minutes from pending signup timestamp)
+  useEffect(() => {
+    if (!visible || isAccountDeleted) {
+      setCountdownSeconds(null);
+      return;
+    }
+
+    let interval: ReturnType<typeof setInterval> | null = null;
+    let mounted = true;
+
+    const setupCountdown = async () => {
+      try {
+        const pending = await SignupService.getPendingSignupData();
+        if (!pending || !mounted) {
+          console.log('[EmailVerificationScreen] setupCountdown: no pending signup data');
+          setHasPendingSignup(false);
+          setCountdownSeconds(null);
+          return;
+        }
+
+        // We have pending signup data for this device/session
+        setHasPendingSignup(true);
+
+        const expiryMs = pending.timestamp + 5 * 60 * 1000; // 5 minutes
+        const now = Date.now();
+        const initialRemaining = Math.max(0, Math.ceil((expiryMs - now) / 1000));
+
+        // Diagnostic log to help trace why a flow might be immediately expired
+        console.log('[EmailVerificationScreen] setupCountdown:', {
+          pendingTimestamp: pending.timestamp,
+          expiryMs,
+          now,
+          initialRemaining,
+        });
+
+        // If the initial remaining time is 0 but the pending record was created very
+        // recently (within the last 10s), treat this as a likely race / tiny clock skew
+        // and start the countdown at full 5 minutes so the user sees the expected UI.
+        if (initialRemaining <= 0) {
+          const ageMs = now - pending.timestamp;
+          if (ageMs < 10 * 1000) {
+            // Start fresh countdown for new signups
+            setCountdownSeconds(5 * 60);
+            // still install interval to tick down
+            interval = setInterval(() => {
+              if (!mounted) return;
+              const remaining = Math.max(0, Math.ceil((expiryMs - Date.now()) / 1000));
+              setCountdownSeconds(remaining);
+              if (remaining <= 0 && interval) {
+                clearInterval(interval);
+                interval = null;
+              }
+            }, 1000);
+            return;
+          }
+
+          // Otherwise treat as expired
+          setCountdownSeconds(0);
+          return;
+        }
+
+        // Normal startup path
+        const tick = () => {
+          const remaining = Math.max(0, Math.ceil((expiryMs - Date.now()) / 1000));
+          if (!mounted) return;
+          setCountdownSeconds(remaining);
+          if (remaining <= 0 && interval) {
+            clearInterval(interval);
+            interval = null;
+          }
+        };
+
+        tick();
+        interval = setInterval(tick, 1000);
+      } catch (e) {
+        console.warn('[EmailVerificationScreen] setupCountdown error:', e);
+        setCountdownSeconds(null);
+      }
+    };
+
+    setupCountdown();
+
+    return () => {
+      mounted = false;
+      if (interval) clearInterval(interval);
+    };
+  }, [visible, isAccountDeleted]);
+
+  const formatCountdown = (seconds: number | null) => {
+    if (seconds === null) return null;
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  if (m === 0) return `${s}s`;
+  return `${m}m ${s}s`;
+  };
 
   useEffect(() => {
     if (isChangingEmail) {
@@ -135,11 +251,21 @@ export default function EmailVerificationScreen({
   });
 
   const checkEmailVerification = useCallback(async () => {
-    if (!auth.currentUser) return;
+    if (!auth.currentUser) {
+      console.log('[EmailVerificationScreen] checkEmailVerification: no auth.currentUser yet — waiting for auth state to hydrate');
+      // If there's no pending signup, don't proceed
+      const hasPending = await SignupService.hasPendingSignup();
+      console.log('[EmailVerificationScreen] checkEmailVerification: hasPendingSignup=', hasPending);
+      if (!hasPending) return;
+      // We don't call the cloud deletion check here; rely on the local countdown instead.
+      return;
+    }
     
     setIsCheckingVerification(true);
     try {
-      await reload(auth.currentUser);
+  console.log('[EmailVerificationScreen] checkEmailVerification: auth.currentUser uid=', auth.currentUser?.uid);
+  // Do not call the cloud deletion checker here; rely on local countdown expiry.
+  await reload(auth.currentUser);
       if (auth.currentUser.emailVerified) {
         // Complete the signup process with stored data
         await SignupService.completePendingSignup();
@@ -222,9 +348,19 @@ export default function EmailVerificationScreen({
           setIsVerificationFailed(false);
         });
       }, 1400);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error checking email verification:', error);
-      // On error, show the same failure feedback so users get visual response
+      
+      // Check if this error indicates account was deleted
+      if (error?.code === 'auth/user-not-found' || 
+          error?.code === 'auth/user-disabled' ||
+          error?.code === 'auth/invalid-user-token') {
+        setIsAccountDeleted(true);
+        setIsCheckingVerification(false);
+        return;
+      }
+      
+      // On other errors, show the same failure feedback so users get visual response
       setIsVerificationFailed(true);
       verifyFailAnim.setValue(0);
       verifyXIconYAnim.setValue(60);
@@ -291,6 +427,12 @@ export default function EmailVerificationScreen({
     
     setIsResending(true);
     try {
+      console.log('[EmailVerificationScreen] handleResendVerification: auth.currentUser uid=', auth.currentUser?.uid);
+      const hasPending = await SignupService.hasPendingSignup();
+      console.log('[EmailVerificationScreen] handleResendVerification: hasPendingSignup=', hasPending);
+  // We no longer call the cloud deletion checker here; resend attempts will
+  // surface auth errors if the account was removed.
+
       await SignupService.resendVerificationEmail();
       setResendCooldown(60); // 60 second cooldown
 
@@ -375,6 +517,16 @@ export default function EmailVerificationScreen({
       
     } catch (error: any) {
       console.error('Error resending verification email:', error);
+      
+      // Check if this error indicates account was deleted
+      if (error?.code === 'auth/user-not-found' || 
+          error?.code === 'auth/user-disabled' ||
+          error?.code === 'auth/invalid-user-token') {
+        setIsAccountDeleted(true);
+        setIsResending(false);
+        return;
+      }
+      
       Alert.alert(
         'Error',
         'Failed to send verification email. Please try again.',
@@ -399,7 +551,60 @@ export default function EmailVerificationScreen({
     }
   }, [onBackToSignUp]);
 
+  const handleStartOver = useCallback(async () => {
+    // When the flow has expired, explicitly cancel the pending signup and
+    // remove the unverified Firebase Auth account (if present) before
+    // navigating back to the sign up screen.
+    setIsChangingEmail(true);
+    try {
+      await SignupService.cancelPendingSignup();
+    } catch (error) {
+      console.error('[EmailVerificationScreen] handleStartOver error:', error);
+      // proceed back to sign up regardless of cleanup result
+    } finally {
+      setIsChangingEmail(false);
+      onBackToSignUp();
+    }
+  }, [onBackToSignUp]);
+
   if (!visible) return null;
+
+  // Show account deleted message
+  if (isAccountDeleted) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.content}>
+          <View style={styles.emailIconContainer}>
+            <Ionicons name="hourglass-outline" size={50} color="#FF6B6B" />
+          </View>
+          
+          <Text style={styles.title}>Verification Expired</Text>
+          <Text style={styles.subtitle}>
+            Please start the signup process again.{'\n'}
+          </Text>
+          
+          <Text style={styles.description}>
+            For security, accounts must be verified within 5 minutes of registration.
+          </Text>
+
+          <View style={styles.buttonContainer}>
+            <TouchableOpacity
+              style={styles.primaryButton}
+              onPress={handleStartOver}
+              activeOpacity={0.8}
+            >
+              <View style={styles.primaryIconContainer}>
+                <Ionicons name="refresh" size={20} color="#000000" />
+              </View>
+              <Text style={styles.primaryButtonText}>
+                Start Over
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -563,6 +768,11 @@ export default function EmailVerificationScreen({
             Wrong email address? <Text style={styles.changeEmailLink}>Change it</Text>
           </Text>
         </TouchableOpacity>
+        {countdownSeconds !== null && hasPendingSignup && (
+          <Text style={styles.countdownText}>
+            Link expires in {formatCountdown(countdownSeconds)}
+          </Text>
+        )}
       </View>
 
       {/* Loading spinner overlay */}
@@ -774,6 +984,11 @@ const styles = StyleSheet.create({
   changeEmailLink: {
     color: '#FFFFFF',
     fontWeight: '600',
+  },
+  countdownText: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 13,
+    marginTop: 8,
   },
   loadingOverlay: {
     position: 'absolute',
