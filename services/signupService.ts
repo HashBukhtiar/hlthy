@@ -213,6 +213,19 @@ export class SignupService {
         const user = auth.currentUser;
         if (user && !user.emailVerified) {
           console.log('[SignupService] Cleaning up unverified Firebase Auth account:', user.uid);
+          // Attempt to delete Firestore documents first so there are no orphaned records
+          try {
+            await deleteDoc(doc(db, 'usersPublic', user.uid));
+            console.log('[SignupService] Deleted usersPublic document for', user.uid);
+          } catch (err) {
+            console.warn('[SignupService] Could not delete usersPublic during clearPendingSignup:', err);
+          }
+          try {
+            await deleteDoc(doc(db, 'users', user.uid));
+            console.log('[SignupService] Deleted users document for', user.uid);
+          } catch (err) {
+            console.warn('[SignupService] Could not delete users during clearPendingSignup:', err);
+          }
           await this.safelyCleanupUnverifiedAccount(user);
         }
       } else {
