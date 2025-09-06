@@ -38,6 +38,7 @@ export default function Landing() {
   const [signupLoading, setSignupLoading] = useState(false);
   const [verificationEmail, setVerificationEmail] = useState('');
   const [emailSent, setEmailSent] = useState(false);
+  const [verificationPendingTimestamp, setVerificationPendingTimestamp] = useState<number | undefined>(undefined);
 
   // Animation values for each screen - only center instance needed, positioned dynamically
   const landingAnim = useRef(new Animated.Value(0)).current;
@@ -195,8 +196,15 @@ export default function Landing() {
     return finalData;
   }, [signupData]);
 
-  const handleEmailVerificationRequired = useCallback((email: string) => {
-    setVerificationEmail(email);
+  const handleEmailVerificationRequired = useCallback((payload: any) => {
+    // Payload may be a string email (legacy) or an object { email, pendingTimestamp }
+    if (typeof payload === 'string') {
+      setVerificationEmail(payload);
+      setVerificationPendingTimestamp(undefined);
+    } else if (payload && typeof payload === 'object') {
+      setVerificationEmail(payload.email ?? '');
+      setVerificationPendingTimestamp(payload.pendingTimestamp ?? undefined);
+    }
     setEmailSent(true); // Set emailSent to true when email verification is required
     animateToScreen('email-verification', 'forward');
   }, [animateToScreen]);
@@ -266,7 +274,7 @@ export default function Landing() {
             { transform: [{ translateX: signUpStep1Anim }] }
           ]}>
             <SignUpStep1 
-              visible={true} 
+              visible={currentScreen === 'signup-step1'} 
               onBackPress={handleBackToLanding}
               onNext={handleSignUpStep1Data}
               onShowLogin={handleShowLogin}
@@ -278,7 +286,7 @@ export default function Landing() {
             { transform: [{ translateX: signUpStep2Anim }] }
           ]}>
             <SignUpStep2 
-              visible={true} 
+              visible={currentScreen === 'signup-step2'} 
               onBackPress={handleSignUpStep2Back}
               onNext={handleSignUpStep2Data}
               onShowLogin={handleShowLogin}
@@ -291,7 +299,7 @@ export default function Landing() {
             { transform: [{ translateX: signUpStep3Anim }] }
           ]}>
             <SignUpStep3 
-              visible={true} 
+              visible={currentScreen === 'signup-step3'} 
               onBackPress={handleSignUpStep3Back}
               onComplete={handleSignUpStep3Data}
               onShowLogin={handleShowLogin}
@@ -303,7 +311,7 @@ export default function Landing() {
             { transform: [{ translateX: signUpStep4Anim }] }
           ]}>
             <SignUpStep4
-              visible={true}
+              visible={currentScreen === 'signup-step4'}
               onBackPress={handleSignUpStep4Back}
               onComplete={handleSignUpStep4Complete}
               onShowLogin={handleShowLogin}
@@ -317,7 +325,7 @@ export default function Landing() {
             { transform: [{ translateX: loginAnim }] }
           ]}>
             <LoginForm 
-              visible={true} 
+              visible={currentScreen === 'login'} 
               onBackPress={handleBackToLanding} 
               onForgotPasswordPress={handleShowForgotPassword}
               onShowSignUp={handleShowSignUpFromLogin}
@@ -330,7 +338,7 @@ export default function Landing() {
             { transform: [{ translateX: forgotPasswordAnim }] }
           ]}>
             <ForgotPasswordForm 
-              visible={true} 
+              visible={currentScreen === 'forgot'} 
               onBackPress={handleBackToLandingFromForgotPassword}
               onBackToLogin={handleBackToLandingFromForgotPassword}
               onShowSignUp={handleShowSignUpFromForgotPassword}
@@ -343,8 +351,9 @@ export default function Landing() {
             { transform: [{ translateX: emailVerificationAnim }] }
           ]}>
             <EmailVerificationScreen
-              visible={true}
+              visible={currentScreen === 'email-verification'}
               userEmail={verificationEmail}
+              pendingTimestamp={verificationPendingTimestamp}
               onVerificationComplete={handleEmailVerificationComplete}
               onBackToSignUp={handleBackToSignUpFromVerification}
               emailSent={emailSent}
