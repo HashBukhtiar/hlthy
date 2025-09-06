@@ -1,6 +1,7 @@
-import { auth, db } from '@/firebaseConfig';
+import { auth, db, functions } from '@/firebaseConfig';
 import { createUserWithEmailAndPassword, sendEmailVerification, reload, deleteUser, signOut } from 'firebase/auth';
-import { doc, setDoc, deleteDoc } from 'firebase/firestore';
+import { doc, setDoc } from 'firebase/firestore';
+import { httpsCallable } from 'firebase/functions';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface PendingSignupData {
@@ -16,6 +17,11 @@ interface PendingSignupData {
 
 const PENDING_SIGNUP_KEY = 'pendingSignupData';
 const SIGNUP_EXPIRY_HOURS = 24; // Expire pending signups after 24 hours
+
+// Initialize cloud functions
+// Legacy `registerUnverifiedAccount` and `markAccountVerified` were removed.
+// We'll use the per-account cleanup callable when needed.
+const cleanupUnverifiedAccountFn = httpsCallable(functions, 'cleanupUnverifiedAccount');
 
 export class SignupService {
   /**
@@ -37,6 +43,10 @@ export class SignupService {
       // Create temporary account just to send verification email
       const userCredential = await createUserWithEmailAndPassword(auth, signupData.email, signupData.password);
       const user = userCredential.user;
+  console.log('[SignupService] initiatePendingSignup: created auth user uid=', user?.uid, 'email=', signupData.email);
+
+  // No server-side registration required. The client will call the
+  // per-account cleanup callable when the countdown expires if needed.
 
       // Send verification email
       await sendEmailVerification(user);
@@ -104,6 +114,8 @@ export class SignupService {
       if (!user.emailVerified) {
         throw new Error('Email not verified');
       }
+
+  // No server-side mark required. The server-side cleanup is per-account.
 
       // Create Firestore user profile (full profile creation)
       await setDoc(doc(db, 'users', user.uid), {
@@ -181,8 +193,14 @@ export class SignupService {
         const user = auth.currentUser;
         if (user && !user.emailVerified) {
           console.log('[SignupService] Cleaning up unverified Firebase Auth account:', user.uid);
-          // No need to clean up Firestore docs as they weren't created yet during pending signup
-          await this.safelyCleanupUnverifiedAccount(user);
+          // Prefer server-side deletion via callable; fallback to local deletion
+          try {
+            await cleanupUnverifiedAccountFn({ uid: user.uid });
+            console.log('[SignupService] Requested server-side cleanup for uid:', user.uid);
+          } catch (callErr) {
+            console.warn('[SignupService] Server-side cleanup call failed, falling back to local delete:', callErr);
+            await this.safelyCleanupUnverifiedAccount(user);
+          }
         }
       } else {
         // No pending signup data — do not delete the account. Leave auth state as-is.
@@ -202,8 +220,35 @@ export class SignupService {
   }
 
   /**
-   * Resend verification email for pending signup
+   * Check if the current user account was deleted by the cleanup service
    */
+  static async checkIfAccountWasDeleted(): Promise<boolean> {
+    try {
+      const user = auth.currentUser;
+      if (!user) {
+        // Don't assume deletion just because auth.currentUser is temporarily null.
+        // This can happen during app cold start while the Auth state hydrates.
+        console.log('[SignupService] No auth.currentUser available when checking deletion — treating as NOT deleted for now.');
+        return false;
+      }
+
+      // Try to reload the user to check if account still exists
+      await reload(user);
+      return false; // Account still exists
+    } catch (error: any) {
+      // If reload fails with user-not-found or similar, account was deleted
+      if (error.code === 'auth/user-not-found' || 
+          error.code === 'auth/user-disabled' ||
+          error.code === 'auth/invalid-user-token') {
+        console.log('[SignupService] Reload failed: user not found/disabled/invalid token — account likely deleted by cleanup service', error);
+        return true;
+      }
+      
+      // Other errors might be temporary, don't assume deletion
+      console.warn('[SignupService] Error checking account status (treating as not deleted):', error);
+      return false;
+    }
+  }
   static async resendVerificationEmail(): Promise<void> {
     try {
       const user = auth.currentUser;
