@@ -122,9 +122,14 @@ export default function LoginForm({ visible, onBackPress, onForgotPasswordPress,
     setLoading(true);
     try {
       // Try to sign in with Firebase Authentication
-      await signInWithEmailAndPassword(auth, emailAddress, password);
+      const userCredential = await signInWithEmailAndPassword(auth, emailAddress, password);
       console.log('[Login] Success for', emailAddress);
-      router.replace('/');
+      // If the user's email is not verified, send them to the dedicated EmailVerificationScreen
+      if (userCredential?.user && !userCredential.user.emailVerified) {
+        router.replace({ pathname: '/email-verification' });
+      } else {
+        router.replace({ pathname: '/' });
+      }
     } catch (error: any) {
       console.log('[Login] Failed for', emailAddress, error);
       // If login fails, check if email exists by trying to create a dummy account

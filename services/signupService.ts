@@ -166,13 +166,26 @@ export class SignupService {
    */
   static async clearPendingSignupData(): Promise<void> {
     try {
+      // Check whether we actually had pending signup data.
+      // Only attempt to delete the current auth user if the pending signup record existed
+      // (i.e. the user arrived here via the Sign Up flow). If no pending signup data
+      // existed, this was likely reached from a Login flow — do NOT delete the account.
+      const stored = await AsyncStorage.getItem(PENDING_SIGNUP_KEY);
+      const hadPending = !!stored;
+
+      // Remove stored pending signup data regardless
       await AsyncStorage.removeItem(PENDING_SIGNUP_KEY);
-      
-      // If there's an unverified user, try to clean it up safely
-      const user = auth.currentUser;
-      if (user && !user.emailVerified) {
-        console.log('[SignupService] Cleaning up unverified Firebase Auth account:', user.uid);
-        await this.safelyCleanupUnverifiedAccount(user);
+
+      if (hadPending) {
+        // If there's an unverified user and we had pending signup data, try to clean it up safely
+        const user = auth.currentUser;
+        if (user && !user.emailVerified) {
+          console.log('[SignupService] Cleaning up unverified Firebase Auth account:', user.uid);
+          await this.safelyCleanupUnverifiedAccount(user);
+        }
+      } else {
+        // No pending signup data — do not delete the account. Leave auth state as-is.
+        console.log('[SignupService] No pending signup data found; skipping auth deletion.');
       }
     } catch (error) {
       console.error('[SignupService] Error clearing pending signup data:', error);
