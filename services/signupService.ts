@@ -1,6 +1,6 @@
 import { auth, db } from '@/firebaseConfig';
 import { createUserWithEmailAndPassword, sendEmailVerification, reload, deleteUser, signOut } from 'firebase/auth';
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, setDoc, deleteDoc } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface PendingSignupData {
@@ -38,6 +38,16 @@ export class SignupService {
       const userCredential = await createUserWithEmailAndPassword(auth, signupData.email, signupData.password);
       const user = userCredential.user;
       
+      // Reserve username in usersPublic immediately (simple reservation record)
+      try {
+        await setDoc(doc(db, 'usersPublic', user.uid), {
+          uid: user.uid,
+          username: signupData.username,
+        });
+      } catch (e) {
+        console.warn('[SignupService] Failed to reserve username in usersPublic:', e);
+      }
+
       // Send verification email
       await sendEmailVerification(user);
       
@@ -46,9 +56,14 @@ export class SignupService {
       // Clean up stored data if account creation fails
       await AsyncStorage.removeItem(PENDING_SIGNUP_KEY);
       
-      // If account was created but email sending failed, try to delete it immediately
+      // If account was created but email sending failed, try to delete it and clean usersPublic
       const user = auth.currentUser;
       if (user && !user.emailVerified) {
+        try {
+          await deleteDoc(doc(db, 'usersPublic', user.uid));
+        } catch (cleanupError) {
+          console.warn('[SignupService] Could not delete usersPublic doc during cleanup:', cleanupError);
+        }
         await this.safelyCleanupUnverifiedAccount(user);
         console.log('[SignupService] Cleaned up after failed account creation');
       }
@@ -142,10 +157,11 @@ export class SignupService {
         analytics: {lastSeen: new Date().toISOString()},
         latestPRs: {},
         bio: '',
-        emailVerified: true, // Set to true since we just verified it
+  emailVerified: true, // Set to true since we just verified it
+  verifiedAt: new Date().toISOString(),
       });
 
-      // Create usersPublic document
+      // Create/update usersPublic document (keep it minimal)
       await setDoc(doc(db, 'usersPublic', user.uid), {
         uid: user.uid,
         username: pendingData.username,
@@ -224,6 +240,17 @@ export class SignupService {
   static async cancelPendingSignup(): Promise<void> {
     try {
       console.log('[SignupService] Canceling pending signup');
+      // If there's a current user, attempt to remove the usersPublic reservation first
+      const user = auth.currentUser;
+      if (user) {
+        try {
+          await deleteDoc(doc(db, 'usersPublic', user.uid));
+          console.log('[SignupService] Removed usersPublic reservation for', user.uid);
+        } catch (err) {
+          console.warn('[SignupService] Could not remove usersPublic reservation:', err);
+        }
+      }
+
       await this.clearPendingSignupData();
     } catch (error) {
       console.error('[SignupService] Error canceling pending signup:', error);
