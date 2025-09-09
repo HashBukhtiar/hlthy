@@ -473,8 +473,8 @@ export function usePostsData() {
             userProfile.username || 'Someone',
             postId,
             true, // isLike = true
-            postData.isMilestone, // isMilestone flag
-            'post' // contentType = 'post'
+            postData.isMilestone, // Pass the milestone flag
+            postData.isMilestone ? 'milestone' : 'post' // Explicitly set contentType
           );
           console.log(`Like notification sent to ${postData.authorId}`);
         } catch (error) {

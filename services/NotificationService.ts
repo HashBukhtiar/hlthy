@@ -280,7 +280,7 @@ export class NotificationService {
     postId: string,
     isLike: boolean,
     isMilestone?: boolean,
-    contentType?: 'post' | 'comment' | 'reply'
+    contentType?: 'post' | 'comment' | 'reply' | 'milestone'
   ): Promise<void> {
     // Don't send notifications to self
     if (postAuthorId === actorUserId) return;
