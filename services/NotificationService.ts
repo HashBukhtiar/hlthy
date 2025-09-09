@@ -301,7 +301,7 @@ export class NotificationService {
     await this.sendNotification([postAuthorId], {
       type: 'likeComment',
       title: isLike ? 'New Like' : 'New Comment',
-      body: `${actorUserId} ${action} your ${content}`,
+      body: `${actorUsername} ${action} your ${content}`,
       data: { userId: actorUserId, postId }
     }, actorUserId);
   }

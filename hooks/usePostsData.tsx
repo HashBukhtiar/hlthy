@@ -473,8 +473,8 @@ export function usePostsData() {
             userProfile.username || 'Someone',
             postId,
             true, // isLike = true
-            postData.isMilestone, // Pass the milestone flag
-            'post' // contentType = 'post' (explicit, though this is the default)
+            postData.isMilestone, // isMilestone flag
+            'post' // contentType = 'post'
           );
           console.log(`Like notification sent to ${postData.authorId}`);
         } catch (error) {
@@ -654,7 +654,7 @@ export function usePostsData() {
             userProfile.username || 'Someone',
             postId,
             true, // isLike = true
-            false, // isMilestone = false
+            false, // isMilestone = false (comments are never milestones)
             'comment' // contentType = 'comment'
           );
         } catch (error) {
@@ -875,7 +875,7 @@ export function usePostsData() {
               userProfile.username || 'Someone',
               postId,
               true, // isLike = true
-              false, // isMilestone = false
+              false, // isMilestone = false (replies are never milestones)
               'reply' // contentType = 'reply'
             );
           } catch (error) {
