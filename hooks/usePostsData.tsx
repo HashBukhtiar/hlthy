@@ -474,9 +474,11 @@ export function usePostsData() {
             postId,
             true // isLike = true
           );
+          console.log(`Like notification sent to ${postData.authorId}`);
         } catch (error) {
           console.error('Error sending like notification:', error);
           // Don't throw - notification failure shouldn't stop the like action
+          // Just log the error and continue
         }
       }
 

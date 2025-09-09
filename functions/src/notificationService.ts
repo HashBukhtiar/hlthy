@@ -185,12 +185,29 @@ export const sendPushNotification = onCall(
     }
 
     try {
-      // Check user's notification preferences
-      const preferences = await getUserNotificationPreferences(recipientId);
-      if (!preferences) {
-        logger.info(`User ${recipientId} not found, skipping notification`);
-        return {success: false, reason: "User not found"};
+      const db = getDb();
+      if (!db) {
+        logger.error("Database not initialized");
+        return {success: false, reason: "Database not initialized"};
       }
+
+      // Get the recipient's user document
+      const userDoc = await db.collection("users").doc(recipientId).get();
+      if (!userDoc.exists) {
+        logger.info(`User ${recipientId} document not found`);
+        return {success: false, reason: "User document not found"};
+      }
+
+      const userData = userDoc.data();
+      // Check user's notification preferences
+      const preferences = userData?.settings?.notifications || {
+        newFollowers: true,
+        likesAndComments: true,
+        directMessages: true,
+        followRequestAccepted: true,
+        taggedInComments: true,
+        mentionedInReplies: true,
+      };
 
       // Check if this notification type is enabled
       const typeMapping: Record<string, keyof typeof preferences> = {
@@ -198,6 +215,7 @@ export const sendPushNotification = onCall(
         "follow_accepted": "followRequestAccepted",
         "like": "likesAndComments",
         "comment": "likesAndComments",
+        "likeComment": "likesAndComments",
         "direct_message": "directMessages",
         "tagged_comment": "taggedInComments",
         "mentioned_reply": "mentionedInReplies",
@@ -209,15 +227,20 @@ export const sendPushNotification = onCall(
         return {success: false, reason: "Notification type disabled by user"};
       }
 
-      // Get user's push tokens
-      const pushTokens = await getUserPushTokens(recipientId);
-      if (pushTokens.length === 0) {
-        logger.info(`No push tokens found for user ${recipientId}`);
-        return {success: false, reason: "No push tokens found"};
+      // Get user's push tokens (check both pushTokens and pushToken for backwards compatibility)
+      const pushTokens = userData?.pushTokens || (userData?.pushToken ? [userData.pushToken] : []);
+      // Filter out invalid tokens
+      const validTokens = pushTokens.filter((token: string) =>
+        token && typeof token === "string" && token.startsWith("ExponentPushToken[")
+      );
+
+      if (validTokens.length === 0) {
+        logger.info(`No valid push tokens found for user ${recipientId}. Available tokens: ${JSON.stringify(pushTokens)}`);
+        return {success: false, reason: "No valid push tokens found"};
       }
 
       // Prepare messages for each token
-      const messages: ExpoMessage[] = pushTokens.map((token) => ({
+      const messages: ExpoMessage[] = validTokens.map((token: string) => ({
         to: token,
         title,
         body,
@@ -226,17 +249,19 @@ export const sendPushNotification = onCall(
         priority: notificationType === "direct_message" ? "high" : "normal",
       }));
 
+      logger.info(`Sending ${messages.length} notifications to user ${recipientId}`);
+
       // Send the notifications
       const success = await sendExpoNotification(messages);
 
       return {
         success,
-        tokenCount: pushTokens.length,
+        tokenCount: validTokens.length,
         message: success ? "Notifications sent successfully" : "Failed to send notifications",
       };
     } catch (error) {
       logger.error("Error in sendPushNotification:", error);
-      throw new HttpsError("internal", "Failed to send push notification");
+      return {success: false, reason: (error as Error).message || "Unknown error"};
     }
   }
 );
