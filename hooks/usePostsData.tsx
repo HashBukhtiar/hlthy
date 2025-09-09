@@ -630,6 +630,37 @@ export function usePostsData() {
           likedBy: arrayUnion(currentUser.uid)
         });
       });
+
+      // Create activity and send notification for comment author (if not self-like)
+      if (commentData.authorId !== currentUser.uid) {
+        try {
+          const authorActivityColRef = collection(db, 'activity', commentData.authorId, 'userActivity');
+          await addDoc(authorActivityColRef, {
+            type: 'comment_like',
+            fromUserId: currentUser.uid,
+            fromUsername: userProfile.username,
+            fromProfileImageUrl: userProfile.profileImageUrl || null,
+            postId: postId,
+            commentId: commentId,
+            createdAt: serverTimestamp(),
+            status: 'unread'
+          });
+
+          // Send notification (comments are not milestones, so always false)
+          await NotificationService.notifyLikeOrComment(
+            commentData.authorId,
+            currentUser.uid,
+            userProfile.username || 'Someone',
+            postId,
+            true, // isLike = true
+            false // comments are not milestones themselves
+          );
+        } catch (error) {
+          console.error('Error sending comment like notification:', error);
+          // Don't throw - notification failure shouldn't stop the like action
+        }
+      }
+
       console.log(`User ${currentUser.uid} liked comment ${commentId} on post ${postId}`);
     } catch (error) {
       console.error("Error liking comment: ", error);
@@ -718,6 +749,36 @@ export function usePostsData() {
         });
       });
 
+      // Create activity and send notification for the parent comment author (if not self-reply)
+      if (parentCommentData.authorId !== currentUser.uid) {
+        try {
+          const authorActivityColRef = collection(db, 'activity', parentCommentData.authorId, 'userActivity');
+          await addDoc(authorActivityColRef, {
+            type: 'comment_reply',
+            fromUserId: currentUser.uid,
+            fromUsername: userProfile.username,
+            fromProfileImageUrl: userProfile.profileImageUrl || null,
+            postId: postId,
+            parentCommentId: parentCommentId,
+            replyId: newReplyRef.id,
+            replyText: text.substring(0, 100) + (text.length > 100 ? '...' : ''),
+            createdAt: serverTimestamp(),
+            status: 'unread'
+          });
+
+          // Send notification for the reply (replies are not milestones)
+          await NotificationService.notifyMentionedInReply(
+            parentCommentData.authorId,
+            currentUser.uid,
+            userProfile.username || 'Someone',
+            postId
+          );
+        } catch (error) {
+          console.error('Error sending reply notification:', error);
+          // Don't throw - notification failure shouldn't stop the reply action
+        }
+      }
+
       const clientTimestamp = Timestamp.now();
       return { 
         id: newReplyRef.id, 
@@ -790,6 +851,21 @@ export function usePostsData() {
         // Activity for reply author (if not self-liking reply)
         // Note: This might become noisy. Consider if this notification is necessary.
         if (replyData.authorId !== currentUser.uid) {
+          // Create activity for reply like
+          const authorActivityColRef = collection(db, 'activity', replyData.authorId, 'userActivity');
+          await addDoc(authorActivityColRef, {
+            type: 'comment_like', // or 'reply_like' if you want to distinguish
+            fromUserId: currentUser.uid,
+            fromUsername: userProfile.username,
+            fromProfileImageUrl: userProfile.profileImageUrl || null,
+            postId: postId,
+            commentId: commentId,
+            replyId: replyId,
+            createdAt: serverTimestamp(),
+            status: 'unread'
+          });
+
+          // Send notification (replies are never milestones, so always false)
           try {
             await NotificationService.notifyLikeOrComment(
               replyData.authorId,
