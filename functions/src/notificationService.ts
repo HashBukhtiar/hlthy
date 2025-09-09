@@ -365,11 +365,25 @@ export const onMessageCreated = onDocumentWritten(
     const {senderId, text, senderUsername} = messageData;
 
     try {
-      // Get conversation data to find the recipient
       const db = getDb();
       if (!db) {
         logger.error("Database not initialized");
         return;
+      }
+
+      // Get sender's username if not provided in message
+      let actualSenderUsername = senderUsername;
+      if (!actualSenderUsername) {
+        logger.info(`No senderUsername found for message from ${senderId}, fetching from user document`);
+        const senderDoc = await db.collection("users").doc(senderId).get();
+        if (senderDoc.exists) {
+          const senderData = senderDoc.data();
+          actualSenderUsername = senderData?.username || senderData?.displayName || "User";
+          logger.info(`Retrieved username: ${actualSenderUsername} for user ${senderId}`);
+        } else {
+          actualSenderUsername = "User";
+          logger.warn(`User document not found for ${senderId}, using 'User' as fallback`);
+        }
       }
 
       const conversationDoc = await db.collection("conversations").doc(conversationId).get();
@@ -389,14 +403,14 @@ export const onMessageCreated = onDocumentWritten(
       }
 
       // Prepare notification
-      const title = `Message from ${senderUsername}`;
+      const title = `Message from ${actualSenderUsername}`;
       const body = text || "Sent a message";
 
       // Send notification
       await sendPushNotificationHelper(recipientId, title, body, "direct_message", {
         type: "direct_message",
         fromUserId: senderId,
-        fromUsername: senderUsername,
+        fromUsername: actualSenderUsername,
         conversationId,
       });
     } catch (error) {
