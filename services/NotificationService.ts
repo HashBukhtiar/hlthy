@@ -278,16 +278,23 @@ export class NotificationService {
     actorUserId: string, 
     actorUsername: string,
     postId: string,
-    isLike: boolean
+    isLike: boolean,
+    isMilestone?: boolean // Add this parameter
   ): Promise<void> {
+    // Don't send notifications to self
+    if (postAuthorId === actorUserId) return;
+
     const shouldNotify = await this.shouldSendNotification(postAuthorId, 'likesAndComments');
     if (!shouldNotify) return;
 
+    // Determine the content type for the notification message
+    const contentType = isMilestone ? 'milestone' : 'post';
     const action = isLike ? 'liked' : 'commented on';
+    
     await this.sendNotification([postAuthorId], {
       type: 'likeComment',
       title: isLike ? 'New Like' : 'New Comment',
-      body: `${actorUsername} ${action} your post`,
+      body: `${actorUsername} ${action} your ${contentType}`,
       data: { userId: actorUserId, postId }
     }, actorUserId);
   }

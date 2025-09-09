@@ -472,13 +472,13 @@ export function usePostsData() {
             currentUser.uid,
             userProfile.username || 'Someone',
             postId,
-            true // isLike = true
+            true, // isLike = true
+            postData.isMilestone // Pass the milestone flag
           );
           console.log(`Like notification sent to ${postData.authorId}`);
         } catch (error) {
           console.error('Error sending like notification:', error);
           // Don't throw - notification failure shouldn't stop the like action
-          // Just log the error and continue
         }
       }
 
@@ -587,7 +587,8 @@ export function usePostsData() {
           currentUser.uid,
           userProfile.username || 'Someone',
           postId,
-          false // isLike = false
+          false, // isLike = false
+          postData.isMilestone // Pass the milestone flag
         );
       } catch (error) {
         console.error('Error sending comment notification:', error);
@@ -789,20 +790,18 @@ export function usePostsData() {
         // Activity for reply author (if not self-liking reply)
         // Note: This might become noisy. Consider if this notification is necessary.
         if (replyData.authorId !== currentUser.uid) {
-          // const authorActivityColRef = collection(db, 'activity', replyData.authorId, 'userActivity');
-          // const newActivityRef = doc(authorActivityColRef);
-          // transaction.set(newActivityRef, {
-          //   type: 'reply_like', // You'd need to add this type to ActivityItem
-          //   fromUserId: currentUser.uid,
-          //   fromUsername: userProfile.username,
-          //   fromProfileImageUrl: userProfile.profileImageUrl || "",
-          //   postId: postId,
-          //   commentId: commentId,
-          //   replyId: replyId,
-          //   replyText: replyData.text.substring(0, 50) + (replyData.text.length > 50 ? "..." : ""),
-          //   createdAt: serverTimestamp(),
-          //   status: 'unread',
-          // } as Omit<ActivityItem, 'id'>);
+          try {
+            await NotificationService.notifyLikeOrComment(
+              replyData.authorId,
+              currentUser.uid,
+              userProfile.username || 'Someone',
+              postId,
+              true, // isLike = true
+              false // replies are not milestones
+            );
+          } catch (error) {
+            console.error('Error sending reply like notification:', error);
+          }
         }
       });
       console.log(`User ${currentUser.uid} liked reply ${replyId}`);
