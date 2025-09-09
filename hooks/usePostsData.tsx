@@ -473,7 +473,8 @@ export function usePostsData() {
             userProfile.username || 'Someone',
             postId,
             true, // isLike = true
-            postData.isMilestone // Pass the milestone flag
+            postData.isMilestone, // Pass the milestone flag
+            'post' // contentType = 'post' (explicit, though this is the default)
           );
           console.log(`Like notification sent to ${postData.authorId}`);
         } catch (error) {
@@ -653,7 +654,8 @@ export function usePostsData() {
             userProfile.username || 'Someone',
             postId,
             true, // isLike = true
-            false // comments are not milestones themselves
+            false, // isMilestone = false
+            'comment' // contentType = 'comment'
           );
         } catch (error) {
           console.error('Error sending comment like notification:', error);
@@ -873,7 +875,8 @@ export function usePostsData() {
               userProfile.username || 'Someone',
               postId,
               true, // isLike = true
-              false // replies are not milestones
+              false, // isMilestone = false
+              'reply' // contentType = 'reply'
             );
           } catch (error) {
             console.error('Error sending reply like notification:', error);
