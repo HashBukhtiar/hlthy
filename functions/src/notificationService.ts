@@ -418,3 +418,42 @@ export const onMessageCreated = onDocumentWritten(
     }
   }
 );
+
+export const cleanupPushToken = onCall(
+  {region: "northamerica-northeast2"},
+  async (request) => {
+    const {token} = request.data;
+    if (!token) {
+      throw new HttpsError("invalid-argument", "Token is required");
+    }
+
+    try {
+      const db = getDb();
+      if (!db) {
+        throw new HttpsError("internal", "Database not initialized");
+      }
+
+      // Find all users that have this token
+      const usersQuery = await db.collection("users")
+        .where("pushTokens", "array-contains", token)
+        .get();
+
+      const batch = db.batch();
+      usersQuery.docs.forEach((userDoc) => {
+        const userData = userDoc.data();
+        const currentTokens = userData.pushTokens || [];
+        const updatedTokens = currentTokens.filter((t: string) => t !== token);
+        batch.update(userDoc.ref, {
+          pushTokens: updatedTokens,
+        });
+      });
+
+      await batch.commit();
+      logger.info(`Cleaned up token ${token} from ${usersQuery.docs.length} users`);
+      return {success: true, cleanedFromUsers: usersQuery.docs.length};
+    } catch (error) {
+      logger.error("Error cleaning up push token:", error);
+      throw new HttpsError("internal", "Failed to cleanup token");
+    }
+  }
+);

@@ -2,9 +2,9 @@ import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
-import { db, functions } from '@/firebaseConfig';
+import { app, db, functions } from '@/firebaseConfig';
 import { doc, updateDoc, getDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { httpsCallable } from 'firebase/functions';
+import { httpsCallable, getFunctions } from 'firebase/functions';
 
 // Configure notification behavior
 Notifications.setNotificationHandler({
@@ -102,8 +102,18 @@ export class NotificationService {
   }
 
   /**
-   * Register the device for push notifications and save token to Firestore
+   * Clear cached tokens (call this on logout)
    */
+  static async clearCachedTokens(): Promise<void> {
+    try {
+      NotificationService.pushToken = null;
+      // Clear any cached notification permissions if needed
+      console.log('Cached push tokens cleared');
+    } catch (error) {
+      console.error('Error clearing cached tokens:', error);
+    }
+  }
+
   static async registerForPushNotifications(userId: string): Promise<boolean> {
     try {
       const hasPermissions = await this.requestPermissions();
@@ -116,7 +126,10 @@ export class NotificationService {
         return false;
       }
 
-      // Save token to user document
+      // IMPORTANT: Remove this token from all other users first
+      await this.removeTokenFromAllUsers(token);
+
+      // Then add it to the current user
       const userRef = doc(db, 'users', userId);
       
       // Get existing tokens to avoid duplicates
@@ -148,6 +161,22 @@ export class NotificationService {
     } catch (error) {
       console.error('Error registering for push notifications:', error);
       return false;
+    }
+  }
+
+  /**
+   * Remove a token from all users (to prevent cross-account notifications)
+   */
+  private static async removeTokenFromAllUsers(tokenToRemove: string): Promise<void> {
+    try {
+      // This is a bit expensive but necessary for proper cleanup
+      // You might want to implement this as a cloud function instead
+      const functions = getFunctions(app, 'northamerica-northeast2');
+      const cleanupTokenFn = httpsCallable(functions, 'cleanupPushToken');
+      await cleanupTokenFn({ token: tokenToRemove });
+    } catch (error) {
+      console.error('Error removing token from all users:', error);
+      // Continue anyway - the token will be overwritten
     }
   }
 
@@ -561,8 +590,16 @@ export class NotificationService {
         lastTokenUpdate: serverTimestamp(),
       });
       NotificationService.pushToken = null;
-    } catch (error) {
-      console.error('Error removing push token:', error);
+      console.log('Push tokens cleared successfully');
+    } catch (error: any) {
+      if (error.code === 'permission-denied' || error.code === 'unauthenticated') {
+        console.warn('Cannot clear push tokens - user not authenticated (this is normal during logout)');
+        // Clear cached token anyway
+        NotificationService.pushToken = null;
+      } else {
+        console.error('Error removing push token:', error);
+        throw error;
+      }
     }
   }
 

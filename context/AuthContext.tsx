@@ -83,21 +83,33 @@ export function AuthProvider({ children }: AuthProviderProps) {
           console.error("Error fetching user profile:", error);
         }
       } else {
+        // User signed out - clean up
+        setCurrentUser(null);
         setUserProfile(null);
-        // Clean up notifications on logout
-        if (currentUser) {
-          try {
-            await NotificationService.removePushToken(currentUser.uid);
-          } catch (error) {
-            console.error('Error removing push token on logout:', error);
-          }
-        }
+        // Note: Don't try to clean tokens here as user is already signed out
       }
       setLoading(false);
     });
     
     return unsubscribe;
-  }, [currentUser]);
+  }, []);
+
+  const logout = async () => {
+    try {
+      // Clean up notifications BEFORE signing out (while still authenticated)
+      if (currentUser) {
+        await NotificationService.removePushToken(currentUser.uid);
+        await NotificationService.clearCachedTokens();
+      }
+      
+      // Then sign out
+      await signOut(auth);
+    } catch (error) {
+      console.error('Error during logout:', error);
+      // Force sign out even if token cleanup fails
+      await signOut(auth);
+    }
+  };
 
   const value: AuthContextType = {
     currentUser,
