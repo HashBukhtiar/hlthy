@@ -96,12 +96,20 @@ export class NotificationService {
     let finalStatus = existingStatus;
 
     if (existingStatus !== 'granted') {
+      if (Platform.OS === 'android') {
+        // Android 13+ requires explicit permission request
+        console.log('Requesting notification permissions for Android...');
+      }
+      
       const { status } = await Notifications.requestPermissionsAsync();
       finalStatus = status;
     }
 
     if (finalStatus !== 'granted') {
       console.warn('Failed to get push token for push notification');
+      if (Platform.OS === 'android') {
+        console.warn('Android users may need to enable notifications in system settings');
+      }
       return false;
     }
 
