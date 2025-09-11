@@ -12,11 +12,10 @@ Notifications.setNotificationHandler({
     const appState = AppState.currentState;
     const isAppActive = appState === 'active';
     
-    // Don't show notifications when app is active/in foreground
     return {
       shouldShowAlert: !isAppActive,
       shouldPlaySound: !isAppActive,
-      shouldSetBadge: false,
+      shouldSetBadge: Platform.OS === 'ios',
       shouldShowBanner: !isAppActive,
       shouldShowList: !isAppActive,
     };
@@ -57,13 +56,41 @@ export class NotificationService {
   }
 
   /**
-   * Request notification permissions from the user
+   * Set up Android notification channels
    */
+  static async setupNotificationChannels(): Promise<void> {
+    if (Platform.OS === 'android') {
+      await Notifications.setNotificationChannelAsync('default', {
+        name: 'Default',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#FF231F7C',
+        sound: 'default',
+      });
+
+      await Notifications.setNotificationChannelAsync('messages', {
+        name: 'Messages',
+        importance: Notifications.AndroidImportance.HIGH,
+        vibrationPattern: [0, 250, 250, 250],
+        sound: 'default',
+      });
+
+      await Notifications.setNotificationChannelAsync('social', {
+        name: 'Social',
+        importance: Notifications.AndroidImportance.DEFAULT,
+        sound: 'default',
+      });
+    }
+  }
+
   static async requestPermissions(): Promise<boolean> {
     if (!Device.isDevice) {
       console.warn('Notifications only work on physical devices');
       return false;
     }
+
+    // Set up channels for Android
+    await this.setupNotificationChannels();
 
     const { status: existingStatus } = await Notifications.getPermissionsAsync();
     let finalStatus = existingStatus;

@@ -25,6 +25,8 @@ interface ExpoMessage {
   sound?: "default";
   priority?: "high" | "normal";
   badge?: number;
+  channelId?: string;
+  categoryId?: string;
 }
 
 // Helper function to get user's notification preferences
@@ -145,14 +147,25 @@ async function sendPushNotificationHelper(
     }
 
     // Prepare messages for each token
-    const messages: ExpoMessage[] = pushTokens.map((token) => ({
-      to: token,
-      title,
-      body,
-      data: data || {type: "unknown"},
-      sound: "default",
-      priority: notificationType === "direct_message" ? "high" : "normal",
-    }));
+    const messages: ExpoMessage[] = pushTokens.map((token: string) => {
+      const baseMessage: ExpoMessage = {
+        to: token,
+        title,
+        body,
+        data: data || {type: "unknown"},
+        sound: "default",
+        priority: notificationType === "direct_message" ? "high" : "normal",
+      };
+
+      // Add platform-specific properties
+      if (notificationType === "direct_message") {
+        baseMessage.channelId = "messages"; // Android
+      } else {
+        baseMessage.channelId = "social"; // Android
+      }
+
+      return baseMessage;
+    });
 
     // Send the notifications
     const success = await sendExpoNotification(messages);
@@ -244,7 +257,7 @@ export const sendPushNotification = onCall(
         to: token,
         title,
         body,
-        data: data || {},
+        data: data || {type: notificationType},
         sound: "default",
         priority: notificationType === "direct_message" ? "high" : "normal",
       }));
