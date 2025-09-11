@@ -38,23 +38,21 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   // Initialize notifications for authenticated user
-  const initializeNotifications = async (user: User) => {
+  const initializeNotifications = async () => {
+    if (!user?.uid) return;
+
     try {
-      console.log('Initializing notifications for user:', user.uid);
+      // Set up notification channels first (Android)
+      await NotificationService.setupNotificationChannels();
       
       // Register for push notifications
       const success = await NotificationService.registerForPushNotifications(user.uid);
       if (success) {
-        console.log('Successfully registered for push notifications');
-      } else {
-        console.warn('Failed to register for push notifications');
+        console.log('Push notifications registered successfully');
       }
 
       // Set up notification listeners
-      NotificationService.setupNotificationListeners();
-
-      // Update push token (in case it changed)
-      await NotificationService.updatePushToken(user.uid);
+      const listeners = NotificationService.setupNotificationListeners();
       
     } catch (error) {
       console.error('Error initializing notifications:', error);
