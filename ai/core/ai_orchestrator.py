@@ -105,7 +105,14 @@ class AIOrchestrator:
             user_context = self._load_complete_context(user_id, message)
             profile = user_context.get('profile')
             
-            # 2. ROUTER-FIRST GATING - Always route through focus router before any planning
+            # 2. INTERVIEW-FIRST: Check if user is responding to an interview question
+            # This must happen before router gating to enable interview chaining
+            is_interview_response = self._is_interview_response(message, profile)
+            
+            if is_interview_response:
+                return self._handle_interview_response(user_id, message, user_context)
+            
+            # 3. ROUTER-FIRST GATING - Always route through focus router before any planning
             from .focus_router_enhanced import route_focus_request
             router_decision = route_focus_request(message, profile.__dict__ if profile else None)
             
@@ -140,43 +147,37 @@ class AIOrchestrator:
                     'used_systems': ['fallback']
                 }
                 
-            # 3. Based on understanding, orchestrate YOUR systems
+            # 4. Based on understanding, orchestrate YOUR systems
             result = None
             
-            # Check if user is responding to an interview question
-            is_interview_response = self._is_interview_response(message, profile)
+            # Check if user needs interview (new user or incomplete profile)
+            needs_interview = self._should_interview_user(profile, understanding)
             
-            if is_interview_response:
-                result = self._handle_interview_response(user_id, message, user_context)
+            if needs_interview:
+                result = self._start_user_interview(user_id, understanding, user_context)
+            elif understanding.get('intent') == 'workout_request':
+                result = self._generate_workout_with_systems(
+                    user_id, 
+                    understanding, 
+                    user_context
+                )
+            elif understanding['intent'] == 'technique_question':
+                result = self._provide_technique_from_library(
+                    understanding.get('specific_exercise', ''),
+                    user_context
+                )
+            elif understanding['intent'] == 'progress_check':
+                result = self._check_progress_with_tracker(user_id)
+            elif understanding['intent'] == 'profile_update':
+                result = self._update_profile_with_systems(
+                    user_id, 
+                    understanding, 
+                    user_context
+                )
             else:
-                # Check if user needs interview (new user or incomplete profile)
-                needs_interview = self._should_interview_user(profile, understanding)
-                
-                if needs_interview:
-                    result = self._start_user_interview(user_id, understanding, user_context)
-                elif understanding.get('intent') == 'workout_request':
-                    result = self._generate_workout_with_systems(
-                        user_id, 
-                        understanding, 
-                        user_context
-                    )
-                elif understanding['intent'] == 'technique_question':
-                    result = self._provide_technique_from_library(
-                        understanding.get('specific_exercise', ''),
-                        user_context
-                    )
-                elif understanding['intent'] == 'progress_check':
-                    result = self._check_progress_with_tracker(user_id)
-                elif understanding['intent'] == 'profile_update':
-                    result = self._update_profile_with_systems(
-                        user_id, 
-                        understanding, 
-                        user_context
-                    )
-                else:
-                    result = self._generate_contextual_response(
-                        understanding,
-                        user_context
+                result = self._generate_contextual_response(
+                    understanding,
+                    user_context
                     )
             
             # Save conversation to memory for context
@@ -802,6 +803,7 @@ class AIOrchestrator:
         interview_keywords = [
             'beginner', 'intermediate', 'advanced',  # experience level
             'muscle', 'weight', 'strength', 'endurance', 'fitness',  # goals
+            'hypertrophy', 'building', 'loss', 'losing', 'gain', 'toning',  # more goal keywords
             '30', '45', '60', '90', 'minutes',  # time
             'gym', 'home', 'bodyweight', 'equipment'  # equipment
         ]
@@ -823,7 +825,10 @@ class AIOrchestrator:
         has_experience = profile.experience_level and profile.experience_level != 'beginner'
         has_goals = profile.goals and profile.goals.primary_goal
         has_duration = profile.goals and profile.goals.session_duration
-        has_equipment = profile.available_equipment
+        
+        # Check if equipment was explicitly set through interview (not defaults)
+        # Default equipment has a 'current' key, interview-set equipment should not
+        has_equipment = profile.available_equipment and 'current' not in profile.available_equipment
         
         return has_experience and has_goals and has_duration and has_equipment
     
@@ -967,6 +972,8 @@ class AIOrchestrator:
                     updated_at=datetime.now().isoformat(),
                     experience_level="beginner"
                 )
+                # Override default equipment for interview flow
+                profile.available_equipment = None
             
             # Update profile based on question
             if question == 'experience_level':
@@ -979,7 +986,7 @@ class AIOrchestrator:
                         primary_goal=answer.lower().replace(' ', '_'),
                         secondary_goals=[],
                         training_frequency=3,
-                        session_duration=60
+                        session_duration=None  # Don't set duration until asked
                     )
                 else:
                     profile.goals.primary_goal = answer.lower().replace(' ', '_')
@@ -1014,6 +1021,11 @@ class AIOrchestrator:
             
             # Save updated profile
             profile.updated_at = datetime.now().isoformat()
+            
+            # For interview flow, ensure equipment is None until explicitly set
+            if question != 'equipment_access':
+                profile.available_equipment = None
+                
             self.profile_manager.save_profile(profile) if hasattr(self.profile_manager, 'save_profile') else None
             
             return {

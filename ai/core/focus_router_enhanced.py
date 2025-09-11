@@ -56,7 +56,12 @@ def is_nonsense_or_unknown(text: str) -> bool:
         'lat', 'latissimus', 'pecs', 'pectoral', 'delt', 'deltoid',
         'trap', 'trapezius', 'rhomboid', 'oblique', 'frequency',
         'volume', 'intensity', 'rep', 'reps', 'set', 'sets',
-        'grow', 'growing', 'development', 'how many times', 'times per week'
+        'grow', 'growing', 'development', 'how many times', 'times per week',
+        # Equipment terms
+        'dumbbells', 'dumbbell', 'barbells', 'barbell', 'kettlebells', 'kettlebell',
+        'cable', 'cables', 'machine', 'machines', 'resistance', 'bands',
+        'bodyweight', 'pullup', 'pullups', 'chinup', 'chinups', 'pushup', 'pushups',
+        'deadlift', 'deadlifts', 'bench', 'benchpress', 'squat', 'squats'
     }
     
     has_fitness_term = any(term in normalized for term in fitness_terms)
@@ -98,7 +103,18 @@ def needs_interview(text: str, user_profile: Dict = None) -> bool:
         r'^i want to train$',        # "i want to train"
         r'^workout for today$',      # "workout for today"
         r'^gym time$',               # "gym time"
-        r'^\w+ day$'                 # "leg day" (but still vague)
+        r'^\w+ day$',                # "leg day" (but still vague)
+        r'^dumbbells? workout$',     # "dumbbell workout", "dumbbells workout"
+        r'^barbells? workout$',      # "barbell workout", "barbells workout"
+        r'^kettlebells? workout$',   # "kettlebell workout", "kettlebells workout"
+        r'^bodyweight workout$',     # "bodyweight workout"
+        r'^cable workout$',          # "cable workout"
+        r'^machine workout$',        # "machine workout"
+        r'^resistance bands? workout$', # "resistance band workout", "resistance bands workout"
+        r'^\w+( \w+)* routine$',     # "muscle building routine", "strength routine"
+        r'^full body \w+$',          # "full body workout"
+        r'^upper body \w+$',         # "upper body workout"
+        r'^lower body \w+$'          # "lower body workout"
     ]
     
     is_vague = any(re.match(pattern, normalized) for pattern in vague_patterns)
@@ -167,7 +183,7 @@ def detect_focus(text: str) -> Dict[str, Any]:
             'specificity': 0.7
         },
         'legs': {
-            'patterns': ['legs', 'leg day', 'lower body', 'squat', 'deadlift'],
+            'patterns': ['legs', 'leg', 'leg day', 'lower body', 'squat', 'deadlift'],
             'confidence_base': 0.8,
             'specificity': 0.7
         },
