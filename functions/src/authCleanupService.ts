@@ -158,7 +158,7 @@ export const scheduleCleanupTask = onCall({region: "northamerica-northeast2"}, a
   const project = process.env.GCP_PROJECT || process.env.GCLOUD_PROJECT || (process.env.FIREBASE_CONFIG && JSON.parse(process.env.FIREBASE_CONFIG).projectId);
   if (!project) throw new HttpsError("internal", "Project not detected");
   const location = "us-central1";
-  const queue = "cleanup-queue";
+  const queue = "unverified-user-cleanup-queue";
   const url = `https://${location}-${project}.cloudfunctions.net/cleanupTaskHandler`;
 
   // Obtain access token from metadata server
@@ -179,15 +179,29 @@ export const scheduleCleanupTask = onCall({region: "northamerica-northeast2"}, a
 
   const createTaskUrl = `https://cloudtasks.googleapis.com/v2/projects/${project}/locations/${location}/queues/${queue}/tasks`;
   const scheduleTime = {seconds: Math.floor(Date.now() / 1000) + Math.floor(delay)};
-  const taskBody = {
-    httpRequest: {
-      httpMethod: "POST",
-      url,
-      headers: {"Content-Type": "application/json"},
-      body: Buffer.from(JSON.stringify({uid})).toString("base64"),
-    },
-    scheduleTime,
+  // Prefer Cloud Tasks to produce a fresh OIDC token at delivery time by
+  // requesting an oidcToken with a service account. Set the service account
+  // email in the CLEANUP_TASK_SA environment variable. If not set, we will
+  // still attempt to create the task but it may fail if the function requires
+  // authenticated requests.
+  const taskServiceAccount = process.env.CLEANUP_TASK_SA;
+  const httpRequest: any = {
+    httpMethod: "POST",
+    url,
+    headers: {"Content-Type": "application/json"},
+    body: Buffer.from(JSON.stringify({uid})).toString("base64"),
   };
+
+  if (taskServiceAccount) {
+    httpRequest.oidcToken = {
+      serviceAccountEmail: taskServiceAccount,
+      audience: url,
+    };
+  } else {
+    console.warn("scheduleCleanupTask: CLEANUP_TASK_SA not set — creating task without oidcToken; target must allow unauthenticated requests or delivery will fail");
+  }
+
+  const taskBody = {httpRequest, scheduleTime};
 
   try {
     const resp = await fetch(createTaskUrl, {
