@@ -1,20 +1,26 @@
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
-import { Platform } from 'react-native';
+import { Platform, AppState } from 'react-native';
 import { app, db, functions } from '@/firebaseConfig';
 import { doc, updateDoc, getDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { httpsCallable, getFunctions } from 'firebase/functions';
 
 // Configure notification behavior
 Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
+  handleNotification: async (notification) => {
+    const appState = AppState.currentState;
+    const isAppActive = appState === 'active';
+    
+    // Don't show notifications when app is active/in foreground
+    return {
+      shouldShowAlert: !isAppActive,
+      shouldPlaySound: !isAppActive,
+      shouldSetBadge: false,
+      shouldShowBanner: !isAppActive,
+      shouldShowList: !isAppActive,
+    };
+  },
 });
 
 export interface NotificationData {
@@ -459,10 +465,20 @@ export class NotificationService {
   static setupNotificationListeners() {
     // Handle notifications that are received while app is foregrounded
     const notificationListener = Notifications.addNotificationReceivedListener(notification => {
+      const appState = AppState.currentState;
+      const isAppActive = appState === 'active';
+      
       console.log('Notification received:', notification);
+      console.log('App state:', appState, 'Is active:', isAppActive);
+      
+      if (isAppActive) {
+        // App is in foreground - handle silently or show in-app notification
+        // You could dispatch to a toast/banner component here instead
+        console.log('App is active - notification suppressed');
+      }
     });
 
-    // Handle user tapping on notifications
+    // Handle user tapping on notifications (only when app is backgrounded)
     const responseListener = Notifications.addNotificationResponseReceivedListener(async response => {
       const { notification } = response;
       const data = notification.request.content.data as any || {};
