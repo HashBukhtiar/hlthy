@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { auth, db } from '@/firebaseConfig';
-import { onAuthStateChanged, User } from 'firebase/auth';
+import { onAuthStateChanged, User, signOut } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { UserProfile, AuthContextType } from '@/types/user';
 import { NotificationService } from '@/services/NotificationService';
@@ -38,7 +38,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   // Initialize notifications for authenticated user
-  const initializeNotifications = async () => {
+  const initializeNotifications = async (user: User) => {
     if (!user?.uid) return;
 
     try {
