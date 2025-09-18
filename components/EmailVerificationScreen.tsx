@@ -839,7 +839,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: 'rgba(255, 255, 255, 0.8)',
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: 0,
     lineHeight: 24,
   },
   emailText: {
