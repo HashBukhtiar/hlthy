@@ -135,13 +135,13 @@ class AIOrchestrator:
                 return self._start_user_interview(user_id, {'intent': 'interview_needed'}, user_context)
             elif router_decision['action'] == 'direct_planning':
                 # Get AI understanding but enhance with router's focus info
-                understanding = self._ai_understand_with_context(message, user_context)
+                understanding = self._ai_understand_with_context(message, user_context, router_decision)
                 if understanding and router_decision.get('focus'):
                     understanding['focus'] = router_decision['focus']
                     understanding['confidence'] = max(understanding.get('confidence', 0.5), 0.8)  # Boost confidence since router approved
             else:
-                # Default understanding from AI
-                understanding = self._ai_understand_with_context(message, user_context)
+                # Default understanding from AI with router context
+                understanding = self._ai_understand_with_context(message, user_context, router_decision)
             
             if not understanding or not isinstance(understanding, dict):
                 return {
@@ -411,33 +411,51 @@ class AIOrchestrator:
     
     def _fallback_intent(self, message: str) -> Dict:
         """
-        Safe fallback for intent classification when AI fails
+        Safe fallback for intent classification when AI fails - no workout_request bias
         """
-        # Simple keyword-based fallback
-        message_lower = message.lower()
+        # Simple keyword-based fallback with better nonsense detection
+        message_lower = message.lower().strip()
         
-        if any(word in message_lower for word in ['workout', 'routine', 'exercise', 'train']):
+        # Check for obvious nonsense first
+        nonsense_indicators = [
+            len(message_lower) < 3,  # Too short
+            any(word in message_lower for word in ['weather', 'toenails', 'joke', 'math', 'calculate', 'what is']),
+            message_lower.isdigit(),  # Just numbers
+            len([c for c in message_lower if c.isalpha()]) < len(message_lower) * 0.5,  # Too many non-letters
+        ]
+        
+        if any(nonsense_indicators):
             return {
-                'intent': 'workout_request',
-                'reason': 'fallback - detected workout keywords',
-                'confidence': 0.6
+                'intent': 'nonsense',
+                'reason': 'fallback - detected non-fitness content or gibberish',
+                'confidence': 0.8
             }
-        elif any(word in message_lower for word in ['how', 'form', 'technique', 'proper']):
+        
+        # Check for specific fitness intents
+        if any(word in message_lower for word in ['how', 'form', 'technique', 'proper', 'correct']):
             return {
                 'intent': 'technique_question', 
                 'reason': 'fallback - detected technique keywords',
                 'confidence': 0.6
             }
-        elif any(word in message_lower for word in ['progress', 'tracking', 'results']):
+        elif any(word in message_lower for word in ['progress', 'tracking', 'results', 'improvement']):
             return {
                 'intent': 'progress_check',
                 'reason': 'fallback - detected progress keywords', 
                 'confidence': 0.6
             }
+        elif any(word in message_lower for word in ['workout', 'routine', 'exercise', 'train', 'build', 'muscle', 'strength']):
+            # Only classify as workout_request if user has complete profile, otherwise interview_needed
+            return {
+                'intent': 'workout_request',
+                'reason': 'fallback - detected workout keywords',
+                'confidence': 0.6
+            }
         else:
+            # Default to interview_needed for vague fitness requests
             return {
                 'intent': 'interview_needed',
-                'reason': 'fallback - unclear request needs clarification',
+                'reason': 'fallback - unclear fitness request needs clarification',
                 'confidence': 0.5
             }
     
