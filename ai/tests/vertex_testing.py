@@ -45,14 +45,18 @@ except ImportError:
 
 # Import profile manager
 PROFILE_MANAGER_AVAILABLE = False
+ENHANCED_PROFILE_MANAGER_AVAILABLE = False
 try:
-    from utils.user_profiles import UserProfileManager
+    from utils.user_profiles import UserProfileManager, EnhancedProfileManager
     profile_manager = UserProfileManager()
+    enhanced_profile_manager = EnhancedProfileManager()
     PROFILE_MANAGER_AVAILABLE = True
-    print("✅ User profile system available")
+    ENHANCED_PROFILE_MANAGER_AVAILABLE = True
+    print("✅ Enhanced user profile system with conversational memory available")
 except ImportError:
-    print("Warning: User profile system not available")
+    print("Warning: Enhanced user profile system not available")
     profile_manager = None
+    enhanced_profile_manager = None
 
 # Import technique library
 TECHNIQUE_LIBRARY_AVAILABLE = False
@@ -88,13 +92,19 @@ except ImportError:
     semantic_memory = None
 
 # Import profile sync system
+ENHANCED_PROFILE_SYNC_AVAILABLE = False
 try:
-    from utils.profile_sync import ProfileSyncSystem
+    from utils.profile_sync import ProfileSyncSystem, ConfidenceBasedExtractor, EnhancedProfileSync
     profile_sync = ProfileSyncSystem()
-    print("✅ Profile sync system available")
+    confidence_extractor = ConfidenceBasedExtractor()
+    enhanced_profile_sync = EnhancedProfileSync(confidence_extractor, enhanced_profile_manager)
+    ENHANCED_PROFILE_SYNC_AVAILABLE = True
+    print("✅ Enhanced profile sync system with extract→confirm→commit workflow available")
 except ImportError:
-    print("Warning: Profile sync system not available")
+    print("Warning: Enhanced profile sync system not available")
     profile_sync = None
+    confidence_extractor = None
+    enhanced_profile_sync = None
 
 # Import rate limiting
 try:
@@ -376,6 +386,20 @@ def chat():
         
         print(f"Processing message: {user_message[:50]}...")
         
+        # Process conversational memory if enhanced sync is available
+        conversation_result = None
+        if ENHANCED_PROFILE_SYNC_AVAILABLE and enhanced_profile_sync:
+            try:
+                print("Processing conversation for memory extraction...")
+                conversation_result = enhanced_profile_sync.process_conversation_turn(
+                    user_id, 
+                    user_message, 
+                    ""  # Coach response will be filled after AI generates it
+                )
+                print(f"Conversational memory result: {conversation_result}")
+            except Exception as e:
+                print(f"Conversational memory processing error: {e}")
+        
         # Use AI-powered intelligent system if available (PRIMARY)
         if INTELLIGENT_SYSTEM_AVAILABLE and intelligent_system:
             try:
@@ -393,6 +417,14 @@ def chat():
                     "response_type": result.get('type', 'unknown'),
                     "used_systems": result.get('used_systems', [])
                 }
+                
+                # Add conversational memory context if available
+                if conversation_result:
+                    api_response["conversational_memory"] = {
+                        "claims_extracted": conversation_result.get("claims_extracted", 0),
+                        "pending_confirmations": conversation_result.get("pending_confirmations", []),
+                        "claims_committed": conversation_result.get("claims_committed", 0)
+                    }
                 
                 if result.get('type') == 'workout':
                     api_response.update({
@@ -633,6 +665,180 @@ def classify_intent():
             "intent": "unknown",
             "confidence": 0.0
         }), 500
+
+
+# ===== CONVERSATIONAL MEMORY ENDPOINTS =====
+
+@app.route('/api/profile/<user_id>/claims/extract', methods=['POST'])
+def extract_claims(user_id):
+    """Extract claims from user message with confidence scoring"""
+    try:
+        if not ENHANCED_PROFILE_SYNC_AVAILABLE:
+            return jsonify({"error": "Enhanced profile sync not available"}), 503
+            
+        data = request.get_json()
+        message = data.get('message', '')
+        
+        if not message:
+            return jsonify({"error": "Message is required"}), 400
+        
+        # Extract claims using confidence-based extractor
+        claims = confidence_extractor.extract_with_confidence(message, context=f"api_extract_{datetime.now().isoformat()}")
+        
+        # Add to pending claims
+        confidence_extractor.add_pending_claims(user_id, claims)
+        
+        # Get pending confirmations
+        pending_confirmations = confidence_extractor.get_pending_confirmations(user_id, limit=3)
+        
+        return jsonify({
+            "success": True,
+            "claims_extracted": len(claims),
+            "claims": [
+                {
+                    "claim_id": claim.claim_id,
+                    "type": claim.type,
+                    "value": claim.normalized_value,
+                    "confidence": claim.confidence,
+                    "requires_confirmation": claim.requires_confirmation
+                }
+                for claim in claims
+            ],
+            "pending_confirmations": [
+                {
+                    "claim_id": claim.claim_id,
+                    "question": claim.to_confirmation_question(),
+                    "confidence": claim.confidence
+                }
+                for claim in pending_confirmations
+            ]
+        })
+        
+    except Exception as e:
+        print(f"Claim extraction error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/profile/<user_id>/claims/confirm', methods=['POST'])
+def confirm_claims(user_id):
+    """Confirm or reject extracted claims"""
+    try:
+        if not ENHANCED_PROFILE_SYNC_AVAILABLE:
+            return jsonify({"error": "Enhanced profile sync not available"}), 503
+            
+        data = request.get_json()
+        confirmations = data.get('confirmations', {})
+        
+        if not confirmations:
+            return jsonify({"error": "Confirmations are required"}), 400
+        
+        # Process confirmations
+        result = enhanced_profile_sync.confirm_user_claims(user_id, confirmations)
+        
+        return jsonify({
+            "success": True,
+            "claims_confirmed": result["claims_confirmed"],
+            "claims_committed": result["claims_committed"],
+            "committed_details": result["committed_details"]
+        })
+        
+    except Exception as e:
+        print(f"Claim confirmation error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/profile/<user_id>/conversation', methods=['POST'])
+def process_conversation_turn(user_id):
+    """Process full conversation turn with extract→confirm→commit workflow"""
+    try:
+        if not ENHANCED_PROFILE_SYNC_AVAILABLE:
+            return jsonify({"error": "Enhanced profile sync not available"}), 503
+            
+        data = request.get_json()
+        user_message = data.get('user_message', '')
+        coach_response = data.get('coach_response', '')
+        
+        if not user_message:
+            return jsonify({"error": "User message is required"}), 400
+        
+        # Process conversation turn
+        result = enhanced_profile_sync.process_conversation_turn(user_id, user_message, coach_response)
+        
+        return jsonify({
+            "success": True,
+            **result
+        })
+        
+    except Exception as e:
+        print(f"Conversation processing error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/profile/<user_id>/injuries/check-ins', methods=['GET'])
+def get_injury_check_ins(user_id):
+    """Get injuries needing check-ins"""
+    try:
+        if not ENHANCED_PROFILE_MANAGER_AVAILABLE:
+            return jsonify({"error": "Enhanced profile manager not available"}), 503
+            
+        check_ins = enhanced_profile_manager.schedule_injury_check_ins(user_id)
+        
+        return jsonify({
+            "success": True,
+            "check_ins_needed": check_ins,
+            "count": len(check_ins)
+        })
+        
+    except Exception as e:
+        print(f"Injury check-ins error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/profile/<user_id>/session-state', methods=['POST'])
+def update_session_state(user_id):
+    """Update user's conversation session state"""
+    try:
+        if not ENHANCED_PROFILE_MANAGER_AVAILABLE:
+            return jsonify({"error": "Enhanced profile manager not available"}), 503
+            
+        data = request.get_json()
+        state = data.get('state', 'IDLE')
+        context = data.get('context', {})
+        
+        success = enhanced_profile_manager.update_conversation_state(user_id, state, context)
+        
+        return jsonify({
+            "success": success,
+            "state": state,
+            "context": context
+        })
+        
+    except Exception as e:
+        print(f"Session state error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/profile/<user_id>/enhanced', methods=['GET'])
+def get_enhanced_profile(user_id):
+    """Get enhanced profile with conversational context for planner"""
+    try:
+        if not ENHANCED_PROFILE_MANAGER_AVAILABLE:
+            return jsonify({"error": "Enhanced profile manager not available"}), 503
+            
+        profile_data = enhanced_profile_manager.get_profile_for_planner(user_id)
+        
+        if not profile_data:
+            return jsonify({"error": "Profile not found"}), 404
+        
+        return jsonify({
+            "success": True,
+            "profile": profile_data
+        })
+        
+    except Exception as e:
+        print(f"Enhanced profile error: {e}")
+        return jsonify({"error": str(e)}), 500
+
 
 # Start the Flask application
 if __name__ == "__main__":
