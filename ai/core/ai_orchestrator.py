@@ -1118,6 +1118,52 @@ class AIOrchestrator:
         else:
             return None  # Interview complete
     
+    def _extract_and_resolve_brands(self, text: str) -> Dict[str, str]:
+        """
+        Extract brand equipment mentions from text and resolve to canonical IDs
+        This supports Task F: Hybrid Knowledge requirement
+        """
+        try:
+            # Import resolver here to avoid circular imports
+            from .exercise_alias_resolver import resolver
+            
+            # Extract brand equipment mentions
+            equipment_mentions = resolver.extract_equipment_from_text(text)
+            
+            # Resolve each mention to canonical ID
+            resolved_equipment = resolver.resolve_brand_equipment_list(equipment_mentions)
+            
+            return resolved_equipment
+            
+        except Exception as e:
+            print(f"Brand resolution error: {e}")
+            return {}
+    
+    def _canonicalize_before_planning(self, understanding: Dict, user_message: str) -> Dict:
+        """
+        Canonicalize any brand mentions before sending to planner
+        This ensures planner only receives canonical exercise IDs
+        """
+        try:
+            # Check if message contains brand equipment mentions
+            brand_equipment = self._extract_and_resolve_brands(user_message)
+            
+            if brand_equipment:
+                # Add resolved equipment to understanding context
+                if 'context' not in understanding:
+                    understanding['context'] = {}
+                understanding['context']['resolved_equipment'] = brand_equipment
+                
+                # Log brand mappings for observability
+                if hasattr(self.observability, 'log_metric'):
+                    self.observability.log_metric('brand_mapped_count', len(brand_equipment))
+            
+            return understanding
+            
+        except Exception as e:
+            print(f"Canonicalization error: {e}")
+            return understanding
+    
     def _get_available_equipment(self) -> List[Dict]:
         """
         Get available equipment from catalog
