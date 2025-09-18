@@ -411,20 +411,35 @@ class AIOrchestrator:
     
     def _fallback_intent(self, message: str) -> Dict:
         """
-        Safe fallback for intent classification when AI fails - no workout_request bias
+        Safe fallback for intent classification when AI fails - generic nonsense detection
         """
-        # Simple keyword-based fallback with better nonsense detection
+        # Simple keyword-based fallback with generic nonsense detection
         message_lower = message.lower().strip()
         
-        # Check for obvious nonsense first
+        # Generic nonsense indicators (not hardcoded words)
         nonsense_indicators = [
             len(message_lower) < 3,  # Too short
-            any(word in message_lower for word in ['weather', 'toenails', 'joke', 'math', 'calculate', 'what is']),
             message_lower.isdigit(),  # Just numbers
-            len([c for c in message_lower if c.isalpha()]) < len(message_lower) * 0.5,  # Too many non-letters
+            len([c for c in message_lower if c.isalpha()]) < len(message_lower) * 0.3,  # Too many non-letters
+            # Gibberish detection: low vowel ratio + no common words
+            (len(message_lower) > 5 and 
+             len([c for c in message_lower if c in 'aeiou']) < len(message_lower) * 0.15 and
+             not any(word in message_lower for word in [
+                 'workout', 'exercise', 'train', 'muscle', 'strength', 'fitness', 'gym', 'weight',
+                 'how', 'what', 'when', 'where', 'why', 'can', 'could', 'should', 'would',
+                 'help', 'show', 'tell', 'give', 'make', 'build', 'create', 'need', 'want',
+                 'the', 'and', 'for', 'are', 'but', 'not', 'you', 'all', 'can', 'had', 'her',
+                 'was', 'one', 'our', 'out', 'day', 'get', 'has', 'him', 'his', 'how', 'its'
+             ]))
         ]
         
-        if any(nonsense_indicators):
+        # Check if message contains fitness-related words (likely not nonsense)
+        fitness_words = ['workout', 'exercise', 'train', 'muscle', 'strength', 'fitness', 'gym', 'weight', 
+                        'lift', 'rep', 'set', 'cardio', 'run', 'bike', 'swim', 'squat', 'press', 'pull']
+        has_fitness_words = any(word in message_lower for word in fitness_words)
+        
+        # If it looks like nonsense and has no fitness words, classify as nonsense
+        if any(nonsense_indicators) and not has_fitness_words:
             return {
                 'intent': 'nonsense',
                 'reason': 'fallback - detected non-fitness content or gibberish',
@@ -444,19 +459,18 @@ class AIOrchestrator:
                 'reason': 'fallback - detected progress keywords', 
                 'confidence': 0.6
             }
-        elif any(word in message_lower for word in ['workout', 'routine', 'exercise', 'train', 'build', 'muscle', 'strength']):
-            # Only classify as workout_request if user has complete profile, otherwise interview_needed
+        elif has_fitness_words:
             return {
                 'intent': 'workout_request',
-                'reason': 'fallback - detected workout keywords',
+                'reason': 'fallback - detected fitness/workout keywords',
                 'confidence': 0.6
             }
         else:
-            # Default to interview_needed for vague fitness requests
+            # For unclear requests that aren't obviously nonsense, assume they need clarification
             return {
                 'intent': 'interview_needed',
-                'reason': 'fallback - unclear fitness request needs clarification',
-                'confidence': 0.5
+                'reason': 'fallback - unclear request needs clarification',
+                'confidence': 0.4
             }
     
     def _ai_select_actions(self, understanding: Dict, context: Dict) -> List[str]:
