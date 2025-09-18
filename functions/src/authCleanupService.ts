@@ -200,8 +200,8 @@ export const scheduleCleanupTask = onCall({region: "northamerica-northeast2"}, a
   } else {
     console.warn("scheduleCleanupTask: CLEANUP_TASK_SA not set — creating task without oidcToken; target must allow unauthenticated requests or delivery will fail");
   }
-
-  const taskBody = {httpRequest, scheduleTime};
+  
+  const taskBody = { task: { httpRequest, scheduleTime } };
 
   try {
     const resp = await fetch(createTaskUrl, {
