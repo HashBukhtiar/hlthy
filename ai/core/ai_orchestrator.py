@@ -134,8 +134,11 @@ class AIOrchestrator:
             elif router_decision['action'] == 'start_interview':
                 return self._start_user_interview(user_id, {'intent': 'interview_needed'}, user_context)
             elif router_decision['action'] == 'direct_planning':
-                # Proceed with workout generation
-                understanding = {'intent': 'workout_request', 'confidence': 0.9, 'focus': router_decision.get('focus')}
+                # Get AI understanding but enhance with router's focus info
+                understanding = self._ai_understand_with_context(message, user_context)
+                if understanding and router_decision.get('focus'):
+                    understanding['focus'] = router_decision['focus']
+                    understanding['confidence'] = max(understanding.get('confidence', 0.5), 0.8)  # Boost confidence since router approved
             else:
                 # Default understanding from AI
                 understanding = self._ai_understand_with_context(message, user_context)
@@ -304,9 +307,9 @@ class AIOrchestrator:
                 'exercise_database': {'total_exercises': 0, 'categories': []}
             }
     
-    def _ai_understand_with_context(self, message: str, context: Dict) -> Dict:
+    def _ai_understand_with_context(self, message: str, context: Dict, router_decision: Dict = None) -> Dict:
         """
-        Use Gemini to understand intent, but with ALL your context
+        Use Gemini to understand intent, but with ALL your context including router insights
         """
         try:
             # Safe access to context data
@@ -336,9 +339,14 @@ class AIOrchestrator:
                     f"- {item.get('content', '')[:100]}" for item in relevant_history[:3]
                 ])
             
-            # Simplified, robust prompt with full profile context
+            # Build router context
+            router_context = ""
+            if router_decision:
+                router_context = f"\n\nRouter analysis:\n- Action: {router_decision.get('action', 'unknown')}\n- Focus: {router_decision.get('focus', 'none')}\n- Reason: {router_decision.get('reason', 'N/A')}"
+            
+            # Enhanced prompt with router insights and better intent classification
             prompt = f"""
-            Analyze this fitness message and determine intent with context:
+            Analyze this fitness message and determine intent with full context:
             
             Message: "{message}"
             
@@ -350,14 +358,17 @@ class AIOrchestrator:
             - Training frequency: {training_frequency} days/week
             - Available exercises: {len(allowed_exercises)}
             {conversation_context}
+            {router_context}
             
-            Choose the most appropriate intent from these options:
-            - workout_request: User wants a workout plan
-            - interview_needed: User request is too vague, needs clarification
-            - technique_question: User asking about exercise form/technique
-            - progress_check: User asking about their progress
-            - advice: General fitness advice question
-            - nonsense: Unrelated to fitness
+            Intent classification guidelines:
+            - workout_request: User clearly wants a workout plan for specific muscle group/goal
+            - interview_needed: User request is vague and needs more info (experience, goals, time, equipment)
+            - technique_question: User asking about exercise form, technique, or how-to perform movements
+            - progress_check: User asking about their progress, results, or workout history
+            - advice: General fitness advice, nutrition, or lifestyle questions  
+            - nonsense: Completely unrelated to fitness (weather, math, random words, etc.)
+            
+            Consider both the message content AND router analysis when classifying.
             
             Respond with ONLY this JSON format:
             {{
