@@ -159,6 +159,8 @@ class AIOrchestrator:
             if needs_interview:
                 result = self._start_user_interview(user_id, understanding, user_context)
             elif understanding.get('intent') == 'workout_request':
+                # Canonicalize brand mentions before planning (Task F requirement)
+                understanding = self._canonicalize_before_planning(understanding, message)
                 result = self._generate_workout_with_systems(
                     user_id, 
                     understanding, 
@@ -897,6 +899,7 @@ class AIOrchestrator:
             else:
                 # Profile is complete, treat as regular message
                 understanding = {'intent': 'workout_request', 'confidence': 0.8}
+                understanding = self._canonicalize_before_planning(understanding, message)
                 return self._generate_workout_with_systems(user_id, understanding, context)
             
             # Check if there's a next question to continue the interview
