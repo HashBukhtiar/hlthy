@@ -1054,13 +1054,18 @@ class AIOrchestrator:
                     profile.goals.session_duration = duration
                     
             elif question == 'equipment_access':
-                # Simple equipment mapping
+                # Enhanced equipment mapping with brand resolution
                 if 'bodyweight' in answer.lower():
                     profile.available_equipment = {'bodyweight': ['floor']}
                 elif 'home' in answer.lower():
                     profile.available_equipment = {'home': ['dumbbells', 'resistance_bands']}
                 else:
-                    profile.available_equipment = {'commercial_gym': ['full_gym']}
+                    # Check for specific brand equipment mentions
+                    brand_equipment = self._extract_and_resolve_brands(answer)
+                    if brand_equipment:
+                        profile.available_equipment = {'commercial_gym': list(brand_equipment.values())}
+                    else:
+                        profile.available_equipment = {'commercial_gym': ['full_gym']}
             
             # Save updated profile
             profile.updated_at = datetime.now().isoformat()

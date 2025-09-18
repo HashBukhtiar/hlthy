@@ -81,16 +81,17 @@ class ExerciseAliasResolver:
             self.resolution_cache[normalized] = (canonical_id, [match])
             return canonical_id, [match]
         
-        # 2. Check brand equipment
-        if normalized in self.brand_index:
-            equipment_key = self.brand_index[normalized]
+        # 2. Enhanced brand equipment matching with partial matches
+        brand_match = self._find_brand_match(normalized)
+        if brand_match:
+            equipment_key, confidence = brand_match
             mapping = EQUIPMENT_CATALOG[equipment_key]
             for candidate_id in mapping.canonical_candidates[:3]:
                 if candidate_id in CANONICAL_EXERCISES:
                     match = AliasMatch(
                         canonical_id=candidate_id,
                         display_name=CANONICAL_EXERCISES[candidate_id].display_name,
-                        confidence=0.9 if mapping.canonical_candidates.index(candidate_id) == 0 else 0.8,
+                        confidence=confidence,
                         match_type='brand'
                     )
                     matches.append(match)
@@ -130,6 +131,118 @@ class ExerciseAliasResolver:
         # Return top 3 suggestions for user confirmation
         self.resolution_cache[normalized] = (None, matches[:3])
         return None, matches[:3]
+    
+    def _find_brand_match(self, normalized_name: str) -> Optional[Tuple[str, float]]:
+        """
+        Find best brand equipment match with confidence score
+        Returns (equipment_key, confidence) or None
+        """
+        # Direct lookup in brand index
+        if normalized_name in self.brand_index:
+            return self.brand_index[normalized_name], 1.0
+        
+        # Check for partial brand name matches
+        for brand_key, equipment_key in self.brand_index.items():
+            # Check if normalized_name contains brand keywords
+            brand_words = brand_key.split()
+            input_words = normalized_name.split()
+            
+            # Check for partial matches (e.g., "life fitness chest" -> "life_fitness_chest_press")
+            if len(brand_words) >= 2:  # Multi-word brands
+                brand_name = " ".join(brand_words[:2])  # First two words (e.g., "life fitness")
+                if brand_name in normalized_name:
+                    # Check if exercise type is mentioned
+                    equipment_mapping = EQUIPMENT_CATALOG.get(equipment_key)
+                    if equipment_mapping:
+                        # Look for exercise-specific keywords
+                        for pattern in equipment_mapping.movement_patterns:
+                            if any(keyword in normalized_name for keyword in self._get_pattern_keywords(pattern)):
+                                return equipment_key, 0.9
+                        # If no specific pattern found but brand matched, return with lower confidence
+                        return equipment_key, 0.7
+            
+            # Single word brand matches
+            elif brand_key in normalized_name:
+                return equipment_key, 0.8
+        
+        return None
+    
+    def _get_pattern_keywords(self, pattern: str) -> List[str]:
+        """
+        Get keywords associated with movement patterns for brand matching
+        """
+        pattern_keywords = {
+            'horizontal_press': ['chest', 'press', 'bench'],
+            'incline_press': ['incline', 'upper'],
+            'vertical_press': ['shoulder', 'overhead', 'military'],
+            'fly': ['fly', 'pec', 'deck'],
+            'vertical_pull': ['pulldown', 'lat', 'pull'],
+            'horizontal_pull': ['row', 'seated', 'cable'],
+            'pullover': ['pullover'],
+            'squat': ['squat', 'hack'],
+            'leg_press': ['leg', 'press'],
+            'hinge': ['deadlift', 'romanian'],
+            'lunge': ['lunge', 'split'],
+            'quad_iso': ['extension', 'quad'],
+            'ham_iso': ['curl', 'hamstring'],
+            'glute_iso': ['glute', 'hip'],
+            'calf': ['calf', 'raise'],
+            'lateral_delt': ['lateral', 'side'],
+            'front_delt': ['front', 'anterior'],
+            'rear_delt': ['rear', 'posterior'],
+            'biceps': ['bicep', 'curl'],
+            'triceps': ['tricep', 'dips'],
+            'core_anti_extension': ['plank', 'dead', 'bug'],
+            'core_rotation': ['russian', 'twist'],
+            'core_anti_rotation': ['pallof', 'suitcase'],
+            'core_flexion': ['crunch', 'sit']
+        }
+        return pattern_keywords.get(pattern, [])
+    
+    def resolve_brand_equipment_list(self, equipment_mentions: List[str]) -> Dict[str, str]:
+        """
+        Resolve a list of brand equipment mentions to canonical exercise IDs
+        Useful for handling user responses like "We have Life Fitness Chest Press and Hammer Strength Low Row"
+        
+        Returns: Dict mapping original mention to canonical ID
+        """
+        resolved_equipment = {}
+        
+        for mention in equipment_mentions:
+            canonical_id, matches = self.resolve(mention)
+            if canonical_id:
+                resolved_equipment[mention] = canonical_id
+            elif matches:
+                # Take the highest confidence match
+                resolved_equipment[mention] = matches[0].canonical_id
+        
+        return resolved_equipment
+    
+    def extract_equipment_from_text(self, text: str) -> List[str]:
+        """
+        Extract potential equipment mentions from free-form text
+        Looks for brand names followed by exercise types
+        """
+        equipment_mentions = []
+        text_lower = text.lower()
+        
+        # Look for known brand patterns
+        brand_patterns = [
+            r'life fitness \w+(?:\s+\w+)?',
+            r'hammer strength \w+(?:\s+\w+)?',
+            r'technogym \w+(?:\s+\w+)?',
+            r'precor \w+(?:\s+\w+)?',
+            r'cybex \w+(?:\s+\w+)?',
+            r'matrix \w+(?:\s+\w+)?',
+            r'nautilus \w+(?:\s+\w+)?'
+        ]
+        
+        import re
+        for pattern in brand_patterns:
+            matches = re.findall(pattern, text_lower)
+            equipment_mentions.extend(matches)
+        
+        return equipment_mentions
     
     def confirm_resolution(self, exercise_name: str, canonical_id: str):
         """Store user confirmation of exercise mapping"""
