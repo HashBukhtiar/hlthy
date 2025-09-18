@@ -12,18 +12,18 @@ from .core.progression_tracker_complete import ProgressionTracker
 from .core.focus_router_enhanced import route_focus_request, detect_focus, is_nonsense_or_unknown
 
 # Integration system
-from integration.focus_integration_complete import FocusIntegrationSystem, InterviewSession
+from ai.integration.focus_integration_complete import FocusIntegrationSystem, InterviewSession
 
 # Validation system
-from validators.comprehensive_validator import ComprehensiveFocusValidator
+from ai.validators.comprehensive_validator import ComprehensiveFocusValidator
 
 # Utilities
-from utils.user_profiles import UserProfileManager
-from utils.semantic_memory import SemanticMemorySystem
-from utils.rate_limiting import RateLimiter
+from ai.utils.user_profiles import UserProfileManager
+from ai.utils.semantic_memory import SemanticMemorySystem
+from ai.utils.rate_limiting import RateLimiter
 
 # Configuration
-from config.load_env import load_env_file
+from ai.config.load_env import load_env_file
 
 __version__ = "2.0.0"
 __author__ = "hlthy AI Team"

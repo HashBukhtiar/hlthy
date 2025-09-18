@@ -28,6 +28,17 @@ class ValidationResult:
     exercise_id: Optional[str] = None
     suggestion: Optional[str] = None
     auto_fix_available: bool = False
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization"""
+        return {
+            'level': self.level.value,
+            'category': self.category,
+            'message': self.message,
+            'exercise_id': self.exercise_id,
+            'suggestion': self.suggestion,
+            'auto_fix_available': self.auto_fix_available
+        }
 
 
 @dataclass
@@ -68,12 +79,94 @@ class ComprehensiveFocusValidator:
         self.technique_library = TechniqueLibrary()
         self.equipment_catalog = EquipmentCatalog()
         
+        # Setup logging
+        import logging
+        self.logger = logging.getLogger(__name__)
+        
         # Validation rules and limits
         self.max_exercises_per_workout = 15
         self.max_sets_per_exercise = 8
         self.max_total_sets = 30
         self.min_rest_between_sets = 30  # seconds
         self.max_workout_duration = 180  # minutes
+        
+        # Task G: Required/Forbidden Pattern Rules per Focus
+        self.focus_pattern_rules = {
+            'chest': {
+                'required': ['horizontal_press', 'incline_press'],
+                'forbidden': ['hamstring', 'calf'],
+                'min_required_count': 2,
+                'max_forbidden_count': 0,
+                'max_sets': 20
+            },
+            'back': {
+                'required': ['horizontal_pull', 'vertical_pull'],
+                'forbidden': ['chest_iso', 'triceps'],
+                'min_required_count': 2,
+                'max_forbidden_count': 0,
+                'max_sets': 22
+            },
+            'shoulders': {
+                'required': ['vertical_press', 'lateral_delt'],
+                'forbidden': ['leg_press', 'ham_iso'],
+                'min_required_count': 2,
+                'max_forbidden_count': 0,
+                'max_sets': 18
+            },
+            'legs': {
+                'required': ['squat', 'hinge'],
+                'forbidden': ['horizontal_press', 'vertical_press'],
+                'min_required_count': 2,
+                'max_forbidden_count': 0,
+                'max_sets': 25
+            },
+            'arms': {
+                'required': ['biceps', 'triceps'],
+                'forbidden': ['squat', 'hinge'],
+                'min_required_count': 2,
+                'max_forbidden_count': 0,
+                'max_sets': 16
+            },
+            'push': {
+                'required': ['horizontal_press', 'vertical_press', 'triceps'],
+                'forbidden': ['horizontal_pull', 'vertical_pull', 'biceps'],
+                'min_required_count': 2,
+                'max_forbidden_count': 1,  # Allow minimal pulling for balance
+                'max_sets': 20
+            },
+            'pull': {
+                'required': ['horizontal_pull', 'vertical_pull', 'biceps'],
+                'forbidden': ['horizontal_press', 'vertical_press', 'triceps'],
+                'min_required_count': 2,
+                'max_forbidden_count': 1,  # Allow minimal pushing for balance
+                'max_sets': 20
+            },
+            'upper': {
+                'required': ['horizontal_press', 'horizontal_pull'],
+                'forbidden': ['squat', 'leg_press', 'hinge'],
+                'min_required_count': 2,
+                'max_forbidden_count': 0,
+                'max_sets': 22
+            },
+            'lower': {
+                'required': ['squat', 'hinge'],
+                'forbidden': ['horizontal_press', 'vertical_press'],
+                'min_required_count': 2,
+                'max_forbidden_count': 0,
+                'max_sets': 24
+            }
+        }
+        
+        # Task G: Proportion Rules for Focus Combinations
+        self.proportion_rules = {
+            'push': {'pull_ratio': (0.6, 1.5)},  # Push:Pull should be 0.6:1 to 1.5:1
+            'pull': {'push_ratio': (0.6, 1.5)},  # Pull:Push should be 0.6:1 to 1.5:1
+            'upper': {'horizontal_vertical_ratio': (0.7, 1.4)},  # Horizontal:Vertical
+            'chest': {'press_fly_ratio': (1.5, 4.0)},  # Press:Fly should be 1.5:1 to 4:1
+            'back': {'pull_row_ratio': (0.8, 1.2)},  # Vertical:Horizontal pull balance
+            'legs': {'quad_ham_ratio': (0.8, 1.3)},  # Quad:Ham balance
+            'shoulders': {'front_rear_ratio': (0.7, 1.5)},  # Front:Rear delt balance
+        }
         
         # Segment validation rules
         self.segment_rules = {
@@ -123,6 +216,15 @@ class ComprehensiveFocusValidator:
         
         # Focus alignment validation
         results.extend(self._validate_focus_alignment(workout_plan, context))
+        
+        # Task G: Enhanced pattern enforcement validation
+        results.extend(self._validate_pattern_enforcement(workout_plan, context))
+        
+        # Task G: Proportion rules validation  
+        results.extend(self._validate_proportion_rules(workout_plan, context))
+        
+        # Task G: Enhanced volume bounds validation
+        results.extend(self._validate_enhanced_volume_bounds(workout_plan, context))
         
         # Safety validation
         results.extend(self._validate_safety_considerations(workout_plan, context))
@@ -592,6 +694,465 @@ class ComprehensiveFocusValidator:
                     ))
         
         return results
+    
+    def _validate_pattern_enforcement(self, workout_plan: Dict[str, Any], 
+                                    context: Dict[str, Any]) -> List[ValidationResult]:
+        """Task G: Validate required/forbidden patterns per focus"""
+        results = []
+        
+        workout_focus = workout_plan.get('focus')
+        if not workout_focus or workout_focus not in self.focus_pattern_rules:
+            return results
+        
+        rules = self.focus_pattern_rules[workout_focus]
+        required_patterns = rules['required']
+        forbidden_patterns = rules['forbidden']
+        min_required_count = rules['min_required_count']
+        max_forbidden_count = rules['max_forbidden_count']
+        
+        # Get main workout exercises (exclude warm-up and cool-down)
+        exercises = workout_plan.get('exercises', [])
+        main_exercises = [ex for ex in exercises if ex.get('segment') not in ['warm_up', 'cool_down']]
+        
+        # Count pattern occurrences
+        found_patterns = {}
+        forbidden_found = {}
+        
+        for exercise in main_exercises:
+            exercise_id = exercise.get('exercise_id')
+            if not exercise_id:
+                continue
+            
+            exercise_data = self.exercise_db.get_exercise_by_id(exercise_id)
+            if not exercise_data:
+                continue
+            
+            exercise_patterns = exercise_data.get('movement_patterns', [])
+            
+            # Count required patterns
+            for pattern in required_patterns:
+                if pattern in exercise_patterns:
+                    found_patterns[pattern] = found_patterns.get(pattern, 0) + 1
+            
+            # Count forbidden patterns
+            for pattern in forbidden_patterns:
+                if pattern in exercise_patterns:
+                    forbidden_found[pattern] = forbidden_found.get(pattern, 0) + 1
+        
+        # Check required patterns
+        missing_required = []
+        for pattern in required_patterns:
+            if found_patterns.get(pattern, 0) == 0:
+                missing_required.append(pattern)
+        
+        if len(found_patterns) < min_required_count:
+            results.append(ValidationResult(
+                level=ValidationLevel.ERROR,
+                category="pattern_enforcement",
+                message=f"Missing required patterns for {workout_focus}: {', '.join(missing_required)}",
+                suggestion=f"Add exercises with patterns: {', '.join(missing_required)}"
+            ))
+        
+        # Check forbidden patterns
+        violations = []
+        for pattern, count in forbidden_found.items():
+            if count > max_forbidden_count:
+                violations.append(f"{pattern} ({count}x)")
+        
+        if violations:
+            results.append(ValidationResult(
+                level=ValidationLevel.ERROR,
+                category="pattern_enforcement", 
+                message=f"Forbidden patterns found in {workout_focus} workout: {', '.join(violations)}",
+                suggestion=f"Remove or replace exercises with forbidden patterns"
+            ))
+        
+        return results
+    
+    def _validate_proportion_rules(self, workout_plan: Dict[str, Any], 
+                                 context: Dict[str, Any]) -> List[ValidationResult]:
+        """Task G: Validate proportion rules for focus combinations"""
+        results = []
+        
+        workout_focus = workout_plan.get('focus')
+        if not workout_focus or workout_focus not in self.proportion_rules:
+            return results
+        
+        rules = self.proportion_rules[workout_focus]
+        exercises = workout_plan.get('exercises', [])
+        main_exercises = [ex for ex in exercises if ex.get('segment') not in ['warm_up', 'cool_down']]
+        
+        # Count pattern groups for proportion analysis
+        pattern_counts = {}
+        
+        for exercise in main_exercises:
+            exercise_id = exercise.get('exercise_id')
+            if not exercise_id:
+                continue
+            
+            exercise_data = self.exercise_db.get_exercise_by_id(exercise_id)
+            if not exercise_data:
+                continue
+            
+            exercise_patterns = exercise_data.get('movement_patterns', [])
+            sets = exercise.get('sets', 1)
+            
+            # Group patterns for proportion analysis
+            for pattern in exercise_patterns:
+                pattern_counts[pattern] = pattern_counts.get(pattern, 0) + sets
+        
+        # Validate specific proportion rules
+        for rule_name, (min_ratio, max_ratio) in rules.items():
+            if rule_name == 'pull_ratio':
+                # Push:Pull ratio for push workouts
+                push_sets = sum(pattern_counts.get(p, 0) for p in ['horizontal_press', 'vertical_press', 'triceps'])
+                pull_sets = sum(pattern_counts.get(p, 0) for p in ['horizontal_pull', 'vertical_pull', 'biceps'])
+                
+                if pull_sets > 0:
+                    ratio = push_sets / pull_sets
+                    if ratio < min_ratio or ratio > max_ratio:
+                        results.append(ValidationResult(
+                            level=ValidationLevel.WARNING,
+                            category="proportion_rules",
+                            message=f"Push:Pull ratio imbalanced: {ratio:.1f}:1 (recommended: {min_ratio}-{max_ratio}:1)",
+                            suggestion="Adjust push/pull exercise balance"
+                        ))
+            
+            elif rule_name == 'push_ratio':
+                # Pull:Push ratio for pull workouts  
+                pull_sets = sum(pattern_counts.get(p, 0) for p in ['horizontal_pull', 'vertical_pull', 'biceps'])
+                push_sets = sum(pattern_counts.get(p, 0) for p in ['horizontal_press', 'vertical_press', 'triceps'])
+                
+                if push_sets > 0:
+                    ratio = pull_sets / push_sets
+                    if ratio < min_ratio or ratio > max_ratio:
+                        results.append(ValidationResult(
+                            level=ValidationLevel.WARNING,
+                            category="proportion_rules",
+                            message=f"Pull:Push ratio imbalanced: {ratio:.1f}:1 (recommended: {min_ratio}-{max_ratio}:1)",
+                            suggestion="Adjust pull/push exercise balance"
+                        ))
+            
+            elif rule_name == 'horizontal_vertical_ratio':
+                # Horizontal:Vertical ratio for upper body
+                horizontal_sets = sum(pattern_counts.get(p, 0) for p in ['horizontal_press', 'horizontal_pull'])
+                vertical_sets = sum(pattern_counts.get(p, 0) for p in ['vertical_press', 'vertical_pull'])
+                
+                if vertical_sets > 0:
+                    ratio = horizontal_sets / vertical_sets
+                    if ratio < min_ratio or ratio > max_ratio:
+                        results.append(ValidationResult(
+                            level=ValidationLevel.INFO,
+                            category="proportion_rules",
+                            message=f"Horizontal:Vertical ratio: {ratio:.1f}:1 (recommended: {min_ratio}-{max_ratio}:1)",
+                            suggestion="Balance horizontal and vertical movements"
+                        ))
+        
+        return results
+    
+    def _validate_enhanced_volume_bounds(self, workout_plan: Dict[str, Any], 
+                                       context: Dict[str, Any]) -> List[ValidationResult]:
+        """Task G: Enhanced volume bounds validation per focus"""
+        results = []
+        
+        workout_focus = workout_plan.get('focus')
+        exercises = workout_plan.get('exercises', [])
+        main_exercises = [ex for ex in exercises if ex.get('segment') not in ['warm_up', 'cool_down']]
+        
+        # Calculate total sets for main workout
+        total_sets = 0
+        for exercise in main_exercises:
+            sets = exercise.get('sets', 0)
+            if isinstance(sets, int):
+                total_sets += sets
+        
+        # Check focus-specific volume bounds
+        if workout_focus in self.focus_pattern_rules:
+            max_sets = self.focus_pattern_rules[workout_focus]['max_sets']
+            
+            if total_sets > max_sets:
+                results.append(ValidationResult(
+                    level=ValidationLevel.ERROR,
+                    category="volume_bounds",
+                    message=f"Excessive volume for {workout_focus}: {total_sets} sets (max: {max_sets})",
+                    suggestion=f"Reduce to {max_sets} or fewer sets"
+                ))
+            elif total_sets < max_sets * 0.4:  # Less than 40% of max
+                results.append(ValidationResult(
+                    level=ValidationLevel.INFO,
+                    category="volume_bounds",
+                    message=f"Low volume for {workout_focus}: {total_sets} sets (could go up to {max_sets})",
+                    suggestion="Consider adding more volume if appropriate for goals"
+                ))
+        
+        # General volume bounds
+        if total_sets > self.max_total_sets:
+            results.append(ValidationResult(
+                level=ValidationLevel.WARNING,
+                category="volume_bounds",
+                message=f"High total volume: {total_sets} sets",
+                suggestion=f"Consider reducing to {self.max_total_sets} or fewer sets"
+            ))
+        elif total_sets < 6:
+            results.append(ValidationResult(
+                level=ValidationLevel.WARNING,
+                category="volume_bounds",
+                message=f"Very low volume: {total_sets} sets",
+                suggestion="Consider adding more exercises for better stimulus"
+            ))
+        
+        return results
+    
+    def run_correction_loop(self, workout_json: Dict[str, Any], violations: List[str], 
+                          allowed_exercise_ids: List[str] = None) -> Dict[str, Any]:
+        """Task G: Small correction system - previous JSON + violations + allowed IDs → re-validation"""
+        try:
+            # Store original for reference
+            original_workout = workout_json.copy()
+            corrected_workout = workout_json.copy()
+            
+            # Extract main exercises (exclude warm-up/cool-down)
+            exercises = corrected_workout.get('exercises', [])
+            main_exercises = [ex for ex in exercises if ex.get('segment') not in ['warm_up', 'cool_down']]
+            
+            # Process violations and attempt corrections
+            for violation in violations:
+                violation_lower = violation.lower()
+                
+                # Handle forbidden pattern violations
+                if 'forbidden pattern' in violation_lower:
+                    corrected_workout = self._correct_forbidden_patterns(corrected_workout, violation, allowed_exercise_ids)
+                
+                # Handle missing required pattern violations
+                elif 'missing required' in violation_lower:
+                    corrected_workout = self._correct_missing_patterns(corrected_workout, violation, allowed_exercise_ids)
+                
+                # Handle proportion violations
+                elif 'ratio imbalanced' in violation_lower or 'proportion' in violation_lower:
+                    corrected_workout = self._correct_proportion_issues(corrected_workout, violation, allowed_exercise_ids)
+                
+                # Handle volume violations
+                elif 'excessive volume' in violation_lower:
+                    corrected_workout = self._correct_excessive_volume(corrected_workout, violation)
+                
+                elif 'low volume' in violation_lower:
+                    corrected_workout = self._correct_low_volume(corrected_workout, violation, allowed_exercise_ids)
+            
+            # Re-validate the corrected workout
+            validation_summary = self.validate_complete_workout(corrected_workout, {})
+            error_results = validation_summary.errors
+            
+            # Return correction attempt
+            return {
+                'original_workout': original_workout,
+                'corrected_workout': corrected_workout,
+                'corrections_applied': len(violations),
+                'remaining_errors': len(error_results),
+                'validation_results': [r.to_dict() for r in (validation_summary.errors + validation_summary.warnings + validation_summary.info)],
+                'correction_successful': len(error_results) == 0
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Correction loop failed: {str(e)}")
+            return {
+                'original_workout': workout_json,
+                'corrected_workout': workout_json,
+                'corrections_applied': 0,
+                'remaining_errors': len(violations),
+                'error': str(e),
+                'correction_successful': False
+            }
+    
+    def _correct_forbidden_patterns(self, workout: Dict[str, Any], violation: str, 
+                                   allowed_ids: List[str] = None) -> Dict[str, Any]:
+        """Remove exercises with forbidden patterns"""
+        try:
+            workout_focus = workout.get('focus')
+            if not workout_focus or workout_focus not in self.focus_pattern_rules:
+                return workout
+            
+            forbidden_patterns = self.focus_pattern_rules[workout_focus]['forbidden']
+            exercises = workout.get('exercises', [])
+            
+            # Filter out exercises with forbidden patterns
+            filtered_exercises = []
+            for exercise in exercises:
+                if exercise.get('segment') in ['warm_up', 'cool_down']:
+                    filtered_exercises.append(exercise)
+                    continue
+                
+                exercise_id = exercise.get('exercise_id')
+                if not exercise_id:
+                    continue
+                
+                exercise_data = self.exercise_db.get_exercise_by_id(exercise_id)
+                if not exercise_data:
+                    continue
+                
+                exercise_patterns = exercise_data.get('movement_patterns', [])
+                has_forbidden = any(pattern in forbidden_patterns for pattern in exercise_patterns)
+                
+                if not has_forbidden:
+                    filtered_exercises.append(exercise)
+            
+            workout['exercises'] = filtered_exercises
+            return workout
+            
+        except Exception as e:
+            self.logger.error(f"Failed to correct forbidden patterns: {str(e)}")
+            return workout
+    
+    def _correct_missing_patterns(self, workout: Dict[str, Any], violation: str, 
+                                 allowed_ids: List[str] = None) -> Dict[str, Any]:
+        """Add exercises to fulfill missing required patterns"""
+        try:
+            workout_focus = workout.get('focus')
+            if not workout_focus or workout_focus not in self.focus_pattern_rules:
+                return workout
+            
+            required_patterns = self.focus_pattern_rules[workout_focus]['required']
+            exercises = workout.get('exercises', [])
+            main_exercises = [ex for ex in exercises if ex.get('segment') not in ['warm_up', 'cool_down']]
+            
+            # Find current patterns
+            current_patterns = set()
+            for exercise in main_exercises:
+                exercise_id = exercise.get('exercise_id')
+                if exercise_id:
+                    exercise_data = self.exercise_db.get_exercise_by_id(exercise_id)
+                    if exercise_data:
+                        current_patterns.update(exercise_data.get('movement_patterns', []))
+            
+            # Find missing patterns
+            missing_patterns = [p for p in required_patterns if p not in current_patterns]
+            
+            # Try to add exercises for missing patterns
+            for pattern in missing_patterns[:2]:  # Limit to 2 additions
+                suitable_exercise = self._find_exercise_for_pattern(pattern, allowed_ids)
+                if suitable_exercise:
+                    # Add basic exercise configuration
+                    new_exercise = {
+                        'exercise_id': suitable_exercise,
+                        'sets': 3,
+                        'reps': [8, 10, 12],
+                        'segment': 'main_workout'
+                    }
+                    workout['exercises'].append(new_exercise)
+            
+            return workout
+            
+        except Exception as e:
+            self.logger.error(f"Failed to correct missing patterns: {str(e)}")
+            return workout
+    
+    def _correct_proportion_issues(self, workout: Dict[str, Any], violation: str, 
+                                  allowed_ids: List[str] = None) -> Dict[str, Any]:
+        """Adjust exercise selection to fix proportion issues"""
+        try:
+            # Basic correction: if too much push, try to add pull (simplified)
+            if 'push:pull' in violation.lower():
+                pull_exercise = self._find_exercise_for_pattern('horizontal_pull', allowed_ids)
+                if pull_exercise:
+                    new_exercise = {
+                        'exercise_id': pull_exercise,
+                        'sets': 3,
+                        'reps': [8, 10, 12],
+                        'segment': 'main_workout'
+                    }
+                    workout['exercises'].append(new_exercise)
+            
+            elif 'pull:push' in violation.lower():
+                push_exercise = self._find_exercise_for_pattern('horizontal_press', allowed_ids)
+                if push_exercise:
+                    new_exercise = {
+                        'exercise_id': push_exercise,
+                        'sets': 3,
+                        'reps': [8, 10, 12],
+                        'segment': 'main_workout'
+                    }
+                    workout['exercises'].append(new_exercise)
+            
+            return workout
+            
+        except Exception as e:
+            self.logger.error(f"Failed to correct proportion issues: {str(e)}")
+            return workout
+    
+    def _correct_excessive_volume(self, workout: Dict[str, Any], violation: str) -> Dict[str, Any]:
+        """Reduce sets to fix excessive volume"""
+        try:
+            exercises = workout.get('exercises', [])
+            main_exercises = [ex for ex in exercises if ex.get('segment') not in ['warm_up', 'cool_down']]
+            
+            # Reduce sets on highest volume exercises
+            main_exercises.sort(key=lambda x: x.get('sets', 0), reverse=True)
+            
+            for exercise in main_exercises[:3]:  # Reduce top 3 exercises
+                current_sets = exercise.get('sets', 0)
+                if current_sets > 2:
+                    exercise['sets'] = max(2, current_sets - 1)
+            
+            return workout
+            
+        except Exception as e:
+            self.logger.error(f"Failed to correct excessive volume: {str(e)}")
+            return workout
+    
+    def _correct_low_volume(self, workout: Dict[str, Any], violation: str, 
+                           allowed_ids: List[str] = None) -> Dict[str, Any]:
+        """Add volume to fix low volume warnings"""
+        try:
+            # Add one simple exercise that fits the focus
+            workout_focus = workout.get('focus')
+            if workout_focus and workout_focus in self.focus_pattern_rules:
+                required_patterns = self.focus_pattern_rules[workout_focus]['required']
+                if required_patterns:
+                    suitable_exercise = self._find_exercise_for_pattern(required_patterns[0], allowed_ids)
+                    if suitable_exercise:
+                        new_exercise = {
+                            'exercise_id': suitable_exercise,
+                            'sets': 3,
+                            'reps': [8, 10, 12],
+                            'segment': 'main_workout'
+                        }
+                        workout['exercises'].append(new_exercise)
+            
+            return workout
+            
+        except Exception as e:
+            self.logger.error(f"Failed to correct low volume: {str(e)}")
+            return workout
+    
+    def _find_exercise_for_pattern(self, pattern: str, allowed_ids: List[str] = None) -> str:
+        """Find an exercise that matches the given pattern"""
+        try:
+            # Simple pattern to exercise mapping
+            pattern_to_exercise = {
+                'horizontal_press': 'bench_press',
+                'vertical_press': 'overhead_press',
+                'horizontal_pull': 'barbell_row',
+                'vertical_pull': 'pull_up',
+                'squat': 'squat',
+                'hinge': 'deadlift',
+                'unilateral_lower': 'lunge',
+                'triceps': 'triceps_extension',
+                'biceps': 'bicep_curl'
+            }
+            
+            default_exercise = pattern_to_exercise.get(pattern, 'bench_press')
+            
+            # If allowed_ids provided, try to find one from the list
+            if allowed_ids:
+                for exercise_id in allowed_ids:
+                    exercise_data = self.exercise_db.get_exercise_by_id(exercise_id)
+                    if exercise_data and pattern in exercise_data.get('movement_patterns', []):
+                        return exercise_id
+            
+            return default_exercise
+            
+        except Exception as e:
+            self.logger.error(f"Failed to find exercise for pattern {pattern}: {str(e)}")
+            return 'bench_press'
     
     def _validate_focus_alignment(self, workout_plan: Dict[str, Any], 
                                 context: Dict[str, Any]) -> List[ValidationResult]:
