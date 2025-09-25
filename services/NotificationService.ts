@@ -612,6 +612,18 @@ export class NotificationService {
     await Notifications.dismissAllNotificationsAsync();
   }
 
+  static async updateBadgeCount(count: number): Promise<void> {
+    if (Platform.OS === 'ios') {
+      await Notifications.setBadgeCountAsync(count);
+    }
+  }
+
+  static async clearBadgeCount(): Promise<void> {
+    if (Platform.OS === 'ios') {
+      await Notifications.setBadgeCountAsync(0);
+    }
+  }
+
   /**
    * Update user's push token (call this on app startup)
    */
