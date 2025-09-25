@@ -59,6 +59,24 @@ export class NotificationService {
    * Set up Android notification channels
    */
   static async setupNotificationChannels(): Promise<void> {
+    if (Platform.OS === 'ios') {
+      await Notifications.setNotificationCategoryAsync('message', [
+        {
+          identifier: 'reply',
+          buttonTitle: 'Reply',
+          options: {
+            opensAppToForeground: true,
+          },
+        },
+        {
+          identifier: 'mark_read',
+          buttonTitle: 'Mark as Read',
+          options: {
+            opensAppToForeground: false,
+          },
+        },
+      ]);
+    }
     if (Platform.OS === 'android') {
       await Notifications.setNotificationChannelAsync('default', {
         name: 'Default',
