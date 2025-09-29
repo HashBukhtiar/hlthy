@@ -31,7 +31,7 @@ class IntelligentIntegration:
         self.rate_limiter = RateLimiter() if self._has_rate_limiter() else None
         self.observability = ObservabilityDashboard() if self._has_observability() else None
         
-    def handle_request(self, user_id: str, message: str) -> Dict:
+    def handle_request(self, user_id: str, message: str, context_data: Dict = None) -> Dict:
         """
         Intelligently handle requests using ALL your systems
         """
@@ -51,8 +51,8 @@ class IntelligentIntegration:
             # 3. First use your trainer brain for initial classification (fallback)
             fallback_intent = self.trainer_brain.analyze_message_intent(message)
             
-            # 4. Then use AI orchestrator with all your systems
-            result = self.orchestrator.process_message(user_id, message)
+            # 4. Then use AI orchestrator with all your systems and conversational memory context
+            result = self.orchestrator.process_message(user_id, message, context_data or {})
             
             # 5. If AI orchestrator fails, use trainer brain fallback
             if result.get('type') == 'error' and fallback_intent:

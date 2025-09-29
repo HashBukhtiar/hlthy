@@ -405,8 +405,13 @@ def chat():
             try:
                 print("Using AI-powered intelligent system with Gemini brain")
                 
+                # Pass conversational memory context to the intelligent system
+                context_data = {}
+                if conversation_result:
+                    context_data['conversational_memory'] = conversation_result
+                
                 # Use the intelligent system that orchestrates all your systems
-                result = intelligent_system.handle_request(user_id, user_message)
+                result = intelligent_system.handle_request(user_id, user_message, context_data)
                 
                 print(f"Intelligent system result type: {result.get('type')}")
                 

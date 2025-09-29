@@ -521,14 +521,29 @@ class EnhancedProfileSync:
         if ready_for_commit and self.profile_manager:
             committed_claims = self._commit_claims_to_profile(user_id, ready_for_commit)
         
+        # Helper to convert confidence float to label
+        def confidence_to_label(conf: float) -> str:
+            if conf >= 0.8:
+                return "HIGH"
+            elif conf >= 0.5:
+                return "MEDIUM"
+            else:
+                return "LOW"
+        
         return {
             "phase": "extract_confirm_commit",
             "claims_extracted": len(extracted_claims),
             "pending_confirmations": [
                 {
                     "claim_id": claim.claim_id,
-                    "question": claim.to_confirmation_question(),
-                    "confidence": claim.confidence
+                    "type": claim.type,  # e.g., "dislike", "injury", "equipment_limitation"
+                    "value": claim.normalized_value if claim.type != "injury" else {
+                        "body_part": claim.normalized_value,
+                        "severity": "moderate"
+                    },
+                    "confidence": confidence_to_label(claim.confidence),  # e.g., "HIGH", "MEDIUM", "LOW"
+                    "needs_confirmation": claim.requires_confirmation,
+                    "question": claim.to_confirmation_question()
                 }
                 for claim in pending_confirmations
             ],

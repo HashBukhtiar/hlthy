@@ -96,16 +96,27 @@ class AIOrchestrator:
         self.equipment_catalog = EquipmentCatalog() if EquipmentCatalog else None
         self.observability = ObservabilityDashboard() if ObservabilityDashboard else None
         
-    def process_message(self, user_id: str, message: str) -> Dict:
+    def process_message(self, user_id: str, message: str, context_data: Dict = None) -> Dict:
         """
         Use AI to understand intent, then orchestrate your systems
+        Context data can include conversational memory extraction results
         """
         try:
+            context_data = context_data or {}
+            
             # 1. Load user's complete context from YOUR systems
             user_context = self._load_complete_context(user_id, message)
             profile = user_context.get('profile')
             
-            # 2. INTERVIEW-FIRST: Check if user is responding to an interview question
+            # 2. CHECK FOR CONVERSATIONAL MEMORY EXTRACTION FIRST
+            # If claims were extracted, prioritize confirming them before any other flow
+            conversational_memory = context_data.get('conversational_memory', {})
+            if conversational_memory and conversational_memory.get('claims_extracted', 0) > 0:
+                # Return confirmation message for extracted claims
+                pending = conversational_memory.get('pending_confirmations', [])
+                return self._handle_conversational_memory_confirmation(user_id, pending, message)
+            
+            # 3. INTERVIEW-FIRST: Check if user is responding to an interview question
             # This must happen before router gating to enable interview chaining
             is_interview_response = self._is_interview_response(message, profile)
             
@@ -784,6 +795,84 @@ class AIOrchestrator:
             return {
                 'type': 'error',
                 'message': "I couldn't update your profile. Please try again.",
+                'error': str(e)
+            }
+    
+    def _handle_conversational_memory_confirmation(self, user_id: str, pending_claims: List[Dict], original_message: str) -> Dict:
+        """
+        Generate confirmation message for extracted conversational claims
+        This implements the extract→confirm workflow from Section 1
+        """
+        try:
+            if not pending_claims:
+                return {
+                    'type': 'acknowledgment',
+                    'message': "Got it! I'll remember that.",
+                    'used_systems': ['conversational_memory']
+                }
+            
+            # Build confirmation message based on claim types
+            confirmations = []
+            for claim in pending_claims:
+                claim_type = claim.get('type', 'unknown')
+                confidence = claim.get('confidence', 'MEDIUM')
+                
+                # Handle both 'dislike' and 'exercise_dislike' for compatibility
+                if claim_type in ['exercise_dislike', 'dislike']:
+                    value = claim.get('value', [])
+                    # Value can be a string or list
+                    if isinstance(value, str):
+                        confirmations.append(f"you don't like {value}")
+                    elif isinstance(value, list) and value:
+                        exercise_str = ', '.join(value)
+                        confirmations.append(f"you don't like {exercise_str}")
+                
+                elif claim_type == 'injury':
+                    body_part_data = claim.get('value', {})
+                    if isinstance(body_part_data, dict):
+                        body_part = body_part_data.get('body_part', 'that area')
+                    else:
+                        body_part = str(body_part_data)
+                    confirmations.append(f"you have a {body_part} issue")
+                
+                elif claim_type in ['equipment_limitation', 'equipment']:
+                    equipment = claim.get('value', 'that equipment')
+                    confirmations.append(f"you don't have {equipment}")
+                
+                elif claim_type in ['communication_style', 'preference']:
+                    style_data = claim.get('value', {})
+                    if isinstance(style_data, dict):
+                        style = style_data.get('style', 'communication preference')
+                    else:
+                        style = str(style_data)
+                    confirmations.append(f"you prefer {style} communication")
+            
+            # Build final confirmation message
+            if confirmations:
+                if len(confirmations) == 1:
+                    message = f"Just to confirm, {confirmations[0]}. Is that right?"
+                else:
+                    message = f"Just to confirm: {', and '.join(confirmations)}. Is that all correct?"
+                
+                return {
+                    'type': 'confirmation_request',
+                    'message': message,
+                    'pending_confirmations': pending_claims,
+                    'used_systems': ['conversational_memory', 'profile_manager'],
+                    'requires_user_confirmation': True
+                }
+            else:
+                return {
+                    'type': 'acknowledgment',
+                    'message': "Thanks for sharing that! I'll keep it in mind.",
+                    'used_systems': ['conversational_memory']
+                }
+            
+        except Exception as e:
+            print(f"Conversational memory confirmation error: {e}")
+            return {
+                'type': 'acknowledgment',
+                'message': "Got it, thanks for letting me know!",
                 'error': str(e)
             }
     
