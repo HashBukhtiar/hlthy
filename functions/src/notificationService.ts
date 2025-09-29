@@ -364,15 +364,27 @@ export const onActivityCreated = onDocumentWritten(
       notificationType = "new_follower";
       break;
 
-    case "like":
+    case "post_like":
       title = "New Like";
       body = `${fromUsername} liked your post`;
       notificationType = "like";
       break;
 
-    case "comment":
+    case "post_comment":
       title = "New Comment";
       body = `${fromUsername} commented on your post`;
+      notificationType = "comment";
+      break;
+
+    case "comment_like":
+      title = "New Like";
+      body = `${fromUsername} liked your comment`;
+      notificationType = "like";
+      break;
+
+    case "comment_reply":
+      title = "New Reply";
+      body = `${fromUsername} replied to your comment`;
       notificationType = "comment";
       break;
 
