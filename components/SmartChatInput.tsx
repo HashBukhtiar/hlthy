@@ -1,14 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import {
   View,
-  Text,
   TextInput,
   TouchableOpacity,
   StyleSheet,
+  Alert,
+  Platform,
   Animated,
   ActivityIndicator,
+  Text,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '@/context/AuthContext';
+import { httpsCallable } from 'firebase/functions';
+import { functions } from '@/firebaseConfig';
 import { classifyIntent, IntentClassificationResult } from '@/ai/ai_chat';
 
 interface SmartChatInputProps {
@@ -17,6 +22,9 @@ interface SmartChatInputProps {
   onSend: (message: string, intent?: IntentClassificationResult) => void;
   placeholder?: string;
   disabled?: boolean;
+  conversationId?: string;
+  otherParticipantId?: string | null;
+  isAiConversation?: boolean;
 }
 
 // Intent configurations for UI
@@ -59,15 +67,20 @@ export const SmartChatInput: React.FC<SmartChatInputProps> = ({
   onSend,
   placeholder = "Ask me anything about fitness...",
   disabled = false,
+  conversationId,
+  otherParticipantId,
+  isAiConversation = false,
 }) => {
+  const { currentUser } = useAuth();
   const [currentIntent, setCurrentIntent] = useState<IntentClassificationResult | null>(null);
   const [isClassifying, setIsClassifying] = useState(false);
+  const [isSending, setIsSending] = useState(false);
   const [intentOpacity] = useState(new Animated.Value(0));
   const [inputBorderColor] = useState(new Animated.Value(0));
 
-  // Debounced intent classification
+  // Only run intent classification for AI conversations
   useEffect(() => {
-    if (!value.trim() || value.length < 3) {
+    if (!isAiConversation || !value.trim() || value.length < 3) {
       setCurrentIntent(null);
       hideIntentIndicator();
       return;
@@ -87,10 +100,10 @@ export const SmartChatInput: React.FC<SmartChatInputProps> = ({
       } finally {
         setIsClassifying(false);
       }
-    }, 800); // Debounce delay
+    }, 800);
 
     return () => clearTimeout(timeoutId);
-  }, [value]);
+  }, [value, isAiConversation]);
 
   const showIntentIndicator = () => {
     Animated.timing(intentOpacity, {
@@ -122,13 +135,79 @@ export const SmartChatInput: React.FC<SmartChatInputProps> = ({
     }).start();
   };
 
-  const handleSend = () => {
-    if (value.trim()) {
-      // Only pass currentIntent if it exists and has an intent property
-      const intentToPass = currentIntent?.intent ? currentIntent : undefined;
-      onSend(value.trim(), intentToPass);
+  const handleSend = async () => {
+    if (!value.trim() || isSending || disabled) return;
+
+    const messageText = value.trim();
+    setIsSending(true);
+
+    try {
+      if (isAiConversation) {
+        // Handle AI conversation with intent
+        const intentToPass = currentIntent?.intent ? currentIntent : undefined;
+        onSend(messageText, intentToPass);
+      } else if (otherParticipantId && currentUser && conversationId) {
+        // Handle user-to-user conversation with permission check
+        const sendMessageRequest = httpsCallable(functions, 'sendMessageRequest');
+        
+        try {
+          const result = await sendMessageRequest({
+            recipientId: otherParticipantId,
+            messageText,
+            conversationId,
+          });
+
+          const { requestNeeded } = result.data as { requestNeeded: boolean };
+
+          if (requestNeeded) {
+            Alert.alert(
+              "Message Request Sent",
+              "Your message was sent as a request. The user must approve it before you can continue messaging.",
+              [{ text: "OK" }]
+            );
+            onChangeText(''); // Clear input
+          } else {
+            // Normal message send
+            onSend(messageText);
+          }
+        } catch (error: any) {
+          console.error('Error sending message:', error);
+          
+          if (error.code === 'functions/already-exists') {
+            Alert.alert(
+              "Request Already Sent",
+              "You've already sent a message request to this user. Please wait for them to respond."
+            );
+          } else if (error.code === 'functions/failed-precondition') {
+            Alert.alert(
+              "Cannot Send Message",
+              "You're unable to message this user."
+            );
+          } else {
+            // Fallback to normal send if cloud function fails
+            onSend(messageText);
+          }
+        }
+      } else {
+        // Fallback to normal send
+        onSend(messageText);
+      }
+    } catch (error) {
+      console.error('Error in handleSend:', error);
+      Alert.alert("Error", "Failed to send message. Please try again.");
+    } finally {
+      setIsSending(false);
     }
   };
+
+  const getPlaceholder = () => {
+    if (isAiConversation) {
+      return "Ask me anything about fitness...";
+    }
+    return "Type your message...";
+  };
+
+  const shouldShowIntentIndicator = isAiConversation && (isClassifying || currentIntent);
 
   const config = currentIntent ? intentConfigs[currentIntent.intent] : null;
   
@@ -139,52 +218,54 @@ export const SmartChatInput: React.FC<SmartChatInputProps> = ({
 
   return (
     <View style={styles.container}>
-      {/* Intent Indicator */}
-      <Animated.View 
-        style={[
-          styles.intentIndicator,
-          {
-            opacity: intentOpacity,
-            backgroundColor: config?.backgroundColor || 'transparent',
-          }
-        ]}
-      >
-        {isClassifying ? (
-          <View style={styles.classifyingContainer}>
-            <ActivityIndicator size="small" color="#4ECDC4" />
-            <Text style={styles.classifyingText}>Understanding...</Text>
-          </View>
-        ) : config ? (
-          <View style={styles.intentContent}>
-            <Text style={styles.intentIcon}>{config.icon}</Text>
-            <Text style={[styles.intentLabel, { color: config.color }]}>
-              {config.label}
-            </Text>
-            {currentIntent?.confidence && (
-              <Text style={styles.confidenceText}>
-                {Math.round(currentIntent.confidence * 100)}%
+      {/* Intent Indicator - Only show for AI conversations */}
+      {shouldShowIntentIndicator && (
+        <Animated.View 
+          style={[
+            styles.intentIndicator,
+            {
+              opacity: intentOpacity,
+              backgroundColor: config?.backgroundColor || 'transparent',
+            }
+          ]}
+        >
+          {isClassifying ? (
+            <View style={styles.classifyingContainer}>
+              <ActivityIndicator size="small" color="#4ECDC4" />
+              <Text style={styles.classifyingText}>Understanding...</Text>
+            </View>
+          ) : config ? (
+            <View style={styles.intentContent}>
+              <Text style={styles.intentIcon}>{config.icon}</Text>
+              <Text style={[styles.intentLabel, { color: config.color }]}>
+                {config.label}
               </Text>
-            )}
-          </View>
-        ) : null}
-      </Animated.View>
+              {currentIntent?.confidence && (
+                <Text style={styles.confidenceText}>
+                  {Math.round(currentIntent.confidence * 100)}%
+                </Text>
+              )}
+            </View>
+          ) : null}
+        </Animated.View>
+      )}
 
       {/* Input Row */}
       <Animated.View 
         style={[
           styles.inputRow,
-          { borderColor }
+          { borderColor: isAiConversation ? borderColor : '#333' }
         ]}
       >
         <TextInput
           style={styles.textInput}
           value={value}
           onChangeText={onChangeText}
-          placeholder={placeholder}
+          placeholder={getPlaceholder()}
           placeholderTextColor="#888"
           multiline
           maxLength={500}
-          editable={!disabled}
+          editable={!disabled && !isSending}
           autoCorrect
           spellCheck
           autoCapitalize="sentences"
@@ -194,22 +275,26 @@ export const SmartChatInput: React.FC<SmartChatInputProps> = ({
           style={[
             styles.sendButton,
             {
-              backgroundColor: value.trim() && !disabled ? '#007AFF' : '#444',
+              backgroundColor: value.trim() && !disabled && !isSending ? '#007AFF' : '#444',
             }
           ]}
           onPress={handleSend}
-          disabled={!value.trim() || disabled}
+          disabled={!value.trim() || disabled || isSending}
         >
-          <Ionicons 
-            name="send" 
-            size={20} 
-            color={value.trim() && !disabled ? 'white' : '#888'} 
-          />
+          {isSending ? (
+            <ActivityIndicator size="small" color="white" />
+          ) : (
+            <Ionicons 
+              name="send" 
+              size={20} 
+              color={value.trim() && !disabled && !isSending ? 'white' : '#888'} 
+            />
+          )}
         </TouchableOpacity>
       </Animated.View>
 
-      {/* Error indicator */}
-      {currentIntent?.error && (
+      {/* Error indicator - Only show for AI conversations */}
+      {isAiConversation && currentIntent?.error && (
         <Text style={styles.errorText}>
           Classification unavailable • Continuing without smart features
         </Text>

@@ -7,58 +7,25 @@ import { LinearGradient } from 'expo-linear-gradient';
 import ShareModal from '@/components/ShareModal';
 import { shareMilestone } from '@/services/ShareService';
 import { useAuth } from '@/context/AuthContext';
+import { usePostsData } from '@/hooks/usePostsData';
 import { doc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '@/firebaseConfig';
 import { calculateImprovementPercentage } from '@/logic/milesonteUtils';
 import { getOptimalImageUrl } from '@/utils/imageUtils';
 import { useBlockEnforcement } from '@/utils/blockUtils';
-
-// Define interfaces for milestone data
-export interface MilestoneStats {
-  likes: number;
-}
-
-export interface MilestoneDetails {
-  exerciseName?: string;
-  value?: number;
-  weightUnit?: string;
-  reps?: number;
-  newWeight?: number;
-  newWeightUnit?: string;
-  previousWeight?: number;
-  previousWeightUnit?: string;
-  previousValue?: number;
-  previousReps?: number;
-  improvement?: string;
-  totalLoss?: number;
-  percentageLoss?: string;
-}
-
-export interface Milestone {
-  id: string;
-  userId: string;
-  username: string;
-  fullName?: string;
-  profileImageUrl: string;
-  createdAt: Date;
-  milestoneType: 'PR' | 'weightLoss' | 'weightGain' | string;
-  details: MilestoneDetails;
-  stats: MilestoneStats;
-  isLiked: boolean;
-  associatedPostId?: string;
-  postImageUrl?: string;
-  pinned?: boolean;
-  top5Percent?: boolean;
-}
+import { useUnits } from '@/hooks/useUnits';
+import { Milestone, MilestoneDetails, MilestoneStats } from '@/types/milestone';
 
 export default function ViewMilestone() {
   const { currentUser } = useAuth();
+  const { likePost, unlikePost } = usePostsData();
   const { canInteractWithUser } = useBlockEnforcement();
   const [shareModalVisible, setShareModalVisible] = useState(false);
   const { id } = useLocalSearchParams();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
+  const { getWeightUnit, getDistanceUnit, formatWeight, formatDistance, convertWeight, convertDistance } = useUnits();
   const [milestone, setMilestone] = useState<Milestone | null>(null);
   const [isPinned, setIsPinned] = useState(false);
   const [isTop5Percent, setIsTop5Percent] = useState(false);
@@ -88,6 +55,7 @@ export default function ViewMilestone() {
           let authorProfileImageUrl = 'https://via.placeholder.com/150';
           let authorProfileThumbnailUrl = null;
           let authorFullName = data.authorUsername;
+          let authorBlockedUsers: string[] = [];
 
           if (data.authorId) {
             const userRef = doc(db, 'users', data.authorId);
@@ -97,7 +65,19 @@ export default function ViewMilestone() {
               authorProfileImageUrl = userData.profileImageUrl || authorProfileImageUrl;
               authorProfileThumbnailUrl = userData.profileThumbnailUrl || null;
               authorFullName = userData.displayName || authorFullName;
-              milestoneData.authorBlockedUsers = userData.blockedUsers || [];
+              authorBlockedUsers = userData.blockedUsers || [];
+            }
+          }
+
+          // Check if the current user has liked this milestone
+          let isLiked = false;
+          if (currentUser) {
+            try {
+              const likerDoc = await getDoc(doc(db, 'posts', milestoneSnap.id, 'likers', currentUser.uid));
+              isLiked = likerDoc.exists();
+            } catch (error) {
+              console.error('Error checking like status:', error);
+              isLiked = false;
             }
           }
 
@@ -124,10 +104,11 @@ export default function ViewMilestone() {
               totalLoss: data.milestoneDetails?.totalLoss,
               percentageLoss: data.milestoneDetails?.percentageLoss,
             },
+            authorBlockedUsers: authorBlockedUsers,
             stats: {
-              likes: data.likeCount || (Array.isArray(data.likes) ? data.likes.length : 0),
+              likes: data.likeCount || 0,
             },
-            isLiked: currentUser ? (data.likes || []).includes(currentUser.uid) : false,
+            isLiked: isLiked,
             associatedPostId: milestoneSnap.id,
             postImageUrl: data.imageUrl || null,
             pinned: data.pinned || false,
@@ -136,8 +117,8 @@ export default function ViewMilestone() {
           
           // TODO: Implement pinned and top X%
           setMilestone(milestoneData);
-          setIsPinned(milestoneData.pinned);
-          setIsTop5Percent(milestoneData.top5Percent);
+          setIsPinned(milestoneData.pinned || false);
+          setIsTop5Percent(milestoneData.top5Percent || false);
 
         } else {
           console.log("No such milestone document!");
@@ -154,7 +135,7 @@ export default function ViewMilestone() {
     fetchMilestone();
   }, [id, currentUser]);
 
-  const handleLike = () => {
+  const handleLike = async () => {
     if (!milestone) return;
 
     if (!canInteractWithAuthor) {
@@ -162,6 +143,7 @@ export default function ViewMilestone() {
       return;
     }
     
+    // Optimistic update - update UI immediately
     setMilestone(prevState => {
       if (!prevState) return null;
       
@@ -178,6 +160,33 @@ export default function ViewMilestone() {
         }
       };
     });
+
+    try {
+      if (milestone.isLiked) {
+        await unlikePost(milestone.id);
+      } else {
+        await likePost(milestone.id);
+      }
+    } catch (error) {
+      console.error('Error toggling milestone like:', error);
+      // Revert optimistic update on error
+      setMilestone(prevState => {
+        if (!prevState) return null;
+        
+        const revertedIsLiked = !prevState.isLiked;
+        const revertDelta = revertedIsLiked ? 1 : -1;
+        
+        return {
+          ...prevState,
+          isLiked: revertedIsLiked,
+          stats: {
+            ...prevState.stats,
+            likes: Math.max(0, prevState.stats.likes + revertDelta)
+          }
+        };
+      });
+      Alert.alert('Error', 'Could not update like status. Please try again.');
+    }
   };
 
   const navigateToPost = (postId: string | undefined) => {
@@ -200,7 +209,7 @@ export default function ViewMilestone() {
   };
 
   const renderActionButtons = () => {
-    if (!canInteractWithAuthor) {
+    if (!milestone || !canInteractWithAuthor) {
       return (
         <View style={styles.actionButtonsContainer}>
           <Text style={styles.blockedMessage}>Interactions not available</Text>
@@ -361,79 +370,227 @@ export default function ViewMilestone() {
     return date.toLocaleDateString();
   };
 
+  // Helper function to format duration
+  const formatDuration = (durationSeconds: number): string => {
+    const hours = Math.floor(durationSeconds / 3600);
+    const minutes = Math.floor((durationSeconds % 3600) / 60);
+    const seconds = durationSeconds % 60;
+    
+    let result = '';
+    if (hours > 0) result += `${hours}h `;
+    if (minutes > 0 || hours > 0) result += `${minutes}m `;
+    result += `${seconds}s`;
+    
+    return result.trim();
+  };
+
+  // Helper function to determine if unit is for distance
+  const isDistanceUnit = (unit: string): boolean => {
+    return unit === 'km' || unit === 'miles';
+  };
+
+  // Helper function to determine if unit is for weight
+  const isWeightUnit = (unit: string): boolean => {
+    return unit === 'kg' || unit === 'lbs';
+  };
+
+  // Helper function to convert and format value with proper units
+  const convertAndFormatValue = (value: number, storedUnit: string) => {
+    if (isWeightUnit(storedUnit)) {
+      const userPreferredUnit = getWeightUnit() as 'kg' | 'lbs';
+      const convertedValue = storedUnit !== userPreferredUnit 
+        ? convertWeight(value, storedUnit as 'kg' | 'lbs', userPreferredUnit)
+        : value;
+      return {
+        value: Math.round(convertedValue * 10) / 10,
+        unit: userPreferredUnit
+      };
+    } else if (isDistanceUnit(storedUnit)) {
+      const userPreferredUnit = getDistanceUnit() as 'km' | 'miles';
+      const convertedValue = storedUnit !== userPreferredUnit 
+        ? convertDistance(value, storedUnit as 'km' | 'miles', userPreferredUnit)
+        : value;
+      return {
+        value: Math.round(convertedValue * 10) / 10,
+        unit: userPreferredUnit
+      };
+    }
+    return { value, unit: storedUnit };
+  };
+
   const renderMilestoneDetails = () => {
     if (!milestone) return null;
     
     if (milestone.milestoneType === 'PR') {
+      const details = milestone.details;
+      
       return (
         <View style={styles.detailsContainer}>
           <View style={styles.previousPRCard}>
             <View style={styles.previousPRHeader}>
               <MaterialCommunityIcons name="trophy-outline" size={18} color="#FF5E69" />
-              <Text style={styles.previousPRTitle}>{milestone.details.exerciseName}</Text>
+              <Text style={styles.previousPRTitle}>{details.exerciseName}</Text>
               <Text style={styles.previousPRDate}>{formatTimeAgo(milestone.createdAt)}</Text>
             </View>
             
             <View style={styles.previousPRContent}>
-              {/* Current PR Value */}
-              <View style={styles.prMetricsRow}>
-                <View style={styles.prMetricGroup}>
-                  <Text style={styles.prMetricValue}>{milestone.details.value}</Text>
-                  <Text style={styles.prMetricLabel}>{milestone.details.weightUnit}</Text>
+              {details.value && details.reps && details.weightUnit && isWeightUnit(details.weightUnit) && (
+                <View style={styles.prMetricsRow}>
+                  <View style={styles.prMetricGroup}>
+                    <Text style={styles.prMetricValue}>{convertAndFormatValue(details.value, details.weightUnit).value}</Text>
+                    <Text style={styles.prMetricLabel}>{convertAndFormatValue(details.value, details.weightUnit).unit}</Text>
+                  </View>
+                  <Text style={styles.prMetricSeparator}>×</Text>
+                  <View style={styles.prMetricGroup}>
+                    <Text style={styles.prMetricValue}>{details.reps}</Text>
+                    <Text style={styles.prMetricLabel}>reps</Text>
+                  </View>
                 </View>
-                {milestone.details.reps && (
-                  <>
-                    <Text style={styles.prMetricSeparator}>×</Text>
+              )}
+              
+              {/* Bodyweight Reps only (e.g., Push-ups) */}
+              {details.reps && !details.value && (
+                <View style={styles.prMetricsRow}>
+                  <View style={styles.prMetricGroup}>
+                    <Text style={styles.prMetricValue}>{details.reps}</Text>
+                    <Text style={styles.prMetricLabel}>reps</Text>
+                  </View>
+                </View>
+              )}
+              
+              {/* Distance only (e.g., 5K run) */}
+              {details.value && details.weightUnit && isDistanceUnit(details.weightUnit) && !details.duration && (
+                <View style={styles.prMetricsRow}>
+                  <View style={styles.prMetricGroup}>
+                    <Text style={styles.prMetricValue}>{convertAndFormatValue(details.value, details.weightUnit).value}</Text>
+                    <Text style={styles.prMetricLabel}>{convertAndFormatValue(details.value, details.weightUnit).unit}</Text>
+                  </View>
+                </View>
+              )}
+              
+              {/* Distance + Time (e.g., 5K run time) */}
+              {details.value && details.duration && details.weightUnit && isDistanceUnit(details.weightUnit) && (
+                <View style={styles.prMetricsColumn}>
+                  <View style={styles.prMetricsRow}>
                     <View style={styles.prMetricGroup}>
-                      <Text style={styles.prMetricValue}>{milestone.details.reps}</Text>
-                      <Text style={styles.prMetricLabel}>reps</Text>
+                      <Text style={styles.prMetricValue}>{convertAndFormatValue(details.value, details.weightUnit).value}</Text>
+                      <Text style={styles.prMetricLabel}>{convertAndFormatValue(details.value, details.weightUnit).unit}</Text>
                     </View>
-                  </>
-                )}
-              </View>
+                  </View>
+                  <View style={styles.prMetricsRow}>
+                    <View style={styles.prMetricGroup}>
+                      <Text style={styles.prMetricValue}>{formatDuration(details.duration)}</Text>
+                      <Text style={styles.prMetricLabel}>time</Text>
+                    </View>
+                  </View>
+                  {/* Show pace */}
+                  <View style={styles.prMetricsRow}>
+                    <View style={styles.prMetricGroup}>
+                      <Text style={styles.prMetricValue}>
+                        {formatDuration(Math.round(details.duration / convertAndFormatValue(details.value, details.weightUnit).value))}
+                      </Text>
+                      <Text style={styles.prMetricLabel}>per {convertAndFormatValue(details.value, details.weightUnit).unit.slice(0, -1)}</Text>
+                    </View>
+                  </View>
+                </View>
+              )}
+              
+              {/* Duration only (e.g., Plank) */}
+              {details.duration && !details.value && !details.level && (
+                <View style={styles.prMetricsRow}>
+                  <View style={styles.prMetricGroup}>
+                    <Text style={styles.prMetricValue}>{formatDuration(details.duration)}</Text>
+                    <Text style={styles.prMetricLabel}>duration</Text>
+                  </View>
+                </View>
+              )}
+              
+              {/* Duration + Level (e.g., Plank with difficulty) */}
+              {details.duration && details.level && (
+                <View style={styles.prMetricsColumn}>
+                  <View style={styles.prMetricsRow}>
+                    <View style={styles.prMetricGroup}>
+                      <Text style={styles.prMetricValue}>{formatDuration(details.duration)}</Text>
+                      <Text style={styles.prMetricLabel}>duration</Text>
+                    </View>
+                  </View>
+                  <View style={styles.prMetricsRow}>
+                    <View style={styles.prMetricGroup}>
+                      <Text style={styles.prMetricValue}>{details.level}</Text>
+                      <Text style={styles.prMetricLabel}>level</Text>
+                    </View>
+                  </View>
+                </View>
+              )}
             </View>
           </View>
-          {/* Previous Best Value (outside the card) */}
-          {milestone.details.previousValue != null && (
+          
+          {/* Previous Best (outside the card) */}
+          {(details.previousValue != null || details.previousReps != null || details.previousDuration != null) && (
             <View style={styles.outsidePreviousBestRow}>
               <Text style={styles.previousBestLabel}>Previous Best:</Text>
-              <View style={styles.prMetricGroup}>
-                <Text style={styles.previousBestValue}>{milestone.details.previousValue}</Text>
-                <Text style={styles.previousBestUnit}>{milestone.details.weightUnit}</Text>
-              </View>
-              {milestone.details.previousReps != null && (
-                <>
+              
+              {/* Previous Weight + Reps */}
+              {details.previousValue && details.previousReps && details.weightUnit && (
+                <View style={styles.prMetricGroup}>
+                  <Text style={styles.previousBestValue}>{convertAndFormatValue(details.previousValue, details.weightUnit).value}</Text>
+                  <Text style={styles.previousBestUnit}>{convertAndFormatValue(details.previousValue, details.weightUnit).unit}</Text>
                   <Text style={styles.previousBestSeparator}>×</Text>
-                  <View style={styles.prMetricGroup}>
-                    <Text style={styles.previousBestValue}>{milestone.details.previousReps}</Text>
-                    <Text style={styles.previousBestUnit}>reps</Text>
-                  </View>
-                </>
+                  <Text style={styles.previousBestValue}>{details.previousReps}</Text>
+                  <Text style={styles.previousBestUnit}>reps</Text>
+                </View>
+              )}
+              
+              {/* Previous Bodyweight Reps only */}
+              {details.previousReps && !details.previousValue && (
+                <View style={styles.prMetricGroup}>
+                  <Text style={styles.previousBestValue}>{details.previousReps}</Text>
+                  <Text style={styles.previousBestUnit}>reps</Text>
+                </View>
+              )}
+              
+              {/* Previous Distance */}
+              {details.previousValue && !details.previousReps && details.weightUnit && isDistanceUnit(details.weightUnit) && (
+                <View style={styles.prMetricGroup}>
+                  <Text style={styles.previousBestValue}>{convertAndFormatValue(details.previousValue, details.weightUnit).value}</Text>
+                  <Text style={styles.previousBestUnit}>{convertAndFormatValue(details.previousValue, details.weightUnit).unit}</Text>
+                </View>
+              )}
+              
+              {/* Previous Duration */}
+              {details.previousDuration && (
+                <View style={styles.prMetricGroup}>
+                  <Text style={styles.previousBestValue}>{formatDuration(details.previousDuration)}</Text>
+                  <Text style={styles.previousBestUnit}>duration</Text>
+                </View>
               )}
             </View>
           )}
           
-          {/* Improvement Badge (outside the card) */}
+          {/* Improvement Badge */}
           {(() => {
-            const improvement = calculateImprovementPercentage(
-              milestone.details.value,
-              milestone.details.previousValue
-            );
-
-            if (improvement && improvement > 0) {
-              return (
-                <View style={styles.outsideImprovementBadge}>
-                  <Text style={styles.improvementText}>
-                    +{improvement}% Improvement
-                  </Text>
-                </View>
-              );
+            const current = details.value || details.duration || details.reps;
+            const previous = details.previousValue || details.previousDuration || details.previousReps;
+            
+            if (current && previous) {
+              const improvement = calculateImprovementPercentage(current, previous);
+              
+              if (improvement && improvement > 0) {
+                return (
+                  <View style={styles.outsideImprovementBadge}>
+                    <Text style={styles.improvementText}>
+                      +{improvement}% Improvement
+                    </Text>
+                  </View>
+                );
+              }
             }
             return null;
           })()}
         </View>
       );
     } else if (milestone.milestoneType === 'weightLoss' || milestone.milestoneType === 'weightGain') {
+      // Weight milestone handling (already implemented above)
       const isLoss = milestone.milestoneType === 'weightLoss';
       
       return (
@@ -446,11 +603,18 @@ export default function ViewMilestone() {
             </View>
             
             <View style={styles.previousPRContent}>
-              {/* Current Weight */}
               <View style={styles.prMetricsRow}>
                 <View style={styles.prMetricGroup}>
-                  <Text style={styles.prMetricValue}>{milestone.details.newWeight}</Text>
-                  <Text style={styles.prMetricLabel}>{milestone.details.newWeightUnit}</Text>
+                  <Text style={styles.prMetricValue}>
+                    {milestone.details.newWeight && milestone.details.newWeightUnit 
+                      ? convertAndFormatValue(milestone.details.newWeight, milestone.details.newWeightUnit).value
+                      : milestone.details.newWeight}
+                  </Text>
+                  <Text style={styles.prMetricLabel}>
+                    {milestone.details.newWeight && milestone.details.newWeightUnit 
+                      ? convertAndFormatValue(milestone.details.newWeight, milestone.details.newWeightUnit).unit
+                      : getWeightUnit()}
+                  </Text>
                 </View>
               </View>
             </View>
@@ -461,8 +625,16 @@ export default function ViewMilestone() {
             <View style={styles.outsidePreviousBestRow}>
               <Text style={styles.previousBestLabel}>Previous Weight:</Text>
               <View style={styles.prMetricGroup}>
-                <Text style={styles.previousBestValue}>{milestone.details.previousWeight}</Text>
-                <Text style={styles.previousBestUnit}>{milestone.details.previousWeightUnit}</Text>
+                <Text style={styles.previousBestValue}>
+                  {milestone.details.previousWeight && milestone.details.previousWeightUnit 
+                    ? convertAndFormatValue(milestone.details.previousWeight, milestone.details.previousWeightUnit).value
+                    : milestone.details.previousWeight}
+                </Text>
+                <Text style={styles.previousBestUnit}>
+                  {milestone.details.previousWeight && milestone.details.previousWeightUnit 
+                    ? convertAndFormatValue(milestone.details.previousWeight, milestone.details.previousWeightUnit).unit
+                    : getWeightUnit()}
+                </Text>
               </View>
             </View>
           )}
@@ -471,7 +643,9 @@ export default function ViewMilestone() {
           {milestone.details.totalLoss && (
             <View style={styles.outsideImprovementBadge}>
               <Text style={styles.improvementText}>
-                {isLoss ? '↓' : '↑'} {milestone.details.totalLoss} {milestone.details.newWeightUnit}
+                {isLoss ? '↓' : '↑'} {milestone.details.totalLoss} {milestone.details.newWeight && milestone.details.newWeightUnit 
+                  ? convertAndFormatValue(milestone.details.newWeight, milestone.details.newWeightUnit).unit
+                  : getWeightUnit()}
               </Text>
             </View>
           )}

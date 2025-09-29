@@ -30,7 +30,7 @@ const displayShortenedString = (str: string, maxLength: number): string => {
 
 export interface ActivityItem {
     id: string; 
-    type: 'follow_request' | 'new_follower' | 'post_like' | 'post_comment' | 'workout_save' | string;
+    type: 'follow_request' | 'new_follower' | 'post_like' | 'post_comment' | 'comment_like' | 'reply_like' | 'comment_reply' | 'workout_save' | string;
     fromUserId: string;
     fromUsername: string;
     fromProfileImageUrl?: string;
@@ -38,6 +38,8 @@ export interface ActivityItem {
     postId?: string;
     postImageUrl?: string;
     postThumbnailUrl?: string;
+    commentId?: string;
+    replyId?: string;
     workoutId?: string; 
     workoutTitle?: string;
     workoutThumbnailUrl?: string;
@@ -97,7 +99,7 @@ export default function Pulse() {
                 
                 // Filter out follow requests from blocked users
                 if (!isUserBlocked(activityData.fromUserId)) {
-                    fetchedFollowRequests.push({ id: doc.id, ...activityData });
+                    fetchedFollowRequests.push({ ...activityData, id: doc.id });
                 }
             });
             setFollowRequests(fetchedFollowRequests);
@@ -124,7 +126,7 @@ export default function Pulse() {
 
         const otherActivitiesQuery = query(
             activityRef,
-            where('status', '!=', 'pending'),
+            where('type', '!=', 'follow_request'),
             orderBy('createdAt', 'desc')
         );
 
@@ -140,7 +142,7 @@ export default function Pulse() {
                 
                 // Filter out activities from blocked users
                 if (!isUserBlocked(activityData.fromUserId)) {
-                    fetchedOtherActivities.push({ id: doc.id, ...activityData } as ActivityItem);
+                    fetchedOtherActivities.push({ ...activityData, id: doc.id } as ActivityItem);
                 }
             });
             setOtherActivities(fetchedOtherActivities);
@@ -375,17 +377,23 @@ export default function Pulse() {
         const getActivityIcon = (type: string) => {
             switch (type) {
                 case 'post_like':
-                    return <MaterialIcons name="favorite" size={16} color="#ff2d55" />;
+                return <MaterialIcons name="favorite" size={16} color="#ff2d55" />;
                 case 'post_comment':
-                    return <MaterialIcons name="chat-bubble" size={16} color="#ff2d55" />;
+                return <MaterialIcons name="chat-bubble" size={16} color="#ff2d55" />;
+                case 'comment_like':
+                return <MaterialIcons name="favorite" size={16} color="#ff2d55" />;
+                case 'reply_like':
+                return <MaterialIcons name="favorite" size={16} color="#ff2d55" />;
+                case 'comment_reply':
+                return <MaterialIcons name="reply" size={16} color="#ff2d55" />;
                 case 'workout_save':
-                    return <MaterialIcons name="bookmark" size={16} color="#ff2d55" />;
+                return <MaterialIcons name="bookmark" size={16} color="#ff2d55" />;
                 case 'new_follower':
-                    return <MaterialIcons name="person-add" size={16} color="#ff2d55" />;
+                return <MaterialIcons name="person-add" size={16} color="#ff2d55" />;
                 case 'follow_accepted':
-                    return <MaterialIcons name="check-circle" size={16} color="#ff2d55" />;
+                return <MaterialIcons name="check-circle" size={16} color="#ff2d55" />;
                 default:
-                    return <MaterialIcons name="notifications" size={16} color="#ff2d55" />;
+                return <MaterialIcons name="notifications" size={16} color="#ff2d55" />;
             }
         };
 
@@ -421,7 +429,7 @@ export default function Pulse() {
                                             return;
                                         }
                                         
-                                        if (activity.type === 'post_like' || activity.type === 'post_comment') {
+                                        if (activity.type === 'post_like' || activity.type === 'post_comment' || activity.type === 'comment_like' || activity.type === 'reply_like') {
                                             if (activity.postId) router.push({ pathname: "/view-post/[id]", params: { id: activity.postId } });
                                         } else if (activity.type === 'workout_save') {
                                             if (activity.workoutId) router.push({ pathname: "/view-workout/[id]", params: { id: activity.workoutId } });
@@ -469,6 +477,9 @@ export default function Pulse() {
                                             <Text style={activityStyles.actionText}>
                                                 {activity.type === 'post_like' && ' liked your post'}
                                                 {activity.type === 'post_comment' && ` commented: "${displayShortenedString(activity.commentText || '', maxCommentLength)}"`}
+                                                {activity.type === 'comment_like' && ` liked your comment: "${displayShortenedString(activity.commentText || '', maxCommentLength)}"`}
+                                                {activity.type === 'reply_like' && ` liked your reply: "${displayShortenedString(activity.commentText || '', maxCommentLength)}"`}
+                                                {activity.type === 'comment_reply' && ` replied to your comment: "${displayShortenedString(activity.commentText || '', maxCommentLength)}"`}
                                                 {activity.type === 'workout_save' && ` saved your workout: ${displayShortenedString(activity.workoutTitle || 'Workout', maxWorkoutTitleLength)}`}
                                                 {activity.type === 'new_follower' && ' started following you'}
                                                 {activity.type === 'follow_accepted' && ' accepted your follow request'}
@@ -479,7 +490,7 @@ export default function Pulse() {
                                 </TouchableOpacity>
 
                                 {/* Content preview images with block checking */}
-                                {(activity.type === 'post_like' || activity.type === 'post_comment') && activity.postImageUrl && (
+                                {(activity.type === 'post_like' || activity.type === 'post_comment' || activity.type === 'comment_like' || activity.type === 'reply_like') && activity.postImageUrl && (
                                     <TouchableOpacity
                                         onPress={() => {
                                             // Check if we can interact before navigating to post

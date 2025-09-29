@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { 
   StyleSheet, 
   Text, 
@@ -24,13 +24,25 @@ const DEFAULT_PROFILE_IMAGE = 'https://thumbs.dreamstime.com/b/creative-illustra
 export default function PostsFeed() {
   const router = useRouter();
   const { currentUser, userProfile } = useAuth();
-  const { posts, loading, refreshing, loadingMore, hasMore, error, refreshFeed, loadMorePosts } = useFeedData();
+  const { posts: feedPosts, loading, refreshing, loadingMore, hasMore, error, refreshFeed, loadMorePosts } = useFeedData();
   const { likePost, unlikePost, addComment } = usePostsData();
   const { canInteractWithUser, isUserBlocked } = useBlockEnforcement();
+  
+  // Local state for optimistic updates  
+  const [posts, setPosts] = useState<typeof feedPosts>([]);
+
+  // Update local posts when feedPosts change
+  useEffect(() => {
+    setPosts(feedPosts);
+  }, [feedPosts]);
   
   const [newComment, setNewComment] = useState('');
   const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
   const [submittingComment, setSubmittingComment] = useState(false);
+
+  // Double-tap functionality refs
+  const tapTimers = useRef<Record<string, number>>({});
+  const likingInProgress = useRef<Record<string, boolean>>({});
 
   // Handle image click to view full post
   const handleViewPost = useCallback((postId: string) => {
@@ -44,15 +56,43 @@ export default function PostsFeed() {
       return;
     }
 
+    // Optimistic update - update UI immediately
+    setPosts(prevPosts => 
+      prevPosts.map(post => 
+        post.id === postId 
+          ? {
+              ...post,
+              isLiked: !isCurrentlyLiked,
+              reactionCount: isCurrentlyLiked 
+                ? Math.max(0, (post.reactionCount || 0) - 1)
+                : (post.reactionCount || 0) + 1
+            }
+          : post
+      )
+    );
+
     try {
       if (isCurrentlyLiked) {
         await unlikePost(postId);
       } else {
         await likePost(postId);
       }
-      // The UI update should be handled by the parent component or through state management
     } catch (error) {
       console.error('Error toggling like:', error);
+      // Revert optimistic update on error
+      setPosts(prevPosts => 
+        prevPosts.map(post => 
+          post.id === postId 
+            ? {
+                ...post,
+                isLiked: isCurrentlyLiked,
+                reactionCount: isCurrentlyLiked 
+                  ? (post.reactionCount || 0) + 1
+                  : Math.max(0, (post.reactionCount || 0) - 1)
+              }
+            : post
+        )
+      );
       Alert.alert('Error', 'Could not update like status. Please try again.');
     }
   }, [currentUser, likePost, unlikePost]);
@@ -99,6 +139,57 @@ export default function PostsFeed() {
     }
   }, [currentUser, newComment, submittingComment, addComment]);
 
+  // Double-tap handler for posts
+  const createDoubleTapHandler = useCallback((postId: string, isCurrentlyLiked: boolean) => {
+    return () => {
+      // Prevent multiple rapid taps
+      if (likingInProgress.current[postId]) {
+        return;
+      }
+
+      const now = Date.now();
+      const lastTap = tapTimers.current[postId];
+      
+      if (lastTap && now - lastTap < 300) {
+        // Double tap detected - like the post
+        delete tapTimers.current[postId];
+        try {
+          // Haptic feedback
+          import('expo-haptics').then(({ impactAsync, ImpactFeedbackStyle }) => {
+            impactAsync?.(ImpactFeedbackStyle.Light);
+          }).catch(() => {});
+          
+          // Set in progress flag
+          likingInProgress.current[postId] = true;
+          
+          // Only like if not already liked
+          if (!isCurrentlyLiked) {
+            handleToggleLike(postId, false);
+          }
+          
+          // Clear in progress flag after a delay
+          setTimeout(() => {
+            delete likingInProgress.current[postId];
+          }, 1000);
+        } catch (error) {
+          console.error('Error in double tap handler:', error);
+          delete likingInProgress.current[postId];
+        }
+      } else {
+        // Single tap - store timestamp and navigate after delay
+        tapTimers.current[postId] = now;
+        
+        // Navigate to post after delay if no second tap comes
+        setTimeout(() => {
+          if (tapTimers.current[postId] === now) {
+            delete tapTimers.current[postId];
+            handleViewPost(postId);
+          }
+        }, 300);
+      }
+    };
+  }, [handleToggleLike, handleViewPost]);
+
   // Format milestone preview
   const formatMilestonePreview = useCallback((details: any): string => {
     if (!details) return '';
@@ -131,8 +222,10 @@ export default function PostsFeed() {
 
   const filteredPosts = useMemo(() => {
     return posts.filter(post => {
-      // Don't filter out current user's own posts
-      if (post.authorId === currentUser?.uid) return true;
+      // Filter out milestone-only posts (milestones without images) - they should only appear in MilestonesFeed
+      if (post.isMilestone && !post.imageUrl) {
+        return false;
+      }
       
       // Filter out posts from users we've blocked
       if (isUserBlocked(post.authorId)) return false;
@@ -181,7 +274,7 @@ export default function PostsFeed() {
         {item.imageUrl && (
           <TouchableOpacity 
             activeOpacity={0.9}
-            onPress={() => canInteract ? handleViewPost(item.id) : null}
+            onPress={canInteract ? createDoubleTapHandler(item.id, item.isLiked || false) : undefined}
           >
             <Image
               source={{ uri: item.imageUrl! }}
@@ -348,6 +441,7 @@ export default function PostsFeed() {
     formatMilestonePreview,
     userProfile,
     isUserBlocked,
+    createDoubleTapHandler,
   ]);
 
   // Render footer for load more

@@ -9,6 +9,9 @@ import { getFunctions, httpsCallable } from 'firebase/functions';
 import { app } from '@/firebaseConfig';
 import { BOTTOM_BAR_HEIGHT } from '@/styles/globalStyles';
 import { useBlockEnforcement } from '@/utils/blockUtils';
+import { useUnits } from '@/hooks/useUnits';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '@/firebaseConfig';
 
 const archetypeIcons = {
   'athlete': require('@/assets/images/athlete.png'),
@@ -27,6 +30,7 @@ const archetypeDescriptions = {
   'powerlifter': 'Specialized in maximizing strength in the squat, bench press, and deadlift.',
 };
 import { getOptimalImageUrl, getCoverImageSource } from '@/utils/imageUtils';
+import { MilestoneDetails } from '@/types/milestone';
 
 interface ProfileScreenProps {
   userId?: string;
@@ -38,21 +42,11 @@ enum TabType {
   WORKOUTS = 'WORKOUTS'
 }
 
-export interface MilestoneDetails {
-  exerciseName?: string;
-  value?: number;
-  weightUnit?: string;
-  reps?: number;
-  newWeight?: number;
-  newWeightUnit?: string;
-  previousWeight?: number;
-  previousWeightUnit?: string;
-  previousValue?: number;
-  previousReps?: number;
-  improvement?: string;
-  totalLoss?: number;
-  percentageLoss?: string;
-}
+const generateConversationId = (userId1: string, userId2: string): string => {
+  // Sort user IDs alphabetically to ensure consistent conversation ID
+  const sortedIds = [userId1, userId2].sort();
+  return `${sortedIds[0]}_${sortedIds[1]}`;
+};
 
 const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
   const { currentUser, userProfile: currentUserProfile, refreshUserProfile } = useAuth();
@@ -78,6 +72,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
   } = useProfileData(routeUserId, currentUserProfile);
   const createdWorkouts = workouts || [];
   const { isUserBlocked } = useBlockEnforcement();
+  const { getWeightUnit, getDistanceUnit, formatWeight, formatDistance, convertWeight } = useUnits();
   const [isBlockedByUser, setIsBlockedByUser] = useState(false);
   const [hasBlockedUser, setHasBlockedUser] = useState(false);
 
@@ -170,8 +165,22 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
     // Parse weight string like "275 lbs" into value and unit
     const weightString = milestone.details.weight || '';
     const weightParts = weightString.split(' ');
-    const weightValue = weightParts[0] || '';
-    const weightUnit = weightParts.length > 1 ? weightParts[1] : '';
+    const rawWeightValue = parseFloat(weightParts[0]) || 0;
+    const storedWeightUnit = weightParts.length > 1 ? weightParts[1] : '';
+    
+    // Convert weight to user's preferred unit
+    let convertedWeight = rawWeightValue;
+    let displayWeightUnit = storedWeightUnit || getWeightUnit();
+    
+    if (storedWeightUnit && storedWeightUnit !== getWeightUnit()) {
+      const userPreferredUnit = getWeightUnit() as 'kg' | 'lbs';
+      const storedUnit = storedWeightUnit as 'kg' | 'lbs';
+      convertedWeight = convertWeight(rawWeightValue, storedUnit, userPreferredUnit);
+      displayWeightUnit = userPreferredUnit;
+    }
+    
+    // Round to 1 decimal place
+    const displayWeight = Math.round(convertedWeight * 10) / 10;
 
     if (milestone.milestoneType === 'PR') {
       return (
@@ -187,8 +196,8 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
             <View style={styles.previousPRContent}>
               <View style={styles.prMetricsRow}>
                 <View style={styles.prMetricGroup}>
-                  <Text style={styles.prMetricValue}>{weightValue}</Text>
-                  <Text style={styles.prMetricLabel}>{weightUnit}</Text>
+                  <Text style={styles.prMetricValue}>{displayWeight}</Text>
+                  <Text style={styles.prMetricLabel}>{displayWeightUnit}</Text>
                 </View>
                 {milestone.details.reps != null && (
                   <>
@@ -216,8 +225,8 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
             <View style={styles.previousPRContent}>
               <View style={styles.prMetricsRow}>
                 <View style={styles.prMetricGroup}>
-                  <Text style={styles.prMetricValue}>{weightValue}</Text>
-                  <Text style={styles.prMetricLabel}>{weightUnit}</Text>
+                  <Text style={styles.prMetricValue}>{displayWeight}</Text>
+                  <Text style={styles.prMetricLabel}>{displayWeightUnit}</Text>
                 </View>
               </View>
             </View>
@@ -225,6 +234,29 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
       );
     }
     return null;
+  };
+
+  const handleDirectMessage = async () => {
+    if (!currentUser || !displayProfileData?.id) return;
+    
+    const conversationId = generateConversationId(currentUser.uid, displayProfileData.id);
+    
+    try {
+      // Check if conversation already exists
+      const conversationRef = doc(db, 'conversations', conversationId);
+      const conversationSnap = await getDoc(conversationRef);
+      
+      if (conversationSnap.exists()) {
+        // Conversation exists, navigate directly
+        router.push(`/chat/${conversationId}`);
+      } else {
+        // New conversation, navigate and let SmartChatInput handle permission checking
+        router.push(`/chat/${conversationId}`);
+      }
+    } catch (error) {
+      console.error('Error navigating to chat:', error);
+      Alert.alert('Error', 'Failed to open chat. Please try again.');
+    }
   };
 
   const handleBlockUser = async () => {
@@ -820,6 +852,17 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
           <Text style={styles.profileUsername}>
             @{processedProfileData?.username || 'username'}
           </Text>
+          
+          {/* DM Button (Other's Profile) */}
+          {!isOwnProfile && displayProfileData && !isBlockedByUser && !hasBlockedUser && (
+            <TouchableOpacity
+              style={styles.dmButton}
+              onPress={handleDirectMessage}
+            >
+              <Ionicons name="chatbubble-outline" size={18} color="#007AFF" />
+            </TouchableOpacity>
+          )}
+          
           {/* Three dots button (Other's Profile) */}
           {!isOwnProfile && displayProfileData && (
             <TouchableOpacity
@@ -1001,6 +1044,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 5,
+  },
+  dmButton: {
+    marginLeft: 8,
+    padding: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0, 122, 255, 0.1)',
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 122, 255, 0.3)',
   },
   inlineMoreButton: {
     marginLeft: 8,
