@@ -333,11 +333,23 @@ export const onActivityCreated = onDocumentWritten(
     }
 
     logger.info(`Processing new activity for user ${userId}:`, activityData);
+    // Add detailed logging for reply likes
+    if (activityData.replyId) {
+      logger.info("Reply like detected:", {
+        userId,
+        activityId,
+        type: activityData.type,
+        replyId: activityData.replyId,
+        commentId: activityData.commentId,
+        postId: activityData.postId,
+      });
+    }
 
     const {type, fromUsername, fromUserId} = activityData;
 
     // Skip self-generated activities
     if (fromUserId === userId) {
+      logger.info(`Skipping self-generated activity for user ${userId}`);
       return;
     }
 
@@ -382,10 +394,22 @@ export const onActivityCreated = onDocumentWritten(
       notificationType = "like";
       break;
 
+    case "reply_like":
+      title = "New Like";
+      body = `${fromUsername} liked your reply`;
+      notificationType = "like";
+      break;
+
     case "comment_reply":
       title = "New Reply";
       body = `${fromUsername} replied to your comment`;
       notificationType = "comment";
+      break;
+
+    case "workout_save":
+      title = "Workout Saved";
+      body = `${fromUsername} saved your workout`;
+      notificationType = "workout_saved";
       break;
 
     default:
