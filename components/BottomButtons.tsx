@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { View, TouchableOpacity, StyleSheet, Animated, Dimensions } from 'react-native';
 import { useRouter, usePathname } from 'expo-router';
+import { useAuth } from '@/context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import globalStyles, { BOTTOM_BAR_HEIGHT } from '@/styles/globalStyles';
@@ -10,6 +11,8 @@ function BottomButtons() {
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
   const { width } = Dimensions.get('window');
+
+  const { currentUser, userProfile, loading: authLoading } = useAuth();
   
   // Create animated value for the slider indicator
   const indicatorPosition = useRef(new Animated.Value(0)).current;
@@ -77,17 +80,24 @@ function BottomButtons() {
     router.push('/profile');
   }, [router]);
 
+  // If the auth context says the user exists but hasn't verified their email,
+  // the EmailVerificationGuard or verification UI will be shown — hide the bottom bar.
+  if (!authLoading && currentUser && !(currentUser.emailVerified || userProfile?.emailVerified)) {
+    return null;
+  }
+
   // Hide bottom bar on specific routes (after all hooks are called)
-  if (pathname === '/create-workout' || 
-      pathname?.includes('/settings') || 
-      pathname?.includes('/view-post') ||
-      pathname?.includes('/signup') ||
-      pathname?.includes('/select-archetype') ||
-      pathname?.includes('/landing') ||
-      pathname?.includes('/login') ||
-      pathname?.includes('/chat') ||
-      pathname?.includes('/forgot-password') ||
-      pathname?.includes('/view-milestone')) {
+  if (
+    pathname === '/create-workout' ||
+    pathname?.includes('/settings') ||
+    pathname?.includes('/view-post') ||
+    pathname?.includes('/landing') ||
+    pathname?.includes('/chat') ||
+    pathname?.includes('/forgot-password') ||
+    pathname?.includes('/view-milestone') ||
+    pathname?.includes('/email-verification') ||
+    pathname?.includes('/verify-email')
+  ) {
     return null;
   }
 

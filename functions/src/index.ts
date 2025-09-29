@@ -16,3 +16,5 @@ export * from "./followTriggers";
 export * from "./adminFunctions";
 export * from "./settingsService";
 export * from "./messageService";
+export * from "./authCleanupService";
+export * from "./checkEmailExists";
