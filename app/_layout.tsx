@@ -1,12 +1,13 @@
 import 'react-native-get-random-values';
 import React from 'react';
-import { Stack } from 'expo-router';
+import { Stack, usePathname } from 'expo-router';
+import { useFonts } from 'expo-font';
 import { useColorScheme } from '@/components/useColorScheme';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { View, StyleSheet } from 'react-native';
 import BottomButtons from '@/components/BottomButtons';
-import { usePathname } from 'expo-router';
 import { AuthProvider } from '@/context/AuthContext';
+import { GlobalNetworkMonitor } from '@/components/GlobalNetworkMonitor';
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
@@ -16,6 +17,7 @@ export default function RootLayout() {
     <AuthProvider>
       <SafeAreaProvider>
         <View style={styles.container}>
+          <GlobalNetworkMonitor />
           <Stack
             screenOptions={{
               headerShown: false,
