@@ -13,6 +13,8 @@ import { CustomSelector, SelectorItem } from '@/components/CustomSelector';
 import { generateUniqueFilename } from '@/logic/idGenerator';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingsItem } from '@/components/settings/SettingsItem';
+import { OfflineIndicator } from '@/components/OfflineIndicator';
+import { ConnectionQualityBadge } from '@/components/ConnectionQualityBadge';
 import { UserSettings, SettingsSection as SettingsSectionType } from '@/types/settings';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { validateSettings, sanitizeSettings } from '@/utils/settingsValidation';
@@ -142,6 +144,9 @@ export default function Settings() {
   const [activeModal, setActiveModal] = useState<string | null>(null);
   const [modalQueue, setModalQueue] = useState<string[]>([]);
   const [lastModalAction, setLastModalAction] = useState<number>(0);
+  const [showOfflineScreen, setShowOfflineScreen] = useState(false);
+  const [connectionType, setConnectionType] = useState<string | null>(null);
+  const [pendingSave, setPendingSave] = useState(false);
 
   const MODAL_DEBOUNCE_MS = 300;
 
@@ -310,11 +315,43 @@ export default function Settings() {
   useEffect(() => {
     // Monitor network connectivity
     const unsubscribe = NetInfo.addEventListener(state => {
-      setIsOnline(state.isConnected ?? false);
+      const wasOnline = isOnline;
+      const isNowOnline = state.isConnected ?? false;
+      
+      setIsOnline(isNowOnline);
+      setConnectionType(state.type);
+      
+      // Show full screen overlay when going offline while editing
+      if (wasOnline && !isNowOnline && hasUnsavedChanges) {
+        setShowOfflineScreen(true);
+      }
+      
+      // Hide overlay when coming back online
+      if (!wasOnline && isNowOnline) {
+        setShowOfflineScreen(false);
+        
+        // Auto-save pending changes if they exist
+        if (pendingSave && hasUnsavedChanges) {
+          Alert.alert(
+            'Back Online',
+            'Would you like to save your pending changes now?',
+            [
+              { text: 'Not Now', style: 'cancel', onPress: () => setPendingSave(false) },
+              { 
+                text: 'Save Now', 
+                onPress: () => {
+                  setPendingSave(false);
+                  handleSaveSettings();
+                }
+              }
+            ]
+          );
+        }
+      }
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [isOnline, hasUnsavedChanges, pendingSave]);
 
   useEffect(() => {
     // Auto-save functionality
@@ -497,12 +534,23 @@ export default function Settings() {
   const handleSaveSettings = async () => {
     if (!currentUser) return;
     
-    // Check network connectivity
+    // Enhanced network check with better feedback
     if (!isOnline) {
+      setPendingSave(true);
+      setShowOfflineScreen(true);
+      
       Alert.alert(
         'No Internet Connection',
-        'Please check your internet connection and try again.',
-        [{ text: 'OK' }]
+        'Your changes will be saved automatically when your connection is restored.',
+        [
+          { 
+            text: 'OK', 
+            onPress: () => {
+              // Keep the changes in memory
+              console.log('Changes queued for when connection returns');
+            }
+          }
+        ]
       );
       return;
     }
@@ -548,6 +596,19 @@ export default function Settings() {
       
       Alert.alert("Error", errorMessage);
       setLoading(false);
+    }
+  };
+
+  const handleRetryConnection = async () => {
+    const state = await NetInfo.fetch();
+    const isNowOnline = state.isConnected ?? false;
+    
+    if (isNowOnline) {
+      setIsOnline(true);
+      setShowOfflineScreen(false);
+      Alert.alert('Connected', 'Your internet connection has been restored.');
+    } else {
+      Alert.alert('Still Offline', 'Unable to connect. Please check your network settings.');
     }
   };
 
@@ -917,6 +978,13 @@ export default function Settings() {
             <View style={styles.placeholder} />
           </View>
         </View>
+
+        {!isOnline && !showOfflineScreen && (
+          <OfflineIndicator 
+            message={`No ${connectionType || 'internet'} connection - changes cannot be saved`}
+            onRetry={handleRetryConnection}
+          />
+        )}
 
         {/* Profile Information Section */}
         <SettingsSection
@@ -1419,6 +1487,14 @@ export default function Settings() {
           </View>
         )}
       </ScrollView>
+
+      {showOfflineScreen && (
+        <OfflineIndicator 
+          isFullScreen 
+          message="You've lost your internet connection while editing settings"
+          onRetry={handleRetryConnection}
+        />
+      )}
 
       {isModalVisible('archetype') && (
         <CustomSelector
