@@ -65,10 +65,14 @@ export class SignupService {
         // Schedule a Cloud Task to run the cleanup handler in 5 minutes
         try {
           const scheduleFn = httpsCallable(functions, 'scheduleCleanupTask');
-          await scheduleFn({ uid: user.uid, delaySeconds: 5 * 60 });
-          console.log('[SignupService] Scheduled cleanup task for uid=', user.uid);
-        } catch (taskErr) {
-          console.warn('[SignupService] Failed to schedule cleanup task:', taskErr);
+          const result = await scheduleFn({ uid: user.uid, delaySeconds: 5 * 60 });
+          console.log('[SignupService] Scheduled cleanup task for uid=', user.uid, 'result:', result);
+        } catch (taskErr: any) {
+          console.error('[SignupService] Failed to schedule cleanup task:', taskErr);
+          console.error('[SignupService] Error code:', taskErr.code);
+          console.error('[SignupService] Error message:', taskErr.message);
+          console.error('[SignupService] Error details:', taskErr.details);
+          // Don't throw - account creation succeeded, just log the error
         }
       } catch (err) {
         console.warn('[SignupService] Failed to create usersPublic at signup time:', err);

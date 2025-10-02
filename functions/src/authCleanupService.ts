@@ -87,7 +87,12 @@ export const cleanupUnverifiedAccount = onCall(
  * HTTP handler for a single cleanup task. Called by Cloud Tasks.
  * Expects POST JSON body: { uid: string }
  */
-export const cleanupTaskHandler = onRequest(async (req, res) => {
+export const cleanupTaskHandler = onRequest(
+  {
+    region: "us-central1",
+    invoker: "public", // Allow Cloud Tasks to invoke without authentication
+  },
+  async (req, res) => {
   try {
     const db = getDb();
     if (!db) {
@@ -157,7 +162,7 @@ export const scheduleCleanupTask = onCall({region: "northamerica-northeast2"}, a
 
   const project = process.env.GCP_PROJECT || process.env.GCLOUD_PROJECT || (process.env.FIREBASE_CONFIG && JSON.parse(process.env.FIREBASE_CONFIG).projectId);
   if (!project) throw new HttpsError("internal", "Project not detected");
-  const location = "us-central1";
+  const location = "us-central1"; // Match the Cloud Tasks queue region
   const queue = "unverified-user-cleanup-queue";
   const url = `https://${location}-${project}.cloudfunctions.net/cleanupTaskHandler`;
 
@@ -179,27 +184,14 @@ export const scheduleCleanupTask = onCall({region: "northamerica-northeast2"}, a
 
   const createTaskUrl = `https://cloudtasks.googleapis.com/v2/projects/${project}/locations/${location}/queues/${queue}/tasks`;
   const scheduleTime = {seconds: Math.floor(Date.now() / 1000) + Math.floor(delay)};
-  // Prefer Cloud Tasks to produce a fresh OIDC token at delivery time by
-  // requesting an oidcToken with a service account. Set the service account
-  // email in the CLEANUP_TASK_SA environment variable. If not set, we will
-  // still attempt to create the task but it may fail if the function requires
-  // authenticated requests.
-  const taskServiceAccount = process.env.CLEANUP_TASK_SA;
+  
+  // Since cleanupTaskHandler allows public invocation, we don't need OIDC token
   const httpRequest: any = {
     httpMethod: "POST",
     url,
     headers: {"Content-Type": "application/json"},
     body: Buffer.from(JSON.stringify({uid})).toString("base64"),
   };
-
-  if (taskServiceAccount) {
-    httpRequest.oidcToken = {
-      serviceAccountEmail: taskServiceAccount,
-      audience: url,
-    };
-  } else {
-    console.warn("scheduleCleanupTask: CLEANUP_TASK_SA not set — creating task without oidcToken; target must allow unauthenticated requests or delivery will fail");
-  }
   
   const taskBody = { task: { httpRequest, scheduleTime } };
 
@@ -215,13 +207,25 @@ export const scheduleCleanupTask = onCall({region: "northamerica-northeast2"}, a
     if (!resp.ok) {
       const txt = await resp.text();
       console.error("scheduleCleanupTask: failed to create task", resp.status, txt);
-      throw new HttpsError("internal", "Failed to schedule task");
+      let errorMsg = `Failed to schedule task (${resp.status})`;
+      try {
+        const errorJson = JSON.parse(txt);
+        if (errorJson.error?.message) {
+          errorMsg = errorJson.error.message;
+        }
+      } catch (e) {
+        // txt is not JSON
+      }
+      throw new HttpsError("internal", errorMsg, txt);
     }
     const data = await resp.json();
     console.log("scheduleCleanupTask: created task", data.name);
     return {success: true, name: data.name};
-  } catch (err) {
+  } catch (err: any) {
     console.error("scheduleCleanupTask: failed to create task", err);
-    throw new HttpsError("internal", "Failed to schedule task");
+    if (err instanceof HttpsError) {
+      throw err;
+    }
+    throw new HttpsError("internal", `Failed to schedule task: ${err.message}`);
   }
 });
