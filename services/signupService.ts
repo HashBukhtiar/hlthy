@@ -51,14 +51,12 @@ export class SignupService {
       // Send verification email
       await sendEmailVerification(user);
 
-      // Create usersPublic document immediately with isVerified=false and schedule cleanup
+      // Create usersPublic document immediately with isVerified=false
       try {
         await setDoc(doc(db, 'usersPublic', user.uid), {
           uid: user.uid,
           username: signupData.username,
           isVerified: false,
-          // schedule cleanup for 5 minutes in the future (ms since epoch)
-          cleanupScheduledAt: Date.now() + 5 * 60 * 1000,
         });
         console.log('[SignupService] usersPublic created with isVerified:false for uid=', user.uid);
 
