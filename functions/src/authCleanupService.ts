@@ -1,27 +1,32 @@
 import {admin, getDb} from "./firebaseAdmin";
 import {onCall, HttpsError, onRequest} from "firebase-functions/v2/https";
-import {onSchedule} from "firebase-functions/v2/scheduler";
-
-// NOTE: The scheduled, global scan approach was intentionally removed.
-// We provide a per-account callable `cleanupUnverifiedAccount` which checks
-// a single user by UID and deletes it only when 5+ minutes have passed since
-// creation and the account is still unverified. This prevents bulk scanning
-// and only targets the specific account in question.
-
-// Legacy manual trigger removed. Use `cleanupUnverifiedAccount` callable to
-// clean a specific account by UID when appropriate.
 
 /**
- * Callable to cleanup a specific unverified account by UID.
- * The client should call this with the UID of the account that was created.
- * The function verifies the account's creation time and emailVerified status,
- * and deletes the account only if it's older than the configured threshold
- * and still unverified.
+ * Cloud Tasks cleanup system for unverified accounts.
+ * 
+ * Flow:
+ * 1. Client creates account and calls scheduleCleanupTask
+ * 2. Cloud Task is scheduled for 5 minutes later
+ * 3. cleanupTaskHandler checks verification status and deletes if needed
+ */
+
+/**
+ * @deprecated This function is deprecated and should not be used.
+ * Use scheduleCleanupTask instead which uses Cloud Tasks for more reliable cleanup.
+ * This function is kept temporarily to track any legacy usage.
+ * 
+ * Legacy callable to cleanup a specific unverified account by UID.
+ * Will be removed in a future release.
  */
 export const cleanupUnverifiedAccount = onCall(
   {region: "northamerica-northeast2"},
   async (request) => {
+    console.warn("⚠️ IF YOU GET THIS WARNING, PLEASE SEND A SCREENSHOT TO ANDREW ON THE HLTHY DISCORD!! ⚠️");
+    console.warn("⚠️ DEPRECATED: cleanupUnverifiedAccount called - this function should no longer be used");
+    console.warn("⚠️ Please update to use scheduleCleanupTask + Cloud Tasks instead");
     console.log("cleanupUnverifiedAccount: Called by", request.auth?.uid);
+    console.log("cleanupUnverifiedAccount: Call timestamp:", new Date().toISOString());
+    console.log("cleanupUnverifiedAccount: Request data:", JSON.stringify(request.data));
 
     if (!request.auth) {
       throw new HttpsError("unauthenticated", "The function must be called while authenticated.");
@@ -33,8 +38,7 @@ export const cleanupUnverifiedAccount = onCall(
     }
 
     // Only allow the same user to request deletion for their own account,
-    // or allow an admin to request it. This prevents arbitrary authenticated
-    // clients from deleting other users.
+    // or allow an admin to request it.
     const callerUid = request.auth.uid;
     const isAdmin = !!(request.auth.token && request.auth.token.admin);
     if (callerUid !== uid && !isAdmin) {
@@ -81,10 +85,9 @@ export const cleanupUnverifiedAccount = onCall(
     }
   }
 );
-// Note: scheduledCleanupUsersPublic removed. Per-account Cloud Tasks handle cleanup.
 
 /**
- * HTTP handler for a single cleanup task. Called by Cloud Tasks.
+ * HTTP handler invoked by Cloud Tasks to cleanup a specific unverified account.
  * Expects POST JSON body: { uid: string }
  */
 export const cleanupTaskHandler = onRequest(
@@ -151,7 +154,8 @@ export const cleanupTaskHandler = onRequest(
 });
 
 /**
- * Callable that schedules a Cloud Task to call the `cleanupTaskHandler` after a delay.
+ * Schedules a Cloud Task to cleanup an account after a delay.
+ * Called by client immediately after account creation.
  * Expects { uid: string, delaySeconds?: number }
  */
 export const scheduleCleanupTask = onCall({region: "northamerica-northeast2"}, async (request) => {

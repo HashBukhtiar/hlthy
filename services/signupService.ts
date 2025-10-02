@@ -18,11 +18,6 @@ interface PendingSignupData {
 const PENDING_SIGNUP_KEY = 'pendingSignupData';
 const SIGNUP_EXPIRY_HOURS = 24; // Expire pending signups after 24 hours
 
-// Initialize cloud functions
-// Legacy `registerUnverifiedAccount` and `markAccountVerified` were removed.
-// We'll use the per-account cleanup callable when needed.
-const cleanupUnverifiedAccountFn = httpsCallable(functions, 'cleanupUnverifiedAccount');
-
 export class SignupService {
   /**
    * Store signup data temporarily and send verification email
@@ -43,10 +38,7 @@ export class SignupService {
       // Create temporary account just to send verification email
       const userCredential = await createUserWithEmailAndPassword(auth, signupData.email, signupData.password);
       const user = userCredential.user;
-  console.log('[SignupService] initiatePendingSignup: created auth user uid=', user?.uid, 'email=', signupData.email);
-
-  // No server-side registration required. The client will call the
-  // per-account cleanup callable when the countdown expires if needed.
+      console.log('[SignupService] initiatePendingSignup: created auth user uid=', user?.uid, 'email=', signupData.email);
 
       // Send verification email
       await sendEmailVerification(user);
@@ -221,18 +213,11 @@ export class SignupService {
       await AsyncStorage.removeItem(PENDING_SIGNUP_KEY);
 
       if (hadPending) {
-        // If there's an unverified user and we had pending signup data, try to clean it up safely
+        // If there's an unverified user and we had pending signup data, clean it up
         const user = auth.currentUser;
         if (user && !user.emailVerified) {
           console.log('[SignupService] Cleaning up unverified Firebase Auth account:', user.uid);
-          // Prefer server-side deletion via callable; fallback to local deletion
-          try {
-            await cleanupUnverifiedAccountFn({ uid: user.uid });
-            console.log('[SignupService] Requested server-side cleanup for uid:', user.uid);
-          } catch (callErr) {
-            console.warn('[SignupService] Server-side cleanup call failed, falling back to local delete:', callErr);
-            await this.safelyCleanupUnverifiedAccount(user);
-          }
+          await this.safelyCleanupUnverifiedAccount(user);
         }
       } else {
         // No pending signup data — do not delete the account. Leave auth state as-is.
