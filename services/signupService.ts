@@ -188,11 +188,12 @@ export class SignupService {
         emailVerified: true
       });
 
-      // Create usersPublic document
+      // Update usersPublic document with merge to preserve isVerified
       await setDoc(doc(db, 'usersPublic', user.uid), {
         uid: user.uid,
         username: pendingData.username,
-      });
+        isVerified: true,
+      }, { merge: true });
 
       // Clear pending signup data
       await this.clearPendingSignupData();
