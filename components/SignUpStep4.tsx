@@ -134,6 +134,8 @@ export default function SignUpStep4({ visible, onBackPress, onComplete, onShowLo
       // Handle specific error codes
       if (error.code === 'auth/email-already-in-use') {
         setErrorMessage('This email is already registered. Please use a different email or try logging in.');
+      } else if (error.code === 'auth/username-already-in-use') {
+        setErrorMessage('This username is already taken. Please choose a different username.');
       } else if (error.code === 'auth/invalid-email') {
         setErrorMessage('Invalid email address. Please check and try again.');
       } else if (error.code === 'auth/weak-password') {

@@ -1,6 +1,6 @@
 import { auth, db, functions } from '@/firebaseConfig';
 import { createUserWithEmailAndPassword, sendEmailVerification, reload, deleteUser, signOut } from 'firebase/auth';
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, setDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -20,10 +20,39 @@ const SIGNUP_EXPIRY_HOURS = 24; // Expire pending signups after 24 hours
 
 export class SignupService {
   /**
+   * Check if username is already taken
+   */
+  private static async isUsernameTaken(username: string): Promise<boolean> {
+    try {
+      const usersPublicRef = collection(db, 'usersPublic');
+      const q = query(usersPublicRef, where('username', '==', username));
+      const querySnapshot = await getDocs(q);
+      return !querySnapshot.empty;
+    } catch (error) {
+      console.error('[SignupService] Error checking username availability:', error);
+      // If we can't check, assume it's taken to be safe
+      throw new Error('Unable to verify username availability. Please try again.');
+    }
+  }
+
+  /**
    * Store signup data temporarily and send verification email
    */
   static async initiatePendingSignup(signupData: Omit<PendingSignupData, 'timestamp'>): Promise<void> {
     try {
+      // Check if username is already taken BEFORE creating any Firebase account
+      console.log('[SignupService] Checking username availability:', signupData.username);
+      const usernameTaken = await this.isUsernameTaken(signupData.username);
+      
+      if (usernameTaken) {
+        console.log('[SignupService] Username already taken:', signupData.username);
+        const usernameError = new Error('This username is already taken. Please choose a different username.');
+        (usernameError as any).code = 'auth/username-already-in-use';
+        throw usernameError;
+      }
+      
+      console.log('[SignupService] Username available:', signupData.username);
+      
       // Clean up any existing unverified account first
       await this.cleanupAnyExistingUnverifiedAccount();
       
@@ -86,6 +115,11 @@ export class SignupService {
         const friendlyError = new Error('This email is already registered. Please use a different email or try logging in.');
         (friendlyError as any).code = 'auth/email-already-in-use';
         throw friendlyError;
+      }
+      
+      if (error.code === 'auth/username-already-in-use') {
+        // Username error already has user-friendly message, just re-throw
+        throw error;
       }
       
       // Log other errors as errors since they're unexpected
