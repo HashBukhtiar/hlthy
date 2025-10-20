@@ -91,20 +91,17 @@ except ImportError:
     print("Warning: Semantic memory system not available")
     semantic_memory = None
 
-# Import profile sync system
-ENHANCED_PROFILE_SYNC_AVAILABLE = False
+# Import AI profile extractor (replaces regex-based profile_sync)
+AI_EXTRACTOR_AVAILABLE = False
+ai_extractor = None
 try:
-    from utils.profile_sync import ProfileSyncSystem, ConfidenceBasedExtractor, EnhancedProfileSync
-    profile_sync = ProfileSyncSystem()
-    confidence_extractor = ConfidenceBasedExtractor()
-    enhanced_profile_sync = EnhancedProfileSync(confidence_extractor, enhanced_profile_manager)
-    ENHANCED_PROFILE_SYNC_AVAILABLE = True
-    print("✅ Enhanced profile sync system with extract→confirm→commit workflow available")
-except ImportError:
-    print("Warning: Enhanced profile sync system not available")
-    profile_sync = None
-    confidence_extractor = None
-    enhanced_profile_sync = None
+    from utils.ai_profile_extractor import GeminiProfileExtractor
+    # Will be initialized with model when needed
+    AI_EXTRACTOR_AVAILABLE = True
+    print("✅ AI Profile Extractor with Gemini-powered extraction available")
+except ImportError as e:
+    print(f"Warning: AI Profile Extractor not available: {e}")
+    ai_extractor = None
 
 # Import rate limiting
 try:
@@ -386,19 +383,25 @@ def chat():
         
         print(f"Processing message: {user_message[:50]}...")
         
-        # Process conversational memory if enhanced sync is available
+        # Load user profile for conversational memory extraction
+        profile = enhanced_profile_manager.load_profile(user_id)
+        
+        # Process conversational memory with AI extractor
         conversation_result = None
-        if ENHANCED_PROFILE_SYNC_AVAILABLE and enhanced_profile_sync:
+        if AI_EXTRACTOR_AVAILABLE:
             try:
-                print("Processing conversation for memory extraction...")
-                conversation_result = enhanced_profile_sync.process_conversation_turn(
-                    user_id, 
-                    user_message, 
-                    ""  # Coach response will be filled after AI generates it
-                )
-                print(f"Conversational memory result: {conversation_result}")
+                print("Processing conversation for AI-powered memory extraction...")
+                # Initialize extractor with Gemini model
+                from utils.ai_profile_extractor import GeminiProfileExtractor
+                ai_extractor = GeminiProfileExtractor(gemini_model=coach_model)
+                
+                # Extract claims using AI
+                conversation_result = ai_extractor.extract_claims(user_message, profile)
+                print(f"AI extraction result: {conversation_result}")
             except Exception as e:
-                print(f"Conversational memory processing error: {e}")
+                print(f"AI conversational memory extraction error: {e}")
+                import traceback
+                traceback.print_exc()
         
         # Use AI-powered intelligent system if available (PRIMARY)
         if INTELLIGENT_SYSTEM_AVAILABLE and intelligent_system:
@@ -672,111 +675,16 @@ def classify_intent():
         }), 500
 
 
-# ===== CONVERSATIONAL MEMORY ENDPOINTS =====
+# ===== CONVERSATIONAL MEMORY ENDPOINTS (DEPRECATED - USE /api/chat) =====
+# These endpoints used the old regex-based system and are commented out during refactoring
+# The main /api/chat endpoint now uses AI-powered extraction
 
-@app.route('/api/profile/<user_id>/claims/extract', methods=['POST'])
-def extract_claims(user_id):
-    """Extract claims from user message with confidence scoring"""
-    try:
-        if not ENHANCED_PROFILE_SYNC_AVAILABLE:
-            return jsonify({"error": "Enhanced profile sync not available"}), 503
-            
-        data = request.get_json()
-        message = data.get('message', '')
-        
-        if not message:
-            return jsonify({"error": "Message is required"}), 400
-        
-        # Extract claims using confidence-based extractor
-        claims = confidence_extractor.extract_with_confidence(message, context=f"api_extract_{datetime.now().isoformat()}")
-        
-        # Add to pending claims
-        confidence_extractor.add_pending_claims(user_id, claims)
-        
-        # Get pending confirmations
-        pending_confirmations = confidence_extractor.get_pending_confirmations(user_id, limit=3)
-        
-        return jsonify({
-            "success": True,
-            "claims_extracted": len(claims),
-            "claims": [
-                {
-                    "claim_id": claim.claim_id,
-                    "type": claim.type,
-                    "value": claim.normalized_value,
-                    "confidence": claim.confidence,
-                    "requires_confirmation": claim.requires_confirmation
-                }
-                for claim in claims
-            ],
-            "pending_confirmations": [
-                {
-                    "claim_id": claim.claim_id,
-                    "question": claim.to_confirmation_question(),
-                    "confidence": claim.confidence
-                }
-                for claim in pending_confirmations
-            ]
-        })
-        
-    except Exception as e:
-        print(f"Claim extraction error: {e}")
-        return jsonify({"error": str(e)}), 500
-
-
-@app.route('/api/profile/<user_id>/claims/confirm', methods=['POST'])
-def confirm_claims(user_id):
-    """Confirm or reject extracted claims"""
-    try:
-        if not ENHANCED_PROFILE_SYNC_AVAILABLE:
-            return jsonify({"error": "Enhanced profile sync not available"}), 503
-            
-        data = request.get_json()
-        confirmations = data.get('confirmations', {})
-        
-        if not confirmations:
-            return jsonify({"error": "Confirmations are required"}), 400
-        
-        # Process confirmations
-        result = enhanced_profile_sync.confirm_user_claims(user_id, confirmations)
-        
-        return jsonify({
-            "success": True,
-            "claims_confirmed": result["claims_confirmed"],
-            "claims_committed": result["claims_committed"],
-            "committed_details": result["committed_details"]
-        })
-        
-    except Exception as e:
-        print(f"Claim confirmation error: {e}")
-        return jsonify({"error": str(e)}), 500
-
-
-@app.route('/api/profile/<user_id>/conversation', methods=['POST'])
-def process_conversation_turn(user_id):
-    """Process full conversation turn with extract→confirm→commit workflow"""
-    try:
-        if not ENHANCED_PROFILE_SYNC_AVAILABLE:
-            return jsonify({"error": "Enhanced profile sync not available"}), 503
-            
-        data = request.get_json()
-        user_message = data.get('user_message', '')
-        coach_response = data.get('coach_response', '')
-        
-        if not user_message:
-            return jsonify({"error": "User message is required"}), 400
-        
-        # Process conversation turn
-        result = enhanced_profile_sync.process_conversation_turn(user_id, user_message, coach_response)
-        
-        return jsonify({
-            "success": True,
-            **result
-        })
-        
-    except Exception as e:
-        print(f"Conversation processing error: {e}")
-        return jsonify({"error": str(e)}), 500
+# Legacy endpoints removed during AI refactoring:
+# - /api/profile/<user_id>/claims/extract (used regex extraction)
+# - /api/profile/<user_id>/claims/confirm (used old claim format)
+# - /api/profile/<user_id>/conversation (used old workflow)
+#
+# All conversational memory features are now handled through /api/chat endpoint
 
 
 @app.route('/api/profile/<user_id>/injuries/check-ins', methods=['GET'])
