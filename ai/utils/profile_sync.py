@@ -68,13 +68,15 @@ class ConfidenceBasedExtractor:
     def __init__(self):
         # Enhanced patterns with confidence indicators
         self.dislike_patterns = [
-            (r"hate\s+(\w+(?:\s+\w+){0,2})", ExtractionConfidence.HIGH),
-            (r"can't stand\s+(\w+(?:\s+\w+){0,2})", ExtractionConfidence.HIGH),
-            (r"don't like\s+(\w+(?:\s+\w+){0,2})", ExtractionConfidence.HIGH),
-            (r"avoid\s+(\w+(?:\s+\w+){0,2})", ExtractionConfidence.MEDIUM),
-            (r"(\w+(?:\s+\w+){0,2})\s+sucks?", ExtractionConfidence.MEDIUM),
-            (r"not a fan of\s+(\w+(?:\s+\w+){0,2})", ExtractionConfidence.MEDIUM),
-            (r"skip\s+(\w+(?:\s+\w+){0,2})", ExtractionConfidence.LOW)
+            # Match exercise names but stop at conjunctions, punctuation, or contractions
+            # Use word boundaries and lookahead to avoid consuming the next pattern's trigger
+            (r"hate\s+([a-z\s]+?)(?=\s+(?:and|or|but|,|\.|\?|!|$|can't|don't|won't))", ExtractionConfidence.HIGH),
+            (r"can't stand\s+([a-z\s]+?)(?=\s+(?:and|or|but|,|\.|\?|!|$|can't|don't|won't)|$)", ExtractionConfidence.HIGH),
+            (r"don't like\s+([a-z\s]+?)(?=\s+(?:and|or|but|,|\.|\?|!|$|can't|don't|won't)|$)", ExtractionConfidence.HIGH),
+            (r"avoid\s+([a-z\s]+?)(?=\s+(?:and|or|but|,|\.|\?|!|$|can't|don't|won't)|$)", ExtractionConfidence.MEDIUM),
+            (r"([a-z\s]+?)\s+sucks?(?=\s+(?:and|or|but|,|\.|\?|!|$)|$)", ExtractionConfidence.MEDIUM),
+            (r"not a fan of\s+([a-z\s]+?)(?=\s+(?:and|or|but|,|\.|\?|!|$|can't|don't|won't)|$)", ExtractionConfidence.MEDIUM),
+            (r"skip\s+([a-z\s]+?)(?=\s+(?:and|or|but|,|\.|\?|!|$|can't|don't|won't)|$)", ExtractionConfidence.LOW)
         ]
         
         self.injury_patterns = [
