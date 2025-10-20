@@ -5,6 +5,7 @@ import { Platform, AppState } from 'react-native';
 import { app, db, functions } from '@/firebaseConfig';
 import { doc, updateDoc, getDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { httpsCallable, getFunctions } from 'firebase/functions';
+import { getAuth } from 'firebase/auth';
 
 // Configure notification behavior
 Notifications.setNotificationHandler({
@@ -539,8 +540,21 @@ export class NotificationService {
       console.log('Notification tapped:', data);
       
       // Mark related activity as read if activityId is present
-      if (typeof data.activityId === 'string' && typeof data.recipientId === 'string') {
-        await this.markActivityAsRead(data.recipientId, data.activityId);
+      if (typeof data.activityId === 'string') {
+        try {
+          const auth = getAuth(app);
+          const currentUser = auth.currentUser;
+          
+          if (currentUser) {
+            await this.markActivityAsRead(currentUser.uid, data.activityId);
+            console.log(`Activity ${data.activityId} marked as read for user ${currentUser.uid}`);
+          } else {
+            console.warn('No current user available to mark activity as read');
+          }
+        } catch (error) {
+          console.error('Error marking activity as read:', error);
+          // Don't block navigation if marking as read fails
+        }
       }
       
       // Handle navigation based on notification type
