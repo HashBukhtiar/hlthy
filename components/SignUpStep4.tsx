@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { View, Text, TouchableOpacity, KeyboardAvoidingView, ScrollView, StyleSheet, Dimensions, Keyboard, TouchableWithoutFeedback, Animated, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, KeyboardAvoidingView, ScrollView, StyleSheet, Dimensions, Keyboard, TouchableWithoutFeedback, Animated, Platform, Alert } from 'react-native';
 import { TextInput } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { CustomSelector, SelectorItem } from '@/components/CustomSelector';
@@ -33,8 +33,11 @@ export default function SignUpStep4({ visible, onBackPress, onComplete, onShowLo
   const [modalVisible, setModalVisible] = useState<boolean>(false);
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const shakeAnim = useRef(new Animated.Value(0)).current;
   const spinnerFadeAnim = useRef(new Animated.Value(0)).current;
+  const errorFadeAnim = useRef(new Animated.Value(0)).current;
+  const errorSlideAnim = useRef(new Animated.Value(-20)).current;
 
   useEffect(() => {
     if (loading) {
@@ -52,8 +55,43 @@ export default function SignUpStep4({ visible, onBackPress, onComplete, onShowLo
     }
   }, [loading, spinnerFadeAnim]);
 
+  useEffect(() => {
+    if (errorMessage) {
+      // Slide in and fade in
+      Animated.parallel([
+        Animated.timing(errorFadeAnim, {
+          toValue: 1,
+          duration: 400,
+          useNativeDriver: true,
+        }),
+        Animated.spring(errorSlideAnim, {
+          toValue: 0,
+          tension: 80,
+          friction: 10,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } else {
+      // Slide out and fade out
+      Animated.parallel([
+        Animated.timing(errorFadeAnim, {
+          toValue: 0,
+          duration: 250,
+          useNativeDriver: true,
+        }),
+        Animated.timing(errorSlideAnim, {
+          toValue: -20,
+          duration: 250,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [errorMessage, errorFadeAnim, errorSlideAnim]);
+
   const handleComplete = useCallback(async () => {
     setSubmitted(true);
+    setErrorMessage(null); // Clear any previous errors
+    
     if (!archetype) {
       Animated.sequence([
         Animated.timing(shakeAnim, { toValue: 1, duration: 50, useNativeDriver: true }),
@@ -90,8 +128,29 @@ export default function SignUpStep4({ visible, onBackPress, onComplete, onShowLo
       if (onEmailVerificationRequired) {
         onEmailVerificationRequired(email);
       }
-    } catch (error) {
-      console.error('[SignUpStep4] Signup error:', error);
+    } catch (error: any) {
+      console.log('[SignUpStep4] Signup error handled:', error.code || 'unknown');
+      
+      // Handle specific error codes
+      if (error.code === 'auth/email-already-in-use') {
+        setErrorMessage('This email is already registered. Please use a different email or try logging in.');
+      } else if (error.code === 'auth/invalid-email') {
+        setErrorMessage('Invalid email address. Please check and try again.');
+      } else if (error.code === 'auth/weak-password') {
+        setErrorMessage('Password is too weak. Please choose a stronger password.');
+      } else if (error.message) {
+        setErrorMessage(error.message);
+      } else {
+        setErrorMessage('An unexpected error occurred. Please try again.');
+      }
+      
+      // Shake animation for error
+      Animated.sequence([
+        Animated.timing(shakeAnim, { toValue: 1, duration: 50, useNativeDriver: true }),
+        Animated.timing(shakeAnim, { toValue: -1, duration: 50, useNativeDriver: true }),
+        Animated.timing(shakeAnim, { toValue: 1, duration: 50, useNativeDriver: true }),
+        Animated.timing(shakeAnim, { toValue: 0, duration: 50, useNativeDriver: true }),
+      ]).start();
     }
     setLoading(false);
   }, [archetype, onComplete, shakeAnim, onEmailVerificationRequired]);
@@ -176,6 +235,20 @@ export default function SignUpStep4({ visible, onBackPress, onComplete, onShowLo
             </View>
             </View>
         </View>
+        )}
+        
+        {/* Error Message */}
+        {errorMessage && (
+          <Animated.View style={[
+            styles.errorContainer, 
+            { 
+              opacity: errorFadeAnim,
+              transform: [{ translateY: errorSlideAnim }]
+            }
+          ]}>
+            <Ionicons name="warning" size={20} color="#FF6B6B" />
+            <Text style={styles.errorText}>{errorMessage}</Text>
+          </Animated.View>
         )}
         
         {/* Action Button */}
@@ -408,5 +481,22 @@ const styles = StyleSheet.create({
     bottom: 0,
     backgroundColor: 'transparent',
     zIndex: 999,
+  },
+  errorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 15,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 107, 107, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 107, 107, 0.3)',
+    marginBottom: 15,
+    gap: 10,
+  },
+  errorText: {
+    color: '#FF6B6B',
+    fontSize: 14,
+    flex: 1,
+    fontWeight: '500',
   },
 });

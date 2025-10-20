@@ -80,6 +80,15 @@ export class SignupService {
         console.log('[SignupService] Cleaned up after failed account creation');
       }
       
+      // Transform Firebase error codes into user-friendly messages
+      if (error.code === 'auth/email-already-in-use') {
+        console.log('[SignupService] Email already in use, throwing user-friendly error');
+        const friendlyError = new Error('This email is already registered. Please use a different email or try logging in.');
+        (friendlyError as any).code = 'auth/email-already-in-use';
+        throw friendlyError;
+      }
+      
+      // Log other errors as errors since they're unexpected
       console.error('[SignupService] Error initiating pending signup:', error);
       throw error;
     }
