@@ -579,8 +579,11 @@ export class NotificationService {
       
       switch (type) {
         case 'new_follower':
+        case 'newFollower':
         case 'follow_accepted':
+        case 'followAccepted':
         case 'follow_request':
+        case 'followRequest':
           // Navigate to user profile
           if (userId) {
             router.push(`/profile/${userId}`);
@@ -590,8 +593,14 @@ export class NotificationService {
           break;
         case 'like':
         case 'comment':
+        case 'post_like':
+        case 'post_comment':
         case 'tagged_comment':
+        case 'taggedInComment':
         case 'mentioned_reply':
+        case 'mentionedInReply':
+        case 'comment_like':
+        case 'likeComment':
           // Navigate to post
           if (postId) {
             router.push(`/view-post/${postId}`);
@@ -600,6 +609,7 @@ export class NotificationService {
           }
           break;
         case 'direct_message':
+        case 'directMessage':
           // Navigate to conversation
           if (conversationId) {
             router.push(`/chat/${conversationId}`);
@@ -608,6 +618,7 @@ export class NotificationService {
           }
           break;
         case 'workout_shared':
+        case 'workoutShared':
           // Navigate to shared workout
           if (postId) {
             router.push(`/view-workout/${postId}`);
