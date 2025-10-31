@@ -504,9 +504,8 @@ export default function ViewMilestone() {
                   </View>
                 </View>
               )}
-              
               {/* Duration + Level (e.g., Plank with difficulty) */}
-              {details.duration && details.level && (
+              {details.duration && details.level && !details.value && (
                 <View style={styles.prMetricsColumn}>
                   <View style={styles.prMetricsRow}>
                     <View style={styles.prMetricGroup}>
@@ -563,6 +562,19 @@ export default function ViewMilestone() {
                   <Text style={styles.previousBestValue}>{formatDuration(details.previousDuration)}</Text>
                   <Text style={styles.previousBestUnit}>duration</Text>
                 </View>
+              )}
+              {details.previousValue && details.previousDuration && details.weightUnit && isDistanceUnit(details.weightUnit) && (
+                <>
+                  <View style={styles.prMetricGroup}>
+                    <Text style={styles.previousBestValue}>{convertAndFormatValue(details.previousValue, details.weightUnit).value}</Text>
+                    <Text style={styles.previousBestUnit}>{convertAndFormatValue(details.previousValue, details.weightUnit).unit}</Text>
+                  </View>
+                  <Text style={styles.previousBestSeparator}>in</Text>
+                  <View style={styles.prMetricGroup}>
+                    <Text style={styles.previousBestValue}>{formatDuration(details.previousDuration)}</Text>
+                    <Text style={styles.previousBestUnit}>time</Text>
+                  </View>
+                </>
               )}
             </View>
           )}
