@@ -225,32 +225,22 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
     if (milestone.milestoneType === 'PR') {
       const details = milestone.details;
       
-      // Parse old weight string format if it exists
-      const weightString = details.weight || '';
-      const weightParts = weightString.split(' ');
-      const legacyWeightValue = parseFloat(weightParts[0]) || 0;
-      const legacyWeightUnit = weightParts.length > 1 ? weightParts[1] : '';
-      
-      // Use new format (value + weightUnit) if available, otherwise fall back to legacy format
-      const weightValue = details.value || legacyWeightValue;
-      const weightUnit = details.weightUnit || legacyWeightUnit;
-      
-      // Determine which metric type this PR uses
-      const hasWeightReps = weightValue && details.reps && weightUnit && isWeightUnit(weightUnit);
-      const hasBodyweightReps = details.reps && !weightValue && !details.duration && !details.level;
-      const hasDuration = details.duration && !weightValue && !details.level;
-      const hasDurationLevel = details.duration && details.level && !weightValue;
-      const hasDistance = weightValue && weightUnit && isDistanceUnit(weightUnit) && !details.duration;
-      const hasDistanceTime = weightValue && details.duration && weightUnit && isDistanceUnit(weightUnit);
+      // Determine which metric type this PR uses (use details.value directly)
+      const hasWeightReps = details.value && details.reps && details.weightUnit && isWeightUnit(details.weightUnit);
+      const hasBodyweightReps = details.reps && !details.value && !details.duration && !details.level;
+      const hasDuration = details.duration && !details.value && !details.level;
+      const hasDurationLevel = details.duration && details.level && !details.value;
+      const hasDistance = details.value && details.weightUnit && isDistanceUnit(details.weightUnit) && !details.duration;
+      const hasDistanceTime = details.value && details.duration && details.weightUnit && isDistanceUnit(details.weightUnit);
 
       // Weight + Reps (e.g., Bench Press 225 lbs × 5 reps)
       if (hasWeightReps) {
-        const converted = convertAndFormatWeight(weightValue, weightUnit);
+        const converted = convertAndFormatWeight(details.value!, details.weightUnit!);
         
         return (
           <View style={styles.previousPRCard}>
             <View style={styles.previousPRHeader}>
-              <MaterialCommunityIcons name="barbell" size={18} color="#FF5E69" />
+              <MaterialCommunityIcons name="dumbbell" size={18} color="#FF5E69" />
               <Text style={styles.previousPRTitle}>
                 {details.exerciseName || 'Strength PR'}
               </Text>
@@ -354,7 +344,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
 
       // Distance Only (e.g., Run 5.2 km)
       if (hasDistance) {
-        const converted = convertAndFormatDistance(weightValue, weightUnit);
+        const converted = convertAndFormatDistance(details.value!, details.weightUnit!);
         
         return (
           <View style={styles.previousPRCard}>
@@ -380,8 +370,10 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
 
       // Distance + Time (e.g., 5K in 23m 15s, pace: 4m 39s/km)
       if (hasDistanceTime) {
-        const converted = convertAndFormatDistance(weightValue, weightUnit);
-        const pace = Math.round(details.duration / weightValue);
+        const converted = convertAndFormatDistance(details.value!, details.weightUnit!);
+        const pace = Math.round(details.duration! / details.value!);
+        // Get the unit name without 's' if it ends with 's'
+        const paceUnit = converted.unit.endsWith('s') ? converted.unit.slice(0, -1) : converted.unit;
         
         return (
           <View style={styles.previousPRCard}>
@@ -402,14 +394,14 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
               </View>
               <View style={styles.prMetricsRow}>
                 <View style={styles.prMetricGroup}>
-                  <Text style={styles.prMetricValue}>{formatDuration(details.duration)}</Text>
+                  <Text style={styles.prMetricValue}>{formatDuration(details.duration!)}</Text>
                   <Text style={styles.prMetricLabel}>time</Text>
                 </View>
               </View>
               <View style={styles.prMetricsRow}>
                 <View style={styles.prMetricGroup}>
                   <Text style={styles.prMetricValue}>{formatDuration(pace)}</Text>
-                  <Text style={styles.prMetricLabel}>per {converted.unit.split(' ')[0].slice(0, -1)}</Text>
+                  <Text style={styles.prMetricLabel}>per {paceUnit}</Text>
                 </View>
               </View>
             </View>
@@ -417,11 +409,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
         );
       }
 
-      // Fallback for unknown PR type or legacy format
-      const legacyConverted = legacyWeightValue && legacyWeightUnit 
-        ? convertAndFormatWeight(legacyWeightValue, legacyWeightUnit)
-        : null;
-
+      // Fallback for unknown PR type
       return (
         <View style={styles.previousPRCard}>
           <View style={styles.previousPRHeader}>
@@ -431,26 +419,6 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
             </Text>
             <Text style={styles.previousPRDate}>{formatTimeAgo(details.date)}</Text>
           </View>
-          
-          {legacyConverted && (
-            <View style={styles.previousPRContent}>
-              <View style={styles.prMetricsRow}>
-                <View style={styles.prMetricGroup}>
-                  <Text style={styles.prMetricValue}>{legacyConverted.value}</Text>
-                  <Text style={styles.prMetricLabel}>{legacyConverted.unit}</Text>
-                </View>
-                {details.reps != null && (
-                  <>
-                    <Text style={styles.prMetricSeparator}>×</Text>
-                    <View style={styles.prMetricGroup}>
-                      <Text style={styles.prMetricValue}>{details.reps}</Text>
-                      <Text style={styles.prMetricLabel}>reps</Text>
-                    </View>
-                  </>
-                )}
-              </View>
-            </View>
-          )}
         </View>
       );
     } else if (milestone.milestoneType === 'weightLoss' || milestone.milestoneType === 'weightGain') {

@@ -225,7 +225,7 @@ export default function MilestonesFeed() {
           <View style={styles.detailsContainer}>
             <View style={styles.previousPRCard}>
               <View style={styles.previousPRHeaderNoLine}>
-                <MaterialCommunityIcons name="barbell" size={18} color="#FF5E69" />
+                <MaterialCommunityIcons name="dumbbell" size={18} color="#FF5E69" />
                 <Text style={styles.previousPRTitle}>
                   {details.exerciseName || 'Strength PR'}
                 </Text>
