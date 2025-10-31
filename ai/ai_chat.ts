@@ -94,127 +94,30 @@ export async function sendMessage(history: ChatMessage[], currentMessage: string
 }
 
 /**
- * Send a message with intent classification to the AI backend
- * @param history - Array of previous chat messages for context
- * @param currentMessage - The current message from the user
- * @param userId - The user's unique ID for profile management
- * @returns Promise<string> - AI response text with intent processing
+ * @deprecated Use sendMessage() directly instead. Intent classification has been removed.
+ * This function now just calls sendMessage() for backward compatibility.
+ */
+/**
+ * @deprecated Use sendMessage() directly instead. Intent classification has been removed.
+ * This function now just calls sendMessage() for backward compatibility.
  */
 export async function sendMessageWithIntent(history: ChatMessage[], currentMessage: string, userId?: string): Promise<AIResponse> {
-  try {
-    console.log('Sending message with intent to AI backend:', { 
-      url: `${API_BASE_URL}/api/chat`,
-      messageCount: history.length,
-      currentMessage: currentMessage.substring(0, 100) + '...',
-      userId: userId || 'anonymous'
-    });
-
-    // First classify the intent
-    const intentResult = await classifyIntent(currentMessage);
-    console.log('Intent classification result:', intentResult);
-
-    const requestBody: any = {
-      message: currentMessage,
-      conversation_history: history,
-      intent: intentResult.intent,
-      confidence: intentResult.confidence
-    };
-
-    // Include user_id if provided for profile management
-    if (userId) {
-      requestBody.user_id = userId;
-    }
-
-    // Then send the message with intent context
-    const response = await fetch(`${API_BASE_URL}/api/chat`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(requestBody),
-    });
-
-    if (!response.ok) {
-      console.error('AI service response not ok:', response.status, response.statusText);
-      throw new Error(`AI service error: ${response.status} ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    console.log('Raw API response (with intent):', data);
-    
-    // Parse response into structured format
-    const responseText = data.response || data.text || data.message || "I'm sorry, I received an invalid response format from the AI service.";
-    
-    return {
-      text: responseText,
-      type: data.workout_plan ? 'workout_plan' : 'message',
-      workoutPlan: data.workout_plan || null,
-      interviewMode: data.interview_mode || false,
-      responseType: 'with_intent'
-    };
-  } catch (error) {
-    console.error('Error communicating with AI service (with intent):', error);
-    
-    // Fallback to regular message sending if intent processing fails
-    return await sendMessage(history, currentMessage, userId);
-  }
+  console.log('⚠️ sendMessageWithIntent is deprecated. Use sendMessage() instead.');
+  return sendMessage(history, currentMessage, userId);
 }
 
 /**
- * Classify the intent of a user message
- * @param message - The user's message to classify
- * @returns Promise<IntentClassificationResult> - Classification result
+ * @deprecated Intent classification has been removed. This function always returns a default result.
+ * The AI now handles all intent detection internally.
  */
 export async function classifyIntent(message: string): Promise<IntentClassificationResult> {
-  try {
-    console.log('Classifying intent for message:', message.substring(0, 50) + '...');
-
-    const response = await fetch(`${API_BASE_URL}/api/classify-intent`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        message: message
-      }),
-    });
-
-    if (!response.ok) {
-      console.error('Intent classification response not ok:', response.status, response.statusText);
-      return {
-        intent: 'chit_chat',
-        confidence: 0.5,
-        status: 'error',
-        message: 'Failed to classify intent'
-      };
-    }
-
-    const data = await response.json();
-    
-    if (data.status === 'success' && data.intent) {
-      return {
-        intent: data.intent,
-        confidence: data.confidence || 0.5,
-        status: 'success'
-      };
-    } else {
-      console.error('Intent classification failed:', data);
-      return {
-        intent: 'chit_chat',
-        confidence: 0.5,
-        status: 'error',
-        message: data.message || data.error || 'Classification failed'
-      };
-    }
-  } catch (error) {
-    console.error('Error classifying intent:', error);
-    return {
-      intent: 'chit_chat',
-      confidence: 0.5,
-      status: 'error',
-      message: 'Network error during intent classification'
-    };
-  }
+  console.log('⚠️ classifyIntent is deprecated and no longer used.');
+  return {
+    intent: 'chit_chat',
+    confidence: 1.0,
+    status: 'success',
+    message: 'Intent classification is now handled by the AI directly'
+  };
 }
 
 /**

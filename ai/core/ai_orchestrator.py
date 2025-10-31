@@ -76,8 +76,8 @@ class AIOrchestrator:
         try:
             context_data = context_data or {}
             
-            # 1. Load user context
-            user_context = self._load_user_context(user_id, message)
+            # 1. Load user context (pass context_data to get conversation_history)
+            user_context = self._load_user_context(user_id, message, context_data)
             profile = user_context.get('profile')
             
             # 2. CHECK FOR CONVERSATIONAL MEMORY CONFIRMATION FIRST
@@ -87,7 +87,7 @@ class AIOrchestrator:
                 return self._handle_profile_confirmation(user_id, pending, message)
             
             # 3. Let AI understand and respond naturally
-            return self._ai_orchestrate(user_id, message, user_context)
+            return self._ai_orchestrate(user_id, message, user_context, context_data)
                 
         except Exception as e:
             logger.error(f"Orchestrator error: {e}", exc_info=True)
@@ -97,19 +97,36 @@ class AIOrchestrator:
                 'error': str(e)
             }
     
-    def _load_user_context(self, user_id: str, message: str) -> Dict:
+    def _load_user_context(self, user_id: str, message: str, context_data: Dict = None) -> Dict:
         """Load user profile and relevant conversation history"""
         try:
+            context_data = context_data or {}
+            
             # Load profile
             profile = self.profile_manager.load_profile(user_id) if self.profile_manager else None
             
-            # Get relevant history from semantic memory
+            # Get conversation history from context_data (passed from frontend)
             history = []
-            try:
-                if self.semantic_memory:
-                    history = self.semantic_memory.retrieve_relevant_snippets(user_id, message, k=5)
-            except Exception:
-                pass
+            conversation_history = context_data.get('conversation_history', [])
+            
+            logger.info(f"Loading context for user {user_id[:8]}... | History messages: {len(conversation_history)}")
+            
+            if conversation_history:
+                # Use the full conversation history from the frontend
+                # Format: [{"text": "...", "role": "user|model"}]
+                history = [
+                    {"snippet_text": f"{msg.get('role', 'user').title()}: {msg.get('text', '')}"}
+                    for msg in conversation_history[-10:]  # Last 10 messages
+                ]
+                logger.info(f"Using {len(history)} messages from conversation history")
+            else:
+                # Fallback to semantic memory if no conversation_history provided
+                logger.info("No conversation_history provided, using semantic memory")
+                try:
+                    if self.semantic_memory:
+                        history = self.semantic_memory.retrieve_relevant_snippets(user_id, message, k=5)
+                except Exception:
+                    pass
             
             # Get allowed exercises based on profile
             allowed_exercises = []
@@ -176,12 +193,13 @@ class AIOrchestrator:
                 'error': str(e)
             }
     
-    def _ai_orchestrate(self, user_id: str, message: str, user_context: Dict) -> Dict:
+    def _ai_orchestrate(self, user_id: str, message: str, user_context: Dict, context_data: Dict = None) -> Dict:
         """
         Let AI handle EVERYTHING - understanding, planning, responding
         NO hardcoded logic!
         """
         try:
+            context_data = context_data or {}
             profile = user_context.get('profile')
             history = user_context.get('history', [])
             allowed_exercises = user_context.get('allowed_exercises', [])
@@ -237,7 +255,8 @@ Equipment: {getattr(profile, 'available_equipment', 'unknown')}
         # Format history
         history_context = "No previous conversations"
         if history:
-            history_context = "\n".join([h.get('snippet_text', '') for h in history[:3]])
+            history_lines = [h.get('snippet_text', '') for h in history[-10:]]  # Last 10 messages
+            history_context = "\n".join(history_lines)
         
         # Format available exercises (limit to 50 for context window)
         exercises_context = "Loading exercises..."
@@ -252,12 +271,21 @@ USER MESSAGE: "{message}"
 USER PROFILE:
 {profile_context}
 
-RECENT CONVERSATION:
+RECENT CONVERSATION HISTORY (READ THIS CAREFULLY - DO NOT ASK FOR INFO ALREADY PROVIDED):
 {history_context}
+
+CRITICAL INSTRUCTIONS:
+- READ THE CONVERSATION HISTORY ABOVE CAREFULLY
+- DO NOT ask for information the user already provided in the conversation history
+- If they told you their experience level, remember it
+- If they told you their goals, remember them
+- Use the conversation context to personalize your responses
 
 YOUR TASK:
 1. Understand what the user wants (workout plan, advice, information, etc.)
 2. If they want a workout:
+   - FIRST, ask what type of workout they want (chest, back, legs, full body, etc.) if not specified
+   - ONLY generate a workout if you know the target muscle group/body part
    - Create a complete structured workout
    - AVOID exercises they dislike
    - MODIFY for injuries (low-impact alternatives)

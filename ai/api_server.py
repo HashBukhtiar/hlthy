@@ -217,16 +217,21 @@ def chat():
         
         user_id = data.get('user_id', 'anonymous_user')
         message = data.get('message', '')
+        conversation_history = data.get('conversation_history', [])
         
         if not message:
             return jsonify({"error": "Missing message field"}), 400
         
-        print(f"User: {user_id[:8]}... | Message: {message[:50]}...")
+        print(f"User: {user_id[:8]}... | Message: {message[:50]}... | History: {len(conversation_history)} messages")
         
         # Use AI Orchestrator if available
         if ai_orchestrator:
             try:
-                result = ai_orchestrator.process_message(user_id, message)
+                # Pass conversation history as context
+                context_data = {
+                    'conversation_history': conversation_history
+                }
+                result = ai_orchestrator.process_message(user_id, message, context_data)
                 
                 print(f"AI Response type: {result.get('type')}")
                 
