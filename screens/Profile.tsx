@@ -162,74 +162,329 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
   };
 
   const renderMilestoneDetails = (milestone: { milestoneType: string, details: any }) => {
-    // Parse weight string like "275 lbs" into value and unit
-    const weightString = milestone.details.weight || '';
-    const weightParts = weightString.split(' ');
-    const rawWeightValue = parseFloat(weightParts[0]) || 0;
-    const storedWeightUnit = weightParts.length > 1 ? weightParts[1] : '';
-    
-    // Convert weight to user's preferred unit
-    let convertedWeight = rawWeightValue;
-    let displayWeightUnit = storedWeightUnit || getWeightUnit();
-    
-    if (storedWeightUnit && storedWeightUnit !== getWeightUnit()) {
-      const userPreferredUnit = getWeightUnit() as 'kg' | 'lbs';
-      const storedUnit = storedWeightUnit as 'kg' | 'lbs';
-      convertedWeight = convertWeight(rawWeightValue, storedUnit, userPreferredUnit);
-      displayWeightUnit = userPreferredUnit;
-    }
-    
-    // Round to 1 decimal place
-    const displayWeight = Math.round(convertedWeight * 10) / 10;
+    // Helper function to check if unit is a distance unit
+    const isDistanceUnit = (unit?: string): boolean => {
+      return unit === 'km' || unit === 'miles';
+    };
+
+    // Helper function to check if unit is a weight unit
+    const isWeightUnit = (unit?: string): boolean => {
+      return unit === 'kg' || unit === 'lbs';
+    };
+
+    // Helper function for duration formatting
+    const formatDuration = (seconds: number): string => {
+      const hours = Math.floor(seconds / 3600);
+      const minutes = Math.floor((seconds % 3600) / 60);
+      const secs = seconds % 60;
+      
+      const parts: string[] = [];
+      if (hours > 0) parts.push(`${hours}h`);
+      if (minutes > 0 || hours > 0) parts.push(`${minutes}m`);
+      parts.push(`${secs}s`);
+      
+      return parts.join(' ');
+    };
+
+    // Helper function for weight conversion
+    const convertAndFormatWeight = (value: number, unit: string) => {
+      const userPreferredUnit = getWeightUnit();
+      let convertedValue = value;
+      let displayUnit = unit;
+      
+      if (unit !== userPreferredUnit) {
+        if (unit === 'kg' && userPreferredUnit === 'lbs') {
+          convertedValue = Math.round(value * 2.20462 * 10) / 10;
+        } else if (unit === 'lbs' && userPreferredUnit === 'kg') {
+          convertedValue = Math.round(value * 0.453592 * 10) / 10;
+        }
+        displayUnit = userPreferredUnit;
+      }
+      
+      return { value: Math.round(convertedValue * 10) / 10, unit: displayUnit };
+    };
+
+    // Helper function for distance conversion
+    const convertAndFormatDistance = (value: number, unit: string) => {
+      const userPreferredUnit = getDistanceUnit();
+      let convertedValue = value;
+      let displayUnit = unit;
+      
+      if (unit !== userPreferredUnit) {
+        if (unit === 'km' && userPreferredUnit === 'miles') {
+          convertedValue = Math.round(value * 0.621371 * 10) / 10;
+        } else if (unit === 'miles' && userPreferredUnit === 'km') {
+          convertedValue = Math.round(value * 1.60934 * 10) / 10;
+        }
+        displayUnit = userPreferredUnit;
+      }
+      
+      return { value: convertedValue, unit: displayUnit };
+    };
 
     if (milestone.milestoneType === 'PR') {
-      return (
-        <View style={styles.previousPRCard}>
+      const details = milestone.details;
+      
+      // Parse old weight string format if it exists
+      const weightString = details.weight || '';
+      const weightParts = weightString.split(' ');
+      const legacyWeightValue = parseFloat(weightParts[0]) || 0;
+      const legacyWeightUnit = weightParts.length > 1 ? weightParts[1] : '';
+      
+      // Use new format (value + weightUnit) if available, otherwise fall back to legacy format
+      const weightValue = details.value || legacyWeightValue;
+      const weightUnit = details.weightUnit || legacyWeightUnit;
+      
+      // Determine which metric type this PR uses
+      const hasWeightReps = weightValue && details.reps && weightUnit && isWeightUnit(weightUnit);
+      const hasBodyweightReps = details.reps && !weightValue && !details.duration && !details.level;
+      const hasDuration = details.duration && !weightValue && !details.level;
+      const hasDurationLevel = details.duration && details.level && !weightValue;
+      const hasDistance = weightValue && weightUnit && isDistanceUnit(weightUnit) && !details.duration;
+      const hasDistanceTime = weightValue && details.duration && weightUnit && isDistanceUnit(weightUnit);
+
+      // Weight + Reps (e.g., Bench Press 225 lbs × 5 reps)
+      if (hasWeightReps) {
+        const converted = convertAndFormatWeight(weightValue, weightUnit);
+        
+        return (
+          <View style={styles.previousPRCard}>
             <View style={styles.previousPRHeader}>
-              <MaterialCommunityIcons name="trophy-outline" size={18} color="#FF5E69" />
+              <MaterialCommunityIcons name="barbell" size={18} color="#FF5E69" />
               <Text style={styles.previousPRTitle}>
-                {milestone.details.exerciseName || 'Personal Record'}
+                {details.exerciseName || 'Strength PR'}
               </Text>
-              <Text style={styles.previousPRDate}>{formatTimeAgo(milestone.details.date)}</Text>
+              <Text style={styles.previousPRDate}>{formatTimeAgo(details.date)}</Text>
             </View>
             
             <View style={styles.previousPRContent}>
               <View style={styles.prMetricsRow}>
                 <View style={styles.prMetricGroup}>
-                  <Text style={styles.prMetricValue}>{displayWeight}</Text>
-                  <Text style={styles.prMetricLabel}>{displayWeightUnit}</Text>
+                  <Text style={styles.prMetricValue}>{converted.value}</Text>
+                  <Text style={styles.prMetricLabel}>{converted.unit}</Text>
                 </View>
-                {milestone.details.reps != null && (
+                <Text style={styles.prMetricSeparator}>×</Text>
+                <View style={styles.prMetricGroup}>
+                  <Text style={styles.prMetricValue}>{details.reps}</Text>
+                  <Text style={styles.prMetricLabel}>reps</Text>
+                </View>
+              </View>
+            </View>
+          </View>
+        );
+      }
+
+      // Bodyweight Reps (e.g., Push-ups 50 reps)
+      if (hasBodyweightReps) {
+        return (
+          <View style={styles.previousPRCard}>
+            <View style={styles.previousPRHeader}>
+              <MaterialCommunityIcons name="human-handsup" size={18} color="#FF5E69" />
+              <Text style={styles.previousPRTitle}>
+                {details.exerciseName || 'Bodyweight PR'}
+              </Text>
+              <Text style={styles.previousPRDate}>{formatTimeAgo(details.date)}</Text>
+            </View>
+            
+            <View style={styles.previousPRContent}>
+              <View style={styles.prMetricsRow}>
+                <View style={styles.prMetricGroup}>
+                  <Text style={styles.prMetricValue}>{details.reps}</Text>
+                  <Text style={styles.prMetricLabel}>reps</Text>
+                </View>
+              </View>
+            </View>
+          </View>
+        );
+      }
+
+      // Duration Only (e.g., Plank 3m 45s)
+      if (hasDuration) {
+        return (
+          <View style={styles.previousPRCard}>
+            <View style={styles.previousPRHeader}>
+              <MaterialCommunityIcons name="timer-outline" size={18} color="#FF5E69" />
+              <Text style={styles.previousPRTitle}>
+                {details.exerciseName || 'Endurance PR'}
+              </Text>
+              <Text style={styles.previousPRDate}>{formatTimeAgo(details.date)}</Text>
+            </View>
+            
+            <View style={styles.previousPRContent}>
+              <View style={styles.prMetricsRow}>
+                <View style={styles.prMetricGroup}>
+                  <Text style={styles.prMetricValue}>{formatDuration(details.duration)}</Text>
+                  <Text style={styles.prMetricLabel}>time</Text>
+                </View>
+              </View>
+            </View>
+          </View>
+        );
+      }
+
+      // Duration + Level (e.g., Plank Level 7: 2m 30s)
+      if (hasDurationLevel) {
+        return (
+          <View style={styles.previousPRCard}>
+            <View style={styles.previousPRHeader}>
+              <MaterialCommunityIcons name="timer-sand" size={18} color="#FF5E69" />
+              <Text style={styles.previousPRTitle}>
+                {details.exerciseName || 'Endurance PR'}
+              </Text>
+              <Text style={styles.previousPRDate}>{formatTimeAgo(details.date)}</Text>
+            </View>
+            
+            <View style={styles.previousPRContent}>
+              <View style={styles.prMetricsRow}>
+                <View style={styles.prMetricGroup}>
+                  <Text style={styles.prMetricValue}>{formatDuration(details.duration)}</Text>
+                  <Text style={styles.prMetricLabel}>time</Text>
+                </View>
+              </View>
+              <View style={styles.prMetricsRow}>
+                <View style={styles.prMetricGroup}>
+                  <Text style={styles.prMetricValue}>Level {details.level}</Text>
+                  <Text style={styles.prMetricLabel}>difficulty</Text>
+                </View>
+              </View>
+            </View>
+          </View>
+        );
+      }
+
+      // Distance Only (e.g., Run 5.2 km)
+      if (hasDistance) {
+        const converted = convertAndFormatDistance(weightValue, weightUnit);
+        
+        return (
+          <View style={styles.previousPRCard}>
+            <View style={styles.previousPRHeader}>
+              <MaterialCommunityIcons name="run" size={18} color="#FF5E69" />
+              <Text style={styles.previousPRTitle}>
+                {details.exerciseName || 'Distance PR'}
+              </Text>
+              <Text style={styles.previousPRDate}>{formatTimeAgo(details.date)}</Text>
+            </View>
+            
+            <View style={styles.previousPRContent}>
+              <View style={styles.prMetricsRow}>
+                <View style={styles.prMetricGroup}>
+                  <Text style={styles.prMetricValue}>{converted.value}</Text>
+                  <Text style={styles.prMetricLabel}>{converted.unit}</Text>
+                </View>
+              </View>
+            </View>
+          </View>
+        );
+      }
+
+      // Distance + Time (e.g., 5K in 23m 15s, pace: 4m 39s/km)
+      if (hasDistanceTime) {
+        const converted = convertAndFormatDistance(weightValue, weightUnit);
+        const pace = Math.round(details.duration / weightValue);
+        
+        return (
+          <View style={styles.previousPRCard}>
+            <View style={styles.previousPRHeader}>
+              <MaterialCommunityIcons name="run-fast" size={18} color="#FF5E69" />
+              <Text style={styles.previousPRTitle}>
+                {details.exerciseName || 'Cardio PR'}
+              </Text>
+              <Text style={styles.previousPRDate}>{formatTimeAgo(details.date)}</Text>
+            </View>
+            
+            <View style={styles.previousPRContent}>
+              <View style={styles.prMetricsRow}>
+                <View style={styles.prMetricGroup}>
+                  <Text style={styles.prMetricValue}>{converted.value}</Text>
+                  <Text style={styles.prMetricLabel}>{converted.unit}</Text>
+                </View>
+              </View>
+              <View style={styles.prMetricsRow}>
+                <View style={styles.prMetricGroup}>
+                  <Text style={styles.prMetricValue}>{formatDuration(details.duration)}</Text>
+                  <Text style={styles.prMetricLabel}>time</Text>
+                </View>
+              </View>
+              <View style={styles.prMetricsRow}>
+                <View style={styles.prMetricGroup}>
+                  <Text style={styles.prMetricValue}>{formatDuration(pace)}</Text>
+                  <Text style={styles.prMetricLabel}>per {converted.unit.split(' ')[0].slice(0, -1)}</Text>
+                </View>
+              </View>
+            </View>
+          </View>
+        );
+      }
+
+      // Fallback for unknown PR type or legacy format
+      const legacyConverted = legacyWeightValue && legacyWeightUnit 
+        ? convertAndFormatWeight(legacyWeightValue, legacyWeightUnit)
+        : null;
+
+      return (
+        <View style={styles.previousPRCard}>
+          <View style={styles.previousPRHeader}>
+            <MaterialCommunityIcons name="trophy-outline" size={18} color="#FF5E69" />
+            <Text style={styles.previousPRTitle}>
+              {details.exerciseName || 'Personal Record'}
+            </Text>
+            <Text style={styles.previousPRDate}>{formatTimeAgo(details.date)}</Text>
+          </View>
+          
+          {legacyConverted && (
+            <View style={styles.previousPRContent}>
+              <View style={styles.prMetricsRow}>
+                <View style={styles.prMetricGroup}>
+                  <Text style={styles.prMetricValue}>{legacyConverted.value}</Text>
+                  <Text style={styles.prMetricLabel}>{legacyConverted.unit}</Text>
+                </View>
+                {details.reps != null && (
                   <>
                     <Text style={styles.prMetricSeparator}>×</Text>
                     <View style={styles.prMetricGroup}>
-                      <Text style={styles.prMetricValue}>{milestone.details.reps}</Text>
+                      <Text style={styles.prMetricValue}>{details.reps}</Text>
                       <Text style={styles.prMetricLabel}>reps</Text>
                     </View>
                   </>
                 )}
               </View>
             </View>
+          )}
         </View>
       );
     } else if (milestone.milestoneType === 'weightLoss' || milestone.milestoneType === 'weightGain') {
       const isLoss = milestone.milestoneType === 'weightLoss';
+      const details = milestone.details;
+      
+      // Parse old weight string format if it exists
+      const weightString = details.weight || '';
+      const weightParts = weightString.split(' ');
+      const legacyWeightValue = parseFloat(weightParts[0]) || 0;
+      const legacyWeightUnit = weightParts.length > 1 ? weightParts[1] : '';
+      
+      // Use new format if available, otherwise fall back to legacy
+      const weightValue = details.newWeight || legacyWeightValue;
+      const weightUnit = details.newWeightUnit || legacyWeightUnit || getWeightUnit();
+      
+      const converted = convertAndFormatWeight(weightValue, weightUnit);
+      
       return (
         <View style={styles.previousPRCard}>
-            <View style={styles.previousPRHeader}>
-              <Ionicons name="fitness-outline" size={18} color="#FF5E69" />
-              <Text style={styles.previousPRTitle}>{isLoss ? 'Weight Loss' : 'Weight Gain'}</Text>
-              <Text style={styles.previousPRDate}>{formatTimeAgo(milestone.details.date)}</Text>
-            </View>
-            
-            <View style={styles.previousPRContent}>
-              <View style={styles.prMetricsRow}>
-                <View style={styles.prMetricGroup}>
-                  <Text style={styles.prMetricValue}>{displayWeight}</Text>
-                  <Text style={styles.prMetricLabel}>{displayWeightUnit}</Text>
-                </View>
+          <View style={styles.previousPRHeader}>
+            <Ionicons name="fitness-outline" size={18} color="#FF5E69" />
+            <Text style={styles.previousPRTitle}>{isLoss ? 'Weight Loss' : 'Weight Gain'}</Text>
+            <Text style={styles.previousPRDate}>{formatTimeAgo(details.date)}</Text>
+          </View>
+          
+          <View style={styles.previousPRContent}>
+            <View style={styles.prMetricsRow}>
+              <View style={styles.prMetricGroup}>
+                <Text style={styles.prMetricValue}>{converted.value}</Text>
+                <Text style={styles.prMetricLabel}>{converted.unit}</Text>
               </View>
             </View>
+          </View>
         </View>
       );
     }
