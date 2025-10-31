@@ -230,19 +230,17 @@ def chat():
                 
                 print(f"AI Response type: {result.get('type')}")
                 
-                # Transform to API format
+                # Transform to frontend-compatible API format
                 api_response = {
-                    "success": True,
                     "response": result.get('message', ''),
-                    "type": result.get('type', 'conversational'),
-                    "used_systems": result.get('used_systems', ['ai_orchestrator'])
+                    "type": result.get('type', 'conversational')
                 }
                 
-                # Include workout if present
+                # Include workout if present (frontend expects 'workoutPlan')
                 if result.get('workout'):
-                    api_response['workout'] = result['workout']
+                    api_response['workoutPlan'] = result['workout']
                 
-                # Include pending confirmations if present
+                # Include pending confirmations if present (for conversational memory)
                 if result.get('pending_confirmations'):
                     api_response['pending_confirmations'] = result['pending_confirmations']
                     api_response['requires_user_confirmation'] = True
@@ -262,11 +260,8 @@ def chat():
         # Fallback response when AI is unavailable
         fallback_message = get_simple_fallback_response(message)
         return jsonify({
-            "success": True,
             "response": fallback_message,
-            "type": "conversational",
-            "fallback": True,
-            "used_systems": ["simple_fallback"]
+            "type": "conversational"
         })
         
     except Exception as e:

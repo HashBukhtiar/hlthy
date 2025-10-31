@@ -245,7 +245,7 @@ Equipment: {getattr(profile, 'available_equipment', 'unknown')}
             exercise_names = [ex.get('name', '') for ex in allowed_exercises[:50]]
             exercises_context = f"Available: {', '.join(exercise_names)}"
         
-        prompt = f"""You are a professional fitness AI coach. Understand the user's message and respond appropriately.
+        prompt = f"""You are a professional fitness AI coach and workout programmer. Create personalized, safe, and effective workouts.
 
 USER MESSAGE: "{message}"
 
@@ -255,25 +255,81 @@ USER PROFILE:
 RECENT CONVERSATION:
 {history_context}
 
-AVAILABLE EXERCISES:
-{exercises_context}
-
 YOUR TASK:
-1. Understand what the user wants (workout plan, information, profile update, etc.)
-2. If they want a workout and you have enough profile info, create one
-3. If profile info is missing, ask naturally for what you need
-4. If they're just chatting, respond helpfully
-5. If they mention dislikes/injuries/preferences, note them but don't be pushy
+1. Understand what the user wants (workout plan, advice, information, etc.)
+2. If they want a workout:
+   - Create a complete structured workout
+   - AVOID exercises they dislike
+   - MODIFY for injuries (low-impact alternatives)
+   - Match their experience level
+   - Include: exercise name, sets, reps, rest, notes
+3. If profile info is missing, ask naturally
+4. If just chatting, respond helpfully
+
+CRITICAL RULES FOR WORKOUTS:
+- DO NOT include exercises from their dislikes list
+- DO modify exercises for injuries (e.g., knee injury → avoid jumping, deep squats)
+- DO provide proper form cues in notes
+- DO include warm-up if appropriate
+- DO structure: 4-6 exercises, 3-4 sets each
 
 RESPOND IN JSON FORMAT:
 {{
     "type": "workout_plan" | "conversational" | "profile_question",
-    "message": "Your natural response to the user",
-    "workout": {{"name": "...", "exercises": [...]}} (ONLY if type is workout_plan),
-    "profile_needs": ["experience_level", "goals", etc.] (ONLY if you need profile info)
+    "message": "Your natural response introducing the workout or answering their question",
+    "workout": {{
+        "name": "Workout name (e.g., 'Upper Body Strength')",
+        "focus": "primary muscle group",
+        "duration_minutes": 45,
+        "difficulty": "beginner|intermediate|advanced",
+        "exercises": [
+            {{
+                "name": "Exercise name (e.g., 'Push-ups')",
+                "sets": 3,
+                "reps": "10-12" or "30 seconds",
+                "rest_seconds": 60,
+                "notes": "Form cues and tips",
+                "muscle_groups": ["chest", "triceps"],
+                "equipment": "none" or "dumbbells" etc.
+            }}
+        ]
+    }} (ONLY if type is workout_plan),
+    "profile_needs": ["experience_level", "goals"] (ONLY if critical info missing)
 }}
 
-Be conversational, helpful, and natural. Don't be robotic!
+EXAMPLE WORKOUT RESPONSE:
+{{
+    "type": "workout_plan",
+    "message": "Here's a chest workout that avoids burpees and is knee-friendly!",
+    "workout": {{
+        "name": "Chest & Triceps Power",
+        "focus": "chest",
+        "duration_minutes": 45,
+        "difficulty": "intermediate",
+        "exercises": [
+            {{
+                "name": "Push-ups",
+                "sets": 3,
+                "reps": "10-15",
+                "rest_seconds": 60,
+                "notes": "Keep core tight, full range of motion",
+                "muscle_groups": ["chest", "triceps", "shoulders"],
+                "equipment": "none"
+            }},
+            {{
+                "name": "Dumbbell Bench Press",
+                "sets": 4,
+                "reps": "8-10",
+                "rest_seconds": 90,
+                "notes": "Control the weight, don't bounce off chest",
+                "muscle_groups": ["chest", "triceps"],
+                "equipment": "dumbbells"
+            }}
+        ]
+    }}
+}}
+
+Be helpful and personalize based on their profile!
 """
         return prompt
     
