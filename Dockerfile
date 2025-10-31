@@ -57,4 +57,4 @@ CMD ["gunicorn", \
      "--preload", \
      "--access-logfile", "-", \
      "--error-logfile", "-", \
-     "tests.vertex_testing:app"]
+     "api_server:app"]
