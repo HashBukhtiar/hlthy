@@ -222,20 +222,37 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
       return { value: convertedValue, unit: displayUnit };
     };
 
+    // **FIX: Parse the weight string from useProfileData hook format**
+    const parseWeightString = (weightStr?: string) => {
+      if (!weightStr) return { value: null, unit: null };
+      const parts = weightStr.split(' ');
+      const value = parseFloat(parts[0]);
+      const unit = parts[1] || null;
+      return { value: isNaN(value) ? null : value, unit };
+    };
+
     if (milestone.milestoneType === 'PR') {
       const details = milestone.details;
       
-      // Determine which metric type this PR uses (use details.value directly)
-      const hasWeightReps = details.value && details.reps && details.weightUnit && isWeightUnit(details.weightUnit);
-      const hasBodyweightReps = details.reps && !details.value && !details.duration && !details.level;
-      const hasDuration = details.duration && !details.value && !details.level;
-      const hasDurationLevel = details.duration && details.level && !details.value;
-      const hasDistance = details.value && details.weightUnit && isDistanceUnit(details.weightUnit) && !details.duration;
-      const hasDistanceTime = details.value && details.duration && details.weightUnit && isDistanceUnit(details.weightUnit);
+      // **FIX: Handle both old format (weight string) and new format (value + weightUnit)**
+      const parsedWeight = parseWeightString(details.weight);
+      const actualValue = details.value ?? parsedWeight.value;
+      const actualWeightUnit = details.weightUnit ?? parsedWeight.unit;
+      const actualReps = details.reps;
+      const actualDuration = details.duration;
+      const actualLevel = details.level;
+      
+      // Determine which metric type this PR uses
+      const hasWeightReps = actualValue && actualReps && actualWeightUnit && isWeightUnit(actualWeightUnit);
+      const hasBodyweightReps = actualReps && !actualValue && !actualDuration && !actualLevel;
+      const hasDuration = actualDuration && !actualValue && !actualLevel;
+      const hasDurationLevel = actualDuration && actualLevel && !actualValue;
+      const hasDistance = actualValue && actualWeightUnit && isDistanceUnit(actualWeightUnit) && !actualDuration;
+      const hasDistanceTime = actualValue && actualDuration && actualWeightUnit && isDistanceUnit(actualWeightUnit);
 
       // Weight + Reps (e.g., Bench Press 225 lbs × 5 reps)
       if (hasWeightReps) {
-        const converted = convertAndFormatWeight(details.value!, details.weightUnit!);
+        const converted = convertAndFormatWeight(actualValue!, actualWeightUnit!);
         
         return (
           <View style={styles.previousPRCard}>
@@ -255,7 +272,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
                 </View>
                 <Text style={styles.prMetricSeparator}>×</Text>
                 <View style={styles.prMetricGroup}>
-                  <Text style={styles.prMetricValue}>{details.reps}</Text>
+                  <Text style={styles.prMetricValue}>{actualReps}</Text>
                   <Text style={styles.prMetricLabel}>reps</Text>
                 </View>
               </View>
@@ -279,7 +296,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
             <View style={styles.previousPRContent}>
               <View style={styles.prMetricsRow}>
                 <View style={styles.prMetricGroup}>
-                  <Text style={styles.prMetricValue}>{details.reps}</Text>
+                  <Text style={styles.prMetricValue}>{actualReps}</Text>
                   <Text style={styles.prMetricLabel}>reps</Text>
                 </View>
               </View>
@@ -303,7 +320,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
             <View style={styles.previousPRContent}>
               <View style={styles.prMetricsRow}>
                 <View style={styles.prMetricGroup}>
-                  <Text style={styles.prMetricValue}>{formatDuration(details.duration)}</Text>
+                  <Text style={styles.prMetricValue}>{formatDuration(actualDuration)}</Text>
                   <Text style={styles.prMetricLabel}>time</Text>
                 </View>
               </View>
@@ -327,13 +344,13 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
             <View style={styles.previousPRContent}>
               <View style={styles.prMetricsRow}>
                 <View style={styles.prMetricGroup}>
-                  <Text style={styles.prMetricValue}>{formatDuration(details.duration)}</Text>
+                  <Text style={styles.prMetricValue}>{formatDuration(actualDuration)}</Text>
                   <Text style={styles.prMetricLabel}>time</Text>
                 </View>
               </View>
               <View style={styles.prMetricsRow}>
                 <View style={styles.prMetricGroup}>
-                  <Text style={styles.prMetricValue}>Level {details.level}</Text>
+                  <Text style={styles.prMetricValue}>Level {actualLevel}</Text>
                   <Text style={styles.prMetricLabel}>difficulty</Text>
                 </View>
               </View>
@@ -344,7 +361,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
 
       // Distance Only (e.g., Run 5.2 km)
       if (hasDistance) {
-        const converted = convertAndFormatDistance(details.value!, details.weightUnit!);
+        const converted = convertAndFormatDistance(actualValue!, actualWeightUnit!);
         
         return (
           <View style={styles.previousPRCard}>
@@ -370,9 +387,8 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
 
       // Distance + Time (e.g., 5K in 23m 15s, pace: 4m 39s/km)
       if (hasDistanceTime) {
-        const converted = convertAndFormatDistance(details.value!, details.weightUnit!);
-        const pace = Math.round(details.duration! / details.value!);
-        // Get the unit name without 's' if it ends with 's'
+        const converted = convertAndFormatDistance(actualValue!, actualWeightUnit!);
+        const pace = Math.round(actualDuration! / actualValue!);
         const paceUnit = converted.unit.endsWith('s') ? converted.unit.slice(0, -1) : converted.unit;
         
         return (
@@ -394,7 +410,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
               </View>
               <View style={styles.prMetricsRow}>
                 <View style={styles.prMetricGroup}>
-                  <Text style={styles.prMetricValue}>{formatDuration(details.duration!)}</Text>
+                  <Text style={styles.prMetricValue}>{formatDuration(actualDuration!)}</Text>
                   <Text style={styles.prMetricLabel}>time</Text>
                 </View>
               </View>
