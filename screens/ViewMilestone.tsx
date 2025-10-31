@@ -563,6 +563,7 @@ export default function ViewMilestone() {
                   <Text style={styles.previousBestUnit}>duration</Text>
                 </View>
               )}
+              {/* Previous Distance + Duration for distance_time */}
               {details.previousValue && details.previousDuration && details.weightUnit && isDistanceUnit(details.weightUnit) && (
                 <>
                   <View style={styles.prMetricGroup}>
