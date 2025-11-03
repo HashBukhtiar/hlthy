@@ -80,7 +80,7 @@ export default function ViewMilestone() {
               isLiked = false;
             }
           }
-
+          
           const milestoneData: Milestone = {
             id: milestoneSnap.id,
             userId: data.authorId,
@@ -90,16 +90,33 @@ export default function ViewMilestone() {
             createdAt: data.createdAt.toDate(),
             milestoneType: data.milestoneDetails?.type,
             details: {
+              // Exercise info
               exerciseName: data.milestoneDetails?.exerciseName,
+              exerciseId: data.milestoneDetails?.exerciseId,
+              
+              // All metric values
               value: data.milestoneDetails?.value,
               weightUnit: data.milestoneDetails?.weightUnit,
               reps: data.milestoneDetails?.reps,
+              duration: data.milestoneDetails?.duration,
+              level: data.milestoneDetails?.level,
+              distance: data.milestoneDetails?.distance,
+              distanceUnit: data.milestoneDetails?.distanceUnit,
+              
+              // Weight change milestones
               newWeight: data.milestoneDetails?.newWeight,
               newWeightUnit: data.milestoneDetails?.newWeightUnit,
               previousWeight: data.milestoneDetails?.previousWeight,
               previousWeightUnit: data.milestoneDetails?.previousWeightUnit,
+              
+              // Previous records for ALL types
               previousValue: data.milestoneDetails?.previousValue,
               previousReps: data.milestoneDetails?.previousReps,
+              previousDuration: data.milestoneDetails?.previousDuration,
+              previousDistance: data.milestoneDetails?.previousDistance,
+              previousLevel: data.milestoneDetails?.previousLevel,
+              
+              // Improvements
               improvement: data.milestoneDetails?.improvement,
               totalLoss: data.milestoneDetails?.totalLoss,
               percentageLoss: data.milestoneDetails?.percentageLoss,
