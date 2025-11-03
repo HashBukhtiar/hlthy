@@ -77,6 +77,13 @@ export default function MilestoneWithPost({ onBack }: MilestoneWithPostProps) {
     const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(null);
     const [showExerciseSelector, setShowExerciseSelector] = useState(false);
     
+    // Milestone type selection
+    const [milestoneType, setMilestoneType] = useState<'PR' | 'weightLoss' | 'weightGain'>('PR');
+    
+    // Weight milestone fields
+    const [newBodyWeight, setNewBodyWeight] = useState('');
+    const [previousBodyWeight, setPreviousBodyWeight] = useState('');
+    
     // Animation values for field transitions
     const [fadeAnim] = useState(new Animated.Value(0));
     const [prFadeAnim] = useState(new Animated.Value(0));
@@ -392,91 +399,117 @@ export default function MilestoneWithPost({ onBack }: MilestoneWithPostProps) {
             setFormError("Please add an image or a caption for your post");
             return;
         }
-        if (!selectedExercise) {
-            setFormError("Please select an exercise first");
-            return;
+        
+        // Type-based validation
+        if (milestoneType === 'PR') {
+            if (!selectedExercise) {
+                setFormError("Please select an exercise first");
+                return;
+            }
+        } else {
+            // Weight milestone validation
+            if (!newBodyWeight) {
+                setFormError("Please enter your new body weight");
+                return;
+            }
         }
 
         setIsSubmitting(true);
         setFormError(null);
 
         try {
-            const metricType = selectedExercise.metricType;
-            const milestoneDetails: any = {
-                type: 'PR',
-                exerciseName: selectedExercise.name,
-                exerciseId: selectedExercise.id,
-                achievedAt: new Date().toISOString(),
-                previousValue: null,
-                previousReps: null,
-                previousDuration: null,
-                previousLevel: null,
-                previousDistance: null,
-            };
+            const milestoneDetails: any = {};
 
-            // Validate and assign metric-specific values
-            switch (metricType) {
-                case 'weight_reps':
-                    if (!weight || !reps) {
-                        throw new Error("Please enter both weight and reps");
-                    }
-                    milestoneDetails.value = parseFloat(weight);
-                    milestoneDetails.reps = parseInt(reps, 10);
-                    milestoneDetails.weightUnit = getWeightUnit();
-                    if (previousPR) {
-                        milestoneDetails.previousValue = previousPR.weight;
-                        milestoneDetails.previousReps = previousPR.reps;
-                    }
-                    break;
-                case 'bodyweight_reps':
-                    if (!reps) {
-                        throw new Error("Please enter number of reps");
-                    }
-                    milestoneDetails.reps = parseInt(reps, 10);
-                    if (previousPR) {
-                        milestoneDetails.previousReps = previousPR.reps;
-                    }
-                    break;
-                case 'duration':
-                case 'duration_level':
-                    const durationSeconds = (parseInt(hours || '0') * 3600) + (parseInt(minutes || '0') * 60) + parseInt(seconds || '0');
-                    if (durationSeconds <= 0) {
-                        throw new Error("Please enter a valid duration");
-                    }
-                    milestoneDetails.duration = durationSeconds;
-                    milestoneDetails.value = durationSeconds;
-                    if (metricType === 'duration_level') {
-                        if (!level) {
-                            throw new Error("Please enter a difficulty level");
+            // Handle weight milestones
+            if (milestoneType === 'weightLoss' || milestoneType === 'weightGain') {
+                milestoneDetails.type = milestoneType;
+                milestoneDetails.newWeight = parseFloat(newBodyWeight);
+                milestoneDetails.newWeightUnit = getWeightUnit();
+                milestoneDetails.achievedAt = new Date().toISOString();
+
+                if (previousBodyWeight) {
+                    milestoneDetails.previousWeight = parseFloat(previousBodyWeight);
+                    const weightDiff = milestoneDetails.newWeight - milestoneDetails.previousWeight;
+                    milestoneDetails.totalLoss = Math.abs(weightDiff);
+                    milestoneDetails.percentageLoss = (Math.abs(weightDiff) / milestoneDetails.previousWeight) * 100;
+                }
+            } else {
+                // Handle PR milestones (existing logic)
+                const metricType = selectedExercise!.metricType;
+                milestoneDetails.type = 'PR';
+                milestoneDetails.exerciseName = selectedExercise!.name;
+                milestoneDetails.exerciseId = selectedExercise!.id;
+                milestoneDetails.achievedAt = new Date().toISOString();
+                milestoneDetails.previousValue = null;
+                milestoneDetails.previousReps = null;
+                milestoneDetails.previousDuration = null;
+                milestoneDetails.previousLevel = null;
+                milestoneDetails.previousDistance = null;
+
+                // Validate and assign metric-specific values
+                switch (metricType) {
+                    case 'weight_reps':
+                        if (!weight || !reps) {
+                            throw new Error("Please enter both weight and reps");
                         }
-                        milestoneDetails.level = level;
-                    }
-                    if (previousPR) {
-                        milestoneDetails.previousDuration = previousPR.duration;
-                        milestoneDetails.previousLevel = previousPR.level;
-                    }
-                    break;
-                case 'distance':
-                case 'distance_time':
-                    if (!distance) {
-                        throw new Error("Please enter a distance");
-                    }
-                    milestoneDetails.value = parseFloat(distance);
-                    milestoneDetails.weightUnit = getDistanceUnit();
-                    if (metricType === 'distance_time') {
-                        const timeSeconds = (parseInt(hours || '0') * 3600) + (parseInt(minutes || '0') * 60) + parseInt(seconds || '0');
-                        if (timeSeconds <= 0) {
-                            throw new Error("Please enter a valid time for the distance");
+                        milestoneDetails.value = parseFloat(weight);
+                        milestoneDetails.reps = parseInt(reps, 10);
+                        milestoneDetails.weightUnit = getWeightUnit();
+                        if (previousPR) {
+                            milestoneDetails.previousValue = previousPR.weight;
+                            milestoneDetails.previousReps = previousPR.reps;
                         }
-                        milestoneDetails.duration = timeSeconds;
-                    }
-                    if (previousPR) {
-                        milestoneDetails.previousDistance = previousPR.distance;
-                        milestoneDetails.previousDuration = previousPR.duration;
-                    }
-                    break;
-                default:
-                    throw new Error("Unsupported exercise type");
+                        break;
+                    case 'bodyweight_reps':
+                        if (!reps) {
+                            throw new Error("Please enter number of reps");
+                        }
+                        milestoneDetails.reps = parseInt(reps, 10);
+                        if (previousPR) {
+                            milestoneDetails.previousReps = previousPR.reps;
+                        }
+                        break;
+                    case 'duration':
+                    case 'duration_level':
+                        const durationSeconds = (parseInt(hours || '0') * 3600) + (parseInt(minutes || '0') * 60) + parseInt(seconds || '0');
+                        if (durationSeconds <= 0) {
+                            throw new Error("Please enter a valid duration");
+                        }
+                        milestoneDetails.duration = durationSeconds;
+                        milestoneDetails.value = durationSeconds;
+                        if (metricType === 'duration_level') {
+                            if (!level) {
+                                throw new Error("Please enter a difficulty level");
+                            }
+                            milestoneDetails.level = level;
+                        }
+                        if (previousPR) {
+                            milestoneDetails.previousDuration = previousPR.duration;
+                            milestoneDetails.previousLevel = previousPR.level;
+                        }
+                        break;
+                    case 'distance':
+                    case 'distance_time':
+                        if (!distance) {
+                            throw new Error("Please enter a distance");
+                        }
+                        milestoneDetails.value = parseFloat(distance);
+                        milestoneDetails.weightUnit = getDistanceUnit();
+                        if (metricType === 'distance_time') {
+                            const timeSeconds = (parseInt(hours || '0') * 3600) + (parseInt(minutes || '0') * 60) + parseInt(seconds || '0');
+                            if (timeSeconds <= 0) {
+                                throw new Error("Please enter a valid time for the distance");
+                            }
+                            milestoneDetails.duration = timeSeconds;
+                        }
+                        if (previousPR) {
+                            milestoneDetails.previousDistance = previousPR.distance;
+                            milestoneDetails.previousDuration = previousPR.duration;
+                        }
+                        break;
+                    default:
+                        throw new Error("Unsupported exercise type");
+                }
             }
 
             let authorArchetype = null;
@@ -824,43 +857,116 @@ export default function MilestoneWithPost({ onBack }: MilestoneWithPostProps) {
                         <View style={styles.achievementSection}>
                             <View style={styles.sectionHeader}>
                                 <MaterialCommunityIcons name="trophy-outline" size={24} color={SECONDARY_COLOR} />
-                                <Text style={styles.sectionTitle}>Personal Record</Text>
+                                <Text style={styles.sectionTitle}>Milestone</Text>
                             </View>
                             
                             <View style={styles.achievementContent}>
-                                {/* Exercise Selector */}
-                                <View style={styles.exerciseContainer}>
-                                    <Text style={styles.exerciseLabel}>Exercise</Text>
-                                    <TouchableOpacity 
-                                        style={styles.exerciseSelectButton}
-                                        onPress={() => setShowExerciseSelector(true)}
+                                {/* Milestone Type Selector */}
+                                <View style={styles.milestoneTypeContainer}>
+                                    <TouchableOpacity
+                                        style={[
+                                            styles.milestoneTypeButton,
+                                            milestoneType === 'PR' && styles.milestoneTypeButtonActive
+                                        ]}
+                                        onPress={() => setMilestoneType('PR')}
                                     >
-                                        {selectedExercise ? (
-                                            <View style={styles.selectedExerciseContent}>
-                                                <View style={styles.exerciseIconContainer}>
-                                                    {selectedExercise.category === 'strength' && <MaterialCommunityIcons name="weight-lifter" size={20} color="#FFF" />}
-                                                    {selectedExercise.category === 'cardio' && <MaterialCommunityIcons name="heart-pulse" size={20} color="#FFF" />}
-                                                    {selectedExercise.category === 'bodyweight' && <MaterialCommunityIcons name="human" size={20} color="#FFF" />}
-                                                    {selectedExercise.category === 'flexibility' && <MaterialCommunityIcons name="yoga" size={20} color="#FFF" />}
-                                                    {selectedExercise.category === 'sports' && <Ionicons name="basketball" size={20} color="#FFF" />}
-                                                </View>
-                                                <View style={styles.exerciseInfo}>
-                                                    <Text style={styles.exerciseTitle}>{selectedExercise.name}</Text>
-                                                    <Text style={styles.exerciseCategory}>{selectedExercise.category.charAt(0).toUpperCase() + selectedExercise.category.slice(1)}</Text>
-                                                </View>
-                                                <Feather name="edit" size={18} color="#777" />
-                                            </View>
-                                        ) : (
-                                            <View style={styles.exercisePlaceholder}>
-                                                <Text style={styles.exercisePlaceholderText}>Select an exercise</Text>
-                                                <Ionicons name="search" size={20} color="#777" />
-                                            </View>
-                                        )}
+                                        <Text style={[
+                                            styles.milestoneTypeText,
+                                            milestoneType === 'PR' && styles.milestoneTypeTextActive
+                                        ]}>PR</Text>
+                                    </TouchableOpacity>
+                                    
+                                    <TouchableOpacity
+                                        style={[
+                                            styles.milestoneTypeButton,
+                                            milestoneType === 'weightLoss' && styles.milestoneTypeButtonActive
+                                        ]}
+                                        onPress={() => setMilestoneType('weightLoss')}
+                                    >
+                                        <Text style={[
+                                            styles.milestoneTypeText,
+                                            milestoneType === 'weightLoss' && styles.milestoneTypeTextActive
+                                        ]}>Weight Loss</Text>
+                                    </TouchableOpacity>
+                                    
+                                    <TouchableOpacity
+                                        style={[
+                                            styles.milestoneTypeButton,
+                                            milestoneType === 'weightGain' && styles.milestoneTypeButtonActive
+                                        ]}
+                                        onPress={() => setMilestoneType('weightGain')}
+                                    >
+                                        <Text style={[
+                                            styles.milestoneTypeText,
+                                            milestoneType === 'weightGain' && styles.milestoneTypeTextActive
+                                        ]}>Weight Gain</Text>
                                     </TouchableOpacity>
                                 </View>
+
+                                {/* Exercise Selector - Only for PR type */}
+                                {milestoneType === 'PR' && (
+                                    <View style={styles.exerciseContainer}>
+                                        <Text style={styles.exerciseLabel}>Exercise</Text>
+                                        <TouchableOpacity 
+                                            style={styles.exerciseSelectButton}
+                                            onPress={() => setShowExerciseSelector(true)}
+                                        >
+                                            {selectedExercise ? (
+                                                <View style={styles.selectedExerciseContent}>
+                                                    <View style={styles.exerciseIconContainer}>
+                                                        {selectedExercise.category === 'strength' && <MaterialCommunityIcons name="weight-lifter" size={20} color="#FFF" />}
+                                                        {selectedExercise.category === 'cardio' && <MaterialCommunityIcons name="heart-pulse" size={20} color="#FFF" />}
+                                                        {selectedExercise.category === 'bodyweight' && <MaterialCommunityIcons name="human" size={20} color="#FFF" />}
+                                                        {selectedExercise.category === 'flexibility' && <MaterialCommunityIcons name="yoga" size={20} color="#FFF" />}
+                                                        {selectedExercise.category === 'sports' && <Ionicons name="basketball" size={20} color="#FFF" />}
+                                                    </View>
+                                                    <View style={styles.exerciseInfo}>
+                                                        <Text style={styles.exerciseTitle}>{selectedExercise.name}</Text>
+                                                        <Text style={styles.exerciseCategory}>{selectedExercise.category.charAt(0).toUpperCase() + selectedExercise.category.slice(1)}</Text>
+                                                    </View>
+                                                    <Feather name="edit" size={18} color="#777" />
+                                                </View>
+                                            ) : (
+                                                <View style={styles.exercisePlaceholder}>
+                                                    <Text style={styles.exercisePlaceholderText}>Select an exercise</Text>
+                                                    <Ionicons name="search" size={20} color="#777" />
+                                                </View>
+                                            )}
+                                        </TouchableOpacity>
+                                    </View>
+                                )}
+
+                                {/* Weight Input Fields - Only for weight loss/gain */}
+                                {(milestoneType === 'weightLoss' || milestoneType === 'weightGain') && (
+                                    <View style={styles.weightInputContainer}>
+                                        <View style={styles.inputGroup}>
+                                            <Text style={styles.inputLabel}>New Body Weight *</Text>
+                                            <TextInput
+                                                style={styles.input}
+                                                value={newBodyWeight}
+                                                onChangeText={setNewBodyWeight}
+                                                placeholder={`Enter weight (${getWeightUnit()})`}
+                                                placeholderTextColor="#555"
+                                                keyboardType="decimal-pad"
+                                            />
+                                        </View>
+                                        
+                                        <View style={styles.inputGroup}>
+                                            <Text style={styles.inputLabel}>Previous Weight (Optional)</Text>
+                                            <TextInput
+                                                style={styles.input}
+                                                value={previousBodyWeight}
+                                                onChangeText={setPreviousBodyWeight}
+                                                placeholder={`Enter previous weight (${getWeightUnit()})`}
+                                                placeholderTextColor="#555"
+                                                keyboardType="decimal-pad"
+                                            />
+                                        </View>
+                                    </View>
+                                )}
                                 
-                                {/* Dynamic Metric Fields */}
-                                {renderMetricFields()}
+                                {/* Dynamic Metric Fields - Only for PR type */}
+                                {milestoneType === 'PR' && renderMetricFields()}
                             </View>
                         </View>
 
@@ -1189,5 +1295,55 @@ const styles = StyleSheet.create({
         color: '#FFF',
         fontWeight: '600',
         fontSize: 13,
+    },
+    
+    // Milestone type selector styles
+    milestoneTypeContainer: {
+        flexDirection: 'row',
+        marginBottom: 20,
+        backgroundColor: '#1A1A1A',
+        borderRadius: 12,
+        padding: 4,
+    },
+    milestoneTypeButton: {
+        flex: 1,
+        paddingVertical: 12,
+        borderRadius: 8,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    milestoneTypeButtonActive: {
+        backgroundColor: SECONDARY_COLOR,
+    },
+    milestoneTypeText: {
+        color: '#777',
+        fontSize: 15,
+        fontWeight: '600',
+    },
+    milestoneTypeTextActive: {
+        color: '#FFF',
+    },
+    
+    // Weight input styles
+    weightInputContainer: {
+        marginBottom: 20,
+    },
+    inputGroup: {
+        marginBottom: 16,
+    },
+    inputLabel: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#FFF',
+        marginBottom: 8,
+    },
+    input: {
+        backgroundColor: '#1A1A1A',
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#333',
+        padding: 16,
+        color: '#FFF',
+        fontSize: 16,
     },
 });
