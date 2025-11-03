@@ -193,17 +193,26 @@ export default function MilestoneOnlyPost({ onBack }: MilestoneOnlyPostProps) {
     // Fetch last known weight when milestone type changes to weight loss/gain
     useEffect(() => {
         const fetchAndSetLastWeight = async () => {
+            console.log('🔄 useEffect triggered - milestoneType:', milestoneType, 'currentUser:', currentUser?.uid);
+            
             if (milestoneType === 'weightLoss' || milestoneType === 'weightGain') {
-                if (!currentUser) return;
+                if (!currentUser) {
+                    console.log('⚠️ No currentUser, skipping weight fetch');
+                    return;
+                }
                 
+                console.log('📞 Starting to fetch last known weight for user:', currentUser.uid);
                 setLoadingLastWeight(true);
                 try {
                     const lastWeight = await fetchLastKnownWeight(currentUser.uid);
+                    console.log('📦 Received lastWeight:', lastWeight);
                     
                     if (lastWeight) {
                         // Convert to user's current unit preference if needed
                         const userUnit = getWeightUnit();
                         let weightValue = lastWeight.weight;
+                        
+                        console.log(`🔄 Unit conversion: ${lastWeight.unit} → ${userUnit}`);
                         
                         if (lastWeight.unit !== userUnit) {
                             if (lastWeight.unit === 'kg' && userUnit === 'lbs') {
@@ -211,23 +220,27 @@ export default function MilestoneOnlyPost({ onBack }: MilestoneOnlyPostProps) {
                             } else if (lastWeight.unit === 'lbs' && userUnit === 'kg') {
                                 weightValue = Math.round(lastWeight.weight * 0.453592 * 10) / 10;
                             }
+                            console.log(`✅ Converted: ${lastWeight.weight} ${lastWeight.unit} → ${weightValue} ${userUnit}`);
                         }
                         
+                        console.log(`✅ Setting previousBodyWeight to: ${weightValue}`);
                         setPreviousBodyWeight(weightValue.toString());
                         setIsFirstWeightMilestone(false);
                     } else {
                         // No previous weight found - this is their first weight milestone
+                        console.log('ℹ️ No previous weight found - first weight milestone');
                         setPreviousBodyWeight('');
                         setIsFirstWeightMilestone(true);
                     }
                 } catch (error) {
-                    console.error('Error fetching last weight:', error);
+                    console.error('❌ Error fetching last weight:', error);
                     setIsFirstWeightMilestone(true);
                 } finally {
                     setLoadingLastWeight(false);
                 }
             } else {
                 // Reset when switching back to PR
+                console.log('🔄 Switching to PR type, resetting weight fields');
                 setPreviousBodyWeight('');
                 setIsFirstWeightMilestone(false);
             }
