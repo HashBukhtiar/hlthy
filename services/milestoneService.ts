@@ -56,15 +56,19 @@ export const fetchLastKnownWeight = async (userId: string): Promise<{ weight: nu
 
                 console.log(`  ⚖️  Weight milestone found: weight=${newWeight}, unit=${newWeightUnit}, createdAt=${createdAt}`);
 
-                if (newWeight && newWeightUnit) {
+                if (newWeight) {
+                    // Use 'lbs' as default if unit is missing (for old milestones created before we added unit field)
+                    const unit = newWeightUnit || 'lbs';
+                    console.log(`  ✅  Adding weight milestone: ${newWeight} ${unit}${!newWeightUnit ? ' (defaulted to lbs)' : ''}`);
+                    
                     weightMilestones.push({
                         weight: newWeight,
-                        unit: newWeightUnit,
+                        unit: unit,
                         createdAt: createdAt,
                         docId: doc.id
                     });
                 } else {
-                    console.log('  ⚠️  Weight milestone missing data: newWeight or newWeightUnit is null');
+                    console.log('  ⚠️  Weight milestone missing newWeight value');
                 }
             }
         }
