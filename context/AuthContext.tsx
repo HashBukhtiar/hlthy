@@ -1,8 +1,9 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { auth, db } from '@/firebaseConfig';
-import { onAuthStateChanged, reload, User } from 'firebase/auth';
+import { onAuthStateChanged, reload, User, signOut } from 'firebase/auth';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { UserProfile, AuthContextType } from '@/types/user';
+import { NotificationService } from '@/services/NotificationService';
 
 export const AuthContext = createContext<AuthContextType | null>(null);
 
@@ -55,6 +56,28 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
+  // Initialize notifications for authenticated user
+  const initializeNotifications = async (user: User) => {
+    if (!user?.uid) return;
+
+    try {
+      // Set up notification channels first (Android)
+      await NotificationService.setupNotificationChannels();
+      
+      // Register for push notifications
+      const success = await NotificationService.registerForPushNotifications(user.uid);
+      if (success) {
+        console.log('Push notifications registered successfully');
+      }
+
+      // Set up notification listeners
+      const listeners = NotificationService.setupNotificationListeners();
+      
+    } catch (error) {
+      console.error('Error initializing notifications:', error);
+    }
+  };
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
@@ -90,19 +113,43 @@ export function AuthProvider({ children }: AuthProviderProps) {
             console.log("User document not found in Firestore, user may be in signup process");
             setUserProfile(null);
           }
+
+          // Initialize notifications after user data is loaded
+          await initializeNotifications(user);
+          
         } catch (error) {
           console.error("Error fetching user profile:", error);
           // Don't set user profile on error, keep it null
           setUserProfile(null);
         }
       } else {
+        // User signed out - clean up
+        setCurrentUser(null);
         setUserProfile(null);
+        // Note: Don't try to clean tokens here as user is already signed out
       }
       setLoading(false);
     });
     
     return unsubscribe;
   }, []);
+
+  const logout = async () => {
+    try {
+      // Clean up notifications BEFORE signing out (while still authenticated)
+      if (currentUser) {
+        await NotificationService.removePushToken(currentUser.uid);
+        await NotificationService.clearCachedTokens();
+      }
+      
+      // Then sign out
+      await signOut(auth);
+    } catch (error) {
+      console.error('Error during logout:', error);
+      // Force sign out even if token cleanup fails
+      await signOut(auth);
+    }
+  };
 
   const value: AuthContextType = {
     currentUser,

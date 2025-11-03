@@ -130,19 +130,21 @@ export const approveMessageRequest = onCall(
 
       const requestData = requestDoc.data()!;
 
+      // Get sender data for username
+      const senderUserDoc = await db.collection("users").doc(requestData.fromUserId).get();
+      const senderUserData = senderUserDoc.data()!;
+
       // Create or update conversation
       const conversationRef = db.collection("conversations").doc(conversationId);
       const conversationSnap = await conversationRef.get();
 
       if (!conversationSnap.exists) {
         // Get user profiles for conversation metadata
-        const [currentUserDoc, senderUserDoc] = await Promise.all([
+        const [currentUserDoc] = await Promise.all([
           db.collection("users").doc(currentUserId).get(),
-          db.collection("users").doc(requestData.fromUserId).get(),
         ]);
 
         const currentUserData = currentUserDoc.data()!;
-        const senderUserData = senderUserDoc.data()!;
 
         batch.set(conversationRef, {
           participants: [currentUserId, requestData.fromUserId],
@@ -203,6 +205,7 @@ export const approveMessageRequest = onCall(
         text: requestData.text,
         createdAt: requestData.createdAt,
         senderId: requestData.fromUserId,
+        senderUsername: senderUserData.username || senderUserData.displayName || "User",
       });
 
       // Delete the request
