@@ -7,6 +7,7 @@ export interface MilestoneStats {
 export interface MilestoneDetails {
   // Exercise information
   exerciseName?: string;
+  exerciseId?: number;
   type?: 'PR' | 'weightLoss' | 'weightGain';
   
   // Weight and reps (for strength exercises)

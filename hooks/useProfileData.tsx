@@ -278,9 +278,20 @@ export function useProfileData(userId = null, contextUserProfile: UserProfile | 
               milestone.exerciseName = post.milestoneDetails.exerciseName || 'Unknown Exercise';
               milestone.reps = post.milestoneDetails.reps || 0;
               milestone.weight = `${post.milestoneDetails.value || 0} ${post.milestoneDetails.weightUnit || ''}`;
+              
+              (milestone as any).value = post.milestoneDetails.value;
+              (milestone as any).weightUnit = post.milestoneDetails.weightUnit;
+              (milestone as any).duration = post.milestoneDetails.duration;
+              (milestone as any).level = post.milestoneDetails.level;
+              (milestone as any).distance = post.milestoneDetails.distance;
+              (milestone as any).distanceUnit = post.milestoneDetails.distanceUnit;
+              
             } else if (post.milestoneDetails.type === 'weightLoss' || post.milestoneDetails.type === 'weightGain') {
               milestone.exerciseName = post.milestoneDetails.type === 'weightLoss' ? 'Weight Loss' : 'Weight Gain';
               milestone.weight = `${post.milestoneDetails.newWeight || 0} ${post.milestoneDetails.newWeightUnit || ''}`;
+              
+              (milestone as any).newWeight = post.milestoneDetails.newWeight;
+              (milestone as any).newWeightUnit = post.milestoneDetails.newWeightUnit;
             }
             return milestone;
           });
