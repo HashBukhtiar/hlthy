@@ -76,9 +76,7 @@ export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin,
 
   // Reset loading state when component becomes visible again
   useEffect(() => {
-    console.log('[SignUpStep2] visible changed:', visible, 'loading:', loading, 'spinnerOpacity:', spinnerOpacity);
     if (visible) {
-      console.log('[SignUpStep2] Resetting loading and spinner animation');
       setLoading(false);
       // Reset both the animation value AND the state
       spinnerFadeAnim.setValue(0);
@@ -224,28 +222,23 @@ export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin,
       return;
     }
     setErrorMessage('');
-    console.log('[SignUpStep2] Setting loading to true');
     setLoading(true);
     try {
       const db = getFirestore();
       const usersRef = collection(db, 'usersPublic');
       const q = query(usersRef, where('username', '==', username.trim()));
-      console.log('Checking username:', username.trim());
       const querySnapshot = await getDocs(q);
       if (!querySnapshot.empty) {
         setErrorMessage('This username is already taken.');
-        console.log('[SignUpStep2] Username taken, setting loading to false');
         setLoading(false);
         triggerUsernameShake();
         return;
       }
-      console.log('[SignUpStep2] Username available, setting loading to false and calling onNext');
       setLoading(false);
       onNext({ username, dateOfBirth });
     } catch (err) {
       console.error('Error checking username:', err);
       setErrorMessage('Error checking username. Please try again.');
-      console.log('[SignUpStep2] Error checking username, setting loading to false');
       setLoading(false);
       triggerUsernameShake();
       return;
@@ -271,10 +264,9 @@ export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin,
   }, [username, dateOfBirth, submitted]);
 
   const handleBackPress = useCallback(() => {
-    console.log('[SignUpStep2] Back button pressed, loading:', loading);
     Keyboard.dismiss();
     onBackPress();
-  }, [onBackPress, loading]);
+  }, [onBackPress]);
 
   // Username input (no longer prepends '@')
   const getUsernameValue = () => username;
@@ -327,11 +319,8 @@ export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin,
   }, [loading, spinnerFadeAnim]);
 
   if (!visible) {
-    console.log('[SignUpStep2] Component not visible, returning null');
     return null;
   }
-
-  console.log('[SignUpStep2] Rendering component, loading:', loading, 'spinnerOpacity:', spinnerOpacity);
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
