@@ -71,7 +71,7 @@ export const SmartChatInput: React.FC<SmartChatInputProps> = ({
   otherParticipantId,
   isAiConversation = false,
 }) => {
-  const { currentUser } = useAuth();
+  const { currentUser, userProfile } = useAuth();
   const [currentIntent, setCurrentIntent] = useState<IntentClassificationResult | null>(null);
   const [isClassifying, setIsClassifying] = useState(false);
   const [isSending, setIsSending] = useState(false);
