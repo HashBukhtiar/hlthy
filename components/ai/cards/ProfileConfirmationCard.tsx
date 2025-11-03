@@ -39,37 +39,44 @@ export const ProfileConfirmationCard: React.FC<ProfileConfirmationCardProps> = (
     return (
       <View style={{ 
         flexDirection: 'row', 
-        alignItems: 'flex-start',
-        marginBottom: Layout.spacing.md,
+        alignItems: 'center',
+        marginBottom: Layout.spacing.sm,
         paddingVertical: Layout.spacing.sm,
         paddingHorizontal: Layout.spacing.md,
-        backgroundColor: 'rgba(255, 255, 255, 0.03)',
-        borderRadius: Layout.radius.small,
-        borderLeftWidth: 3,
-        borderLeftColor: iconColor,
+        backgroundColor: 'rgba(255, 255, 255, 0.02)',
+        borderRadius: Layout.radius.chip,
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.05)',
       }}>
-        <Ionicons 
-          name={icon as any} 
-          size={20} 
-          color={iconColor} 
-          style={{ marginRight: Layout.spacing.sm, marginTop: 2 }}
-        />
+        <View style={{
+          width: 28,
+          height: 28,
+          borderRadius: 14,
+          backgroundColor: iconColor + '20',
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginRight: Layout.spacing.sm,
+        }}>
+          <Ionicons 
+            name={icon as any} 
+            size={16} 
+            color={iconColor} 
+          />
+        </View>
         <View style={{ flex: 1 }}>
           <Text style={{
-            color: 'rgba(255, 255, 255, 0.6)',
+            color: 'rgba(255, 255, 255, 0.5)',
             fontSize: Typography.sizes.xs,
             fontWeight: Typography.weights.medium,
-            marginBottom: 2,
-            textTransform: 'uppercase',
-            letterSpacing: 0.5,
+            marginBottom: 1,
           }}>
             {label}
           </Text>
           <Text style={{
             color: Colors.text,
             fontSize: Typography.sizes.sm,
-            fontWeight: Typography.weights.medium,
-            lineHeight: 20,
+            fontWeight: Typography.weights.semibold,
+            lineHeight: 18,
           }}>
             {displayValue}
           </Text>
@@ -79,131 +86,145 @@ export const ProfileConfirmationCard: React.FC<ProfileConfirmationCardProps> = (
   };
 
   return (
-    <GradientSurface
-      gradient={['rgba(100, 70, 255, 0.15)', 'rgba(50, 35, 150, 0.1)']}
-      borderGradient={['rgba(150, 120, 255, 0.4)', 'rgba(100, 70, 255, 0.2)']}
-      style={{ marginVertical: 8 }}
-    >
-      <View style={{ padding: Layout.spacing.lg }}>
-        {/* Header */}
+    <View style={{ 
+      marginVertical: 8, 
+      maxWidth: '92%', 
+      alignSelf: 'flex-start',
+      backgroundColor: '#0E0E12',
+      borderRadius: Layout.radius.card,
+      borderWidth: 1,
+      borderColor: 'rgba(139, 125, 255, 0.3)',
+      overflow: 'hidden',
+      shadowColor: '#8B7DFF',
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.3,
+      shadowRadius: 16,
+      elevation: 12,
+    }}>
+      <View style={{ padding: Layout.spacing.xl }}>
+        {/* Compact Header */}
         <View style={{ 
           flexDirection: 'row', 
           alignItems: 'center',
           marginBottom: Layout.spacing.lg,
-          paddingBottom: Layout.spacing.md,
-          borderBottomWidth: 1,
-          borderBottomColor: 'rgba(255, 255, 255, 0.1)',
         }}>
           <View style={{
-            width: 40,
-            height: 40,
-            borderRadius: 20,
-            backgroundColor: 'rgba(100, 70, 255, 0.2)',
+            width: 36,
+            height: 36,
+            borderRadius: 18,
+            backgroundColor: '#8B7DFF',
             alignItems: 'center',
             justifyContent: 'center',
-            marginRight: Layout.spacing.md,
+            marginRight: Layout.spacing.sm,
+            shadowColor: '#8B7DFF',
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.5,
+            shadowRadius: 8,
+            elevation: 8,
           }}>
-            <Ionicons name="checkmark-circle" size={24} color="#8B7DFF" />
+            <Ionicons name="fitness" size={20} color="white" />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={{
               color: Colors.text,
-              fontSize: Typography.sizes.lg,
+              fontSize: Typography.sizes.md,
               fontWeight: Typography.weights.bold,
+              letterSpacing: 0.3,
             }}>
-              Confirm Your Profile
+              Ready to Build Your Workout?
             </Text>
             <Text style={{
-              color: 'rgba(255, 255, 255, 0.5)',
+              color: 'rgba(255, 255, 255, 0.4)',
               fontSize: Typography.sizes.xs,
               marginTop: 2,
             }}>
-              Let's make sure everything is correct
+              Quick profile check
             </Text>
           </View>
         </View>
 
-        {/* Profile Information Grid */}
-        <View style={{ marginBottom: Layout.spacing.lg }}>
-          {renderProfileItem('barbell-outline', 'Experience Level', data.experience, '#FF6B6B')}
+        {/* Profile Information - Compact Grid */}
+        <View style={{ marginBottom: Layout.spacing.md }}>
+          {renderProfileItem('barbell-outline', 'Experience', data.experience, '#FF6B6B')}
           {renderProfileItem('calendar-outline', 'Training Frequency', data.trainingFrequency, '#4ECDC4')}
-          {renderProfileItem('trophy-outline', 'Primary Goals', data.goals, '#FFD93D')}
-          {renderProfileItem('close-circle-outline', 'Exercise Dislikes', data.dislikes, '#FF8C42')}
-          {renderProfileItem('medical-outline', 'Injuries/Limitations', data.injuries, '#FF6B9D')}
-          {renderProfileItem('fitness-outline', 'Available Equipment', data.equipment, '#6BCF7F')}
+          {renderProfileItem('trophy-outline', 'Goals', data.goals, '#FFD93D')}
+          {renderProfileItem('close-circle-outline', 'Dislikes', data.dislikes, '#FF8C42')}
+          {renderProfileItem('medical-outline', 'Injuries', data.injuries, '#FF6B9D')}
+          {renderProfileItem('fitness-outline', 'Equipment', data.equipment, '#6BCF7F')}
           {renderProfileItem('heart-outline', 'Preferences', data.preferences, '#A78BFA')}
         </View>
 
         {/* Workout Type Callout */}
         {data.workoutType && (
           <View style={{
-            backgroundColor: 'rgba(139, 125, 255, 0.15)',
-            borderRadius: Layout.radius.button,
+            backgroundColor: 'rgba(139, 125, 255, 0.12)',
+            borderRadius: Layout.radius.chip,
             padding: Layout.spacing.md,
-            marginBottom: Layout.spacing.lg,
+            marginBottom: Layout.spacing.md,
             borderWidth: 1,
-            borderColor: 'rgba(139, 125, 255, 0.3)',
+            borderColor: 'rgba(139, 125, 255, 0.25)',
           }}>
-            <Text style={{
-              color: '#8B7DFF',
-              fontSize: Typography.sizes.xs,
-              fontWeight: Typography.weights.bold,
-              marginBottom: 4,
-              textTransform: 'uppercase',
-              letterSpacing: 0.5,
-            }}>
-              Generating Workout For
-            </Text>
-            <Text style={{
-              color: Colors.text,
-              fontSize: Typography.sizes.md,
-              fontWeight: Typography.weights.bold,
-            }}>
-              {data.workoutType}
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Ionicons name="barbell" size={16} color="#8B7DFF" style={{ marginRight: 8 }} />
+              <View style={{ flex: 1 }}>
+                <Text style={{
+                  color: 'rgba(139, 125, 255, 0.7)',
+                  fontSize: Typography.sizes.xs,
+                  fontWeight: Typography.weights.medium,
+                  marginBottom: 2,
+                }}>
+                  Generating for
+                </Text>
+                <Text style={{
+                  color: '#8B7DFF',
+                  fontSize: Typography.sizes.md,
+                  fontWeight: Typography.weights.bold,
+                }}>
+                  {data.workoutType}
+                </Text>
+              </View>
+            </View>
           </View>
         )}
 
         {/* Confirmation Message */}
         <Text style={{
-          color: 'rgba(255, 255, 255, 0.7)',
-          fontSize: Typography.sizes.sm,
-          lineHeight: 20,
-          marginBottom: Layout.spacing.lg,
+          color: 'rgba(255, 255, 255, 0.6)',
+          fontSize: Typography.sizes.xs,
+          lineHeight: 18,
+          marginBottom: Layout.spacing.md,
           textAlign: 'center',
         }}>
-          Does this look correct? I'll use this information to create your personalized workout.{'\n'}
-          <Text style={{ fontSize: Typography.sizes.xs, color: 'rgba(255, 255, 255, 0.5)' }}>
-            (You can also type your response naturally)
-          </Text>
+          Confirm to generate or type your changes naturally
         </Text>
 
-        {/* Action Buttons */}
+        {/* Action Buttons - Modern Style */}
         <View style={{ 
           flexDirection: 'row', 
-          gap: Layout.gap.md,
+          gap: Layout.gap.sm,
         }}>
           <TouchableOpacity
             onPress={onEdit}
             style={{
               flex: 1,
-              paddingVertical: Layout.spacing.md,
+              paddingVertical: 14,
               borderRadius: Layout.radius.button,
-              borderWidth: 2,
-              borderColor: 'rgba(255, 255, 255, 0.2)',
+              backgroundColor: 'rgba(255, 255, 255, 0.05)',
+              borderWidth: 1,
+              borderColor: 'rgba(255, 255, 255, 0.1)',
               alignItems: 'center',
               justifyContent: 'center',
               flexDirection: 'row',
-              gap: Layout.gap.xs,
+              gap: 6,
             }}
           >
-            <Ionicons name="create-outline" size={18} color="rgba(255, 255, 255, 0.7)" />
+            <Ionicons name="create-outline" size={16} color="rgba(255, 255, 255, 0.6)" />
             <Text style={{
-              color: 'rgba(255, 255, 255, 0.7)',
+              color: 'rgba(255, 255, 255, 0.6)',
               fontSize: Typography.sizes.sm,
               fontWeight: Typography.weights.semibold,
             }}>
-              Make Changes
+              Edit
             </Text>
           </TouchableOpacity>
 
@@ -211,31 +232,31 @@ export const ProfileConfirmationCard: React.FC<ProfileConfirmationCardProps> = (
             onPress={onConfirm}
             style={{
               flex: 1,
-              paddingVertical: Layout.spacing.md,
+              paddingVertical: 14,
               borderRadius: Layout.radius.button,
               backgroundColor: '#8B7DFF',
               alignItems: 'center',
               justifyContent: 'center',
               flexDirection: 'row',
-              gap: Layout.gap.xs,
+              gap: 6,
               shadowColor: '#8B7DFF',
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.3,
-              shadowRadius: 8,
-              elevation: 8,
+              shadowOffset: { width: 0, height: 6 },
+              shadowOpacity: 0.4,
+              shadowRadius: 10,
+              elevation: 10,
             }}
           >
-            <Ionicons name="checkmark-circle" size={20} color="white" />
+            <Ionicons name="checkmark-circle" size={18} color="white" />
             <Text style={{
               color: 'white',
               fontSize: Typography.sizes.sm,
               fontWeight: Typography.weights.bold,
             }}>
-              Looks Good!
+              Confirm
             </Text>
           </TouchableOpacity>
         </View>
       </View>
-    </GradientSurface>
+    </View>
   );
 };

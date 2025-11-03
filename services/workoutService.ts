@@ -64,16 +64,31 @@ export function convertAIWorkoutToDatabaseFormat(
     id: generateId(),
     name: aiSegment.name,
     length: '15', // Default segment length, can be customized later
-    exercises: aiSegment.exercises.map((aiExercise) => ({
-      id: generateId(),
-      name: aiExercise.exerciseId, // Use the exercise name/ID from AI
-      sets: aiExercise.sets.toString(),
-      reps: typeof aiExercise.reps === 'number' ? aiExercise.reps.toString() : aiExercise.reps,
-      load: aiExercise.load,
-      restSec: aiExercise.restSec,
-      notes: aiExercise.notes,
-      safetyRating: aiExercise.safetyRating,
-    }))
+    exercises: aiSegment.exercises.map((aiExercise) => {
+      // Build the exercise object without undefined values
+      const exercise: WorkoutExercise = {
+        id: generateId(),
+        name: aiExercise.exerciseId, // Use the exercise name/ID from AI
+        sets: aiExercise.sets.toString(),
+        reps: typeof aiExercise.reps === 'number' ? aiExercise.reps.toString() : aiExercise.reps,
+      };
+
+      // Only add optional fields if they have values
+      if (aiExercise.load !== undefined) {
+        exercise.load = aiExercise.load;
+      }
+      if (aiExercise.restSec !== undefined) {
+        exercise.restSec = aiExercise.restSec;
+      }
+      if (aiExercise.notes !== undefined) {
+        exercise.notes = aiExercise.notes;
+      }
+      if (aiExercise.safetyRating !== undefined) {
+        exercise.safetyRating = aiExercise.safetyRating;
+      }
+
+      return exercise;
+    })
   }));
 
   return {

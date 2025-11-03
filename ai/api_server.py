@@ -245,6 +245,10 @@ def chat():
                 if result.get('workout'):
                     api_response['workoutPlan'] = result['workout']
                 
+                # Include profile data for workout_confirmation responses
+                if result.get('profile'):
+                    api_response['profile'] = result['profile']
+                
                 # Include pending confirmations if present (for conversational memory)
                 if result.get('pending_confirmations'):
                     api_response['pending_confirmations'] = result['pending_confirmations']
@@ -253,6 +257,10 @@ def chat():
                 # Include profile needs if present
                 if result.get('profile_needs'):
                     api_response['profile_needs'] = result['profile_needs']
+                
+                # Debug log for workout_confirmation
+                if result.get('type') == 'workout_confirmation':
+                    print(f"📋 Sending workout_confirmation with profile: {bool(result.get('profile'))}")
                 
                 return jsonify(api_response)
                 

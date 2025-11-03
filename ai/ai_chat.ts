@@ -18,6 +18,7 @@ export interface AIResponse {
   text: string;
   type?: string;
   workoutPlan?: any;
+  profile?: any; // Profile data for workout_confirmation responses
   interviewMode?: boolean;
   responseType?: string;
 }
@@ -31,12 +32,11 @@ export interface AIResponse {
  */
 export async function sendMessage(history: ChatMessage[], currentMessage: string, userId?: string): Promise<AIResponse> {
   try {
-    console.log('Sending message to AI backend:', { 
-      url: `${API_BASE_URL}/api/chat`,
-      messageCount: history.length,
-      currentMessage: currentMessage.substring(0, 100) + '...',
-      userId: userId || 'anonymous'
-    });
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('📡 Sending message to AI backend:');
+    console.log(`🌐 API URL: ${API_BASE_URL}/api/chat`);
+    console.log(`💬 Message: ${currentMessage.substring(0, 100)}...`);
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
     const requestBody: any = {
       message: currentMessage,
@@ -70,10 +70,11 @@ export async function sendMessage(history: ChatMessage[], currentMessage: string
     if (responseText) {
       return {
         text: responseText,
-        type: data.workoutPlan ? 'workout_plan' : (data.response_type || 'text'),
+        type: data.type || (data.workoutPlan ? 'workout_plan' : 'text'),
         workoutPlan: data.workoutPlan || data.workout_plan,
+        profile: data.profile, // Include profile data for workout_confirmation
         interviewMode: data.interview_mode || false,
-        responseType: data.response_type
+        responseType: data.type // Use data.type as responseType
       };
     } else {
       console.error('Invalid response format from AI service:', data);

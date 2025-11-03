@@ -370,7 +370,17 @@ For profile questions:
 For workout confirmation (before generating):
 {{
     "type": "workout_confirmation",
-    "message": "Your confirmation message showing what you'll consider (see STEP B format above)"
+    "message": "Your confirmation message showing what you'll consider (see STEP B format above)",
+    "profile": {{
+        "experience": "[beginner/intermediate/advanced]",
+        "trainingFrequency": "[X days/week text]",
+        "goals": "[Primary fitness goals]",
+        "dislikes": "[Exercises to avoid, or 'None']",
+        "injuries": "[Injuries/limitations, or 'None']",
+        "equipment": "[Available equipment list]",
+        "preferences": "[Special preferences/notes, or 'None']",
+        "workoutType": "[The workout focus they requested]"
+    }}
 }}
 
 For workout generation (after confirmation):

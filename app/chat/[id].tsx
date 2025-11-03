@@ -58,6 +58,7 @@ interface FirestoreMessageData {
   intent?: string; // Add intent field
   workoutPlan?: any; // Add workout plan data
   responseType?: string; // Add response type
+  profileData?: any; // Add profile data for workout_confirmation
   sharedPost?: {
     id: string;
     imageUrl: string | null;
@@ -209,6 +210,7 @@ async function convertFirestoreDoc(
     intent: data.intent, // Include intent data
     workoutPlan: data.workoutPlan, // Include workout plan data
     responseType: data.responseType, // Include response type
+    profileData: data.profileData, // Include profile data for workout_confirmation
     sharedPost: resolvedSharedPost,
     sharedMilestone: resolvedSharedMilestone,
     sharedWorkout: resolvedSharedWorkout,
@@ -858,6 +860,24 @@ export default function ChatScreen() {
           aiMessageData.workoutPlan = aiResponse.workoutPlan;
           aiMessageData.responseType = aiResponse.type;
         }
+        
+        // Add profile data for workout confirmation
+        if (aiResponse.profile && aiResponse.type === 'workout_confirmation') {
+          console.log('🎯 Detected workout_confirmation with profile data:', aiResponse.profile);
+          aiMessageData.profileData = aiResponse.profile;
+          aiMessageData.responseType = aiResponse.type;
+        }
+        
+        // Add responseType if present (for other response types)
+        if (aiResponse.type && !aiMessageData.responseType) {
+          aiMessageData.responseType = aiResponse.type;
+        }
+        
+        console.log('💾 Saving message to Firebase:', {
+          hasProfileData: !!aiMessageData.profileData,
+          responseType: aiMessageData.responseType,
+          type: aiResponse.type
+        });
         
         // Only add intent field if intentResult exists and has intent property
         if (intentResult?.intent) {
