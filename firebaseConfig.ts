@@ -2,7 +2,7 @@ import { initializeApp, FirebaseApp, setLogLevel } from 'firebase/app';
 import { getAnalytics, isSupported } from 'firebase/analytics';
 import { getAuth, Auth } from 'firebase/auth';
 import { getFirestore, Firestore } from "firebase/firestore";
-import { getStorage } from "firebase/storage";
+import { getStorage, FirebaseStorage } from "firebase/storage";
 import { getFunctions, connectFunctionsEmulator } from 'firebase/functions';
 
 // Firebase configuration
@@ -23,7 +23,7 @@ let app: FirebaseApp;
 let auth: Auth;
 let db: Firestore;
 let analytics;
-let storage; 
+let storage: FirebaseStorage; 
 
 try {
   app = initializeApp(firebaseConfig);

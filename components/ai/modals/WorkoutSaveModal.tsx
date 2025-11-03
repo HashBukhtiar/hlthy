@@ -97,26 +97,12 @@ export const WorkoutSaveModal: React.FC<WorkoutSaveModalProps> = ({
         }
       }
 
-      Alert.alert(
-        'Workout Saved! 🎉',
-        'Your AI workout has been added to "My Workouts". You can now edit it, share it, or change its visibility.',
-        [
-          {
-            text: 'View in My Workouts',
-            onPress: () => {
-              onSuccess?.(workoutId);
-              onClose();
-              // Navigate to the workouts page
-              router.push('/workouts');
-            },
-          },
-          {
-            text: 'Done',
-            onPress: onClose,
-            style: 'cancel',
-          },
-        ]
-      );
+      // Navigate directly to edit screen to customize the workout
+      onSuccess?.(workoutId);
+      onClose();
+      
+      // Open the workout in edit mode
+      router.push(`/edit-workout/${workoutId}`);
 
     } catch (error) {
       console.error('Error saving workout:', error);
@@ -268,8 +254,8 @@ export const WorkoutSaveModal: React.FC<WorkoutSaveModalProps> = ({
           {/* Note */}
           <View style={styles.noteSection}>
             <Text style={styles.noteText}>
-              💡 <Text style={styles.noteHighlight}>Tip:</Text> After saving, you can edit exercises, 
-              add photos, and customize your workout further in "My Workouts".
+              ✏️ <Text style={styles.noteHighlight}>Next Step:</Text> After saving, you'll be able to 
+              customize exercises, adjust sets/reps, add notes, upload a cover photo, and more!
             </Text>
           </View>
         </ScrollView>

@@ -91,6 +91,11 @@ export function convertAIWorkoutToDatabaseFormat(
     })
   }));
 
+  // Clean originalAIData by removing undefined values
+  const cleanedAIData = JSON.parse(JSON.stringify(aiWorkout, (key, value) => 
+    value === undefined ? null : value
+  ));
+
   return {
     creatorId: userId,
     creatorUsername: username,
@@ -104,7 +109,7 @@ export function convertAIWorkoutToDatabaseFormat(
     savedCount: 0,
     tags: ['ai-generated'],
     source: 'ai_generated',
-    originalAIData: aiWorkout,
+    originalAIData: cleanedAIData, // Store cleaned AI data without undefined values
   };
 }
 

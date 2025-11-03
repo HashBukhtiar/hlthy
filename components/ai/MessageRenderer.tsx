@@ -134,19 +134,35 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({
       });
     }
     
-    // Fallback for old format
+    // Fallback for flat exercises array (old format or simple response)
     if (workoutPlan.exercises && workoutPlan.exercises.length > 0) {
+      console.log('MessageRenderer: Using flat exercises array, first exercise:', workoutPlan.exercises[0]);
       segments.push({
-        name: 'Main Workout',
-        exercises: workoutPlan.exercises.map((exercise: any) => ({
-          exerciseId: exercise.exercise_id || exercise.id || '',
-          exerciseName: exercise.name || exercise.exercise_name || exercise.exerciseName || 'Unknown Exercise',
-          sets: exercise.sets || 3,
-          reps: exercise.reps || '8-12',
-          load: exercise.load || '',
-          restSec: exercise.rest_seconds || exercise.rest || 60,
-          notes: exercise.notes || ''
-        }))
+        name: workoutPlan.name || 'Main Workout',
+        exercises: workoutPlan.exercises.map((exercise: any) => {
+          // Try multiple field name variations
+          const exerciseName = exercise.name || 
+                               exercise.exercise_name || 
+                               exercise.exerciseName || 
+                               exercise.exercise || 
+                               exercise.exerciseId ||
+                               'Unknown Exercise';
+          
+          console.log('MessageRenderer: Mapping exercise:', { 
+            original: exercise, 
+            mapped: exerciseName 
+          });
+
+          return {
+            exerciseId: exercise.exercise_id || exercise.id || exercise.name || '',
+            exerciseName: exerciseName,
+            sets: exercise.sets || 3,
+            reps: exercise.reps || '8-12',
+            load: exercise.load || '',
+            restSec: exercise.rest_seconds || exercise.rest || 60,
+            notes: exercise.notes || ''
+          };
+        })
       });
     }
     
