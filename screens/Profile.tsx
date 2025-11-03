@@ -241,14 +241,18 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
       const actualReps = details.reps;
       const actualDuration = details.duration;
       const actualLevel = details.level;
+      const actualDistance = details.distance;
+      const actualDistanceUnit = details.distanceUnit;
       
       // Determine which metric type this PR uses
       const hasWeightReps = actualValue && actualReps && actualWeightUnit && isWeightUnit(actualWeightUnit);
       const hasBodyweightReps = actualReps && !actualValue && !actualDuration && !actualLevel;
       const hasDuration = actualDuration && !actualValue && !actualLevel;
       const hasDurationLevel = actualDuration && actualLevel && !actualValue;
-      const hasDistance = actualValue && actualWeightUnit && isDistanceUnit(actualWeightUnit) && !actualDuration;
-      const hasDistanceTime = actualValue && actualDuration && actualWeightUnit && isDistanceUnit(actualWeightUnit);
+      const hasDistance = (actualValue && actualWeightUnit && isDistanceUnit(actualWeightUnit) && !actualDuration) ||
+                        (actualDistance && actualDistanceUnit && !actualDuration);
+      const hasDistanceTime = ((actualValue && actualDuration && actualWeightUnit && isDistanceUnit(actualWeightUnit)) ||
+                              (actualDistance && actualDistanceUnit && actualDuration));
 
       // Weight + Reps (e.g., Bench Press 225 lbs × 5 reps)
       if (hasWeightReps) {
@@ -361,7 +365,9 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
 
       // Distance Only (e.g., Run 5.2 km)
       if (hasDistance) {
-        const converted = convertAndFormatDistance(actualValue!, actualWeightUnit!);
+        const distValue = actualDistance || actualValue!;
+        const distUnit = actualDistanceUnit || actualWeightUnit!;
+        const converted = convertAndFormatDistance(distValue, distUnit);
         
         return (
           <View style={styles.previousPRCard}>
@@ -387,8 +393,10 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
 
       // Distance + Time (e.g., 5K in 23m 15s, pace: 4m 39s/km)
       if (hasDistanceTime) {
-        const converted = convertAndFormatDistance(actualValue!, actualWeightUnit!);
-        const pace = Math.round(actualDuration! / actualValue!);
+        const distValue = actualDistance || actualValue!;
+        const distUnit = actualDistanceUnit || actualWeightUnit!;
+        const converted = convertAndFormatDistance(distValue, distUnit);
+        const pace = Math.round(actualDuration! / distValue);
         const paceUnit = converted.unit.endsWith('s') ? converted.unit.slice(0, -1) : converted.unit;
         
         return (
