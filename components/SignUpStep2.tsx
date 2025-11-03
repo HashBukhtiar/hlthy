@@ -18,6 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { getFirestore, collection, query, where, getDocs } from 'firebase/firestore';
 import CustomSpinner from '@/components/CustomSpinner';
+import LoadingOverlay from '@/components/LoadingOverlay';
 
 interface SignUpStep2Props {
   visible: boolean;
@@ -575,15 +576,7 @@ export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin,
         </ScrollView>
 
         {/* Loader widget centered on page, above all content */}
-  {(loading || spinnerOpacity > 0) && (
-          <>
-            <View style={styles.loadingBlocker} pointerEvents="auto" />
-            <Animated.View style={[styles.loadingOverlay, { opacity: spinnerFadeAnim }]} pointerEvents="auto">
-              <CustomSpinner size={48} />
-              <Text style={styles.loadingText}>Checking username...</Text>
-            </Animated.View>
-          </>
-        )}
+        <LoadingOverlay visible={loading || spinnerOpacity > 0} message="Checking username..." />
       </KeyboardAvoidingView>
     </TouchableWithoutFeedback>
   );
@@ -769,40 +762,5 @@ const styles = StyleSheet.create({
   },
   modernInputError: {
     // Remove border styling, rely on underline color for error indication
-  },
-  loadingOverlay: {
-    position: 'absolute',
-    top: '50%',
-    left: '50%',
-    width: 180,
-    height: 180,
-    marginLeft: -90,
-    marginTop: -90,
-    backgroundColor: 'rgba(0, 0, 0, 0.75)',
-    borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 1000,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 10,
-  },
-  loadingText: {
-    color: '#FFFFFF',
-    marginTop: 24,
-    fontSize: 16,
-    fontWeight: '500',
-    textAlign: 'center',
-  },
-  loadingBlocker: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'transparent',
-    zIndex: 999,
   },
 });

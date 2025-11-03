@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { auth } from '@/firebaseConfig';
 import { reload, signOut } from 'firebase/auth';
 import CustomSpinner from '@/components/CustomSpinner';
+import LoadingOverlay from '@/components/LoadingOverlay';
 import { SignupService } from '@/services/signupService';
 
 // Animated wrappers for touchable and text so we can animate colors
@@ -788,24 +789,7 @@ export default function EmailVerificationScreen({
       </View>
 
       {/* Loading spinner overlay */}
-      {isChangingEmail && (
-        <>
-          <Animated.View 
-            style={[styles.loadingBlocker, { opacity: spinnerFadeAnim }]} 
-            pointerEvents="auto" 
-          />
-          <Animated.View style={[
-            styles.loadingOverlay, 
-            { 
-              opacity: spinnerFadeAnim,
-              transform: [{ scale: spinnerScaleAnim }]
-            }
-          ]} pointerEvents="auto">
-            <CustomSpinner size={48} />
-            <Text style={styles.loadingText}>Cleaning up...</Text>
-          </Animated.View>
-        </>
-      )}
+      <LoadingOverlay visible={isChangingEmail} message="Cleaning up..." />
     </View>
   );
 }
@@ -1001,40 +985,5 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.5)',
     fontSize: 13,
     marginTop: 8,
-  },
-  loadingOverlay: {
-    position: 'absolute',
-    top: '50%',
-    left: '50%',
-    width: 180,
-    height: 180,
-    marginLeft: -90,
-    marginTop: -90,
-    backgroundColor: 'rgba(0, 0, 0, 0.75)',
-    borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 1000,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 10,
-  },
-  loadingText: {
-    color: '#FFFFFF',
-    marginTop: 24,
-    fontSize: 16,
-    fontWeight: '500',
-    textAlign: 'center',
-  },
-  loadingBlocker: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-    zIndex: 999,
   },
 });

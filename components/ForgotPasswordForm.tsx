@@ -15,6 +15,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { TextInput } from 'react-native-paper';
 import CustomSpinner from '@/components/CustomSpinner';
+import LoadingOverlay from '@/components/LoadingOverlay';
 
 interface ForgotPasswordFormProps {
   visible: boolean;
@@ -202,22 +203,8 @@ export default function ForgotPasswordForm({ visible, onBackPress, onBackToLogin
 
   return (
     <View style={styles.slideView}>
-      {/* Block all interactions when loading */}
-      {loading && (
-        <View style={styles.loadingBlocker} pointerEvents="auto" />
-      )}
-      {/* Loading overlay - animated fade-in */}
-      <Animated.View
-        pointerEvents={loading ? "auto" : "none"}
-        style={[styles.loadingOverlay, { opacity: loaderFadeAnim }]}
-      >
-        {loading && (
-          <>
-            <CustomSpinner size={80} />
-            <Text style={styles.loadingText}>Sending link...</Text>
-          </>
-        )}
-      </Animated.View>
+      {/* Loading overlay */}
+      <LoadingOverlay visible={loading} message="Sending link..." size={48} />
       {/* Back button */}
       <TouchableOpacity 
         style={styles.backButtonTop}
@@ -685,45 +672,10 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '600',
   },
-  loadingOverlay: {
-    position: 'absolute',
-    top: '50%',
-    left: '50%',
-    width: 180,
-    height: 180,
-    marginLeft: -90, // half of width
-    marginTop: -90, // half of height
-    backgroundColor: 'rgba(0, 0, 0, 0.75)',
-    borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 1000,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 10,
-  },
-  loadingText: {
-    color: '#FFFFFF',
-    marginTop: 24,
-    fontSize: 16,
-    fontWeight: '500',
-    textAlign: 'center',
-  },
   // Add scrollContent style for consistent padding
   scrollContent: {
     flexGrow: 1,
     // paddingHorizontal: 20,
-  },
-  loadingBlocker: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'transparent',
-    zIndex: 999,
   },
   // EmailVerification-like styles used in success UI
   emailIconContainer: {

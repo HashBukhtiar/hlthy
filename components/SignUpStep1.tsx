@@ -15,6 +15,7 @@ import {
 import { TextInput } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import CustomSpinner from '@/components/CustomSpinner';
+import LoadingOverlay from '@/components/LoadingOverlay';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { app } from '@/firebaseConfig';
 
@@ -409,15 +410,7 @@ export default function SignUpStep1({ visible, onBackPress, onNext, onShowLogin 
         </ScrollView>
 
         {/* Loading spinner overlay */}
-        {loading ? (
-          <>
-            <View style={styles.loadingBlocker} pointerEvents="auto" />
-            <Animated.View style={[styles.loadingOverlay, { opacity: spinnerFadeAnim }]} pointerEvents="auto">
-              <CustomSpinner size={48} />
-              <Text style={styles.loadingText}>Processing...</Text>
-            </Animated.View>
-          </>
-        ) : null}
+        <LoadingOverlay visible={loading} message="Processing..." />
       </KeyboardAvoidingView>
     </TouchableWithoutFeedback>
   );
@@ -570,40 +563,5 @@ const styles = StyleSheet.create({
   loginLinkBold: {
     color: '#FFFFFF',
     fontWeight: 'bold',
-  },
-  loadingOverlay: {
-    position: 'absolute',
-    top: '50%',
-    left: '50%',
-    width: 180,
-    height: 180,
-    marginLeft: -90,
-    marginTop: -90,
-    backgroundColor: 'rgba(0, 0, 0, 0.75)',
-    borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 1000,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 10,
-  },
-  loadingText: {
-    color: '#FFFFFF',
-    marginTop: 24,
-    fontSize: 16,
-    fontWeight: '500',
-    textAlign: 'center',
-  },
-  loadingBlocker: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'transparent',
-    zIndex: 999,
   },
 });

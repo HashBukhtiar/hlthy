@@ -4,6 +4,7 @@ import { TextInput } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { CustomSelector, SelectorItem } from '@/components/CustomSelector';
 import CustomSpinner from '@/components/CustomSpinner';
+import LoadingOverlay from '@/components/LoadingOverlay';
 import { Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SignupService } from '@/services/signupService';
@@ -274,15 +275,7 @@ export default function SignUpStep4({ visible, onBackPress, onComplete, onShowLo
           </TouchableOpacity>
         </View>
         {/* Loader overlay (fade-in/fade-out) */}
-        {loading && (
-          <>
-            <View style={styles.loadingBlocker} pointerEvents="auto" />
-            <Animated.View style={[styles.loadingOverlay, { opacity: spinnerFadeAnim }]} pointerEvents="auto">
-              <CustomSpinner size={48} />
-              <Text style={styles.loadingText}>Creating account...</Text>
-            </Animated.View>
-          </>
-        )}
+        <LoadingOverlay visible={loading} message="Creating account..." />
       </Animated.View>
 
       <View style={{ width: '100%', alignItems: 'center', marginBottom: 20 }}>
@@ -457,41 +450,6 @@ const styles = StyleSheet.create({
     marginLeft: 10,
     flex: 1,
     textAlign: 'left',
-  },
-  loadingOverlay: {
-    position: 'absolute',
-    top: '60%',
-    left: '50%',
-    width: 180,
-    height: 180,
-    marginLeft: -90,
-    marginTop: -90,
-    backgroundColor: 'rgba(0, 0, 0, 0.75)',
-    borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 1000,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 10,
-  },
-  loadingText: {
-    color: '#FFFFFF',
-    marginTop: 24,
-    fontSize: 16,
-    fontWeight: '500',
-    textAlign: 'center',
-  },
-  loadingBlocker: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'transparent',
-    zIndex: 999,
   },
   errorContainer: {
     flexDirection: 'row',
