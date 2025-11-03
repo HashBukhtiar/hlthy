@@ -34,6 +34,7 @@ export interface MilestoneDetails {
   previousReps?: number;
   previousDuration?: number;
   previousDistance?: number;
+  previousLevel?: number;
   
   // Improvement metrics
   improvement?: string;
