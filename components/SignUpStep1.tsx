@@ -53,6 +53,15 @@ export default function SignUpStep1({ visible, onBackPress, onNext, onShowLogin 
   const [emailFocused, setEmailFocused] = useState(false);
   const [isEmailValid, setIsEmailValid] = useState(true);
 
+  // Reset loading state when component becomes visible again
+  useEffect(() => {
+    if (visible) {
+      setLoading(false);
+      // Reset the spinner animation immediately (no spinnerOpacity state in Step1, just the anim)
+      spinnerFadeAnim.setValue(0);
+    }
+  }, [visible, spinnerFadeAnim]);
+
   useEffect(() => {
     const keyboardDidShowListener = Keyboard.addListener(
       'keyboardDidShow',

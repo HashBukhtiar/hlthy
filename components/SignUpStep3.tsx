@@ -36,6 +36,9 @@ export default function SignUpStep3({ visible, onBackPress, onComplete, onShowLo
   const [passwordFocused, setPasswordFocused] = useState<boolean>(false);
   const [confirmPasswordFocused, setConfirmPasswordFocused] = useState<boolean>(false);
 
+  // Reset loading state when component becomes visible again (Step 3 doesn't have loading, but keeping for consistency)
+  // Note: SignUpStep3 doesn't have loading state, so no need to reset it
+
   // Animated padding for keyboard
   const getInitialContentPadding = () => {
     let a = -0.1531;

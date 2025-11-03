@@ -39,6 +39,15 @@ export default function SignUpStep4({ visible, onBackPress, onComplete, onShowLo
   const errorFadeAnim = useRef(new Animated.Value(0)).current;
   const errorSlideAnim = useRef(new Animated.Value(-20)).current;
 
+  // Reset loading state when component becomes visible again
+  useEffect(() => {
+    if (visible) {
+      setLoading(false);
+      // Reset the spinner animation immediately (no spinnerOpacity state in Step4, just the anim)
+      spinnerFadeAnim.setValue(0);
+    }
+  }, [visible, spinnerFadeAnim]);
+
   useEffect(() => {
     if (loading) {
       Animated.timing(spinnerFadeAnim, {
