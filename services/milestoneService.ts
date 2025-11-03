@@ -22,9 +22,7 @@ export interface PreviousPRData {
  */
 export const fetchLastKnownWeight = async (userId: string): Promise<{ weight: number; unit: string } | null> => {
     try {
-        console.log('=== fetchLastKnownWeight called for user:', userId);
-        
-        // First, try to get all milestone posts without orderBy to avoid index requirements
+        // Get all milestone posts without orderBy to avoid index requirements
         const q = query(
             collection(db, 'posts'),
             where('authorId', '==', userId),
@@ -34,11 +32,8 @@ export const fetchLastKnownWeight = async (userId: string): Promise<{ weight: nu
         const querySnapshot = await getDocs(q);
 
         if (querySnapshot.empty) {
-            console.log('❌ No milestone posts found for user');
             return null;
         }
-
-        console.log(`✅ Found ${querySnapshot.docs.length} total milestone posts`);
 
         // Find all weight milestones and sort them manually
         const weightMilestones: Array<{ weight: number; unit: string; createdAt: any; docId: string }> = [];
@@ -47,19 +42,14 @@ export const fetchLastKnownWeight = async (userId: string): Promise<{ weight: nu
             const data = doc.data();
             const milestoneType = data.milestoneDetails?.type;
             
-            console.log(`📄 Post ${doc.id}: type=${milestoneType}, hasDetails=${!!data.milestoneDetails}`);
-            
             if (milestoneType === 'weightLoss' || milestoneType === 'weightGain') {
                 const newWeight = data.milestoneDetails?.newWeight;
                 const newWeightUnit = data.milestoneDetails?.newWeightUnit;
                 const createdAt = data.createdAt;
 
-                console.log(`  ⚖️  Weight milestone found: weight=${newWeight}, unit=${newWeightUnit}, createdAt=${createdAt}`);
-
                 if (newWeight) {
                     // Use 'lbs' as default if unit is missing (for old milestones created before we added unit field)
                     const unit = newWeightUnit || 'lbs';
-                    console.log(`  ✅  Adding weight milestone: ${newWeight} ${unit}${!newWeightUnit ? ' (defaulted to lbs)' : ''}`);
                     
                     weightMilestones.push({
                         weight: newWeight,
@@ -67,16 +57,11 @@ export const fetchLastKnownWeight = async (userId: string): Promise<{ weight: nu
                         createdAt: createdAt,
                         docId: doc.id
                     });
-                } else {
-                    console.log('  ⚠️  Weight milestone missing newWeight value');
                 }
             }
         }
 
-        console.log(`🎯 Found ${weightMilestones.length} weight milestones total`);
-
         if (weightMilestones.length === 0) {
-            console.log('❌ No previous weight milestones found for user');
             return null;
         }
 
@@ -89,19 +74,13 @@ export const fetchLastKnownWeight = async (userId: string): Promise<{ weight: nu
         });
 
         const mostRecent = weightMilestones[0];
-        console.log('✅ Most recent weight milestone:', {
-            docId: mostRecent.docId,
-            weight: mostRecent.weight,
-            unit: mostRecent.unit,
-            createdAt: mostRecent.createdAt
-        });
         
         return {
             weight: mostRecent.weight,
             unit: mostRecent.unit
         };
     } catch (error) {
-        console.error('❌ Error fetching last known weight:', error);
+        console.error('Error fetching last known weight:', error);
         return null;
     }
 };
