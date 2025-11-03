@@ -9,6 +9,7 @@ import { WorkoutPlanCard } from './cards/WorkoutPlanCard';
 import { TechniqueAdviceCard } from './cards/TechniqueAdviceCard';
 import { SchedulePlanCard } from './cards/SchedulePlanCard';
 import { ExplanationCard } from './cards/ExplanationCard';
+import { ProfileConfirmationCard, ProfileConfirmationData } from './cards/ProfileConfirmationCard';
 import { Colors, Layout, Typography, getIntentConfig } from '@/theme/ai';
 import { safeParseAssistant, WorkoutPlanData, TechniqueAdviceData, SchedulePlanData, ExplanationData } from '@/utils/aiMessage';
 
@@ -17,6 +18,7 @@ interface MessageRendererProps {
   intent?: string;
   workoutPlan?: any;
   responseType?: string;
+  profileData?: ProfileConfirmationData;
   onFormatAgain?: () => void;
   onSaveWorkout?: (data: WorkoutPlanData) => void;
   onStartWorkout?: (data: WorkoutPlanData) => void;
@@ -24,6 +26,8 @@ interface MessageRendererProps {
   onExplainChoices?: () => void;
   onShowExamples?: () => void;
   onApplySubstitutions?: (data: TechniqueAdviceData) => void;
+  onConfirmProfile?: () => void;
+  onEditProfile?: () => void;
 }
 
 export const MessageRenderer: React.FC<MessageRendererProps> = ({
@@ -31,6 +35,7 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({
   intent,
   workoutPlan,
   responseType,
+  profileData,
   onFormatAgain,
   onSaveWorkout,
   onStartWorkout,
@@ -38,8 +43,22 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({
   onExplainChoices,
   onShowExamples,
   onApplySubstitutions,
+  onConfirmProfile,
+  onEditProfile,
 }) => {
   const intentConfig = getIntentConfig(intent);
+
+  // Handle workout_confirmation type
+  if (responseType === 'workout_confirmation' && profileData) {
+    return (
+      <ProfileConfirmationCard
+        data={profileData}
+        message={message}
+        onConfirm={onConfirmProfile || (() => {})}
+        onEdit={onEditProfile || (() => {})}
+      />
+    );
+  }
 
   // Fallback to parsing message text for most cases
   const parsed = safeParseAssistant(message);

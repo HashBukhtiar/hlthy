@@ -99,9 +99,10 @@ interface Message {
   user: 'user' | 'other' | 'ai';
   role: 'user' | 'model';
   createdAt?: Date;
+  profileData?: any; // Profile confirmation data
+  responseType?: string; // Type of AI response  
   intent?: string; // Add intent field
   workoutPlan?: any; // Add workout plan data
-  responseType?: string; // Add response type
   sharedPost?: {
     id: string;
     imageUrl: string | null;
@@ -216,8 +217,8 @@ async function convertFirestoreDoc(
 }
 
 
-const MessageItem = React.memo<{ item: Message; onLongPress: (m: Message) => void; conversationId: string; onReprompt?: (message: string) => void }>(
-  ({ item, onLongPress, conversationId, onReprompt }) => {
+const MessageItem = React.memo<{ item: Message; onLongPress: (m: Message) => void; conversationId: string; onReprompt?: (message: string) => void; onSendMessage?: (message: string) => void }>(
+  ({ item, onLongPress, conversationId, onReprompt, onSendMessage }) => {
     const router = useRouter();
     const { getWeightUnit, getDistanceUnit, convertWeight, convertDistance } = useUnits();
     
@@ -459,7 +460,10 @@ const MessageItem = React.memo<{ item: Message; onLongPress: (m: Message) => voi
             intent={item.intent}
             workoutPlan={item.workoutPlan}
             responseType={item.responseType}
+            profileData={item.profileData}
             onFormatAgain={() => onReprompt?.(item.text)}
+            onConfirmProfile={() => onSendMessage?.('yes')}
+            onEditProfile={() => onSendMessage?.('no')}
           />
         ) : (
           <TouchableOpacity
@@ -1059,8 +1063,8 @@ export default function ChatScreen() {
   };
 
   const renderMessage = useCallback<ListRenderItem<Message>>(
-    ({ item }) => <MessageItem item={item} onLongPress={handleLongPress} conversationId={conversationId} onReprompt={handleReprompt} />,
-    [handleLongPress, conversationId, handleReprompt]
+    ({ item }) => <MessageItem item={item} onLongPress={handleLongPress} conversationId={conversationId} onReprompt={handleReprompt} onSendMessage={handleSend} />,
+    [handleLongPress, conversationId, handleReprompt, handleSend]
   );
 
   return (
