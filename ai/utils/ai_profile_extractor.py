@@ -79,17 +79,35 @@ Extract ANY of these claim types:
    - "no barbell" → extract missing: barbell
    - "bodyweight only" → extract limitation: bodyweight_only
 
-4. **goal**: Fitness objectives
-   Examples: 
-   - "build muscle" → extract goal: muscle_building
-   - "lose weight" → extract goal: fat_loss
-   - "get stronger" → extract goal: strength
+4. **experience_level**: User's lifting experience (NEW)
+   Examples:
+   - "I'm a beginner" → extract "beginner"
+   - "been lifting 5 years" → extract "advanced"
+   - "intermediate lifter" → extract "intermediate"
+   - "just started" → extract "beginner"
+   VALUES: "beginner", "intermediate", "advanced"
 
-5. **preference**: Training style preferences
-   Examples: 
-   - "prefer short workouts" → extract preference
-   - "morning training" → extract preference
-   - "focus on compounds" → extract preference
+5. **training_frequency**: How many days per week they train (NEW)
+   Examples:
+   - "I train 5 times a week" → extract 5
+   - "workout 3 days" → extract 3
+   - "gym 6x per week" → extract 6
+   VALUE: Extract number (1-7)
+
+6. **primary_goal**: Main fitness objective (NEW)
+   Examples:
+   - "build muscle" → extract "hypertrophy"
+   - "lose weight" → extract "weight_loss"
+   - "get stronger" → extract "strength"
+   - "improve endurance" → extract "endurance"
+   VALUES: "hypertrophy", "strength", "endurance", "weight_loss", "general_fitness"
+
+7. **preference**: Training style preferences or specific likes (NEW)
+   Examples:
+   - "I love hammer strength machines" → extract "loves hammer strength machines"
+   - "prefer free weights" → extract "prefers free weights"
+   - "like short workouts" → extract "likes short workouts"
+   Store as free-form text (natural language)
 
 For EACH claim provide:
 - type: claim type from above
@@ -283,19 +301,52 @@ Generate ONLY the confirmation message (no JSON, no formatting, no quotes):"""
                     logger.info(f"✅ Committed equipment: {value}")
                 
                 elif claim_type == 'goal':
-                    # Set primary goal
+                    # Set primary goal (legacy support)
                     if not hasattr(user_profile, 'goals'):
                         user_profile.goals = {}
                     user_profile.goals['primary'] = value
                     logger.info(f"✅ Committed goal: {value}")
                 
                 elif claim_type == 'preference':
-                    # Add preference
-                    if not hasattr(user_profile, 'preferences'):
-                        user_profile.preferences = {}
+                    # Add preference (legacy support)
+                    if not hasattr(user_profile, 'preferences_old'):
+                        user_profile.preferences_old = {}
                     pref_key = value.lower().replace(' ', '_')
-                    user_profile.preferences[pref_key] = True
+                    user_profile.preferences_old[pref_key] = True
                     logger.info(f"✅ Committed preference: {value}")
+                
+                # NEW: Experience Level
+                elif claim_type == 'experience_level':
+                    user_profile.experience_level = value
+                    logger.info(f"✅ Committed experience level: {value}")
+                
+                # NEW: Training Frequency
+                elif claim_type == 'training_frequency':
+                    try:
+                        user_profile.training_frequency = int(value)
+                        logger.info(f"✅ Committed training frequency: {value} days/week")
+                    except (ValueError, TypeError):
+                        logger.warning(f"⚠️ Invalid training frequency: {value}")
+                
+                # NEW: Primary Goal
+                elif claim_type == 'primary_goal':
+                    if not user_profile.primary_goals:
+                        user_profile.primary_goals = []
+                    if value not in user_profile.primary_goals:
+                        user_profile.primary_goals.append(value)
+                        logger.info(f"✅ Committed primary goal: {value}")
+                    else:
+                        logger.info(f"⏭️ Primary goal already exists: {value}")
+                
+                # NEW: Preference (free-form text)
+                elif claim_type == 'preference':
+                    if not user_profile.preferences:
+                        user_profile.preferences = []
+                    if value not in user_profile.preferences:
+                        user_profile.preferences.append(value)
+                        logger.info(f"✅ Committed preference: {value}")
+                    else:
+                        logger.info(f"⏭️ Preference already exists: {value}")
             
             logger.info(f"✅ Successfully committed all {len(claims)} claims")
             return True

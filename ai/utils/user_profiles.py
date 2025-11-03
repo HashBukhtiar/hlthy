@@ -163,8 +163,13 @@ class UserProfile:
     height_cm: Optional[float] = None
     weight_kg: Optional[float] = None
     timezone: Optional[str] = None
-    experience_level: str = "beginner"  # "beginner", "intermediate", "advanced"
+    experience_level: Optional[str] = None  # "beginner", "intermediate", "advanced"
     archetype: Optional[str] = None  # "generalist", "powerlifter", "crossfitter", etc.
+    
+    # NEW: Enhanced profile memory fields
+    training_frequency: Optional[int] = None  # Days per week (1-7)
+    primary_goals: Optional[List[str]] = None  # ["hypertrophy", "strength", "endurance", "weight_loss", "general_fitness"]
+    preferences: Optional[List[str]] = None  # Free-form preference notes (e.g., "loves hammer strength machines")
     
     # Goals and preferences
     goals: Optional[FitnessGoals] = None
@@ -236,6 +241,12 @@ class UserProfile:
             self.session_state = SessionState(state="IDLE")
         if self.consent is None:
             self.consent = ConversationalConsent()
+        
+        # Initialize NEW fields
+        if self.primary_goals is None:
+            self.primary_goals = []
+        if self.preferences is None:
+            self.preferences = []
     
     def get_snapshot_hash(self) -> str:
         """Generate hash for planner snapshot tracking"""

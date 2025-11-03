@@ -241,15 +241,42 @@ class AIOrchestrator:
         """
         Build comprehensive prompt for Gemini to orchestrate everything
         """
-        # Format profile context
+        # Format profile context with NEW fields
         profile_context = "No profile yet"
         if profile:
+            # Extract all profile fields
+            exp_level = getattr(profile, 'experience_level', None) or 'Unknown'
+            train_freq = getattr(profile, 'training_frequency', None)
+            train_freq_str = f"{train_freq} days/week" if train_freq else 'Unknown'
+            primary_goals = getattr(profile, 'primary_goals', None) or []
+            goals_str = ', '.join(primary_goals) if primary_goals else 'Unknown'
+            dislikes = profile.dislikes if hasattr(profile, 'dislikes') and profile.dislikes else []
+            dislikes_str = ', '.join(dislikes) if dislikes else 'None'
+            
+            # Get injuries
+            injuries = []
+            if hasattr(profile, 'active_injuries') and profile.active_injuries:
+                injuries = [i.injury_type if hasattr(i, 'injury_type') else i.get('body_part', 'unknown') for i in profile.active_injuries]
+            elif hasattr(profile, 'injuries') and profile.injuries:
+                injuries = [i.get('body_part', 'unknown') for i in profile.injuries]
+            injuries_str = ', '.join(injuries) if injuries else 'None'
+            
+            # Get equipment
+            equipment = getattr(profile, 'available_equipment', {})
+            equipment_str = ', '.join([k for k, v in equipment.items() if v]) if isinstance(equipment, dict) else str(equipment)
+            
+            # Get preferences
+            preferences = getattr(profile, 'preferences', None) or []
+            preferences_str = ', '.join(preferences) if preferences else 'None'
+            
             profile_context = f"""
-Experience Level: {getattr(profile, 'experience_level', 'unknown')}
-Goals: {getattr(profile.goals, 'primary_goal', 'unknown') if hasattr(profile, 'goals') and profile.goals else 'unknown'}
-Dislikes: {', '.join(profile.dislikes) if profile.dislikes else 'none'}
-Injuries: {', '.join([i.injury_type for i in (profile.active_injuries or [])]) if hasattr(profile, 'active_injuries') else 'none'}
-Equipment: {getattr(profile, 'available_equipment', 'unknown')}
+Experience Level: {exp_level}
+Training Frequency: {train_freq_str}
+Primary Goals: {goals_str}
+Dislikes: {dislikes_str}
+Injuries/Limitations: {injuries_str}
+Available Equipment: {equipment_str}
+Preferences: {preferences_str}
 """
         
         # Format history
@@ -283,14 +310,44 @@ CRITICAL INSTRUCTIONS:
 
 YOUR TASK:
 1. Understand what the user wants (workout plan, advice, information, etc.)
-2. If they want a workout:
-   - FIRST, ask what type of workout they want (chest, back, legs, full body, etc.) if not specified
-   - ONLY generate a workout if you know the target muscle group/body part
-   - Create a complete structured workout
-   - AVOID exercises they dislike
-   - MODIFY for injuries (low-impact alternatives)
-   - Match their experience level
-   - Include: exercise name, sets, reps, rest, notes
+
+2. If they want a workout, follow this EXACT WORKFLOW:
+
+   **STEP A: Check Profile Completeness**
+   - If experience_level is Unknown → Ask: "What's your experience level (beginner/intermediate/advanced)?"
+   - If training_frequency is Unknown → Ask: "How many days per week do you train?"
+   - If primary_goals is Unknown → Ask: "What are your main fitness goals (build muscle, lose weight, get stronger, etc.)?"
+   - If they haven't specified which workout → Ask: "What would you like to focus on (chest, back, legs, full body, etc.)?"
+   
+   **STEP B: Confirm Profile Before Generating**
+   Once you have ALL required info (experience, goals, workout type), BEFORE generating the workout, use type "workout_confirmation":
+   {{
+     "type": "workout_confirmation",
+     "message": "Perfect! Before I create your [workout_type] workout, let me confirm what I'll keep in mind:
+     
+     **Your Profile:**
+     - Experience: [level]
+     - Training Frequency: [X] days/week
+     - Goals: [goals]
+     - Dislikes: [exercises to avoid]
+     - Injuries: [body parts to protect]
+     - Equipment: [available equipment]
+     - Preferences: [any special notes]
+     
+     I'll design a [workout_type] workout that:
+     • Matches your [experience level] training level
+     • Avoids [disliked exercises]
+     • Protects your [injured areas] (if any)
+     • Uses available equipment
+     • Focuses on [primary goals]
+     [• Incorporates [preferences] when possible]
+     
+     Does this look correct? Reply 'yes' or 'looks good' to generate the workout, or let me know what to adjust."
+   }}
+   
+   **STEP C: Generate Workout (ONLY after user confirms or if they say "yes"/"looks good"/"correct")**
+   If user confirms, generate the workout with a REASONING PARAGRAPH explaining your design decisions.
+
 3. If profile info is missing, ask naturally
 4. If just chatting, respond helpfully
 
@@ -302,9 +359,35 @@ CRITICAL RULES FOR WORKOUTS:
 - DO structure: 4-6 exercises, 3-4 sets each
 
 RESPOND IN JSON FORMAT:
+
+For profile questions:
 {{
-    "type": "workout_plan" | "conversational" | "profile_question",
-    "message": "Your natural response introducing the workout or answering their question",
+    "type": "profile_question",
+    "message": "Your question to gather missing profile info",
+    "profile_needs": ["experience_level"] (field you're asking about)
+}}
+
+For workout confirmation (before generating):
+{{
+    "type": "workout_confirmation",
+    "message": "Your confirmation message showing what you'll consider (see STEP B format above)"
+}}
+
+For workout generation (after confirmation):
+{{
+    "type": "workout_plan",
+    "message": "Here's your [focus] workout!
+    
+    **Design Reasoning:**
+    I created this workout considering:
+    • Your [experience level] experience - [explain exercise selection/intensity]
+    • Avoiding [dislikes] - [what you excluded and why]
+    • Protecting [injuries] - [modifications made for safety]
+    • Using [equipment] - [how this shaped exercise choices]
+    • Targeting [goals] - [how workout structure supports this]
+    [• Your preference for [preferences] - [how you incorporated it]]
+    
+    Let me know if you'd like any adjustments!",
     "workout": {{
         "name": "Workout name (e.g., 'Upper Body Strength')",
         "focus": "primary muscle group",
@@ -321,14 +404,30 @@ RESPOND IN JSON FORMAT:
                 "equipment": "none" or "dumbbells" etc.
             }}
         ]
-    }} (ONLY if type is workout_plan),
-    "profile_needs": ["experience_level", "goals"] (ONLY if critical info missing)
+    }}
 }}
 
-EXAMPLE WORKOUT RESPONSE:
+For conversational responses:
+{{
+    "type": "conversational",
+    "message": "Your helpful response"
+}}
+
+EXAMPLE WORKOUT WITH REASONING:
 {{
     "type": "workout_plan",
-    "message": "Here's a chest workout that avoids burpees and is knee-friendly!",
+    "message": "Here's your chest workout!
+    
+    **Design Reasoning:**
+    I created this workout considering:
+    • Your advanced experience - included heavy compound movements and higher volume
+    • Avoiding burpees - used traditional strength exercises instead
+    • Protecting your knee - no jumping or deep squats, stable positions only
+    • Using dumbbells and machines - structured around your available equipment
+    • Targeting hypertrophy - 3-4 sets of 8-12 reps with controlled tempo
+    • Your preference for hammer strength machines - included 2 machine exercises
+    
+    Let me know if you'd like any adjustments!",
     "workout": {{
         "name": "Chest & Triceps Power",
         "focus": "chest",
