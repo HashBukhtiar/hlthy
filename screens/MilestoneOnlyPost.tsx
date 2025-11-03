@@ -21,7 +21,7 @@ import { db } from '@/firebaseConfig';
 import { Ionicons, MaterialCommunityIcons, FontAwesome5, Feather } from '@expo/vector-icons';
 import SelectExercise from './SelectExercise';
 import { Exercise } from '@/data/exercises';
-import { fetchPreviousPRService, PreviousPRData } from '@/services/milestoneService';
+import { fetchPreviousPRService, PreviousPRData, fetchLastKnownWeight } from '@/services/milestoneService';
 import {
     SECONDARY_COLOR,
     ErrorMessage,
@@ -63,6 +63,10 @@ export default function MilestoneOnlyPost({ onBack }: MilestoneOnlyPostProps) {
     // Weight milestone fields
     const [newBodyWeight, setNewBodyWeight] = useState('');
     const [previousBodyWeight, setPreviousBodyWeight] = useState('');
+    
+    // Track if this is user's first weight milestone
+    const [isFirstWeightMilestone, setIsFirstWeightMilestone] = useState(false);
+    const [loadingLastWeight, setLoadingLastWeight] = useState(false);
 
     // Exercise selection (for PR only)
     const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(null);
@@ -185,6 +189,52 @@ export default function MilestoneOnlyPost({ onBack }: MilestoneOnlyPostProps) {
         }
         
     }, [weight, reps, distance, hours, minutes, seconds, level, selectedExercise]);
+
+    // Fetch last known weight when milestone type changes to weight loss/gain
+    useEffect(() => {
+        const fetchAndSetLastWeight = async () => {
+            if (milestoneType === 'weightLoss' || milestoneType === 'weightGain') {
+                if (!currentUser) return;
+                
+                setLoadingLastWeight(true);
+                try {
+                    const lastWeight = await fetchLastKnownWeight(currentUser.uid);
+                    
+                    if (lastWeight) {
+                        // Convert to user's current unit preference if needed
+                        const userUnit = getWeightUnit();
+                        let weightValue = lastWeight.weight;
+                        
+                        if (lastWeight.unit !== userUnit) {
+                            if (lastWeight.unit === 'kg' && userUnit === 'lbs') {
+                                weightValue = Math.round(lastWeight.weight * 2.20462 * 10) / 10;
+                            } else if (lastWeight.unit === 'lbs' && userUnit === 'kg') {
+                                weightValue = Math.round(lastWeight.weight * 0.453592 * 10) / 10;
+                            }
+                        }
+                        
+                        setPreviousBodyWeight(weightValue.toString());
+                        setIsFirstWeightMilestone(false);
+                    } else {
+                        // No previous weight found - this is their first weight milestone
+                        setPreviousBodyWeight('');
+                        setIsFirstWeightMilestone(true);
+                    }
+                } catch (error) {
+                    console.error('Error fetching last weight:', error);
+                    setIsFirstWeightMilestone(true);
+                } finally {
+                    setLoadingLastWeight(false);
+                }
+            } else {
+                // Reset when switching back to PR
+                setPreviousBodyWeight('');
+                setIsFirstWeightMilestone(false);
+            }
+        };
+
+        fetchAndSetLastWeight();
+    }, [milestoneType, currentUser]);
 
     useEffect(() => {
         if (milestoneType === 'PR' || !newBodyWeight || !previousBodyWeight) {
@@ -409,24 +459,28 @@ export default function MilestoneOnlyPost({ onBack }: MilestoneOnlyPostProps) {
                 return;
             }
             
-            if (previousBodyWeight) {
-                const newWeightNum = parseFloat(newBodyWeight);
-                const prevWeightNum = parseFloat(previousBodyWeight);
-                
-                if (isNaN(newWeightNum) || isNaN(prevWeightNum)) {
-                    setFormError("Please enter valid weight values");
-                    return;
-                }
-                
-                if (milestoneType === 'weightLoss' && newWeightNum >= prevWeightNum) {
-                    setFormError("For weight loss, new weight must be less than previous weight");
-                    return;
-                }
-                
-                if (milestoneType === 'weightGain' && newWeightNum <= prevWeightNum) {
-                    setFormError("For weight gain, new weight must be greater than previous weight");
-                    return;
-                }
+            // Previous weight is now ALWAYS required
+            if (!previousBodyWeight) {
+                setFormError("Please enter your previous weight");
+                return;
+            }
+            
+            const newWeightNum = parseFloat(newBodyWeight);
+            const prevWeightNum = parseFloat(previousBodyWeight);
+            
+            if (isNaN(newWeightNum) || isNaN(prevWeightNum)) {
+                setFormError("Please enter valid weight values");
+                return;
+            }
+            
+            if (milestoneType === 'weightLoss' && newWeightNum >= prevWeightNum) {
+                setFormError("For weight loss, new weight must be less than previous weight");
+                return;
+            }
+            
+            if (milestoneType === 'weightGain' && newWeightNum <= prevWeightNum) {
+                setFormError("For weight gain, new weight must be greater than previous weight");
+                return;
             }
         }
 
@@ -936,35 +990,59 @@ export default function MilestoneOnlyPost({ onBack }: MilestoneOnlyPostProps) {
                                 {/* Weight Fields (Weight Loss/Gain only) */}
                                 {(milestoneType === 'weightLoss' || milestoneType === 'weightGain') && (
                                     <View style={styles.metricFieldsContainer}>
-                                        <View style={styles.metricContainer}>
-                                            <Text style={styles.metricLabel}>New Body Weight ({getWeightUnit()})</Text>
-                                            <View style={styles.inputWithIcon}>
-                                                <TextInput
-                                                    style={styles.metricInput}
-                                                    value={newBodyWeight}
-                                                    onChangeText={setNewBodyWeight}
-                                                    placeholder="0"
-                                                    placeholderTextColor="#555"
-                                                    keyboardType="numeric"
-                                                />
-                                                <Text style={styles.inputIcon}>{getWeightUnit()}</Text>
+                                        {loadingLastWeight ? (
+                                            <View style={styles.loadingWeightContainer}>
+                                                <ActivityIndicator size="small" color={SECONDARY_COLOR} />
+                                                <Text style={styles.loadingWeightText}>Loading your last weight...</Text>
                                             </View>
-                                        </View>
-                                        
-                                        <View style={styles.metricContainer}>
-                                            <Text style={styles.metricLabel}>Previous Weight (Optional)</Text>
-                                            <View style={styles.inputWithIcon}>
-                                                <TextInput
-                                                    style={styles.metricInput}
-                                                    value={previousBodyWeight}
-                                                    onChangeText={setPreviousBodyWeight}
-                                                    placeholder="0"
-                                                    placeholderTextColor="#555"
-                                                    keyboardType="numeric"
-                                                />
-                                                <Text style={styles.inputIcon}>{getWeightUnit()}</Text>
-                                            </View>
-                                        </View>
+                                        ) : (
+                                            <>
+                                                <View style={styles.metricContainer}>
+                                                    <Text style={styles.metricLabel}>New Body Weight ({getWeightUnit()}) *</Text>
+                                                    <View style={styles.inputWithIcon}>
+                                                        <TextInput
+                                                            style={styles.metricInput}
+                                                            value={newBodyWeight}
+                                                            onChangeText={setNewBodyWeight}
+                                                            placeholder="0"
+                                                            placeholderTextColor="#555"
+                                                            keyboardType="numeric"
+                                                        />
+                                                        <Text style={styles.inputIcon}>{getWeightUnit()}</Text>
+                                                    </View>
+                                                </View>
+                                                
+                                                <View style={styles.metricContainer}>
+                                                    <View style={styles.labelRow}>
+                                                        <Text style={styles.metricLabel}>
+                                                            Previous Weight ({getWeightUnit()}) *
+                                                        </Text>
+                                                        {!isFirstWeightMilestone && previousBodyWeight && (
+                                                            <Text style={styles.autoFilledBadge}>Auto-filled</Text>
+                                                        )}
+                                                    </View>
+                                                    <View style={styles.inputWithIcon}>
+                                                        <TextInput
+                                                            style={[
+                                                                styles.metricInput,
+                                                                !isFirstWeightMilestone && previousBodyWeight && styles.metricInputAutoFilled
+                                                            ]}
+                                                            value={previousBodyWeight}
+                                                            onChangeText={setPreviousBodyWeight}
+                                                            placeholder={isFirstWeightMilestone ? "Enter your starting weight" : "0"}
+                                                            placeholderTextColor="#555"
+                                                            keyboardType="numeric"
+                                                        />
+                                                        <Text style={styles.inputIcon}>{getWeightUnit()}</Text>
+                                                    </View>
+                                                    {isFirstWeightMilestone && (
+                                                        <Text style={styles.helperText}>
+                                                            This is your first weight milestone. Enter your starting weight.
+                                                        </Text>
+                                                    )}
+                                                </View>
+                                            </>
+                                        )}
                                     </View>
                                 )}
                                 
@@ -1302,5 +1380,42 @@ const styles = StyleSheet.create({
     },
     milestoneTypeTextActive: {
         color: '#FFF',
+    },
+    
+    // Weight milestone loading and helper styles
+    loadingWeightContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 20,
+    },
+    loadingWeightText: {
+        color: '#999',
+        marginLeft: 8,
+        fontSize: 14,
+    },
+    labelRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: 8,
+    },
+    autoFilledBadge: {
+        fontSize: 12,
+        color: '#34C759',
+        fontWeight: '600',
+        backgroundColor: 'rgba(52, 199, 89, 0.15)',
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: 4,
+    },
+    metricInputAutoFilled: {
+        borderColor: 'rgba(52, 199, 89, 0.3)',
+    },
+    helperText: {
+        fontSize: 12,
+        color: '#999',
+        marginTop: 4,
+        fontStyle: 'italic',
     },
 });
