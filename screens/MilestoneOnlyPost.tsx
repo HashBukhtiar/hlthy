@@ -185,6 +185,28 @@ export default function MilestoneOnlyPost({ onBack }: MilestoneOnlyPostProps) {
         }
         
     }, [weight, reps, distance, hours, minutes, seconds, level, selectedExercise]);
+
+    useEffect(() => {
+        if (milestoneType === 'PR' || !newBodyWeight || !previousBodyWeight) {
+            return;
+        }
+        
+        const newWeightNum = parseFloat(newBodyWeight);
+        const prevWeightNum = parseFloat(previousBodyWeight);
+        
+        if (isNaN(newWeightNum) || isNaN(prevWeightNum)) {
+            return;
+        }
+        
+        // Show warning but don't block submission yet
+        if (milestoneType === 'weightLoss' && newWeightNum >= prevWeightNum) {
+            setFormError("Weight loss should show a decrease");
+        } else if (milestoneType === 'weightGain' && newWeightNum <= prevWeightNum) {
+            setFormError("Weight gain should show an increase");
+        } else {
+            setFormError(null);
+        }
+    }, [newBodyWeight, previousBodyWeight, milestoneType]);
     
     // Handle exercise selection from the SelectExercise screen
     const handleExerciseSelect = (exercise: Exercise) => {
@@ -385,6 +407,26 @@ export default function MilestoneOnlyPost({ onBack }: MilestoneOnlyPostProps) {
             if (!newBodyWeight) {
                 setFormError("Please enter your new body weight");
                 return;
+            }
+            
+            if (previousBodyWeight) {
+                const newWeightNum = parseFloat(newBodyWeight);
+                const prevWeightNum = parseFloat(previousBodyWeight);
+                
+                if (isNaN(newWeightNum) || isNaN(prevWeightNum)) {
+                    setFormError("Please enter valid weight values");
+                    return;
+                }
+                
+                if (milestoneType === 'weightLoss' && newWeightNum >= prevWeightNum) {
+                    setFormError("For weight loss, new weight must be less than previous weight");
+                    return;
+                }
+                
+                if (milestoneType === 'weightGain' && newWeightNum <= prevWeightNum) {
+                    setFormError("For weight gain, new weight must be greater than previous weight");
+                    return;
+                }
             }
         }
 
