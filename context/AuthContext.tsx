@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { auth, db } from '@/firebaseConfig';
-import { onAuthStateChanged, User, signOut } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { onAuthStateChanged, reload, User, signOut } from 'firebase/auth';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { UserProfile, AuthContextType } from '@/types/user';
 import { NotificationService } from '@/services/NotificationService';
 
@@ -20,19 +20,38 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const refreshUserProfile = async () => {
     if (currentUser) {
       try {
-        console.log('Refreshing user profile for user:', currentUser.uid);
+        // Reload user to get latest email verification status
+        await reload(currentUser);
+        console.log('Reloaded user:', currentUser.uid);
+        
         const userDoc = await getDoc(doc(db, "users", currentUser.uid));
         if (userDoc.exists()) {
           const userData = userDoc.data();
+          
+          // Update email verification status in Firestore if it changed
+          if (userData.emailVerified !== currentUser.emailVerified) {
+            await updateDoc(doc(db, "users", currentUser.uid), {
+              emailVerified: currentUser.emailVerified,
+              lastModified: new Date().toISOString(),
+            });
+            userData.emailVerified = currentUser.emailVerified;
+          }
+          console.log('Updated blocked users:', userData.blockedUsers);
+          
           setUserProfile({
             uid: userDoc.id, // Use 'uid' instead of 'id' to match UserProfile type
             ...userData,
+            profileImageUrl: userData.profileImageUrl,
+            profileThumbnailUrl: userData.profileThumbnailUrl,
+            emailVerified: currentUser.emailVerified,
           } as UserProfile);
-          
-          console.log('Updated blocked users:', userData.blockedUsers);
+        } else {
+          console.log("User document not found in Firestore during refresh");
+          setUserProfile(null);
         }
       } catch (error) {
         console.error("Error refreshing user profile:", error);
+        setUserProfile(null);
       }
     }
   };
@@ -63,15 +82,36 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
       if (user) {
+        // Reload user to get latest email verification status
+        await reload(user);
+        
         // Fetch user profile data
         try {
           const userDoc = await getDoc(doc(db, "users", user.uid));
           if (userDoc.exists()) {
             const userData = userDoc.data();
+            
+            // Update email verification status in Firestore if it changed
+            if (userData.emailVerified !== user.emailVerified) {
+              await updateDoc(doc(db, "users", user.uid), {
+                emailVerified: user.emailVerified,
+                lastModified: new Date().toISOString(),
+              });
+              userData.emailVerified = user.emailVerified;
+            }
+            console.log('Updated blocked users:', userData.blockedUsers);
+            
             setUserProfile({
               uid: userDoc.id, // Use 'uid' instead of 'id' to match UserProfile type
               ...userData,
+              profileImageUrl: userData.profileImageUrl,
+              profileThumbnailUrl: userData.profileThumbnailUrl,
+              emailVerified: user.emailVerified,
             } as UserProfile);
+          } else {
+            // User exists in Auth but not in Firestore yet (e.g., during signup flow)
+            console.log("User document not found in Firestore, user may be in signup process");
+            setUserProfile(null);
           }
 
           // Initialize notifications after user data is loaded
@@ -79,6 +119,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
           
         } catch (error) {
           console.error("Error fetching user profile:", error);
+          // Don't set user profile on error, keep it null
+          setUserProfile(null);
         }
       } else {
         // User signed out - clean up

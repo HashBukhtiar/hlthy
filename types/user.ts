@@ -66,6 +66,7 @@ export interface UserProfile {
   
   // Verification & Status
   isVerified?: boolean;
+  emailVerified?: boolean;
   isPremium?: boolean;
   subscriptionStatus?: 'free' | 'premium' | 'pro';
   
