@@ -69,7 +69,8 @@ export default function EmailVerificationScreen({
   useEffect(() => {
     const handleAppStateChange = (nextAppState: AppStateStatus) => {
       if (nextAppState === 'active' && visible) {
-        checkEmailVerification();
+        // Check silently without showing failure animation
+        checkEmailVerification(false);
       }
     };
 
@@ -250,7 +251,7 @@ export default function EmailVerificationScreen({
     outputRange: ['#000000', '#FFFFFF'],
   });
 
-  const checkEmailVerification = useCallback(async () => {
+  const checkEmailVerification = useCallback(async (showAnimation: boolean = true) => {
     if (!auth.currentUser) {
       console.log('[EmailVerificationScreen] checkEmailVerification: no auth.currentUser yet — waiting for auth state to hydrate');
       // If there's no pending signup, don't proceed
@@ -274,6 +275,12 @@ export default function EmailVerificationScreen({
       }
 
       // If we reach here, verification check did not find a verified email.
+      // Only show failure animation if this was a user-initiated check
+      if (!showAnimation) {
+        setIsCheckingVerification(false);
+        return;
+      }
+
       // Trigger a failure feedback animation (red button, X slides in from bottom,
       // check slides out to top and later slides back in from top).
       setIsVerificationFailed(true);
@@ -360,7 +367,12 @@ export default function EmailVerificationScreen({
         return;
       }
       
-      // On other errors, show the same failure feedback so users get visual response
+      // On other errors, only show failure feedback if this was user-initiated
+      if (!showAnimation) {
+        setIsCheckingVerification(false);
+        return;
+      }
+      
       setIsVerificationFailed(true);
       verifyFailAnim.setValue(0);
       verifyXIconYAnim.setValue(60);
@@ -630,7 +642,7 @@ export default function EmailVerificationScreen({
               isCheckingVerification && styles.disabledButton,
               { backgroundColor: animatedBackgroundColor },
             ]}
-            onPress={checkEmailVerification}
+            onPress={() => checkEmailVerification(true)}
             disabled={isCheckingVerification}
             activeOpacity={0.8}
           >
