@@ -1,6 +1,6 @@
 import { auth, db, functions } from '@/firebaseConfig';
 import { createUserWithEmailAndPassword, sendEmailVerification, reload, deleteUser, signOut } from 'firebase/auth';
-import { doc, setDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, setDoc, collection, query, where, getDocs, serverTimestamp } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -180,48 +180,71 @@ export class SignupService {
         await setDoc(doc(db, 'usersPublic', user.uid), { isVerified: true }, { merge: true });
         console.log('[SignupService] usersPublic marked as verified for uid=', user.uid);
       } catch (err) {
-        console.warn('[SignupService] Failed to mark usersPublic as verified:', err);
+        console.error('[SignupService] CRITICAL: Failed to mark usersPublic as verified:', err);
+        // Don't throw - continue to create users document
       }
 
       // Create Firestore user profile (full profile creation)
-      await setDoc(doc(db, 'users', user.uid), {
-        uid: user.uid,
-        email: pendingData.email,
-        firstName: pendingData.firstName,
-        lastName: pendingData.lastName,
-        username: pendingData.username,
-        dateOfBirth: pendingData.dateOfBirth,
-        archetype: pendingData.archetype,
-        version: 1,
-        units: {weight: "metric", distance: "metric"},
-        notifications: {
-          mentionedInReplies: true, 
-          likesAndComments: true, 
-          taggedInComments: true, 
-          directMessages: true, 
-          newFollowers: true, 
-          followRequestAccepted: true
-        },
-        messagePermission: 'everyone',
-        profileVisibility: 'public',
-        createdAt: new Date().toISOString(),
-        lastModified: new Date().toISOString(),
-        language: 'en',
-        followPermission: 'anyone',
-        followerCount: 0,
-        followingCount: 0,
-        postCount: 0,
-        workoutCount: 0,
-        milestoneCount: 0,
-        displayName: `${pendingData.firstName} ${pendingData.lastName}`,
-        commentPermission: 'everyone',
-        theme: 'dark',
-        twoFactorEnabled: false,
-        analytics: {lastSeen: new Date().toISOString()},
-        latestPRs: {},
-        bio: '',
-        emailVerified: true
-      });
+      console.log('[SignupService] Creating users document for uid=', user.uid);
+      try {
+        await setDoc(doc(db, 'users', user.uid), {
+          uid: user.uid,
+          email: pendingData.email,
+          firstName: pendingData.firstName,
+          lastName: pendingData.lastName,
+          username: pendingData.username,
+          dateOfBirth: pendingData.dateOfBirth,
+          archetype: pendingData.archetype,
+          version: 1,
+          units: {weight: "metric", distance: "metric"},
+          notifications: {
+            mentionedInReplies: true, 
+            likesAndComments: true, 
+            taggedInComments: true, 
+            directMessages: true, 
+            newFollowers: true, 
+            followRequestAccepted: true
+          },
+          messagePermission: 'everyone',
+          profileVisibility: 'public',
+          createdAt: serverTimestamp(),
+          lastModified: serverTimestamp(),
+          language: 'en',
+          followPermission: 'anyone',
+          followerCount: 0,
+          followingCount: 0,
+          postCount: 0,
+          workoutCount: 0,
+          milestoneCount: 0,
+          displayName: `${pendingData.firstName} ${pendingData.lastName}`,
+          commentPermission: 'everyone',
+          theme: 'dark',
+          twoFactorEnabled: false,
+          analytics: {lastSeen: serverTimestamp()},
+          latestPRs: {},
+          bio: '',
+          emailVerified: true,
+          profileImageUrl: '',
+          profileThumbnailUrl: null,
+          blockedUsers: [],
+          stats: {
+            followerCount: 0,
+            followingCount: 0,
+            postCount: 0,
+            workoutCount: 0,
+            milestoneCount: 0
+          }
+        });
+        console.log('[SignupService] Successfully created users document for uid=', user.uid);
+      } catch (err) {
+        console.error('[SignupService] CRITICAL ERROR: Failed to create users document:', err);
+        console.error('[SignupService] Error details:', {
+          code: (err as any)?.code,
+          message: (err as any)?.message,
+          stack: (err as any)?.stack,
+        });
+        throw new Error(`Failed to create user profile: ${(err as any)?.message || 'Unknown error'}`);
+      }
 
       // Update usersPublic document with merge to preserve isVerified
       await setDoc(doc(db, 'usersPublic', user.uid), {

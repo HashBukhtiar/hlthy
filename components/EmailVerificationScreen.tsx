@@ -270,9 +270,23 @@ export default function EmailVerificationScreen({
   await reload(auth.currentUser);
       if (auth.currentUser.emailVerified) {
         // Complete the signup process with stored data
-        await SignupService.completePendingSignup();
-        onVerificationComplete();
-        return;
+        console.log('[EmailVerificationScreen] Email verified! Completing signup...');
+        try {
+          await SignupService.completePendingSignup();
+          console.log('[EmailVerificationScreen] Signup completed successfully');
+          onVerificationComplete();
+          return;
+        } catch (signupError: any) {
+          console.error('[EmailVerificationScreen] CRITICAL: Failed to complete signup:', signupError);
+          // Show an alert to the user about the error
+          Alert.alert(
+            'Signup Error',
+            `Failed to complete account setup: ${signupError.message || 'Unknown error'}. Please contact support.`,
+            [{ text: 'OK' }]
+          );
+          setIsCheckingVerification(false);
+          return;
+        }
       }
 
       // If we reach here, verification check did not find a verified email.
