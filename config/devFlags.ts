@@ -28,6 +28,17 @@ export const devFlags = {
   devPassword: 'dev1232',
   
   /**
+   * Email Verification Bypass
+   * 
+   * When enabled, shows a bypass button on the email verification screen
+   * that allows developers to skip email verification during testing.
+   * Also prevents the Cloud Function from deleting unverified accounts.
+   * 
+   * ⚠️ MUST BE FALSE IN PRODUCTION
+   */
+  bypassEmailVerification: true,
+  
+  /**
    * Add more developer flags here as needed, for example:
    * 
    * - enableDebugLogging: boolean

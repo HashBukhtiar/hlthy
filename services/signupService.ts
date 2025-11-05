@@ -3,6 +3,7 @@ import { createUserWithEmailAndPassword, sendEmailVerification, reload, deleteUs
 import { doc, setDoc, collection, query, where, getDocs, serverTimestamp } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { devFlags } from '@/config/devFlags';
 
 interface PendingSignupData {
   email: string;
@@ -82,16 +83,21 @@ export class SignupService {
         console.log('[SignupService] usersPublic created with isVerified:false for uid=', user.uid);
 
         // Schedule a Cloud Task to run the cleanup handler in 5 minutes
-        try {
-          const scheduleFn = httpsCallable(functions, 'scheduleCleanupTask');
-          const result = await scheduleFn({ uid: user.uid, delaySeconds: 5 * 60 });
-          console.log('[SignupService] Scheduled cleanup task for uid=', user.uid, 'result:', result);
-        } catch (taskErr: any) {
-          console.error('[SignupService] Failed to schedule cleanup task:', taskErr);
-          console.error('[SignupService] Error code:', taskErr.code);
-          console.error('[SignupService] Error message:', taskErr.message);
-          console.error('[SignupService] Error details:', taskErr.details);
-          // Don't throw - account creation succeeded, just log the error
+        // Skip scheduling if bypass flag is enabled (dev mode)
+        if (!devFlags.bypassEmailVerification) {
+          try {
+            const scheduleFn = httpsCallable(functions, 'scheduleCleanupTask');
+            const result = await scheduleFn({ uid: user.uid, delaySeconds: 5 * 60 });
+            console.log('[SignupService] Scheduled cleanup task for uid=', user.uid, 'result:', result);
+          } catch (taskErr: any) {
+            console.error('[SignupService] Failed to schedule cleanup task:', taskErr);
+            console.error('[SignupService] Error code:', taskErr.code);
+            console.error('[SignupService] Error message:', taskErr.message);
+            console.error('[SignupService] Error details:', taskErr.details);
+            // Don't throw - account creation succeeded, just log the error
+          }
+        } else {
+          console.log('[SignupService] DEV: Skipping cleanup task scheduling (bypass flag enabled)');
         }
       } catch (err) {
         console.warn('[SignupService] Failed to create usersPublic at signup time:', err);
@@ -259,6 +265,117 @@ export class SignupService {
       console.log('[SignupService] Signup completed successfully for user:', user.uid);
     } catch (error) {
       console.error('[SignupService] Error completing pending signup:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * DEV ONLY: Bypass email verification and complete signup
+   * This treats the account as if the email was verified, keeping it in Firebase Auth
+   * and completing the full signup process (creating users and usersPublic documents)
+   */
+  static async bypassEmailVerification(): Promise<void> {
+    if (!devFlags.bypassEmailVerification) {
+      throw new Error('Email verification bypass is not enabled');
+    }
+
+    try {
+      const pendingData = await this.getPendingSignupData();
+      if (!pendingData) {
+        throw new Error('No pending signup data found');
+      }
+
+      const user = auth.currentUser;
+      if (!user) {
+        throw new Error('No authenticated user found');
+      }
+
+      console.log('[SignupService] DEV: Bypassing email verification for uid=', user.uid);
+
+      // Mark usersPublic as verified (same as if email was verified)
+      try {
+        await setDoc(doc(db, 'usersPublic', user.uid), { isVerified: true }, { merge: true });
+        console.log('[SignupService] DEV: usersPublic marked as verified for uid=', user.uid);
+      } catch (err) {
+        console.error('[SignupService] CRITICAL: Failed to mark usersPublic as verified:', err);
+        // Don't throw - continue to create users document
+      }
+
+      // Create Firestore user profile (full profile creation - same as completePendingSignup)
+      console.log('[SignupService] DEV: Creating users document for uid=', user.uid);
+      try {
+        await setDoc(doc(db, 'users', user.uid), {
+          uid: user.uid,
+          email: pendingData.email,
+          firstName: pendingData.firstName,
+          lastName: pendingData.lastName,
+          username: pendingData.username,
+          dateOfBirth: pendingData.dateOfBirth,
+          archetype: pendingData.archetype,
+          version: 1,
+          units: {weight: "metric", distance: "metric"},
+          notifications: {
+            mentionedInReplies: true, 
+            likesAndComments: true, 
+            taggedInComments: true, 
+            directMessages: true, 
+            newFollowers: true, 
+            followRequestAccepted: true
+          },
+          messagePermission: 'everyone',
+          profileVisibility: 'public',
+          createdAt: serverTimestamp(),
+          lastModified: serverTimestamp(),
+          language: 'en',
+          followPermission: 'anyone',
+          followerCount: 0,
+          followingCount: 0,
+          postCount: 0,
+          workoutCount: 0,
+          milestoneCount: 0,
+          displayName: `${pendingData.firstName} ${pendingData.lastName}`,
+          commentPermission: 'everyone',
+          theme: 'dark',
+          twoFactorEnabled: false,
+          analytics: {lastSeen: serverTimestamp()},
+          latestPRs: {},
+          bio: '',
+          emailVerified: true,
+          profileImageUrl: '',
+          profileThumbnailUrl: null,
+          blockedUsers: [],
+          stats: {
+            followerCount: 0,
+            followingCount: 0,
+            postCount: 0,
+            workoutCount: 0,
+            milestoneCount: 0
+          }
+        });
+        console.log('[SignupService] DEV: Successfully created users document for uid=', user.uid);
+      } catch (err) {
+        console.error('[SignupService] CRITICAL ERROR: Failed to create users document:', err);
+        console.error('[SignupService] Error details:', {
+          code: (err as any)?.code,
+          message: (err as any)?.message,
+          stack: (err as any)?.stack,
+        });
+        throw new Error(`Failed to create user profile: ${(err as any)?.message || 'Unknown error'}`);
+      }
+
+      // Update usersPublic document with merge to preserve isVerified
+      await setDoc(doc(db, 'usersPublic', user.uid), {
+        uid: user.uid,
+        username: pendingData.username,
+        isVerified: true,
+      }, { merge: true });
+
+      // Clear pending signup data (but keep the Firebase Auth account)
+      await AsyncStorage.removeItem(PENDING_SIGNUP_KEY);
+
+      console.log('[SignupService] DEV: Signup bypassed successfully for user:', user.uid);
+    } catch (error) {
+      console.error('[SignupService] DEV: Error bypassing email verification:', error);
       throw error;
     }
   }

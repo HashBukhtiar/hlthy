@@ -18,6 +18,7 @@ import { reload, signOut } from 'firebase/auth';
 import CustomSpinner from '@/components/CustomSpinner';
 import LoadingOverlay from '@/components/LoadingOverlay';
 import { SignupService } from '@/services/signupService';
+import { devFlags } from '@/config/devFlags';
 
 // Animated wrappers for touchable and text so we can animate colors
 const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
@@ -51,6 +52,7 @@ export default function EmailVerificationScreen({
   const [isAccountDeleted, setIsAccountDeleted] = useState(false);
   const [countdownSeconds, setCountdownSeconds] = useState<number | null>(null);
   const [hasPendingSignup, setHasPendingSignup] = useState(false);
+  const [isBypassingVerification, setIsBypassingVerification] = useState(false);
   // Success animation state for resend button
   const [showResendSuccess, setShowResendSuccess] = useState(false);
   const spinnerFadeAnim = useRef(new Animated.Value(0)).current;
@@ -594,6 +596,35 @@ export default function EmailVerificationScreen({
     }
   }, [onBackToSignUp]);
 
+  const handleBypassVerification = useCallback(async () => {
+    if (!devFlags.bypassEmailVerification) return;
+    
+    setIsBypassingVerification(true);
+    try {
+      console.log('[EmailVerificationScreen] DEV: Bypassing email verification - treating as if email was verified');
+      
+      const user = auth.currentUser;
+      if (!user) {
+        Alert.alert('Error', 'No authenticated user found');
+        setIsBypassingVerification(false);
+        return;
+      }
+
+      // Use the bypass method in SignupService that treats the account as verified
+      await SignupService.bypassEmailVerification();
+      console.log('[EmailVerificationScreen] DEV: Signup completed via bypass (account kept in Firebase Auth and Firestore)');
+      onVerificationComplete();
+    } catch (error: any) {
+      console.error('[EmailVerificationScreen] DEV: Bypass verification error:', error);
+      Alert.alert(
+        'Bypass Failed',
+        `Failed to bypass verification: ${error.message || 'Unknown error'}`,
+        [{ text: 'OK' }]
+      );
+      setIsBypassingVerification(false);
+    }
+  }, [onVerificationComplete]);
+
   if (!visible) return null;
 
   // Show account deleted message
@@ -780,6 +811,30 @@ export default function EmailVerificationScreen({
                 : 'Resend Email'}
             </Text>
           </TouchableOpacity>
+
+          {/* Dev bypass button - only shown when flag is enabled */}
+          {devFlags.bypassEmailVerification && (
+            <TouchableOpacity
+              style={[
+                styles.devBypassButton,
+                isBypassingVerification && styles.disabledButton,
+              ]}
+              onPress={handleBypassVerification}
+              disabled={isBypassingVerification}
+              activeOpacity={0.8}
+            >
+              <View style={styles.buttonIconContainer}>
+                {isBypassingVerification ? (
+                  <CustomSpinner size={16} />
+                ) : (
+                  <Ionicons name="bug" size={16} color="#FFA500" />
+                )}
+              </View>
+              <Text style={styles.devBypassButtonText}>
+                {isBypassingVerification ? 'Bypassing...' : 'DEV: Bypass Verification'}
+              </Text>
+            </TouchableOpacity>
+          )}
 
         </View>
       </View>
@@ -999,5 +1054,23 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.5)',
     fontSize: 13,
     marginTop: 8,
+  },
+  devBypassButton: {
+    backgroundColor: 'rgba(255, 165, 0, 0.15)',
+    borderRadius: 25,
+    height: 52,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 165, 0, 0.5)',
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  devBypassButtonText: {
+    color: '#FFA500',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
