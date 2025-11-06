@@ -16,49 +16,49 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [loading, setLoading] = useState(true);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
 
-  // Function to refresh user profile data
-  const refreshUserProfile = async () => {
-    if (currentUser) {
-      try {
-        // Reload user to get latest email verification status
-        await reload(currentUser);
-        console.log('Reloaded user:', currentUser.uid);
-        
-        const userDoc = await getDoc(doc(db, "users", currentUser.uid));
-        if (userDoc.exists()) {
-          const userData = userDoc.data();
-          
-          // Update email verification status in Firestore if it changed
-          if (userData.emailVerified !== currentUser.emailVerified) {
-            await updateDoc(doc(db, "users", currentUser.uid), {
-              emailVerified: currentUser.emailVerified,
-              lastModified: new Date().toISOString(),
-            });
-            userData.emailVerified = currentUser.emailVerified;
-          }
-          console.log('Updated blocked users:', userData.blockedUsers);
-          
-          setUserProfile({
-            uid: userDoc.id, // Use 'uid' instead of 'id' to match UserProfile type
-            ...userData,
-            profileImageUrl: userData.profileImageUrl,
-            profileThumbnailUrl: userData.profileThumbnailUrl,
-            emailVerified: currentUser.emailVerified,
-          } as UserProfile);
+  
+    const refreshUserProfile = async () => {
+      if (currentUser) {
+        try {
+          // Reload user to get latest email verification status
+          await reload(currentUser);
 
-          // Initialize notifications if they weren't initialized yet
-          // This handles the case where the user document was just created
-          await initializeNotifications(currentUser, true);
-        } else {
-          console.log("User document not found in Firestore during refresh");
+          const userDoc = await getDoc(doc(db, "users", currentUser.uid));
+
+          if (userDoc.exists()) {
+            const userData = userDoc.data();
+
+            // Only update Firestore when Auth is verified (true) and Firestore is not yet
+            if (currentUser.emailVerified && !userData.emailVerified) {
+              await updateDoc(doc(db, "users", currentUser.uid), {
+                emailVerified: true,
+                lastModified: new Date().toISOString(),
+              });
+              userData.emailVerified = true;
+            }
+
+            // Use the Firestore value for emailVerified (don't overwrite with Auth false)
+            const finalEmailVerified = userData.emailVerified || currentUser.emailVerified;
+
+            setUserProfile({
+              uid: userDoc.id,
+              ...userData,
+              profileImageUrl: userData.profileImageUrl,
+              profileThumbnailUrl: userData.profileThumbnailUrl,
+              emailVerified: finalEmailVerified,
+            } as UserProfile);
+
+            // Initialize notifications if they weren't initialized yet
+            await initializeNotifications(currentUser, true);
+          } else {
+            setUserProfile(null);
+          }
+        } catch (error) {
+          console.error("Error refreshing user profile:", error);
           setUserProfile(null);
         }
-      } catch (error) {
-        console.error("Error refreshing user profile:", error);
-        setUserProfile(null);
       }
-    }
-  };
+    };
 
   // Initialize notifications for authenticated user
   const initializeNotifications = async (user: User, userDocExists: boolean) => {
@@ -68,7 +68,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
     // This prevents race conditions during signup where the auth user exists
     // but the Firestore document hasn't been created yet
     if (!userDocExists) {
-      console.log('Skipping notification initialization - user document not ready yet');
       return;
     }
 
@@ -79,7 +78,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       // Register for push notifications
       const success = await NotificationService.registerForPushNotifications(user.uid);
       if (success) {
-        console.log('Push notifications registered successfully');
+        // push notifications registered
       }
 
       // Set up notification listeners
@@ -92,37 +91,49 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      
+      
       setCurrentUser(user);
       if (user) {
-        // Reload user to get latest email verification status
-        await reload(user);
+  // Reload user to get latest email verification status
+  await reload(user);
         
         // Fetch user profile data
         try {
           const userDoc = await getDoc(doc(db, "users", user.uid));
+          
+          
           if (userDoc.exists()) {
             const userData = userDoc.data();
             
-            // Update email verification status in Firestore if it changed
-            if (userData.emailVerified !== user.emailVerified) {
+            // For email verification status:
+            // - If Firebase Auth says verified (true), update Firestore to match
+            // - If Firebase Auth says not verified (false) but Firestore says verified (true),
+            //   trust Firestore (this handles dev bypass and other edge cases)
+            // - Only update Firestore when Auth is verified and Firestore isn't yet
+            if (user.emailVerified && !userData.emailVerified) {
               await updateDoc(doc(db, "users", user.uid), {
-                emailVerified: user.emailVerified,
+                emailVerified: true,
                 lastModified: new Date().toISOString(),
               });
-              userData.emailVerified = user.emailVerified;
+              userData.emailVerified = true;
             }
-            console.log('Updated blocked users:', userData.blockedUsers);
+            
+            // Use the Firestore value for emailVerified (don't overwrite with Auth)
+            const finalEmailVerified = userData.emailVerified || user.emailVerified;
+            
+            
             
             setUserProfile({
               uid: userDoc.id, // Use 'uid' instead of 'id' to match UserProfile type
               ...userData,
               profileImageUrl: userData.profileImageUrl,
               profileThumbnailUrl: userData.profileThumbnailUrl,
-              emailVerified: user.emailVerified,
+              emailVerified: finalEmailVerified,
             } as UserProfile);
           } else {
             // User exists in Auth but not in Firestore yet (e.g., during signup flow)
-            console.log("User document not found in Firestore, user may be in signup process");
+            
             setUserProfile(null);
           }
 

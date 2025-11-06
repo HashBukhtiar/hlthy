@@ -91,7 +91,7 @@ export default function EmailVerificationScreen({
 
     // Only mark expired when there was a pending signup for this device/session.
     if (countdownSeconds <= 0 && hasPendingSignup) {
-      console.log('[EmailVerificationScreen] countdown reached 0 — marking account as expired locally');
+  // countdown reached 0 — marking account as expired locally
       setIsAccountDeleted(true);
     }
   }, [visible, countdownSeconds, isAccountDeleted]);
@@ -127,7 +127,7 @@ export default function EmailVerificationScreen({
       try {
         const pending = await SignupService.getPendingSignupData();
         if (!pending || !mounted) {
-          console.log('[EmailVerificationScreen] setupCountdown: no pending signup data');
+    // setupCountdown: no pending signup data
           setHasPendingSignup(false);
           setCountdownSeconds(null);
           return;
@@ -141,12 +141,7 @@ export default function EmailVerificationScreen({
         const initialRemaining = Math.max(0, Math.ceil((expiryMs - now) / 1000));
 
         // Diagnostic log to help trace why a flow might be immediately expired
-        console.log('[EmailVerificationScreen] setupCountdown:', {
-          pendingTimestamp: pending.timestamp,
-          expiryMs,
-          now,
-          initialRemaining,
-        });
+        // setupCountdown details
 
         // If the initial remaining time is 0 but the pending record was created very
         // recently (within the last 10s), treat this as a likely race / tiny clock skew
@@ -188,7 +183,7 @@ export default function EmailVerificationScreen({
         tick();
         interval = setInterval(tick, 1000);
       } catch (e) {
-        console.warn('[EmailVerificationScreen] setupCountdown error:', e);
+  console.warn('setupCountdown error:', e);
         setCountdownSeconds(null);
       }
     };
@@ -256,10 +251,10 @@ export default function EmailVerificationScreen({
 
   const checkEmailVerification = useCallback(async (showAnimation: boolean = true) => {
     if (!auth.currentUser) {
-      console.log('[EmailVerificationScreen] checkEmailVerification: no auth.currentUser yet — waiting for auth state to hydrate');
+  // no auth.currentUser yet — waiting for auth state to hydrate
       // If there's no pending signup, don't proceed
       const hasPending = await SignupService.hasPendingSignup();
-      console.log('[EmailVerificationScreen] checkEmailVerification: hasPendingSignup=', hasPending);
+  // hasPendingSignup= ${hasPending}
       if (!hasPending) return;
       // We don't call the cloud deletion check here; rely on the local countdown instead.
       return;
@@ -267,19 +262,19 @@ export default function EmailVerificationScreen({
     
     setIsCheckingVerification(true);
     try {
-  console.log('[EmailVerificationScreen] checkEmailVerification: auth.currentUser uid=', auth.currentUser?.uid);
+  // checkEmailVerification: auth.currentUser uid
   // Do not call the cloud deletion checker here; rely on local countdown expiry.
   await reload(auth.currentUser);
       if (auth.currentUser.emailVerified) {
         // Complete the signup process with stored data
-        console.log('[EmailVerificationScreen] Email verified! Completing signup...');
+  // Email verified! Completing signup...
         try {
           await SignupService.completePendingSignup();
-          console.log('[EmailVerificationScreen] Signup completed successfully');
+          // Signup completed successfully - userProfile should now be available
           onVerificationComplete();
           return;
         } catch (signupError: any) {
-          console.error('[EmailVerificationScreen] CRITICAL: Failed to complete signup:', signupError);
+          console.error('CRITICAL: Failed to complete signup:', signupError);
           // Show an alert to the user about the error
           Alert.alert(
             'Signup Error',
@@ -456,9 +451,8 @@ export default function EmailVerificationScreen({
     
     setIsResending(true);
     try {
-      console.log('[EmailVerificationScreen] handleResendVerification: auth.currentUser uid=', auth.currentUser?.uid);
-      const hasPending = await SignupService.hasPendingSignup();
-      console.log('[EmailVerificationScreen] handleResendVerification: hasPendingSignup=', hasPending);
+  // handleResendVerification diagnostics
+  const hasPending = await SignupService.hasPendingSignup();
   // We no longer call the cloud deletion checker here; resend attempts will
   // surface auth errors if the account was removed.
 
@@ -588,7 +582,7 @@ export default function EmailVerificationScreen({
     try {
       await SignupService.cancelPendingSignup();
     } catch (error) {
-      console.error('[EmailVerificationScreen] handleStartOver error:', error);
+  console.error('handleStartOver error:', error);
       // proceed back to sign up regardless of cleanup result
     } finally {
       setIsChangingEmail(false);
@@ -601,7 +595,7 @@ export default function EmailVerificationScreen({
     
     setIsBypassingVerification(true);
     try {
-      console.log('[EmailVerificationScreen] DEV: Bypassing email verification - treating as if email was verified');
+  // DEV: Bypassing email verification - treating as if email was verified
       
       const user = auth.currentUser;
       if (!user) {
@@ -612,10 +606,10 @@ export default function EmailVerificationScreen({
 
       // Use the bypass method in SignupService that treats the account as verified
       await SignupService.bypassEmailVerification();
-      console.log('[EmailVerificationScreen] DEV: Signup completed via bypass (account kept in Firebase Auth and Firestore)');
+  // DEV: Signup completed via bypass (account kept in Firebase Auth and Firestore)
       onVerificationComplete();
     } catch (error: any) {
-      console.error('[EmailVerificationScreen] DEV: Bypass verification error:', error);
+  console.error('DEV: Bypass verification error:', error);
       Alert.alert(
         'Bypass Failed',
         `Failed to bypass verification: ${error.message || 'Unknown error'}`,

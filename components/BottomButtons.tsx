@@ -82,7 +82,21 @@ function BottomButtons() {
 
   // If the auth context says the user exists but hasn't verified their email,
   // the EmailVerificationGuard or verification UI will be shown — hide the bottom bar.
-  if (!authLoading && currentUser && !(currentUser.emailVerified || userProfile?.emailVerified)) {
+  // Check both Firebase Auth emailVerified AND Firestore userProfile emailVerified
+  // (userProfile.emailVerified is set to true during dev bypass)
+  if (!authLoading && currentUser && !userProfile) {
+    // User exists but profile not loaded yet - wait for profile
+    // waiting for user profile
+    return null;
+  }
+  
+  if (!authLoading && currentUser && userProfile && !(currentUser.emailVerified || userProfile.emailVerified)) {
+    // user not verified
+    return null;
+  }
+
+  // During auth loading, don't show navigation
+  if (authLoading) {
     return null;
   }
 
@@ -100,6 +114,8 @@ function BottomButtons() {
   ) {
     return null;
   }
+
+  // show navigation
 
   return (
     <View 
