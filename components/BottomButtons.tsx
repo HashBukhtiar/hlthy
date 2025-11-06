@@ -12,7 +12,7 @@ function BottomButtons() {
   const insets = useSafeAreaInsets();
   const { width } = Dimensions.get('window');
 
-  const { currentUser, userProfile, loading: authLoading } = useAuth();
+  const { currentUser, userProfile, loading: authLoading, isFromSignup } = useAuth();
   
   // Create animated value for the slider indicator
   const indicatorPosition = useRef(new Animated.Value(0)).current;
@@ -84,14 +84,16 @@ function BottomButtons() {
   // the EmailVerificationGuard or verification UI will be shown — hide the bottom bar.
   // Check both Firebase Auth emailVerified AND Firestore userProfile emailVerified
   // (userProfile.emailVerified is set to true during dev bypass)
+  // BUT: only hide the bar if the user is coming from signup (isFromSignup === true)
+  // If they logged in (isFromSignup === false), show the bar even if unverified
   if (!authLoading && currentUser && !userProfile) {
     // User exists but profile not loaded yet - wait for profile
     // waiting for user profile
     return null;
   }
   
-  if (!authLoading && currentUser && userProfile && !(currentUser.emailVerified || userProfile.emailVerified)) {
-    // user not verified
+  if (!authLoading && currentUser && userProfile && !(currentUser.emailVerified || userProfile.emailVerified) && isFromSignup) {
+    // user not verified AND came from signup - hide the bar
     return null;
   }
 
