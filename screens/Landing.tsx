@@ -18,10 +18,12 @@ import SignUpStep2 from '@/components/SignUpStep2';
 import SignUpStep3 from '@/components/SignUpStep3';
 import SignUpStep4 from '@/components/SignUpStep4';
 import EmailVerificationScreen from '@/components/EmailVerificationScreen';
+import { useAuth } from '@/context/AuthContext';
 
 export default function Landing() {
   const router = useRouter();
   const { width } = Dimensions.get('window');
+  const { refreshUserProfile } = useAuth();
   
   // State for current active screen
   const [currentScreen, setCurrentScreen] = useState<'landing' | 'signup-step1' | 'signup-step2' | 'signup-step3' | 'signup-step4' | 'login' | 'forgot' | 'email-verification'>('landing');
@@ -209,10 +211,14 @@ export default function Landing() {
     animateToScreen('email-verification', 'forward');
   }, [animateToScreen]);
 
-  const handleEmailVerificationComplete = useCallback(() => {
+  const handleEmailVerificationComplete = useCallback(async () => {
     setEmailSent(false); // Reset emailSent when verification is complete
+    
+    // Refresh user profile to initialize notifications now that the user document exists
+    await refreshUserProfile();
+    
     router.replace('/profile');
-  }, [router]);
+  }, [router, refreshUserProfile]);
 
   const handleBackToSignUpFromVerification = useCallback(() => {
     setEmailSent(false); // Reset emailSent when going back to signup

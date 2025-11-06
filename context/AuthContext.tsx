@@ -45,6 +45,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
             profileThumbnailUrl: userData.profileThumbnailUrl,
             emailVerified: currentUser.emailVerified,
           } as UserProfile);
+
+          // Initialize notifications if they weren't initialized yet
+          // This handles the case where the user document was just created
+          await initializeNotifications(currentUser, true);
         } else {
           console.log("User document not found in Firestore during refresh");
           setUserProfile(null);
@@ -57,8 +61,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   // Initialize notifications for authenticated user
-  const initializeNotifications = async (user: User) => {
+  const initializeNotifications = async (user: User, userDocExists: boolean) => {
     if (!user?.uid) return;
+
+    // Only initialize notifications if the user document exists in Firestore
+    // This prevents race conditions during signup where the auth user exists
+    // but the Firestore document hasn't been created yet
+    if (!userDocExists) {
+      console.log('Skipping notification initialization - user document not ready yet');
+      return;
+    }
 
     try {
       // Set up notification channels first (Android)
@@ -115,7 +127,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
           }
 
           // Initialize notifications after user data is loaded
-          await initializeNotifications(user);
+          // Only if the user document exists (userDoc.exists() was true)
+          await initializeNotifications(user, userDoc.exists());
           
         } catch (error) {
           console.error("Error fetching user profile:", error);
