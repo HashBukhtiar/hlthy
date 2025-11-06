@@ -36,7 +36,7 @@ export const devFlags = {
    * 
    * ⚠️ MUST BE FALSE IN PRODUCTION
    */
-  bypassEmailVerification: true,
+  bypassEmailVerification: false,
   
   /**
    * Add more developer flags here as needed, for example:
