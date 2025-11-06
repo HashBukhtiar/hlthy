@@ -25,7 +25,7 @@ import { useUnits } from '@/hooks/useUnits';
 
 export default function MilestonesFeed() {
   const router = useRouter();
-  const { currentUser } = useAuth();
+  const { currentUser, userProfile } = useAuth();
   const { milestones: feedMilestones, loading, refreshing, loadingMore, hasMore, error, refreshFeed, loadMorePosts } = useFeedData();
   const { likePost, unlikePost } = usePostsData();
   const { canInteractWithUser, isUserBlocked } = useBlockEnforcement();
@@ -56,7 +56,7 @@ export default function MilestonesFeed() {
   }, []);
   
   const handleLike = useCallback(async (milestoneId: string, isCurrentlyLiked: boolean) => {
-    if (!currentUser) {
+    if (!currentUser || !userProfile) {
       Alert.alert('Please log in', 'You need to be logged in to like milestones.');
       return;
     }
