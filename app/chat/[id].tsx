@@ -273,7 +273,7 @@ const MessageItem = React.memo<{ item: Message; onLongPress: (m: Message) => voi
           </View>
           {item.sharedPost.imageUrl && (
             <Image 
-              source={{ uri: getOptimalImageUrl(item.sharedPost.imageUrl, item.sharedPost.thumbnailUrl) || undefined }} 
+              source={{ uri: getOptimalImageUrl(item.sharedPost.thumbnailUrl, item.sharedPost.imageUrl) || undefined }} 
               style={styles.sharedPostImage} 
             />
           )}
@@ -426,8 +426,8 @@ const MessageItem = React.memo<{ item: Message; onLongPress: (m: Message) => voi
             <Image
               source={{
                 uri: getOptimalImageUrl(
-                  item.sharedWorkout.coverImageUrl,
-                  item.sharedWorkout.thumbnailUrl
+                  item.sharedWorkout.thumbnailUrl,
+                  item.sharedWorkout.coverImageUrl
                 ) || undefined
               }}
               style={styles.sharedWorkoutImage}

@@ -280,11 +280,7 @@ export const WorkoutAttachment = ({
                         onPress={() => router.push(`/view-workout/${selectedWorkout.id}`)}
                     >
                         <Image 
-                            source={
-                                selectedWorkout.coverImageUrl
-                                    ? { uri: selectedWorkout.coverImageUrl }
-                                    : require('@/assets/images/icon.png')
-                            }
+                            source={getCoverImageSource(selectedWorkout.thumbnailUrl, selectedWorkout.coverImageUrl)}
                             style={postComponentStyles.workoutThumbnail}
                         />
                         <View style={postComponentStyles.attachedWorkoutInfo}>

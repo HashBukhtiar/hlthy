@@ -1088,10 +1088,14 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
           </TouchableOpacity>
         )}
         <Image
-          source={{ uri: getOptimalImageUrl(
-            processedProfileData?.profileThumbnailUrl,
-            processedProfileData?.profileImageUrl
-          ) }}
+          source={{ 
+            uri: isOwnProfile 
+              ? (processedProfileData?.profileImageUrl || DEFAULT_PROFILE_IMAGE)
+              : getOptimalImageUrl(
+                  processedProfileData?.profileThumbnailUrl,
+                  processedProfileData?.profileImageUrl
+                )
+          }}
           style={styles.profileImage}
         />
         <Text style={styles.profileName}>{processedProfileData?.displayName || 'User'}</Text>
