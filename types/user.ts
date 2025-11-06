@@ -139,4 +139,6 @@ export interface AuthContextType {
   userProfile: UserProfile | null;
   loading: boolean;
   refreshUserProfile: () => Promise<void>;
+  isFromSignup: boolean;
+  setIsFromSignup: (value: boolean) => void;
 }

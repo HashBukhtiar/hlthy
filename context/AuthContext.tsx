@@ -15,6 +15,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [isFromSignup, setIsFromSignup] = useState<boolean>(false);
 
   
     const refreshUserProfile = async () => {
@@ -150,6 +151,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         // User signed out - clean up
         setCurrentUser(null);
         setUserProfile(null);
+        setIsFromSignup(false); // Clear signup flag on sign out
         // Note: Don't try to clean tokens here as user is already signed out
       }
       setLoading(false);
@@ -179,7 +181,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
     currentUser,
     userProfile,
     loading,
-    refreshUserProfile
+    refreshUserProfile,
+    isFromSignup,
+    setIsFromSignup
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

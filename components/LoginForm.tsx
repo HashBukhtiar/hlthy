@@ -16,6 +16,7 @@ import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from '@/firebaseConfig';
 import CustomSpinner from '@/components/CustomSpinner';
 import LoadingOverlay from '@/components/LoadingOverlay';
+import { useAuth } from '@/context/AuthContext';
 
 interface LoginFormProps {
   visible: boolean;
@@ -27,6 +28,7 @@ interface LoginFormProps {
 export default function LoginForm({ visible, onBackPress, onForgotPasswordPress, onShowSignUp }: LoginFormProps) {
   const router = useRouter();
   const { width } = Dimensions.get('window');
+  const { setIsFromSignup } = useAuth();
   
   // Login form state
   const [emailAddress, setEmailAddress] = useState<string>('');
@@ -125,6 +127,8 @@ export default function LoginForm({ visible, onBackPress, onForgotPasswordPress,
       // Try to sign in with Firebase Authentication
       const userCredential = await signInWithEmailAndPassword(auth, emailAddress, password);
       console.log('[Login] Success for', emailAddress);
+      // Clear the signup flag since this is a login
+      setIsFromSignup(false);
       // Log the user in regardless of email verification status
       router.replace({ pathname: '/' });
     } catch (error: any) {

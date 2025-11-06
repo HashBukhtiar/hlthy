@@ -14,7 +14,7 @@ interface EmailVerificationGuardProps {
 }
 
 export default function EmailVerificationGuard({ children }: EmailVerificationGuardProps) {
-  const { currentUser, userProfile, loading: authLoading } = useAuth();
+  const { currentUser, userProfile, loading: authLoading, isFromSignup, setIsFromSignup } = useAuth();
   const router = useRouter();
   const [isCheckingVerification, setIsCheckingVerification] = useState(false);
   const [isResending, setIsResending] = useState(false);
@@ -49,6 +49,8 @@ export default function EmailVerificationGuard({ children }: EmailVerificationGu
         if (hasPending) {
           await SignupService.completePendingSignup();
         }
+        // Email is now verified, clear the signup flag
+        setIsFromSignup(false);
         // Email is now verified, the AuthContext will update automatically
         return;
       }
@@ -94,6 +96,7 @@ export default function EmailVerificationGuard({ children }: EmailVerificationGu
           style: 'destructive',
           onPress: async () => {
             try {
+              setIsFromSignup(false); // Clear signup flag on sign out
               await signOut(auth);
               router.replace('/landing');
             } catch (error) {
@@ -134,7 +137,12 @@ export default function EmailVerificationGuard({ children }: EmailVerificationGu
     return <>{children}</>;
   }
 
-  // Show email verification screen
+  // If user came from login (not signup), skip verification check and show protected content
+  if (!isFromSignup) {
+    return <>{children}</>;
+  }
+
+  // Show email verification screen only for users coming from signup
   return (
     <AuthBackground>
       <View style={styles.container}>

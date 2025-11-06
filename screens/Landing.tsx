@@ -23,7 +23,7 @@ import { useAuth } from '@/context/AuthContext';
 export default function Landing() {
   const router = useRouter();
   const { width } = Dimensions.get('window');
-  const { refreshUserProfile } = useAuth();
+  const { refreshUserProfile, setIsFromSignup } = useAuth();
   
   // State for current active screen
   const [currentScreen, setCurrentScreen] = useState<'landing' | 'signup-step1' | 'signup-step2' | 'signup-step3' | 'signup-step4' | 'login' | 'forgot' | 'email-verification'>('landing');
@@ -208,22 +208,25 @@ export default function Landing() {
       setVerificationPendingTimestamp(payload.pendingTimestamp ?? undefined);
     }
     setEmailSent(true); // Set emailSent to true when email verification is required
+    setIsFromSignup(true); // Mark that this user is coming from signup
     animateToScreen('email-verification', 'forward');
-  }, [animateToScreen]);
+  }, [animateToScreen, setIsFromSignup]);
 
   const handleEmailVerificationComplete = useCallback(async () => {
     setEmailSent(false); // Reset emailSent when verification is complete
+    setIsFromSignup(false); // Clear the signup flag
     
     // Refresh user profile to initialize notifications now that the user document exists
     await refreshUserProfile();
     
     router.replace('/profile');
-  }, [router, refreshUserProfile]);
+  }, [router, refreshUserProfile, setIsFromSignup]);
 
   const handleBackToSignUpFromVerification = useCallback(() => {
     setEmailSent(false); // Reset emailSent when going back to signup
+    setIsFromSignup(false); // Clear the signup flag when going back
     animateToScreen('signup-step1', 'backward');
-  }, [animateToScreen]);
+  }, [animateToScreen, setIsFromSignup]);
 
   return (
     <AuthBackground>
