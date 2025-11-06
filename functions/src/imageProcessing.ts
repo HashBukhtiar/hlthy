@@ -64,7 +64,10 @@ export const generatePostThumbnail = onObjectFinalized({region: "us-east1", ...r
     fs.unlinkSync(tempFilePath);
     fs.unlinkSync(thumbFilePath);
     const thumbFile = bucket.file(thumbUploadPath);
-    const [thumbnailUrl] = await thumbFile.getSignedUrl({action: "read", expires: "03-09-2491"});
+    // Make the file publicly accessible
+    await thumbFile.makePublic();
+    // Get permanent download URL instead of signed URL
+    const thumbnailUrl = `https://storage.googleapis.com/${bucket.name}/${thumbUploadPath}`;
     // Update the document directly using the postId from metadata
     console.log(`Found post ${postId} from metadata, updating with thumbnail URL.`);
     // Use set with merge: true to create the document if it doesn't exist, or update it if it does.
@@ -120,7 +123,10 @@ export const generateWorkoutCoverThumbnail = onObjectFinalized({region: "us-east
     fs.unlinkSync(tempFilePath);
     fs.unlinkSync(thumbFilePath);
     const thumbFile = bucket.file(thumbUploadPath);
-    const [thumbnailUrl] = await thumbFile.getSignedUrl({action: "read", expires: "03-09-2491"});
+    // Make the file publicly accessible
+    await thumbFile.makePublic();
+    // Get permanent download URL instead of signed URL
+    const thumbnailUrl = `https://storage.googleapis.com/${bucket.name}/${thumbUploadPath}`;
     // Update the document directly using the workoutId from metadata
     console.log(`generateWorkoutCoverThumbnail - Found workout ${workoutId} from metadata, updating with thumbnail URL.`);
     // Use set with merge: true to create the document if it doesn't exist, or update it if it does.
@@ -165,16 +171,16 @@ export const generateProfileThumbnail = onObjectFinalized({
 
     const thumbUploadPath = path.join(path.dirname(filePath), thumbFileName);
     await bucket.upload(thumbFilePath, {destination: thumbUploadPath});
-    const thumbUrl = await bucket.file(thumbUploadPath).getSignedUrl({
-      action: "read",
-      expires: "03-09-2491",
-    });
+    // Make the file publicly accessible
+    await bucket.file(thumbUploadPath).makePublic();
+    // Get permanent download URL instead of signed URL
+    const thumbUrl = `https://storage.googleapis.com/${bucket.name}/${thumbUploadPath}`;
 
     // Extract userId from path: profileImages/{userId}/filename.jpg
     const userId = filePath.split("/")[1];
     if (userId) {
       await admin.firestore().doc(`users/${userId}`).update({
-        profileThumbnailUrl: thumbUrl[0],
+        profileThumbnailUrl: thumbUrl,
       });
     }
 
