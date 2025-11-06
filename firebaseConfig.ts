@@ -2,7 +2,7 @@ import { initializeApp, FirebaseApp, setLogLevel } from 'firebase/app';
 import { getAnalytics, isSupported } from 'firebase/analytics';
 import { getAuth, Auth } from 'firebase/auth';
 import { getFirestore, Firestore } from "firebase/firestore";
-import { getStorage } from "firebase/storage";
+import { getStorage, FirebaseStorage } from "firebase/storage";
 import { getFunctions, connectFunctionsEmulator } from 'firebase/functions';
 
 // Firebase configuration
@@ -23,7 +23,7 @@ let app: FirebaseApp;
 let auth: Auth;
 let db: Firestore;
 let analytics;
-let storage; 
+let storage: FirebaseStorage; 
 
 try {
   app = initializeApp(firebaseConfig);
@@ -48,6 +48,7 @@ try {
   console.error("Firebase initialization error:", error);
   // It might be useful to log the config if there's an error, but be cautious with sensitive keys in production logs.
   // console.log(firebaseConfig); 
+  throw error; // Re-throw to prevent using uninitialized services
 }
 
 export { app, db, auth, storage };

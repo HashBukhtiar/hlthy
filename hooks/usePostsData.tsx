@@ -20,7 +20,7 @@ import {
   serverTimestamp,
   updateDoc,
 } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
+import { ref, uploadBytes, getDownloadURL, deleteObject, uploadBytesResumable } from "firebase/storage";
 import { app, db, storage } from '@/firebaseConfig';
 import { useAuth } from '@/context/AuthContext';
 import { getFunctions, httpsCallable } from 'firebase/functions';
@@ -191,29 +191,76 @@ export function usePostsData() {
 
   const uploadImage = async (imageUri: string, postId: string): Promise<string> => {
     try {
-      const filename = `posts/${currentUser!.uid}/${generateUniqueFilename('post', 'jpg')}`;
+      if (!currentUser) {
+        throw new Error("User not authenticated. Please log in and try again.");
+      }
+
+      console.log("Starting image upload for postId:", postId);
+      console.log("Image URI:", imageUri);
+      console.log("Current user ID:", currentUser.uid);
+      console.log("Auth token available:", !!currentUser.stsTokenManager?.accessToken);
+      
+      const filename = `posts/${currentUser.uid}/${generateUniqueFilename('post', 'jpg')}`;
+      console.log("Storage path:", filename);
+      console.log("Storage bucket:", storage.app.options.storageBucket);
+      
       const storageRef = ref(storage, filename);
       
-      // Fetch the image and convert to blob
+      // Fetch the image and convert to blob - this works in React Native
+      console.log("Fetching image...");
       const response = await fetch(imageUri);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch image: ${response.status}`);
+      }
+      
       const blob = await response.blob();
       
-      // Define custom metadata
+      console.log("Blob created, size:", blob.size, "type:", blob.type);
+      
+      // Ensure blob has content
+      if (blob.size === 0) {
+        throw new Error("Image blob is empty");
+      }
+      
+      // Define metadata with content type
       const metadata = {
+        contentType: 'image/jpeg',
         customMetadata: {
-          postId: postId
+          postId: postId,
+          uploadedBy: currentUser.uid
         }
       };
 
-      // Upload image with metadata
-      await uploadBytes(storageRef, blob, metadata);
+      console.log("Uploading to Firebase Storage...");
+      console.log("Metadata:", metadata);
+      
+      // Upload the blob directly - React Native's fetch().blob() works with Firebase Storage
+      const uploadResult = await uploadBytes(storageRef, blob, metadata);
+      console.log("Upload successful!");
+      console.log("Upload metadata:", uploadResult.metadata);
       
       // Get download URL
       const downloadURL = await getDownloadURL(storageRef);
+      console.log("Download URL obtained successfully");
       
       return downloadURL;
-    } catch (error) {
-      console.error("Error uploading image:", error);
+    } catch (error: any) {
+      console.error("Error in uploadImage:", error);
+      console.error("Error details:", {
+        message: error.message,
+        code: error.code,
+        name: error.name,
+        serverResponse: error.serverResponse,
+        customData: error.customData,
+      });
+      
+      // Provide more specific error messages
+      if (error.code === 'storage/unauthorized') {
+        throw new Error('You are not authorized to upload images. Please check your authentication.');
+      } else if (error.code === 'storage/unknown') {
+        throw new Error(`Upload failed. Please check your internet connection and try again. (${error.message})`);
+      }
+      
       throw error;
     }
   };
