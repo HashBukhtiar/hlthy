@@ -41,6 +41,20 @@ export default function MilestonesFeed() {
     setMilestones(feedMilestones);
   }, [feedMilestones]);
 
+  // Format duration in seconds to human-readable format (must be defined before renderMilestoneDetails)
+  const formatDuration = useCallback((durationSeconds: number): string => {
+    const hours = Math.floor(durationSeconds / 3600);
+    const minutes = Math.floor((durationSeconds % 3600) / 60);
+    const seconds = durationSeconds % 60;
+    
+    let result = '';
+    if (hours > 0) result += `${hours}h `;
+    if (minutes > 0 || hours > 0) result += `${minutes}m `;
+    result += `${seconds}s`;
+    
+    return result.trim();
+  }, []);
+
   // Format the time as "X time ago"
   const formatTimeAgo = useCallback((date: any): string => {
     if (!date) return 'Just now';
@@ -586,19 +600,6 @@ export default function MilestonesFeed() {
     
     return null;
   }, [formatTimeAgo, getWeightUnit, getDistanceUnit, formatDuration]);
-
-  const formatDuration = (durationSeconds: number): string => {
-    const hours = Math.floor(durationSeconds / 3600);
-    const minutes = Math.floor((durationSeconds % 3600) / 60);
-    const seconds = durationSeconds % 60;
-    
-    let result = '';
-    if (hours > 0) result += `${hours}h `;
-    if (minutes > 0 || hours > 0) result += `${minutes}m `;
-    result += `${seconds}s`;
-    
-    return result.trim();
-  };
 
   const renderMilestoneCard = useCallback((item: typeof milestones[0]) => {
     // Convert Post to Milestone format
