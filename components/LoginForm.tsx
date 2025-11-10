@@ -133,10 +133,7 @@ export default function LoginForm({ visible, onBackPress, onForgotPasswordPress,
       router.replace({ pathname: '/' });
     } catch (error: any) {
       console.log('[Login] Failed for', emailAddress, error);
-      // If login fails, check if email exists by trying to create a dummy account
-      let emailExists = false;
-      let dummyUserCreated = false;
-      let dummyUserDeleted = false;
+  // If login fails, try additional checks to give a better error message
       // Generate a random/dummy password via helper
       let randomPassword = '';
       try {
@@ -148,21 +145,20 @@ export default function LoginForm({ visible, onBackPress, onForgotPasswordPress,
         randomPassword = (typeof crypto !== 'undefined' && (crypto as any).randomUUID) ? (crypto as any).randomUUID() : Math.random().toString(36) + Date.now();
       }
       try {
-        const userCredential = await signInWithEmailAndPassword(auth, emailAddress, randomPassword);
-        // If this succeeds, the password was correct (should not happen)
+        // Try signing in with a random password to differentiate between "user not found"
+        // and "wrong password" errors. We don't rely on the outcome beyond setting
+        // user-facing error messages below.
+        await signInWithEmailAndPassword(auth, emailAddress, randomPassword);
+        // If this unexpectedly succeeds, log it and continue.
         console.log('[Login] Unexpected: dummy login succeeded for', emailAddress);
       } catch (dummyErr: any) {
         if (dummyErr.code === 'auth/user-not-found') {
-          // Email does not exist
-          emailExists = false;
           console.log('[Login] Email does not exist:', emailAddress);
           setEmailError('User not found.');
           setIsEmailValid(false);
           setPasswordError('');
           setErrorMessage('User not found.');
         } else if (dummyErr.code === 'auth/wrong-password' || dummyErr.code === 'auth/email-already-in-use') {
-          // Email exists, password is wrong
-          emailExists = true;
           console.log('[Login] Email exists, password incorrect:', emailAddress);
           setPasswordError('Incorrect password.');
           setEmailError('');
@@ -177,38 +173,38 @@ export default function LoginForm({ visible, onBackPress, onForgotPasswordPress,
             emailInputRef.current.shake();
           }
         } else {
+          // For other errors we clear specific field errors and leave a generic message
           setEmailError('');
           setPasswordError('');
-          // setErrorMessage('Incorrect credentials. Please try again.');
         }
       }
-      // Try to create dummy account to check existence (like SignUpStep1)
+
+      // Try to create a dummy account to determine whether the email is already
+      // registered. If creation succeeds, the email doesn't exist in the sense of
+      // an account with different credentials; we delete the dummy account right
+      // after and show "User not found." If creation fails with
+      // 'auth/email-already-in-use', the email is registered and the password is
+      // likely incorrect.
       try {
         const { getAuth, createUserWithEmailAndPassword } = await import('firebase/auth');
         const authInstance = getAuth();
         const userCredential = await createUserWithEmailAndPassword(authInstance, emailAddress, randomPassword);
-        dummyUserCreated = true;
-        // Immediately delete dummy account
+        // If created, attempt to delete immediately. Log success/failure.
         if (userCredential && authInstance.currentUser) {
           try {
             await authInstance.currentUser.delete();
-            dummyUserDeleted = true;
             console.log('[Login] Dummy account created and deleted for', emailAddress);
           } catch (deleteErr) {
             console.warn('[Login] Failed to delete dummy account for', emailAddress, deleteErr);
           }
         }
-        // If dummy account was created, email does not exist
-        if (dummyUserCreated) {
-          setEmailError('User not found.');
-          setIsEmailValid(false);
-          setPasswordError('');
-          setErrorMessage('User not found.');
-        }
+        // Creation succeeded -> treat as user not found
+        setEmailError('User not found.');
+        setIsEmailValid(false);
+        setPasswordError('');
+        setErrorMessage('User not found.');
       } catch (err: any) {
-        // If account creation is blocked, email exists
         if (err.code === 'auth/email-already-in-use') {
-          emailExists = true;
           console.log('[Login] Email exists, password incorrect (dummy creation blocked):', emailAddress);
           setPasswordError('Incorrect password.');
           setEmailError('');
@@ -218,7 +214,6 @@ export default function LoginForm({ visible, onBackPress, onForgotPasswordPress,
           setIsEmailValid(false);
           setPasswordError('');
           setErrorMessage('Please enter a valid email address.');
-          // Trigger shake animation for email input
           if (emailInputRef && emailInputRef.current && emailInputRef.current.shake) {
             emailInputRef.current.shake();
           }
