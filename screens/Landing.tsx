@@ -37,7 +37,6 @@ export default function Landing() {
     dateOfBirth: '',
     password: '',
   });
-  const [signupLoading, setSignupLoading] = useState(false);
   const [verificationEmail, setVerificationEmail] = useState('');
   const [emailSent, setEmailSent] = useState(false);
   const [verificationPendingTimestamp, setVerificationPendingTimestamp] = useState<number | undefined>(undefined);
