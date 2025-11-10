@@ -53,12 +53,33 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({
   // Handle workout_confirmation type
   if (responseType === 'workout_confirmation' && profileData) {
     return (
-      <ProfileConfirmationCard
-        data={profileData}
-        message={message}
-        onConfirm={onConfirmProfile || (() => {})}
-        onEdit={onEditProfile || (() => {})}
-      />
+      <View>
+        {/* Show AI's message text */}
+        {message && (
+          <View style={{
+            backgroundColor: 'rgba(20, 20, 25, 0.6)',
+            borderRadius: 12,
+            padding: 16,
+            marginBottom: 12,
+          }}>
+            <Text style={{
+              color: '#E0E0E0',
+              fontSize: 15,
+              lineHeight: 22,
+            }}>
+              {message}
+            </Text>
+          </View>
+        )}
+        
+        {/* Profile Confirmation Card */}
+        <ProfileConfirmationCard
+          data={profileData}
+          message={message}
+          onConfirm={onConfirmProfile || (() => {})}
+          onEdit={onEditProfile || (() => {})}
+        />
+      </View>
     );
   }
 
@@ -228,13 +249,34 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({
     console.log('MessageRenderer: Created workout data', { workoutData, segments: segments.length });
 
     return (
-      <WorkoutPlanCard
-        data={workoutData}
-        intent={intent}
-        onSave={handleSaveWorkout}
-        onExplain={handleExplainChoices}
-        onEdit={onEditWorkout}
-      />
+      <View>
+        {/* Show AI's reasoning/message text */}
+        {message && (
+          <View style={{
+            backgroundColor: 'rgba(20, 20, 25, 0.6)',
+            borderRadius: 12,
+            padding: 16,
+            marginBottom: 12,
+          }}>
+            <Text style={{
+              color: '#E0E0E0',
+              fontSize: 15,
+              lineHeight: 22,
+            }}>
+              {message}
+            </Text>
+          </View>
+        )}
+        
+        {/* Workout Card */}
+        <WorkoutPlanCard
+          data={workoutData}
+          intent={intent}
+          onSave={handleSaveWorkout}
+          onExplain={handleExplainChoices}
+          onEdit={onEditWorkout}
+        />
+      </View>
     );
   }
 
