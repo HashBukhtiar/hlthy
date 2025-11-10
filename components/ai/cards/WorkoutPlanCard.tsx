@@ -1,8 +1,9 @@
 ﻿/**
  * WorkoutPlanCard - Displays workout plans matching the ViewWorkout screen style
+ * Now with interactive editing: long-press menu for delete/edit, tap to edit inline
  */
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, Alert, TextInput, Modal, ScrollView, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/context/AuthContext';
 import { WorkoutSaveModal } from '../modals/WorkoutSaveModal';
@@ -18,6 +19,24 @@ interface WorkoutPlanCardProps {
   onEdit?: (workout: WorkoutPlanData) => void;
 }
 
+interface Exercise {
+  exerciseId: string;
+  exerciseName: string;
+  sets: number;
+  reps: number | string;
+  load?: string;
+  restSec?: number;
+  notes?: string;
+  safetyRating?: 'low' | 'medium' | 'high';
+  equipmentNeeded?: string[];
+}
+
+interface EditingExercise {
+  segmentIndex: number;
+  exerciseIndex: number;
+  exercise: Exercise;
+}
+
 export const WorkoutPlanCard: React.FC<WorkoutPlanCardProps> = ({
   data,
   intent,
@@ -29,15 +48,69 @@ export const WorkoutPlanCard: React.FC<WorkoutPlanCardProps> = ({
 }) => {
   const { currentUser } = useAuth();
   const [showSaveModal, setShowSaveModal] = useState(false);
+  const [editingExercise, setEditingExercise] = useState<EditingExercise | null>(null);
+  const [localWorkoutData, setLocalWorkoutData] = useState<WorkoutPlanData>(data);
+  const [reorderMode, setReorderMode] = useState(false);
 
+  // Helper functions
   const calculateTotalExercises = () => {
-    return data.segments.reduce((total, segment) => total + segment.exercises.length, 0);
+    return localWorkoutData.segments.reduce((total, segment) => total + segment.exercises.length, 0);
   };
 
   const calculateTotalDuration = () => {
-    // Rough estimate: 5 min per exercise
     const totalExercises = calculateTotalExercises();
     return `${totalExercises * 5} minutes`;
+  };
+
+  // Delete exercise
+  const handleDeleteExercise = (segmentIndex: number, exerciseIndex: number) => {
+    Alert.alert(
+      'Delete Exercise',
+      'Are you sure you want to remove this exercise?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            const newData = { ...localWorkoutData };
+            newData.segments[segmentIndex].exercises.splice(exerciseIndex, 1);
+            setLocalWorkoutData(newData);
+          },
+        },
+      ]
+    );
+  };
+
+  // Open edit modal
+  const handleEditExercise = (segmentIndex: number, exerciseIndex: number) => {
+    const exercise = localWorkoutData.segments[segmentIndex].exercises[exerciseIndex];
+    setEditingExercise({ segmentIndex, exerciseIndex, exercise: { ...exercise } });
+  };
+
+  // Save edited exercise
+  const handleSaveEdit = () => {
+    if (!editingExercise) return;
+    
+    const newData = { ...localWorkoutData };
+    newData.segments[editingExercise.segmentIndex].exercises[editingExercise.exerciseIndex] = editingExercise.exercise;
+    setLocalWorkoutData(newData);
+    setEditingExercise(null);
+  };
+
+  // Move exercise up/down
+  const handleMoveExercise = (segmentIndex: number, exerciseIndex: number, direction: 'up' | 'down') => {
+    const newData = { ...localWorkoutData };
+    const exercises = newData.segments[segmentIndex].exercises;
+    const newIndex = direction === 'up' ? exerciseIndex - 1 : exerciseIndex + 1;
+    
+    if (newIndex < 0 || newIndex >= exercises.length) return;
+    
+    const temp = exercises[exerciseIndex];
+    exercises[exerciseIndex] = exercises[newIndex];
+    exercises[newIndex] = temp;
+    
+    setLocalWorkoutData(newData);
   };
 
   const handleMenuAction = (action: string) => {
@@ -88,7 +161,7 @@ export const WorkoutPlanCard: React.FC<WorkoutPlanCardProps> = ({
       </View>
 
       {/* Segments */}
-      {data.segments.map((segment, segmentIndex) => (
+      {localWorkoutData.segments.map((segment, segmentIndex) => (
         <View key={segmentIndex} style={{
           marginBottom: 25,
           marginHorizontal: 20,
@@ -172,7 +245,10 @@ export const WorkoutPlanCard: React.FC<WorkoutPlanCardProps> = ({
                   </View>
 
                   {/* Exercise Details */}
-                  <View style={{ flex: 1 }}>
+                  <TouchableOpacity 
+                    style={{ flex: 1 }}
+                    onPress={() => handleEditExercise(segmentIndex, exerciseIndex)}
+                  >
                     <Text style={{
                       fontSize: 16,
                       fontWeight: '600',
@@ -185,7 +261,7 @@ export const WorkoutPlanCard: React.FC<WorkoutPlanCardProps> = ({
                       fontSize: 14,
                       color: '#b0b0b0',
                     }}>
-                      {exercise.sets} sets  {exercise.reps} reps
+                      {exercise.sets} sets × {exercise.reps} reps
                     </Text>
                     {exercise.notes && (
                       <Text style={{
@@ -197,6 +273,58 @@ export const WorkoutPlanCard: React.FC<WorkoutPlanCardProps> = ({
                         {exercise.notes}
                       </Text>
                     )}
+                  </TouchableOpacity>
+
+                  {/* Action Buttons */}
+                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                    {/* Move Up */}
+                    {exerciseIndex > 0 && (
+                      <TouchableOpacity
+                        onPress={() => handleMoveExercise(segmentIndex, exerciseIndex, 'up')}
+                        style={{
+                          width: 32,
+                          height: 32,
+                          borderRadius: 16,
+                          backgroundColor: '#2a2a2a',
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                        }}
+                      >
+                        <Ionicons name="chevron-up" size={18} color="#888888" />
+                      </TouchableOpacity>
+                    )}
+
+                    {/* Move Down */}
+                    {exerciseIndex < segment.exercises.length - 1 && (
+                      <TouchableOpacity
+                        onPress={() => handleMoveExercise(segmentIndex, exerciseIndex, 'down')}
+                        style={{
+                          width: 32,
+                          height: 32,
+                          borderRadius: 16,
+                          backgroundColor: '#2a2a2a',
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                        }}
+                      >
+                        <Ionicons name="chevron-down" size={18} color="#888888" />
+                      </TouchableOpacity>
+                    )}
+
+                    {/* Delete */}
+                    <TouchableOpacity
+                      onPress={() => handleDeleteExercise(segmentIndex, exerciseIndex)}
+                      style={{
+                        width: 32,
+                        height: 32,
+                        borderRadius: 16,
+                        backgroundColor: 'rgba(255, 45, 85, 0.2)',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                      }}
+                    >
+                      <Ionicons name="trash-outline" size={18} color="#ff2d55" />
+                    </TouchableOpacity>
                   </View>
                 </View>
                 {/* Divider between exercises */}
@@ -313,13 +441,230 @@ export const WorkoutPlanCard: React.FC<WorkoutPlanCardProps> = ({
       )}
 
       {/* Save Modal */}
-      {showSaveModal && (
+      {showSaveModal && currentUser && (
         <WorkoutSaveModal
           visible={showSaveModal}
-          workoutData={data}
+          workoutData={localWorkoutData}
+          userId={currentUser.uid}
+          username={currentUser.displayName || currentUser.email || 'User'}
           onClose={() => setShowSaveModal(false)}
+          onSuccess={(workoutId) => {
+            setShowSaveModal(false);
+            Alert.alert('Success', 'Workout saved to your library!');
+          }}
         />
+      )}
+
+      {/* Exercise Edit Modal */}
+      {editingExercise && (
+        <Modal
+          visible={true}
+          animationType="slide"
+          transparent={true}
+          onRequestClose={() => setEditingExercise(null)}
+        >
+          <View style={{
+            flex: 1,
+            backgroundColor: 'rgba(0, 0, 0, 0.7)',
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}>
+            <View style={{
+              backgroundColor: '#1e1e1e',
+              borderRadius: 20,
+              padding: 20,
+              width: '90%',
+              maxHeight: '80%',
+              borderWidth: 1,
+              borderColor: '#2a2a2a',
+            }}>
+              <ScrollView>
+                {/* Modal Header */}
+                <View style={{
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: 20,
+                }}>
+                  <Text style={{
+                    color: '#ffffff',
+                    fontSize: 20,
+                    fontWeight: 'bold',
+                  }}>
+                    Edit Exercise
+                  </Text>
+                  <TouchableOpacity onPress={() => setEditingExercise(null)}>
+                    <Ionicons name="close" size={28} color="#888888" />
+                  </TouchableOpacity>
+                </View>
+
+                {/* Exercise Name */}
+                <View style={{ marginBottom: 16 }}>
+                  <Text style={styles.label}>Exercise Name</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={editingExercise.exercise.exerciseName}
+                    onChangeText={(text) =>
+                      setEditingExercise({
+                        ...editingExercise,
+                        exercise: { ...editingExercise.exercise, exerciseName: text },
+                      })
+                    }
+                    placeholderTextColor="#666666"
+                  />
+                </View>
+
+                {/* Sets and Reps Row */}
+                <View style={{ flexDirection: 'row', gap: 12, marginBottom: 16 }}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.label}>Sets</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={String(editingExercise.exercise.sets)}
+                      onChangeText={(text) =>
+                        setEditingExercise({
+                          ...editingExercise,
+                          exercise: {
+                            ...editingExercise.exercise,
+                            sets: parseInt(text) || 0,
+                          },
+                        })
+                      }
+                      keyboardType="numeric"
+                      placeholderTextColor="#666666"
+                    />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.label}>Reps</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={String(editingExercise.exercise.reps)}
+                      onChangeText={(text) =>
+                        setEditingExercise({
+                          ...editingExercise,
+                          exercise: {
+                            ...editingExercise.exercise,
+                            reps: text,
+                          },
+                        })
+                      }
+                      placeholderTextColor="#666666"
+                    />
+                  </View>
+                </View>
+
+                {/* Load */}
+                <View style={{ marginBottom: 16 }}>
+                  <Text style={styles.label}>Load (optional)</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={editingExercise.exercise.load || ''}
+                    onChangeText={(text) =>
+                      setEditingExercise({
+                        ...editingExercise,
+                        exercise: { ...editingExercise.exercise, load: text },
+                      })
+                    }
+                    placeholder="e.g., 135 lbs, bodyweight"
+                    placeholderTextColor="#666666"
+                  />
+                </View>
+
+                {/* Rest Time */}
+                <View style={{ marginBottom: 16 }}>
+                  <Text style={styles.label}>Rest Time (seconds)</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={String(editingExercise.exercise.restSec || '')}
+                    onChangeText={(text) =>
+                      setEditingExercise({
+                        ...editingExercise,
+                        exercise: {
+                          ...editingExercise.exercise,
+                          restSec: parseInt(text) || undefined,
+                        },
+                      })
+                    }
+                    keyboardType="numeric"
+                    placeholder="e.g., 90"
+                    placeholderTextColor="#666666"
+                  />
+                </View>
+
+                {/* Notes */}
+                <View style={{ marginBottom: 24 }}>
+                  <Text style={styles.label}>Notes (optional)</Text>
+                  <TextInput
+                    style={[styles.input, { height: 80, textAlignVertical: 'top' }]}
+                    value={editingExercise.exercise.notes || ''}
+                    onChangeText={(text) =>
+                      setEditingExercise({
+                        ...editingExercise,
+                        exercise: { ...editingExercise.exercise, notes: text },
+                      })
+                    }
+                    placeholder="Add any special instructions..."
+                    placeholderTextColor="#666666"
+                    multiline
+                  />
+                </View>
+
+                {/* Action Buttons */}
+                <View style={{ flexDirection: 'row', gap: 12 }}>
+                  <TouchableOpacity
+                    onPress={() => setEditingExercise(null)}
+                    style={{
+                      flex: 1,
+                      backgroundColor: '#2a2a2a',
+                      paddingVertical: 14,
+                      borderRadius: 12,
+                      alignItems: 'center',
+                      borderWidth: 1,
+                      borderColor: '#3a3a3a',
+                    }}
+                  >
+                    <Text style={{ color: '#ffffff', fontSize: 16, fontWeight: 'bold' }}>
+                      Cancel
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={handleSaveEdit}
+                    style={{
+                      flex: 1,
+                      backgroundColor: '#ff2d55',
+                      paddingVertical: 14,
+                      borderRadius: 12,
+                      alignItems: 'center',
+                    }}
+                  >
+                    <Text style={{ color: '#ffffff', fontSize: 16, fontWeight: 'bold' }}>
+                      Save
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </ScrollView>
+            </View>
+          </View>
+        </Modal>
       )}
     </View>
   );
 };
+
+const styles = StyleSheet.create({
+  label: {
+    color: '#b0b0b0',
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  input: {
+    backgroundColor: '#2a2a2a',
+    borderWidth: 1,
+    borderColor: '#3a3a3a',
+    borderRadius: 10,
+    padding: 12,
+    color: '#ffffff',
+    fontSize: 16,
+  },
+});
