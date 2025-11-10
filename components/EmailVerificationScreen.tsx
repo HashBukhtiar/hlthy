@@ -450,10 +450,8 @@ export default function EmailVerificationScreen({
     
     setIsResending(true);
     try {
-  // handleResendVerification diagnostics
-  const hasPending = await SignupService.hasPendingSignup();
-  // We no longer call the cloud deletion checker here; resend attempts will
-  // surface auth errors if the account was removed.
+      // We no longer call the cloud deletion checker here; resend attempts will
+      // surface auth errors if the account was removed.
 
       await SignupService.resendVerificationEmail();
       setResendCooldown(60); // 60 second cooldown
