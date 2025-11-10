@@ -14,7 +14,6 @@ import {
 } from 'react-native';
 import { TextInput } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
-import CustomSpinner from '@/components/CustomSpinner';
 import LoadingOverlay from '@/components/LoadingOverlay';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { app } from '@/firebaseConfig';
@@ -27,7 +26,7 @@ interface SignUpStep1Props {
 }
 
 export default function SignUpStep1({ visible, onBackPress, onNext, onShowLogin }: SignUpStep1Props) {
-  const { width, height } = Dimensions.get('window');
+  const { height } = Dimensions.get('window');
 
   // Fitted sigmoid baby!
   const getInitialContentPadding = () => {

@@ -17,7 +17,6 @@ import { TextInput } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { getFirestore, collection, query, where, getDocs } from 'firebase/firestore';
-import CustomSpinner from '@/components/CustomSpinner';
 import LoadingOverlay from '@/components/LoadingOverlay';
 
 interface SignUpStep2Props {
@@ -29,7 +28,7 @@ interface SignUpStep2Props {
 }
 
 export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin, firstName }: SignUpStep2Props) {
-  const { width, height } = Dimensions.get('window');
+  const { height } = Dimensions.get('window');
   
   const [username, setUsername] = useState<string>('');
   const [dateOfBirth, setDateOfBirth] = useState<string>('');
@@ -162,12 +161,6 @@ export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin,
     return null;
   };
 
-  const validateUsername = (username: string): boolean => {
-    // Username should be 3-20 characters, alphanumeric and underscores only
-    const usernameRegex = /^[a-zA-Z0-9_]{3,20}$/;
-    return usernameRegex.test(username);
-  };
-
   const formatDateInput = (text: string): string => {
     // Remove all non-digits
     const digits = text.replace(/\D/g, '');
@@ -196,11 +189,6 @@ export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin,
            date.getDate() === day && 
            date.getFullYear() === year &&
            date <= minDate;
-  };
-
-  const handleDateChange = (text: string) => {
-    const formatted = formatDateInput(text);
-    setDateOfBirth(formatted);
   };
 
   const handleNext = useCallback(async () => {
@@ -269,7 +257,6 @@ export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin,
   }, [onBackPress]);
 
   // Username input (no longer prepends '@')
-  const getUsernameValue = () => username;
   const handleUsernameChange = (text: string) => {
     // Remove any leading @ characters and trim leading/trailing whitespace
     const sanitized = text.replace(/^@+/, '').trim();
