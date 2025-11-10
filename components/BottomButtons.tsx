@@ -4,7 +4,7 @@ import { useRouter, usePathname } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import globalStyles, { BOTTOM_BAR_HEIGHT } from '@/styles/globalStyles';
+import { BOTTOM_BAR_HEIGHT } from '@/styles/globalStyles';
 
 function BottomButtons() {
   const router = useRouter();
