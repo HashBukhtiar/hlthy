@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { 
   View, 
   StyleSheet, 
@@ -14,7 +14,6 @@ import { useRouter } from 'expo-router';
 import { TextInput } from 'react-native-paper';
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from '@/firebaseConfig';
-import CustomSpinner from '@/components/CustomSpinner';
 import LoadingOverlay from '@/components/LoadingOverlay';
 import { useAuth } from '@/context/AuthContext';
 
@@ -27,13 +26,12 @@ interface LoginFormProps {
 
 export default function LoginForm({ visible, onBackPress, onForgotPasswordPress, onShowSignUp }: LoginFormProps) {
   const router = useRouter();
-  const { width } = Dimensions.get('window');
   const { setIsFromSignup } = useAuth();
   
   // Login form state
   const [emailAddress, setEmailAddress] = useState<string>('');
   const [password, setPassword] = useState<string>('');
-  const [isEmailValid, setIsEmailValid] = useState<boolean>(true);
+  // local email validity is derived via isValidEmail(); no separate state needed
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const [emailFocused, setEmailFocused] = useState<boolean>(false);
@@ -43,7 +41,7 @@ export default function LoginForm({ visible, onBackPress, onForgotPasswordPress,
   const [passwordError, setPasswordError] = useState<string>('');
   
   // Animation values
-  const slideAnim = useRef(new Animated.Value(0)).current;
+  // slideAnim removed (unused) — we use contentTranslateY for keyboard movement
   const contentTranslateY = useRef(new Animated.Value(0)).current;
   const loaderFadeAnim = useRef(new Animated.Value(0)).current;
   const emailInputRef = useRef<any>(null);
@@ -58,12 +56,11 @@ export default function LoginForm({ visible, onBackPress, onForgotPasswordPress,
     // Dismiss keyboard first
     Keyboard.dismiss();
     
-    // Reset form state
-    setErrorMessage('');
-    setEmailAddress('');
-    setPassword('');
-    setIsEmailValid(true);
-    setEmailFocused(false);
+  // Reset form state
+  setErrorMessage('');
+  setEmailAddress('');
+  setPassword('');
+  setEmailFocused(false);
     setPasswordFocused(false);
     
     onBackPress();
@@ -75,17 +72,14 @@ export default function LoginForm({ visible, onBackPress, onForgotPasswordPress,
     if (submitted) {
       if (text && !isValidEmail(text)) {
         setEmailError('Please provide a valid email.');
-        setIsEmailValid(false);
       } else {
         setEmailError('');
-        setIsEmailValid(true);
       }
       // Clear any generic error when editing after submit
       setErrorMessage('');
     } else {
       // Before submit, don't show validation errors.
       setEmailError('');
-      setIsEmailValid(true);
     }
   };
 
@@ -112,10 +106,7 @@ export default function LoginForm({ visible, onBackPress, onForgotPasswordPress,
     // Only check format here, DB check happens in Firebase sign-in
     if (!isValidEmail(emailAddress)) {
       setEmailError("Please provide a valid email.");
-      setIsEmailValid(false);
       valid = false;
-    } else {
-      setIsEmailValid(true);
     }
     if (!password) {
       setPasswordError("Please enter your password.");
@@ -125,7 +116,7 @@ export default function LoginForm({ visible, onBackPress, onForgotPasswordPress,
     setLoading(true);
     try {
       // Try to sign in with Firebase Authentication
-      const userCredential = await signInWithEmailAndPassword(auth, emailAddress, password);
+      await signInWithEmailAndPassword(auth, emailAddress, password);
       console.log('[Login] Success for', emailAddress);
       // Clear the signup flag since this is a login
       setIsFromSignup(false);
@@ -155,7 +146,6 @@ export default function LoginForm({ visible, onBackPress, onForgotPasswordPress,
         if (dummyErr.code === 'auth/user-not-found') {
           console.log('[Login] Email does not exist:', emailAddress);
           setEmailError('User not found.');
-          setIsEmailValid(false);
           setPasswordError('');
           setErrorMessage('User not found.');
         } else if (dummyErr.code === 'auth/wrong-password' || dummyErr.code === 'auth/email-already-in-use') {
@@ -165,7 +155,6 @@ export default function LoginForm({ visible, onBackPress, onForgotPasswordPress,
           setErrorMessage('Incorrect password.');
         } else if (dummyErr.code === 'auth/invalid-email') {
           setEmailError('Please enter a valid email address.');
-          setIsEmailValid(false);
           setPasswordError('');
           setErrorMessage('Please enter a valid email address.');
           // Trigger shake animation for email input
@@ -188,9 +177,9 @@ export default function LoginForm({ visible, onBackPress, onForgotPasswordPress,
       try {
         const { getAuth, createUserWithEmailAndPassword } = await import('firebase/auth');
         const authInstance = getAuth();
-        const userCredential = await createUserWithEmailAndPassword(authInstance, emailAddress, randomPassword);
+        const created = await createUserWithEmailAndPassword(authInstance, emailAddress, randomPassword);
         // If created, attempt to delete immediately. Log success/failure.
-        if (userCredential && authInstance.currentUser) {
+        if (created && authInstance.currentUser) {
           try {
             await authInstance.currentUser.delete();
             console.log('[Login] Dummy account created and deleted for', emailAddress);
@@ -198,9 +187,8 @@ export default function LoginForm({ visible, onBackPress, onForgotPasswordPress,
             console.warn('[Login] Failed to delete dummy account for', emailAddress, deleteErr);
           }
         }
-        // Creation succeeded -> treat as user not found
-        setEmailError('User not found.');
-        setIsEmailValid(false);
+  // Creation succeeded -> treat as user not found
+  setEmailError('User not found.');
         setPasswordError('');
         setErrorMessage('User not found.');
       } catch (err: any) {
@@ -211,7 +199,6 @@ export default function LoginForm({ visible, onBackPress, onForgotPasswordPress,
           setErrorMessage('Incorrect password.');
         } else if (err.code === 'auth/invalid-email') {
           setEmailError('Please enter a valid email address.');
-          setIsEmailValid(false);
           setPasswordError('');
           setErrorMessage('Please enter a valid email address.');
           if (emailInputRef && emailInputRef.current && emailInputRef.current.shake) {
@@ -318,7 +305,6 @@ export default function LoginForm({ visible, onBackPress, onForgotPasswordPress,
                   onBlur={() => {
                     setEmailFocused(false);
                     if (submitted) {
-                      setIsEmailValid(emailAddress === '' || isValidEmail(emailAddress));
                       if (emailAddress !== '' && !isValidEmail(emailAddress)) {
                         setEmailError('Please provide a valid email.');
                         setPasswordError('');
