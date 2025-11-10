@@ -1,12 +1,10 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { View, Text, TouchableOpacity, KeyboardAvoidingView, ScrollView, StyleSheet, Dimensions, Keyboard, TouchableWithoutFeedback, Animated, Platform, Alert } from 'react-native';
-import { TextInput } from 'react-native-paper';
+import { View, Text, TouchableOpacity, StyleSheet, Dimensions, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { CustomSelector, SelectorItem } from '@/components/CustomSelector';
-import CustomSpinner from '@/components/CustomSpinner';
 import LoadingOverlay from '@/components/LoadingOverlay';
 import { Image } from 'react-native';
-import { useRouter } from 'expo-router';
+// router not needed in this component
 import { SignupService } from '@/services/signupService';
 
 interface SignUpStep4Props {
@@ -18,8 +16,7 @@ interface SignUpStep4Props {
 }
 
 export default function SignUpStep4({ visible, onBackPress, onComplete, onShowLogin, onEmailVerificationRequired }: SignUpStep4Props) {
-  const { width, height } = Dimensions.get('window');
-  const router = useRouter();
+  const { height } = Dimensions.get('window');
 
   // Archetype options
   const archetypes: SelectorItem[] = [
@@ -32,7 +29,6 @@ export default function SignUpStep4({ visible, onBackPress, onComplete, onShowLo
 
   const [archetype, setArchetype] = useState<string | null>(null);
   const [modalVisible, setModalVisible] = useState<boolean>(false);
-  const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const shakeAnim = useRef(new Animated.Value(0)).current;
@@ -99,8 +95,7 @@ export default function SignUpStep4({ visible, onBackPress, onComplete, onShowLo
   }, [errorMessage, errorFadeAnim, errorSlideAnim]);
 
   const handleComplete = useCallback(async () => {
-    setSubmitted(true);
-    setErrorMessage(null); // Clear any previous errors
+  setErrorMessage(null); // Clear any previous errors
     
     if (!archetype) {
       Animated.sequence([

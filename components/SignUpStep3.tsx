@@ -23,7 +23,7 @@ interface SignUpStep3Props {
 }
 
 export default function SignUpStep3({ visible, onBackPress, onComplete, onShowLogin }: SignUpStep3Props) {
-  const { width, height } = Dimensions.get('window');
+  const { height } = Dimensions.get('window');
   
   const [password, setPassword] = useState<string>('');
   const [confirmPassword, setConfirmPassword] = useState<string>('');
@@ -117,10 +117,10 @@ export default function SignUpStep3({ visible, onBackPress, onComplete, onShowLo
   // Live validation after first submit
   useEffect(() => {
     if (!submitted) return;
-    // Check password requirements
-    const isStrong = password.length >= 8 && /[A-Z]/.test(password) && /[a-z]/.test(password) && /\d/.test(password);
-    if (!isStrong) {
-      setErrorMessage('Password is not strong enough');
+    // Check password requirements using validatePassword helper
+    const validation = validatePassword(password);
+    if (!validation.isValid) {
+      setErrorMessage(validation.message || 'Password is not strong enough');
       return;
     }
     if (!confirmPassword.trim() || password !== confirmPassword) {
@@ -148,9 +148,9 @@ export default function SignUpStep3({ visible, onBackPress, onComplete, onShowLo
   const handleComplete = useCallback(() => {
     Keyboard.dismiss();
     setSubmitted(true);
-    const isStrong = password.length >= 8 && /[A-Z]/.test(password) && /[a-z]/.test(password) && /\d/.test(password);
-    if (!isStrong) {
-      setErrorMessage('Password is not strong enough');
+    const validation = validatePassword(password);
+    if (!validation.isValid) {
+      setErrorMessage(validation.message || 'Password is not strong enough');
       triggerShake('password');
       return;
     }
