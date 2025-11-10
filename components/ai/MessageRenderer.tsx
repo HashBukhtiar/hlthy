@@ -141,7 +141,7 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({
           const segmentName = segment.type === 'warm_up' ? 'Warm-up' : 
                              segment.type === 'cool_down' ? 'Cool-down' :
                              segment.type === 'cardio' ? 'Cardio' :
-                             segment.type === 'main_workout' ? (workoutPlan.name || 'Main Workout') :
+                             segment.type === 'main_workout' ? 'Main Workout' :
                              segment.name || segment.type || 'Workout';
           
           segments.push({

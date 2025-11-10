@@ -65,10 +65,13 @@ export function convertAIWorkoutToDatabaseFormat(
     name: aiSegment.name,
     length: '15', // Default segment length, can be customized later
     exercises: aiSegment.exercises.map((aiExercise) => {
+      // Get the exercise name (handles both 'name' and 'exerciseName' fields)
+      const exerciseName = (aiExercise as any).exerciseName || (aiExercise as any).name || 'Unknown Exercise';
+      
       // Build the exercise object without undefined values
       const exercise: WorkoutExercise = {
         id: generateId(),
-        name: aiExercise.exerciseId, // Use the exercise name/ID from AI
+        name: exerciseName, // Use the actual exercise name
         sets: aiExercise.sets.toString(),
         reps: typeof aiExercise.reps === 'number' ? aiExercise.reps.toString() : aiExercise.reps,
       };

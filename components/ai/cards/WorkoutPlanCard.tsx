@@ -20,8 +20,9 @@ interface WorkoutPlanCardProps {
 }
 
 interface Exercise {
-  exerciseId: string;
-  exerciseName: string;
+  exerciseId?: string;
+  exerciseName?: string;
+  name?: string;  // Backend sometimes uses 'name' instead of 'exerciseName'
   sets: number;
   reps: number | string;
   load?: string;
@@ -51,6 +52,20 @@ export const WorkoutPlanCard: React.FC<WorkoutPlanCardProps> = ({
   const [editingExercise, setEditingExercise] = useState<EditingExercise | null>(null);
   const [localWorkoutData, setLocalWorkoutData] = useState<WorkoutPlanData>(data);
   const [reorderMode, setReorderMode] = useState(false);
+
+  // Helper to get exercise name (handles both 'name' and 'exerciseName' fields)
+  const getExerciseName = (exercise: any): string => {
+    return exercise.exerciseName || exercise.name || 'Unknown Exercise';
+  };
+
+  // Helper to set exercise name (updates both fields for compatibility)
+  const setExerciseName = (exercise: any, newName: string): any => {
+    return {
+      ...exercise,
+      exerciseName: newName,
+      name: newName,  // Keep both for compatibility
+    };
+  };
 
   // Helper functions
   const calculateTotalExercises = () => {
@@ -116,7 +131,7 @@ export const WorkoutPlanCard: React.FC<WorkoutPlanCardProps> = ({
   const handleMenuAction = (action: string) => {
     switch (action) {
       case 'save':
-        onSave?.(data);
+        onSave?.(normalizeWorkoutData(localWorkoutData));
         break;
       case 'add_to_workouts':
         if (!currentUser) {
@@ -132,6 +147,24 @@ export const WorkoutPlanCard: React.FC<WorkoutPlanCardProps> = ({
         onShare?.();
         break;
     }
+  };
+
+  // Normalize workout data to ensure both 'name' and 'exerciseName' fields exist
+  const normalizeWorkoutData = (workout: WorkoutPlanData): WorkoutPlanData => {
+    return {
+      ...workout,
+      segments: workout.segments.map(segment => ({
+        ...segment,
+        exercises: segment.exercises.map(exercise => {
+          const name = getExerciseName(exercise);
+          return {
+            ...exercise,
+            name: name,
+            exerciseName: name,
+          };
+        }),
+      })),
+    };
   };
 
   return (
@@ -255,7 +288,7 @@ export const WorkoutPlanCard: React.FC<WorkoutPlanCardProps> = ({
                       color: '#ffffff',
                       marginBottom: 4,
                     }}>
-                      {exercise.exerciseName}
+                      {getExerciseName(exercise)}
                     </Text>
                     <Text style={{
                       fontSize: 14,
@@ -444,7 +477,7 @@ export const WorkoutPlanCard: React.FC<WorkoutPlanCardProps> = ({
       {showSaveModal && currentUser && (
         <WorkoutSaveModal
           visible={showSaveModal}
-          workoutData={localWorkoutData}
+          workoutData={normalizeWorkoutData(localWorkoutData)}
           userId={currentUser.uid}
           username={currentUser.displayName || currentUser.email || 'User'}
           onClose={() => setShowSaveModal(false)}
@@ -503,11 +536,11 @@ export const WorkoutPlanCard: React.FC<WorkoutPlanCardProps> = ({
                   <Text style={styles.label}>Exercise Name</Text>
                   <TextInput
                     style={styles.input}
-                    value={editingExercise.exercise.exerciseName}
+                    value={getExerciseName(editingExercise.exercise)}
                     onChangeText={(text) =>
                       setEditingExercise({
                         ...editingExercise,
-                        exercise: { ...editingExercise.exercise, exerciseName: text },
+                        exercise: setExerciseName(editingExercise.exercise, text),
                       })
                     }
                     placeholderTextColor="#666666"

@@ -10,8 +10,9 @@ export interface WorkoutPlanData {
   segments: Array<{
     name: string;
     exercises: Array<{
-      exerciseId: string;
-      exerciseName: string;
+      exerciseId?: string;  // Optional - backend doesn't always provide
+      exerciseName?: string;  // Frontend format
+      name?: string;  // Backend format (AI uses this)
       sets: number;
       reps: number | string;
       load?: string;
