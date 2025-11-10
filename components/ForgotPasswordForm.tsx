@@ -9,7 +9,7 @@ import {
   Keyboard,
   Animated,
   ScrollView,
-  Platform
+  
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -36,7 +36,6 @@ export default function ForgotPasswordForm({ visible, onBackPress, onBackToLogin
   const [emailFocused, setEmailFocused] = useState<boolean>(false);
   const [isResending, setIsResending] = useState<boolean>(false);
   const [resendCooldown, setResendCooldown] = useState<number>(0);
-  const [showResendSuccess, setShowResendSuccess] = useState<boolean>(false);
 
   const emailShakeAnim = React.useRef(new Animated.Value(0)).current;
   const contentTranslateY = useRef(new Animated.Value(0)).current;
@@ -262,7 +261,6 @@ export default function ForgotPasswordForm({ visible, onBackPress, onBackToLogin
                         setResendCooldown(60);
                         
                         // Trigger success animation with smooth icon transitions
-                        setShowResendSuccess(true);
                         resendSuccessAnim.setValue(0);
                         
                         // Phase 1: Send icon slides down, check icon slides down from top
@@ -333,9 +331,7 @@ export default function ForgotPasswordForm({ visible, onBackPress, onBackToLogin
                                 useNativeDriver: false,
                               }),
                             ]),
-                          ]).start(() => {
-                            setShowResendSuccess(false);
-                          });
+                          ]).start();
                         }, 1400); // Hold the success state for 1.4 seconds
                         
                       } catch (error) {
