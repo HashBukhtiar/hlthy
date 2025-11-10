@@ -194,6 +194,9 @@ class UserProfile:
     reply_length: str = "standard"  # "brief", "standard", "detailed"
     exercise_name_style: str = "common"  # "common", "technical", "abbreviations"
     
+    # Workout structure preferences
+    workout_preferences: Optional[Dict[str, bool]] = None
+    
     # Conversational memory features
     episodic_memories: List[EpisodicMemory] = None
     session_state: Optional[SessionState] = None
@@ -247,6 +250,13 @@ class UserProfile:
             self.primary_goals = []
         if self.preferences is None:
             self.preferences = []
+        if self.workout_preferences is None:
+            self.workout_preferences = {
+                "include_warmup": True,
+                "include_cooldown": True,
+                "include_cardio": False,
+                "include_stretching": True
+            }
     
     def get_snapshot_hash(self) -> str:
         """Generate hash for planner snapshot tracking"""

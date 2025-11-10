@@ -219,8 +219,16 @@ async function convertFirestoreDoc(
 }
 
 
-const MessageItem = React.memo<{ item: Message; onLongPress: (m: Message) => void; conversationId: string; onReprompt?: (message: string) => void; onSendMessage?: (message: string) => void }>(
-  ({ item, onLongPress, conversationId, onReprompt, onSendMessage }) => {
+const MessageItem = React.memo<{ 
+  item: Message; 
+  onLongPress: (m: Message) => void; 
+  conversationId: string; 
+  onReprompt?: (message: string) => void; 
+  onSendMessage?: (message: string) => void;
+  onConfirmProfile?: (preferences: any) => void;
+  onEditWorkout?: (workout: any) => void;
+}>(
+  ({ item, onLongPress, conversationId, onReprompt, onSendMessage, onConfirmProfile, onEditWorkout }) => {
     const router = useRouter();
     const { getWeightUnit, getDistanceUnit, convertWeight, convertDistance } = useUnits();
     
@@ -464,8 +472,9 @@ const MessageItem = React.memo<{ item: Message; onLongPress: (m: Message) => voi
             responseType={item.responseType}
             profileData={item.profileData}
             onFormatAgain={() => onReprompt?.(item.text)}
-            onConfirmProfile={() => onSendMessage?.('yes')}
+            onConfirmProfile={onConfirmProfile}
             onEditProfile={() => onSendMessage?.('no')}
+            onEditWorkout={onEditWorkout}
           />
         ) : (
           <TouchableOpacity
@@ -558,6 +567,8 @@ export default function ChatScreen() {
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [otherParticipantId, setOtherParticipantId] = useState<string | null>(null);
   const [isAiThinking, setIsAiThinking] = useState(false);
+  const [editingWorkout, setEditingWorkout] = useState<any>(null);
+  const [workoutPreferences, setWorkoutPreferences] = useState<any>(null);
   const thinkingDotAnimations = useRef([
     new Animated.Value(0.4),
     new Animated.Value(0.4),
@@ -781,7 +792,7 @@ export default function ChatScreen() {
     }
   };
 
-  const handleSend = async (textToSend: string, intentResult?: IntentClassificationResult) => {
+  const handleSend = async (textToSend: string, preferencesOverride?: any, intentResult?: IntentClassificationResult) => {
     Keyboard.dismiss();
     
     if (!textToSend.trim() || !currentUser || !conversationId) {
@@ -844,8 +855,28 @@ export default function ChatScreen() {
           // Add the new user message to the history for the API call
           historyForAPI.push({ text: textToSend, role: 'user' });
 
-        // Use the enhanced sendMessage function
-        const aiResponse = await sendMessage(historyForAPI, textToSend, currentUser.uid);
+          // Build options object with workout preferences and editing context
+          const messageOptions: any = {};
+          
+          // Use preferencesOverride if provided (for immediate profile confirmation)
+          // Otherwise use state value (for subsequent messages)
+          const currentPreferences = preferencesOverride || workoutPreferences;
+          
+          if (currentPreferences) {
+            messageOptions.workoutPreferences = currentPreferences;
+          }
+          
+          if (editingWorkout) {
+            messageOptions.editingWorkout = editingWorkout;
+          }
+
+          // Use the enhanced sendMessage function
+          const aiResponse = await sendMessage(
+            historyForAPI, 
+            textToSend, 
+            currentUser.uid,
+            Object.keys(messageOptions).length > 0 ? messageOptions : undefined
+          );
 
         // Save AI's response to Firestore using current user's ID with isAiResponse flag
         const aiMessageData: any = {
@@ -885,6 +916,11 @@ export default function ChatScreen() {
         }
         
         await addDoc(messagesRef, aiMessageData);
+        
+        // Clear editing state after successful response
+        if (editingWorkout) {
+          setEditingWorkout(null);
+        }
       } catch (error) {
         console.error('Error sending message to AI:', error);
         // Add an error message to the chat
@@ -977,6 +1013,18 @@ export default function ChatScreen() {
     Alert.alert("Error", "Failed to send message. Please try again.");
   }
 };
+
+  const handleConfirmProfile = async (preferences: any) => {
+    console.log('User confirmed profile with preferences:', preferences);
+    setWorkoutPreferences(preferences);
+    // Pass preferences directly since state update is async
+    await handleSend('yes', preferences);
+  };
+
+  const handleEditWorkout = (workout: any) => {
+    console.log('User wants to edit workout:', workout.name || 'Workout');
+    setEditingWorkout(workout);
+  };
 
   const handleDeleteMessage = async () => {
     if (!selectedMessage || !currentUser || !conversationId || conversationId === 'ai_conversation' || selectedMessage.user !== 'user') {
@@ -1083,8 +1131,18 @@ export default function ChatScreen() {
   };
 
   const renderMessage = useCallback<ListRenderItem<Message>>(
-    ({ item }) => <MessageItem item={item} onLongPress={handleLongPress} conversationId={conversationId} onReprompt={handleReprompt} onSendMessage={handleSend} />,
-    [handleLongPress, conversationId, handleReprompt, handleSend]
+    ({ item }) => (
+      <MessageItem 
+        item={item} 
+        onLongPress={handleLongPress} 
+        conversationId={conversationId} 
+        onReprompt={handleReprompt} 
+        onSendMessage={handleSend}
+        onConfirmProfile={handleConfirmProfile}
+        onEditWorkout={handleEditWorkout}
+      />
+    ),
+    [handleLongPress, conversationId, handleReprompt, handleSend, handleConfirmProfile, handleEditWorkout]
   );
 
   return (
@@ -1239,6 +1297,27 @@ export default function ChatScreen() {
             </View>
           </TouchableOpacity>
         </Modal>
+        
+        {/* Editing Workout Banner */}
+        {editingWorkout && (
+          <View style={styles.editingBanner}>
+            <View style={styles.editingBannerContent}>
+              <Ionicons name="create-outline" size={16} color="#8B7DFF" />
+              <View style={styles.editingBannerText}>
+                <Text style={styles.editingBannerTitle}>
+                  Editing: {editingWorkout.name || 'Workout'}
+                </Text>
+                <Text style={styles.editingBannerSubtitle}>
+                  Tell me what to change!
+                </Text>
+              </View>
+            </View>
+            <TouchableOpacity onPress={() => setEditingWorkout(null)}>
+              <Ionicons name="close" size={20} color="#888" />
+            </TouchableOpacity>
+          </View>
+        )}
+        
         {/* Smart Input with Intent Classification */}
         <SmartChatInput
           value={input}
@@ -1937,5 +2016,34 @@ const styles = StyleSheet.create({
     color: '#4CD964',
     fontSize: 12,
     fontWeight: '500',
+  },
+  editingBanner: {
+    backgroundColor: '#1a1a1a',
+    borderTopWidth: 1,
+    borderTopColor: '#8B7DFF',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  editingBannerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  editingBannerText: {
+    flex: 1,
+  },
+  editingBannerTitle: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  editingBannerSubtitle: {
+    color: '#888',
+    fontSize: 12,
+    marginTop: 2,
   },
 });

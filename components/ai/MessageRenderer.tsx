@@ -9,7 +9,7 @@ import { WorkoutPlanCard } from './cards/WorkoutPlanCard';
 import { TechniqueAdviceCard } from './cards/TechniqueAdviceCard';
 import { SchedulePlanCard } from './cards/SchedulePlanCard';
 import { ExplanationCard } from './cards/ExplanationCard';
-import { ProfileConfirmationCard, ProfileConfirmationData } from './cards/ProfileConfirmationCard';
+import { ProfileConfirmationCard, ProfileConfirmationData, WorkoutPreferences } from './cards/ProfileConfirmationCard';
 import { Colors, Layout, Typography, getIntentConfig } from '@/theme/ai';
 import { safeParseAssistant, WorkoutPlanData, TechniqueAdviceData, SchedulePlanData, ExplanationData } from '@/utils/aiMessage';
 
@@ -26,8 +26,9 @@ interface MessageRendererProps {
   onExplainChoices?: () => void;
   onShowExamples?: () => void;
   onApplySubstitutions?: (data: TechniqueAdviceData) => void;
-  onConfirmProfile?: () => void;
+  onConfirmProfile?: (preferences: WorkoutPreferences) => void;
   onEditProfile?: () => void;
+  onEditWorkout?: (data: WorkoutPlanData) => void;
 }
 
 export const MessageRenderer: React.FC<MessageRendererProps> = ({
@@ -45,6 +46,7 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({
   onApplySubstitutions,
   onConfirmProfile,
   onEditProfile,
+  onEditWorkout,
 }) => {
   const intentConfig = getIntentConfig(intent);
 
@@ -95,6 +97,7 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({
   // If we have structured workout plan data from the API, use it directly
   if (workoutPlan && (responseType === 'workout_plan' || responseType === 'workout')) {
     console.log('MessageRenderer: Processing workout plan', { workoutPlan, responseType });
+    console.log('MessageRenderer: Checking for segments array:', workoutPlan.segments);
     console.log('MessageRenderer: Warm-up exercises:', workoutPlan.warm_up);
     console.log('MessageRenderer: Main workout exercises:', workoutPlan.main_workout);
     console.log('MessageRenderer: Cool-down exercises:', workoutPlan.cool_down);
@@ -102,8 +105,42 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({
     // Transform API response format to match WorkoutPlanData interface
     const segments = [];
     
-    // Add warm-up segment if present
-    if (workoutPlan.warm_up && workoutPlan.warm_up.length > 0) {
+    // First, check if segments already exist in the new format
+    if (workoutPlan.segments && Array.isArray(workoutPlan.segments)) {
+      console.log('MessageRenderer: Found segments array with', workoutPlan.segments.length, 'segments');
+      
+      workoutPlan.segments.forEach((segment: any, index: number) => {
+        console.log(`MessageRenderer: Processing segment ${index}:`, {
+          type: segment.type,
+          hasExercises: !!segment.exercises,
+          exerciseCount: segment.exercises?.length
+        });
+        
+        if (segment.exercises && segment.exercises.length > 0) {
+          const segmentName = segment.type === 'warm_up' ? 'Warm-up' : 
+                             segment.type === 'cool_down' ? 'Cool-down' :
+                             segment.type === 'cardio' ? 'Cardio' :
+                             segment.type === 'main_workout' ? (workoutPlan.name || 'Main Workout') :
+                             segment.name || segment.type || 'Workout';
+          
+          segments.push({
+            name: segmentName,
+            exercises: segment.exercises.map((exercise: any) => ({
+              exerciseId: exercise.exercise_id || exercise.id || exercise.name || '',
+              exerciseName: exercise.name || exercise.exercise_name || exercise.exerciseName || 'Unknown Exercise',
+              sets: exercise.sets || 3,
+              reps: exercise.reps || '8-12',
+              load: exercise.load || '',
+              restSec: exercise.rest_seconds || exercise.rest || 60,
+              notes: exercise.notes || ''
+            }))
+          });
+        }
+      });
+    }
+    
+    // Fallback: Add warm-up segment if present in old format
+    if (segments.length === 0 && workoutPlan.warm_up && workoutPlan.warm_up.length > 0) {
       segments.push({
         name: 'Warm-up',
         exercises: workoutPlan.warm_up.map((exercise: any) => ({
@@ -118,8 +155,8 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({
       });
     }
     
-    // Add main workout segment if present
-    if (workoutPlan.main_workout && workoutPlan.main_workout.length > 0) {
+    // Fallback: Add main workout segment if present in old format
+    if (segments.length === 0 && workoutPlan.main_workout && workoutPlan.main_workout.length > 0) {
       segments.push({
         name: 'Main Workout',
         exercises: workoutPlan.main_workout.map((exercise: any) => ({
@@ -135,7 +172,7 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({
     }
     
     // Fallback for flat exercises array (old format or simple response)
-    if (workoutPlan.exercises && workoutPlan.exercises.length > 0) {
+    if (segments.length === 0 && workoutPlan.exercises && workoutPlan.exercises.length > 0) {
       console.log('MessageRenderer: Using flat exercises array, first exercise:', workoutPlan.exercises[0]);
       segments.push({
         name: workoutPlan.name || 'Main Workout',
@@ -196,6 +233,7 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({
         intent={intent}
         onSave={handleSaveWorkout}
         onExplain={handleExplainChoices}
+        onEdit={onEditWorkout}
       />
     );
   }
@@ -209,6 +247,7 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({
           intent={intent}
           onSave={handleSaveWorkout}
           onExplain={handleExplainChoices}
+          onEdit={onEditWorkout}
         />
       );
 

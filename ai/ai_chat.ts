@@ -23,14 +23,31 @@ export interface AIResponse {
   responseType?: string;
 }
 
+export interface WorkoutPreferences {
+  includeWarmup: boolean;
+  includeCooldown: boolean;
+  includeCardio: boolean;
+}
+
+export interface SendMessageOptions {
+  workoutPreferences?: WorkoutPreferences;
+  editingWorkout?: any; // Current workout being edited
+}
+
 /**
  * Send a message to the HLTHY AI Coach backend service
  * @param history - Array of previous chat messages for context
  * @param currentMessage - The current message from the user
  * @param userId - The user's unique ID for profile management
+ * @param options - Optional parameters like workout preferences and editing context
  * @returns Promise<AIResponse> - AI response with text and optional structured data
  */
-export async function sendMessage(history: ChatMessage[], currentMessage: string, userId?: string): Promise<AIResponse> {
+export async function sendMessage(
+  history: ChatMessage[], 
+  currentMessage: string, 
+  userId?: string,
+  options?: SendMessageOptions
+): Promise<AIResponse> {
   try {
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     console.log('📡 Sending message to AI backend:');
@@ -46,6 +63,16 @@ export async function sendMessage(history: ChatMessage[], currentMessage: string
     // Include user_id if provided for profile management
     if (userId) {
       requestBody.user_id = userId;
+    }
+
+    // Include workout preferences if provided
+    if (options?.workoutPreferences) {
+      requestBody.workout_preferences = options.workoutPreferences;
+    }
+
+    // Include editing context if user is editing a workout
+    if (options?.editingWorkout) {
+      requestBody.editing_workout = options.editingWorkout;
     }
 
     const response = await fetch(`${API_BASE_URL}/api/chat`, {

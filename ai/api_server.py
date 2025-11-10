@@ -218,19 +218,34 @@ def chat():
         user_id = data.get('user_id', 'anonymous_user')
         message = data.get('message', '')
         conversation_history = data.get('conversation_history', [])
+        workout_preferences = data.get('workout_preferences')
+        editing_workout = data.get('editing_workout')
         
         if not message:
             return jsonify({"error": "Missing message field"}), 400
         
         print(f"User: {user_id[:8]}... | Message: {message[:50]}... | History: {len(conversation_history)} messages")
+        if workout_preferences:
+            print(f"  📋 Workout preferences: {workout_preferences}")
+        if editing_workout:
+            print(f"  ✏️  Editing workout: {editing_workout.get('name', 'Unknown')}")
         
         # Use AI Orchestrator if available
         if ai_orchestrator:
             try:
-                # Pass conversation history as context
+                # Pass conversation history and additional context
                 context_data = {
                     'conversation_history': conversation_history
                 }
+                
+                # Add workout preferences if provided
+                if workout_preferences:
+                    context_data['workout_preferences'] = workout_preferences
+                
+                # Add editing context if user is editing a workout
+                if editing_workout:
+                    context_data['editing_workout'] = editing_workout
+                
                 result = ai_orchestrator.process_message(user_id, message, context_data)
                 
                 print(f"AI Response type: {result.get('type')}")

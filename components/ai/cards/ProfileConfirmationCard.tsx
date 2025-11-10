@@ -1,11 +1,17 @@
 /**
  * ProfileConfirmationCard - Displays user profile information for confirmation before workout generation
  */
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { GradientSurface } from '../atoms/GradientSurface';
 import { Colors, Layout, Typography } from '@/theme/ai';
+
+export interface WorkoutPreferences {
+  includeWarmup: boolean;
+  includeCooldown: boolean;
+  includeCardio: boolean;
+}
 
 export interface ProfileConfirmationData {
   experience?: string;
@@ -21,7 +27,7 @@ export interface ProfileConfirmationData {
 interface ProfileConfirmationCardProps {
   data: ProfileConfirmationData;
   message: string;
-  onConfirm: () => void;
+  onConfirm: (preferences: WorkoutPreferences) => void;
   onEdit: () => void;
 }
 
@@ -31,6 +37,11 @@ export const ProfileConfirmationCard: React.FC<ProfileConfirmationCardProps> = (
   onConfirm,
   onEdit,
 }) => {
+  const [preferences, setPreferences] = useState<WorkoutPreferences>({
+    includeWarmup: true,
+    includeCooldown: true,
+    includeCardio: false,
+  });
   const renderProfileItem = (icon: string, label: string, value: string | string[] | undefined, iconColor: string) => {
     if (!value || (Array.isArray(value) && value.length === 0)) return null;
     
@@ -187,6 +198,107 @@ export const ProfileConfirmationCard: React.FC<ProfileConfirmationCardProps> = (
           </View>
         )}
 
+        {/* Workout Structure Preferences */}
+        <View style={{
+          marginTop: Layout.spacing.md,
+          marginBottom: Layout.spacing.md,
+        }}>
+          <Text style={{
+            color: 'rgba(255, 255, 255, 0.8)',
+            fontSize: Typography.sizes.sm,
+            fontWeight: Typography.weights.semibold,
+            marginBottom: Layout.spacing.sm,
+          }}>
+            Workout Structure
+          </Text>
+          
+          <View style={{ gap: Layout.gap.xs }}>
+            <TouchableOpacity
+              onPress={() => setPreferences({...preferences, includeWarmup: !preferences.includeWarmup})}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                paddingVertical: Layout.spacing.sm,
+                paddingHorizontal: Layout.spacing.md,
+                backgroundColor: 'rgba(255, 255, 255, 0.02)',
+                borderRadius: Layout.radius.chip,
+                borderWidth: 1,
+                borderColor: preferences.includeWarmup ? 'rgba(139, 125, 255, 0.3)' : 'rgba(255, 255, 255, 0.05)',
+              }}
+            >
+              <Ionicons
+                name={preferences.includeWarmup ? "checkbox" : "square-outline"}
+                size={22}
+                color={preferences.includeWarmup ? '#8B7DFF' : 'rgba(255, 255, 255, 0.3)'}
+                style={{ marginRight: Layout.spacing.sm }}
+              />
+              <Text style={{
+                color: preferences.includeWarmup ? 'rgba(255, 255, 255, 0.9)' : 'rgba(255, 255, 255, 0.5)',
+                fontSize: Typography.sizes.sm,
+                fontWeight: Typography.weights.medium,
+              }}>
+                Include warm-up exercises
+              </Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              onPress={() => setPreferences({...preferences, includeCooldown: !preferences.includeCooldown})}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                paddingVertical: Layout.spacing.sm,
+                paddingHorizontal: Layout.spacing.md,
+                backgroundColor: 'rgba(255, 255, 255, 0.02)',
+                borderRadius: Layout.radius.chip,
+                borderWidth: 1,
+                borderColor: preferences.includeCooldown ? 'rgba(139, 125, 255, 0.3)' : 'rgba(255, 255, 255, 0.05)',
+              }}
+            >
+              <Ionicons
+                name={preferences.includeCooldown ? "checkbox" : "square-outline"}
+                size={22}
+                color={preferences.includeCooldown ? '#8B7DFF' : 'rgba(255, 255, 255, 0.3)'}
+                style={{ marginRight: Layout.spacing.sm }}
+              />
+              <Text style={{
+                color: preferences.includeCooldown ? 'rgba(255, 255, 255, 0.9)' : 'rgba(255, 255, 255, 0.5)',
+                fontSize: Typography.sizes.sm,
+                fontWeight: Typography.weights.medium,
+              }}>
+                Include cool-down/stretching
+              </Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              onPress={() => setPreferences({...preferences, includeCardio: !preferences.includeCardio})}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                paddingVertical: Layout.spacing.sm,
+                paddingHorizontal: Layout.spacing.md,
+                backgroundColor: 'rgba(255, 255, 255, 0.02)',
+                borderRadius: Layout.radius.chip,
+                borderWidth: 1,
+                borderColor: preferences.includeCardio ? 'rgba(139, 125, 255, 0.3)' : 'rgba(255, 255, 255, 0.05)',
+              }}
+            >
+              <Ionicons
+                name={preferences.includeCardio ? "checkbox" : "square-outline"}
+                size={22}
+                color={preferences.includeCardio ? '#8B7DFF' : 'rgba(255, 255, 255, 0.3)'}
+                style={{ marginRight: Layout.spacing.sm }}
+              />
+              <Text style={{
+                color: preferences.includeCardio ? 'rgba(255, 255, 255, 0.9)' : 'rgba(255, 255, 255, 0.5)',
+                fontSize: Typography.sizes.sm,
+                fontWeight: Typography.weights.medium,
+              }}>
+                Include cardio finisher
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
         {/* Confirmation Message */}
         <Text style={{
           color: 'rgba(255, 255, 255, 0.6)',
@@ -229,7 +341,7 @@ export const ProfileConfirmationCard: React.FC<ProfileConfirmationCardProps> = (
           </TouchableOpacity>
 
           <TouchableOpacity
-            onPress={onConfirm}
+            onPress={() => onConfirm(preferences)}
             style={{
               flex: 1,
               paddingVertical: 14,

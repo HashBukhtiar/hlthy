@@ -24,6 +24,7 @@ interface WorkoutPlanCardProps {
   onAddToWorkouts?: (data: WorkoutPlanData) => void;
   onExplain?: () => void;
   onShare?: () => void;
+  onEdit?: (workout: WorkoutPlanData) => void;  // NEW: Edit handler
 }
 
 export const WorkoutPlanCard: React.FC<WorkoutPlanCardProps> = ({
@@ -33,6 +34,7 @@ export const WorkoutPlanCard: React.FC<WorkoutPlanCardProps> = ({
   onAddToWorkouts,
   onExplain,
   onShare,
+  onEdit,
 }) => {
   const { currentUser } = useAuth();
   const [expandedSegments, setExpandedSegments] = useState<Set<number>>(new Set([0])); // First segment expanded by default
@@ -288,6 +290,36 @@ export const WorkoutPlanCard: React.FC<WorkoutPlanCardProps> = ({
                 � ADD TO WORKOUTS
               </Text>
             </TouchableOpacity>
+
+            {/* NEW: Edit Workout Button */}
+            {onEdit && (
+              <TouchableOpacity
+                onPress={() => onEdit(data)}
+                style={{
+                  paddingVertical: Layout.spacing.md,
+                  paddingHorizontal: Layout.spacing.lg,
+                  borderRadius: Layout.radius.button,
+                  borderWidth: 1,
+                  borderColor: intentConfig.primary,
+                  backgroundColor: `${intentConfig.primary}15`,
+                  alignItems: 'center',
+                  flexDirection: 'row',
+                  gap: 8,
+                  justifyContent: 'center',
+                }}
+              >
+                <Ionicons name="create-outline" size={20} color={intentConfig.primary} />
+                <Text
+                  style={{
+                    color: intentConfig.primary,
+                    fontSize: Typography.sizes.md,
+                    fontWeight: Typography.weights.semibold,
+                  }}
+                >
+                  Edit Workout
+                </Text>
+              </TouchableOpacity>
+            )}
 
             <TouchableOpacity
               onPress={() => handleMenuAction('explain')}

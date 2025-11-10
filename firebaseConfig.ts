@@ -19,18 +19,15 @@ const firebaseConfig = {
 console.log("Firebase initialization started");
 
 // Initialize Firebase
-let app: FirebaseApp;
-let auth: Auth;
-let db: Firestore;
+const app: FirebaseApp = initializeApp(firebaseConfig);
+const auth: Auth = getAuth(app);
+const db: Firestore = getFirestore(app);
+const storage: FirebaseStorage = getStorage(app);
+const functions = getFunctions(app, 'northamerica-northeast2');
+
 let analytics;
-let storage: FirebaseStorage; 
 
 try {
-  app = initializeApp(firebaseConfig);
-  auth = getAuth(app);
-  db = getFirestore(app);
-  storage = getStorage(app);
-  
   isSupported()
     .then((supported) => {
       if (supported) {
@@ -50,5 +47,4 @@ try {
   // console.log(firebaseConfig); 
 }
 
-export { app, db, auth, storage };
-export const functions = getFunctions(app, 'northamerica-northeast2');
+export { app, db, auth, storage, functions };
