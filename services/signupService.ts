@@ -229,7 +229,9 @@ export class SignupService {
           analytics: {lastSeen: serverTimestamp()},
           latestPRs: {},
           bio: '',
-          emailVerified: true,
+          // Reflect the actual Firebase Auth email verification state.
+          // In dev bypass flows this will still be whatever `user.emailVerified` reports.
+          emailVerified: user.emailVerified ?? false,
           profileImageUrl: '',
           profileThumbnailUrl: null,
           blockedUsers: [],
@@ -340,7 +342,9 @@ export class SignupService {
           analytics: {lastSeen: serverTimestamp()},
           latestPRs: {},
           bio: '',
-          emailVerified: true,
+          // Reflect the actual Firebase Auth email verification state.
+          // In dev bypass flows this will still be whatever `user.emailVerified` reports.
+          emailVerified: user.emailVerified ?? false,
           profileImageUrl: '',
           profileThumbnailUrl: null,
           blockedUsers: [],
