@@ -4,17 +4,15 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  Dimensions,
   Alert,
   AppState,
   AppStateStatus,
   Animated,
   Easing,
 } from 'react-native';
-import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { auth } from '@/firebaseConfig';
-import { reload, signOut } from 'firebase/auth';
+import { reload } from 'firebase/auth';
 import CustomSpinner from '@/components/CustomSpinner';
 import LoadingOverlay from '@/components/LoadingOverlay';
 import { SignupService } from '@/services/signupService';
@@ -41,20 +39,21 @@ export default function EmailVerificationScreen({
   emailSent = false,
   pendingTimestamp,
 }: EmailVerificationScreenProps) {
-  const { width, height } = Dimensions.get('window');
-  const router = useRouter();
+  // width/height and router were previously unused; removed to silence warnings
   
   const [isResending, setIsResending] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
   const [isCheckingVerification, setIsCheckingVerification] = useState(false);
   const [isChangingEmail, setIsChangingEmail] = useState(false);
-  const [isVerificationFailed, setIsVerificationFailed] = useState(false);
+  // verification failure is represented by animations; we only need the setter
+  const [, setIsVerificationFailed] = useState(false);
   const [isAccountDeleted, setIsAccountDeleted] = useState(false);
   const [countdownSeconds, setCountdownSeconds] = useState<number | null>(null);
   const [hasPendingSignup, setHasPendingSignup] = useState(false);
   const [isBypassingVerification, setIsBypassingVerification] = useState(false);
   // Success animation state for resend button
-  const [showResendSuccess, setShowResendSuccess] = useState(false);
+  // showResendSuccess controlled by animations; keep only setter to trigger flows
+  const [, setShowResendSuccess] = useState(false);
   const spinnerFadeAnim = useRef(new Animated.Value(0)).current;
   const spinnerScaleAnim = useRef(new Animated.Value(0.8)).current;
   const resendSuccessAnim = useRef(new Animated.Value(0)).current;
