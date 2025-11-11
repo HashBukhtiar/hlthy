@@ -549,9 +549,21 @@ IMPORTANT: Return the FULL workout structure with ALL segments and exercises, no
             
             train_freq_str = f"{train_freq} days/week" if train_freq else 'Unknown'
             
-            primary_goals = getattr(profile, 'primary_goals', None) or []
-            goals_str = ', '.join(primary_goals) if primary_goals else 'Unknown'
-            dislikes = profile.dislikes if hasattr(profile, 'dislikes') and profile.dislikes else []
+            # Get goals - check both goals.primary_goal and primary_goals list
+            goals_str = 'Unknown'
+            if hasattr(profile, 'goals') and profile.goals and hasattr(profile.goals, 'primary_goal'):
+                # New format: FitnessGoals object with primary_goal
+                goals_str = profile.goals.primary_goal.replace('_', ' ').title()
+            elif hasattr(profile, 'primary_goals') and profile.primary_goals:
+                # Old format: primary_goals list
+                goals_str = ', '.join(profile.primary_goals)
+            
+            # Get dislikes - correct field name is disliked_exercises
+            dislikes = []
+            if hasattr(profile, 'disliked_exercises') and profile.disliked_exercises:
+                dislikes = profile.disliked_exercises
+            elif hasattr(profile, 'dislikes') and profile.dislikes:
+                dislikes = profile.dislikes
             dislikes_str = ', '.join(dislikes) if dislikes else 'None'
             
             # Get injuries
@@ -563,8 +575,31 @@ IMPORTANT: Return the FULL workout structure with ALL segments and exercises, no
             injuries_str = ', '.join(injuries) if injuries else 'None'
             
             # Get equipment
-            equipment = getattr(profile, 'available_equipment', {})
-            equipment_str = ', '.join([k for k, v in equipment.items() if v]) if isinstance(equipment, dict) else str(equipment)
+            equipment_str = 'Unknown'
+            if hasattr(profile, 'available_equipment') and profile.available_equipment:
+                equipment = profile.available_equipment
+                print(f"DEBUG - Equipment data: {equipment}")
+                print(f"DEBUG - Equipment type: {type(equipment)}")
+                if isinstance(equipment, dict):
+                    # Get the current equipment setup
+                    current_setup = equipment.get('current', 'gym')
+                    print(f"DEBUG - Current setup: {current_setup}")
+                    equipment_list = equipment.get(current_setup, [])
+                    print(f"DEBUG - Equipment list for {current_setup}: {equipment_list}")
+                    if isinstance(equipment_list, list) and equipment_list:
+                        equipment_str = ', '.join(equipment_list)
+                    elif isinstance(equipment_list, str):
+                        equipment_str = equipment_list
+                    else:
+                        # Fallback: list all available equipment from all setups
+                        all_equipment = []
+                        for key, value in equipment.items():
+                            if key != 'current' and isinstance(value, list):
+                                all_equipment.extend(value)
+                        equipment_str = ', '.join(all_equipment) if all_equipment else f'Full {current_setup} setup'
+                else:
+                    equipment_str = str(equipment)
+                print(f"DEBUG - Final equipment_str: {equipment_str}")
             
             # Get preferences
             preferences = getattr(profile, 'preferences', None) or []
