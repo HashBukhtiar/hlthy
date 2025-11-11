@@ -445,8 +445,8 @@ export const WorkoutPlanCard: React.FC<WorkoutPlanCardProps> = ({
                       )}
                     </TouchableOpacity>
 
-                    {/* Action Buttons */}
-                    <View style={{ flexDirection: 'row', gap: 8 }}>
+                    {/* Action Buttons - Stacked Vertically */}
+                    <View style={{ flexDirection: 'column', gap: 4 }}>
                       {/* Move Up */}
                       {exerciseIndex > 0 && (
                         <TouchableOpacity
