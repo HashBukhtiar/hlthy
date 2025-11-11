@@ -4,6 +4,7 @@ import { Stack } from 'expo-router';
 import { useColorScheme } from '@/components/useColorScheme';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { View, StyleSheet } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import BottomButtons from '@/components/BottomButtons';
 import { usePathname } from 'expo-router';
 import { AuthProvider } from '@/context/AuthContext';
@@ -13,9 +14,10 @@ export default function RootLayout() {
   const pathname = usePathname();
 
   return (
-    <AuthProvider>
-      <SafeAreaProvider>
-        <View style={styles.container}>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <AuthProvider>
+        <SafeAreaProvider>
+          <View style={styles.container}>
           <Stack
             screenOptions={{
               headerShown: false,
@@ -52,6 +54,7 @@ export default function RootLayout() {
         </View>
       </SafeAreaProvider>
     </AuthProvider>
+    </GestureHandlerRootView>
   );
 }
 

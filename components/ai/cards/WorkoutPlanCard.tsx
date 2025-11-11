@@ -2,12 +2,17 @@
  * WorkoutPlanCard - Displays workout plans matching the ViewWorkout screen style
  * Now with interactive editing: long-press menu for delete/edit, tap to edit inline
  */
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, Alert, TextInput, Modal, ScrollView, StyleSheet } from 'react-native';
+import React, { useState, useRef } from 'react';
+import { View, Text, TouchableOpacity, Alert, TextInput, Modal, ScrollView, StyleSheet, Animated, LayoutAnimation, Platform, UIManager, PanResponder } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/context/AuthContext';
 import { WorkoutSaveModal } from '../modals/WorkoutSaveModal';
 import { WorkoutPlanData } from '@/utils/aiMessage';
+
+// Enable LayoutAnimation on Android
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 interface WorkoutPlanCardProps {
   data: WorkoutPlanData;
@@ -52,6 +57,9 @@ export const WorkoutPlanCard: React.FC<WorkoutPlanCardProps> = ({
   const [editingExercise, setEditingExercise] = useState<EditingExercise | null>(null);
   const [localWorkoutData, setLocalWorkoutData] = useState<WorkoutPlanData>(data);
   const [reorderMode, setReorderMode] = useState(false);
+  
+  // Store animated values for swipe gestures - one per exercise
+  const swipeAnimations = useRef<Map<string, Animated.Value>>(new Map()).current;
 
   // Helper to get exercise name (handles both 'name' and 'exerciseName' fields)
   const getExerciseName = (exercise: any): string => {
@@ -113,22 +121,27 @@ export const WorkoutPlanCard: React.FC<WorkoutPlanCardProps> = ({
     setEditingExercise(null);
   };
 
-  // Move exercise up/down
+  // Move exercise up/down with smooth animation
   const handleMoveExercise = (segmentIndex: number, exerciseIndex: number, direction: 'up' | 'down') => {
+    const segment = localWorkoutData.segments[segmentIndex];
+    const targetIndex = direction === 'up' ? exerciseIndex - 1 : exerciseIndex + 1;
+    
+    // Validate move
+    if (targetIndex < 0 || targetIndex >= segment.exercises.length) {
+      return;
+    }
+
+    // Use spring animation preset for smooth, natural movement
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+
+    // Swap the data - LayoutAnimation will handle the smooth transition
     const newData = { ...localWorkoutData };
-    const exercises = newData.segments[segmentIndex].exercises;
-    const newIndex = direction === 'up' ? exerciseIndex - 1 : exerciseIndex + 1;
-    
-    if (newIndex < 0 || newIndex >= exercises.length) return;
-    
-    const temp = exercises[exerciseIndex];
-    exercises[exerciseIndex] = exercises[newIndex];
-    exercises[newIndex] = temp;
+    const temp = newData.segments[segmentIndex].exercises[exerciseIndex];
+    newData.segments[segmentIndex].exercises[exerciseIndex] = newData.segments[segmentIndex].exercises[targetIndex];
+    newData.segments[segmentIndex].exercises[targetIndex] = temp;
     
     setLocalWorkoutData(newData);
-  };
-
-  const handleMenuAction = (action: string) => {
+  };  const handleMenuAction = (action: string) => {
     switch (action) {
       case 'save':
         onSave?.(normalizeWorkoutData(localWorkoutData));
@@ -247,119 +260,161 @@ export const WorkoutPlanCard: React.FC<WorkoutPlanCardProps> = ({
             shadowRadius: 4,
             elevation: 5,
           }}>
-            {segment.exercises.map((exercise, exerciseIndex) => (
-              <View key={exerciseIndex} style={{ marginBottom: 4 }}>
-                <View style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  paddingVertical: 12,
-                }}>
-                  {/* Exercise Number Circle */}
-                  <View style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: 18,
-                    backgroundColor: '#ff2d55',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    marginRight: 15,
-                    shadowColor: '#000',
-                    shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: 0.2,
-                    shadowRadius: 3,
-                  }}>
-                    <Text style={{
-                      fontSize: 16,
-                      color: '#ffffff',
-                      fontWeight: 'bold',
-                    }}>
-                      {exerciseIndex + 1}
-                    </Text>
-                  </View>
-
-                  {/* Exercise Details */}
-                  <TouchableOpacity 
-                    style={{ flex: 1 }}
-                    onPress={() => handleEditExercise(segmentIndex, exerciseIndex)}
+            {segment.exercises.map((exercise, exerciseIndex) => {
+              // Create a stable unique key based on exercise content, not index
+              const exerciseKey = `${segmentIndex}-${getExerciseName(exercise)}-${exercise.sets}-${exercise.reps}-${exerciseIndex}`;
+              
+              // Get or create animated value for this exercise
+              if (!swipeAnimations.has(exerciseKey)) {
+                swipeAnimations.set(exerciseKey, new Animated.Value(0));
+              }
+              const translateX = swipeAnimations.get(exerciseKey)!;
+              
+              // Create PanResponder for swipe gestures
+              const panResponder = PanResponder.create({
+                onMoveShouldSetPanResponder: (_, gestureState) => {
+                  // Only activate if horizontal swipe is significant
+                  return Math.abs(gestureState.dx) > 5;
+                },
+                onPanResponderMove: (_, gestureState) => {
+                  // Only allow left swipe (negative dx)
+                  if (gestureState.dx < 0) {
+                    translateX.setValue(gestureState.dx);
+                  }
+                },
+                onPanResponderRelease: (_, gestureState) => {
+                  // If swiped more than 100px, delete
+                  if (gestureState.dx < -100) {
+                    Animated.timing(translateX, {
+                      toValue: -500,
+                      duration: 200,
+                      useNativeDriver: true,
+                    }).start(() => {
+                      handleDeleteExercise(segmentIndex, exerciseIndex);
+                      translateX.setValue(0);
+                    });
+                  } else {
+                    // Spring back to original position
+                    Animated.spring(translateX, {
+                      toValue: 0,
+                      useNativeDriver: true,
+                      tension: 100,
+                      friction: 10,
+                    }).start();
+                  }
+                },
+              });
+              
+              return (
+                <View 
+                  key={exerciseKey}
+                  style={{ marginBottom: 4, overflow: 'hidden' }}
+                >
+                  {/* Swipeable exercise content */}
+                  <Animated.View 
+                    {...panResponder.panHandlers}
+                    style={{
+                      transform: [{ translateX }],
+                      backgroundColor: '#1e1e1e',
+                    }}
                   >
-                    <Text style={{
-                      fontSize: 16,
-                      fontWeight: '600',
-                      color: '#ffffff',
-                      marginBottom: 4,
+                    <View style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      paddingVertical: 12,
                     }}>
-                      {getExerciseName(exercise)}
-                    </Text>
-                    <Text style={{
-                      fontSize: 14,
-                      color: '#b0b0b0',
+                    {/* Exercise Number Circle */}
+                    <View style={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: 18,
+                      backgroundColor: '#ff2d55',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      marginRight: 15,
+                      shadowColor: '#000',
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: 0.2,
+                      shadowRadius: 3,
                     }}>
-                      {exercise.sets} sets × {exercise.reps} reps
-                    </Text>
-                    {exercise.notes && (
                       <Text style={{
-                        fontSize: 13,
-                        color: '#888888',
-                        marginTop: 4,
-                        fontStyle: 'italic',
+                        fontSize: 16,
+                        color: '#ffffff',
+                        fontWeight: 'bold',
                       }}>
-                        {exercise.notes}
+                        {exerciseIndex + 1}
                       </Text>
-                    )}
-                  </TouchableOpacity>
+                    </View>
 
-                  {/* Action Buttons */}
-                  <View style={{ flexDirection: 'row', gap: 8 }}>
-                    {/* Move Up */}
-                    {exerciseIndex > 0 && (
-                      <TouchableOpacity
-                        onPress={() => handleMoveExercise(segmentIndex, exerciseIndex, 'up')}
-                        style={{
-                          width: 32,
-                          height: 32,
-                          borderRadius: 16,
-                          backgroundColor: '#2a2a2a',
-                          justifyContent: 'center',
-                          alignItems: 'center',
-                        }}
-                      >
-                        <Ionicons name="chevron-up" size={18} color="#888888" />
-                      </TouchableOpacity>
-                    )}
-
-                    {/* Move Down */}
-                    {exerciseIndex < segment.exercises.length - 1 && (
-                      <TouchableOpacity
-                        onPress={() => handleMoveExercise(segmentIndex, exerciseIndex, 'down')}
-                        style={{
-                          width: 32,
-                          height: 32,
-                          borderRadius: 16,
-                          backgroundColor: '#2a2a2a',
-                          justifyContent: 'center',
-                          alignItems: 'center',
-                        }}
-                      >
-                        <Ionicons name="chevron-down" size={18} color="#888888" />
-                      </TouchableOpacity>
-                    )}
-
-                    {/* Delete */}
-                    <TouchableOpacity
-                      onPress={() => handleDeleteExercise(segmentIndex, exerciseIndex)}
-                      style={{
-                        width: 32,
-                        height: 32,
-                        borderRadius: 16,
-                        backgroundColor: 'rgba(255, 45, 85, 0.2)',
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                      }}
+                    {/* Exercise Details */}
+                    <TouchableOpacity 
+                      style={{ flex: 1 }}
+                      onPress={() => handleEditExercise(segmentIndex, exerciseIndex)}
                     >
-                      <Ionicons name="trash-outline" size={18} color="#ff2d55" />
+                      <Text style={{
+                        fontSize: 16,
+                        fontWeight: '600',
+                        color: '#ffffff',
+                        marginBottom: 4,
+                      }}>
+                        {getExerciseName(exercise)}
+                      </Text>
+                      <Text style={{
+                        fontSize: 14,
+                        color: '#b0b0b0',
+                      }}>
+                        {exercise.sets} sets × {exercise.reps} reps
+                      </Text>
+                      {exercise.notes && (
+                        <Text style={{
+                          fontSize: 13,
+                          color: '#888888',
+                          marginTop: 4,
+                          fontStyle: 'italic',
+                        }}>
+                          {exercise.notes}
+                        </Text>
+                      )}
                     </TouchableOpacity>
+
+                    {/* Action Buttons */}
+                    <View style={{ flexDirection: 'row', gap: 8 }}>
+                      {/* Move Up */}
+                      {exerciseIndex > 0 && (
+                        <TouchableOpacity
+                          onPress={() => handleMoveExercise(segmentIndex, exerciseIndex, 'up')}
+                          style={{
+                            width: 32,
+                            height: 32,
+                            borderRadius: 16,
+                            backgroundColor: '#2a2a2a',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                          }}
+                        >
+                          <Ionicons name="chevron-up" size={18} color="#888888" />
+                        </TouchableOpacity>
+                      )}
+
+                      {/* Move Down */}
+                      {exerciseIndex < segment.exercises.length - 1 && (
+                        <TouchableOpacity
+                          onPress={() => handleMoveExercise(segmentIndex, exerciseIndex, 'down')}
+                          style={{
+                            width: 32,
+                            height: 32,
+                            borderRadius: 16,
+                            backgroundColor: '#2a2a2a',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                          }}
+                        >
+                          <Ionicons name="chevron-down" size={18} color="#888888" />
+                        </TouchableOpacity>
+                      )}
+                    </View>
                   </View>
-                </View>
+                </Animated.View>
                 {/* Divider between exercises */}
                 {exerciseIndex < segment.exercises.length - 1 && (
                   <View style={{
@@ -369,7 +424,8 @@ export const WorkoutPlanCard: React.FC<WorkoutPlanCardProps> = ({
                   }} />
                 )}
               </View>
-            ))}
+            );
+            })}
           </View>
         </View>
       ))}
