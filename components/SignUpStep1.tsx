@@ -197,6 +197,10 @@ export default function SignUpStep1({ visible, onBackPress, onNext, onShowLogin 
     if (submitted) {
       setIsEmailValid(text === '' || validateEmail(text));
     }
+    // Clear the "email already exists" error when user starts typing again
+    if (errorMessage === 'An account with this email already exists') {
+      setErrorMessage('');
+    }
   };
 
   if (!visible) return null;
@@ -329,7 +333,7 @@ export default function SignUpStep1({ visible, onBackPress, onNext, onShowLogin 
                     transform: [
                       {
                         translateX:
-                          errorMessage === 'Please enter your email address' || errorMessage === 'Please provide a valid email.'
+                          errorMessage === 'Please enter your email address' || errorMessage === 'Please provide a valid email.' || errorMessage === 'An account with this email already exists'
                             ? emailShakeAnim.interpolate({ inputRange: [-1, 1], outputRange: [-5, 5] })
                             : 0,
                       },
@@ -347,7 +351,7 @@ export default function SignUpStep1({ visible, onBackPress, onNext, onShowLogin 
                     }}
                     style={[
                       (email || emailFocused) ? styles.modernInput : styles.modernInputCompact,
-                      !isEmailValid && styles.modernInputError,
+                      (!isEmailValid || errorMessage === 'An account with this email already exists') && styles.modernInputError,
                     ]}
                     contentStyle={(email || emailFocused) ? styles.inputContentStyle : styles.inputContentStyleCompact}
                     dense={!email && !emailFocused}
@@ -365,9 +369,9 @@ export default function SignUpStep1({ visible, onBackPress, onNext, onShowLogin 
                     autoCapitalize='none'
                     keyboardType="email-address"
                     textColor='#FFFFFF'
-                    error={!isEmailValid}
-                    underlineColor={!isEmailValid ? '#FF5555' : 'rgba(255, 255, 255, 0.3)'}
-                    activeUnderlineColor={!isEmailValid ? '#FF5555' : '#FFFFFF'}
+                    error={!isEmailValid || errorMessage === 'An account with this email already exists'}
+                    underlineColor={(!isEmailValid || errorMessage === 'An account with this email already exists') ? '#FF5555' : 'rgba(255, 255, 255, 0.3)'}
+                    activeUnderlineColor={(!isEmailValid || errorMessage === 'An account with this email already exists') ? '#FF5555' : '#FFFFFF'}
                   />
                 </Animated.View>
               </View>

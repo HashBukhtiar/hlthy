@@ -35,6 +35,7 @@ export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin,
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [submitted, setSubmitted] = useState(false); // Track first submit
   const [loading, setLoading] = useState(false);
+  const [usernameExists, setUsernameExists] = useState(false); // Track if username is already taken
 
   // Focus states
   const [usernameFocused, setUsernameFocused] = useState<boolean>(false);
@@ -218,15 +219,18 @@ export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin,
       const querySnapshot = await getDocs(q);
       if (!querySnapshot.empty) {
         setErrorMessage('This username is already taken.');
+        setUsernameExists(true);
         setLoading(false);
         triggerUsernameShake();
         return;
       }
+      setUsernameExists(false);
       setLoading(false);
       onNext({ username, dateOfBirth });
     } catch (err) {
       console.error('Error checking username:', err);
       setErrorMessage('Error checking username. Please try again.');
+      setUsernameExists(false);
       setLoading(false);
       triggerUsernameShake();
       return;
@@ -261,6 +265,11 @@ export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin,
     // Remove any leading @ characters and trim leading/trailing whitespace
     const sanitized = text.replace(/^@+/, '').trim();
     setUsername(sanitized);
+    // Clear the "username exists" error when user starts typing again
+    if (usernameExists) {
+      setUsernameExists(false);
+      setErrorMessage('');
+    }
     if (submitted) {
       // Live validation after first submit using sanitized value
       const usernameErr = getUsernameError(sanitized);
@@ -347,7 +356,7 @@ export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin,
                   style={{
                     transform: [
                       {
-                        translateX: submitted && getUsernameError(username)
+                        translateX: (submitted && getUsernameError(username)) || usernameExists
                           ? usernameShakeAnim.interpolate({ inputRange: [-1, 1], outputRange: [-5, 5] })
                           : 0,
                       },
@@ -362,7 +371,7 @@ export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin,
                     onBlur={() => setUsernameFocused(false)}
                     style={[
                       (username || usernameFocused) ? styles.modernInput : styles.modernInputCompact,
-                      submitted && getUsernameError(username) && styles.modernInputError,
+                      ((submitted && getUsernameError(username)) || usernameExists) && styles.modernInputError,
                     ]}
                     contentStyle={(username || usernameFocused) ? styles.inputContentStyle : styles.inputContentStyleCompact}
                     dense={!username && !usernameFocused}
@@ -378,9 +387,9 @@ export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin,
                       },
                     }}
                     textColor="#FFFFFF"
-                    error={!!(submitted && getUsernameError(username))}
-                    underlineColor={submitted && getUsernameError(username) ? '#FF5555' : 'rgba(255, 255, 255, 0.3)'}
-                    activeUnderlineColor={submitted && getUsernameError(username) ? '#FF5555' : '#FFFFFF'}
+                    error={!!((submitted && getUsernameError(username)) || usernameExists)}
+                    underlineColor={(submitted && getUsernameError(username)) || usernameExists ? '#FF5555' : 'rgba(255, 255, 255, 0.3)'}
+                    activeUnderlineColor={(submitted && getUsernameError(username)) || usernameExists ? '#FF5555' : '#FFFFFF'}
                     autoCapitalize="none"
                     left={null}
                     selectionColor="#FFFFFF"
@@ -737,6 +746,7 @@ const styles = StyleSheet.create({
     top: 0
   },
   modernInputError: {
-    // Remove border styling, rely on underline color for error indication
+    borderBottomColor: '#FF5555',
+    borderBottomWidth: 2,
   },
 });
