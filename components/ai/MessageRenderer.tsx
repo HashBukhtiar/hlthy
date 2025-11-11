@@ -252,20 +252,7 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({
       <View>
         {/* Show AI's reasoning/message text */}
         {message && (
-          <View style={{
-            backgroundColor: 'rgba(20, 20, 25, 0.6)',
-            borderRadius: 12,
-            padding: 16,
-            marginBottom: 12,
-          }}>
-            <Text style={{
-              color: '#E0E0E0',
-              fontSize: 15,
-              lineHeight: 22,
-            }}>
-              {message}
-            </Text>
-          </View>
+          <FormattedReasoningBubble message={message} />
         )}
         
         {/* Workout Card */}
@@ -485,5 +472,143 @@ const PrettyTextBubble: React.FC<PrettyTextBubbleProps> = ({
         </View>
       </View>
     </GradientSurface>
+  );
+};
+
+// Formatted Reasoning Bubble for workout plans
+interface FormattedReasoningBubbleProps {
+  message: string;
+}
+
+const FormattedReasoningBubble: React.FC<FormattedReasoningBubbleProps> = ({ message }) => {
+  // Parse the message and render with proper formatting
+  const renderFormattedText = () => {
+    const lines = message.split('\n').filter(line => line.trim());
+    const elements: React.ReactNode[] = [];
+    let key = 0;
+
+    lines.forEach((line, index) => {
+      const trimmedLine = line.trim();
+      
+      // Skip empty lines
+      if (!trimmedLine) return;
+
+      // Bold headers (text between ** or starting with **)
+      if (trimmedLine.startsWith('**') && trimmedLine.endsWith('**')) {
+        const text = trimmedLine.replace(/\*\*/g, '');
+        elements.push(
+          <Text
+            key={key++}
+            style={{
+              color: '#ff2d55',
+              fontSize: 17,
+              fontWeight: 'bold',
+              marginTop: index > 0 ? 16 : 0,
+              marginBottom: 8,
+            }}
+          >
+            {text}
+          </Text>
+        );
+        return;
+      }
+
+      // Bullet points (starting with • or -)
+      if (trimmedLine.startsWith('•') || trimmedLine.startsWith('-')) {
+        const text = trimmedLine.replace(/^[•\-]\s*/, '');
+        
+        // Check if this is a bold bullet (contains ** around the first part)
+        const boldMatch = text.match(/^\*\*(.+?)\*\*\s*-\s*(.+)$/);
+        if (boldMatch) {
+          elements.push(
+            <View
+              key={key++}
+              style={{
+                flexDirection: 'row',
+                marginBottom: 8,
+                paddingLeft: 8,
+              }}
+            >
+              <Text style={{ color: '#ff2d55', fontSize: 15, marginRight: 8, marginTop: 2 }}>
+                •
+              </Text>
+              <Text style={{ flex: 1, fontSize: 15, lineHeight: 22 }}>
+                <Text style={{ color: '#ffffff', fontWeight: '600' }}>
+                  {boldMatch[1]}
+                </Text>
+                <Text style={{ color: '#b0b0b0' }}>
+                  {' - '}
+                  {boldMatch[2]}
+                </Text>
+              </Text>
+            </View>
+          );
+        } else {
+          // Regular bullet
+          elements.push(
+            <View
+              key={key++}
+              style={{
+                flexDirection: 'row',
+                marginBottom: 8,
+                paddingLeft: 8,
+              }}
+            >
+              <Text style={{ color: '#ff2d55', fontSize: 15, marginRight: 8, marginTop: 2 }}>
+                •
+              </Text>
+              <Text style={{ color: '#b0b0b0', fontSize: 15, lineHeight: 22, flex: 1 }}>
+                {text}
+              </Text>
+            </View>
+          );
+        }
+        return;
+      }
+
+      // Regular paragraphs (may contain inline bold with **)
+      const parts = trimmedLine.split(/(\*\*.*?\*\*)/g);
+      const formattedParts = parts.map((part, i) => {
+        if (part.startsWith('**') && part.endsWith('**')) {
+          return (
+            <Text key={i} style={{ color: '#ffffff', fontWeight: '600' }}>
+              {part.replace(/\*\*/g, '')}
+            </Text>
+          );
+        }
+        return <Text key={i}>{part}</Text>;
+      });
+
+      elements.push(
+        <Text
+          key={key++}
+          style={{
+            color: '#E0E0E0',
+            fontSize: 15,
+            lineHeight: 22,
+            marginBottom: 8,
+          }}
+        >
+          {formattedParts}
+        </Text>
+      );
+    });
+
+    return elements;
+  };
+
+  return (
+    <View
+      style={{
+        backgroundColor: 'rgba(20, 20, 25, 0.6)',
+        borderRadius: 12,
+        padding: 16,
+        marginBottom: 12,
+        borderWidth: 1,
+        borderColor: 'rgba(255, 45, 85, 0.2)',
+      }}
+    >
+      {renderFormattedText()}
+    </View>
   );
 };
