@@ -19,11 +19,14 @@ defaultConfig.resolver.resolverMainFields = [
 defaultConfig.resolver.resolveRequest = (context, moduleName, platform) => {
   // Handle metro-runtime issues on web
   if (platform === 'web') {
-    // Skip all metro-runtime related modules
+    // Return a mock module instead of empty for HMR-related imports
     if (moduleName.includes('metro-runtime') || 
         moduleName.includes('HMRClient') ||
-        moduleName.includes('@expo/metro/metro-runtime')) {
-      return { type: 'empty' };
+        moduleName.includes('@expo/metro-runtime')) {
+      return {
+        type: 'sourceFile',
+        filePath: require.resolve('./metro-hmr-mock.js'),
+      };
     }
   }
   
