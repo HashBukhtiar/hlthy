@@ -3,7 +3,7 @@ import {onCall, HttpsError, onRequest} from "firebase-functions/v2/https";
 
 /**
  * Cloud Tasks cleanup system for unverified accounts.
- * 
+ *
  * Flow:
  * 1. Client creates account and calls scheduleCleanupTask
  * 2. Cloud Task is scheduled for 5 minutes later
@@ -14,7 +14,7 @@ import {onCall, HttpsError, onRequest} from "firebase-functions/v2/https";
  * @deprecated This function is deprecated and should not be used.
  * Use scheduleCleanupTask instead which uses Cloud Tasks for more reliable cleanup.
  * This function is kept temporarily to track any legacy usage.
- * 
+ *
  * Legacy callable to cleanup a specific unverified account by UID.
  * Will be removed in a future release.
  */
@@ -89,69 +89,126 @@ export const cleanupUnverifiedAccount = onCall(
 /**
  * HTTP handler invoked by Cloud Tasks to cleanup a specific unverified account.
  * Expects POST JSON body: { uid: string }
+ *
+ * Security: This endpoint validates OIDC tokens from Cloud Tasks to prevent
+ * unauthorized invocations. Only the Cloud Tasks service account can invoke this.
  */
 export const cleanupTaskHandler = onRequest(
   {
     region: "us-central1",
-    invoker: "public", // Allow Cloud Tasks to invoke without authentication
+    // Remove public invoker - require authentication via OIDC token
   },
   async (req, res) => {
-  try {
-    const db = getDb();
-    if (!db) {
-      console.error("cleanupTaskHandler: Firestore not initialized");
-      res.status(500).send("db not initialized");
-      return;
-    }
-
-    const {uid} = req.method === "POST" ? req.body || {} : {};
-    if (!uid || typeof uid !== "string") {
-      console.warn("cleanupTaskHandler: missing or invalid uid");
-      res.status(400).send("missing uid");
-      return;
-    }
-
     try {
-      const userRecord = await admin.auth().getUser(uid);
-      if (userRecord.emailVerified) {
-        await db.collection("usersPublic").doc(uid).update({isVerified: true});
-        console.log("cleanupTaskHandler: user already verified, updated usersPublic", uid);
-        res.status(200).send("verified");
+    // Validate OIDC token from Cloud Tasks.
+    // Cloud Tasks will send an OIDC identity token in the Authorization: Bearer <token> header.
+    // We validate it with Google's tokeninfo endpoint and check the audience and service account email.
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        console.warn("cleanupTaskHandler: missing or invalid Authorization header");
+        res.status(401).send("unauthorized");
         return;
       }
-    } catch (err: any) {
-      if (err.code === "auth/user-not-found") {
-        console.log("cleanupTaskHandler: auth user not found, deleting usersPublic doc", uid);
-        await db.collection("usersPublic").doc(uid).delete().catch((e) => console.error(e));
-        res.status(200).send("user-not-found");
+
+      const idToken = authHeader.split("Bearer ")[1];
+      try {
+        const project = process.env.GCP_PROJECT || process.env.GCLOUD_PROJECT || (process.env.FIREBASE_CONFIG && JSON.parse(process.env.FIREBASE_CONFIG).projectId);
+        if (!project) {
+          console.error("cleanupTaskHandler: project id not available in environment");
+          res.status(500).send("server-error");
+          return;
+        }
+
+        const tokenInfoUrl = `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(idToken)}`;
+        const tokenResp = await fetch(tokenInfoUrl);
+        if (!tokenResp.ok) {
+          console.error("cleanupTaskHandler: tokeninfo response not ok", tokenResp.status);
+          res.status(401).send("unauthorized");
+          return;
+        }
+        const tokenInfo = await tokenResp.json();
+
+        // Expected audience must match the function URL
+        // For 2nd gen functions, this is the Cloud Run URL
+        const expectedAudience = process.env.CLEANUP_HANDLER_URL || "https://cleanuptaskhandler-s4rm2uw5oa-uc.a.run.app";
+        if (tokenInfo.aud !== expectedAudience) {
+          console.error("cleanupTaskHandler: token audience mismatch", tokenInfo.aud, expectedAudience);
+          res.status(401).send("unauthorized");
+          return;
+        }
+
+        // Accept either the default App Engine SA or a dedicated invoker SA
+        const defaultAppEngineSa = `${project}@appspot.gserviceaccount.com`;
+        const dedicatedSa = `cloud-tasks-cleanup-invoker@${project}.iam.gserviceaccount.com`;
+        const tokenEmail = tokenInfo.email || tokenInfo.service_account_email || null;
+        if (tokenEmail !== defaultAppEngineSa && tokenEmail !== dedicatedSa) {
+          console.error("cleanupTaskHandler: token email not authorized", tokenEmail);
+          res.status(403).send("forbidden");
+          return;
+        }
+
+        console.log("cleanupTaskHandler: authenticated OIDC token for", tokenEmail);
+      } catch (tokenError: any) {
+        console.error("cleanupTaskHandler: token verification failed", tokenError);
+        res.status(401).send("unauthorized");
         return;
       }
-      console.error("cleanupTaskHandler: error fetching user", uid, err);
-    }
 
-    // Not verified — delete auth user and usersPublic doc
-    try {
-      await admin.auth().deleteUser(uid);
-      console.log("cleanupTaskHandler: deleted auth user", uid);
-    } catch (delErr: any) {
-      console.error("cleanupTaskHandler: failed to delete auth user", uid, delErr);
-    }
+      const db = getDb();
+      if (!db) {
+        console.error("cleanupTaskHandler: Firestore not initialized");
+        res.status(500).send("db not initialized");
+        return;
+      }
 
-    try {
-      await db.collection("usersPublic").doc(uid).delete();
-      console.log("cleanupTaskHandler: deleted usersPublic doc for uid", uid);
-    } catch (delDocErr: any) {
-      console.error("cleanupTaskHandler: failed to delete usersPublic doc for uid", uid, delDocErr);
-    }
+      const {uid} = req.method === "POST" ? req.body || {} : {};
+      if (!uid || typeof uid !== "string") {
+        console.warn("cleanupTaskHandler: missing or invalid uid");
+        res.status(400).send("missing uid");
+        return;
+      }
 
-    res.status(200).send("deleted");
-    return;
-  } catch (err) {
-    console.error("cleanupTaskHandler: unexpected error", err);
-    res.status(500).send("error");
-    return;
-  }
-});
+      try {
+        const userRecord = await admin.auth().getUser(uid);
+        if (userRecord.emailVerified) {
+          await db.collection("usersPublic").doc(uid).update({isVerified: true});
+          console.log("cleanupTaskHandler: user already verified, updated usersPublic", uid);
+          res.status(200).send("verified");
+          return;
+        }
+      } catch (err: any) {
+        if (err.code === "auth/user-not-found") {
+          console.log("cleanupTaskHandler: auth user not found, deleting usersPublic doc", uid);
+          await db.collection("usersPublic").doc(uid).delete().catch((e) => console.error(e));
+          res.status(200).send("user-not-found");
+          return;
+        }
+        console.error("cleanupTaskHandler: error fetching user", uid, err);
+      }
+
+      // Not verified — delete auth user and usersPublic doc
+      try {
+        await admin.auth().deleteUser(uid);
+        console.log("cleanupTaskHandler: deleted auth user", uid);
+      } catch (delErr: any) {
+        console.error("cleanupTaskHandler: failed to delete auth user", uid, delErr);
+      }
+
+      try {
+        await db.collection("usersPublic").doc(uid).delete();
+        console.log("cleanupTaskHandler: deleted usersPublic doc for uid", uid);
+      } catch (delDocErr: any) {
+        console.error("cleanupTaskHandler: failed to delete usersPublic doc for uid", uid, delDocErr);
+      }
+
+      res.status(200).send("deleted");
+      return;
+    } catch (err) {
+      console.error("cleanupTaskHandler: unexpected error", err);
+      res.status(500).send("error");
+      return;
+    }
+  });
 
 /**
  * Schedules a Cloud Task to cleanup an account after a delay.
@@ -168,7 +225,10 @@ export const scheduleCleanupTask = onCall({region: "northamerica-northeast2"}, a
   if (!project) throw new HttpsError("internal", "Project not detected");
   const location = "us-central1"; // Match the Cloud Tasks queue region
   const queue = "unverified-user-cleanup-queue";
-  const url = `https://${location}-${project}.cloudfunctions.net/cleanupTaskHandler`;
+
+  // For 2nd gen Cloud Functions, use the Cloud Run URL
+  // You can get this from: firebase functions:config:get or from the deployment output
+  const url = process.env.CLEANUP_HANDLER_URL || "https://cleanuptaskhandler-s4rm2uw5oa-uc.a.run.app";
 
   // Obtain access token from metadata server
   const metadataUrl = "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token";
@@ -188,16 +248,23 @@ export const scheduleCleanupTask = onCall({region: "northamerica-northeast2"}, a
 
   const createTaskUrl = `https://cloudtasks.googleapis.com/v2/projects/${project}/locations/${location}/queues/${queue}/tasks`;
   const scheduleTime = {seconds: Math.floor(Date.now() / 1000) + Math.floor(delay)};
-  
-  // Since cleanupTaskHandler allows public invocation, we don't need OIDC token
+
+  // Get service account email for OIDC token
+  const serviceAccountEmail = `${project}@appspot.gserviceaccount.com`;
+
+  // Configure OIDC token for secure invocation
   const httpRequest: any = {
     httpMethod: "POST",
     url,
     headers: {"Content-Type": "application/json"},
     body: Buffer.from(JSON.stringify({uid})).toString("base64"),
+    oidcToken: {
+      serviceAccountEmail,
+      audience: url, // The URL of the target function
+    },
   };
-  
-  const taskBody = { task: { httpRequest, scheduleTime } };
+
+  const taskBody = {task: {httpRequest, scheduleTime}};
 
   try {
     const resp = await fetch(createTaskUrl, {
