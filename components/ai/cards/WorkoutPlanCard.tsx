@@ -281,24 +281,27 @@ export const WorkoutPlanCard: React.FC<WorkoutPlanCardProps> = ({
               
               // Create PanResponder for swipe gestures
               const panResponder = PanResponder.create({
-                onStartShouldSetPanResponder: () => {
-                  // LOCK: Immediately take control when touched
-                  updateSwipeActive(true);
-                  return true;
+                onStartShouldSetPanResponder: () => false, // Don't capture on initial touch
+                onStartShouldSetPanResponderCapture: () => false,
+                onMoveShouldSetPanResponder: (_, gestureState) => {
+                  // Only capture if it's a clear horizontal swipe (more horizontal than vertical)
+                  const isHorizontal = Math.abs(gestureState.dx) > Math.abs(gestureState.dy) && Math.abs(gestureState.dx) > 10;
+                  if (isHorizontal) {
+                    updateSwipeActive(true);
+                  }
+                  return isHorizontal;
                 },
-                onStartShouldSetPanResponderCapture: () => {
-                  // Capture at the start to prevent ScrollView
-                  return true;
+                onMoveShouldSetPanResponderCapture: (_, gestureState) => {
+                  // Only capture if it's a clear horizontal swipe
+                  const isHorizontal = Math.abs(gestureState.dx) > Math.abs(gestureState.dy) && Math.abs(gestureState.dx) > 10;
+                  return isHorizontal;
                 },
-                onMoveShouldSetPanResponder: () => true,
-                onMoveShouldSetPanResponderCapture: () => true,
                 onPanResponderGrant: () => {
                   // Locked - ScrollView cannot scroll now
                   updateSwipeActive(true);
                 },
                 onPanResponderMove: (_, gestureState) => {
-                  // ONLY track horizontal movement, completely ignore vertical
-                  // User can move finger anywhere, only horizontal distance matters
+                  // ONLY track horizontal movement (left swipes only)
                   if (gestureState.dx <= 0) {
                     translateX.setValue(gestureState.dx);
                   }
@@ -307,7 +310,7 @@ export const WorkoutPlanCard: React.FC<WorkoutPlanCardProps> = ({
                   // UNLOCK: Release the lock when finger is lifted
                   updateSwipeActive(false);
                   
-                  // Only look at horizontal distance, ignore how diagonal the swipe was
+                  // Only look at horizontal distance
                   if (gestureState.dx < -80) {
                     Animated.timing(translateX, {
                       toValue: -500,
@@ -342,11 +345,39 @@ export const WorkoutPlanCard: React.FC<WorkoutPlanCardProps> = ({
                 onShouldBlockNativeResponder: () => true,
               });
               
+              // Scale animation for trash icon (small when barely swiping, large when fully swiped)
+              const trashIconScale = translateX.interpolate({
+                inputRange: [-80, -20, 0],
+                outputRange: [1.2, 0.5, 0.3],
+                extrapolate: 'clamp',
+              });
+              
               return (
                 <View 
                   key={exerciseKey}
-                  style={{ marginBottom: 4, overflow: 'hidden' }}
+                  style={{ 
+                    marginBottom: 4, 
+                    overflow: 'hidden',
+                    position: 'relative',
+                    backgroundColor: '#ff3b30', // Red background behind the card (like Gmail)
+                  }}
                 >
+                  {/* Trash Icon - positioned on the red background */}
+                  <Animated.View 
+                    pointerEvents="none"
+                    style={{
+                      position: 'absolute',
+                      right: 20,
+                      top: 0,
+                      bottom: 0,
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      transform: [{ scale: trashIconScale }],
+                    }}
+                  >
+                    <Ionicons name="trash" size={24} color="#ffffff" />
+                  </Animated.View>
+
                   {/* Swipeable exercise content */}
                   <Animated.View 
                     {...panResponder.panHandlers}
@@ -451,15 +482,16 @@ export const WorkoutPlanCard: React.FC<WorkoutPlanCardProps> = ({
                       )}
                     </View>
                   </View>
+
+                  {/* Divider between exercises - INSIDE Animated.View so it moves with the card */}
+                  {exerciseIndex < segment.exercises.length - 1 && (
+                    <View style={{
+                      height: 1,
+                      backgroundColor: '#2a2a2a',
+                      marginVertical: 4,
+                    }} />
+                  )}
                 </Animated.View>
-                {/* Divider between exercises */}
-                {exerciseIndex < segment.exercises.length - 1 && (
-                  <View style={{
-                    height: 1,
-                    backgroundColor: '#2a2a2a',
-                    marginVertical: 4,
-                  }} />
-                )}
               </View>
             );
             })}
