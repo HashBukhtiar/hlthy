@@ -272,37 +272,58 @@ export const WorkoutPlanCard: React.FC<WorkoutPlanCardProps> = ({
               
               // Create PanResponder for swipe gestures
               const panResponder = PanResponder.create({
+                onStartShouldSetPanResponder: () => false,
+                onStartShouldSetPanResponderCapture: () => false,
                 onMoveShouldSetPanResponder: (_, gestureState) => {
-                  // Only activate if horizontal swipe is significant
-                  return Math.abs(gestureState.dx) > 5;
+                  // Only care about horizontal movement, ignore vertical completely
+                  return gestureState.dx < -5;
+                },
+                onMoveShouldSetPanResponderCapture: (_, gestureState) => {
+                  // Capture if clearly swiping left
+                  return gestureState.dx < -8;
+                },
+                onPanResponderGrant: () => {
+                  // Prevent parent ScrollView from scrolling while swiping
+                  return true;
                 },
                 onPanResponderMove: (_, gestureState) => {
-                  // Only allow left swipe (negative dx)
-                  if (gestureState.dx < 0) {
+                  // ONLY track horizontal movement, completely ignore vertical
+                  // This allows diagonal swipes to work perfectly
+                  if (gestureState.dx <= 0) {
                     translateX.setValue(gestureState.dx);
                   }
                 },
                 onPanResponderRelease: (_, gestureState) => {
-                  // If swiped more than 100px, delete
-                  if (gestureState.dx < -100) {
+                  // Only look at horizontal distance, ignore how diagonal the swipe was
+                  if (gestureState.dx < -80) {
                     Animated.timing(translateX, {
                       toValue: -500,
-                      duration: 200,
+                      duration: 250,
                       useNativeDriver: true,
                     }).start(() => {
                       handleDeleteExercise(segmentIndex, exerciseIndex);
                       translateX.setValue(0);
                     });
                   } else {
-                    // Spring back to original position
+                    // Spring back to original position with bounce
                     Animated.spring(translateX, {
                       toValue: 0,
                       useNativeDriver: true,
-                      tension: 100,
-                      friction: 10,
+                      tension: 65,
+                      friction: 7,
                     }).start();
                   }
                 },
+                onPanResponderTerminate: () => {
+                  // If gesture is interrupted, spring back
+                  Animated.spring(translateX, {
+                    toValue: 0,
+                    useNativeDriver: true,
+                    tension: 65,
+                    friction: 7,
+                  }).start();
+                },
+                onShouldBlockNativeResponder: () => true,
               });
               
               return (
