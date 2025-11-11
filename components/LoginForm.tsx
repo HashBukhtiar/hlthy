@@ -124,89 +124,37 @@ export default function LoginForm({ visible, onBackPress, onForgotPasswordPress,
       router.replace({ pathname: '/' });
     } catch (error: any) {
       console.log('[Login] Failed for', emailAddress, error);
-  // If login fails, try additional checks to give a better error message
-      // Generate a random/dummy password via helper
-      let randomPassword = '';
-      try {
-        // Lazy import the helper to keep bundle size small
-        const { default: generateDummyPassword } = await import('@/utils/generateDummyPassword');
-        randomPassword = generateDummyPassword();
-      } catch (e) {
-        // Fallback inline generation
-        randomPassword = (typeof crypto !== 'undefined' && (crypto as any).randomUUID) ? (crypto as any).randomUUID() : Math.random().toString(36) + Date.now();
-      }
-      try {
-        // Try signing in with a random password to differentiate between "user not found"
-        // and "wrong password" errors. We don't rely on the outcome beyond setting
-        // user-facing error messages below.
-        await signInWithEmailAndPassword(auth, emailAddress, randomPassword);
-        // If this unexpectedly succeeds, log it and continue.
-        console.log('[Login] Unexpected: dummy login succeeded for', emailAddress);
-      } catch (dummyErr: any) {
-        if (dummyErr.code === 'auth/user-not-found') {
-          console.log('[Login] Email does not exist:', emailAddress);
-          setEmailError('User not found.');
-          setPasswordError('');
-          setErrorMessage('User not found.');
-        } else if (dummyErr.code === 'auth/wrong-password' || dummyErr.code === 'auth/email-already-in-use') {
-          console.log('[Login] Email exists, password incorrect:', emailAddress);
-          setPasswordError('Incorrect password.');
-          setEmailError('');
-          setErrorMessage('Incorrect password.');
-        } else if (dummyErr.code === 'auth/invalid-email') {
-          setEmailError('Please enter a valid email address.');
-          setPasswordError('');
-          setErrorMessage('Please enter a valid email address.');
-          // Trigger shake animation for email input
-          if (emailInputRef && emailInputRef.current && emailInputRef.current.shake) {
-            emailInputRef.current.shake();
-          }
-        } else {
-          // For other errors we clear specific field errors and leave a generic message
-          setEmailError('');
-          setPasswordError('');
-        }
-      }
-
-      // Try to create a dummy account to determine whether the email is already
-      // registered. If creation succeeds, the email doesn't exist in the sense of
-      // an account with different credentials; we delete the dummy account right
-      // after and show "User not found." If creation fails with
-      // 'auth/email-already-in-use', the email is registered and the password is
-      // likely incorrect.
-      try {
-        const { getAuth, createUserWithEmailAndPassword } = await import('firebase/auth');
-        const authInstance = getAuth();
-        const created = await createUserWithEmailAndPassword(authInstance, emailAddress, randomPassword);
-        // If created, attempt to delete immediately. Log success/failure.
-        if (created && authInstance.currentUser) {
-          try {
-            await authInstance.currentUser.delete();
-            console.log('[Login] Dummy account created and deleted for', emailAddress);
-          } catch (deleteErr) {
-            console.warn('[Login] Failed to delete dummy account for', emailAddress, deleteErr);
-          }
-        }
-  // Creation succeeded -> treat as user not found
-  setEmailError('User not found.');
+      
+      // Handle Firebase auth errors directly without account probing
+      if (error.code === 'auth/user-not-found') {
+        console.log('[Login] User not found:', emailAddress);
+        setEmailError('User not found.');
         setPasswordError('');
         setErrorMessage('User not found.');
-      } catch (err: any) {
-        if (err.code === 'auth/email-already-in-use') {
-          console.log('[Login] Email exists, password incorrect (dummy creation blocked):', emailAddress);
-          setPasswordError('Incorrect password.');
-          setEmailError('');
-          setErrorMessage('Incorrect password.');
-        } else if (err.code === 'auth/invalid-email') {
-          setEmailError('Please enter a valid email address.');
-          setPasswordError('');
-          setErrorMessage('Please enter a valid email address.');
-          if (emailInputRef && emailInputRef.current && emailInputRef.current.shake) {
-            emailInputRef.current.shake();
-          }
-        } else {
-          console.warn('[Login] Error during dummy account creation for', emailAddress, err);
+      } else if (error.code === 'auth/wrong-password') {
+        console.log('[Login] Wrong password for:', emailAddress);
+        setPasswordError('Incorrect password.');
+        setEmailError('');
+        setErrorMessage('Incorrect password.');
+      } else if (error.code === 'auth/invalid-email') {
+        setEmailError('Please enter a valid email address.');
+        setPasswordError('');
+        setErrorMessage('Please enter a valid email address.');
+        if (emailInputRef && emailInputRef.current && emailInputRef.current.shake) {
+          emailInputRef.current.shake();
         }
+      } else if (error.code === 'auth/invalid-credential') {
+        // Firebase v9+ may return invalid-credential for both wrong password and non-existent user
+        // This is actually better for security as it doesn't reveal if email exists
+        setPasswordError('Invalid email or password.');
+        setEmailError('');
+        setErrorMessage('Invalid email or password.');
+      } else {
+        // Generic error for any other issues
+        setEmailError('');
+        setPasswordError('');
+        setErrorMessage('An error occurred. Please try again.');
+        console.error('[Login] Unexpected error:', error);
       }
     } finally {
       setLoading(false);
