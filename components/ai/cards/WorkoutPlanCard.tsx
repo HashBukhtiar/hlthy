@@ -140,10 +140,7 @@ export const WorkoutPlanCard: React.FC<WorkoutPlanCardProps> = ({
       return;
     }
 
-    // Use spring animation preset for smooth, natural movement
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-
-    // Swap the data - LayoutAnimation will handle the smooth transition
+    // No animation - just swap the data immediately
     const newData = { ...localWorkoutData };
     const temp = newData.segments[segmentIndex].exercises[exerciseIndex];
     newData.segments[segmentIndex].exercises[exerciseIndex] = newData.segments[segmentIndex].exercises[targetIndex];
@@ -270,8 +267,8 @@ export const WorkoutPlanCard: React.FC<WorkoutPlanCardProps> = ({
             elevation: 5,
           }}>
             {segment.exercises.map((exercise, exerciseIndex) => {
-              // Create a stable unique key based on exercise content, not index
-              const exerciseKey = `${segmentIndex}-${getExerciseName(exercise)}-${exercise.sets}-${exercise.reps}-${exerciseIndex}`;
+              // Create a stable unique key based on exercise content only (not index)
+              const exerciseKey = `${segmentIndex}-${getExerciseName(exercise)}-${exercise.sets}-${exercise.reps}`;
               
               // Get or create animated value for this exercise
               if (!swipeAnimations.has(exerciseKey)) {
@@ -310,8 +307,8 @@ export const WorkoutPlanCard: React.FC<WorkoutPlanCardProps> = ({
                   // UNLOCK: Release the lock when finger is lifted
                   updateSwipeActive(false);
                   
-                  // Only look at horizontal distance
-                  if (gestureState.dx < -80) {
+                  // Require swipe of at least 150px (about halfway) to delete
+                  if (gestureState.dx < -150) {
                     Animated.timing(translateX, {
                       toValue: -500,
                       duration: 250,
@@ -347,7 +344,7 @@ export const WorkoutPlanCard: React.FC<WorkoutPlanCardProps> = ({
               
               // Scale animation for trash icon (small when barely swiping, large when fully swiped)
               const trashIconScale = translateX.interpolate({
-                inputRange: [-80, -20, 0],
+                inputRange: [-150, -20, 0],
                 outputRange: [1.2, 0.5, 0.3],
                 extrapolate: 'clamp',
               });
@@ -355,6 +352,7 @@ export const WorkoutPlanCard: React.FC<WorkoutPlanCardProps> = ({
               return (
                 <View 
                   key={exerciseKey}
+                  collapsable={false}
                   style={{ 
                     marginBottom: 4, 
                     overflow: 'hidden',
