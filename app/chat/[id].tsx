@@ -227,8 +227,9 @@ const MessageItem = React.memo<{
   onSendMessage?: (message: string) => void;
   onConfirmProfile?: (preferences: any) => void;
   onEditWorkout?: (workout: any) => void;
+  onSwipeActiveChange?: (active: boolean) => void;
 }>(
-  ({ item, onLongPress, conversationId, onReprompt, onSendMessage, onConfirmProfile, onEditWorkout }) => {
+  ({ item, onLongPress, conversationId, onReprompt, onSendMessage, onConfirmProfile, onEditWorkout, onSwipeActiveChange }) => {
     const router = useRouter();
     const { getWeightUnit, getDistanceUnit, convertWeight, convertDistance } = useUnits();
     
@@ -475,6 +476,7 @@ const MessageItem = React.memo<{
             onConfirmProfile={onConfirmProfile}
             onEditProfile={() => onSendMessage?.('no')}
             onEditWorkout={onEditWorkout}
+            onSwipeActiveChange={onSwipeActiveChange}
           />
         ) : (
           <TouchableOpacity
@@ -569,6 +571,7 @@ export default function ChatScreen() {
   const [isAiThinking, setIsAiThinking] = useState(false);
   const [editingWorkout, setEditingWorkout] = useState<any>(null);
   const [workoutPreferences, setWorkoutPreferences] = useState<any>(null);
+  const [scrollEnabled, setScrollEnabled] = useState(true); // Control scroll locking
   const thinkingDotAnimations = useRef([
     new Animated.Value(0.4),
     new Animated.Value(0.4),
@@ -1130,6 +1133,10 @@ export default function ChatScreen() {
     }
   };
 
+  const handleSwipeActiveChange = useCallback((active: boolean) => {
+    setScrollEnabled(!active);
+  }, []);
+
   const renderMessage = useCallback<ListRenderItem<Message>>(
     ({ item }) => (
       <MessageItem 
@@ -1140,9 +1147,10 @@ export default function ChatScreen() {
         onSendMessage={handleSend}
         onConfirmProfile={handleConfirmProfile}
         onEditWorkout={handleEditWorkout}
+        onSwipeActiveChange={handleSwipeActiveChange}
       />
     ),
-    [handleLongPress, conversationId, handleReprompt, handleSend, handleConfirmProfile, handleEditWorkout]
+    [handleLongPress, conversationId, handleReprompt, handleSend, handleConfirmProfile, handleEditWorkout, handleSwipeActiveChange]
   );
 
   return (
@@ -1205,6 +1213,7 @@ export default function ChatScreen() {
             removeClippedSubviews={true}
 
             inverted
+            scrollEnabled={scrollEnabled}
             onEndReached={fetchMore}
             onEndReachedThreshold={0.1}
 

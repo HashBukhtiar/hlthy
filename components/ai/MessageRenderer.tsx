@@ -29,6 +29,7 @@ interface MessageRendererProps {
   onConfirmProfile?: (preferences: WorkoutPreferences) => void;
   onEditProfile?: () => void;
   onEditWorkout?: (data: WorkoutPlanData) => void;
+  onSwipeActiveChange?: (active: boolean) => void;
 }
 
 export const MessageRenderer: React.FC<MessageRendererProps> = ({
@@ -47,6 +48,7 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({
   onConfirmProfile,
   onEditProfile,
   onEditWorkout,
+  onSwipeActiveChange,
 }) => {
   const intentConfig = getIntentConfig(intent);
 
@@ -249,6 +251,7 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({
           onSave={handleSaveWorkout}
           onExplain={handleExplainChoices}
           onEdit={onEditWorkout}
+          onSwipeActiveChange={onSwipeActiveChange}
         />
       </View>
     );
@@ -264,6 +267,7 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({
           onSave={handleSaveWorkout}
           onExplain={handleExplainChoices}
           onEdit={onEditWorkout}
+          onSwipeActiveChange={onSwipeActiveChange}
         />
       );
 

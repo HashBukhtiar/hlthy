@@ -22,6 +22,7 @@ interface WorkoutPlanCardProps {
   onExplain?: () => void;
   onShare?: () => void;
   onEdit?: (workout: WorkoutPlanData) => void;
+  onSwipeActiveChange?: (isActive: boolean) => void;
 }
 
 interface Exercise {
@@ -51,12 +52,20 @@ export const WorkoutPlanCard: React.FC<WorkoutPlanCardProps> = ({
   onExplain,
   onShare,
   onEdit,
+  onSwipeActiveChange,
 }) => {
   const { currentUser } = useAuth();
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [editingExercise, setEditingExercise] = useState<EditingExercise | null>(null);
   const [localWorkoutData, setLocalWorkoutData] = useState<WorkoutPlanData>(data);
   const [reorderMode, setReorderMode] = useState(false);
+  const [isSwipeActive, setIsSwipeActive] = useState(false);
+  
+  // Notify parent when swipe state changes
+  const updateSwipeActive = (active: boolean) => {
+    setIsSwipeActive(active);
+    onSwipeActiveChange?.(active);
+  };
   
   // Store animated values for swipe gestures - one per exercise
   const swipeAnimations = useRef<Map<string, Animated.Value>>(new Map()).current;
@@ -272,28 +281,32 @@ export const WorkoutPlanCard: React.FC<WorkoutPlanCardProps> = ({
               
               // Create PanResponder for swipe gestures
               const panResponder = PanResponder.create({
-                onStartShouldSetPanResponder: () => false,
-                onStartShouldSetPanResponderCapture: () => false,
-                onMoveShouldSetPanResponder: (_, gestureState) => {
-                  // Only care about horizontal movement, ignore vertical completely
-                  return gestureState.dx < -5;
-                },
-                onMoveShouldSetPanResponderCapture: (_, gestureState) => {
-                  // Capture if clearly swiping left
-                  return gestureState.dx < -8;
-                },
-                onPanResponderGrant: () => {
-                  // Prevent parent ScrollView from scrolling while swiping
+                onStartShouldSetPanResponder: () => {
+                  // LOCK: Immediately take control when touched
+                  updateSwipeActive(true);
                   return true;
+                },
+                onStartShouldSetPanResponderCapture: () => {
+                  // Capture at the start to prevent ScrollView
+                  return true;
+                },
+                onMoveShouldSetPanResponder: () => true,
+                onMoveShouldSetPanResponderCapture: () => true,
+                onPanResponderGrant: () => {
+                  // Locked - ScrollView cannot scroll now
+                  updateSwipeActive(true);
                 },
                 onPanResponderMove: (_, gestureState) => {
                   // ONLY track horizontal movement, completely ignore vertical
-                  // This allows diagonal swipes to work perfectly
+                  // User can move finger anywhere, only horizontal distance matters
                   if (gestureState.dx <= 0) {
                     translateX.setValue(gestureState.dx);
                   }
                 },
                 onPanResponderRelease: (_, gestureState) => {
+                  // UNLOCK: Release the lock when finger is lifted
+                  updateSwipeActive(false);
+                  
                   // Only look at horizontal distance, ignore how diagonal the swipe was
                   if (gestureState.dx < -80) {
                     Animated.timing(translateX, {
@@ -315,7 +328,10 @@ export const WorkoutPlanCard: React.FC<WorkoutPlanCardProps> = ({
                   }
                 },
                 onPanResponderTerminate: () => {
-                  // If gesture is interrupted, spring back
+                  // UNLOCK: Release if gesture is cancelled
+                  updateSwipeActive(false);
+                  
+                  // Spring back
                   Animated.spring(translateX, {
                     toValue: 0,
                     useNativeDriver: true,
