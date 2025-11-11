@@ -17,6 +17,9 @@ npm install
 
 # Start the Expo development server
 npx expo start
+
+# If running the web version
+npx expo start --web --no-dev --clear
 ```
 
 This will create an Expo instance and give you a QR code to scan with your mobile device and run the app using the Expo Go app.
