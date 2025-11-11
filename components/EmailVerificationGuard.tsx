@@ -56,6 +56,7 @@ export default function EmailVerificationGuard({ children }: EmailVerificationGu
       }
     } catch (error) {
       console.error('Error checking email verification:', error);
+      // Silently handle network errors in the guard - don't interrupt the flow
     } finally {
       setIsCheckingVerification(false);
     }
@@ -75,11 +76,21 @@ export default function EmailVerificationGuard({ children }: EmailVerificationGu
       );
     } catch (error: any) {
       console.error('Error resending verification email:', error);
-      Alert.alert(
-        'Error',
-        'Failed to send verification email. Please try again.',
-        [{ text: 'OK' }]
-      );
+      
+      // Handle network errors specifically
+      if (error?.code === 'auth/network-request-failed') {
+        Alert.alert(
+          'No Internet Connection',
+          'Please check your internet connection and try again.',
+          [{ text: 'OK' }]
+        );
+      } else {
+        Alert.alert(
+          'Error',
+          'Failed to send verification email. Please try again.',
+          [{ text: 'OK' }]
+        );
+      }
     } finally {
       setIsResending(false);
     }

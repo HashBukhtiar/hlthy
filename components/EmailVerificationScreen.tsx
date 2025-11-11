@@ -378,6 +378,20 @@ export default function EmailVerificationScreen({
         return;
       }
       
+      // Handle network errors gracefully
+      if (error?.code === 'auth/network-request-failed') {
+        // Only show alert for user-initiated checks
+        if (showAnimation) {
+          Alert.alert(
+            'No Internet Connection',
+            'Please check your internet connection and try again.',
+            [{ text: 'OK' }]
+          );
+        }
+        setIsCheckingVerification(false);
+        return;
+      }
+      
       // On other errors, only show failure feedback if this was user-initiated
       if (!showAnimation) {
         setIsCheckingVerification(false);
@@ -543,6 +557,17 @@ export default function EmailVerificationScreen({
           error?.code === 'auth/user-disabled' ||
           error?.code === 'auth/invalid-user-token') {
         setIsAccountDeleted(true);
+        setIsResending(false);
+        return;
+      }
+      
+      // Handle network errors gracefully
+      if (error?.code === 'auth/network-request-failed') {
+        Alert.alert(
+          'No Internet Connection',
+          'Please check your internet connection and try again.',
+          [{ text: 'OK' }]
+        );
         setIsResending(false);
         return;
       }
