@@ -54,22 +54,9 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({
   if (responseType === 'workout_confirmation' && profileData) {
     return (
       <View>
-        {/* Show AI's message text */}
+        {/* Show AI's message text with formatting */}
         {message && (
-          <View style={{
-            backgroundColor: 'rgba(20, 20, 25, 0.6)',
-            borderRadius: 12,
-            padding: 16,
-            marginBottom: 12,
-          }}>
-            <Text style={{
-              color: '#E0E0E0',
-              fontSize: 15,
-              lineHeight: 22,
-            }}>
-              {message}
-            </Text>
-          </View>
+          <FormattedReasoningBubble message={message} />
         )}
         
         {/* Profile Confirmation Card */}
@@ -308,14 +295,8 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({
 
     case 'text':
     default:
-      // Fallback to pretty text bubble
-      return (
-        <PrettyTextBubble
-          message={message}
-          intent={intent}
-          onFormatAgain={onFormatAgain}
-        />
-      );
+      // Use formatted bubble for consistent markdown rendering
+      return <FormattedReasoningBubble message={message} />;
   }
 };
 
