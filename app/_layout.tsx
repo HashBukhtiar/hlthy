@@ -23,6 +23,11 @@ export default function RootLayout() {
               animation: 'none',
             }}
           >
+            {/* Auth screens with disabled swipe gestures */}
+            <Stack.Screen name="landing" options={{ gestureEnabled: false }} />
+            <Stack.Screen name="login" options={{ gestureEnabled: false }} />
+            <Stack.Screen name="email-verification" options={{ gestureEnabled: false }} />
+            
             {/* Main tab screens with disabled swipe gestures */}
             <Stack.Screen name="(tabs)" options={{ gestureEnabled: false }} />
             <Stack.Screen name="post" options={{ gestureEnabled: false }} />
