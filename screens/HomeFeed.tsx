@@ -62,38 +62,40 @@ export default function HomeFeed() {
   function renderTopBar() {
     return (
       <View style={styles.topBar}>
-        {/* Left side: Explore Button */}
-        <View style={styles.leftButtonContainer}>
-          <TouchableOpacity
-            activeOpacity={0.7}
-            onPress={() => router.push('/explore')}
-            style={styles.button}
-          >
-            <Ionicons name="search" size={32} color="#FFF" />
-          </TouchableOpacity>
+        {/* Left side: hlthy logo with icon */}
+        <View style={styles.leftContainer}>
+          <View style={styles.logoContainer}>
+            <View style={styles.logoIcon}>
+              <Ionicons name="accessibility-outline" size={24} color="#000" />
+            </View>
+            <Text style={styles.logoText}>hlthy</Text>
+          </View>
         </View>
 
-        {/* Center: hlthy title */}
-        <View style={styles.centerContainer}>
-          <Text style={globalStyles.title}>hlthy</Text>
-        </View>
-
-        {/* Right side: Pulse and DMs Buttons */}
+        {/* Right side: Pulse, DMs, and Explore Buttons */}
         <View style={styles.rightButtonContainer}>
           <TouchableOpacity
             activeOpacity={0.7}
             onPress={() => router.push('/pulse')}
-            style={[styles.button, { marginRight: 15 }]}
+            style={styles.iconButton}
           >
-            <Ionicons name="fitness-outline" size={32} color="#FFF" />
+            <Ionicons name="fitness-outline" size={24} color="#FFF" />
           </TouchableOpacity>
 
           <TouchableOpacity
             activeOpacity={0.7}
             onPress={() => router.push('/dms')}
-            style={styles.button}
+            style={styles.iconButton}
           >
-            <Ionicons name="chatbubbles" size={32} color="#FFF" />
+            <Ionicons name="chatbubbles-outline" size={24} color="#FFF" />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => router.push('/explore')}
+            style={styles.iconButton}
+          >
+            <Ionicons name="search" size={24} color="#FFF" />
           </TouchableOpacity>
         </View>
       </View>
@@ -194,36 +196,53 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    borderBottomColor: '#222',
-    borderBottomWidth: 1,
-    paddingVertical: 10,
-    paddingHorizontal: 15,
+    paddingTop: 12,
+    paddingBottom: 12,
+    paddingHorizontal: 16,
     backgroundColor: '#000',
+    borderBottomWidth: 0,
   },
-  leftButtonContainer: {
+  leftContainer: {
+    flex: 1,
+    alignItems: 'flex-start',
+  },
+  logoContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    minWidth: 80,
-    justifyContent: 'flex-start',
+    gap: 8,
   },
-  centerContainer: {
-    flex: 1,
-    alignItems: 'center',
+  logoIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: '#FF6B6B',
     justifyContent: 'center',
+    alignItems: 'center',
+  },
+  logoText: {
+    fontSize: 26,
+    fontWeight: 'bold',
+    color: '#FFF',
+    letterSpacing: -0.5,
   },
   rightButtonContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    minWidth: 80,
-    justifyContent: 'flex-end',
+    gap: 12,
   },
-  button: {
-    marginHorizontal: 0,
+  iconButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#1C1C1E',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 8,
   },
   tabBar: {
     flexDirection: 'row',
     borderBottomWidth: 1,
-    borderBottomColor: '#333',
+    borderBottomColor: '#1C1C1E',
     backgroundColor: 'black',
     position: 'relative',
   },
@@ -236,10 +255,10 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 0,
     height: 2,
-    backgroundColor: 'white',
+    backgroundColor: '#FF6B6B',
   },
   tabButtonText: {
-    color: 'gray',
+    color: '#666',
     fontSize: 13,
     fontWeight: 'bold',
   },
