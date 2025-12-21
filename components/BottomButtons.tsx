@@ -155,7 +155,7 @@ function BottomButtons() {
         activeOpacity={0.7}
       >
         <Ionicons 
-          name="chatbubble-ellipses" 
+          name="sparkles" 
           size={28} 
           color={isActive('ai-chat') ? "white" : "grey"} 
         />
