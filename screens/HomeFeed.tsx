@@ -3,7 +3,6 @@ import {
   StyleSheet,
   Text, 
   View, 
-  Image, 
   TouchableOpacity,
   Dimensions,
   FlatList,
@@ -63,12 +62,24 @@ export default function HomeFeed() {
   function renderTopBar() {
     return (
       <View style={styles.topBar}>
-        <View style={styles.logoContainer}>
-          <Image source={require('@/assets/images/logo-dark.png')} style={styles.icon} />
+        {/* Left side: Explore Button */}
+        <View style={styles.leftButtonContainer}>
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => router.push('/explore')}
+            style={styles.button}
+          >
+            <Ionicons name="search" size={32} color="#FFF" />
+          </TouchableOpacity>
+        </View>
+
+        {/* Center: hlthy title */}
+        <View style={styles.centerContainer}>
           <Text style={globalStyles.title}>hlthy</Text>
         </View>
-        <View style={styles.buttonContainer}>
-          {/* Pulse Button */}
+
+        {/* Right side: Pulse and DMs Buttons */}
+        <View style={styles.rightButtonContainer}>
           <TouchableOpacity
             activeOpacity={0.7}
             onPress={() => router.push('/pulse')}
@@ -77,13 +88,12 @@ export default function HomeFeed() {
             <Ionicons name="fitness-outline" size={32} color="#FFF" />
           </TouchableOpacity>
 
-          {/* Explore Button */}
           <TouchableOpacity
             activeOpacity={0.7}
-            onPress={() => router.push('/explore')}
+            onPress={() => router.push('/dms')}
             style={styles.button}
           >
-            <Ionicons name="search" size={32} color="#FFF" />
+            <Ionicons name="chatbubbles" size={32} color="#FFF" />
           </TouchableOpacity>
         </View>
       </View>
@@ -190,18 +200,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     backgroundColor: '#000',
   },
-  logoContainer: {
+  leftButtonContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    minWidth: 80,
   },
-  icon: {
-    width: 30,
-    height: 30,
-    borderRadius: 5,
-    marginRight: 8,
+  centerContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  buttonContainer: {
+  rightButtonContainer: {
     flexDirection: 'row',
+    alignItems: 'center',
+    minWidth: 80,
+    justifyContent: 'flex-end',
   },
   button: {
     marginLeft: 15,

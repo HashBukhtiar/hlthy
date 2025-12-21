@@ -27,8 +27,8 @@ function BottomButtons() {
     
     if (pathname === '/' || pathname.includes('/(tabs)')) {
       position = 0; // Home
-    } else if (pathname.includes('/dms')) {
-      position = 1; // DMs
+    } else if (pathname.includes('/ai-chat')) {
+      position = 1; // AI Chat
     } else if (pathname.includes('/post')) {
       position = 2; // Post
     } else if (pathname.includes('/workouts') || pathname.includes('/view-workout')) {
@@ -52,7 +52,7 @@ function BottomButtons() {
   // Helper to determine if a route is active
   const isActive = useCallback((route: string) => {
     if (route === 'home' && (pathname === '/' || pathname.includes('/(tabs)') || pathname.includes('/pulse') || pathname.includes('/explore') || pathname.includes('/view-milestone'))) return true;
-    if (route === 'dms' && pathname.includes('/dms')) return true;
+    if (route === 'ai-chat' && (pathname.includes('/ai-chat') || (pathname.includes('/chat') && !pathname.includes('/dms')))) return true;
     if (route === 'post' && pathname.includes('/post')) return true;
     if (route === 'workouts' && (pathname.includes('/workouts') || pathname.includes('/view-workout'))) return true;
     if (route === 'profile' && pathname.includes('/profile')) return true;
@@ -64,8 +64,8 @@ function BottomButtons() {
     router.push('/');
   }, [router]);
 
-  const navigateDMs = useCallback(() => {
-    router.push('/dms');
+  const navigateAIChat = useCallback(() => {
+    router.push('/ai-chat');
   }, [router]);
 
   const navigatePost = useCallback(() => {
@@ -112,7 +112,8 @@ function BottomButtons() {
     pathname?.includes('/forgot-password') ||
     pathname?.includes('/view-milestone') ||
     pathname?.includes('/email-verification') ||
-    pathname?.includes('/verify-email')
+    pathname?.includes('/verify-email') ||
+    pathname?.includes('/dms')
   ) {
     return null;
   }
@@ -151,13 +152,13 @@ function BottomButtons() {
       
       <TouchableOpacity 
         style={styles.navButton} 
-        onPress={navigateDMs}
+        onPress={navigateAIChat}
         activeOpacity={0.7}
       >
         <Ionicons 
-          name="chatbubbles" 
+          name="chatbubble-ellipses" 
           size={28} 
-          color={isActive('dms') ? "white" : "grey"} 
+          color={isActive('ai-chat') ? "white" : "grey"} 
         />
       </TouchableOpacity>
       

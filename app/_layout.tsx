@@ -31,6 +31,7 @@ export default function RootLayout() {
             {/* Main tab screens with disabled swipe gestures */}
             <Stack.Screen name="(tabs)" options={{ gestureEnabled: false }} />
             <Stack.Screen name="post" options={{ gestureEnabled: false }} />
+            <Stack.Screen name="ai-chat" options={{ gestureEnabled: false }} />
             <Stack.Screen name="dms" options={{ gestureEnabled: false }} />
             <Stack.Screen name="workouts" options={{ gestureEnabled: false }} />
             <Stack.Screen name="profile" options={{ gestureEnabled: false }} />
