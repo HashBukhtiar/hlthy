@@ -66,6 +66,7 @@ export interface UserProfile {
   
   // Verification & Status
   isVerified?: boolean;
+  emailVerified?: boolean;
   isPremium?: boolean;
   subscriptionStatus?: 'free' | 'premium' | 'pro';
   
@@ -138,4 +139,6 @@ export interface AuthContextType {
   userProfile: UserProfile | null;
   loading: boolean;
   refreshUserProfile: () => Promise<void>;
+  isFromSignup: boolean;
+  setIsFromSignup: (value: boolean) => void;
 }

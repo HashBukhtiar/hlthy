@@ -1,5 +1,8 @@
 {
   "projects": {
-    "default": "hlthy-421200"
-  }
+    "default": "hlthy-421200",
+    "hlthy-421200": "hlthy-421200"
+  },
+  "targets": {},
+  "etags": {}
 }

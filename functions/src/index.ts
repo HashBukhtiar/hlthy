@@ -17,3 +17,5 @@ export * from "./adminFunctions";
 export * from "./settingsService";
 export * from "./messageService";
 export * from "./notificationService";
+export * from "./authCleanupService";
+export * from "./checkEmailExists";

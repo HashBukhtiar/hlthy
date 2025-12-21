@@ -265,7 +265,7 @@ export const sendPushNotification = onCall(
        * Get user's push tokens with backwards compatibility support
        * - NEW FORMAT: pushTokens (array of strings) - supports multiple devices
        * - LEGACY FORMAT: pushToken (single string) - deprecated but still supported
-       * 
+       *
        * Migration Status: All new registrations use pushTokens array format.
        * Legacy support maintained for existing users until full migration is confirmed.
        * TODO: Audit user records after 6 months and remove legacy pushToken support if migration is complete.

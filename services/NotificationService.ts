@@ -194,11 +194,14 @@ export class NotificationService {
       
       // Get existing tokens to avoid duplicates
       const userDoc = await getDoc(userRef);
-      let existingTokens: string[] = [];
-      if (userDoc.exists()) {
-        const userData = userDoc.data();
-        existingTokens = userData.pushTokens || [];
+      if (!userDoc.exists()) {
+        console.warn(`User document does not exist yet for userId: ${userId}. Skipping push notification registration.`);
+        return false;
       }
+
+      let existingTokens: string[] = [];
+      const userData = userDoc.data();
+      existingTokens = userData.pushTokens || [];
       
       // Add new token if it doesn't exist
       if (!existingTokens.includes(token)) {
@@ -218,8 +221,13 @@ export class NotificationService {
 
       console.log('Push notification token registered successfully');
       return true;
-    } catch (error) {
-      console.error('Error registering for push notifications:', error);
+    } catch (error: any) {
+      // Provide more helpful error messages
+      if (error?.code === 'not-found') {
+        console.warn('Push notification registration skipped: User document not found. This is expected during signup.');
+      } else {
+        console.error('Error registering for push notifications:', error);
+      }
       return false;
     }
   }

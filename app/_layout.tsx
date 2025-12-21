@@ -23,6 +23,11 @@ export default function RootLayout() {
               animation: 'none',
             }}
           >
+            {/* Auth screens with disabled swipe gestures */}
+            <Stack.Screen name="landing" options={{ gestureEnabled: false }} />
+            <Stack.Screen name="login" options={{ gestureEnabled: false }} />
+            <Stack.Screen name="email-verification" options={{ gestureEnabled: false }} />
+            
             {/* Main tab screens with disabled swipe gestures */}
             <Stack.Screen name="(tabs)" options={{ gestureEnabled: false }} />
             <Stack.Screen name="post" options={{ gestureEnabled: false }} />
@@ -36,8 +41,6 @@ export default function RootLayout() {
             <Stack.Screen name="settings" options={{ gestureEnabled: true, animation: 'slide_from_right' }} />
             
             {/* Other screens */}
-            <Stack.Screen name="signup" />
-            <Stack.Screen name="select-archetype" />
             <Stack.Screen name="create-workout" options={{ animation: 'slide_from_bottom', gestureEnabled: true }} />
             <Stack.Screen name="view-workout/[id]" options={{ animation: 'fade_from_bottom', gestureEnabled: true }} />
             <Stack.Screen name="view-post/[id]" options={{ animation: 'fade_from_bottom', gestureEnabled: true }} />
