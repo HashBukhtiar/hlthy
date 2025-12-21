@@ -509,6 +509,9 @@ export default function DMs() {
     return (
         <View style={{ flex: 1, backgroundColor: 'black' }}>
             <View style={styles.header}>
+                <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+                    <Ionicons name="arrow-back" size={28} color="white" />
+                </TouchableOpacity>
                 <Text style={styles.headerText}>Messages</Text>
                 <TouchableOpacity style={styles.composeButton} onPress={handleComposePress}>
                     <Ionicons name="pencil-sharp" size={30} color="white" />
@@ -610,6 +613,11 @@ const styles = StyleSheet.create({
         borderBottomWidth: 1,
         borderBottomColor: '#333',
         paddingVertical: 5,
+        paddingHorizontal: 10,
+    },
+    backButton: {
+        padding: 5,
+        width: 40,
     },
     headerText: {
         color: 'white',
@@ -620,6 +628,7 @@ const styles = StyleSheet.create({
     },
     composeButton: {
         padding: 5,
+        width: 40,
     },
     itemContainer: {
         flexDirection: 'row',
