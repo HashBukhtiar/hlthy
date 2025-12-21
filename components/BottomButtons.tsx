@@ -112,8 +112,7 @@ function BottomButtons() {
     pathname?.includes('/forgot-password') ||
     pathname?.includes('/view-milestone') ||
     pathname?.includes('/email-verification') ||
-    pathname?.includes('/verify-email') ||
-    pathname?.includes('/dms')
+    pathname?.includes('/verify-email')
   ) {
     return null;
   }
