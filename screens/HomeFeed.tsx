@@ -83,7 +83,7 @@ export default function HomeFeed() {
           <TouchableOpacity
             activeOpacity={0.7}
             onPress={() => router.push('/pulse')}
-            style={styles.button}
+            style={[styles.button, { marginRight: 15 }]}
           >
             <Ionicons name="fitness-outline" size={32} color="#FFF" />
           </TouchableOpacity>
@@ -204,6 +204,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     minWidth: 80,
+    justifyContent: 'flex-start',
   },
   centerContainer: {
     flex: 1,
@@ -217,7 +218,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   button: {
-    marginLeft: 15,
+    marginHorizontal: 0,
   },
   tabBar: {
     flexDirection: 'row',
