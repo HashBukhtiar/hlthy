@@ -166,10 +166,29 @@ export default function PostsFeed() {
   }, [currentUser, likePost, unlikePost]);
 
   // Handle bookmark toggle
-  const handleToggleBookmark = useCallback((postId: string) => {
-    // TODO: Implement bookmark functionality
-    console.log('Bookmark toggle for post:', postId);
-  }, []);
+  const handleToggleBookmark = useCallback((postId: string, isCurrentlyBookmarked: boolean) => {
+    if (!currentUser) {
+      Alert.alert('Please log in', 'You need to be logged in to bookmark posts.');
+      return;
+    }
+
+    // Haptic feedback
+    import('expo-haptics').then(({ impactAsync, ImpactFeedbackStyle }) => {
+      impactAsync?.(isCurrentlyBookmarked ? ImpactFeedbackStyle.Light : ImpactFeedbackStyle.Medium);
+    }).catch(() => {});
+
+    // Optimistic update - update UI immediately
+    setPosts(prevPosts => 
+      prevPosts.map(post => 
+        post.id === postId 
+          ? { ...post, isBookmarked: !isCurrentlyBookmarked }
+          : post
+      )
+    );
+
+    // TODO: Implement actual bookmark API call
+    // For now, just keep the optimistic update
+  }, [currentUser]);
 
   // Navigation functions
   const navigateToWorkout = useCallback((workoutId: string) => {
@@ -395,13 +414,13 @@ export default function PostsFeed() {
               </TouchableOpacity>
               <TouchableOpacity 
                 style={styles.iconButtonSmall}
-                onPress={() => handleToggleBookmark(item.id)}
+                onPress={() => handleToggleBookmark(item.id, item.isBookmarked || false)}
                 activeOpacity={0.6}
               >
                 <Ionicons 
                   name={item.isBookmarked ? "bookmarks" : "bookmarks-outline"} 
                   size={20} 
-                  color="#FFF" 
+                  color="#FFF"
                 />
               </TouchableOpacity>
             </View>
