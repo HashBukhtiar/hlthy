@@ -9,8 +9,16 @@ import {
   TextInput,
   ActivityIndicator,
   RefreshControl,
-  Alert
+  Alert,
+  LayoutAnimation,
+  Platform,
+  UIManager
 } from 'react-native';
+
+// Enable LayoutAnimation on Android
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { getOptimalImageUrl } from '@/utils/imageUtils';
@@ -94,6 +102,15 @@ export default function PostsFeed() {
       return;
     }
 
+    // Configure smooth animation (exclude opacity to avoid TouchableOpacity conflicts)
+    LayoutAnimation.configureNext({
+      duration: 200,
+      update: {
+        type: LayoutAnimation.Types.easeInEaseOut,
+        property: LayoutAnimation.Properties.scaleXY,
+      },
+    });
+
     // Optimistic update - update UI immediately
     setPosts(prevPosts => 
       prevPosts.map(post => 
@@ -117,6 +134,14 @@ export default function PostsFeed() {
       }
     } catch (error) {
       console.error('Error toggling like:', error);
+      // Animate the revert as well
+      LayoutAnimation.configureNext({
+        duration: 200,
+        update: {
+          type: LayoutAnimation.Types.easeInEaseOut,
+          property: LayoutAnimation.Properties.scaleXY,
+        },
+      });
       // Revert optimistic update on error
       setPosts(prevPosts => 
         prevPosts.map(post => 
@@ -338,6 +363,7 @@ export default function PostsFeed() {
               <TouchableOpacity 
                 style={styles.statItem}
                 onPress={() => handleToggleLike(item.id, item.isLiked || false)}
+                activeOpacity={0.6}
               >
                 <Ionicons 
                   name={item.isLiked ? "heart" : "heart-outline"} 
@@ -346,24 +372,26 @@ export default function PostsFeed() {
                   style={styles.statIcon} 
                 />
                 <Text style={styles.statNumber}>{item.reactionCount || 0}</Text>
-                <Text style={styles.statLabel}> Likes</Text>
+                <Text style={styles.statLabel}> {item.reactionCount === 1 ? 'Like' : 'Likes'}</Text>
               </TouchableOpacity>
               <TouchableOpacity 
                 style={styles.statItem}
                 onPress={() => handleViewPost(item.id)}
+                activeOpacity={0.6}
               >
                 <Ionicons name="chatbubble-outline" size={20} color="#FFF" style={styles.statIcon} />
                 <Text style={styles.statNumber}>{item.commentCount || 0}</Text>
-                <Text style={styles.statLabel}> Comments</Text>
+                <Text style={styles.statLabel}> {item.commentCount === 1 ? 'Comment' : 'Comments'}</Text>
               </TouchableOpacity>
             </View>
             <View style={styles.statsRight}>
-              <TouchableOpacity style={styles.iconButtonSmall}>
+              <TouchableOpacity style={styles.iconButtonSmall} activeOpacity={0.6}>
                 <Ionicons name="paper-plane-outline" size={20} color="#FFF" />
               </TouchableOpacity>
               <TouchableOpacity 
                 style={styles.iconButtonSmall}
                 onPress={() => handleToggleBookmark(item.id)}
+                activeOpacity={0.6}
               >
                 <Ionicons 
                   name={item.isBookmarked ? "bookmarks" : "bookmarks-outline"} 
