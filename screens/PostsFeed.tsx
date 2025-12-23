@@ -476,7 +476,9 @@ export default function PostsFeed() {
           >
             <View style={styles.attachedItemContent}>
               <View style={styles.attachedItemInfo}>
-                <Ionicons name="trophy-outline" size={18} color="#FFF" style={styles.attachedItemIcon} />
+                <View style={styles.workoutIconContainer}>
+                  <Ionicons name="trophy-outline" size={18} color="#FFF" />
+                </View>
                 <View>
                   <Text style={styles.attachedItemTitle}>
                     {item.milestoneDetails.type === 'PR' ? 'Personal Record' : 
