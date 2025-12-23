@@ -368,21 +368,40 @@ export default function PostsFeed() {
           </View>
         )}
 
-        {/* Likes */}
+        {/* Likes and Comments Stats */}
         {canInteract && (
-          <Text style={styles.likes}>{item.reactionCount || 0} likes</Text>
-        )}
-        
-        {/* Comments preview */}
-        {canInteract && (
-          <TouchableOpacity 
-            style={styles.commentsPreview}
-            onPress={() => handleViewPost(item.id)}
-          >
-            <Text style={styles.commentsPreviewText}>
-              View all {item.commentCount || 0} comments
-            </Text>
-          </TouchableOpacity>
+          <View style={styles.statsContainer}>
+            <View style={styles.statsLeft}>
+              <TouchableOpacity style={styles.statItem}>
+                <Ionicons name="heart" size={20} color="#0A84FF" style={styles.statIcon} />
+                <Text style={styles.statNumber}>{item.reactionCount || 0}</Text>
+                <Text style={styles.statLabel}> Likes</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.statItem}
+                onPress={() => handleViewPost(item.id)}
+              >
+                <Ionicons name="chatbubble" size={20} color="#0A84FF" style={styles.statIcon} />
+                <Text style={styles.statNumber}>{item.commentCount || 0}</Text>
+                <Text style={styles.statLabel}> Comments</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.statsRight}>
+              <TouchableOpacity style={styles.iconButtonSmall}>
+                <Ionicons name="arrow-redo-outline" size={22} color="#8E8E93" />
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.iconButtonSmall}
+                onPress={() => handleToggleBookmark(item.id)}
+              >
+                <Ionicons 
+                  name={item.isBookmarked ? "bookmark" : "bookmark-outline"} 
+                  size={22} 
+                  color="#8E8E93" 
+                />
+              </TouchableOpacity>
+            </View>
+          </View>
         )}
 
         {/* Comment Input (shown only for active comment) */}
@@ -637,12 +656,42 @@ const styles = StyleSheet.create({
     marginRight: 15,
   },
   bookmarkButton: {},
-  likes: {
-    fontWeight: '600',
+  statsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     paddingHorizontal: 15,
-    marginBottom: 8,
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#1C1C1E',
+  },
+  statsLeft: {
+    flexDirection: 'row',
+    gap: 20,
+  },
+  statsRight: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  statItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  statIcon: {
+    marginRight: 6,
+  },
+  statNumber: {
     color: '#FFF',
     fontSize: 15,
+    fontWeight: '700',
+  },
+  statLabel: {
+    color: '#8E8E93',
+    fontSize: 15,
+    fontWeight: '400',
+  },
+  iconButtonSmall: {
+    padding: 4,
   },
   captionContainer: {
     flexDirection: 'row',
@@ -654,14 +703,6 @@ const styles = StyleSheet.create({
     flex: 1,
     color: '#E5E5EA',
     lineHeight: 20,
-    fontSize: 14,
-  },
-  commentsPreview: {
-    paddingHorizontal: 15,
-    marginBottom: 8,
-  },
-  commentsPreviewText: {
-    color: '#8E8E93',
     fontSize: 14,
   },
   commentInputContainer: {
