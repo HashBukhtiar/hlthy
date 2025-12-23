@@ -20,7 +20,7 @@ import {
   serverTimestamp,
   updateDoc,
 } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL, deleteObject, uploadBytesResumable } from "firebase/storage";
+import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import { app, db, storage } from '@/firebaseConfig';
 import { useAuth } from '@/context/AuthContext';
 import { getFunctions, httpsCallable } from 'firebase/functions';

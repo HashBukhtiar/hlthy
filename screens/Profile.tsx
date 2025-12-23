@@ -397,7 +397,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
         const distValue = actualDistance || actualValue!;
         const distUnit = actualDistanceUnit || actualWeightUnit!;
         const converted = convertAndFormatDistance(distValue, distUnit);
-        const pace = Math.round(actualDuration! / distValue);
+        const pace = distValue > 0 ? Math.round(actualDuration! / distValue) : 0;
         const paceUnit = converted.unit.endsWith('s') ? converted.unit.slice(0, -1) : converted.unit;
         
         return (

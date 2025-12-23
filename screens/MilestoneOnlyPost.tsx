@@ -509,7 +509,7 @@ export default function MilestoneOnlyPost({ onBack }: MilestoneOnlyPostProps) {
                     // Calculate loss/gain
                     const difference = Math.abs(parseFloat(newBodyWeight) - parseFloat(previousBodyWeight));
                     milestoneDetails.totalLoss = difference;
-                    milestoneDetails.percentageLoss = ((difference / parseFloat(previousBodyWeight)) * 100).toFixed(1) + '%';
+                    milestoneDetails.percentageLoss = Math.round((difference / parseFloat(previousBodyWeight)) * 1000) / 10;
                 }
             } else {
                 // PR milestone (existing logic)
