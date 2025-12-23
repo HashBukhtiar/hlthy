@@ -21,6 +21,44 @@ import { useBlockEnforcement } from '@/utils/blockUtils';
 
 const DEFAULT_PROFILE_IMAGE = 'https://thumbs.dreamstime.com/b/creative-illustration-default-avatar-profile-placeholder-isolated-background-art-design-grey-photo-blank-template-mockup-144855718.jpg';
 
+// Helper function to format relative time
+const getRelativeTime = (date: Date): string => {
+  const now = new Date();
+  const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+  
+  if (diffInSeconds < 60) {
+    return `${diffInSeconds}s ago`;
+  }
+  
+  const diffInMinutes = Math.floor(diffInSeconds / 60);
+  if (diffInMinutes < 60) {
+    return `${diffInMinutes}m ago`;
+  }
+  
+  const diffInHours = Math.floor(diffInMinutes / 60);
+  if (diffInHours < 24) {
+    return `${diffInHours}h ago`;
+  }
+  
+  const diffInDays = Math.floor(diffInHours / 24);
+  if (diffInDays < 7) {
+    return `${diffInDays}d ago`;
+  }
+  
+  const diffInWeeks = Math.floor(diffInDays / 7);
+  if (diffInWeeks < 4) {
+    return `${diffInWeeks}w ago`;
+  }
+  
+  const diffInMonths = Math.floor(diffInDays / 30);
+  if (diffInMonths < 12) {
+    return `${diffInMonths}mo ago`;
+  }
+  
+  const diffInYears = Math.floor(diffInDays / 365);
+  return `${diffInYears}y ago`;
+};
+
 export default function PostsFeed() {
   const router = useRouter();
   const { currentUser, userProfile } = useAuth();
@@ -259,7 +297,7 @@ export default function PostsFeed() {
             <View>
               <Text style={styles.username}>{item.authorUsername}</Text>
               <Text style={styles.timestamp}>
-                {item.createdAt ? new Date(item.createdAt.toDate()).toLocaleDateString() : 'Unknown'}
+                {item.createdAt ? getRelativeTime(new Date(item.createdAt.toDate())) : 'Unknown'}
               </Text>
             </View>
           </TouchableOpacity>
