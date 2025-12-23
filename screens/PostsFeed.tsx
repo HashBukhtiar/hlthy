@@ -345,9 +345,17 @@ export default function PostsFeed() {
             />
             <View>
               <Text style={styles.username}>{item.authorUsername}</Text>
-              <Text style={styles.timestamp}>
-                {item.createdAt ? getRelativeTime(new Date(item.createdAt.toDate())) : 'Unknown'}
-              </Text>
+              <View style={styles.timestampContainer}>
+                <Text style={styles.timestamp}>
+                  {item.createdAt ? getRelativeTime(new Date(item.createdAt.toDate())) : 'Unknown'}
+                </Text>
+                <Ionicons 
+                  name={item.isPublic ? "earth-outline" : "people"} 
+                  size={12} 
+                  color="#8E8E93" 
+                  style={styles.visibilityIcon}
+                />
+              </View>
             </View>
           </TouchableOpacity>
           {canInteract && (
@@ -392,7 +400,7 @@ export default function PostsFeed() {
                 <Ionicons 
                   name={item.isLiked ? "heart" : "heart-outline"} 
                   size={20} 
-                  color={item.isLiked ? "#FF3B30" : "#FFF"} 
+                  color={item.isLiked ? "#FF6B6B" : "#FFF"} 
                   style={styles.statIcon} 
                 />
                 <Text style={styles.statNumber}>{item.reactionCount || 0}</Text>
@@ -492,14 +500,24 @@ export default function PostsFeed() {
           >
             <View style={styles.attachedItemContent}>
               <View style={styles.attachedItemInfo}>
-                <Ionicons name="flame" size={18} color="#FFF" style={styles.attachedItemIcon} />
+                <View style={styles.workoutIconContainer}>
+                  <Ionicons name="flame" size={20} color="#000" />
+                </View>
                 <View>
                   <Text style={styles.attachedItemTitle}>
-                    Workout
+                    {item.workoutTitle || 'Workout'}
                   </Text>
-                  <Text style={styles.attachedItemDetails}>
-                    View attached workout
-                  </Text>
+                  <View style={styles.workoutDetailsContainer}>
+                    <Text style={styles.attachedItemDetails}>
+                      {item.workoutAuthor || item.authorUsername} • {item.workoutDuration ? (() => {
+                        const d = item.workoutDuration;
+                        const h = Math.floor(d / 3600);
+                        const m = Math.floor((d % 3600) / 60);
+                        const s = d % 60;
+                        return [h > 0 ? `${h}h` : '', m > 0 ? `${m}m` : '', (s > 0 || (!h && !m)) ? `${s}s` : ''].filter(Boolean).join(' ');
+                      })() : 'View workout'}
+                    </Text>
+                  </View>
                 </View>
               </View>
               <Ionicons name="chevron-forward" size={20} color="#999" />
@@ -649,7 +667,14 @@ const styles = StyleSheet.create({
   timestamp: {
     fontSize: 12,
     color: '#8E8E93',
+  },
+  timestampContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginTop: 2,
+  },
+  visibilityIcon: {
+    marginLeft: 4,
   },
   moreButton: {
     padding: 5,
@@ -777,6 +802,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#2C2C2E',
     padding: 8,
     borderRadius: 18,
+  },
+  workoutIconContainer: {
+    marginRight: 12,
+    backgroundColor: '#FF6B6B',
+    padding: 8,
+    borderRadius: 18,
+  },
+  workoutDetailsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   attachedItemTitle: {
     color: '#FFF',
