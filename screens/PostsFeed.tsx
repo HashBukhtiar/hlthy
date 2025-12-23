@@ -342,7 +342,7 @@ export default function PostsFeed() {
                 <Ionicons 
                   name={item.isLiked ? "heart" : "heart-outline"} 
                   size={20} 
-                  color={item.isLiked ? "#FF3B30" : "#0A84FF"} 
+                  color={item.isLiked ? "#FF3B30" : "#FFF"} 
                   style={styles.statIcon} 
                 />
                 <Text style={styles.statNumber}>{item.reactionCount || 0}</Text>
@@ -352,14 +352,14 @@ export default function PostsFeed() {
                 style={styles.statItem}
                 onPress={() => handleViewPost(item.id)}
               >
-                <Ionicons name="chatbubble" size={20} color="#0A84FF" style={styles.statIcon} />
+                <Ionicons name="chatbubble-outline" size={20} color="#FFF" style={styles.statIcon} />
                 <Text style={styles.statNumber}>{item.commentCount || 0}</Text>
                 <Text style={styles.statLabel}> Comments</Text>
               </TouchableOpacity>
             </View>
             <View style={styles.statsRight}>
               <TouchableOpacity style={styles.iconButtonSmall}>
-                <Ionicons name="arrow-redo-outline" size={22} color="#8E8E93" />
+                <Ionicons name="arrow-redo-outline" size={22} color="#FFF" />
               </TouchableOpacity>
               <TouchableOpacity 
                 style={styles.iconButtonSmall}
@@ -368,7 +368,7 @@ export default function PostsFeed() {
                 <Ionicons 
                   name={item.isBookmarked ? "bookmark" : "bookmark-outline"} 
                   size={22} 
-                  color={item.isBookmarked ? "#0A84FF" : "#8E8E93"} 
+                  color="#FFF" 
                 />
               </TouchableOpacity>
             </View>
@@ -619,8 +619,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 15,
     paddingVertical: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#1C1C1E',
   },
   statsLeft: {
     flexDirection: 'row',
