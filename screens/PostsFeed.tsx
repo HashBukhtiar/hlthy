@@ -26,6 +26,8 @@ import { useFeedData } from '@/hooks/useFeedData';
 import { usePostsData, Post } from '@/hooks/usePostsData';
 import { useAuth } from '@/context/AuthContext';
 import { useBlockEnforcement } from '@/utils/blockUtils';
+import ShareModal from '@/components/ShareModal';
+import { sharePost } from '@/services/ShareService';
 
 const DEFAULT_PROFILE_IMAGE = 'https://thumbs.dreamstime.com/b/creative-illustration-default-avatar-profile-placeholder-isolated-background-art-design-grey-photo-blank-template-mockup-144855718.jpg';
 
@@ -85,6 +87,8 @@ export default function PostsFeed() {
   const [newComment, setNewComment] = useState('');
   const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
   const [submittingComment, setSubmittingComment] = useState(false);
+  const [shareModalVisible, setShareModalVisible] = useState(false);
+  const [postToShare, setPostToShare] = useState<Post | null>(null);
 
   // Double-tap functionality refs
   const tapTimers = useRef<Record<string, number>>({});
@@ -208,6 +212,48 @@ export default function PostsFeed() {
     setActiveCommentId(activeCommentId === postId ? null : postId);
     setNewComment('');
   }, [activeCommentId]);
+
+  // Share functions
+  const handleSharePost = useCallback((post: Post) => {
+    if (!currentUser) {
+      Alert.alert('Please log in', 'You need to be logged in to share posts.');
+      return;
+    }
+    setPostToShare(post);
+    setShareModalVisible(true);
+  }, [currentUser]);
+
+  const sharePostWithUser = useCallback(async (
+    userId: string, 
+    username: string, 
+    profileImageUrl?: string, 
+    profileThumbnailUrl?: string
+  ) => {
+    if (!currentUser || !postToShare) return;
+
+    try {
+      await sharePost(
+        currentUser,
+        userId,
+        username,
+        profileImageUrl,
+        profileThumbnailUrl,
+        {
+          id: postToShare.id,
+          caption: postToShare.caption,
+          imageUrl: postToShare.imageUrl,
+          thumbnailUrl: postToShare.thumbnailUrl,
+          authorUsername: postToShare.authorUsername
+        }
+      );
+
+      setShareModalVisible(false);
+      Alert.alert('Success', 'Post shared successfully');
+    } catch (error) {
+      console.error('Error sharing post:', error);
+      Alert.alert('Error', 'Failed to share post. Please try again.');
+    }
+  }, [currentUser, postToShare]);
 
   const handleAddComment = useCallback(async (postId: string) => {
     if (!currentUser || !newComment.trim() || submittingComment) return;
@@ -417,7 +463,11 @@ export default function PostsFeed() {
               </TouchableOpacity>
             </View>
             <View style={styles.statsRight}>
-              <TouchableOpacity style={styles.iconButtonSmall} activeOpacity={0.6}>
+              <TouchableOpacity 
+                style={styles.iconButtonSmall} 
+                activeOpacity={0.6}
+                onPress={() => handleSharePost(item)}
+              >
                 <Ionicons name="paper-plane-outline" size={20} color="#FFF" />
               </TouchableOpacity>
               <TouchableOpacity 
@@ -544,6 +594,7 @@ export default function PostsFeed() {
     userProfile,
     isUserBlocked,
     createDoubleTapHandler,
+    handleSharePost,
   ]);
 
   // Render footer for load more
@@ -599,28 +650,35 @@ export default function PostsFeed() {
   }
 
   return (
-    <FlatList
-      data={filteredPosts}
-      renderItem={renderPost}
-      keyExtractor={(item, index) => `${item.id}-${index}`}
-      showsVerticalScrollIndicator={false}
-      contentContainerStyle={posts.length === 0 ? styles.emptyContainer : styles.postsContainer}
-      refreshControl={
-        <RefreshControl
-          refreshing={refreshing}
-          onRefresh={refreshFeed}
-          colors={['#FFF']}
-          tintColor="#FFF"
-        />
-      }
-      onEndReached={loadMorePosts}
-      onEndReachedThreshold={0.5}
-      ListFooterComponent={renderFooter}
-      ListEmptyComponent={renderEmptyState}
-      removeClippedSubviews={true}
-      maxToRenderPerBatch={5}
-      windowSize={10}
-    />
+    <>
+      <FlatList
+        data={filteredPosts}
+        renderItem={renderPost}
+        keyExtractor={(item, index) => `${item.id}-${index}`}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={posts.length === 0 ? styles.emptyContainer : styles.postsContainer}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={refreshFeed}
+            colors={['#FFF']}
+            tintColor="#FFF"
+          />
+        }
+        onEndReached={loadMorePosts}
+        onEndReachedThreshold={0.5}
+        ListFooterComponent={renderFooter}
+        ListEmptyComponent={renderEmptyState}
+        removeClippedSubviews={true}
+        maxToRenderPerBatch={5}
+        windowSize={10}
+      />
+      <ShareModal
+        visible={shareModalVisible}
+        onClose={() => setShareModalVisible(false)}
+        onShareWith={sharePostWithUser}
+      />
+    </>
   );
 };
 
