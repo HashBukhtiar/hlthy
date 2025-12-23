@@ -84,31 +84,44 @@ const extractFilePathFromUrl = (imageUrl: string): string | null => {
   try {
     const bucketName = getStorageBucketName();
     
-    // Handle both possible URL formats
+    // Handle multiple possible URL formats
     const oldBaseUrl = 'https://firebasestorage.googleapis.com/v0/b/';
     const newBaseUrl = `https://${bucketName.replace('.appspot.com', '.firebasestorage.app')}/`;
+    const publicBaseUrl = 'https://storage.googleapis.com/';
     
     let decodedPath = '';
     
-    if (imageUrl.includes(oldBaseUrl)) {
+    if (imageUrl.includes(publicBaseUrl)) {
+      // Handle public URL format: https://storage.googleapis.com/{bucket}/path
+      // The path comes after the bucket name
+      const bucketStart = publicBaseUrl.length;
+      const pathStart = imageUrl.indexOf('/', bucketStart) + 1;
+      if (pathStart <= bucketStart) {
+        console.warn('Invalid public URL structure');
+        return null;
+      }
+      // No query params in this format, take everything after bucket
+      const encodedPath = imageUrl.substring(pathStart);
+      decodedPath = decodeURIComponent(encodedPath);
+    } else if (imageUrl.includes(oldBaseUrl)) {
       // Handle old format: https://firebasestorage.googleapis.com/v0/b/{bucket}/o/path?...
       const pathStart = imageUrl.indexOf('/o/') + 3;
       const pathEnd = imageUrl.indexOf('?');
-      if (pathStart === -1 || pathEnd === -1) {
+      if (pathStart === 2 || pathEnd === -1) {
         console.warn('Invalid old format URL structure');
         return null;
       }
-      const encodedPath = imageUrl.substring(pathStart, pathEnd);
+      const encodedPath = imageUrl.substring(pathStart, pathEnd === -1 ? undefined : pathEnd);
       decodedPath = decodeURIComponent(encodedPath);
     } else if (imageUrl.includes(newBaseUrl)) {
       // Handle new format: https://{bucket}/v0/b/{bucket}/o/path?...
       const pathStart = imageUrl.indexOf('/o/') + 3;
       const pathEnd = imageUrl.indexOf('?');
-      if (pathStart === -1 || pathEnd === -1) {
+      if (pathStart === 2 || pathEnd === -1) {
         console.warn('Invalid new format URL structure');
         return null;
       }
-      const encodedPath = imageUrl.substring(pathStart, pathEnd);
+      const encodedPath = imageUrl.substring(pathStart, pathEnd === -1 ? undefined : pathEnd);
       decodedPath = decodeURIComponent(encodedPath);
     } else {
       console.warn('URL format not recognized:', imageUrl);

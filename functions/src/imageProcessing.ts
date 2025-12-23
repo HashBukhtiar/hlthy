@@ -68,9 +68,11 @@ export const generatePostThumbnail = onObjectFinalized({region: "us-east1", ...r
     // Make the file publicly accessible
     await thumbFile.makePublic();
     // Get permanent download URL instead of signed URL
-    const thumbnailUrl = `https://storage.googleapis.com/${bucket.name}/${thumbUploadPath}`;
+    // URL encode the path to handle special characters
+    const encodedPath = encodeURIComponent(thumbUploadPath);
+    const thumbnailUrl = `https://storage.googleapis.com/${bucket.name}/${encodedPath}`;
     // Update the document directly using the postId from metadata
-    console.log(`Found post ${postId} from metadata, updating with thumbnail URL.`);
+    console.log(`Found post ${postId} from metadata, updating with thumbnail URL: ${thumbnailUrl}`);
     // Use set with merge: true to create the document if it doesn't exist, or update it if it does.
     return db.collection("posts").doc(postId).set({thumbnailUrl}, {merge: true});
   } catch (error) {
@@ -128,9 +130,11 @@ export const generateWorkoutCoverThumbnail = onObjectFinalized({region: "us-east
     // Make the file publicly accessible
     await thumbFile.makePublic();
     // Get permanent download URL instead of signed URL
-    const thumbnailUrl = `https://storage.googleapis.com/${bucket.name}/${thumbUploadPath}`;
+    // URL encode the path to handle special characters
+    const encodedPath = encodeURIComponent(thumbUploadPath);
+    const thumbnailUrl = `https://storage.googleapis.com/${bucket.name}/${encodedPath}`;
     // Update the document directly using the workoutId from metadata
-    console.log(`generateWorkoutCoverThumbnail - Found workout ${workoutId} from metadata, updating with thumbnail URL.`);
+    console.log(`generateWorkoutCoverThumbnail - Found workout ${workoutId} from metadata, updating with thumbnail URL: ${thumbnailUrl}`);
     // Use set with merge: true to create the document if it doesn't exist, or update it if it does.
     return db.collection("workouts").doc(workoutId).set({thumbnailUrl}, {merge: true});
   } catch (error) {
@@ -182,11 +186,14 @@ export const generateProfileThumbnail = onObjectFinalized({
     // Make the file publicly accessible
     await bucket.file(thumbUploadPath).makePublic();
     // Get permanent download URL instead of signed URL
-    const thumbUrl = `https://storage.googleapis.com/${bucket.name}/${thumbUploadPath}`;
+    // URL encode the path to handle special characters
+    const encodedPath = encodeURIComponent(thumbUploadPath);
+    const thumbUrl = `https://storage.googleapis.com/${bucket.name}/${encodedPath}`;
 
     // Extract userId from path: profileImages/{userId}/filename.jpg
     const userId = filePath.split("/")[1];
     if (userId) {
+      console.log(`Updating user ${userId} with profile thumbnail URL: ${thumbUrl}`);
       await admin.firestore().doc(`users/${userId}`).update({
         profileThumbnailUrl: thumbUrl,
       });
