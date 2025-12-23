@@ -505,12 +505,8 @@ export function useProfileData(userId = null, contextUserProfile: UserProfile | 
     }
   }, [fetchProfileData]);
 
-  useEffect(() => {
-    if (isOwnProfile && contextUserProfile && profileData && contextUserProfile.profileImageUrl !== profileData.profileImageUrl) {
-      console.log("Profile image URL mismatch detected in hook, refreshing profile data...");
-      fetchProfileData();
-    }
-  }, [contextUserProfile?.profileImageUrl, isOwnProfile, profileData, fetchProfileData]);
+  // Note: Removed the profileImage sync effect that was causing infinite loops.
+  // The profile data is now fetched once and stays in sync through the main useEffect.
 
   return {
     loading,
