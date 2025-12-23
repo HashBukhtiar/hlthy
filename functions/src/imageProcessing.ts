@@ -48,6 +48,7 @@ export const generatePostThumbnail = onObjectFinalized({region: "us-east1", ...r
   // Preserve the custom metadata when uploading the thumbnail
   const metadata = {
     contentType: "image/jpeg",
+    cacheControl: "public,max-age=31536000", // Cache for 1 year
     customMetadata: {
       postId: postId,
     },
@@ -107,6 +108,7 @@ export const generateWorkoutCoverThumbnail = onObjectFinalized({region: "us-east
   // Preserve the custom metadata when uploading the thumbnail
   const metadata = {
     contentType: "image/jpeg",
+    cacheControl: "public,max-age=31536000", // Cache for 1 year
     customMetadata: {
       workoutId: workoutId,
     },
@@ -170,7 +172,13 @@ export const generateProfileThumbnail = onObjectFinalized({
       .toFile(thumbFilePath);
 
     const thumbUploadPath = path.join(path.dirname(filePath), thumbFileName);
-    await bucket.upload(thumbFilePath, {destination: thumbUploadPath});
+    await bucket.upload(thumbFilePath, {
+      destination: thumbUploadPath,
+      metadata: {
+        contentType: "image/jpeg",
+        cacheControl: "public,max-age=31536000", // Cache for 1 year
+      },
+    });
     // Make the file publicly accessible
     await bucket.file(thumbUploadPath).makePublic();
     // Get permanent download URL instead of signed URL

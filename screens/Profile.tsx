@@ -12,6 +12,7 @@ import { useBlockEnforcement } from '@/utils/blockUtils';
 import { useUnits } from '@/hooks/useUnits';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/firebaseConfig';
+import { OptimizedImageLight } from '@/components/OptimizedImage';
 
 const archetypeIcons = {
   'athlete': require('@/assets/images/athlete.png'),
@@ -726,7 +727,11 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
       data={displayablePosts}
       renderItem={({ item }) => (
         <TouchableOpacity onPress={() => handleImagePress(item)}>
-          <Image source={{ uri: getOptimalImageUrl(item.thumbnailUrl, item.imageUrl) }} style={styles.postImage} />
+          <OptimizedImageLight 
+            thumbnailUrl={item.thumbnailUrl} 
+            originalUrl={item.imageUrl} 
+            style={styles.postImage} 
+          />
         </TouchableOpacity>
       )}
       keyExtractor={(item) => item.id}

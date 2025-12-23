@@ -7,19 +7,49 @@ import hlthyLogo from '@/assets/images/icon.png';
 const DEFAULT_PROFILE_IMAGE = 'https://thumbs.dreamstime.com/b/creative-illustration-default-avatar-profile-placeholder-isolated-background-art-design-grey-photo-blank-template-mockup-144855718.jpg';
 
 /**
+ * Validates if a URL is likely still valid (basic check)
+ * @param url - The URL to validate
+ * @returns boolean indicating if the URL appears valid
+ */
+export const isValidImageUrl = (url: string | null | undefined): boolean => {
+  if (!url || typeof url !== 'string') return false;
+  
+  const trimmed = url.trim();
+  if (!trimmed) return false;
+  
+  // Check for common invalid patterns
+  if (trimmed === 'undefined' || trimmed === 'null') return false;
+  
+  // Basic URL validation
+  try {
+    new URL(trimmed);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+/**
  * Gets the appropriate image URL, preferring thumbnail over original, with a fallback to a default.
+ * Includes URL validation to prevent invalid URLs from being used.
  * @param thumbnailUrl - The thumbnail URL from Firestore
  * @param originalUrl - The original image URL
- * @returns The URL to use for display. Returns a default image if none are provided.
+ * @returns The URL to use for display. Returns a default image if none are valid.
  */
 export const getOptimalImageUrl = (
   thumbnailUrl?: string | null,
   originalUrl?: string | null
 ): string => {
-  const thumb = thumbnailUrl?.trim();
-  const orig = originalUrl?.trim();
-  if (thumb) return thumb;
-  if (orig) return orig;
+  // Validate and prefer thumbnail
+  if (isValidImageUrl(thumbnailUrl)) {
+    return thumbnailUrl!.trim();
+  }
+  
+  // Fall back to original
+  if (isValidImageUrl(originalUrl)) {
+    return originalUrl!.trim();
+  }
+  
   return DEFAULT_PROFILE_IMAGE;
 };
 

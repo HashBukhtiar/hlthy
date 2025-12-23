@@ -18,6 +18,7 @@ import { useFeedData } from '@/hooks/useFeedData';
 import { usePostsData, Post } from '@/hooks/usePostsData';
 import { useAuth } from '@/context/AuthContext';
 import { useBlockEnforcement } from '@/utils/blockUtils';
+import { OptimizedImageLight } from '@/components/OptimizedImage';
 
 const DEFAULT_PROFILE_IMAGE = 'https://thumbs.dreamstime.com/b/creative-illustration-default-avatar-profile-placeholder-isolated-background-art-design-grey-photo-blank-template-mockup-144855718.jpg';
 
@@ -251,10 +252,10 @@ export default function PostsFeed() {
             style={styles.userInfoContainer}
             onPress={() => canInteract ? navigateToProfile(item.authorId) : null}
           >
-            <Image 
-              source={{ uri: getOptimalImageUrl(item.authorProfileThumbnailUrl, item.authorProfileImageUrl) || DEFAULT_PROFILE_IMAGE }}
+            <OptimizedImageLight 
+              thumbnailUrl={item.authorProfileThumbnailUrl}
+              originalUrl={item.authorProfileImageUrl}
               style={styles.profilePic}
-              onError={({ nativeEvent }) => console.error('❌ profile failed to load:', item.authorProfileThumbnailUrl, nativeEvent)}
             />
             <View>
               <Text style={styles.username}>{item.authorUsername}</Text>
