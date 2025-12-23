@@ -459,7 +459,7 @@ export default function MilestonesFeed() {
       // Distance + Time (e.g., 5K in 23m 15s, pace: 4m 39s/km)
       if (hasDistanceTime) {
         const converted = convertAndFormatDistance(details.value!, details.weightUnit!);
-        const pace = Math.round(details.duration! / details.value!);
+        const pace = details.value > 0 ? Math.round(details.duration! / details.value) : 0;
         const previousConverted = details.previousValue 
           ? convertAndFormatDistance(details.previousValue, details.weightUnit!)
           : null;
