@@ -526,8 +526,9 @@ export default function PostsFeed() {
 
 const styles = StyleSheet.create({
   postsContainer: {
+    paddingTop: 12,
     paddingBottom: 70,
-    backgroundColor: '#000',
+    backgroundColor: '#2C2C2E',
   },
   emptyContainer: {
     flex: 1,
@@ -535,7 +536,7 @@ const styles = StyleSheet.create({
   postContainer: {
     marginBottom: 20,
     marginHorizontal: 12,
-    backgroundColor: '#0A0A0A',
+    backgroundColor: '#000',
     borderRadius: 16,
     overflow: 'hidden',
     borderWidth: 1,
@@ -573,11 +574,16 @@ const styles = StyleSheet.create({
   moreButton: {
     padding: 5,
   },
+  imageWrapper: {
+    paddingHorizontal: 12,
+  },
   postImage: {
     width: '100%',
     height: undefined,
     aspectRatio: 1,
     resizeMode: 'cover',
+    borderRadius: 12,
+    marginBottom: 8,
   },
   actionButtons: {
     flexDirection: 'row',
@@ -603,12 +609,14 @@ const styles = StyleSheet.create({
   captionContainer: {
     flexDirection: 'row',
     paddingHorizontal: 15,
-    marginBottom: 10,
+    paddingTop: 8,
+    paddingBottom: 12,
   },
   caption: {
     flex: 1,
     color: '#E5E5EA',
     lineHeight: 20,
+    fontSize: 14,
   },
   commentsPreview: {
     paddingHorizontal: 15,
@@ -625,7 +633,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderTopColor: '#1C1C1E',
     borderTopWidth: 1,
-    backgroundColor: '#0A0A0A',
+    backgroundColor: '#000',
   },
   commentInputProfilePic: {
     width: 30,

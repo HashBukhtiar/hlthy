@@ -267,6 +267,6 @@ const styles = StyleSheet.create({
   },
   tabContent: {
     flex: 1,
-    backgroundColor: 'black',
+    backgroundColor: '#2C2C2E',
   },
 });
