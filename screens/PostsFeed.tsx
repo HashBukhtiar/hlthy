@@ -331,49 +331,20 @@ export default function PostsFeed() {
           </View>
         )}
 
-        {/* Action Buttons */}
-        {canInteract && (
-          <View style={styles.actionButtons}>
-            <View style={styles.leftActions}>
-              <TouchableOpacity 
-                style={styles.actionButton} 
-                onPress={() => handleToggleLike(item.id, item.isLiked || false)}
-              >
-                <Ionicons 
-                  name={item.isLiked ? "heart" : "heart-outline"} 
-                  size={28} 
-                  color={item.isLiked ? "#FF3B30" : "#FFF"} 
-                />
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={styles.actionButton}
-                onPress={() => toggleCommentInput(item.id)}
-              >
-                <Ionicons name="chatbubble-outline" size={26} color="#FFF" />
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.actionButton}>
-                <Ionicons name="paper-plane-outline" size={26} color="#FFF" />
-              </TouchableOpacity>
-            </View>
-            <TouchableOpacity 
-              style={[styles.actionButton, styles.bookmarkButton]}
-              onPress={() => handleToggleBookmark(item.id)}
-            >
-              <Ionicons 
-                name={item.isBookmarked ? "bookmark" : "bookmark-outline"} 
-                size={26} 
-                color="#FFF" 
-              />
-            </TouchableOpacity>
-          </View>
-        )}
-
         {/* Likes and Comments Stats */}
         {canInteract && (
           <View style={styles.statsContainer}>
             <View style={styles.statsLeft}>
-              <TouchableOpacity style={styles.statItem}>
-                <Ionicons name="heart" size={20} color="#0A84FF" style={styles.statIcon} />
+              <TouchableOpacity 
+                style={styles.statItem}
+                onPress={() => handleToggleLike(item.id, item.isLiked || false)}
+              >
+                <Ionicons 
+                  name={item.isLiked ? "heart" : "heart-outline"} 
+                  size={20} 
+                  color={item.isLiked ? "#FF3B30" : "#0A84FF"} 
+                  style={styles.statIcon} 
+                />
                 <Text style={styles.statNumber}>{item.reactionCount || 0}</Text>
                 <Text style={styles.statLabel}> Likes</Text>
               </TouchableOpacity>
@@ -397,7 +368,7 @@ export default function PostsFeed() {
                 <Ionicons 
                   name={item.isBookmarked ? "bookmark" : "bookmark-outline"} 
                   size={22} 
-                  color="#8E8E93" 
+                  color={item.isBookmarked ? "#0A84FF" : "#8E8E93"} 
                 />
               </TouchableOpacity>
             </View>
@@ -642,20 +613,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginBottom: 8,
   },
-  actionButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 15,
-    paddingVertical: 12,
-    marginRight: -15,
-  },
-  leftActions: {
-    flexDirection: 'row',
-  },
-  actionButton: {
-    marginRight: 15,
-  },
-  bookmarkButton: {},
   statsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
