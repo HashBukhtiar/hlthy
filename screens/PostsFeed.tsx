@@ -450,7 +450,7 @@ export default function PostsFeed() {
               disabled={newComment.trim() === '' || submittingComment}
             >
               {submittingComment ? (
-                <ActivityIndicator size="small" color="#0A84FF" />
+                <ActivityIndicator size="small" color="#FFF" />
               ) : (
                 <Text style={[styles.postButtonText, newComment.trim() === '' && styles.disabledButtonText]}>
                   Post
@@ -531,7 +531,7 @@ export default function PostsFeed() {
     if (!loadingMore) return null;
     return (
       <View style={styles.loadingFooter}>
-        <ActivityIndicator size="large" color="#0A84FF" />
+        <ActivityIndicator size="large" color="#FFF" />
         <Text style={styles.loadingText}>Loading more posts...</Text>
       </View>
     );
@@ -542,7 +542,7 @@ export default function PostsFeed() {
     if (loading) {
       return (
         <View style={styles.emptyState}>
-          <ActivityIndicator size="large" color="#0A84FF" />
+          <ActivityIndicator size="large" color="#FFF" />
           <Text style={styles.emptyStateText}>Loading your feed...</Text>
         </View>
       );
@@ -589,8 +589,8 @@ export default function PostsFeed() {
         <RefreshControl
           refreshing={refreshing}
           onRefresh={refreshFeed}
-          colors={['#0A84FF']}
-          tintColor="#0A84FF"
+          colors={['#FFF']}
+          tintColor="#FFF"
         />
       }
       onEndReached={loadMorePosts}
