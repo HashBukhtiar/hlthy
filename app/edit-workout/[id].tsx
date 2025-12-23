@@ -21,6 +21,7 @@ import { db, storage } from '@/firebaseConfig';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { generateId, generateUniqueFilename } from '@/logic/idGenerator';
+import { deleteImageFromStorage } from '@/utils/imageUtils';
 
 interface WorkoutExercise {
   id: string;
@@ -45,6 +46,7 @@ export default function EditWorkout() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [coverImage, setCoverImage] = useState<string | null>(null);
+  const [originalCoverImageUrl, setOriginalCoverImageUrl] = useState<string | null>(null);
   const [segments, setSegments] = useState<WorkoutSegment[]>([]);
   const [isPublic, setIsPublic] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -64,6 +66,7 @@ export default function EditWorkout() {
             setTitle(workoutData.title || '');
             setDescription(workoutData.description || '');
             setCoverImage(workoutData.coverImageUrl || null);
+            setOriginalCoverImageUrl(workoutData.coverImageUrl || null);
             setSegments(workoutData.segments || []);
             setIsPublic(workoutData.isPublic || true);
           } else {
@@ -216,6 +219,17 @@ export default function EditWorkout() {
     try {
       // 1. Upload cover image if selected and it's a new image
       if (coverImage && !coverImage.startsWith('https://')) {
+        // Delete old cover image and thumbnail if they exist
+        if (originalCoverImageUrl) {
+          try {
+            await deleteImageFromStorage(originalCoverImageUrl);
+            console.log('Successfully deleted old cover image and thumbnail');
+          } catch (deleteError) {
+            console.error('Error deleting old cover image:', deleteError);
+            // Continue with upload even if delete fails
+          }
+        }
+        
         const response = await fetch(coverImage);
         const blob = await response.blob();
         const imageName = `workoutCovers/${currentUser.uid}/${generateUniqueFilename(title.replace(/\s+/g, '_'), 'jpg')}`;
