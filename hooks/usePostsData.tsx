@@ -159,7 +159,7 @@ export function usePostsData() {
       const postsData: Post[] = []
       for (const snap of querySnapshot.docs) {
         // build the base Post
-        const post = { id: snap.id, ...(snap.data() as Post) } as Post
+        const post = { ...(snap.data() as Post), id: snap.id } as Post
 
         // ► fetch author's profile image
         const userSnap = await getDoc(doc(db, "users", post.authorId))
@@ -271,7 +271,7 @@ export function usePostsData() {
     const postSnap = await getDoc(postRef)
     if (!postSnap.exists()) throw new Error("Post not found")
 
-    const post = { id: postSnap.id, ...(postSnap.data() as Post) } as Post
+    const post = { ...(postSnap.data() as Post), id: postSnap.id } as Post
 
     // ► fetch author's profile image
     const userSnap = await getDoc(doc(db, "users", post.authorId))

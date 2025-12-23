@@ -41,7 +41,7 @@ export default function MilestoneOnlyPost({ onBack }: MilestoneOnlyPostProps) {
     // Form state
     const [formError, setFormError] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [valueVisibility, setValueVisibility] = useState<string | null>('public');
+    const [valueVisibility, setValueVisibility] = useState<'public' | 'followers'>('public');
     const { getWeightUnit, getDistanceUnit } = useUnits();
     
     // Milestone type selection
@@ -172,10 +172,11 @@ export default function MilestoneOnlyPost({ onBack }: MilestoneOnlyPostProps) {
                         (parseInt(minutes || '0') * 60) + 
                         parseInt(seconds || '0');
                     const currentLevel = parseInt(level || '0');
+                    const previousLevel = typeof previousPR.level === 'string' ? parseInt(previousPR.level) : previousPR.level;
                     
                     // For duration_level, either longer duration at same level or same duration at higher level is better
-                    if ((currentDuration > previousPR.duration && currentLevel >= previousPR.level) ||
-                        (currentDuration >= previousPR.duration && currentLevel > previousPR.level)) {
+                    if ((currentDuration > previousPR.duration && currentLevel >= previousLevel) ||
+                        (currentDuration >= previousPR.duration && currentLevel > previousLevel)) {
                         isPotentialPR = true;
                     }
                 }
@@ -605,10 +606,10 @@ export default function MilestoneOnlyPost({ onBack }: MilestoneOnlyPostProps) {
 
             const postData = {
                 caption: '',
-                imageUri: null,
+                imageUri: undefined,
                 isMilestone: true,
                 milestoneDetails: milestoneDetails,
-                visibility: valueVisibility || 'public',
+                visibility: valueVisibility,
                 authorArchetype: authorArchetype
             };
 
