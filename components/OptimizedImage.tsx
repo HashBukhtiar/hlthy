@@ -147,7 +147,8 @@ export function OptimizedImageLight({
   style,
   fallbackUrl = DEFAULT_FALLBACK,
   resizeMode = 'cover',
-}: Omit<OptimizedImageProps, 'showLoader'>) {
+  onLoad,
+}: Omit<OptimizedImageProps, 'showLoader'> & { onLoad?: () => void }) {
   const [currentUrl, setCurrentUrl] = useState(() => 
     getBestUrl(thumbnailUrl, originalUrl, fallbackUrl)
   );
@@ -177,6 +178,7 @@ export function OptimizedImageLight({
       style={style}
       resizeMode={resizeMode}
       onError={handleError}
+      onLoad={onLoad}
     />
   );
 }

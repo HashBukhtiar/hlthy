@@ -98,6 +98,7 @@ const PostGridItem = ({ item, onPress }: { item: ExplorePost; onPress: () => voi
           thumbnailUrl={item.thumbnailUrl}
           originalUrl={item.imageUrl}
           style={styles.postImage}
+          onLoad={onImageLoad}
         />
       </Animated.View>
     </TouchableOpacity>
