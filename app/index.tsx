@@ -3,11 +3,7 @@ import { useState, useEffect } from 'react';
 import { View, ActivityIndicator, Platform, Text } from 'react-native';
 import { auth } from '@/firebaseConfig';
 import { onAuthStateChanged, signInWithEmailAndPassword, setPersistence, browserSessionPersistence } from 'firebase/auth';
-
-// Backdoor to bypass login. must be false in production
-const BYPASS_AUTH = false;
-const DEV_EMAIL = 'dev2@gmail.com';
-const DEV_PASSWORD = 'dev1232';
+import { devFlags } from '@/config/devFlags';
 
 // Log immediately when file loads
 console.log('===== INDEX.TSX FILE LOADED =====');

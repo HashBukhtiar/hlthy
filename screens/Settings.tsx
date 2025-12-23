@@ -24,6 +24,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { uploadProfileImage } from '@/services/profileStorage';
 import NetInfo from '@react-native-community/netinfo';
 import { getFullVersionString } from '@/utils/appVersion';
+import { NotificationService } from '@/services/NotificationService';
+
 
 const archetypeData: SelectorItem[] = [
   { 
@@ -764,10 +766,28 @@ export default function Settings() {
 
   const handleLogout = async () => {
     try {
+      setLoading(true);
+      
+      // Clean up notifications before signing out (while still authenticated)
+      if (currentUser) {
+        try {
+          await NotificationService.removePushToken(currentUser.uid);
+          await NotificationService.clearCachedTokens();
+        } catch (tokenError) {
+          console.error('Error cleaning up tokens (continuing with logout):', tokenError);
+          // Continue with logout even if token cleanup fails
+        }
+      }
+      
+      // Then sign out
       await signOut(auth);
       router.replace('/');
     } catch (error) {
       console.error('Error signing out:', error);
+      Alert.alert('Error', 'Failed to sign out completely, but you have been logged out.');
+      router.replace('/');
+    } finally {
+      setLoading(false);
     }
   };
 

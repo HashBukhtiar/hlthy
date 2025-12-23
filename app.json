@@ -25,7 +25,8 @@
         "foregroundImage": "./assets/images/icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.derana1.hlthy"
+      "package": "com.derana1.hlthy",
+      "useNextNotificationsApi": true
     },
     "web": {
       "bundler": "metro",
@@ -53,6 +54,11 @@
     },
     "updates": {
       "url": "https://u.expo.dev/a1e6a8c1-8e53-4bb2-a30d-bfda93d63c96"
+    },
+    "notifications": {
+      "icon": "./assets/icon.png",
+      "color": "#007AFF",
+      "sounds": ["./assets/notification.wav"]
     }
   }
 }
