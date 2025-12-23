@@ -166,6 +166,8 @@ export const generateProfileThumbnail = onObjectFinalized({
   const tempFilePath = path.join(os.tmpdir(), fileName);
 
   try {
+    // Make the original file publicly accessible (for fallback)
+    await bucket.file(filePath).makePublic();
     await bucket.file(filePath).download({destination: tempFilePath});
     // Create 150x150 profile thumbnail
     const thumbFileName = `thumb_${fileName}`;
@@ -183,18 +185,23 @@ export const generateProfileThumbnail = onObjectFinalized({
         cacheControl: "public,max-age=31536000", // Cache for 1 year
       },
     });
-    // Make the file publicly accessible
+    // Make the thumbnail publicly accessible
     await bucket.file(thumbUploadPath).makePublic();
     // Get permanent download URL instead of signed URL
     // URL encode the path to handle special characters
     const encodedPath = encodeURIComponent(thumbUploadPath);
     const thumbUrl = `https://storage.googleapis.com/${bucket.name}/${encodedPath}`;
 
+    // Also update profileImageUrl with the original's public URL
+    const originalEncodedPath = encodeURIComponent(filePath);
+    const originalUrl = `https://storage.googleapis.com/${bucket.name}/${originalEncodedPath}`;
+
     // Extract userId from path: profileImages/{userId}/filename.jpg
     const userId = filePath.split("/")[1];
     if (userId) {
-      console.log(`Updating user ${userId} with profile thumbnail URL: ${thumbUrl}`);
+      console.log(`Updating user ${userId} with profile URLs - original: ${originalUrl}, thumbnail: ${thumbUrl}`);
       await admin.firestore().doc(`users/${userId}`).update({
+        profileImageUrl: originalUrl,
         profileThumbnailUrl: thumbUrl,
       });
     }

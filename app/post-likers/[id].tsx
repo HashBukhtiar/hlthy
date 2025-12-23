@@ -3,7 +3,6 @@ import {
   View,
   Text,
   FlatList,
-  Image,
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
@@ -17,11 +16,13 @@ import { Ionicons } from '@expo/vector-icons';
 // If it's just a string path, it needs to be wrapped in require() here or in the assets/images file.
 import { profileIcon } from '@/assets/images';
 import { head } from 'lodash';
+import { OptimizedImageLight } from '@/components/OptimizedImage';
 
 interface Liker {
   id: string;
   username: string;
   profileImageUrl?: string;
+  profileThumbnailUrl?: string;
 }
 
 export default function PostLikersScreen() {
@@ -80,13 +81,15 @@ export default function PostLikersScreen() {
             id: userId,
             username: userData.username || 'Unknown User',
             profileImageUrl: userData.profileImageUrl,
+            profileThumbnailUrl: userData.profileThumbnailUrl,
           } as Liker;
         } else {
           // Fallback if user document is missing
           return {
             id: userId,
             username: 'User (Profile Missing)',
-            profileImageUrl: undefined, // Or use a default from likerDocData 
+            profileImageUrl: undefined,
+            profileThumbnailUrl: undefined,
           } as Liker;
         }
       });
@@ -112,8 +115,9 @@ export default function PostLikersScreen() {
 
   const renderLikerItem = ({ item }: { item: Liker }) => (
     <TouchableOpacity style={styles.likerItem} onPress={() => handleUserPress(item.id)}>
-      <Image 
-        source={item.profileImageUrl ? { uri: item.profileImageUrl } : profileIcon}
+      <OptimizedImageLight 
+        thumbnailUrl={item.profileThumbnailUrl}
+        originalUrl={item.profileImageUrl}
         style={styles.avatar} 
       />
       <Text style={styles.username}>{item.username}</Text>

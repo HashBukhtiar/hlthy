@@ -86,7 +86,7 @@ export default function ViewMilestone() {
             userId: data.authorId,
             username: data.authorUsername,
             fullName: authorFullName,
-            profileImageUrl: getOptimalImageUrl(authorProfileImageUrl, authorProfileThumbnailUrl),
+            profileImageUrl: getOptimalImageUrl(authorProfileThumbnailUrl, authorProfileImageUrl),
             createdAt: data.createdAt.toDate(),
             milestoneType: data.milestoneDetails?.type,
             details: {

@@ -7,12 +7,12 @@ import {
   TouchableOpacity, 
   TextInput,
   FlatList,
-  Image,
   Platform,
   ActivityIndicator
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { shareModalStyles } from '@/styles/shareModalStyles';
+import { OptimizedImageLight } from '@/components/OptimizedImage';
 import { collection, query, where, getDocs, limit, orderBy } from 'firebase/firestore';
 import { db } from '@/firebaseConfig';
 import { debounce } from 'lodash';
@@ -126,7 +126,7 @@ export default function ShareModal({ visible, onClose, onShareWith }: ShareModal
           {searchLoading ? (
             <ActivityIndicator size="large" color="#0A84FF" style={{ marginTop: 20 }} />
           ) : (
-            <FlatList
+              <FlatList
               data={searchResults}
               keyExtractor={(item) => item.id}
               renderItem={({ item }) => (
@@ -134,8 +134,9 @@ export default function ShareModal({ visible, onClose, onShareWith }: ShareModal
                   style={shareModalStyles.userItem}
                   onPress={() => onShareWith(item.id, item.username, item.profileImageUrl, item.profileThumbnailUrl)}
                 >
-                  <Image
-                    source={item.profileImageUrl ? { uri: item.profileImageUrl } : require('@/assets/images/profile-icon.png')}
+                  <OptimizedImageLight
+                    thumbnailUrl={item.profileThumbnailUrl}
+                    originalUrl={item.profileImageUrl}
                     style={shareModalStyles.userItemImage}
                   />
                   <Text style={shareModalStyles.userItemText}>{item.username}</Text>

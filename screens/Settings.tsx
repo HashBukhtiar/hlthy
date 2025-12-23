@@ -21,7 +21,7 @@ import { createSettingsBackup, restoreSettingsBackup } from '@/utils/settingsBac
 import { exportSettings, importSettings } from '@/utils/settingsExport';
 import { trackSettingsChange, generateSettingsInsights, calculatePrivacyLevel } from '@/utils/settingsAnalytics';
 import { Ionicons } from '@expo/vector-icons';
-import { uploadProfileThumbnail } from '@/services/profileStorage';
+import { uploadProfileImage } from '@/services/profileStorage';
 import NetInfo from '@react-native-community/netinfo';
 import { getFullVersionString } from '@/utils/appVersion';
 
@@ -454,7 +454,7 @@ export default function Settings() {
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [1, 1],
-        quality: 0.4,
+        quality: 0.8, // Higher quality - Cloud Function will create optimized thumbnail
         base64: true,
       });
       if (result.canceled || !result.assets?.length) return;
@@ -471,12 +471,13 @@ export default function Settings() {
       }
 
       try {
-        const downloadURL = await uploadProfileThumbnail(currentUser.uid, blob);
+        // Upload original - Cloud Function will generate thumbnail
+        const downloadURL = await uploadProfileImage(currentUser.uid, blob);
         setProfileImage(downloadURL);
         setImageManuallyChanged(true);
         Alert.alert('Success', "Profile photo updated! Don't forget to save.");
       } catch (e) {
-        console.error('Thumbnail upload failed:', e);
+        console.error('Profile image upload failed:', e);
         Alert.alert('Upload Failed', 'Could not upload image. Try again later.');
       }
     } catch (error) {
@@ -912,7 +913,7 @@ export default function Settings() {
             <Image 
               source={{ 
                 uri: profileImage || 
-                    userProfile?.profileImageUrl || 
+                    getOptimalImageUrl(userProfile?.profileThumbnailUrl, userProfile?.profileImageUrl) || 
                     'https://thumbs.dreamstime.com/b/creative-illustration-default-avatar-profile-placeholder-isolated-background-art-design-grey-photo-blank-template-mockup-144855718.jpg',
                 cache: 'reload'
               }} 
