@@ -270,18 +270,27 @@ export default function PostsFeed() {
           )}
         </View>
 
+        {/* Caption */}
+        {item.caption && (
+          <View style={styles.captionContainer}>
+            <Text style={styles.caption} numberOfLines={3}>{item.caption}</Text>
+          </View>
+        )}
+
         {/* Post Image */}
         {item.imageUrl && (
-          <TouchableOpacity 
-            activeOpacity={0.9}
-            onPress={canInteract ? createDoubleTapHandler(item.id, item.isLiked || false) : undefined}
-          >
-            <Image
-              source={{ uri: item.imageUrl! }}
-              style={styles.postImage}
-              onError={({ nativeEvent }) => console.error('❌ post image failed to load:', item.imageUrl, nativeEvent)}
-            />
-          </TouchableOpacity>
+          <View style={styles.imageWrapper}>
+            <TouchableOpacity 
+              activeOpacity={0.9}
+              onPress={canInteract ? createDoubleTapHandler(item.id, item.isLiked || false) : undefined}
+            >
+              <Image
+                source={{ uri: item.imageUrl! }}
+                style={styles.postImage}
+                onError={({ nativeEvent }) => console.error('❌ post image failed to load:', item.imageUrl, nativeEvent)}
+              />
+            </TouchableOpacity>
+          </View>
         )}
 
         {/* Action Buttons */}
@@ -324,13 +333,6 @@ export default function PostsFeed() {
         {/* Likes */}
         {canInteract && (
           <Text style={styles.likes}>{item.reactionCount || 0} likes</Text>
-        )}
-
-        {/* Caption */}
-        {item.caption && (
-          <View style={styles.captionContainer}>
-            <Text style={styles.caption} numberOfLines={2}>{item.caption}</Text>
-          </View>
         )}
         
         {/* Comments preview */}
