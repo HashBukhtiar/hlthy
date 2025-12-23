@@ -359,15 +359,15 @@ export default function PostsFeed() {
             </View>
             <View style={styles.statsRight}>
               <TouchableOpacity style={styles.iconButtonSmall}>
-                <Ionicons name="arrow-redo-outline" size={22} color="#FFF" />
+                <Ionicons name="paper-plane-outline" size={20} color="#FFF" />
               </TouchableOpacity>
               <TouchableOpacity 
                 style={styles.iconButtonSmall}
                 onPress={() => handleToggleBookmark(item.id)}
               >
                 <Ionicons 
-                  name={item.isBookmarked ? "bookmark" : "bookmark-outline"} 
-                  size={22} 
+                  name={item.isBookmarked ? "bookmarks" : "bookmarks-outline"} 
+                  size={20} 
                   color="#FFF" 
                 />
               </TouchableOpacity>
@@ -611,7 +611,7 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     resizeMode: 'cover',
     borderRadius: 12,
-    marginBottom: 8,
+    marginBottom: 0,
   },
   statsContainer: {
     flexDirection: 'row',
@@ -637,12 +637,12 @@ const styles = StyleSheet.create({
   },
   statNumber: {
     color: '#FFF',
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
   },
   statLabel: {
     color: '#8E8E93',
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '400',
   },
   iconButtonSmall: {
