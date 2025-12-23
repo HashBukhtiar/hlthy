@@ -155,6 +155,7 @@ export const acceptfollowrequest = onCall(
       fromUserId: targetUserId,
       fromUsername: targetUserData?.username || "Someone",
       fromProfileImageUrl: targetUserData?.profileImageUrl || "",
+      fromProfileThumbnailUrl: targetUserData?.profileThumbnailUrl || "",
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       isRead: false,
     };
@@ -509,6 +510,7 @@ export const followUser = onCall(
       fromUserId: uid,
       fromUsername: currentUserData?.username || "Someone",
       fromProfileImageUrl: currentUserData?.profileImageUrl || "",
+      fromProfileThumbnailUrl: currentUserData?.profileThumbnailUrl || "",
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       isRead: false,
     });

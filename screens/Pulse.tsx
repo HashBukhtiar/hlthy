@@ -21,6 +21,7 @@ import { getFunctions, httpsCallable } from 'firebase/functions';
 import { collection, query, where, orderBy, onSnapshot, Timestamp } from 'firebase/firestore';
 import { getOptimalImageUrl } from '@/utils/imageUtils';
 import { useBlockEnforcement } from '@/utils/blockUtils';
+import { OptimizedImageLight } from '@/components/OptimizedImage';
 
 // Helper function to display shortened string
 const displayShortenedString = (str: string, maxLength: number): string => {
@@ -490,7 +491,7 @@ export default function Pulse() {
                                 </TouchableOpacity>
 
                                 {/* Content preview images with block checking */}
-                                {(activity.type === 'post_like' || activity.type === 'post_comment' || activity.type === 'comment_like' || activity.type === 'reply_like') && activity.postImageUrl && (
+                                {(activity.type === 'post_like' || activity.type === 'post_comment' || activity.type === 'comment_like' || activity.type === 'reply_like') && (activity.postThumbnailUrl || activity.postImageUrl) && (
                                     <TouchableOpacity
                                         onPress={() => {
                                             // Check if we can interact before navigating to post
@@ -500,14 +501,15 @@ export default function Pulse() {
                                         }}
                                         style={activityStyles.activityContentPreviewImageContainer}
                                     >
-                                        <Image
-                                            source={{ uri: getOptimalImageUrl(activity.postThumbnailUrl, activity.postImageUrl) }}
+                                        <OptimizedImageLight
+                                            thumbnailUrl={activity.postThumbnailUrl}
+                                            originalUrl={activity.postImageUrl}
                                             style={activityStyles.activityContentPreviewImageStyle}
                                         />
                                     </TouchableOpacity>
                                 )}
 
-                                {activity.type === 'workout_save' && activity.postImageUrl && (
+                                {activity.type === 'workout_save' && activity.workoutThumbnailUrl && (
                                     <TouchableOpacity
                                         onPress={() => {
                                             // Check if we can interact before navigating to workout
@@ -517,8 +519,9 @@ export default function Pulse() {
                                         }}
                                         style={activityStyles.activityContentPreviewImageContainer}
                                     >
-                                        <Image
-                                            source={{ uri: getOptimalImageUrl(activity.workoutThumbnailUrl, activity.postImageUrl) }}
+                                        <OptimizedImageLight
+                                            thumbnailUrl={activity.workoutThumbnailUrl}
+                                            originalUrl={activity.workoutThumbnailUrl}
                                             style={activityStyles.activityContentPreviewImageStyle}
                                         />
                                     </TouchableOpacity>
@@ -539,7 +542,7 @@ export default function Pulse() {
             return (
                 <View style={activityStyles.emptyStateContainer}>
                     <ActivityIndicator size="large" color="#ff2d55" />
-                    <Text style={activityStyles.loadingText}>Loading your Pulse...</Text>
+                    <Text style={activityStyles.loadingText}>Checking your Pulse...</Text>
                 </View>
             );
         }
