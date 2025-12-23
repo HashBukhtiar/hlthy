@@ -21,6 +21,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 }
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { getOptimalImageUrl } from '@/utils/imageUtils';
 import { useFeedData } from '@/hooks/useFeedData';
 import { usePostsData, Post } from '@/hooks/usePostsData';
@@ -107,9 +108,7 @@ export default function PostsFeed() {
     }
 
     // Haptic feedback
-    import('expo-haptics').then(({ impactAsync, ImpactFeedbackStyle }) => {
-      impactAsync?.(isCurrentlyLiked ? ImpactFeedbackStyle.Light : ImpactFeedbackStyle.Medium);
-    }).catch(() => {});
+    Haptics.impactAsync(isCurrentlyLiked ? Haptics.ImpactFeedbackStyle.Light : Haptics.ImpactFeedbackStyle.Medium);
 
     // Configure smooth animation (exclude opacity to avoid TouchableOpacity conflicts)
     LayoutAnimation.configureNext({
@@ -177,9 +176,7 @@ export default function PostsFeed() {
     }
 
     // Haptic feedback
-    import('expo-haptics').then(({ impactAsync, ImpactFeedbackStyle }) => {
-      impactAsync?.(isCurrentlyBookmarked ? ImpactFeedbackStyle.Light : ImpactFeedbackStyle.Medium);
-    }).catch(() => {});
+    Haptics.impactAsync(isCurrentlyBookmarked ? Haptics.ImpactFeedbackStyle.Light : Haptics.ImpactFeedbackStyle.Medium);
 
     // Optimistic update - update UI immediately
     setPosts(prevPosts => 
@@ -288,9 +285,7 @@ export default function PostsFeed() {
         delete tapTimers.current[postId];
         try {
           // Haptic feedback
-          import('expo-haptics').then(({ impactAsync, ImpactFeedbackStyle }) => {
-            impactAsync?.(ImpactFeedbackStyle.Light);
-          }).catch(() => {});
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
           
           // Set in progress flag
           likingInProgress.current[postId] = true;
