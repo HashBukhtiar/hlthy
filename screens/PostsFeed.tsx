@@ -102,6 +102,11 @@ export default function PostsFeed() {
       return;
     }
 
+    // Haptic feedback
+    import('expo-haptics').then(({ impactAsync, ImpactFeedbackStyle }) => {
+      impactAsync?.(isCurrentlyLiked ? ImpactFeedbackStyle.Light : ImpactFeedbackStyle.Medium);
+    }).catch(() => {});
+
     // Configure smooth animation (exclude opacity to avoid TouchableOpacity conflicts)
     LayoutAnimation.configureNext({
       duration: 200,
