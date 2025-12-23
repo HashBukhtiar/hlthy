@@ -100,8 +100,12 @@ const extractFilePathFromUrl = (imageUrl: string): string | null => {
         console.warn('Invalid public URL structure');
         return null;
       }
-      // No query params in this format, take everything after bucket
-      const encodedPath = imageUrl.substring(pathStart);
+      // Strip query params (e.g., signed URL params like GoogleAccessId, Expires, Signature)
+      let encodedPath = imageUrl.substring(pathStart);
+      const queryIndex = encodedPath.indexOf('?');
+      if (queryIndex !== -1) {
+        encodedPath = encodedPath.substring(0, queryIndex);
+      }
       decodedPath = decodeURIComponent(encodedPath);
     } else if (imageUrl.includes(oldBaseUrl)) {
       // Handle old format: https://firebasestorage.googleapis.com/v0/b/{bucket}/o/path?...
