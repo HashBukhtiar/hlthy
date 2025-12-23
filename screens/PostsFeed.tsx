@@ -13,14 +13,12 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { getOptimalImageUrl } from '@/utils/imageUtils';
+import { getOptimalImageUrl, DEFAULT_PROFILE_IMAGE } from '@/utils/imageUtils';
 import { useFeedData } from '@/hooks/useFeedData';
 import { usePostsData, Post } from '@/hooks/usePostsData';
 import { useAuth } from '@/context/AuthContext';
 import { useBlockEnforcement } from '@/utils/blockUtils';
 import { OptimizedImageLight } from '@/components/OptimizedImage';
-
-const DEFAULT_PROFILE_IMAGE = 'https://thumbs.dreamstime.com/b/creative-illustration-default-avatar-profile-placeholder-isolated-background-art-design-grey-photo-blank-template-mockup-144855718.jpg';
 
 export default function PostsFeed() {
   const router = useRouter();

@@ -4,7 +4,7 @@ import { storage, db } from '@/firebaseConfig';
 import { doc, deleteDoc } from 'firebase/firestore';
 import hlthyLogo from '@/assets/images/icon.png';
 
-const DEFAULT_PROFILE_IMAGE = 'https://thumbs.dreamstime.com/b/creative-illustration-default-avatar-profile-placeholder-isolated-background-art-design-grey-photo-blank-template-mockup-144855718.jpg';
+export const DEFAULT_PROFILE_IMAGE = 'https://thumbs.dreamstime.com/b/creative-illustration-default-avatar-profile-placeholder-isolated-background-art-design-grey-photo-blank-template-mockup-144855718.jpg';
 
 /**
  * Validates if a URL is likely still valid (basic check)

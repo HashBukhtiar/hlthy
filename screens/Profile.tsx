@@ -30,7 +30,7 @@ const archetypeDescriptions = {
   'generalist': 'Well-rounded fitness approach with balanced strength, cardio, and flexibility goals.',
   'powerlifter': 'Specialized in maximizing strength in the squat, bench press, and deadlift.',
 };
-import { getOptimalImageUrl, getCoverImageSource } from '@/utils/imageUtils';
+import { getOptimalImageUrl, getCoverImageSource, DEFAULT_PROFILE_IMAGE } from '@/utils/imageUtils';
 import { MilestoneDetails } from '@/types/milestone';
 
 interface ProfileScreenProps {
