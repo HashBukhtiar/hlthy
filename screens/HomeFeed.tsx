@@ -29,7 +29,7 @@ export default function HomeFeed() {
   const { width: screenWidth } = Dimensions.get('window');
   
   // Animated value for indicator position
-  const indicatorWidth = screenWidth / 2;
+  const indicatorWidth = screenWidth * 0.43;
   
   // Keep track of current scroll position
   const scrollX = useRef(new Animated.Value(0)).current;
@@ -143,7 +143,7 @@ export default function HomeFeed() {
               transform: [{ 
                 translateX: scrollX.interpolate({
                   inputRange: [0, screenWidth],
-                  outputRange: [0, indicatorWidth],
+                  outputRange: [(screenWidth / 2 - indicatorWidth) / 2, screenWidth / 2 + (screenWidth / 2 - indicatorWidth) / 2],
                   extrapolate: 'clamp'
                 }) 
               }]
