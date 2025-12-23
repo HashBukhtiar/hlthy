@@ -454,7 +454,7 @@ export default function Settings() {
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [1, 1],
-        quality: 0.8, // Higher quality - Cloud Function will create optimized thumbnail
+        quality: 0.6, // Balanced quality - Cloud Function will create optimized thumbnail
         base64: true,
       });
       if (result.canceled || !result.assets?.length) return;

@@ -1094,12 +1094,10 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
         )}
         <Image
           source={{ 
-            uri: isOwnProfile 
-              ? (processedProfileData?.profileImageUrl || DEFAULT_PROFILE_IMAGE)
-              : getOptimalImageUrl(
-                  processedProfileData?.profileThumbnailUrl,
-                  processedProfileData?.profileImageUrl
-                )
+            uri: getOptimalImageUrl(
+              processedProfileData?.profileThumbnailUrl,
+              processedProfileData?.profileImageUrl
+            )
           }}
           style={styles.profileImage}
         />
