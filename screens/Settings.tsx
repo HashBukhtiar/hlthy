@@ -7,13 +7,10 @@ import { signOut, sendPasswordResetEmail } from 'firebase/auth';
 import { httpsCallable } from 'firebase/functions';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
-import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { getOptimalImageUrl, deleteImageFromStorage } from '@/utils/imageUtils';
 import { CustomSelector, SelectorItem } from '@/components/CustomSelector';
-import { generateUniqueFilename } from '@/logic/idGenerator';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingsItem } from '@/components/settings/SettingsItem';
-import { ConnectionQualityBadge } from '@/components/ConnectionQualityBadge';
 import { UserSettings, SettingsSection as SettingsSectionType } from '@/types/settings';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { validateSettings, sanitizeSettings } from '@/utils/settingsValidation';
@@ -22,7 +19,6 @@ import { exportSettings, importSettings } from '@/utils/settingsExport';
 import { trackSettingsChange, generateSettingsInsights, calculatePrivacyLevel } from '@/utils/settingsAnalytics';
 import { Ionicons } from '@expo/vector-icons';
 import { uploadProfileImage } from '@/services/profileStorage';
-import NetInfo from '@react-native-community/netinfo';
 import { getFullVersionString } from '@/utils/appVersion';
 
 const archetypeData: SelectorItem[] = [

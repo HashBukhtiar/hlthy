@@ -183,7 +183,7 @@ export default function MilestonesFeed() {
     const convertAndFormatDistance = (value: number, unit: string) => {
       const userPreferredUnit = getDistanceUnit();
       let convertedValue = value;
-      let displayUnit = unit;
+      let displayUnit: string;
       
       if (unit !== userPreferredUnit) {
         if (unit === 'km' && userPreferredUnit === 'miles') {
@@ -203,7 +203,7 @@ export default function MilestonesFeed() {
     const convertAndFormatWeight = (value: number, unit: string) => {
       const userPreferredUnit = getWeightUnit();
       let convertedValue = value;
-      let displayUnit = unit;
+      let displayUnit: string;
       
       if (unit !== userPreferredUnit) {
         if (unit === 'kg' && userPreferredUnit === 'lbs') {
