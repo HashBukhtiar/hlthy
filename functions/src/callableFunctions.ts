@@ -470,6 +470,20 @@ export const followUser = onCall(
         requesterProfileImageUrl: currentUserData?.profileImageUrl || "",
       });
 
+      // Create activity notification for follow request
+      const followRequestActivityData = {
+        type: "follow_request",
+        fromUserId: uid,
+        fromUsername: currentUserData?.username || "Someone",
+        fromProfileImageUrl: currentUserData?.profileImageUrl || "",
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        isRead: false,
+        status: "pending",
+      };
+      const activityRef = db.collection("activity").doc(targetUserId)
+        .collection("userActivity").doc();
+      batch.set(activityRef, followRequestActivityData);
+
       await batch.commit();
       return {success: true, message: "Follow request sent (pending approval)."};
     }

@@ -1088,7 +1088,7 @@ export default function ChatScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const conversationId = id as string;
-  const { currentUser } = useAuth();
+  const { currentUser, userProfile } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState<string>('');
   const [loading, setLoading] = useState(true);
@@ -1365,6 +1365,7 @@ export default function ChatScreen() {
         text: textToSend,
         createdAt: serverTimestamp(),
         senderId: currentUser.uid,
+        senderUsername: userProfile?.username || currentUser.displayName || currentUser.email?.split('@')[0] || 'User',
       };
       
       if (intentResult?.intent) {

@@ -25,6 +25,7 @@ import { app, db, storage } from '@/firebaseConfig';
 import { useAuth } from '@/context/AuthContext';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { generateUniqueFilename } from '@/logic/idGenerator';
+import { NotificationService } from '@/services/NotificationService';
 
 export interface Post {
   id: string;
@@ -510,6 +511,23 @@ export function usePostsData() {
           createdAt: serverTimestamp(),
           status: 'unread'
         });
+
+        // Send notification for the like
+        try {
+          await NotificationService.notifyLikeOrComment(
+            postData.authorId,
+            currentUser.uid,
+            userProfile.username || 'Someone',
+            postId,
+            true, // isLike = true
+            postData.isMilestone, // Pass the milestone flag
+            postData.isMilestone ? 'milestone' : 'post' // Explicitly set contentType
+          );
+          console.log(`Like notification sent to ${postData.authorId}`);
+        } catch (error) {
+          console.error('Error sending like notification:', error);
+          // Don't throw - notification failure shouldn't stop the like action
+        }
       }
 
       console.log(`User ${currentUser.uid} liked post ${postId}`);
@@ -576,6 +594,12 @@ export function usePostsData() {
     if (!currentUser || !userProfile) throw new Error("User not authenticated");
     if (!text.trim())      throw new Error("Comment text cannot be empty");
 
+    // First, get the post data to get author info
+    const postRef = doc(db, "posts", postId);
+    const postSnap = await getDoc(postRef);
+    if (!postSnap.exists()) throw new Error("Post not found");
+    const postData = postSnap.data() as Post;
+
     const newCommentRef = await addDoc(
       collection(db, "posts", postId, "comments"),
       {
@@ -588,6 +612,37 @@ export function usePostsData() {
         replyCount:     0,
       }
     );
+
+    // Create activity and send notification for the post author (if not self-comment)
+    if (postData.authorId !== currentUser.uid) {
+      try {
+        const authorActivityColRef = collection(db, 'activity', postData.authorId, 'userActivity');
+        await addDoc(authorActivityColRef, {
+          type: 'post_comment',
+          fromUserId: currentUser.uid,
+          fromUsername: userProfile.username,
+          fromProfileImageUrl: userProfile.profileImageUrl || null,
+          postId: postId,
+          postImageUrl: postData.imageUrl || null,
+          commentText: text.substring(0, 100) + (text.length > 100 ? '...' : ''),
+          createdAt: serverTimestamp(),
+          status: 'unread'
+        });
+
+        // Send notification for the comment
+        await NotificationService.notifyLikeOrComment(
+          postData.authorId,
+          currentUser.uid,
+          userProfile.username || 'Someone',
+          postId,
+          false, // isLike = false
+          postData.isMilestone // Pass the milestone flag
+        );
+      } catch (error) {
+        console.error('Error sending comment notification:', error);
+        // Don't throw - notification failure shouldn't stop the comment action
+      }
+    }
 
     return {
       id: newCommentRef.id,
@@ -623,6 +678,38 @@ export function usePostsData() {
           likedBy: arrayUnion(currentUser.uid)
         });
       });
+
+      // Create activity and send notification for comment author (if not self-like)
+      if (commentData.authorId !== currentUser.uid) {
+        try {
+          const authorActivityColRef = collection(db, 'activity', commentData.authorId, 'userActivity');
+          await addDoc(authorActivityColRef, {
+            type: 'comment_like',
+            fromUserId: currentUser.uid,
+            fromUsername: userProfile.username,
+            fromProfileImageUrl: userProfile.profileImageUrl || null,
+            postId: postId,
+            commentId: commentId,
+            createdAt: serverTimestamp(),
+            status: 'unread'
+          });
+
+          // Send notification (comments are not milestones, so always false)
+          await NotificationService.notifyLikeOrComment(
+            commentData.authorId,
+            currentUser.uid,
+            userProfile.username || 'Someone',
+            postId,
+            true, // isLike = true
+            false, // isMilestone = false (comments are never milestones)
+            'comment' // contentType = 'comment'
+          );
+        } catch (error) {
+          console.error('Error sending comment like notification:', error);
+          // Don't throw - notification failure shouldn't stop the like action
+        }
+      }
+
       console.log(`User ${currentUser.uid} liked comment ${commentId} on post ${postId}`);
     } catch (error) {
       console.error("Error liking comment: ", error);
@@ -711,6 +798,36 @@ export function usePostsData() {
         });
       });
 
+      // Create activity and send notification for the parent comment author (if not self-reply)
+      if (parentCommentData.authorId !== currentUser.uid) {
+        try {
+          const authorActivityColRef = collection(db, 'activity', parentCommentData.authorId, 'userActivity');
+          await addDoc(authorActivityColRef, {
+            type: 'comment_reply',
+            fromUserId: currentUser.uid,
+            fromUsername: userProfile.username,
+            fromProfileImageUrl: userProfile.profileImageUrl || null,
+            postId: postId,
+            parentCommentId: parentCommentId,
+            replyId: newReplyRef.id,
+            replyText: text.substring(0, 100) + (text.length > 100 ? '...' : ''),
+            createdAt: serverTimestamp(),
+            status: 'unread'
+          });
+
+          // Send notification for the reply (replies are not milestones)
+          await NotificationService.notifyMentionedInReply(
+            parentCommentData.authorId,
+            currentUser.uid,
+            userProfile.username || 'Someone',
+            postId
+          );
+        } catch (error) {
+          console.error('Error sending reply notification:', error);
+          // Don't throw - notification failure shouldn't stop the reply action
+        }
+      }
+
       const clientTimestamp = Timestamp.now();
       return { 
         id: newReplyRef.id, 
@@ -779,26 +896,46 @@ export function usePostsData() {
           likes: increment(1),
           likedBy: arrayUnion(currentUser.uid)
         });
-
-        // Activity for reply author (if not self-liking reply)
-        // Note: This might become noisy. Consider if this notification is necessary.
-        if (replyData.authorId !== currentUser.uid) {
-          // const authorActivityColRef = collection(db, 'activity', replyData.authorId, 'userActivity');
-          // const newActivityRef = doc(authorActivityColRef);
-          // transaction.set(newActivityRef, {
-          //   type: 'reply_like', // You'd need to add this type to ActivityItem
-          //   fromUserId: currentUser.uid,
-          //   fromUsername: userProfile.username,
-          //   fromProfileImageUrl: userProfile.profileImageUrl || "",
-          //   postId: postId,
-          //   commentId: commentId,
-          //   replyId: replyId,
-          //   replyText: replyData.text.substring(0, 50) + (replyData.text.length > 50 ? "..." : ""),
-          //   createdAt: serverTimestamp(),
-          //   status: 'unread',
-          // } as Omit<ActivityItem, 'id'>);
-        }
       });
+
+      // Create activity and send notification for reply author (if not self-liking reply)
+      // Note: This might become noisy. Consider if this notification is necessary.
+      if (replyData.authorId !== currentUser.uid) {
+        try {
+          // Create activity for reply like
+          const authorActivityColRef = collection(db, 'activity', replyData.authorId, 'userActivity');
+          const activityRef = await addDoc(authorActivityColRef, {
+            type: 'comment_like', // or 'reply_like' if you want to distinguish
+            fromUserId: currentUser.uid,
+            fromUsername: userProfile.username,
+            fromProfileImageUrl: userProfile.profileImageUrl || null,
+            postId: postId,
+            commentId: commentId,
+            replyId: replyId,
+            createdAt: serverTimestamp(),
+            status: 'unread'
+          });
+
+          console.log(`Created activity document for reply like: ${activityRef.id}`);
+
+          // Send notification (replies are never milestones, so always false)
+          const notificationResult = await NotificationService.notifyLikeOrComment(
+            replyData.authorId,
+            currentUser.uid,
+            userProfile.username || 'Someone',
+            postId,
+            true, // isLike = true
+            false, // isMilestone = false (replies are never milestones)
+            'reply' // contentType = 'reply'
+          );
+          
+          console.log(`Reply like notification sent:`, notificationResult);
+        } catch (error) {
+          console.error('Error sending reply like notification:', error);
+          // Don't throw - notification failure shouldn't stop the like action
+        }
+      }
+
       console.log(`User ${currentUser.uid} liked reply ${replyId}`);
     } catch (error) {
       console.error("Error liking reply: ", error);

@@ -114,7 +114,7 @@ export default function MilestonesFeed() {
       );
       Alert.alert('Error', 'Could not update like status. Please try again.');
     }
-  }, [currentUser, likePost, unlikePost]);
+  }, [currentUser, userProfile, likePost, unlikePost]);
   
   const navigateToMilestone = useCallback((id: string) => {
     router.push(`/view-milestone/${id}`);
