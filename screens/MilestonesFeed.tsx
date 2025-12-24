@@ -446,24 +446,32 @@ export default function MilestonesFeed() {
           onPress={() => canInteract ? navigateToMilestone(item.id) : null}
         >
           <View style={styles.milestoneHeader}>
-            <View style={styles.milestoneIconContainer}>
-              <TouchableOpacity onPress={() => canInteract ? navigateToProfile(item.authorId) : null}>
-                <Image 
-                  source={{ uri: getOptimalImageUrl(item.authorProfileThumbnailUrl, item.authorProfileImageUrl) }} 
-                  style={styles.profilePic}
-                />
-              </TouchableOpacity>
-            </View>
-            
-            <View style={styles.milestoneTitleContainer}>
-              <Text style={styles.milestoneType}>
-                {item.authorUsername}
-              </Text>
-              <Text style={styles.milestoneDate}>
-                {formatTimeAgo(item.createdAt)}
-                {hasStatus && <Text style={{color: statusColor}}> • {statusText}</Text>}
-              </Text>
-            </View>
+            <TouchableOpacity 
+              style={styles.userInfoContainer}
+              onPress={() => canInteract ? navigateToProfile(item.authorId) : null}
+            >
+              <Image 
+                source={{ uri: getOptimalImageUrl(item.authorProfileThumbnailUrl, item.authorProfileImageUrl) }} 
+                style={styles.profilePic}
+              />
+              <View>
+                <Text style={styles.milestoneType}>
+                  {item.authorUsername}
+                </Text>
+                <View style={styles.timestampContainer}>
+                  <Text style={styles.milestoneDate}>
+                    {formatTimeAgo(item.createdAt)}
+                    {hasStatus && <Text style={{color: statusColor}}> • {statusText}</Text>}
+                  </Text>
+                  <Ionicons 
+                    name={item.isPublic ? "earth-outline" : "people"} 
+                    size={12} 
+                    color="#8E8E93" 
+                    style={styles.visibilityIcon}
+                  />
+                </View>
+              </View>
+            </TouchableOpacity>
             
             {/* Post Preview (if available) */}
             {canInteract && item.imageUrl && (
@@ -667,32 +675,39 @@ const styles = StyleSheet.create({
   milestoneHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 15,
+    justifyContent: 'space-between',
+    paddingHorizontal: 15,
+    paddingVertical: 12,
   },
-  milestoneIconContainer: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    overflow: 'hidden', 
-    marginRight: 12,
-  },
-  profilePic: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-  },
-  milestoneTitleContainer: {
+  userInfoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
     flex: 1,
   },
+  profilePic: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 10,
+    borderWidth: 2,
+    borderColor: '#1C1C1E',
+  },
   milestoneType: {
+    fontWeight: '600',
+    fontSize: 15,
     color: '#FFF',
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 4,
   },
   milestoneDate: {
-    color: '#999',
     fontSize: 12,
+    color: '#8E8E93',
+  },
+  timestampContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 2,
+  },
+  visibilityIcon: {
+    marginLeft: 4,
   },
   postPreviewContainer: {
     width: 60,
