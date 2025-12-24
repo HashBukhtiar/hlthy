@@ -241,9 +241,9 @@ export default function MilestonesFeed() {
           {details.previousValue && (
             <View style={styles.centeredRow}>
               <View style={styles.previousBestRow}>
-                <Text style={styles.previousBestLabel}>Previous Best:</Text>
+                <Text style={styles.previousBestLabel}>Previous Best: </Text>
                 <View style={styles.prMetricGroup}>
-                  <Text style={styles.previousBestValue}>{previousDisplayValue}</Text>
+                  <Text style={styles.previousBestValue}>{previousDisplayValue} </Text>
                   <Text style={styles.previousBestUnit}>{previousDisplayUnit}</Text>
                 </View>
                 {details.previousReps && (
@@ -251,7 +251,7 @@ export default function MilestonesFeed() {
                     <Text style={styles.previousBestSeparator}>×</Text>
                     <View style={styles.prMetricGroup}>
                       <Text style={styles.previousBestValue}>{details.previousReps}</Text>
-                      <Text style={styles.previousBestUnit}>reps</Text>
+                      <Text style={styles.previousBestUnit}> reps</Text>
                     </View>
                   </>
                 )}
@@ -315,7 +315,7 @@ export default function MilestonesFeed() {
           {details.previousWeight && (
             <View style={styles.centeredRow}>
               <View style={styles.previousBestRow}>
-                <Text style={styles.previousBestLabel}>Previous Weight:</Text>
+                <Text style={styles.previousBestLabel}>Previous Weight: </Text>
                 <View style={styles.prMetricGroup}>
                   <Text style={styles.previousBestValue}>{previousDisplayWeight}</Text>
                   <Text style={styles.previousBestUnit}>{previousDisplayWeightUnit}</Text>
@@ -804,17 +804,15 @@ const styles = StyleSheet.create({
   previousBestLabel: {
     color: '#777',
     fontSize: 14,
-    marginRight: 6,
   },
   previousBestValue: {
     color: '#777',
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 14,
+    fontWeight: '700',
   },
   previousBestUnit: {
     color: '#777',
-    fontSize: 12,
-    marginLeft: 2,
+    fontSize: 14,
   },
   previousBestSeparator: {
     color: '#777',
