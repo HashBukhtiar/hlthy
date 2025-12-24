@@ -64,6 +64,15 @@ export default function MilestonesFeed() {
     return timestamp.toLocaleDateString();
   }, []);
   
+  // Format the date as "Month Day"
+  const formatDate = useCallback((date: any): string => {
+    if (!date) return '';
+    
+    const timestamp = date.toDate ? date.toDate() : new Date(date);
+    const options: Intl.DateTimeFormatOptions = { month: 'long', day: 'numeric', year: 'numeric' };
+    return timestamp.toLocaleDateString('en-US', options);
+  }, []);
+  
   const handleLike = useCallback(async (milestoneId: string, isCurrentlyLiked: boolean) => {
     if (!currentUser || !userProfile) {
       Alert.alert('Please log in', 'You need to be logged in to like milestones.');
@@ -245,7 +254,7 @@ export default function MilestonesFeed() {
               <Text style={styles.previousPRTitle}>
                 {details.exerciseName || 'Personal Record'}
               </Text>
-              <Text style={styles.previousPRDate}>{formatTimeAgo(milestone.createdAt)}</Text>
+              <Text style={styles.previousPRDate}>{formatDate(milestone.createdAt)}</Text>
             </View>
             
             <View style={styles.previousPRContent}>
@@ -328,7 +337,7 @@ export default function MilestonesFeed() {
             <View style={styles.previousPRHeader}>
               <Ionicons name="fitness-outline" size={18} color="#FF5E69" />
               <Text style={styles.previousPRTitle}>{isLoss ? 'Weight Loss' : 'Weight Gain'}</Text>
-              <Text style={styles.previousPRDate}>{formatTimeAgo(milestone.createdAt)}</Text>
+              <Text style={styles.previousPRDate}>{formatDate(milestone.createdAt)}</Text>
             </View>
             
             <View style={styles.previousPRContent}>
@@ -357,7 +366,7 @@ export default function MilestonesFeed() {
     }
     
     return null;
-  }, [formatTimeAgo, getWeightUnit, getDistanceUnit]);
+  }, [formatDate, getWeightUnit, getDistanceUnit]);
 
   const formatDuration = (durationSeconds: number): string => {
     const hours = Math.floor(durationSeconds / 3600);
