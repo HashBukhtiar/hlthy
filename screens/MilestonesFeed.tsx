@@ -405,12 +405,21 @@ export default function MilestonesFeed() {
       );
     }
     
-    // For pinned or regular milestones
-    return (
-      <View style={milestone.pinned ? styles.pinnedWrapper : null}>
-        <View style={wrapperStyle}>
-          {innerContent}
+    // For pinned milestones
+    if (milestone.pinned) {
+      return (
+        <View style={styles.pinnedWrapper}>
+          <View style={wrapperStyle}>
+            {innerContent}
+          </View>
         </View>
+      );
+    }
+    
+    // Regular milestones
+    return (
+      <View style={wrapperStyle}>
+        {innerContent}
       </View>
     );
   }, []);
@@ -515,7 +524,7 @@ export default function MilestonesFeed() {
     if (!loadingMore) return null;
     return (
       <View style={styles.loadingFooter}>
-        <ActivityIndicator size="large" color="#0A84FF" />
+        <ActivityIndicator size="large" color="#FFF" />
         <Text style={styles.loadingText}>Loading more milestones...</Text>
       </View>
     );
@@ -526,7 +535,7 @@ export default function MilestonesFeed() {
     if (loading) {
       return (
         <View style={styles.emptyMilestonesContainer}>
-          <ActivityIndicator size="large" color="#0A84FF" />
+          <ActivityIndicator size="large" color="#FFF" />
           <Text style={styles.emptyMilestonesText}>Loading milestones...</Text>
         </View>
       );
@@ -562,23 +571,19 @@ export default function MilestonesFeed() {
   }
   
   return (
-    <View style={{ flex: 1 }}>
+    <>
       <FlatList
         data={filteredMilestones}
         keyExtractor={(item) => item.id}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={milestones.length === 0 ? { flex: 1 } : styles.milestonesContainer}
-        renderItem={({ item }) => (
-          <View style={styles.milestoneContainer}>
-            {renderMilestoneCard(item)}
-          </View>
-        )}
+        contentContainerStyle={milestones.length === 0 ? styles.emptyContainer : styles.milestonesContainer}
+        renderItem={({ item }) => renderMilestoneCard(item)}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={refreshFeed}
-            colors={['#0A84FF']}
-            tintColor="#0A84FF"
+            colors={['#FFF']}
+            tintColor="#FFF"
           />
         }
         onEndReached={loadMorePosts}
@@ -595,58 +600,68 @@ export default function MilestonesFeed() {
         onClose={() => setShareModalVisible(false)}
         onShareWith={handleShareWithUser}
       />
-    </View>
+    </>
   );
 }
 
 // Add the missing styles
 const styles = StyleSheet.create({
-  milestonesContainer: {
+  postsContainer: {
+    paddingTop: 12,
     paddingBottom: 70,
+    backgroundColor: '#2C2C2E',
   },
-  milestoneContainer: {
-    paddingTop: 15,
-    paddingBottom: 10,
+  emptyContainer: {
+    flex: 1,
+  },
+  milestonesContainer: {
+    paddingTop: 12,
+    paddingBottom: 70,
+    backgroundColor: '#2C2C2E',
   },
   milestoneCard: {
-    backgroundColor: '#1A1A1A',
-    borderRadius: 12,
+    marginBottom: 12,
+    marginHorizontal: 12,
+    backgroundColor: '#000',
+    borderRadius: 16,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#333',
+    borderColor: '#1C1C1E',
   },
   gradientWrapper: {
-    borderRadius: 12,
+    marginBottom: 12,
+    marginHorizontal: 12,
+    borderRadius: 16,
     overflow: 'hidden',
   },
   gradientBorder: {
     padding: 2,
-    borderRadius: 12,
-    backgroundColor: '#1A1A1A',
+    borderRadius: 16,
+    backgroundColor: '#000',
     overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: '#333',
   },
   gradientInnerContainer: {
-    backgroundColor: '#1A1A1A',
-    borderRadius: 10,
+    backgroundColor: '#000',
+    borderRadius: 14,
     overflow: 'hidden',
   },
   pinnedWrapper: {
-    borderRadius: 12,
+    marginBottom: 12,
+    marginHorizontal: 12,
+    borderRadius: 16,
     overflow: 'hidden',
   },
   pinnedBorder: {
     padding: 2,
-    borderRadius: 12,
+    borderRadius: 16,
     borderColor: 'rgba(255, 94, 105, 0.75)',
     borderWidth: 2,
-    backgroundColor: '#1A1A1A',
+    backgroundColor: '#000',
     overflow: 'hidden',
   },
   pinnedInnerContainer: {
-    backgroundColor: '#1A1A1A',
-    borderRadius: 10,
+    backgroundColor: '#000',
+    borderRadius: 14,
     overflow: 'hidden',
   },
   milestoneHeader: {
@@ -823,7 +838,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loadingText: {
-    color: '#999',
+    color: '#8E8E93',
     marginTop: 10,
   },
   emptyMilestonesContainer: {
@@ -841,19 +856,19 @@ const styles = StyleSheet.create({
   },
   emptyMilestonesText: {
     fontSize: 16,
-    color: '#999',
+    color: '#8E8E93',
     textAlign: 'center',
     lineHeight: 24,
     marginBottom: 30,
   },
   createButton: {
-    backgroundColor: '#0A84FF',
+    backgroundColor: '#FF6B6B',
     paddingHorizontal: 30,
     paddingVertical: 12,
     borderRadius: 25,
   },
   createButtonText: {
-    color: '#FFF',
+    color: '#000',
     fontWeight: '600',
     fontSize: 16,
   },
