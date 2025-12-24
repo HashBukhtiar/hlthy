@@ -733,7 +733,7 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   previousPRCard: {
-    backgroundColor: '#1A1A1A',
+    backgroundColor: '#111',
     borderRadius: 12,
     marginBottom: 10,
     borderWidth: 1,

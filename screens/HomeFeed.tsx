@@ -107,6 +107,7 @@ export default function HomeFeed() {
       <View style={styles.tabBar}>
         <TouchableOpacity 
           style={styles.tabButton}
+          activeOpacity={0.8}
           onPress={() => {
             setActiveTab(TabType.POSTS);
             flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
@@ -121,6 +122,7 @@ export default function HomeFeed() {
         </TouchableOpacity>
         <TouchableOpacity 
           style={styles.tabButton}
+          activeOpacity={0.8}
           onPress={() => {
             setActiveTab(TabType.MILESTONES);
             flatListRef.current?.scrollToOffset({ offset: screenWidth, animated: true });
