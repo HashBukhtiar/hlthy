@@ -499,34 +499,31 @@ export default function MilestonesFeed() {
                 <View style={styles.timestampContainer}>
                   <Text style={styles.milestoneDate}>
                     {formatTimeAgo(item.createdAt)}
-                    {hasStatus && <Text style={{color: statusColor}}> • {statusText}</Text>}
+                    {hasStatus && <Text style={{color: statusColor}}> {statusText}</Text>}
                   </Text>
-                  <Ionicons 
-                    name={item.isPublic ? "earth-outline" : "people"} 
-                    size={12} 
-                    color="#8E8E93" 
-                    style={styles.visibilityIcon}
-                  />
+                  {canInteract && item.imageUrl && item.associatedPostId && (
+                    <TouchableOpacity
+                      onPress={() => navigateToPost(item.associatedPostId || '')}
+                      activeOpacity={0.7}
+                      hitSlop={{ top: 10, bottom: 10, left: 5, right: 5 }}
+                    >
+                      <Text style={styles.associatedPostLink}>
+                        {' '}• View Associated Post <Text style={styles.chevronText}>›</Text>
+                      </Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
               </View>
             </TouchableOpacity>
             
-            {/* Post Preview (if available) */}
-            {canInteract && item.imageUrl && (
-              <TouchableOpacity 
-                style={styles.postPreviewContainer}
-                onPress={() => navigateToPost(item.associatedPostId || '')}
-                activeOpacity={0.9}
-              >
-                <Image 
-                  source={{ uri: getOptimalImageUrl(item.imageUrl, item.imageUrl) }} 
-                  style={styles.postPreviewImage} 
-                />
-                <View style={styles.postPreviewOverlay}>
-                  <Ionicons name="camera" size={12} color="#FFF" />
-                </View>
-              </TouchableOpacity>
-            )}
+            {/* Three-dot menu */}
+            <TouchableOpacity 
+              style={styles.menuButton}
+              onPress={() => {}}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="ellipsis-horizontal" size={20} color="#8E8E93" />
+            </TouchableOpacity>
           </View>
           
           {/* Milestone Details */}
@@ -742,28 +739,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 2,
   },
-  visibilityIcon: {
-    marginLeft: 4,
+  menuButton: {
+    padding: 8,
+    marginRight: -8,
   },
-  postPreviewContainer: {
-    width: 60,
-    height: 60,
-    borderRadius: 8,
-    overflow: 'hidden',
-    marginLeft: 10,
+  associatedPostLink: {
+    color: '#8E8E93',
+    fontSize: 12,
+    // fontWeight: '500',
+    // color: '#FF6B6B',
   },
-  postPreviewImage: {
-    width: '100%',
-    height: '100%',
-  },
-  postPreviewOverlay: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    paddingVertical: 2,
-    alignItems: 'center',
+  chevronText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
   detailsContainer: {
     padding: 15,

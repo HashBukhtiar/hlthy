@@ -401,7 +401,7 @@ export default function PostsFeed() {
           </TouchableOpacity>
           {canInteract && (
             <TouchableOpacity style={styles.moreButton}>
-              <Ionicons name="ellipsis-horizontal" size={20} color="#FFF" />
+              <Ionicons name="ellipsis-horizontal" size={20} color="#8E8E93" />
             </TouchableOpacity>
           )}
         </View>
