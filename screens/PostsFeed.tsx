@@ -711,8 +711,6 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 20,
     marginRight: 10,
-    borderWidth: 2,
-    borderColor: '#1C1C1E',
   },
   username: {
     fontWeight: '600',
