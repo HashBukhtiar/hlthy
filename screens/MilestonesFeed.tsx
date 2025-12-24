@@ -8,10 +8,19 @@ import {
   FlatList,
   Alert,
   ActivityIndicator,
-  RefreshControl
+  RefreshControl,
+  LayoutAnimation,
+  Platform,
+  UIManager
 } from 'react-native';
+
+// Enable LayoutAnimation on Android
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 import { useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import ShareModal from '@/components/ShareModal';
 import { shareMilestone } from '@/services/ShareService';
@@ -61,6 +70,18 @@ export default function MilestonesFeed() {
       return;
     }
 
+    // Haptic feedback
+    Haptics.impactAsync(isCurrentlyLiked ? Haptics.ImpactFeedbackStyle.Light : Haptics.ImpactFeedbackStyle.Medium);
+
+    // Configure smooth animation (exclude opacity to avoid TouchableOpacity conflicts)
+    LayoutAnimation.configureNext({
+      duration: 200,
+      update: {
+        type: LayoutAnimation.Types.easeInEaseOut,
+        property: LayoutAnimation.Properties.scaleXY,
+      },
+    });
+
     // Optimistic update - update UI immediately
     setMilestones(prevMilestones => 
       prevMilestones.map(milestone => 
@@ -84,6 +105,14 @@ export default function MilestonesFeed() {
       }
     } catch (error) {
       console.error('Error toggling milestone like:', error);
+      // Animate the revert as well
+      LayoutAnimation.configureNext({
+        duration: 200,
+        update: {
+          type: LayoutAnimation.Types.easeInEaseOut,
+          property: LayoutAnimation.Properties.scaleXY,
+        },
+      });
       // Revert optimistic update on error
       setMilestones(prevMilestones => 
         prevMilestones.map(milestone => 
@@ -505,13 +534,11 @@ export default function MilestonesFeed() {
               <Ionicons 
                 name={item.isLiked ? "heart" : "heart-outline"} 
                 size={20} 
-                color={item.isLiked ? "#FF69B4" : "#FFF"} 
+                color={item.isLiked ? "#FF6B6B" : "#FFF"} 
+                style={styles.statIcon}
               />
-              <Text style={styles.footerButtonText}>
-                {item.reactionCount > 0 
-                  ? `${item.reactionCount}` 
-                  : "Like"}
-              </Text>
+              <Text style={styles.statNumber}>{item.reactionCount || 0}</Text>
+              <Text style={styles.statLabel}> {item.reactionCount === 1 ? 'Like' : 'Likes'}</Text>
             </TouchableOpacity>
             
             <TouchableOpacity 
@@ -844,6 +871,19 @@ const styles = StyleSheet.create({
     marginRight: 12,
     backgroundColor: 'transparent',
     flex: 1,
+  },
+  statIcon: {
+    marginRight: 6,
+  },
+  statNumber: {
+    color: '#FFF',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  statLabel: {
+    color: '#FFF',
+    fontSize: 14,
+    fontWeight: '400',
   },
   footerButtonText: {
     color: '#fff',
