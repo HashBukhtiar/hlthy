@@ -171,7 +171,7 @@ export default function MilestonesFeed() {
           } else if (originalUnit === 'lbs' && preferredWeightUnit === 'kg') {
             convertedValue = Math.round(displayValue * 0.453592 * 10) / 10;
           }
-          displayUnit = `${preferredWeightUnit} (${displayValue} ${originalUnit})`;
+          displayUnit = preferredWeightUnit;
         } else {
           displayUnit = preferredWeightUnit;
         }
@@ -183,7 +183,7 @@ export default function MilestonesFeed() {
           } else if (originalUnit === 'miles' && preferredDistanceUnit === 'km') {
             convertedValue = Math.round(displayValue * 1.60934 * 10) / 10;
           }
-          displayUnit = `${preferredDistanceUnit} (${displayValue} ${originalUnit})`;
+          displayUnit = preferredDistanceUnit;
         } else {
           displayUnit = preferredDistanceUnit;
         }
@@ -275,7 +275,7 @@ export default function MilestonesFeed() {
         } else if (originalWeightUnit === 'lbs' && preferredWeightUnit === 'kg') {
           displayWeight = Math.round(details.newWeight * 0.453592 * 10) / 10;
         }
-        displayWeightUnit = `${preferredWeightUnit} (${details.newWeight} ${originalWeightUnit})`;
+        displayWeightUnit = preferredWeightUnit;
       } else {
         displayWeightUnit = preferredWeightUnit;
       }
