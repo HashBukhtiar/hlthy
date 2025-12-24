@@ -862,6 +862,8 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     borderTopWidth: 1,
     borderTopColor: '#333',
+    justifyContent: 'center',
+    gap: 12,
   },
   footerButton: {
     flexDirection: 'row',
@@ -870,7 +872,6 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 20,
-    marginRight: 12,
     backgroundColor: 'transparent',
     flex: 1,
   },
