@@ -66,7 +66,7 @@ export default function HomeFeed() {
         <View style={styles.leftContainer}>
           <View style={styles.logoContainer}>
             <View style={styles.logoIcon}>
-              <Ionicons name="accessibility-outline" size={24} color="#000" />
+              <Ionicons name="cube-outline" size={24} color="#000" />
             </View>
             <Text style={styles.logoText}>hlthy</Text>
           </View>
@@ -234,7 +234,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#1C1C1E',
+    backgroundColor: '#2C2C2E',
     justifyContent: 'center',
     alignItems: 'center',
     marginLeft: 8,
