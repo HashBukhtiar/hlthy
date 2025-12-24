@@ -103,37 +103,50 @@ export default function HomeFeed() {
   }
 
   function renderTabBar() {
+    // Interpolate colors for smooth transitions
+    const postsColor = scrollX.interpolate({
+      inputRange: [0, screenWidth],
+      outputRange: ['rgba(255, 255, 255, 1)', 'rgba(102, 102, 102, 1)'],
+      extrapolate: 'clamp'
+    });
+
+    const milestonesColor = scrollX.interpolate({
+      inputRange: [0, screenWidth],
+      outputRange: ['rgba(102, 102, 102, 1)', 'rgba(255, 255, 255, 1)'],
+      extrapolate: 'clamp'
+    });
+
     return (
       <View style={styles.tabBar}>
         <TouchableOpacity 
           style={styles.tabButton}
-          activeOpacity={0.8}
+          activeOpacity={1}
           onPress={() => {
             setActiveTab(TabType.POSTS);
             flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
           }}
         >
-          <Text style={[
-            styles.tabButtonText, 
-            activeTab === TabType.POSTS && styles.activeTabButtonText
+          <Animated.Text style={[
+            styles.tabButtonText,
+            { color: postsColor }
           ]}>
             POSTS
-          </Text>
+          </Animated.Text>
         </TouchableOpacity>
         <TouchableOpacity 
           style={styles.tabButton}
-          activeOpacity={0.8}
+          activeOpacity={1}
           onPress={() => {
             setActiveTab(TabType.MILESTONES);
             flatListRef.current?.scrollToOffset({ offset: screenWidth, animated: true });
           }}
         >
-          <Text style={[
-            styles.tabButtonText, 
-            activeTab === TabType.MILESTONES && styles.activeTabButtonText
+          <Animated.Text style={[
+            styles.tabButtonText,
+            { color: milestonesColor }
           ]}>
             MILESTONES
-          </Text>
+          </Animated.Text>
         </TouchableOpacity>
         
         {/* Animated indicator that moves with swipe */}
@@ -260,12 +273,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#FF6B6B',
   },
   tabButtonText: {
-    color: '#666',
     fontSize: 13,
     fontWeight: 'bold',
-  },
-  activeTabButtonText: {
-    color: 'white',
   },
   tabContent: {
     flex: 1,
