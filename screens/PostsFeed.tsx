@@ -522,7 +522,7 @@ export default function PostsFeed() {
             <View style={styles.attachedItemContent}>
               <View style={styles.attachedItemInfo}>
                 <View style={styles.workoutIconContainer}>
-                  <Ionicons name="trophy-outline" size={18} color="#FFF" />
+                  <Ionicons name="trophy" size={18} color="#000" />
                 </View>
                 <View>
                   <Text style={styles.attachedItemTitle}>
