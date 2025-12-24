@@ -827,8 +827,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 8,
-    marginBottom: 10,
+    marginTop: 0,
+    marginBottom: 4,
   },
   previousBestLabel: {
     color: '#777',
