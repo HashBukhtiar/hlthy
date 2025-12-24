@@ -687,7 +687,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   postContainer: {
-    marginBottom: 20,
+    marginBottom: 12,
     marginHorizontal: 12,
     backgroundColor: '#000',
     borderRadius: 16,
