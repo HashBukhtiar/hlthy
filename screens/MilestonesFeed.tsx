@@ -530,6 +530,7 @@ export default function MilestonesFeed() {
             <TouchableOpacity 
               style={styles.footerButton}
               onPress={() => handleLike(item.id, item.isLiked)}
+              activeOpacity={0.8}
             >
               <Ionicons 
                 name={item.isLiked ? "heart" : "heart-outline"} 
@@ -544,6 +545,7 @@ export default function MilestonesFeed() {
             <TouchableOpacity 
               style={styles.footerButton}
               onPress={() => handleShare(item)}
+              activeOpacity={0.8}
             >
               <Ionicons name="paper-plane-outline" size={20} color="#FFF" />
               <Text style={styles.footerButtonText}>Share</Text>

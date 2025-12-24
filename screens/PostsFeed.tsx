@@ -436,7 +436,7 @@ export default function PostsFeed() {
               <TouchableOpacity 
                 style={styles.statItem}
                 onPress={() => handleToggleLike(item.id, item.isLiked || false)}
-                activeOpacity={0.6}
+                activeOpacity={0.8}
               >
                 <Ionicons 
                   name={item.isLiked ? "heart" : "heart-outline"} 
@@ -450,7 +450,7 @@ export default function PostsFeed() {
               <TouchableOpacity 
                 style={styles.statItem}
                 onPress={() => handleViewPost(item.id)}
-                activeOpacity={0.6}
+                activeOpacity={0.8}
               >
                 <Ionicons name="chatbubble-outline" size={20} color="#FFF" style={styles.statIcon} />
                 <Text style={styles.statNumber}>{item.commentCount || 0}</Text>
@@ -460,7 +460,7 @@ export default function PostsFeed() {
             <View style={styles.statsRight}>
               <TouchableOpacity 
                 style={styles.iconButtonSmall} 
-                activeOpacity={0.6}
+                activeOpacity={0.8}
                 onPress={() => handleSharePost(item)}
               >
                 <Ionicons name="paper-plane-outline" size={20} color="#FFF" />
@@ -468,7 +468,7 @@ export default function PostsFeed() {
               <TouchableOpacity 
                 style={styles.iconButtonSmall}
                 onPress={() => handleToggleBookmark(item.id, item.isBookmarked || false)}
-                activeOpacity={0.6}
+                activeOpacity={0.8}
               >
                 <Ionicons 
                   name={item.isBookmarked ? "bookmarks" : "bookmarks-outline"} 
