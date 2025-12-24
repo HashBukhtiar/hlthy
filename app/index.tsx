@@ -5,6 +5,8 @@ import { auth } from '@/firebaseConfig';
 import { onAuthStateChanged, signInWithEmailAndPassword, setPersistence, browserSessionPersistence } from 'firebase/auth';
 import { devFlags } from '@/config/devFlags';
 
+const { bypassAuth: BYPASS_AUTH, devEmail: DEV_EMAIL, devPassword: DEV_PASSWORD } = devFlags;
+
 // Log immediately when file loads
 console.log('===== INDEX.TSX FILE LOADED =====');
 console.log('Platform:', Platform.OS);
