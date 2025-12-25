@@ -91,17 +91,27 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   useEffect(() => {
+    console.log('[AuthContext] Setting up onAuthStateChanged listener');
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      
+      console.log('[AuthContext] onAuthStateChanged fired, user:', user?.uid || 'null');
       
       setCurrentUser(user);
       if (user) {
-  // Reload user to get latest email verification status
-  await reload(user);
+        console.log('[AuthContext] User exists, reloading user data...');
+        // Reload user to get latest email verification status
+        try {
+          await reload(user);
+          console.log('[AuthContext] User reloaded successfully');
+        } catch (reloadError) {
+          console.error('[AuthContext] Error reloading user:', reloadError);
+          // Continue anyway - don't block on reload failure
+        }
         
         // Fetch user profile data
         try {
+          console.log('[AuthContext] Fetching user profile from Firestore...');
           const userDoc = await getDoc(doc(db, "users", user.uid));
+          console.log('[AuthContext] User doc exists:', userDoc.exists());
           
           
           if (userDoc.exists()) {
@@ -140,20 +150,24 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
           // Initialize notifications after user data is loaded
           // Only if the user document exists (userDoc.exists() was true)
+          console.log('[AuthContext] Initializing notifications...');
           await initializeNotifications(user, userDoc.exists());
+          console.log('[AuthContext] Notifications initialized');
           
         } catch (error) {
-          console.error("Error fetching user profile:", error);
+          console.error("[AuthContext] Error fetching user profile:", error);
           // Don't set user profile on error, keep it null
           setUserProfile(null);
         }
       } else {
         // User signed out - clean up
+        console.log('[AuthContext] No user, clearing state');
         setCurrentUser(null);
         setUserProfile(null);
         setIsFromSignup(false); // Clear signup flag on sign out
         // Note: Don't try to clean tokens here as user is already signed out
       }
+      console.log('[AuthContext] Setting loading to false');
       setLoading(false);
     });
     
