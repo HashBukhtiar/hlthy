@@ -23,7 +23,10 @@ import { useBlockEnforcement } from '@/utils/blockUtils';
 import { FeedMilestone, MilestoneDetails, MilestoneStats } from '@/types/milestone';
 import { useUnits } from '@/hooks/useUnits';
 
+console.log('[MilestonesFeed] Module loaded');
+
 export default function MilestonesFeed() {
+  console.log('[MilestonesFeed] Component rendering');
   const router = useRouter();
   const { currentUser, userProfile } = useAuth();
   const { milestones: feedMilestones, loading, refreshing, loadingMore, hasMore, error, refreshFeed, loadMorePosts } = useFeedData();

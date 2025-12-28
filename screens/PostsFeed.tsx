@@ -20,7 +20,10 @@ import { useAuth } from '@/context/AuthContext';
 import { useBlockEnforcement } from '@/utils/blockUtils';
 import { OptimizedImageLight } from '@/components/OptimizedImage';
 
+console.log('[PostsFeed] Module loaded');
+
 export default function PostsFeed() {
+  console.log('[PostsFeed] Component rendering');
   const router = useRouter();
   const { currentUser, userProfile } = useAuth();
   const { posts: feedPosts, loading, refreshing, loadingMore, hasMore, error, refreshFeed, loadMorePosts } = useFeedData();
