@@ -23,11 +23,15 @@ enum TabType {
 }
 
 export default function HomeFeed() {
+  console.log('[HomeFeed] Component starting to render');
+  
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<TabType>(TabType.POSTS);
   const flatListRef = useRef<FlatList>(null);
   const { width: screenWidth } = Dimensions.get('window');
+  
+  console.log('[HomeFeed] Hooks initialized successfully');
   
   // Animated value for indicator position
   const indicatorWidth = screenWidth / 2;
