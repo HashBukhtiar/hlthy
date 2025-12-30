@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
-import { View, TouchableOpacity, StyleSheet, Animated, Dimensions } from 'react-native';
+import { View, TouchableOpacity, StyleSheet, Animated, Dimensions, ActivityIndicator } from 'react-native';
 import { useRouter, usePathname } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
@@ -87,9 +87,12 @@ function BottomButtons() {
   // BUT: only hide the bar if the user is coming from signup (isFromSignup === true)
   // If they logged in (isFromSignup === false), show the bar even if unverified
   if (!authLoading && currentUser && !userProfile) {
-    // User exists but profile not loaded yet - wait for profile
-    // waiting for user profile
-    return null;
+    // User exists but profile not loaded yet - show loading bar
+    return (
+      <View style={[styles.bottomBar, { height: BOTTOM_BAR_HEIGHT + insets.bottom, paddingBottom: insets.bottom }]}>
+        <ActivityIndicator size="small" color="#666" />
+      </View>
+    );
   }
   
   if (!authLoading && currentUser && userProfile && !(currentUser.emailVerified || userProfile.emailVerified) && isFromSignup) {
