@@ -99,7 +99,15 @@ export function useFeedData() {
   }, [currentUser?.uid]);
 
   const fetchFeedData = useCallback(async (isRefresh = false, isLoadMore = false) => {
-    if (!currentUser?.uid) return;
+    // Early return if no user - prevent Firestore permission errors
+    if (!currentUser?.uid) {
+      setPosts([]);
+      setMilestones([]);
+      setLoading(false);
+      setRefreshing(false);
+      setLoadingMore(false);
+      return;
+    }
 
     try {
       if (isRefresh) {
@@ -189,7 +197,7 @@ export function useFeedData() {
       setRefreshing(false);
       setLoadingMore(false);
     }
-  }, [currentUser?.uid, lastVisible, removeDuplicatePosts]);
+  }, [currentUser?.uid, lastVisible, removeDuplicatePosts, processPostsWithAuthorProfiles]);
 
   const fetchPublicPostsFallback = async (isRefresh = false) => {
     // Early return if no user (prevents errors during logout)
@@ -289,12 +297,14 @@ export function useFeedData() {
 
   // Initial load with real-time listener
   useEffect(() => {
-    // Clear data if no user
+    // Clear data immediately if no user
     if (!currentUser?.uid) {
       setPosts([]);
       setMilestones([]);
       setLoading(false);
       setError(null);
+      setLastVisible(null);
+      setHasMore(true);
       return;
     }
 

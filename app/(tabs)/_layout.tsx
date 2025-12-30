@@ -3,6 +3,7 @@ import { Tabs } from 'expo-router';
 import { View, StyleSheet } from 'react-native';
 import { useColorScheme } from '@/components/useColorScheme';
 import EmailVerificationGuard from '@/components/EmailVerificationGuard';
+import BottomButtons from '@/components/BottomButtons';
 
 console.log('[TabLayout] Module loaded');
 
@@ -15,19 +16,22 @@ export default function TabLayout() {
   return (
     <EmailVerificationGuard>
       <View style={styles.container}>
-        <Tabs
-          screenOptions={{
-            tabBarStyle: { display: 'none' },
-            headerShown: false,
-            lazy: false,
-            freezeOnBlur: false,
-          }}
-        >
-          <Tabs.Screen
-            name="index"
-            options={{ title: 'Home' }}
-          />
-        </Tabs>
+        <View style={styles.content}>
+          <Tabs
+            screenOptions={{
+              tabBarStyle: { display: 'none' },
+              headerShown: false,
+              lazy: false,
+              freezeOnBlur: false,
+            }}
+          >
+            <Tabs.Screen
+              name="index"
+              options={{ title: 'Home' }}
+            />
+          </Tabs>
+        </View>
+        <BottomButtons />
       </View>
     </EmailVerificationGuard>
   );
@@ -37,5 +41,8 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: 'black',
+  },
+  content: {
+    flex: 1,
   },
 });

@@ -147,7 +147,7 @@ export function usePostsData() {
 
   // Fetch all public posts
   const fetchPosts = async () => {
-    // Early return if no user
+    // Early return if no user - prevent Firestore permission errors
     if (!currentUser?.uid) {
       setPosts([]);
       setLoading(false);
@@ -155,14 +155,29 @@ export function usePostsData() {
     }
     
     try {
-      setLoading(true)
-      const postsRef = collection(db, "posts")
+      setLoading(true);
+      
+      // Double-check user still exists before Firestore query
+      if (!currentUser?.uid) {
+        setPosts([]);
+        setLoading(false);
+        return;
+      }
+      
+      const postsRef = collection(db, "posts");
       const q = query(
         postsRef,
         where("visibility", "==", "public"),
         orderBy("createdAt", "desc")
-      )
-      const querySnapshot = await getDocs(q)
+      );
+      const querySnapshot = await getDocs(q);
+
+      // Check again after async operation
+      if (!currentUser?.uid) {
+        setPosts([]);
+        setLoading(false);
+        return;
+      }
 
       const postsData: Post[] = []
       for (const snap of querySnapshot.docs) {
@@ -190,10 +205,13 @@ export function usePostsData() {
       }
       setPosts(postsData)
     } catch (err) {
-      console.error("Error fetching posts:", err)
-      setError(err as Error)
+      // Only set error if user is still logged in
+      if (currentUser?.uid) {
+        console.error("Error fetching posts:", err);
+        setError(err as Error);
+      }
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
@@ -980,10 +998,12 @@ export function usePostsData() {
 
   useEffect(() => {
     if (currentUser?.uid) {
-        fetchPosts(); // SHOULD fetchPosts() BE CALLED HERE??? COME BACK LATER
+      fetchPosts();
     } else {
-        setPosts([]);
-        setLoading(false);
+      // Clear everything on logout
+      setPosts([]);
+      setLoading(false);
+      setError(null);
     }
   }, [currentUser?.uid]);
 

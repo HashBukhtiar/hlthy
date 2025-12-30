@@ -1,30 +1,24 @@
 import 'react-native-get-random-values';
 import React from 'react';
-import { Stack, usePathname } from 'expo-router';
-import { useColorScheme } from '@/components/useColorScheme';
+import { Stack } from 'expo-router';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { View, StyleSheet, Platform } from 'react-native';
-import BottomButtons from '@/components/BottomButtons';
 import { AuthProvider } from '@/context/AuthContext';
 import { GlobalNetworkMonitor } from '@/components/GlobalNetworkMonitor';
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
-  const pathname = usePathname();
-
   return (
     <AuthProvider>
       <SafeAreaProvider>
         <View style={styles.container}>
           <GlobalNetworkMonitor />
-          <View style={styles.stackContainer}>
-            <Stack
-              screenOptions={{
-                headerShown: false,
-                contentStyle: { backgroundColor: 'black' },
-                animation: Platform.OS === 'android' ? 'fade' : 'none',
-              }}
-            >
+          <Stack
+            screenOptions={{
+              headerShown: false,
+              contentStyle: { backgroundColor: 'black' },
+              animation: Platform.OS === 'android' ? 'fade' : 'none',
+            }}
+          >
             {/* Auth screens with disabled swipe gestures */}
             <Stack.Screen name="landing" options={{ gestureEnabled: false }} />
             <Stack.Screen name="login" options={{ gestureEnabled: false }} />
@@ -50,11 +44,7 @@ export default function RootLayout() {
             <Stack.Screen name="workout-plan" />
             <Stack.Screen name="diet-plan" />
             <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
-            </Stack>
-          </View>
-          
-          {/* Bottom navigation that persists across route changes but hides on specific screens */}
-          <BottomButtons />
+          </Stack>
         </View>
       </SafeAreaProvider>
     </AuthProvider>
@@ -64,10 +54,6 @@ export default function RootLayout() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    position: 'relative',
     backgroundColor: 'black',
-  },
-  stackContainer: {
-    flex: 1,
   },
 });
