@@ -147,6 +147,13 @@ export function usePostsData() {
 
   // Fetch all public posts
   const fetchPosts = async () => {
+    // Early return if no user
+    if (!currentUser?.uid) {
+      setPosts([]);
+      setLoading(false);
+      return;
+    }
+    
     try {
       setLoading(true)
       const postsRef = collection(db, "posts")

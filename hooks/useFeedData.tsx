@@ -192,12 +192,20 @@ export function useFeedData() {
   }, [currentUser?.uid, lastVisible, removeDuplicatePosts]);
 
   const fetchPublicPostsFallback = async (isRefresh = false) => {
+    // Early return if no user (prevents errors during logout)
+    if (!currentUser?.uid) {
+      setPosts([]);
+      setMilestones([]);
+      setLoading(false);
+      return;
+    }
+    
     try {
       // Fallback to public posts if user has no personalized feed
       const postsRef = collection(db, 'posts');
       const publicQuery = query(
         postsRef,
-        where('authorId', '!=', currentUser!.uid),
+        where('authorId', '!=', currentUser.uid),
         where('visibility', '==', 'public'),
         orderBy('authorId'), 
         orderBy('createdAt', 'desc'),
@@ -206,9 +214,15 @@ export function useFeedData() {
 
       const publicSnapshot = await getDocs(publicQuery);
       
+      // Check if user still exists after async operation
+      if (!currentUser?.uid) return;
+      
       // Efficiently process all fetched public posts
       const postsData = publicSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Post & { id: string }));
       const publicPosts = await processPostsWithAuthorProfiles(postsData);
+
+      // Check if user still exists after async operation
+      if (!currentUser?.uid) return;
 
       // Remove duplicates before setting state
       const uniquePublicPosts = removeDuplicatePosts(publicPosts);
@@ -218,6 +232,10 @@ export function useFeedData() {
 
     } catch (err) {
       console.error('Error fetching public posts fallback:', err);
+      
+      // Don't continue if user logged out
+      if (!currentUser?.uid) return;
+      
       // If the compound query fails, try a simpler approach
       try {
         const postsRef = collection(db, 'posts');
@@ -230,14 +248,20 @@ export function useFeedData() {
 
         const simpleSnapshot = await getDocs(simpleQuery);
         
+        // Check if user still exists after async operation
+        if (!currentUser?.uid) return;
+        
         // Filter out user's own posts client-side
         const filteredPostDocs = simpleSnapshot.docs
-          .filter(doc => doc.data().authorId !== currentUser!.uid)
+          .filter(doc => doc.data().authorId !== currentUser.uid)
           .slice(0, BATCH_SIZE);
 
         // Efficiently process the filtered posts
         const postsData = filteredPostDocs.map(doc => ({ id: doc.id, ...doc.data() } as Post & { id: string }));
         const filteredPosts = await processPostsWithAuthorProfiles(postsData);
+
+        // Check if user still exists after async operation
+        if (!currentUser?.uid) return;
 
         const uniqueFilteredPosts = removeDuplicatePosts(filteredPosts);
         setPosts(uniqueFilteredPosts);
@@ -246,7 +270,9 @@ export function useFeedData() {
         
       } catch (fallbackErr) {
         console.error('Error in simple fallback query:', fallbackErr);
-        setError(fallbackErr as Error);
+        if (currentUser?.uid) {
+          setError(fallbackErr as Error);
+        }
       }
     }
   };
@@ -263,7 +289,16 @@ export function useFeedData() {
 
   // Initial load with real-time listener
   useEffect(() => {
-    if (!currentUser?.uid) return;
+    // Clear data if no user
+    if (!currentUser?.uid) {
+      setPosts([]);
+      setMilestones([]);
+      setLoading(false);
+      setError(null);
+      return;
+    }
+
+    let cancelled = false;
 
     const feedRef = collection(db, 'feeds', currentUser.uid, 'userFeed');
     const feedQuery = query(
@@ -274,10 +309,17 @@ export function useFeedData() {
 
     const unsubscribe = onSnapshot(feedQuery, 
       async (snapshot) => {
+        // Don't process if cancelled (user logged out)
+        if (cancelled) return;
+        
         if (snapshot.empty) {
           // No personalized feed data, use fallback
-          await fetchPublicPostsFallback();
-          setLoading(false);
+          if (!cancelled) {
+            await fetchPublicPostsFallback();
+          }
+          if (!cancelled) {
+            setLoading(false);
+          }
           return;
         }
 
@@ -285,12 +327,18 @@ export function useFeedData() {
         const postPromises = snapshot.docs.map(feedDoc => getDoc(doc(db, 'posts', feedDoc.id)));
         const postSnapshots = await Promise.all(postPromises);
         
+        // Check cancelled again after async operations
+        if (cancelled) return;
+        
         const postsData = postSnapshots
           .filter(doc => doc.exists())
           .map(doc => ({ id: doc.id, ...doc.data() } as Post & { id: string }));
 
         // Process posts to get author profiles and like status
         const feedPosts = await processPostsWithAuthorProfiles(postsData);
+
+        // Check cancelled again after async operations
+        if (cancelled) return;
 
         // Remove duplicates before setting state
         const uniqueFeedPosts = removeDuplicatePosts(feedPosts);
@@ -305,13 +353,19 @@ export function useFeedData() {
         }
       },
       (error) => {
+        // Don't report errors if cancelled
+        if (cancelled) return;
         console.error('Feed listener error:', error);
         setError(error as Error);
         setLoading(false);
       }
     );
-
-    return unsubscribe;
+    
+    // Cleanup function
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
   }, [currentUser?.uid, removeDuplicatePosts, processPostsWithAuthorProfiles]);
 
   return {

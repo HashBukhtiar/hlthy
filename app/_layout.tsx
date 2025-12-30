@@ -3,7 +3,7 @@ import React from 'react';
 import { Stack, usePathname } from 'expo-router';
 import { useColorScheme } from '@/components/useColorScheme';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, Platform } from 'react-native';
 import BottomButtons from '@/components/BottomButtons';
 import { AuthProvider } from '@/context/AuthContext';
 import { GlobalNetworkMonitor } from '@/components/GlobalNetworkMonitor';
@@ -17,13 +17,14 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <View style={styles.container}>
           <GlobalNetworkMonitor />
-          <Stack
-            screenOptions={{
-              headerShown: false,
-              contentStyle: { backgroundColor: 'black' },
-              animation: 'none',
-            }}
-          >
+          <View style={styles.stackContainer}>
+            <Stack
+              screenOptions={{
+                headerShown: false,
+                contentStyle: { backgroundColor: 'black' },
+                animation: Platform.OS === 'android' ? 'fade' : 'none',
+              }}
+            >
             {/* Auth screens with disabled swipe gestures */}
             <Stack.Screen name="landing" options={{ gestureEnabled: false }} />
             <Stack.Screen name="login" options={{ gestureEnabled: false }} />
@@ -49,7 +50,8 @@ export default function RootLayout() {
             <Stack.Screen name="workout-plan" />
             <Stack.Screen name="diet-plan" />
             <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
-          </Stack>
+            </Stack>
+          </View>
           
           {/* Bottom navigation that persists across route changes but hides on specific screens */}
           <BottomButtons />
@@ -63,5 +65,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     position: 'relative',
+    backgroundColor: 'black',
+  },
+  stackContainer: {
+    flex: 1,
   },
 });

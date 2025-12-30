@@ -89,7 +89,11 @@ function BottomButtons() {
   
   // During auth loading or waiting for profile, don't show navigation yet
   if (authLoading) {
-    return null;
+    return (
+      <View style={[styles.bottomBar, { height: BOTTOM_BAR_HEIGHT + insets.bottom, paddingBottom: insets.bottom }]}>
+        {/* Empty placeholder to maintain layout */}
+      </View>
+    );
   }
   
   if (!authLoading && currentUser && userProfile && !(currentUser.emailVerified || userProfile.emailVerified) && isFromSignup) {
