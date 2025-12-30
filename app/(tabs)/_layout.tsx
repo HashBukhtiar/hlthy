@@ -16,16 +16,18 @@ export default function TabLayout() {
 
     return (
       <EmailVerificationGuard>
-        <Tabs
-          screenOptions={{
-            tabBarStyle: { display: 'none' }, // Hide the tab bar since we're using our custom bottom navigation
-            headerShown: false, // Hide the header
-          }}>
-          <Tabs.Screen
-            name="index"
-            options={{ title: 'Home' }}
-          />
-        </Tabs>
+        <View style={{ flex: 1, backgroundColor: 'black' }}>
+          <Tabs
+            screenOptions={{
+              tabBarStyle: { display: 'none' },
+              headerShown: false,
+            }}>
+            <Tabs.Screen
+              name="index"
+              options={{ title: 'Home' }}
+            />
+          </Tabs>
+        </View>
       </EmailVerificationGuard>
     );
   } catch (error) {
