@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { View, StyleSheet, Dimensions, StatusBar } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Aurora from '@/components/Aurora';
+import { useScreenIsFocused } from '@/hooks/useScreenIsFocused';
 
 interface AuthBackgroundProps {
   children: React.ReactNode;
@@ -9,8 +10,7 @@ interface AuthBackgroundProps {
 
 export default function AuthBackground({ children }: AuthBackgroundProps) {
   const { height } = Dimensions.get('window');
-  // Default to showing aurora, no navigation dependency
-  const [showAurora, setShowAurora] = useState(true);
+  const isFocused = useScreenIsFocused();
 
   return (
     <View style={styles.container}>
@@ -23,7 +23,7 @@ export default function AuthBackground({ children }: AuthBackgroundProps) {
       />
       
       <View style={styles.auroraContainer}>
-        {showAurora && (
+        {isFocused && (
           <Aurora 
             colorStops={['#FF2D55', '#a434eb', '#5227FF']}
             speed={0.8}
