@@ -86,22 +86,14 @@ function BottomButtons() {
   // (userProfile.emailVerified is set to true during dev bypass)
   // BUT: only hide the bar if the user is coming from signup (isFromSignup === true)
   // If they logged in (isFromSignup === false), show the bar even if unverified
-  if (!authLoading && currentUser && !userProfile) {
-    // User exists but profile not loaded yet - show loading bar
-    return (
-      <View style={[styles.bottomBar, { height: BOTTOM_BAR_HEIGHT + insets.bottom, paddingBottom: insets.bottom }]}>
-        <ActivityIndicator size="small" color="#666" />
-      </View>
-    );
+  
+  // During auth loading or waiting for profile, don't show navigation yet
+  if (authLoading) {
+    return null;
   }
   
   if (!authLoading && currentUser && userProfile && !(currentUser.emailVerified || userProfile.emailVerified) && isFromSignup) {
     // user not verified AND came from signup - hide the bar
-    return null;
-  }
-
-  // During auth loading, don't show navigation
-  if (authLoading) {
     return null;
   }
 

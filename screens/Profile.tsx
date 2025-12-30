@@ -1002,6 +1002,24 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.profileHeader}>
+          {/* Settings Button (Own Profile) - even in error state */}
+          {isOwnProfile && (
+            <TouchableOpacity
+              style={styles.settingsButton}
+              onPress={handleSettingsPress}
+            >
+              <Ionicons name="settings-outline" size={24} color="white" />
+            </TouchableOpacity>
+          )}
+          {/* Back Button (Other's Profile) */}
+          {!isOwnProfile && router.canGoBack() && (
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => router.back()}
+            >
+              <Ionicons name="arrow-back" size={28} color="white" />
+            </TouchableOpacity>
+          )}
           <Image
             source={{
               uri: getOptimalImageUrl(
