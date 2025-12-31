@@ -1,6 +1,71 @@
 import {admin, getDb} from "./firebaseAdmin";
 import {onDocumentCreated, onDocumentWritten} from "firebase-functions/v2/firestore";
 
+export const createactivityonfollowrequest = onDocumentCreated(
+  {
+    document: "users/{targetUserId}/pendingFollowers/{requestingUserId}",
+    region: "northamerica-northeast2",
+  },
+  async (event) => {
+    console.log(`CAOFR triggered for target: ${event.params.targetUserId}, from: ${event.params.requestingUserId}`);
+    const db = getDb();
+    const snapshot = event.data;
+    if (!snapshot) {
+      console.log("No data associated with the event for createactivityonfollowrequest");
+      return;
+    }
+
+    const {targetUserId, requestingUserId} = event.params;
+
+    if (targetUserId === requestingUserId) {
+      console.log("User cannot request to follow themselves. Skipping activity creation.");
+      return;
+    }
+
+    try {
+      const requestingUserDoc = await db
+        .collection("users")
+        .doc(requestingUserId)
+        .get();
+      if (!requestingUserDoc.exists) {
+        console.error(
+          `Requesting user ${requestingUserId} not found for follow request. Cannot create activity.`
+        );
+        return;
+      }
+      const requestingUserData = requestingUserDoc.data();
+
+      const activityData = {
+        type: "follow_request",
+        fromUserId: requestingUserId,
+        fromUsername: requestingUserData?.username || "Unknown User",
+        fromProfileImageUrl: requestingUserData?.profileImageUrl || "",
+        fromProfileThumbnailUrl: requestingUserData?.profileThumbnailUrl || "",
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        isRead: false,
+        status: "pending",
+      };
+
+      console.log(`Attempting to write activity data for ${targetUserId}:`, JSON.stringify(activityData));
+
+      await db
+        .collection("activity")
+        .doc(targetUserId)
+        .collection("userActivity")
+        .add(activityData);
+
+      console.log(
+        `Follow request activity created in /activity/${targetUserId}/userActivity for ${targetUserId} from ${requestingUserId}`
+      );
+    } catch (error) {
+      console.error(
+        "Error in createactivityonfollowrequest:",
+        error
+      );
+    }
+  }
+);
+
 export const createactivityonpostlike = onDocumentCreated(
   {
     document: "posts/{postId}/likers/{userId}",
@@ -43,8 +108,10 @@ export const createactivityonpostlike = onDocumentCreated(
         fromUserId: reactingUserId,
         fromUsername: reactingUserData?.username || "Someone",
         fromProfileImageUrl: reactingUserData?.profileImageUrl || "",
+        fromProfileThumbnailUrl: reactingUserData?.profileThumbnailUrl || "",
         postId: postId,
-        postImageUrl: postData?.imageUrl || postData?.thumbnailUrl || "",
+        postImageUrl: postData?.imageUrl || "",
+        postThumbnailUrl: postData?.thumbnailUrl || "",
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         isRead: false,
       };
@@ -107,8 +174,10 @@ export const createactivityonpostcomment = onDocumentCreated(
         fromUserId: commentAuthorId,
         fromUsername: commentAuthorData?.username || "Someone",
         fromProfileImageUrl: commentAuthorData?.profileImageUrl || "",
+        fromProfileThumbnailUrl: commentAuthorData?.profileThumbnailUrl || "",
         postId: postId,
-        postImageUrl: postData?.imageUrl || postData?.thumbnailUrl || "",
+        postImageUrl: postData?.imageUrl || "",
+        postThumbnailUrl: postData?.thumbnailUrl || "",
         commentId: commentId,
         commentText: commentData.text ? commentData.text.substring(0, 100) : "",
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -163,12 +232,19 @@ export const createactivityoncommentlike = onDocumentWritten(
         if (!likerUserDoc.exists) return;
         const likerUserData = likerUserDoc.data();
 
+        // Fetch post data to get image URLs
+        const postDoc = await db.collection("posts").doc(postId).get();
+        const postData = postDoc.exists ? postDoc.data() : null;
+
         const activityData = {
           type: "comment_like",
           fromUserId: newLiker,
           fromUsername: likerUserData?.username || "Someone",
           fromProfileImageUrl: likerUserData?.profileImageUrl || "",
+          fromProfileThumbnailUrl: likerUserData?.profileThumbnailUrl || "",
           postId: postId,
+          postImageUrl: postData?.imageUrl || "",
+          postThumbnailUrl: postData?.thumbnailUrl || "",
           commentId: commentId,
           commentText: afterData.text ? afterData.text.substring(0, 50) + (afterData.text.length > 50 ? "..." : "") : "",
           createdAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -212,12 +288,19 @@ export const createactivityoncommentreply = onDocumentCreated(
       if (!replyAuthorDoc.exists) return;
       const replyAuthorData = replyAuthorDoc.data();
 
+      // Fetch post data to get image URLs
+      const postDoc = await db.collection("posts").doc(postId).get();
+      const postData = postDoc.exists ? postDoc.data() : null;
+
       const activityData = {
         type: "comment_reply",
         fromUserId: replyAuthorId,
         fromUsername: replyAuthorData?.username || "Someone",
         fromProfileImageUrl: replyAuthorData?.profileImageUrl || "",
+        fromProfileThumbnailUrl: replyAuthorData?.profileThumbnailUrl || "",
         postId: postId,
+        postImageUrl: postData?.imageUrl || "",
+        postThumbnailUrl: postData?.thumbnailUrl || "",
         commentId: commentId,
         replyId: replyId,
         commentText: replyData.text ? replyData.text.substring(0, 50) + (replyData.text.length > 50 ? "..." : "") : "",
@@ -271,12 +354,19 @@ export const createactivityonreplylike = onDocumentWritten(
         if (!likerUserDoc.exists) return;
         const likerUserData = likerUserDoc.data();
 
+        // Fetch post data to get image URLs
+        const postDoc = await db.collection("posts").doc(postId).get();
+        const postData = postDoc.exists ? postDoc.data() : null;
+
         const activityData = {
           type: "reply_like",
           fromUserId: newLiker,
           fromUsername: likerUserData?.username || "Someone",
           fromProfileImageUrl: likerUserData?.profileImageUrl || "",
+          fromProfileThumbnailUrl: likerUserData?.profileThumbnailUrl || "",
           postId: postId,
+          postImageUrl: postData?.imageUrl || "",
+          postThumbnailUrl: postData?.thumbnailUrl || "",
           commentId: commentId,
           replyId: replyId,
           commentText: afterData.text ? afterData.text.substring(0, 50) + (afterData.text.length > 50 ? "..." : "") : "",
@@ -343,8 +433,10 @@ export const createactivityonworkoutsave = onDocumentCreated(
         fromUserId: saverUserId,
         fromUsername: saverUserData?.username || "Someone",
         fromProfileImageUrl: saverUserData?.profileImageUrl || "",
+        fromProfileThumbnailUrl: saverUserData?.profileThumbnailUrl || "",
         workoutId: workoutId,
         workoutTitle: workoutTitle,
+        workoutThumbnailUrl: workoutData?.thumbnailUrl || workoutData?.coverImageUrl || "",
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         isRead: false,
       };

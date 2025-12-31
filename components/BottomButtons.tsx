@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
-import { View, TouchableOpacity, StyleSheet, Animated, Dimensions } from 'react-native';
+import { View, TouchableOpacity, StyleSheet, Animated, Dimensions, ActivityIndicator } from 'react-native';
 import { useRouter, usePathname } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
@@ -86,19 +86,18 @@ function BottomButtons() {
   // (userProfile.emailVerified is set to true during dev bypass)
   // BUT: only hide the bar if the user is coming from signup (isFromSignup === true)
   // If they logged in (isFromSignup === false), show the bar even if unverified
-  if (!authLoading && currentUser && !userProfile) {
-    // User exists but profile not loaded yet - wait for profile
-    // waiting for user profile
-    return null;
+  
+  // During auth loading or waiting for profile, don't show navigation yet
+  if (authLoading) {
+    return (
+      <View style={[styles.bottomBar, { height: BOTTOM_BAR_HEIGHT + insets.bottom, paddingBottom: insets.bottom }]}>
+        {/* Empty placeholder to maintain layout */}
+      </View>
+    );
   }
   
   if (!authLoading && currentUser && userProfile && !(currentUser.emailVerified || userProfile.emailVerified) && isFromSignup) {
     // user not verified AND came from signup - hide the bar
-    return null;
-  }
-
-  // During auth loading, don't show navigation
-  if (authLoading) {
     return null;
   }
 

@@ -372,7 +372,7 @@ export default function ViewWorkout() {
       
       <View style={styles.imageContainer}>
         <Image
-          source={getCoverImageSource(workoutData.thumbnailUrl, workoutData.coverImageUrl)}
+          source={getCoverImageSource(workoutData.coverImageUrl, workoutData.thumbnailUrl)}
           style={styles.workoutImage}
           resizeMode="cover"
         />

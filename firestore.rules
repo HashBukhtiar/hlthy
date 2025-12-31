@@ -164,8 +164,10 @@ service cloud.firestore {
           )
         );
         
-        allow delete: if isAuthenticated() && 
-          request.auth.uid == resource.data.authorId;
+        allow delete: if isAuthenticated() && (
+          request.auth.uid == resource.data.authorId ||
+          request.auth.uid == get(/databases/$(database)/documents/posts/$(postId)).data.authorId
+        );
         
         match /replies/{replyId} {
           allow read: if isAuthenticated();
@@ -182,8 +184,10 @@ service cloud.firestore {
               request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'likedBy'])
             )
           );
-          allow delete: if isAuthenticated() && 
-            request.auth.uid == resource.data.authorId;
+          allow delete: if isAuthenticated() && (
+            request.auth.uid == resource.data.authorId ||
+            request.auth.uid == get(/databases/$(database)/documents/posts/$(postId)).data.authorId
+          );
         }
       }
     }

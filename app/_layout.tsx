@@ -1,26 +1,22 @@
 import 'react-native-get-random-values';
 import React from 'react';
 import { Stack } from 'expo-router';
-import { useColorScheme } from '@/components/useColorScheme';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { View, StyleSheet } from 'react-native';
-import BottomButtons from '@/components/BottomButtons';
-import { usePathname } from 'expo-router';
+import { View, StyleSheet, Platform } from 'react-native';
 import { AuthProvider } from '@/context/AuthContext';
+import { GlobalNetworkMonitor } from '@/components/GlobalNetworkMonitor';
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
-  const pathname = usePathname();
-
   return (
     <AuthProvider>
       <SafeAreaProvider>
         <View style={styles.container}>
+          <GlobalNetworkMonitor />
           <Stack
             screenOptions={{
               headerShown: false,
               contentStyle: { backgroundColor: 'black' },
-              animation: 'none',
+              animation: Platform.OS === 'android' ? 'fade' : 'none',
             }}
           >
             {/* Auth screens with disabled swipe gestures */}
@@ -49,9 +45,6 @@ export default function RootLayout() {
             <Stack.Screen name="diet-plan" />
             <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
           </Stack>
-          
-          {/* Bottom navigation that persists across route changes but hides on specific screens */}
-          <BottomButtons />
         </View>
       </SafeAreaProvider>
     </AuthProvider>
@@ -61,6 +54,6 @@ export default function RootLayout() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    position: 'relative',
+    backgroundColor: 'black',
   },
 });

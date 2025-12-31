@@ -4,22 +4,52 @@ import { storage, db } from '@/firebaseConfig';
 import { doc, deleteDoc } from 'firebase/firestore';
 import hlthyLogo from '@/assets/images/icon.png';
 
-const DEFAULT_PROFILE_IMAGE = 'https://thumbs.dreamstime.com/b/creative-illustration-default-avatar-profile-placeholder-isolated-background-art-design-grey-photo-blank-template-mockup-144855718.jpg';
+export const DEFAULT_PROFILE_IMAGE = 'https://thumbs.dreamstime.com/b/creative-illustration-default-avatar-profile-placeholder-isolated-background-art-design-grey-photo-blank-template-mockup-144855718.jpg';
+
+/**
+ * Validates if a URL is likely still valid (basic check)
+ * @param url - The URL to validate
+ * @returns boolean indicating if the URL appears valid
+ */
+export const isValidImageUrl = (url: string | null | undefined): boolean => {
+  if (!url || typeof url !== 'string') return false;
+  
+  const trimmed = url.trim();
+  if (!trimmed) return false;
+  
+  // Check for common invalid patterns
+  if (trimmed === 'undefined' || trimmed === 'null') return false;
+  
+  // Basic URL validation
+  try {
+    new URL(trimmed);
+    return true;
+  } catch {
+    return false;
+  }
+};
 
 /**
  * Gets the appropriate image URL, preferring thumbnail over original, with a fallback to a default.
+ * Includes URL validation to prevent invalid URLs from being used.
  * @param thumbnailUrl - The thumbnail URL from Firestore
  * @param originalUrl - The original image URL
- * @returns The URL to use for display. Returns a default image if none are provided.
+ * @returns The URL to use for display. Returns a default image if none are valid.
  */
 export const getOptimalImageUrl = (
   thumbnailUrl?: string | null,
   originalUrl?: string | null
 ): string => {
-  const thumb = thumbnailUrl?.trim();
-  const orig = originalUrl?.trim();
-  if (thumb) return thumb;
-  if (orig) return orig;
+  // Validate and prefer thumbnail
+  if (isValidImageUrl(thumbnailUrl)) {
+    return thumbnailUrl!.trim();
+  }
+  
+  // Fall back to original
+  if (isValidImageUrl(originalUrl)) {
+    return originalUrl!.trim();
+  }
+  
   return DEFAULT_PROFILE_IMAGE;
 };
 
@@ -54,31 +84,48 @@ const extractFilePathFromUrl = (imageUrl: string): string | null => {
   try {
     const bucketName = getStorageBucketName();
     
-    // Handle both possible URL formats
+    // Handle multiple possible URL formats
     const oldBaseUrl = 'https://firebasestorage.googleapis.com/v0/b/';
     const newBaseUrl = `https://${bucketName.replace('.appspot.com', '.firebasestorage.app')}/`;
+    const publicBaseUrl = 'https://storage.googleapis.com/';
     
     let decodedPath = '';
     
-    if (imageUrl.includes(oldBaseUrl)) {
+    if (imageUrl.includes(publicBaseUrl)) {
+      // Handle public URL format: https://storage.googleapis.com/{bucket}/path
+      // The path comes after the bucket name
+      const bucketStart = publicBaseUrl.length;
+      const pathStart = imageUrl.indexOf('/', bucketStart) + 1;
+      if (pathStart <= bucketStart) {
+        console.warn('Invalid public URL structure');
+        return null;
+      }
+      // Strip query params (e.g., signed URL params like GoogleAccessId, Expires, Signature)
+      let encodedPath = imageUrl.substring(pathStart);
+      const queryIndex = encodedPath.indexOf('?');
+      if (queryIndex !== -1) {
+        encodedPath = encodedPath.substring(0, queryIndex);
+      }
+      decodedPath = decodeURIComponent(encodedPath);
+    } else if (imageUrl.includes(oldBaseUrl)) {
       // Handle old format: https://firebasestorage.googleapis.com/v0/b/{bucket}/o/path?...
       const pathStart = imageUrl.indexOf('/o/') + 3;
       const pathEnd = imageUrl.indexOf('?');
-      if (pathStart === -1 || pathEnd === -1) {
+      if (pathStart === 2 || pathEnd === -1) {
         console.warn('Invalid old format URL structure');
         return null;
       }
-      const encodedPath = imageUrl.substring(pathStart, pathEnd);
+      const encodedPath = imageUrl.substring(pathStart, pathEnd === -1 ? undefined : pathEnd);
       decodedPath = decodeURIComponent(encodedPath);
     } else if (imageUrl.includes(newBaseUrl)) {
       // Handle new format: https://{bucket}/v0/b/{bucket}/o/path?...
       const pathStart = imageUrl.indexOf('/o/') + 3;
       const pathEnd = imageUrl.indexOf('?');
-      if (pathStart === -1 || pathEnd === -1) {
+      if (pathStart === 2 || pathEnd === -1) {
         console.warn('Invalid new format URL structure');
         return null;
       }
-      const encodedPath = imageUrl.substring(pathStart, pathEnd);
+      const encodedPath = imageUrl.substring(pathStart, pathEnd === -1 ? undefined : pathEnd);
       decodedPath = decodeURIComponent(encodedPath);
     } else {
       console.warn('URL format not recognized:', imageUrl);

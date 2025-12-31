@@ -147,20 +147,42 @@ export function usePostsData() {
 
   // Fetch all public posts
   const fetchPosts = async () => {
+    // Early return if no user - prevent Firestore permission errors
+    if (!currentUser?.uid) {
+      setPosts([]);
+      setLoading(false);
+      return;
+    }
+    
     try {
-      setLoading(true)
-      const postsRef = collection(db, "posts")
+      setLoading(true);
+      
+      // Double-check user still exists before Firestore query
+      if (!currentUser?.uid) {
+        setPosts([]);
+        setLoading(false);
+        return;
+      }
+      
+      const postsRef = collection(db, "posts");
       const q = query(
         postsRef,
         where("visibility", "==", "public"),
         orderBy("createdAt", "desc")
-      )
-      const querySnapshot = await getDocs(q)
+      );
+      const querySnapshot = await getDocs(q);
+
+      // Check again after async operation
+      if (!currentUser?.uid) {
+        setPosts([]);
+        setLoading(false);
+        return;
+      }
 
       const postsData: Post[] = []
       for (const snap of querySnapshot.docs) {
         // build the base Post
-        const post = { id: snap.id, ...(snap.data() as Post) } as Post
+        const post = { ...(snap.data() as Post), id: snap.id } as Post
 
         // ► fetch author's profile image
         const userSnap = await getDoc(doc(db, "users", post.authorId))
@@ -183,38 +205,88 @@ export function usePostsData() {
       }
       setPosts(postsData)
     } catch (err) {
-      console.error("Error fetching posts:", err)
-      setError(err as Error)
+      // Only set error if user is still logged in
+      if (currentUser?.uid) {
+        console.error("Error fetching posts:", err);
+        setError(err as Error);
+      }
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
   const uploadImage = async (imageUri: string, postId: string): Promise<string> => {
     try {
-      const filename = `posts/${currentUser!.uid}/${generateUniqueFilename('post', 'jpg')}`;
+      if (!currentUser) {
+        throw new Error("User not authenticated. Please log in and try again.");
+      }
+
+      console.log("Starting image upload for postId:", postId);
+      console.log("Image URI:", imageUri);
+      console.log("Current user ID:", currentUser.uid);
+      console.log("Auth token available:", !!currentUser.stsTokenManager?.accessToken);
+      
+      const filename = `posts/${currentUser.uid}/${generateUniqueFilename('post', 'jpg')}`;
+      console.log("Storage path:", filename);
+      console.log("Storage bucket:", storage.app.options.storageBucket);
+      
       const storageRef = ref(storage, filename);
       
-      // Fetch the image and convert to blob
+      // Fetch the image and convert to blob - this works in React Native
+      console.log("Fetching image...");
       const response = await fetch(imageUri);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch image: ${response.status}`);
+      }
+      
       const blob = await response.blob();
       
-      // Define custom metadata
+      console.log("Blob created, size:", blob.size, "type:", blob.type);
+      
+      // Ensure blob has content
+      if (blob.size === 0) {
+        throw new Error("Image blob is empty");
+      }
+      
+      // Define metadata with content type
       const metadata = {
+        contentType: 'image/jpeg',
         customMetadata: {
-          postId: postId
+          postId: postId,
+          uploadedBy: currentUser.uid
         }
       };
 
-      // Upload image with metadata
-      await uploadBytes(storageRef, blob, metadata);
+      console.log("Uploading to Firebase Storage...");
+      console.log("Metadata:", metadata);
+      
+      // Upload the blob directly - React Native's fetch().blob() works with Firebase Storage
+      const uploadResult = await uploadBytes(storageRef, blob, metadata);
+      console.log("Upload successful!");
+      console.log("Upload metadata:", uploadResult.metadata);
       
       // Get download URL
       const downloadURL = await getDownloadURL(storageRef);
+      console.log("Download URL obtained successfully");
       
       return downloadURL;
-    } catch (error) {
-      console.error("Error uploading image:", error);
+    } catch (error: any) {
+      console.error("Error in uploadImage:", error);
+      console.error("Error details:", {
+        message: error.message,
+        code: error.code,
+        name: error.name,
+        serverResponse: error.serverResponse,
+        customData: error.customData,
+      });
+      
+      // Provide more specific error messages
+      if (error.code === 'storage/unauthorized') {
+        throw new Error('You are not authorized to upload images. Please check your authentication.');
+      } else if (error.code === 'storage/unknown') {
+        throw new Error(`Upload failed. Please check your internet connection and try again. (${error.message})`);
+      }
+      
       throw error;
     }
   };
@@ -225,7 +297,7 @@ export function usePostsData() {
     const postSnap = await getDoc(postRef)
     if (!postSnap.exists()) throw new Error("Post not found")
 
-    const post = { id: postSnap.id, ...(postSnap.data() as Post) } as Post
+    const post = { ...(postSnap.data() as Post), id: postSnap.id } as Post
 
     // ► fetch author's profile image
     const userSnap = await getDoc(doc(db, "users", post.authorId))
@@ -926,10 +998,12 @@ export function usePostsData() {
 
   useEffect(() => {
     if (currentUser?.uid) {
-        fetchPosts(); // SHOULD fetchPosts() BE CALLED HERE??? COME BACK LATER
+      fetchPosts();
     } else {
-        setPosts([]);
-        setLoading(false);
+      // Clear everything on logout
+      setPosts([]);
+      setLoading(false);
+      setError(null);
     }
   }, [currentUser?.uid]);
 

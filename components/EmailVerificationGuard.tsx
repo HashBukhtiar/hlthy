@@ -20,6 +20,8 @@ export default function EmailVerificationGuard({ children }: EmailVerificationGu
   const [isResending, setIsResending] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
 
+  console.log('[EmailVerificationGuard] Render - authLoading:', authLoading, 'currentUser:', currentUser?.uid || 'null', 'isFromSignup:', isFromSignup);
+
   // Handle navigation when user is not authenticated
   useEffect(() => {
     if (!authLoading && !currentUser) {
@@ -121,6 +123,7 @@ export default function EmailVerificationGuard({ children }: EmailVerificationGu
 
   // Show loading while checking auth state
   if (authLoading) {
+    console.log('[EmailVerificationGuard] Showing loading screen - authLoading is true');
     return (
       <AuthBackground>
         <View style={styles.loadingContainer}>
@@ -133,6 +136,7 @@ export default function EmailVerificationGuard({ children }: EmailVerificationGu
 
   // If user is not logged in, show loading while navigation happens
   if (!currentUser) {
+    console.log('[EmailVerificationGuard] No currentUser, showing loading while redirecting');
     return (
       <AuthBackground>
         <View style={styles.loadingContainer}>
@@ -145,11 +149,13 @@ export default function EmailVerificationGuard({ children }: EmailVerificationGu
 
   // If email is verified, show the protected content
   if (currentUser.emailVerified || userProfile?.emailVerified) {
+    console.log('[EmailVerificationGuard] Email verified, showing children');
     return <>{children}</>;
   }
 
   // If user came from login (not signup), skip verification check and show protected content
   if (!isFromSignup) {
+    console.log('[EmailVerificationGuard] Not from signup, showing children');
     return <>{children}</>;
   }
 

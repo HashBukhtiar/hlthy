@@ -1,4 +1,4 @@
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
 import { db } from '@/firebaseConfig';
 import { Exercise } from '@/data/exercises';
 
@@ -14,6 +14,76 @@ export interface PreviousPRData {
   distanceUnit?: string;
   level?: string;
 }
+
+/**
+ * Fetches the user's last known weight from their most recent weight milestone
+ * @param userId The ID of the user
+ * @returns The last weight value and unit, or null if none found
+ */
+export const fetchLastKnownWeight = async (userId: string): Promise<{ weight: number; unit: string } | null> => {
+    try {
+        // Get all milestone posts without orderBy to avoid index requirements
+        const q = query(
+            collection(db, 'posts'),
+            where('authorId', '==', userId),
+            where('isMilestone', '==', true)
+        );
+
+        const querySnapshot = await getDocs(q);
+
+        if (querySnapshot.empty) {
+            return null;
+        }
+
+        // Find all weight milestones and sort them manually
+        const weightMilestones: Array<{ weight: number; unit: string; createdAt: any; docId: string }> = [];
+
+        for (const doc of querySnapshot.docs) {
+            const data = doc.data();
+            const milestoneType = data.milestoneDetails?.type;
+            
+            if (milestoneType === 'weightLoss' || milestoneType === 'weightGain') {
+                const newWeight = data.milestoneDetails?.newWeight;
+                const newWeightUnit = data.milestoneDetails?.newWeightUnit;
+                const createdAt = data.createdAt;
+
+                if (newWeight) {
+                    // Use 'lbs' as default if unit is missing (for old milestones created before we added unit field)
+                    const unit = newWeightUnit || 'lbs';
+                    
+                    weightMilestones.push({
+                        weight: newWeight,
+                        unit: unit,
+                        createdAt: createdAt,
+                        docId: doc.id
+                    });
+                }
+            }
+        }
+
+        if (weightMilestones.length === 0) {
+            return null;
+        }
+
+        // Sort by createdAt descending (most recent first)
+        weightMilestones.sort((a, b) => {
+            // Handle Firestore timestamps
+            const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : a.createdAt?.getTime ? a.createdAt.getTime() : 0;
+            const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : b.createdAt?.getTime ? b.createdAt.getTime() : 0;
+            return timeB - timeA;
+        });
+
+        const mostRecent = weightMilestones[0];
+        
+        return {
+            weight: mostRecent.weight,
+            unit: mostRecent.unit
+        };
+    } catch (error) {
+        console.error('Error fetching last known weight:', error);
+        return null;
+    }
+};
 
 /**
  * Fetches the best previous personal record for a given user and exercise.

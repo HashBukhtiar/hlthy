@@ -80,26 +80,43 @@ export default function ViewMilestone() {
               isLiked = false;
             }
           }
-
+          
           const milestoneData: Milestone = {
             id: milestoneSnap.id,
             userId: data.authorId,
             username: data.authorUsername,
             fullName: authorFullName,
-            profileImageUrl: getOptimalImageUrl(authorProfileImageUrl, authorProfileThumbnailUrl),
+            profileImageUrl: getOptimalImageUrl(authorProfileThumbnailUrl, authorProfileImageUrl),
             createdAt: data.createdAt.toDate(),
             milestoneType: data.milestoneDetails?.type,
             details: {
+              // Exercise info
               exerciseName: data.milestoneDetails?.exerciseName,
+              exerciseId: data.milestoneDetails?.exerciseId,
+              
+              // All metric values
               value: data.milestoneDetails?.value,
               weightUnit: data.milestoneDetails?.weightUnit,
               reps: data.milestoneDetails?.reps,
+              duration: data.milestoneDetails?.duration,
+              level: data.milestoneDetails?.level,
+              distance: data.milestoneDetails?.distance,
+              distanceUnit: data.milestoneDetails?.distanceUnit,
+              
+              // Weight change milestones
               newWeight: data.milestoneDetails?.newWeight,
               newWeightUnit: data.milestoneDetails?.newWeightUnit,
               previousWeight: data.milestoneDetails?.previousWeight,
               previousWeightUnit: data.milestoneDetails?.previousWeightUnit,
+              
+              // Previous records for ALL types
               previousValue: data.milestoneDetails?.previousValue,
               previousReps: data.milestoneDetails?.previousReps,
+              previousDuration: data.milestoneDetails?.previousDuration,
+              previousDistance: data.milestoneDetails?.previousDistance,
+              previousLevel: data.milestoneDetails?.previousLevel,
+              
+              // Improvements
               improvement: data.milestoneDetails?.improvement,
               totalLoss: data.milestoneDetails?.totalLoss,
               percentageLoss: data.milestoneDetails?.percentageLoss,
@@ -504,9 +521,8 @@ export default function ViewMilestone() {
                   </View>
                 </View>
               )}
-              
               {/* Duration + Level (e.g., Plank with difficulty) */}
-              {details.duration && details.level && (
+              {details.duration && details.level && !details.value && (
                 <View style={styles.prMetricsColumn}>
                   <View style={styles.prMetricsRow}>
                     <View style={styles.prMetricGroup}>
@@ -563,6 +579,20 @@ export default function ViewMilestone() {
                   <Text style={styles.previousBestValue}>{formatDuration(details.previousDuration)}</Text>
                   <Text style={styles.previousBestUnit}>duration</Text>
                 </View>
+              )}
+              {/* Previous Distance + Duration for distance_time */}
+              {details.previousValue && details.previousDuration && details.weightUnit && isDistanceUnit(details.weightUnit) && (
+                <>
+                  <View style={styles.prMetricGroup}>
+                    <Text style={styles.previousBestValue}>{convertAndFormatValue(details.previousValue, details.weightUnit).value}</Text>
+                    <Text style={styles.previousBestUnit}>{convertAndFormatValue(details.previousValue, details.weightUnit).unit}</Text>
+                  </View>
+                  <Text style={styles.previousBestSeparator}>in</Text>
+                  <View style={styles.prMetricGroup}>
+                    <Text style={styles.previousBestValue}>{formatDuration(details.previousDuration)}</Text>
+                    <Text style={styles.previousBestUnit}>time</Text>
+                  </View>
+                </>
               )}
             </View>
           )}
