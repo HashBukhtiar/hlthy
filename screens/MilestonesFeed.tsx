@@ -262,8 +262,6 @@ export default function MilestonesFeed() {
               : milestone
           )
         );
-        
-        Alert.alert('Unfollowed', `You have unfollowed ${targetUsername}`);
       } else {
         // User is not following, so follow
         console.log('🟡 [MilestonesFeed] Attempting to FOLLOW user:', targetUserId);
@@ -281,8 +279,6 @@ export default function MilestonesFeed() {
               : milestone
           )
         );
-        
-        Alert.alert('Success', `You are now following ${targetUsername}`);
       }
       
       // Refresh feed to ensure consistency with server
