@@ -504,6 +504,7 @@ export default function PostsFeed() {
             <TouchableOpacity 
               style={styles.moreButton}
               onPress={() => handleOpenActionMenu(item)}
+              activeOpacity={0.8}
             >
               <Ionicons name="ellipsis-horizontal" size={20} color="#8E8E93" />
             </TouchableOpacity>
@@ -575,7 +576,7 @@ export default function PostsFeed() {
                 activeOpacity={0.8}
               >
                 <Ionicons 
-                  name={item.isBookmarked ? "bookmarks" : "bookmarks-outline"} 
+                  name={item.isBookmarked ? "bookmark" : "bookmark-outline"} 
                   size={20} 
                   color="#FFF"
                 />
