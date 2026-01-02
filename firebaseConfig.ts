@@ -25,6 +25,7 @@ let auth: Auth;
 let db: Firestore;
 let analytics;
 let storage: FirebaseStorage;
+let functions;
 
 try {
   app = initializeApp(firebaseConfig);
@@ -40,6 +41,7 @@ try {
   
   db = getFirestore(app);
   storage = getStorage(app);
+  functions = getFunctions(app);
   
   isSupported()
     .then((supported) => {
