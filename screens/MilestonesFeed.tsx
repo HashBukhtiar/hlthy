@@ -32,9 +32,7 @@ import { useBlockEnforcement } from '@/utils/blockUtils';
 import { FeedMilestone, MilestoneDetails, MilestoneStats } from '@/types/milestone';
 import { useUnits } from '@/hooks/useUnits';
 import PostActionMenu from '@/components/PostActionMenu';
-import { useProfileData } from '@/hooks/useProfileData';
-import { getFunctions, httpsCallable } from 'firebase/functions';
-import { app } from '@/firebaseConfig';
+import { useContentActions } from '@/hooks/useContentActions';
 
 export default function MilestonesFeed() {
   const router = useRouter();
@@ -47,7 +45,20 @@ export default function MilestonesFeed() {
   const { getWeightUnit, getDistanceUnit } = useUnits();
   const [actionMenuVisible, setActionMenuVisible] = useState(false);
   const [selectedMilestoneForAction, setSelectedMilestoneForAction] = useState<FeedMilestone | null>(null);
-  const { followUser, unfollowUser } = useProfileData();
+
+  // Use shared content actions hook
+  const { 
+    handleToggleFollowFromMenu, 
+    handleBlockUser, 
+    handleReportContent: handleReportMilestone 
+  } = useContentActions({
+    selectedItem: selectedMilestoneForAction,
+    currentUser,
+    setSelectedItem: setSelectedMilestoneForAction,
+    updateItems: setMilestones,
+    refreshFeed,
+    contentType: 'milestone',
+  });
   
   // Local state for optimistic updates  
   const [milestones, setMilestones] = useState<typeof feedMilestones>([]);
@@ -224,133 +235,6 @@ export default function MilestonesFeed() {
 
     // TODO: Implement actual bookmark API call
   }, [currentUser]);
-
-  // Handle follow/unfollow from action menu
-  const handleToggleFollowFromMenu = useCallback(async () => {
-    console.log('🔵 [MilestonesFeed] handleToggleFollowFromMenu called');
-    console.log('🔵 [MilestonesFeed] selectedMilestoneForAction:', selectedMilestoneForAction);
-    console.log('🔵 [MilestonesFeed] currentUser:', currentUser?.uid);
-    console.log('🔵 [MilestonesFeed] isFollowing status:', selectedMilestoneForAction?.isFollowing);
-    
-    if (!selectedMilestoneForAction || !currentUser) {
-      console.log('🔴 [MilestonesFeed] Early return - missing selectedMilestoneForAction or currentUser');
-      return;
-    }
-
-    const targetUserId = selectedMilestoneForAction.authorId;
-    const targetUsername = selectedMilestoneForAction.authorUsername;
-    const isCurrentlyFollowing = selectedMilestoneForAction.isFollowing;
-
-    console.log('🔵 [MilestonesFeed] Target user:', targetUserId, targetUsername);
-    console.log('🔵 [MilestonesFeed] Currently following:', isCurrentlyFollowing);
-
-    try {
-      if (isCurrentlyFollowing) {
-        // User is currently following, so unfollow
-        console.log('🟡 [MilestonesFeed] Attempting to UNFOLLOW user:', targetUserId);
-        await unfollowUser(targetUserId);
-        console.log('✅ [MilestonesFeed] Successfully unfollowed user:', targetUsername);
-        
-        // Optimistically update the selected milestone state
-        setSelectedMilestoneForAction(prev => prev ? { ...prev, isFollowing: false } : null);
-        
-        // Update milestones in the feed
-        setMilestones(prevMilestones => 
-          prevMilestones.map(milestone => 
-            milestone.authorId === targetUserId 
-              ? { ...milestone, isFollowing: false }
-              : milestone
-          )
-        );
-      } else {
-        // User is not following, so follow
-        console.log('🟡 [MilestonesFeed] Attempting to FOLLOW user:', targetUserId);
-        await followUser(targetUserId);
-        console.log('✅ [MilestonesFeed] Successfully followed user:', targetUsername);
-        
-        // Optimistically update the selected milestone state
-        setSelectedMilestoneForAction(prev => prev ? { ...prev, isFollowing: true } : null);
-        
-        // Update milestones in the feed
-        setMilestones(prevMilestones => 
-          prevMilestones.map(milestone => 
-            milestone.authorId === targetUserId 
-              ? { ...milestone, isFollowing: true }
-              : milestone
-          )
-        );
-      }
-      
-      // Refresh feed to ensure consistency with server
-      console.log('🔵 [MilestonesFeed] Refreshing feed after follow/unfollow action');
-      refreshFeed();
-    } catch (error: any) {
-      console.error('🔴 [MilestonesFeed] Error in handleToggleFollowFromMenu:', error);
-      console.error('🔴 [MilestonesFeed] Error message:', error.message);
-      console.error('🔴 [MilestonesFeed] Error code:', error.code);
-      Alert.alert('Error', 'Could not update follow status. Please try again.');
-    }
-  }, [selectedMilestoneForAction, currentUser, followUser, unfollowUser, refreshFeed]);
-
-  // Handle block user from action menu
-  const handleBlockUser = useCallback(async () => {
-    if (!selectedMilestoneForAction || !currentUser) return;
-
-    Alert.alert(
-      'Block User',
-      `Are you sure you want to block ${selectedMilestoneForAction.authorUsername}? You won't see their milestones and they won't be able to interact with you.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Block',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const functions = getFunctions(app, 'northamerica-northeast2');
-              const blockUserFn = httpsCallable(functions, 'blockUser');
-              await blockUserFn({ targetUserId: selectedMilestoneForAction.authorId });
-              Alert.alert('Blocked', `You have blocked ${selectedMilestoneForAction.authorUsername}`);
-              refreshFeed();
-            } catch (error) {
-              console.error('Error blocking user:', error);
-              Alert.alert('Error', 'Could not block user. Please try again.');
-            }
-          },
-        },
-      ]
-    );
-  }, [selectedMilestoneForAction, currentUser, refreshFeed]);
-
-  // Handle report milestone from action menu
-  const handleReportMilestone = useCallback(() => {
-    if (!selectedMilestoneForAction) return;
-
-    Alert.alert(
-      'Report Milestone',
-      'Why are you reporting this milestone?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Spam',
-          onPress: () => {
-            Alert.alert('Reported', 'Thank you for reporting this milestone.');
-          },
-        },
-        {
-          text: 'Inappropriate Content',
-          onPress: () => {
-            Alert.alert('Reported', 'Thank you for reporting this milestone.');
-          },
-        },
-        {
-          text: 'False Achievement',
-          onPress: () => {
-            Alert.alert('Reported', 'Thank you for reporting this milestone.');
-          },
-        },
-      ]
-    );
-  }, [selectedMilestoneForAction]);
 
   const renderMilestoneDetails = useCallback((milestone: FeedMilestone) => {
     const details = milestone.milestoneDetails;

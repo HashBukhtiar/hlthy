@@ -30,9 +30,7 @@ import { useBlockEnforcement } from '@/utils/blockUtils';
 import ShareModal from '@/components/ShareModal';
 import { sharePost } from '@/services/ShareService';
 import PostActionMenu from '@/components/PostActionMenu';
-import { useProfileData } from '@/hooks/useProfileData';
-import { getFunctions, httpsCallable } from 'firebase/functions';
-import { app } from '@/firebaseConfig';
+import { useContentActions } from '@/hooks/useContentActions';
 
 const DEFAULT_PROFILE_IMAGE = 'https://thumbs.dreamstime.com/b/creative-illustration-default-avatar-profile-placeholder-isolated-background-art-design-grey-photo-blank-template-mockup-144855718.jpg';
 
@@ -96,7 +94,20 @@ export default function PostsFeed() {
   const [postToShare, setPostToShare] = useState<Post | null>(null);
   const [actionMenuVisible, setActionMenuVisible] = useState(false);
   const [selectedPostForAction, setSelectedPostForAction] = useState<Post | null>(null);
-  const { followUser, unfollowUser } = useProfileData();
+
+  // Use shared content actions hook
+  const { 
+    handleToggleFollowFromMenu, 
+    handleBlockUser, 
+    handleReportContent: handleReportPost 
+  } = useContentActions({
+    selectedItem: selectedPostForAction,
+    currentUser,
+    setSelectedItem: setSelectedPostForAction,
+    updateItems: setPosts,
+    refreshFeed,
+    contentType: 'post',
+  });
 
   // Double-tap functionality refs
   const tapTimers = useRef<Record<string, number>>({});
@@ -203,135 +214,6 @@ export default function PostsFeed() {
     setSelectedPostForAction(post);
     setActionMenuVisible(true);
   }, []);
-
-  // Handle follow/unfollow from action menu
-  const handleToggleFollowFromMenu = useCallback(async () => {
-    console.log('🔵 [PostsFeed] handleToggleFollowFromMenu called');
-    console.log('🔵 [PostsFeed] selectedPostForAction:', selectedPostForAction);
-    console.log('🔵 [PostsFeed] currentUser:', currentUser?.uid);
-    console.log('🔵 [PostsFeed] isFollowing status:', selectedPostForAction?.isFollowing);
-    
-    if (!selectedPostForAction || !currentUser) {
-      console.log('🔴 [PostsFeed] Early return - missing selectedPostForAction or currentUser');
-      return;
-    }
-
-    const targetUserId = selectedPostForAction.authorId;
-    const targetUsername = selectedPostForAction.authorUsername;
-    const isCurrentlyFollowing = selectedPostForAction.isFollowing;
-
-    console.log('🔵 [PostsFeed] Target user:', targetUserId, targetUsername);
-    console.log('🔵 [PostsFeed] Currently following:', isCurrentlyFollowing);
-
-    try {
-      if (isCurrentlyFollowing) {
-        // User is currently following, so unfollow
-        console.log('🟡 [PostsFeed] Attempting to UNFOLLOW user:', targetUserId);
-        await unfollowUser(targetUserId);
-        console.log('✅ [PostsFeed] Successfully unfollowed user:', targetUsername);
-        
-        // Optimistically update the selected post state
-        setSelectedPostForAction(prev => prev ? { ...prev, isFollowing: false } : null);
-        
-        // Update posts in the feed
-        setPosts(prevPosts => 
-          prevPosts.map(post => 
-            post.authorId === targetUserId 
-              ? { ...post, isFollowing: false }
-              : post
-          )
-        );
-      } else {
-        // User is not following, so follow
-        console.log('🟡 [PostsFeed] Attempting to FOLLOW user:', targetUserId);
-        await followUser(targetUserId);
-        console.log('✅ [PostsFeed] Successfully followed user:', targetUsername);
-        
-        // Optimistically update the selected post state
-        setSelectedPostForAction(prev => prev ? { ...prev, isFollowing: true } : null);
-        
-        // Update posts in the feed
-        setPosts(prevPosts => 
-          prevPosts.map(post => 
-            post.authorId === targetUserId 
-              ? { ...post, isFollowing: true }
-              : post
-          )
-        );
-      }
-      
-      // Refresh feed to ensure consistency with server
-      console.log('🔵 [PostsFeed] Refreshing feed after follow/unfollow action');
-      refreshFeed();
-    } catch (error: any) {
-      console.error('🔴 [PostsFeed] Error in handleToggleFollowFromMenu:', error);
-      console.error('🔴 [PostsFeed] Error message:', error.message);
-      console.error('🔴 [PostsFeed] Error code:', error.code);
-      Alert.alert('Error', 'Could not update follow status. Please try again.');
-    }
-  }, [selectedPostForAction, currentUser, followUser, unfollowUser, refreshFeed]);
-
-  // Handle block user from action menu
-  const handleBlockUser = useCallback(async () => {
-    if (!selectedPostForAction || !currentUser) return;
-
-    Alert.alert(
-      'Block User',
-      `Are you sure you want to block ${selectedPostForAction.authorUsername}? You won't see their posts and they won't be able to interact with you.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Block',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const functions = getFunctions(app, 'northamerica-northeast2');
-              const blockUserFn = httpsCallable(functions, 'blockUser');
-              await blockUserFn({ targetUserId: selectedPostForAction.authorId });
-              Alert.alert('Blocked', `You have blocked ${selectedPostForAction.authorUsername}`);
-              // Refresh feed to remove blocked user's posts
-              refreshFeed();
-            } catch (error) {
-              console.error('Error blocking user:', error);
-              Alert.alert('Error', 'Could not block user. Please try again.');
-            }
-          },
-        },
-      ]
-    );
-  }, [selectedPostForAction, currentUser, refreshFeed]);
-
-  // Handle report post from action menu
-  const handleReportPost = useCallback(() => {
-    if (!selectedPostForAction) return;
-
-    Alert.alert(
-      'Report Post',
-      'Why are you reporting this post?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Spam',
-          onPress: () => {
-            // TODO: Implement report functionality
-            Alert.alert('Reported', 'Thank you for reporting this post.');
-          },
-        },
-        {
-          text: 'Inappropriate Content',
-          onPress: () => {
-            Alert.alert('Reported', 'Thank you for reporting this post.');
-          },
-        },
-        {
-          text: 'Harassment',
-          onPress: () => {
-            Alert.alert('Reported', 'Thank you for reporting this post.');
-          },
-        },
-      ]
-    );
-  }, [selectedPostForAction]);
 
   // Navigation functions
   const navigateToWorkout = useCallback((workoutId: string) => {
