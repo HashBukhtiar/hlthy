@@ -782,7 +782,7 @@ export default function PostsFeed() {
         visible={actionMenuVisible}
         onClose={() => setActionMenuVisible(false)}
         isBookmarked={selectedPostForAction?.isBookmarked || false}
-        isFollowing={false} // Following status checked dynamically in handler
+        isFollowing={selectedPostForAction?.isFollowing || false}
         isOwnPost={selectedPostForAction?.authorId === currentUser?.uid}
         onToggleBookmark={() => {
           if (selectedPostForAction) {

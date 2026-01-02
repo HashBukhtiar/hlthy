@@ -768,7 +768,7 @@ export default function MilestonesFeed() {
         visible={actionMenuVisible}
         onClose={() => setActionMenuVisible(false)}
         isBookmarked={selectedMilestoneForAction?.isBookmarked || false}
-        isFollowing={false} // Following status checked dynamically in handler
+        isFollowing={selectedMilestoneForAction?.isFollowing || false}
         isOwnPost={selectedMilestoneForAction?.authorId === currentUser?.uid}
         isMilestone={true}
         onToggleBookmark={() => {
