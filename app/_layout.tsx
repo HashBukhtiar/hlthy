@@ -1,30 +1,27 @@
 import 'react-native-get-random-values';
 import React from 'react';
 import { Stack } from 'expo-router';
-import { useColorScheme } from '@/components/useColorScheme';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import BottomButtons from '@/components/BottomButtons';
-import { usePathname } from 'expo-router';
 import { AuthProvider } from '@/context/AuthContext';
+import { GlobalNetworkMonitor } from '@/components/GlobalNetworkMonitor';
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
-  const pathname = usePathname();
-
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <AuthProvider>
         <SafeAreaProvider>
           <View style={styles.container}>
-          <Stack
-            screenOptions={{
-              headerShown: false,
-              contentStyle: { backgroundColor: 'black' },
-              animation: 'none',
-            }}
-          >
+            <GlobalNetworkMonitor />
+            <Stack
+              screenOptions={{
+                headerShown: false,
+                contentStyle: { backgroundColor: 'black' },
+                animation: Platform.OS === 'android' ? 'fade' : 'none',
+              }}
+            >
             {/* Main tab screens with disabled swipe gestures */}
             <Stack.Screen name="(tabs)" options={{ gestureEnabled: false }} />
             <Stack.Screen name="post" options={{ gestureEnabled: false }} />

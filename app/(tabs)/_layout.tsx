@@ -1,22 +1,48 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
+import { View, StyleSheet } from 'react-native';
 import { useColorScheme } from '@/components/useColorScheme';
-import Colors from '@/constants/Colors';
+import EmailVerificationGuard from '@/components/EmailVerificationGuard';
+import BottomButtons from '@/components/BottomButtons';
+
+console.log('[TabLayout] Module loaded');
 
 export default function TabLayout() {
+  console.log('[TabLayout] Component rendering');
+  
   const colorScheme = useColorScheme();
+  console.log('[TabLayout] colorScheme:', colorScheme);
 
   return (
-    <Tabs
-      screenOptions={{
-        tabBarStyle: { display: 'none' }, // Hide the tab bar since we're using our custom bottom navigation
-        headerShown: false, // Hide the header
-        contentStyle: { backgroundColor: 'black' }
-      }}>
-      <Tabs.Screen
-        name="index"
-        options={{ title: 'Home' }}
-      />
-    </Tabs>
+    <EmailVerificationGuard>
+      <View style={styles.container}>
+        <View style={styles.content}>
+          <Tabs
+            screenOptions={{
+              tabBarStyle: { display: 'none' },
+              headerShown: false,
+              lazy: false,
+              freezeOnBlur: false,
+            }}
+          >
+            <Tabs.Screen
+              name="index"
+              options={{ title: 'Home' }}
+            />
+          </Tabs>
+        </View>
+        <BottomButtons />
+      </View>
+    </EmailVerificationGuard>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: 'black',
+  },
+  content: {
+    flex: 1,
+  },
+});

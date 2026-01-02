@@ -1,9 +1,11 @@
-import { initializeApp, FirebaseApp, setLogLevel } from 'firebase/app';
+import { initializeApp, FirebaseApp } from 'firebase/app';
 import { getAnalytics, isSupported } from 'firebase/analytics';
-import { getAuth, Auth } from 'firebase/auth';
+import { getAuth, Auth, initializeAuth, getReactNativePersistence } from 'firebase/auth';
 import { getFirestore, Firestore } from "firebase/firestore";
 import { getStorage, FirebaseStorage } from "firebase/storage";
-import { getFunctions, connectFunctionsEmulator } from 'firebase/functions';
+import { getFunctions } from 'firebase/functions';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 
 // Firebase configuration
 const firebaseConfig = {
@@ -18,16 +20,27 @@ const firebaseConfig = {
 
 console.log("Firebase initialization started");
 
-// Initialize Firebase
-const app: FirebaseApp = initializeApp(firebaseConfig);
-const auth: Auth = getAuth(app);
-const db: Firestore = getFirestore(app);
-const storage: FirebaseStorage = getStorage(app);
-const functions = getFunctions(app, 'northamerica-northeast2');
-
+let app: FirebaseApp;
+let auth: Auth;
+let db: Firestore;
 let analytics;
+let storage: FirebaseStorage;
 
 try {
+  app = initializeApp(firebaseConfig);
+  
+  // Initialize Auth with persistence for React Native
+  if (Platform.OS === 'web') {
+    auth = getAuth(app);
+  } else {
+    auth = initializeAuth(app, {
+      persistence: getReactNativePersistence(AsyncStorage)
+    });
+  }
+  
+  db = getFirestore(app);
+  storage = getStorage(app);
+  
   isSupported()
     .then((supported) => {
       if (supported) {
@@ -43,8 +56,7 @@ try {
 
 } catch (error) {
   console.error("Firebase initialization error:", error);
-  // It might be useful to log the config if there's an error, but be cautious with sensitive keys in production logs.
-  // console.log(firebaseConfig); 
+  throw error;
 }
 
 export { app, db, auth, storage, functions };

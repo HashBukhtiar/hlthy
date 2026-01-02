@@ -7,7 +7,6 @@
     "icon": "./assets/images/icon.png",
     "scheme": "myapp",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "splash": {
       "image": "./assets/images/splash-icon.png",
       "resizeMode": "contain",
@@ -25,7 +24,8 @@
         "foregroundImage": "./assets/images/icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.derana1.hlthy"
+      "package": "com.derana1.hlthy",
+      "useNextNotificationsApi": true
     },
     "web": {
       "bundler": "metro",
@@ -33,7 +33,8 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
-      "expo-router"
+      "expo-router",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true
@@ -51,7 +52,13 @@
       "policy": "appVersion"
     },
     "updates": {
+      "enabled": false,
       "url": "https://u.expo.dev/a1e6a8c1-8e53-4bb2-a30d-bfda93d63c96"
+    },
+    "notifications": {
+      "icon": "./assets/icon.png",
+      "color": "#007AFF",
+      "sounds": ["./assets/notification.wav"]
     }
   }
 }

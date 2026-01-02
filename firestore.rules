@@ -45,12 +45,15 @@ service cloud.firestore {
     // Users collection
     match /users/{userId} {
       allow read: if isAuthenticated() && 
-        (isOwner(userId) || 
-         resource.data.get('profileVisibility', 'public') == 'public' ||
-         (resource.data.get('profileVisibility', 'public') == 'followers' && 
-          exists(/databases/$(database)/documents/users/$(userId)/followers/$(request.auth.uid))));
+        (isOwner(userId) || canViewProfile(userId, request.auth.uid));
       allow create: if isOwner(userId);
       allow update: if isOwner(userId);
+      
+      // Allow clearing push tokens specifically (for logout cleanup)
+      allow update: if isAuthenticated() && 
+        isOwner(userId) && 
+        resource.data.keys().hasAny(['pushTokens', 'lastTokenUpdate']) &&
+        request.data.keys().hasOnly(['pushTokens', 'lastTokenUpdate']);
     }
 
     // Message requests
@@ -159,8 +162,10 @@ service cloud.firestore {
           )
         );
         
-        allow delete: if isAuthenticated() && 
-          request.auth.uid == resource.data.authorId;
+        allow delete: if isAuthenticated() && (
+          request.auth.uid == resource.data.authorId ||
+          request.auth.uid == get(/databases/$(database)/documents/posts/$(postId)).data.authorId
+        );
         
         match /replies/{replyId} {
           allow read: if isAuthenticated();
@@ -177,8 +182,10 @@ service cloud.firestore {
               request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'likedBy'])
             )
           );
-          allow delete: if isAuthenticated() && 
-            request.auth.uid == resource.data.authorId;
+          allow delete: if isAuthenticated() && (
+            request.auth.uid == resource.data.authorId ||
+            request.auth.uid == get(/databases/$(database)/documents/posts/$(postId)).data.authorId
+          );
         }
       }
     }

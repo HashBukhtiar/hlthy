@@ -7,10 +7,8 @@ import { signOut, sendPasswordResetEmail } from 'firebase/auth';
 import { httpsCallable } from 'firebase/functions';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
-import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { getOptimalImageUrl, deleteImageFromStorage } from '@/utils/imageUtils';
 import { CustomSelector, SelectorItem } from '@/components/CustomSelector';
-import { generateUniqueFilename } from '@/logic/idGenerator';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingsItem } from '@/components/settings/SettingsItem';
 import { UserSettings, SettingsSection as SettingsSectionType } from '@/types/settings';
@@ -20,9 +18,10 @@ import { createSettingsBackup, restoreSettingsBackup } from '@/utils/settingsBac
 import { exportSettings, importSettings } from '@/utils/settingsExport';
 import { trackSettingsChange, generateSettingsInsights, calculatePrivacyLevel } from '@/utils/settingsAnalytics';
 import { Ionicons } from '@expo/vector-icons';
-import { uploadProfileThumbnail } from '@/services/profileStorage';
-import NetInfo from '@react-native-community/netinfo';
+import { uploadProfileImage } from '@/services/profileStorage';
 import { getFullVersionString } from '@/utils/appVersion';
+import { NotificationService } from '@/services/NotificationService';
+
 
 const archetypeData: SelectorItem[] = [
   { 
@@ -142,6 +141,7 @@ export default function Settings() {
   const [activeModal, setActiveModal] = useState<string | null>(null);
   const [modalQueue, setModalQueue] = useState<string[]>([]);
   const [lastModalAction, setLastModalAction] = useState<number>(0);
+
 
   const MODAL_DEBOUNCE_MS = 300;
 
@@ -308,15 +308,6 @@ export default function Settings() {
   }, [settings, originalSettings, profileImage, userProfile?.profileImageUrl]);
 
   useEffect(() => {
-    // Monitor network connectivity
-    const unsubscribe = NetInfo.addEventListener(state => {
-      setIsOnline(state.isConnected ?? false);
-    });
-
-    return () => unsubscribe();
-  }, []);
-
-  useEffect(() => {
     // Auto-save functionality
     if (!hasUnsavedChanges || !autoSaveEnabled || !isOnline || isSaving) {
       return;
@@ -461,7 +452,7 @@ export default function Settings() {
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [1, 1],
-        quality: 0.4,
+        quality: 0.6, // Balanced quality - Cloud Function will create optimized thumbnail
         base64: true,
       });
       if (result.canceled || !result.assets?.length) return;
@@ -478,12 +469,13 @@ export default function Settings() {
       }
 
       try {
-        const downloadURL = await uploadProfileThumbnail(currentUser.uid, blob);
+        // Upload original - Cloud Function will generate thumbnail
+        const downloadURL = await uploadProfileImage(currentUser.uid, blob);
         setProfileImage(downloadURL);
         setImageManuallyChanged(true);
         Alert.alert('Success', "Profile photo updated! Don't forget to save.");
       } catch (e) {
-        console.error('Thumbnail upload failed:', e);
+        console.error('Profile image upload failed:', e);
         Alert.alert('Upload Failed', 'Could not upload image. Try again later.');
       }
     } catch (error) {
@@ -496,16 +488,6 @@ export default function Settings() {
 
   const handleSaveSettings = async () => {
     if (!currentUser) return;
-    
-    // Check network connectivity
-    if (!isOnline) {
-      Alert.alert(
-        'No Internet Connection',
-        'Please check your internet connection and try again.',
-        [{ text: 'OK' }]
-      );
-      return;
-    }
     
     try {
       setLoading(true);
@@ -780,10 +762,28 @@ export default function Settings() {
 
   const handleLogout = async () => {
     try {
+      setLoading(true);
+      
+      // Clean up notifications before signing out (while still authenticated)
+      if (currentUser) {
+        try {
+          await NotificationService.removePushToken(currentUser.uid);
+          await NotificationService.clearCachedTokens();
+        } catch (tokenError) {
+          console.error('Error cleaning up tokens (continuing with logout):', tokenError);
+          // Continue with logout even if token cleanup fails
+        }
+      }
+      
+      // Then sign out
       await signOut(auth);
       router.replace('/');
     } catch (error) {
       console.error('Error signing out:', error);
+      Alert.alert('Error', 'Failed to sign out completely, but you have been logged out.');
+      router.replace('/');
+    } finally {
+      setLoading(false);
     }
   };
 

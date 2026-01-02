@@ -8,6 +8,7 @@ import { useAuth } from '@/context/AuthContext';
 import { LinearGradient } from 'expo-linear-gradient';
 import { getOptimalImageUrl } from '@/utils/imageUtils';
 import { useBlockEnforcement } from '@/utils/blockUtils';
+import { OptimizedImageLight } from '@/components/OptimizedImage';
 
 interface ExplorePost {
   id: string;
@@ -92,11 +93,14 @@ const PostGridItem = ({ item, onPress }: { item: ExplorePost; onPress: () => voi
       onPress={onPress}
     >
       <ShimmerPlaceholder />
-      <Animated.Image
-        source={{ uri: item.thumbnailUrl || item.imageUrl }}
-        style={[styles.postImage, { position: 'absolute', opacity: imageOpacity }]}
-        onLoad={onImageLoad}
-      />
+      <Animated.View style={[styles.postImage, { position: 'absolute', opacity: imageOpacity }]}>
+        <OptimizedImageLight
+          thumbnailUrl={item.thumbnailUrl}
+          originalUrl={item.imageUrl}
+          style={styles.postImage}
+          onLoad={onImageLoad}
+        />
+      </Animated.View>
     </TouchableOpacity>
   );
 };

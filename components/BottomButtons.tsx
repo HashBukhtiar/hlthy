@@ -1,15 +1,18 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
-import { View, TouchableOpacity, StyleSheet, Animated, Dimensions } from 'react-native';
+import { View, TouchableOpacity, StyleSheet, Animated, Dimensions, ActivityIndicator } from 'react-native';
 import { useRouter, usePathname } from 'expo-router';
+import { useAuth } from '@/context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import globalStyles, { BOTTOM_BAR_HEIGHT } from '@/styles/globalStyles';
+import { BOTTOM_BAR_HEIGHT } from '@/styles/globalStyles';
 
 function BottomButtons() {
   const router = useRouter();
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
   const { width } = Dimensions.get('window');
+
+  const { currentUser, userProfile, loading: authLoading, isFromSignup } = useAuth();
   
   // Create animated value for the slider indicator
   const indicatorPosition = useRef(new Animated.Value(0)).current;
@@ -77,19 +80,43 @@ function BottomButtons() {
     router.push('/profile');
   }, [router]);
 
-  // Hide bottom bar on specific routes (after all hooks are called)
-  if (pathname === '/create-workout' || 
-      pathname?.includes('/settings') || 
-      pathname?.includes('/view-post') ||
-      pathname?.includes('/signup') ||
-      pathname?.includes('/select-archetype') ||
-      pathname?.includes('/landing') ||
-      pathname?.includes('/login') ||
-      pathname?.includes('/chat') ||
-      pathname?.includes('/forgot-password') ||
-      pathname?.includes('/view-milestone')) {
+  // If the auth context says the user exists but hasn't verified their email,
+  // the EmailVerificationGuard or verification UI will be shown — hide the bottom bar.
+  // Check both Firebase Auth emailVerified AND Firestore userProfile emailVerified
+  // (userProfile.emailVerified is set to true during dev bypass)
+  // BUT: only hide the bar if the user is coming from signup (isFromSignup === true)
+  // If they logged in (isFromSignup === false), show the bar even if unverified
+  
+  // During auth loading or waiting for profile, don't show navigation yet
+  if (authLoading) {
+    return (
+      <View style={[styles.bottomBar, { height: BOTTOM_BAR_HEIGHT + insets.bottom, paddingBottom: insets.bottom }]}>
+        {/* Empty placeholder to maintain layout */}
+      </View>
+    );
+  }
+  
+  if (!authLoading && currentUser && userProfile && !(currentUser.emailVerified || userProfile.emailVerified) && isFromSignup) {
+    // user not verified AND came from signup - hide the bar
     return null;
   }
+
+  // Hide bottom bar on specific routes (after all hooks are called)
+  if (
+    pathname === '/create-workout' ||
+    pathname?.includes('/settings') ||
+    pathname?.includes('/view-post') ||
+    pathname?.includes('/landing') ||
+    pathname?.includes('/chat') ||
+    pathname?.includes('/forgot-password') ||
+    pathname?.includes('/view-milestone') ||
+    pathname?.includes('/email-verification') ||
+    pathname?.includes('/verify-email')
+  ) {
+    return null;
+  }
+
+  // show navigation
 
   return (
     <View 

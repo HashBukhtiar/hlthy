@@ -155,6 +155,7 @@ export const acceptfollowrequest = onCall(
       fromUserId: targetUserId,
       fromUsername: targetUserData?.username || "Someone",
       fromProfileImageUrl: targetUserData?.profileImageUrl || "",
+      fromProfileThumbnailUrl: targetUserData?.profileThumbnailUrl || "",
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       isRead: false,
     };
@@ -469,6 +470,20 @@ export const followUser = onCall(
         requesterProfileImageUrl: currentUserData?.profileImageUrl || "",
       });
 
+      // Create activity notification for follow request
+      const followRequestActivityData = {
+        type: "follow_request",
+        fromUserId: uid,
+        fromUsername: currentUserData?.username || "Someone",
+        fromProfileImageUrl: currentUserData?.profileImageUrl || "",
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        isRead: false,
+        status: "pending",
+      };
+      const activityRef = db.collection("activity").doc(targetUserId)
+        .collection("userActivity").doc();
+      batch.set(activityRef, followRequestActivityData);
+
       await batch.commit();
       return {success: true, message: "Follow request sent (pending approval)."};
     }
@@ -509,6 +524,7 @@ export const followUser = onCall(
       fromUserId: uid,
       fromUsername: currentUserData?.username || "Someone",
       fromProfileImageUrl: currentUserData?.profileImageUrl || "",
+      fromProfileThumbnailUrl: currentUserData?.profileThumbnailUrl || "",
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       isRead: false,
     });

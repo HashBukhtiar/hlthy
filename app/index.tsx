@@ -1,65 +1,77 @@
 import { Redirect } from 'expo-router';
 import { useState, useEffect } from 'react';
-import { View, ActivityIndicator, Platform } from 'react-native';
+import { View, ActivityIndicator, Platform, Text } from 'react-native';
 import { auth } from '@/firebaseConfig';
 import { onAuthStateChanged, signInWithEmailAndPassword, setPersistence, browserSessionPersistence } from 'firebase/auth';
+import { devFlags } from '@/config/devFlags';
 
-// Backdoor to bypass login. must be false in production
-const BYPASS_AUTH = false;
-const DEV_EMAIL = 'dev2@gmail.com';
-const DEV_PASSWORD = 'dev1232';
+const { bypassAuth: BYPASS_AUTH, devEmail: DEV_EMAIL, devPassword: DEV_PASSWORD } = devFlags;
 
+// Log immediately when file loads
+console.log('===== INDEX.TSX FILE LOADED =====');
+console.log('Platform:', Platform.OS);
+console.log('BYPASS_AUTH:', BYPASS_AUTH);
 
 export default function Index() {
+  console.log('===== INDEX COMPONENT RENDERING =====');
+  
+  // For web, just check auth.currentUser synchronously
+  if (Platform.OS === 'web') {
+    console.log('[Index] Web platform detected, checking auth immediately');
+    const currentUser = auth.currentUser;
+    console.log('[Index] Current user:', currentUser?.uid || 'none');
+    
+    if (BYPASS_AUTH) {
+      console.log('[Index] BYPASS_AUTH enabled, redirecting to tabs');
+      return <Redirect href="/(tabs)" />;
+    }
+    
+    if (currentUser) {
+      console.log('[Index] User authenticated, redirecting to tabs');
+      return <Redirect href="/(tabs)" />;
+    } else {
+      console.log('[Index] No user, redirecting to landing');
+      return <Redirect href="/landing" />;
+    }
+  }
+  
+  // For mobile, use the normal flow with state
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
-    let unsubscribe: (() => void) | undefined;
+    console.log('[Index] useEffect running (mobile only)');
+    
+    if (BYPASS_AUTH) {
+      signInWithEmailAndPassword(auth, DEV_EMAIL, DEV_PASSWORD)
+        .then(() => setIsAuthenticated(true))
+        .catch(() => setIsAuthenticated(true))
+        .finally(() => setIsLoading(false));
+      return;
+    }
 
-    (async () => {
-      // Only set persistence for web builds
-      if (Platform.OS === 'web') {
-        try {
-          await setPersistence(auth, browserSessionPersistence);
-          console.log('Web environment detected. Using session persistence for auth.');
-        } catch (err) {
-          console.warn('setPersistence failed:', err);
-        }
-      }
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setIsAuthenticated(!!user);
+      setIsLoading(false);
+    });
 
-      // If bypass is enabled, automatically login with dev credentials
-      if (BYPASS_AUTH) {
-        try {
-          await signInWithEmailAndPassword(auth, DEV_EMAIL, DEV_PASSWORD);
-          setIsAuthenticated(true);
-        } catch (error: any) {
-          console.error('Auto-login failed:', error.message);
-          // Even if auto-login fails, we'll still consider bypass active
-          setIsAuthenticated(true);
-        } finally {
-          setIsLoading(false);
-        }
-        return;
-      }
-
-      unsubscribe = onAuthStateChanged(auth, (user) => {
-        setIsAuthenticated(!!user);
-        setIsLoading(false);
-      });
-    })();
-
-    return () => unsubscribe?.();
+    return () => unsubscribe();
   }, []);
+
+  console.log('[Index] Mobile render state - isLoading:', isLoading, 'isAuthenticated:', isAuthenticated);
 
   if (isLoading) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#000' }}>
         <ActivityIndicator size="large" color="#FFF" />
+        <Text style={{ color: '#FFF', marginTop: 20, fontSize: 18 }}>Loading App...</Text>
+        <Text style={{ color: '#888', marginTop: 10, fontSize: 14 }}>Platform: {Platform.OS}</Text>
       </View>
     );
   }
 
+  console.log('[Index] Redirecting to:', isAuthenticated ? '/(tabs)' : '/landing');
+  
   // If user is authenticated or bypass is enabled, redirect to home feed, otherwise to landing page
   return isAuthenticated ? <Redirect href="/(tabs)" /> : <Redirect href="/landing" />;
 }

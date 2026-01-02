@@ -1,14 +1,16 @@
 import React from 'react';
-import { StyleSheet, SafeAreaView } from 'react-native';
+import { StyleSheet, SafeAreaView, View } from 'react-native';
 import Workouts from '@/screens/Workouts';
 import BottomButtons from '@/components/BottomButtons';
 
 export default function WorkoutsScreen() {
   return (
-    <SafeAreaView style={styles.container}>
-      <Workouts />
+    <View style={styles.container}>
+      <SafeAreaView style={styles.content}>
+        <Workouts />
+      </SafeAreaView>
       <BottomButtons />
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -16,5 +18,8 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: 'black',
+  },
+  content: {
+    flex: 1,
   },
 });

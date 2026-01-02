@@ -23,17 +23,23 @@ enum TabType {
 }
 
 export default function HomeFeed() {
+  console.log('[HomeFeed] Component starting to render');
+  
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<TabType>(TabType.POSTS);
   const flatListRef = useRef<FlatList>(null);
   const { width: screenWidth } = Dimensions.get('window');
   
+  console.log('[HomeFeed] Hooks initialized successfully');
+  
   // Animated value for indicator position
   const indicatorWidth = screenWidth / 2;
   
   // Keep track of current scroll position
   const scrollX = useRef(new Animated.Value(0)).current;
+
+  console.log('[HomeFeed] About to set up scrollX listener');
 
   // Handler for FlatList scroll
   const handleScroll = Animated.event(
@@ -43,6 +49,7 @@ export default function HomeFeed() {
 
   // Update indicator position based on scroll
   useEffect(() => {
+    console.log('[HomeFeed] useEffect for scrollX listener running');
     scrollX.addListener(({ value }) => {
       // Calculate the ratio of scroll position to screen width
       const ratio = value / screenWidth;
@@ -60,7 +67,10 @@ export default function HomeFeed() {
     };
   }, []);
 
+  console.log('[HomeFeed] About to define renderTopBar');
+
   function renderTopBar() {
+    console.log('[HomeFeed] renderTopBar called');
     return (
       <View style={styles.topBar}>
         <View style={styles.logoContainer}>
@@ -143,10 +153,15 @@ export default function HomeFeed() {
   }
 
   // Data for the swipeable tabs
+  console.log('[HomeFeed] About to create tabScenes');
+  
+  // Lazy load the tab components to avoid crashes during initial render
   const tabScenes = [
     { key: 'posts', component: <PostsFeed /> },
     { key: 'milestones', component: <MilestonesFeed /> }
   ];
+
+  console.log('[HomeFeed] tabScenes created, about to return JSX');
 
   return (
     <View style={[globalStyles.container, { paddingTop: 0 }]}>

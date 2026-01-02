@@ -157,10 +157,19 @@ async function convertFirestoreDoc(
     try {
       const postRef = doc(db, "posts", data.sharedPost.id);
       const postSnap = await getDoc(postRef);
-      resolvedSharedPost = {
-        ...data.sharedPost,
-        isAvailable: postSnap.exists(),
-      };
+      if (postSnap.exists()) {
+        // Fetch fresh post data to get updated image/thumbnail URLs
+        const freshPostData = postSnap.data();
+        resolvedSharedPost = {
+          ...data.sharedPost,
+          imageUrl: freshPostData.imageUrl || data.sharedPost.imageUrl,
+          thumbnailUrl: freshPostData.thumbnailUrl || data.sharedPost.thumbnailUrl,
+          caption: freshPostData.caption || data.sharedPost.caption,
+          isAvailable: true,
+        };
+      } else {
+        resolvedSharedPost = { ...data.sharedPost, isAvailable: false };
+      }
     } catch {
       resolvedSharedPost = { ...data.sharedPost, isAvailable: false };
     }
@@ -189,10 +198,19 @@ async function convertFirestoreDoc(
     try {
       const workoutRef = doc(db, "workouts", data.sharedWorkout.id);
       const workoutSnap = await getDoc(workoutRef);
-      resolvedSharedWorkout = {
-        ...data.sharedWorkout,
-        isAvailable: workoutSnap.exists(),
-      };
+      if (workoutSnap.exists()) {
+        // Fetch fresh workout data to get updated cover/thumbnail URLs
+        const freshWorkoutData = workoutSnap.data();
+        resolvedSharedWorkout = {
+          ...data.sharedWorkout,
+          coverImageUrl: freshWorkoutData.coverImageUrl || data.sharedWorkout.coverImageUrl,
+          thumbnailUrl: freshWorkoutData.thumbnailUrl || data.sharedWorkout.thumbnailUrl,
+          title: freshWorkoutData.title || data.sharedWorkout.title,
+          isAvailable: true,
+        };
+      } else {
+        resolvedSharedWorkout = { ...data.sharedWorkout, isAvailable: false };
+      }
     } catch {
       resolvedSharedWorkout = { ...data.sharedWorkout, isAvailable: false };
     }
@@ -292,7 +310,7 @@ const MessageItem = React.memo<{
           </View>
           {item.sharedPost.imageUrl && (
             <Image 
-              source={{ uri: getOptimalImageUrl(item.sharedPost.imageUrl, item.sharedPost.thumbnailUrl) || undefined }} 
+              source={{ uri: getOptimalImageUrl(item.sharedPost.thumbnailUrl, item.sharedPost.imageUrl) || undefined }} 
               style={styles.sharedPostImage} 
             />
           )}
@@ -445,8 +463,8 @@ const MessageItem = React.memo<{
             <Image
               source={{
                 uri: getOptimalImageUrl(
-                  item.sharedWorkout.coverImageUrl,
-                  item.sharedWorkout.thumbnailUrl
+                  item.sharedWorkout.thumbnailUrl,
+                  item.sharedWorkout.coverImageUrl
                 ) || undefined
               }}
               style={styles.sharedWorkoutImage}
@@ -558,7 +576,7 @@ export default function ChatScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const conversationId = id as string;
-  const { currentUser } = useAuth();
+  const { currentUser, userProfile } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState<string>('');
   const [loading, setLoading] = useState(true);
@@ -838,6 +856,7 @@ export default function ChatScreen() {
         text: textToSend,
         createdAt: serverTimestamp(),
         senderId: currentUser.uid,
+        senderUsername: userProfile?.username || currentUser.displayName || currentUser.email?.split('@')[0] || 'User',
       };
       
       if (intentResult?.intent) {

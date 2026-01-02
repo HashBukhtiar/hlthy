@@ -100,6 +100,8 @@
 .DS_Store
 *.pem
 pglite-debug.log
+firebase-debug.log
+
 
 # local env files
 .env*.local

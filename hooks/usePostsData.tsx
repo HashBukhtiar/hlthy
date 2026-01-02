@@ -25,6 +25,7 @@ import { app, db, storage } from '@/firebaseConfig';
 import { useAuth } from '@/context/AuthContext';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { generateUniqueFilename } from '@/logic/idGenerator';
+import { NotificationService } from '@/services/NotificationService';
 
 export interface Post {
   id: string;
@@ -146,20 +147,42 @@ export function usePostsData() {
 
   // Fetch all public posts
   const fetchPosts = async () => {
+    // Early return if no user - prevent Firestore permission errors
+    if (!currentUser?.uid) {
+      setPosts([]);
+      setLoading(false);
+      return;
+    }
+    
     try {
-      setLoading(true)
-      const postsRef = collection(db, "posts")
+      setLoading(true);
+      
+      // Double-check user still exists before Firestore query
+      if (!currentUser?.uid) {
+        setPosts([]);
+        setLoading(false);
+        return;
+      }
+      
+      const postsRef = collection(db, "posts");
       const q = query(
         postsRef,
         where("visibility", "==", "public"),
         orderBy("createdAt", "desc")
-      )
-      const querySnapshot = await getDocs(q)
+      );
+      const querySnapshot = await getDocs(q);
+
+      // Check again after async operation
+      if (!currentUser?.uid) {
+        setPosts([]);
+        setLoading(false);
+        return;
+      }
 
       const postsData: Post[] = []
       for (const snap of querySnapshot.docs) {
         // build the base Post
-        const post = { id: snap.id, ...(snap.data() as Post) } as Post
+        const post = { ...(snap.data() as Post), id: snap.id } as Post
 
         // ► fetch author's profile image
         const userSnap = await getDoc(doc(db, "users", post.authorId))
@@ -182,38 +205,88 @@ export function usePostsData() {
       }
       setPosts(postsData)
     } catch (err) {
-      console.error("Error fetching posts:", err)
-      setError(err as Error)
+      // Only set error if user is still logged in
+      if (currentUser?.uid) {
+        console.error("Error fetching posts:", err);
+        setError(err as Error);
+      }
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
   const uploadImage = async (imageUri: string, postId: string): Promise<string> => {
     try {
-      const filename = `posts/${currentUser!.uid}/${generateUniqueFilename('post', 'jpg')}`;
+      if (!currentUser) {
+        throw new Error("User not authenticated. Please log in and try again.");
+      }
+
+      console.log("Starting image upload for postId:", postId);
+      console.log("Image URI:", imageUri);
+      console.log("Current user ID:", currentUser.uid);
+      console.log("Auth token available:", !!currentUser.stsTokenManager?.accessToken);
+      
+      const filename = `posts/${currentUser.uid}/${generateUniqueFilename('post', 'jpg')}`;
+      console.log("Storage path:", filename);
+      console.log("Storage bucket:", storage.app.options.storageBucket);
+      
       const storageRef = ref(storage, filename);
       
-      // Fetch the image and convert to blob
+      // Fetch the image and convert to blob - this works in React Native
+      console.log("Fetching image...");
       const response = await fetch(imageUri);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch image: ${response.status}`);
+      }
+      
       const blob = await response.blob();
       
-      // Define custom metadata
+      console.log("Blob created, size:", blob.size, "type:", blob.type);
+      
+      // Ensure blob has content
+      if (blob.size === 0) {
+        throw new Error("Image blob is empty");
+      }
+      
+      // Define metadata with content type
       const metadata = {
+        contentType: 'image/jpeg',
         customMetadata: {
-          postId: postId
+          postId: postId,
+          uploadedBy: currentUser.uid
         }
       };
 
-      // Upload image with metadata
-      await uploadBytes(storageRef, blob, metadata);
+      console.log("Uploading to Firebase Storage...");
+      console.log("Metadata:", metadata);
+      
+      // Upload the blob directly - React Native's fetch().blob() works with Firebase Storage
+      const uploadResult = await uploadBytes(storageRef, blob, metadata);
+      console.log("Upload successful!");
+      console.log("Upload metadata:", uploadResult.metadata);
       
       // Get download URL
       const downloadURL = await getDownloadURL(storageRef);
+      console.log("Download URL obtained successfully");
       
       return downloadURL;
-    } catch (error) {
-      console.error("Error uploading image:", error);
+    } catch (error: any) {
+      console.error("Error in uploadImage:", error);
+      console.error("Error details:", {
+        message: error.message,
+        code: error.code,
+        name: error.name,
+        serverResponse: error.serverResponse,
+        customData: error.customData,
+      });
+      
+      // Provide more specific error messages
+      if (error.code === 'storage/unauthorized') {
+        throw new Error('You are not authorized to upload images. Please check your authentication.');
+      } else if (error.code === 'storage/unknown') {
+        throw new Error(`Upload failed. Please check your internet connection and try again. (${error.message})`);
+      }
+      
       throw error;
     }
   };
@@ -224,7 +297,7 @@ export function usePostsData() {
     const postSnap = await getDoc(postRef)
     if (!postSnap.exists()) throw new Error("Post not found")
 
-    const post = { id: postSnap.id, ...(postSnap.data() as Post) } as Post
+    const post = { ...(postSnap.data() as Post), id: postSnap.id } as Post
 
     // ► fetch author's profile image
     const userSnap = await getDoc(doc(db, "users", post.authorId))
@@ -463,6 +536,23 @@ export function usePostsData() {
           createdAt: serverTimestamp(),
           status: 'unread'
         });
+
+        // Send notification for the like
+        try {
+          await NotificationService.notifyLikeOrComment(
+            postData.authorId,
+            currentUser.uid,
+            userProfile.username || 'Someone',
+            postId,
+            true, // isLike = true
+            postData.isMilestone, // Pass the milestone flag
+            postData.isMilestone ? 'milestone' : 'post' // Explicitly set contentType
+          );
+          console.log(`Like notification sent to ${postData.authorId}`);
+        } catch (error) {
+          console.error('Error sending like notification:', error);
+          // Don't throw - notification failure shouldn't stop the like action
+        }
       }
 
       console.log(`User ${currentUser.uid} liked post ${postId}`);
@@ -529,6 +619,12 @@ export function usePostsData() {
     if (!currentUser || !userProfile) throw new Error("User not authenticated");
     if (!text.trim())      throw new Error("Comment text cannot be empty");
 
+    // First, get the post data to get author info
+    const postRef = doc(db, "posts", postId);
+    const postSnap = await getDoc(postRef);
+    if (!postSnap.exists()) throw new Error("Post not found");
+    const postData = postSnap.data() as Post;
+
     const newCommentRef = await addDoc(
       collection(db, "posts", postId, "comments"),
       {
@@ -541,6 +637,37 @@ export function usePostsData() {
         replyCount:     0,
       }
     );
+
+    // Create activity and send notification for the post author (if not self-comment)
+    if (postData.authorId !== currentUser.uid) {
+      try {
+        const authorActivityColRef = collection(db, 'activity', postData.authorId, 'userActivity');
+        await addDoc(authorActivityColRef, {
+          type: 'post_comment',
+          fromUserId: currentUser.uid,
+          fromUsername: userProfile.username,
+          fromProfileImageUrl: userProfile.profileImageUrl || null,
+          postId: postId,
+          postImageUrl: postData.imageUrl || null,
+          commentText: text.substring(0, 100) + (text.length > 100 ? '...' : ''),
+          createdAt: serverTimestamp(),
+          status: 'unread'
+        });
+
+        // Send notification for the comment
+        await NotificationService.notifyLikeOrComment(
+          postData.authorId,
+          currentUser.uid,
+          userProfile.username || 'Someone',
+          postId,
+          false, // isLike = false
+          postData.isMilestone // Pass the milestone flag
+        );
+      } catch (error) {
+        console.error('Error sending comment notification:', error);
+        // Don't throw - notification failure shouldn't stop the comment action
+      }
+    }
 
     return {
       id: newCommentRef.id,
@@ -576,6 +703,38 @@ export function usePostsData() {
           likedBy: arrayUnion(currentUser.uid)
         });
       });
+
+      // Create activity and send notification for comment author (if not self-like)
+      if (commentData.authorId !== currentUser.uid) {
+        try {
+          const authorActivityColRef = collection(db, 'activity', commentData.authorId, 'userActivity');
+          await addDoc(authorActivityColRef, {
+            type: 'comment_like',
+            fromUserId: currentUser.uid,
+            fromUsername: userProfile.username,
+            fromProfileImageUrl: userProfile.profileImageUrl || null,
+            postId: postId,
+            commentId: commentId,
+            createdAt: serverTimestamp(),
+            status: 'unread'
+          });
+
+          // Send notification (comments are not milestones, so always false)
+          await NotificationService.notifyLikeOrComment(
+            commentData.authorId,
+            currentUser.uid,
+            userProfile.username || 'Someone',
+            postId,
+            true, // isLike = true
+            false, // isMilestone = false (comments are never milestones)
+            'comment' // contentType = 'comment'
+          );
+        } catch (error) {
+          console.error('Error sending comment like notification:', error);
+          // Don't throw - notification failure shouldn't stop the like action
+        }
+      }
+
       console.log(`User ${currentUser.uid} liked comment ${commentId} on post ${postId}`);
     } catch (error) {
       console.error("Error liking comment: ", error);
@@ -664,6 +823,36 @@ export function usePostsData() {
         });
       });
 
+      // Create activity and send notification for the parent comment author (if not self-reply)
+      if (parentCommentData.authorId !== currentUser.uid) {
+        try {
+          const authorActivityColRef = collection(db, 'activity', parentCommentData.authorId, 'userActivity');
+          await addDoc(authorActivityColRef, {
+            type: 'comment_reply',
+            fromUserId: currentUser.uid,
+            fromUsername: userProfile.username,
+            fromProfileImageUrl: userProfile.profileImageUrl || null,
+            postId: postId,
+            parentCommentId: parentCommentId,
+            replyId: newReplyRef.id,
+            replyText: text.substring(0, 100) + (text.length > 100 ? '...' : ''),
+            createdAt: serverTimestamp(),
+            status: 'unread'
+          });
+
+          // Send notification for the reply (replies are not milestones)
+          await NotificationService.notifyMentionedInReply(
+            parentCommentData.authorId,
+            currentUser.uid,
+            userProfile.username || 'Someone',
+            postId
+          );
+        } catch (error) {
+          console.error('Error sending reply notification:', error);
+          // Don't throw - notification failure shouldn't stop the reply action
+        }
+      }
+
       const clientTimestamp = Timestamp.now();
       return { 
         id: newReplyRef.id, 
@@ -732,26 +921,46 @@ export function usePostsData() {
           likes: increment(1),
           likedBy: arrayUnion(currentUser.uid)
         });
-
-        // Activity for reply author (if not self-liking reply)
-        // Note: This might become noisy. Consider if this notification is necessary.
-        if (replyData.authorId !== currentUser.uid) {
-          // const authorActivityColRef = collection(db, 'activity', replyData.authorId, 'userActivity');
-          // const newActivityRef = doc(authorActivityColRef);
-          // transaction.set(newActivityRef, {
-          //   type: 'reply_like', // You'd need to add this type to ActivityItem
-          //   fromUserId: currentUser.uid,
-          //   fromUsername: userProfile.username,
-          //   fromProfileImageUrl: userProfile.profileImageUrl || "",
-          //   postId: postId,
-          //   commentId: commentId,
-          //   replyId: replyId,
-          //   replyText: replyData.text.substring(0, 50) + (replyData.text.length > 50 ? "..." : ""),
-          //   createdAt: serverTimestamp(),
-          //   status: 'unread',
-          // } as Omit<ActivityItem, 'id'>);
-        }
       });
+
+      // Create activity and send notification for reply author (if not self-liking reply)
+      // Note: This might become noisy. Consider if this notification is necessary.
+      if (replyData.authorId !== currentUser.uid) {
+        try {
+          // Create activity for reply like
+          const authorActivityColRef = collection(db, 'activity', replyData.authorId, 'userActivity');
+          const activityRef = await addDoc(authorActivityColRef, {
+            type: 'comment_like', // or 'reply_like' if you want to distinguish
+            fromUserId: currentUser.uid,
+            fromUsername: userProfile.username,
+            fromProfileImageUrl: userProfile.profileImageUrl || null,
+            postId: postId,
+            commentId: commentId,
+            replyId: replyId,
+            createdAt: serverTimestamp(),
+            status: 'unread'
+          });
+
+          console.log(`Created activity document for reply like: ${activityRef.id}`);
+
+          // Send notification (replies are never milestones, so always false)
+          const notificationResult = await NotificationService.notifyLikeOrComment(
+            replyData.authorId,
+            currentUser.uid,
+            userProfile.username || 'Someone',
+            postId,
+            true, // isLike = true
+            false, // isMilestone = false (replies are never milestones)
+            'reply' // contentType = 'reply'
+          );
+          
+          console.log(`Reply like notification sent:`, notificationResult);
+        } catch (error) {
+          console.error('Error sending reply like notification:', error);
+          // Don't throw - notification failure shouldn't stop the like action
+        }
+      }
+
       console.log(`User ${currentUser.uid} liked reply ${replyId}`);
     } catch (error) {
       console.error("Error liking reply: ", error);
@@ -789,10 +998,12 @@ export function usePostsData() {
 
   useEffect(() => {
     if (currentUser?.uid) {
-        fetchPosts(); // SHOULD fetchPosts() BE CALLED HERE??? COME BACK LATER
+      fetchPosts();
     } else {
-        setPosts([]);
-        setLoading(false);
+      // Clear everything on logout
+      setPosts([]);
+      setLoading(false);
+      setError(null);
     }
   }, [currentUser?.uid]);
 

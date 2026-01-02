@@ -4,7 +4,6 @@ import {
   Text, 
   StyleSheet, 
   FlatList, 
-  Image, 
   TouchableOpacity, 
   ActivityIndicator 
 } from 'react-native';
@@ -13,6 +12,7 @@ import { db } from '@/firebaseConfig';
 import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { OptimizedImageLight } from '@/components/OptimizedImage';
 
 export default function Following() {
   const { userId } = useLocalSearchParams();
@@ -125,10 +125,9 @@ export default function Following() {
             style={styles.userItem}
             onPress={() => handleUserPress(item.id)}
           >
-            <Image 
-              source={{ 
-                uri: item.profileImageUrl || 'https://thumbs.dreamstime.com/b/creative-illustration-default-avatar-profile-placeholder-isolated-background-art-design-grey-photo-blank-template-mockup-144855718.jpg'
-              }} 
+            <OptimizedImageLight 
+              thumbnailUrl={item.profileThumbnailUrl}
+              originalUrl={item.profileImageUrl}
               style={styles.avatar} 
             />
             <View style={styles.userInfo}>
