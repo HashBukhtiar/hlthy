@@ -227,28 +227,48 @@ export default function MilestonesFeed() {
 
   // Handle follow/unfollow from action menu
   const handleToggleFollowFromMenu = useCallback(async () => {
-    if (!selectedMilestoneForAction || !currentUser) return;
+    console.log('🔵 [MilestonesFeed] handleToggleFollowFromMenu called');
+    console.log('🔵 [MilestonesFeed] selectedMilestoneForAction:', selectedMilestoneForAction);
+    console.log('🔵 [MilestonesFeed] currentUser:', currentUser?.uid);
+    console.log('🔵 [MilestonesFeed] isFollowing status:', selectedMilestoneForAction?.isFollowing);
+    
+    if (!selectedMilestoneForAction || !currentUser) {
+      console.log('🔴 [MilestonesFeed] Early return - missing selectedMilestoneForAction or currentUser');
+      return;
+    }
+
+    const targetUserId = selectedMilestoneForAction.authorId;
+    const targetUsername = selectedMilestoneForAction.authorUsername;
+    const isCurrentlyFollowing = selectedMilestoneForAction.isFollowing;
+
+    console.log('🔵 [MilestonesFeed] Target user:', targetUserId, targetUsername);
+    console.log('🔵 [MilestonesFeed] Currently following:', isCurrentlyFollowing);
 
     try {
-      // We'll check the status dynamically through the API call
-      await followUser(selectedMilestoneForAction.authorId);
-      Alert.alert('Success', 'Follow status updated successfully');
-    } catch (error: any) {
-      // If error indicates already following, try unfollowing
-      if (error.message?.includes('already') || error.code === 'already-following') {
-        try {
-          await unfollowUser(selectedMilestoneForAction.authorId);
-          Alert.alert('Unfollowed', `You have unfollowed ${selectedMilestoneForAction.authorUsername}`);
-        } catch (unfollowError) {
-          console.error('Error unfollowing:', unfollowError);
-          Alert.alert('Error', 'Could not update follow status. Please try again.');
-        }
+      if (isCurrentlyFollowing) {
+        // User is currently following, so unfollow
+        console.log('🟡 [MilestonesFeed] Attempting to UNFOLLOW user:', targetUserId);
+        await unfollowUser(targetUserId);
+        console.log('✅ [MilestonesFeed] Successfully unfollowed user:', targetUsername);
+        Alert.alert('Unfollowed', `You have unfollowed ${targetUsername}`);
       } else {
-        console.error('Error toggling follow:', error);
-        Alert.alert('Error', 'Could not update follow status. Please try again.');
+        // User is not following, so follow
+        console.log('🟡 [MilestonesFeed] Attempting to FOLLOW user:', targetUserId);
+        await followUser(targetUserId);
+        console.log('✅ [MilestonesFeed] Successfully followed user:', targetUsername);
+        Alert.alert('Success', `You are now following ${targetUsername}`);
       }
+      
+      // Refresh feed to update the following status
+      console.log('🔵 [MilestonesFeed] Refreshing feed after follow/unfollow action');
+      refreshFeed();
+    } catch (error: any) {
+      console.error('🔴 [MilestonesFeed] Error in handleToggleFollowFromMenu:', error);
+      console.error('🔴 [MilestonesFeed] Error message:', error.message);
+      console.error('🔴 [MilestonesFeed] Error code:', error.code);
+      Alert.alert('Error', 'Could not update follow status. Please try again.');
     }
-  }, [selectedMilestoneForAction, currentUser, followUser, unfollowUser]);
+  }, [selectedMilestoneForAction, currentUser, followUser, unfollowUser, refreshFeed]);
 
   // Handle block user from action menu
   const handleBlockUser = useCallback(async () => {

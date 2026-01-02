@@ -206,29 +206,48 @@ export default function PostsFeed() {
 
   // Handle follow/unfollow from action menu
   const handleToggleFollowFromMenu = useCallback(async () => {
-    if (!selectedPostForAction || !currentUser) return;
+    console.log('🔵 [PostsFeed] handleToggleFollowFromMenu called');
+    console.log('🔵 [PostsFeed] selectedPostForAction:', selectedPostForAction);
+    console.log('🔵 [PostsFeed] currentUser:', currentUser?.uid);
+    console.log('🔵 [PostsFeed] isFollowing status:', selectedPostForAction?.isFollowing);
+    
+    if (!selectedPostForAction || !currentUser) {
+      console.log('🔴 [PostsFeed] Early return - missing selectedPostForAction or currentUser');
+      return;
+    }
+
+    const targetUserId = selectedPostForAction.authorId;
+    const targetUsername = selectedPostForAction.authorUsername;
+    const isCurrentlyFollowing = selectedPostForAction.isFollowing;
+
+    console.log('🔵 [PostsFeed] Target user:', targetUserId, targetUsername);
+    console.log('🔵 [PostsFeed] Currently following:', isCurrentlyFollowing);
 
     try {
-      // We'll check the status dynamically through the API call
-      // The followUser/unfollowUser functions will handle the current state
-      await followUser(selectedPostForAction.authorId);
-      Alert.alert('Success', 'Follow status updated successfully');
-    } catch (error: any) {
-      // If error indicates already following, try unfollowing
-      if (error.message?.includes('already') || error.code === 'already-following') {
-        try {
-          await unfollowUser(selectedPostForAction.authorId);
-          Alert.alert('Unfollowed', `You have unfollowed ${selectedPostForAction.authorUsername}`);
-        } catch (unfollowError) {
-          console.error('Error unfollowing:', unfollowError);
-          Alert.alert('Error', 'Could not update follow status. Please try again.');
-        }
+      if (isCurrentlyFollowing) {
+        // User is currently following, so unfollow
+        console.log('🟡 [PostsFeed] Attempting to UNFOLLOW user:', targetUserId);
+        await unfollowUser(targetUserId);
+        console.log('✅ [PostsFeed] Successfully unfollowed user:', targetUsername);
+        Alert.alert('Unfollowed', `You have unfollowed ${targetUsername}`);
       } else {
-        console.error('Error toggling follow:', error);
-        Alert.alert('Error', 'Could not update follow status. Please try again.');
+        // User is not following, so follow
+        console.log('🟡 [PostsFeed] Attempting to FOLLOW user:', targetUserId);
+        await followUser(targetUserId);
+        console.log('✅ [PostsFeed] Successfully followed user:', targetUsername);
+        Alert.alert('Success', `You are now following ${targetUsername}`);
       }
+      
+      // Refresh feed to update the following status
+      console.log('🔵 [PostsFeed] Refreshing feed after follow/unfollow action');
+      refreshFeed();
+    } catch (error: any) {
+      console.error('🔴 [PostsFeed] Error in handleToggleFollowFromMenu:', error);
+      console.error('🔴 [PostsFeed] Error message:', error.message);
+      console.error('🔴 [PostsFeed] Error code:', error.code);
+      Alert.alert('Error', 'Could not update follow status. Please try again.');
     }
-  }, [selectedPostForAction, currentUser, followUser, unfollowUser]);
+  }, [selectedPostForAction, currentUser, followUser, unfollowUser, refreshFeed]);
 
   // Handle block user from action menu
   const handleBlockUser = useCallback(async () => {

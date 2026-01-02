@@ -180,6 +180,9 @@ export default function PostActionMenu({
                   <TouchableOpacity
                     style={styles.menuItem}
                     onPress={() => {
+                      console.log('🟢 [PostActionMenu] Follow/Unfollow button pressed');
+                      console.log('🟢 [PostActionMenu] isFollowing:', isFollowing);
+                      console.log('🟢 [PostActionMenu] isOwnPost:', isOwnPost);
                       onToggleFollow();
                       handleClose();
                     }}
