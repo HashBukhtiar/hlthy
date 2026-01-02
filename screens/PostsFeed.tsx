@@ -14,6 +14,8 @@ import {
   Platform,
   UIManager
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 
 // Enable LayoutAnimation on Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -645,17 +647,23 @@ export default function PostsFeed() {
 
     return (
       <View style={styles.emptyState}>
-        <Ionicons name="people-outline" size={80} color="#333" />
-        <Text style={styles.emptyStateTitle}>Your feed is empty</Text>
-        <Text style={styles.emptyStateText}>
-          Follow other users to see their posts here, or check out trending content in Explore.
-        </Text>
-        <TouchableOpacity 
-          style={styles.exploreButton}
-          onPress={() => router.push('/explore')}
-        >
-          <Text style={styles.exploreButtonText}>Explore</Text>
-        </TouchableOpacity>
+        <View style={styles.emptyStateContent}>
+          <View style={styles.iconContainer}>
+            <Ionicons name="people-outline" size={40} color="#FF6B6B" />
+          </View>
+          <Text style={styles.emptyStateTitle}>Your Feed Awaits</Text>
+          <Text style={styles.emptyStateText}>
+            Start following creators to see their latest posts and workouts.
+          </Text>
+          <TouchableOpacity 
+            style={styles.exploreButton}
+            onPress={() => router.push('/explore')}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="compass" size={18} color="#000" style={styles.buttonIcon} />
+            <Text style={styles.exploreButtonText}>Explore Content</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     );
   }, [loading, router]);
@@ -934,30 +942,42 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 40,
   },
+  emptyStateContent: {
+    alignItems: 'center',
+    maxWidth: 300,
+  },
+  iconContainer: {
+    marginBottom: 16,
+  },
   emptyStateTitle: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: '600',
     color: '#FFF',
-    marginTop: 20,
-    marginBottom: 10,
+    marginBottom: 8,
   },
   emptyStateText: {
-    fontSize: 16,
+    fontSize: 15,
     color: '#8E8E93',
     textAlign: 'center',
-    lineHeight: 24,
-    marginBottom: 30,
+    lineHeight: 22,
+    marginBottom: 24,
   },
   exploreButton: {
     backgroundColor: '#FF6B6B',
-    paddingHorizontal: 30,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 24,
     paddingVertical: 12,
-    borderRadius: 25,
+    borderRadius: 24,
+    gap: 6,
+  },
+  buttonIcon: {
+    marginRight: 2,
   },
   exploreButtonText: {
     color: '#000',
     fontWeight: '600',
-    fontSize: 16,
+    fontSize: 15,
   },
   errorState: {
     flex: 1,

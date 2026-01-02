@@ -632,16 +632,22 @@ export default function MilestonesFeed() {
 
     return (
       <View style={styles.emptyMilestonesContainer}>
-        <Ionicons name="trophy-outline" size={80} color="#333" />
-        <Text style={styles.emptyMilestonesTitle}>No milestones yet</Text>
-        <Text style={styles.emptyMilestonesText}>
-          Follow users to see their achievements here, or create your first milestone!
-        </Text>
-        <TouchableOpacity 
-          style={styles.createButton}
-        >
-          <Text style={styles.createButtonText}>Create Milestone</Text>
-        </TouchableOpacity>
+        <View style={styles.emptyMilestonesContent}>
+          <View style={styles.milestoneIconContainer}>
+            <Ionicons name="trophy" size={40} color="#FF6B6B" />
+          </View>
+          <Text style={styles.emptyMilestonesTitle}>No Milestones Yet</Text>
+          <Text style={styles.emptyMilestonesText}>
+            Start following athletes to see their achievements.
+          </Text>
+          <TouchableOpacity 
+            style={styles.createButton}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="add-circle" size={18} color="#000" style={styles.buttonIcon} />
+            <Text style={styles.createButtonText}>Create Milestone</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     );
   }, [loading, router]);
@@ -967,30 +973,39 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 40,
   },
+  emptyMilestonesContent: {
+    alignItems: 'center',
+    maxWidth: 300,
+  },
+  milestoneIconContainer: {
+    marginBottom: 16,
+  },
   emptyMilestonesTitle: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: '600',
     color: '#FFF',
-    marginTop: 20,
-    marginBottom: 10,
+    marginBottom: 8,
   },
   emptyMilestonesText: {
-    fontSize: 16,
+    fontSize: 15,
     color: '#8E8E93',
     textAlign: 'center',
-    lineHeight: 24,
-    marginBottom: 30,
+    lineHeight: 22,
+    marginBottom: 24,
   },
   createButton: {
     backgroundColor: '#FF6B6B',
-    paddingHorizontal: 30,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 24,
     paddingVertical: 12,
-    borderRadius: 25,
+    borderRadius: 24,
+    gap: 6,
   },
   createButtonText: {
     color: '#000',
     fontWeight: '600',
-    fontSize: 16,
+    fontSize: 15,
   },
   retryButton: {
     backgroundColor: '#FF3B30',
