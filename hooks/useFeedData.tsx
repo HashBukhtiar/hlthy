@@ -117,7 +117,25 @@ export function useFeedData() {
       };
     });
 
-    return enrichedPosts;
+    // 6. Filter out posts from private accounts unless the user is following them or it's their own post
+    const filteredPosts = enrichedPosts.filter(post => {
+      const authorProfile = authorProfiles[post.authorId];
+      
+      // Always show user's own posts
+      if (post.authorId === currentUser.uid) {
+        return true;
+      }
+      
+      // Show posts from public accounts
+      if (!authorProfile || authorProfile.profileVisibility !== 'private') {
+        return true;
+      }
+      
+      // Only show posts from private accounts if the user is following them
+      return followingStatusMap[post.authorId] || false;
+    });
+
+    return filteredPosts;
   }, [currentUser?.uid]);
 
   const fetchFeedData = useCallback(async (isRefresh = false, isLoadMore = false) => {
