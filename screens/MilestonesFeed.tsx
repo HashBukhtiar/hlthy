@@ -770,6 +770,7 @@ export default function MilestonesFeed() {
         isBookmarked={selectedMilestoneForAction?.isBookmarked || false}
         isFollowing={false} // Following status checked dynamically in handler
         isOwnPost={selectedMilestoneForAction?.authorId === currentUser?.uid}
+        isMilestone={true}
         onToggleBookmark={() => {
           if (selectedMilestoneForAction) {
             handleToggleBookmark(selectedMilestoneForAction.id, selectedMilestoneForAction.isBookmarked || false);

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   Modal,
   View,
@@ -7,9 +7,15 @@ import {
   StyleSheet,
   Platform,
   Pressable,
+  Animated,
+  PanResponder,
+  Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
+
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+const DRAG_THRESHOLD = 100; // Distance to drag before dismissing
 
 export interface PostActionMenuProps {
   visible: boolean;
@@ -17,6 +23,7 @@ export interface PostActionMenuProps {
   isBookmarked: boolean;
   isFollowing: boolean;
   isOwnPost: boolean;
+  isMilestone?: boolean;
   onToggleBookmark: () => void;
   onToggleFollow: () => void;
   onBlock: () => void;
@@ -29,55 +36,144 @@ export default function PostActionMenu({
   isBookmarked,
   isFollowing,
   isOwnPost,
+  isMilestone = false,
   onToggleBookmark,
   onToggleFollow,
   onBlock,
   onReport,
 }: PostActionMenuProps) {
+  const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
+  const opacity = useRef(new Animated.Value(0)).current;
+
+  // Create pan responder for drag gestures
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_, gestureState) => {
+        // Only respond to vertical drags
+        return Math.abs(gestureState.dy) > 5;
+      },
+      onPanResponderMove: (_, gestureState) => {
+        // Only allow dragging down
+        if (gestureState.dy > 0) {
+          translateY.setValue(gestureState.dy);
+        }
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        if (gestureState.dy > DRAG_THRESHOLD || gestureState.vy > 0.5) {
+          // Dismiss if dragged far enough or fast enough
+          handleClose();
+        } else {
+          // Snap back to position
+          Animated.spring(translateY, {
+            toValue: 0,
+            useNativeDriver: true,
+            tension: 65,
+            friction: 11,
+          }).start();
+        }
+      },
+    })
+  ).current;
+
+  useEffect(() => {
+    if (visible) {
+      // Animate in
+      Animated.parallel([
+        Animated.spring(translateY, {
+          toValue: 0,
+          useNativeDriver: true,
+          tension: 65,
+          friction: 11,
+        }),
+        Animated.timing(opacity, {
+          toValue: 1,
+          duration: 250,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } else {
+      // Reset to initial state
+      translateY.setValue(SCREEN_HEIGHT);
+      opacity.setValue(0);
+    }
+  }, [visible]);
+
+  const handleClose = () => {
+    Animated.parallel([
+      Animated.timing(translateY, {
+        toValue: SCREEN_HEIGHT,
+        duration: 250,
+        useNativeDriver: true,
+      }),
+      Animated.timing(opacity, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      onClose();
+    });
+  };
+
   return (
     <Modal
-      animationType="fade"
+      animationType="none"
       transparent={true}
       visible={visible}
-      onRequestClose={onClose}
+      onRequestClose={handleClose}
       statusBarTranslucent
     >
-      <Pressable 
-        style={styles.overlay}
-        onPress={onClose}
-      >
-        <View style={styles.menuContainer}>
+      <Animated.View style={[styles.overlay, { opacity }]}>
+        <Pressable 
+          style={styles.overlayPressable}
+          onPress={handleClose}
+        />
+        <Animated.View 
+          style={[
+            styles.menuContainer,
+            {
+              transform: [{ translateY }],
+            },
+          ]}
+        >
+          {/* Drag Handle */}
+          <View style={styles.dragHandleContainer} {...panResponder.panHandlers}>
+            <View style={styles.dragHandle} />
+          </View>
+
           {Platform.OS === 'ios' ? (
-            <BlurView intensity={95} tint="dark" style={styles.blurContainer}>
+            <BlurView intensity={100} tint="dark" style={styles.blurContainer}>
               <View style={styles.menuContent}>
-                {/* Bookmark Option */}
-                <TouchableOpacity
-                  style={styles.menuItem}
-                  onPress={() => {
-                    onToggleBookmark();
-                    onClose();
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <View style={styles.menuItemContent}>
-                    <View style={[styles.iconContainer, { backgroundColor: '#FFD60A15' }]}>
-                      <Ionicons 
-                        name={isBookmarked ? "bookmark" : "bookmark-outline"} 
-                        size={20} 
-                        color="#FFD60A" 
-                      />
+                {/* Bookmark Option - Only show for posts, not milestones */}
+                {!isMilestone && (
+                  <TouchableOpacity
+                    style={styles.menuItem}
+                    onPress={() => {
+                      onToggleBookmark();
+                      handleClose();
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <View style={styles.menuItemContent}>
+                      <View style={[styles.iconContainer, { backgroundColor: 'rgba(255, 214, 10, 0.22)' }]}>
+                        <Ionicons 
+                          name={isBookmarked ? "bookmark" : "bookmark-outline"} 
+                          size={24} 
+                          color="#FFD60A" 
+                        />
+                      </View>
+                      <View style={styles.menuItemTextContainer}>
+                        <Text style={styles.menuItemText}>
+                          {isBookmarked ? 'Remove Bookmark' : 'Save Post'}
+                        </Text>
+                        <Text style={styles.menuItemSubtext}>
+                          {isBookmarked ? 'Remove from saved posts' : 'Save for later'}
+                        </Text>
+                      </View>
                     </View>
-                    <View style={styles.menuItemTextContainer}>
-                      <Text style={styles.menuItemText}>
-                        {isBookmarked ? 'Remove Bookmark' : 'Save Post'}
-                      </Text>
-                      <Text style={styles.menuItemSubtext}>
-                        {isBookmarked ? 'Remove from saved posts' : 'Save for later'}
-                      </Text>
-                    </View>
-                  </View>
-                  <Ionicons name="chevron-forward" size={16} color="#8E8E93" />
-                </TouchableOpacity>
+                  </TouchableOpacity>
+                )}
 
                 {/* Follow/Unfollow Option - Only show if not own post */}
                 {!isOwnPost && (
@@ -85,15 +181,15 @@ export default function PostActionMenu({
                     style={styles.menuItem}
                     onPress={() => {
                       onToggleFollow();
-                      onClose();
+                      handleClose();
                     }}
-                    activeOpacity={0.7}
+                    activeOpacity={0.8}
                   >
                     <View style={styles.menuItemContent}>
-                      <View style={[styles.iconContainer, { backgroundColor: isFollowing ? '#FF453A15' : '#30D15815' }]}>
+                      <View style={[styles.iconContainer, { backgroundColor: isFollowing ? 'rgba(255, 69, 58, 0.22)' : 'rgba(48, 209, 88, 0.22)' }]}>
                         <Ionicons 
                           name={isFollowing ? "person-remove-outline" : "person-add-outline"} 
-                          size={20} 
+                          size={24} 
                           color={isFollowing ? "#FF453A" : "#30D158"} 
                         />
                       </View>
@@ -106,7 +202,6 @@ export default function PostActionMenu({
                         </Text>
                       </View>
                     </View>
-                    <Ionicons name="chevron-forward" size={16} color="#8E8E93" />
                   </TouchableOpacity>
                 )}
 
@@ -116,15 +211,15 @@ export default function PostActionMenu({
                     style={styles.menuItem}
                     onPress={() => {
                       onBlock();
-                      onClose();
+                      handleClose();
                     }}
-                    activeOpacity={0.7}
+                    activeOpacity={0.8}
                   >
                     <View style={styles.menuItemContent}>
-                      <View style={[styles.iconContainer, { backgroundColor: '#FF9F0A15' }]}>
+                      <View style={[styles.iconContainer, { backgroundColor: 'rgba(255, 159, 10, 0.22)' }]}>
                         <Ionicons 
                           name="ban-outline" 
-                          size={20} 
+                          size={24} 
                           color="#FF9F0A" 
                         />
                       </View>
@@ -135,7 +230,6 @@ export default function PostActionMenu({
                         </Text>
                       </View>
                     </View>
-                    <Ionicons name="chevron-forward" size={16} color="#8E8E93" />
                   </TouchableOpacity>
                 )}
 
@@ -145,15 +239,15 @@ export default function PostActionMenu({
                     style={[styles.menuItem, styles.menuItemLast]}
                     onPress={() => {
                       onReport();
-                      onClose();
+                      handleClose();
                     }}
-                    activeOpacity={0.7}
+                    activeOpacity={0.8}
                   >
                     <View style={styles.menuItemContent}>
-                      <View style={[styles.iconContainer, { backgroundColor: '#FF453A15' }]}>
+                      <View style={[styles.iconContainer, { backgroundColor: 'rgba(255, 69, 58, 0.22)' }]}>
                         <Ionicons 
                           name="flag-outline" 
-                          size={20} 
+                          size={24} 
                           color="#FF453A" 
                         />
                       </View>
@@ -164,7 +258,6 @@ export default function PostActionMenu({
                         </Text>
                       </View>
                     </View>
-                    <Ionicons name="chevron-forward" size={16} color="#8E8E93" />
                   </TouchableOpacity>
                 )}
               </View>
@@ -173,49 +266,51 @@ export default function PostActionMenu({
             // Android fallback without blur
             <View style={[styles.blurContainer, styles.androidContainer]}>
               <View style={styles.menuContent}>
-                {/* Same menu items for Android */}
-                <TouchableOpacity
-                  style={styles.menuItem}
-                  onPress={() => {
-                    onToggleBookmark();
-                    onClose();
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <View style={styles.menuItemContent}>
-                    <View style={[styles.iconContainer, { backgroundColor: '#FFD60A15' }]}>
-                      <Ionicons 
-                        name={isBookmarked ? "bookmark" : "bookmark-outline"} 
-                        size={20} 
-                        color="#FFD60A" 
-                      />
+                {/* Bookmark Option - Only show for posts, not milestones */}
+                {!isMilestone && (
+                  <TouchableOpacity
+                    style={styles.menuItem}
+                    onPress={() => {
+                      onToggleBookmark();
+                      handleClose();
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <View style={styles.menuItemContent}>
+                      <View style={[styles.iconContainer, { backgroundColor: 'rgba(255, 214, 10, 0.22)' }]}>
+                        <Ionicons 
+                          name={isBookmarked ? "bookmark" : "bookmark-outline"} 
+                          size={24} 
+                          color="#FFD60A" 
+                        />
+                      </View>
+                      <View style={styles.menuItemTextContainer}>
+                        <Text style={styles.menuItemText}>
+                          {isBookmarked ? 'Remove Bookmark' : 'Save Post'}
+                        </Text>
+                        <Text style={styles.menuItemSubtext}>
+                          {isBookmarked ? 'Remove from saved posts' : 'Save for later'}
+                        </Text>
+                      </View>
                     </View>
-                    <View style={styles.menuItemTextContainer}>
-                      <Text style={styles.menuItemText}>
-                        {isBookmarked ? 'Remove Bookmark' : 'Save Post'}
-                      </Text>
-                      <Text style={styles.menuItemSubtext}>
-                        {isBookmarked ? 'Remove from saved posts' : 'Save for later'}
-                      </Text>
-                    </View>
-                  </View>
-                  <Ionicons name="chevron-forward" size={16} color="#8E8E93" />
-                </TouchableOpacity>
+                  </TouchableOpacity>
+                )}
 
+                {/* Follow/Unfollow Option */}
                 {!isOwnPost && (
                   <TouchableOpacity
                     style={styles.menuItem}
                     onPress={() => {
                       onToggleFollow();
-                      onClose();
+                      handleClose();
                     }}
-                    activeOpacity={0.7}
+                    activeOpacity={0.8}
                   >
                     <View style={styles.menuItemContent}>
-                      <View style={[styles.iconContainer, { backgroundColor: isFollowing ? '#FF453A15' : '#30D15815' }]}>
+                      <View style={[styles.iconContainer, { backgroundColor: isFollowing ? 'rgba(255, 69, 58, 0.22)' : 'rgba(48, 209, 88, 0.22)' }]}>
                         <Ionicons 
                           name={isFollowing ? "person-remove-outline" : "person-add-outline"} 
-                          size={20} 
+                          size={24} 
                           color={isFollowing ? "#FF453A" : "#30D158"} 
                         />
                       </View>
@@ -228,24 +323,24 @@ export default function PostActionMenu({
                         </Text>
                       </View>
                     </View>
-                    <Ionicons name="chevron-forward" size={16} color="#8E8E93" />
                   </TouchableOpacity>
                 )}
 
+                {/* Block Option */}
                 {!isOwnPost && (
                   <TouchableOpacity
                     style={styles.menuItem}
                     onPress={() => {
                       onBlock();
-                      onClose();
+                      handleClose();
                     }}
-                    activeOpacity={0.7}
+                    activeOpacity={0.8}
                   >
                     <View style={styles.menuItemContent}>
-                      <View style={[styles.iconContainer, { backgroundColor: '#FF9F0A15' }]}>
+                      <View style={[styles.iconContainer, { backgroundColor: 'rgba(255, 159, 10, 0.22)' }]}>
                         <Ionicons 
                           name="ban-outline" 
-                          size={20} 
+                          size={24} 
                           color="#FF9F0A" 
                         />
                       </View>
@@ -256,24 +351,24 @@ export default function PostActionMenu({
                         </Text>
                       </View>
                     </View>
-                    <Ionicons name="chevron-forward" size={16} color="#8E8E93" />
                   </TouchableOpacity>
                 )}
 
+                {/* Report Option */}
                 {!isOwnPost && (
                   <TouchableOpacity
                     style={[styles.menuItem, styles.menuItemLast]}
                     onPress={() => {
                       onReport();
-                      onClose();
+                      handleClose();
                     }}
-                    activeOpacity={0.7}
+                    activeOpacity={0.8}
                   >
                     <View style={styles.menuItemContent}>
-                      <View style={[styles.iconContainer, { backgroundColor: '#FF453A15' }]}>
+                      <View style={[styles.iconContainer, { backgroundColor: 'rgba(255, 69, 58, 0.22)' }]}>
                         <Ionicons 
                           name="flag-outline" 
-                          size={20} 
+                          size={24} 
                           color="#FF453A" 
                         />
                       </View>
@@ -284,7 +379,6 @@ export default function PostActionMenu({
                         </Text>
                       </View>
                     </View>
-                    <Ionicons name="chevron-forward" size={16} color="#8E8E93" />
                   </TouchableOpacity>
                 )}
               </View>
@@ -294,13 +388,13 @@ export default function PostActionMenu({
           {/* Cancel Button */}
           <TouchableOpacity
             style={styles.cancelButton}
-            onPress={onClose}
-            activeOpacity={0.7}
+            onPress={handleClose}
+            activeOpacity={0.9}
           >
             <Text style={styles.cancelButtonText}>Cancel</Text>
           </TouchableOpacity>
-        </View>
-      </Pressable>
+        </Animated.View>
+      </Animated.View>
     </Modal>
   );
 }
@@ -308,36 +402,79 @@ export default function PostActionMenu({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: 'rgba(0, 0, 0, 0.88)',
     justifyContent: 'flex-end',
-    paddingHorizontal: 12,
-    paddingBottom: Platform.OS === 'ios' ? 40 : 20,
+  },
+  overlayPressable: {
+    flex: 1,
   },
   menuContainer: {
     width: '100%',
+    paddingHorizontal: 8,
+    paddingBottom: Platform.OS === 'ios' ? 46 : 26,
+  },
+  dragHandleContainer: {
+    alignItems: 'center',
+    paddingTop: 16,
+    paddingBottom: 12,
+    backgroundColor: Platform.OS === 'ios' ? 'rgba(28, 28, 30, 0.98)' : '#1C1C1E',
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: -4 },
+        shadowOpacity: 0.35,
+        shadowRadius: 16,
+      },
+      android: {
+        elevation: 10,
+      },
+    }),
+  },
+  dragHandle: {
+    width: 38,
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: '#636366',
+    opacity: 0.7,
   },
   blurContainer: {
-    borderRadius: 16,
+    borderBottomLeftRadius: 22,
+    borderBottomRightRadius: 22,
     overflow: 'hidden',
     marginBottom: 12,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.28,
+        shadowRadius: 14,
+      },
+      android: {
+        elevation: 8,
+      },
+    }),
   },
   androidContainer: {
-    backgroundColor: '#1C1C1E',
+    backgroundColor: 'rgba(28, 28, 30, 0.98)',
   },
   menuContent: {
-    paddingVertical: 4,
+    paddingVertical: 8,
+    backgroundColor: Platform.OS === 'android' ? 'rgba(28, 28, 30, 0.98)' : 'transparent',
   },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingHorizontal: 20,
+    paddingVertical: 18,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#3A3A3C',
+    borderBottomColor: 'rgba(58, 58, 60, 0.5)',
+    minHeight: 72,
   },
   menuItemLast: {
     borderBottomWidth: 0,
+    paddingBottom: 20,
   },
   menuItemContent: {
     flexDirection: 'row',
@@ -345,37 +482,60 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   iconContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+    marginRight: 16,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.12,
+        shadowRadius: 3,
+      },
+    }),
   },
   menuItemTextContainer: {
     flex: 1,
+    paddingRight: 12,
   },
   menuItemText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    marginBottom: 2,
-  },
-  menuItemSubtext: {
-    fontSize: 13,
-    color: '#8E8E93',
-    lineHeight: 16,
-  },
-  cancelButton: {
-    backgroundColor: Platform.OS === 'ios' ? 'rgba(28, 28, 30, 0.95)' : '#1C1C1E',
-    borderRadius: 16,
-    paddingVertical: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cancelButtonText: {
     fontSize: 17,
     fontWeight: '600',
+    color: '#FFFFFF',
+    marginBottom: 4,
+    letterSpacing: -0.4,
+  },
+  menuItemSubtext: {
+    fontSize: 14,
+    color: '#9A9A9F',
+    lineHeight: 18,
+    letterSpacing: -0.15,
+  },
+  cancelButton: {
+    backgroundColor: Platform.OS === 'ios' ? 'rgba(28, 28, 30, 0.98)' : '#1C1C1E',
+    borderRadius: 22,
+    paddingVertical: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.28,
+        shadowRadius: 14,
+      },
+      android: {
+        elevation: 8,
+      },
+    }),
+  },
+  cancelButtonText: {
+    fontSize: 18,
+    fontWeight: '700',
     color: '#0A84FF',
+    letterSpacing: -0.4,
   },
 });
