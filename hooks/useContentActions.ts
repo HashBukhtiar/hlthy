@@ -133,14 +133,13 @@ export function useContentActions<T extends ContentItem>({
 
     const contentLabel = contentType === 'post' ? 'Post' : 'Milestone';
     const reportOptions = contentType === 'post' 
-      ? ['Spam', 'Inappropriate Content', 'Harassment']
-      : ['Spam', 'Inappropriate Content', 'False Achievement'];
+      ? ['Spam', 'Inappropriate Content', 'False Information']
+      : ['Spam', 'Inappropriate Content', 'False Information'];
 
     Alert.alert(
       `Report ${contentLabel}`,
       `Why are you reporting this ${contentLabel.toLowerCase()}?`,
       [
-        { text: 'Cancel', style: 'cancel' },
         ...reportOptions.map(option => ({
           text: option,
           onPress: () => {
@@ -148,6 +147,7 @@ export function useContentActions<T extends ContentItem>({
             Alert.alert('Reported', `Thank you for reporting this ${contentLabel.toLowerCase()}.`);
           },
         })),
+        { text: 'Cancel', style: 'destructive' },
       ]
     );
   }, [selectedItem, contentType]);
