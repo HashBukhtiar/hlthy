@@ -1,0 +1,425 @@
+# HLTHY AI Coach — Part 2: Conversational Memory, Profile, and Proactive Check-ins
+
+**Goal:** Make the coach feel like a real trainer that **remembers**, **updates**, and **follows up**.  
+Implement a production memory system (extract → confirm → commit), a typed profile schema, an injury timeline with proactive check-ins, a small dialog policy (finite state), and UI message payloads for a fluid experience.
+
+> **No mocks. No placeholders.** Implement real code, wire it end-to-end, and add tests.  
+> You must keep Part 1’s constraints (canonical IDs in plans, router-first gating, validator, correction loop).
+
+When done, print exactly:
+CONVERSATIONAL-MEMORY: COMPLETE — [list of changed files]
+
+pgsql
+Copy code
+
+---
+
+## 0) Operating Rules
+
+- **Do not** remove or bypass: `ai_orchestrator.py`, `trainer_brain.py`, `focus_router_enhanced.py`, `focus_composer.py`, `focus_whitelist.py`, `focus_validator.py`, `progression_tracker_complete.py`, `exercise_database.py`, `exercise_alias_resolver.py`, `equipment_catalog.py`.
+- **Conversation vs Planning**: conversation can mention brands/machines; **before planning**, resolve to canonical `exercise_id`s via the resolver.
+- **Profile is authoritative**: the planner must read a **profile snapshot** every time (for reproducibility and audit).
+- **Privacy/consent**: allow user to opt-in to “extra personalization” (non-fitness bio notes). Respect retention windows.
+
+---
+
+## 1) Data Model (Firestore)
+
+Create/extend documents for a **typed, authoritative profile** plus time-series memories.
+
+### 1.1 Authoritative training profile
+`users/{uid}/training_profile_v1` (single doc)
+
+```json
+{
+  "version": 1,
+  "identity": {
+    "sex_at_birth": "male|female|other|null",
+    "age_years": 23,
+    "height_cm": 178,
+    "weight_kg": 82.5,
+    "timezone": "America/Toronto"
+  },
+  "experience_level": "beginner|intermediate|advanced",
+  "archetype": "generalist|powerlifter|crossfitter|athlete|other",
+  "environment": {
+    "location": "commercial_gym|home|mixed",
+    "equipment_brands": ["Life Fitness","Hammer Strength"],
+    "equipment_ids": ["lat_pulldown_cable","machine_chest_press"],
+    "last_equipment_confirmed_at": "2025-08-30T18:20:00Z"
+  },
+  "preferences": {
+    "split_pref": "push_pull_legs|upper_lower|full_body|custom|null",
+    "session_length_min": 60,
+    "style_bias": ["machines","dumbbells"],
+    "dislikes": ["upright_row_barbell"],
+    "coaching_tone": "concise|supportive|technical"
+  },
+  "goals": {
+    "primary": "hypertrophy_back|strength_bench|endurance_run|fat_loss|maintenance|other",
+    "secondary": "hypertrophy_chest|null",
+    "target_date": "2025-12-01T00:00:00Z"
+  },
+  "constraints": {
+    "contraindicated_patterns": ["deep_incline_press"]
+  },
+  "audit": {
+    "last_interview_at": "2025-08-15T12:05:00Z",
+    "last_refreshed_at": "2025-09-01T18:20:00Z",
+    "last_used_by_planner_at": null,
+    "schema_version": 1
+  },
+  "consent": {
+    "remember_bio_notes": false,
+    "retention_days_injury": 540
+  }
+}
+1.2 Injuries timeline (append-only history)
+users/{uid}/injuries/{injury_id}
+
+json
+Copy code
+{
+  "body_part": "right_shoulder",
+  "onset": "2025-08-01",
+  "severity_1_to_5": 3,
+  "status": "active|improving|resolved|unknown",
+  "contraindications": ["deep_incline_press","wide_grip_bench"],
+  "last_check_in": "2025-08-20",
+  "next_check_in_due": "2025-09-03",
+  "notes": "pain at bottom of bench; tolerated neutral-grip DB",
+  "confidence": 0.86,
+  "source": "chat|workout|profile",
+  "updated_at": "2025-08-20T09:31:00Z"
+}
+1.3 Episodic chat memory (claims with TTL)
+users/{uid}/memories/{memory_id}
+
+json
+Copy code
+{
+  "type": "travel|schedule_change|gym_change|bio_note",
+  "claim": "Traveling next week to Vancouver; gym access uncertain",
+  "confidence": 0.78,
+  "created_at": "2025-08-28T10:00:00Z",
+  "ttl_days": 14
+}
+Note: memories inform conversation but never override the authoritative profile without confirmation.
+
+1.4 Profile event log (for undo/audit)
+users/{uid}/profile_events/{event_id}
+
+json
+Copy code
+{
+  "type": "PROFILE_SET|EQUIPMENT_ADDED|INJURY_OPENED|INJURY_UPDATED|INJURY_RESOLVED|GOAL_CHANGED",
+  "patch": { "...": "applied fields" },
+  "source": "chat|interview|system",
+  "timestamp": "2025-09-02T16:00:00Z"
+}
+1.5 Session state (dialog engine)
+users/{uid}/session_state/current
+
+json
+Copy code
+{
+  "state": "IDLE|CLARIFY_FOCUS|PROFILE_GAPS|OFFER_PLAN|CONFIRM_PLAN|DELIVER_PLAN|FOLLOW_UP|CHECK_IN",
+  "pending_question": "time_available|equipment|injury_status|goal|session_length|null",
+  "known": {
+    "focus": "back|push|legs|null",
+    "time_available_min": 60,
+    "injury_flags": ["shoulder_active"],
+    "equipment_ids": ["lat_pulldown_cable"],
+    "brands_available": ["Life Fitness"],
+    "goal_hint": "hypertrophy_back",
+    "session_length_min": 60
+  },
+  "updated_at": "2025-09-02T16:05:00Z"
+}
+2) Extract → Confirm → Commit Workflow
+Create /server/extractors/ with the following modules. Each implements:
+
+python
+Copy code
+@dataclass
+class ExtractResult:
+    patch: dict              # profile or injury fields
+    confidence: float        # 0..1
+    needs_confirm: bool
+    ttl_days: int | None     # for ephemeral facts; None for durable
+    target: str              # "profile" | "injury" | "memory"
+    explain: str             # why we think this is true (short)
+
+def extract(text: str, profile: dict, now: datetime) -> list[ExtractResult]: ...
+2.1 injury_extractor.py
+Parse: body part, onset (normalize relative dates), severity, functional limits.
+
+Map to contraindications (movement patterns) using exercise_safety rules.
+
+Rules:
+
+confidence ≥ 0.8 → auto-apply if non-risky change (e.g., “elbow a bit sore”).
+
+Else → ask: “Mark right shoulder as active (3/5) and avoid deep presses?”
+
+2.2 equipment_extractor.py
+Parse brand/machine mentions during conversation.
+
+Resolve via exercise_alias_resolver + equipment_catalog to canonical IDs.
+
+High confidence → auto-add; else → confirm top-3 suggestions.
+
+2.3 preference_extractor.py
+Dislikes (“hate upright rows”), biases (machines vs free weights), session length hints.
+
+Low-risk → auto-apply; else → confirm.
+
+2.4 goal_extractor.py
+Primary/secondary goal and target date.
+
+Always confirm major goal changes.
+
+2.5 memory_extractor.py
+Ephemeral context (travel, schedule changes) → write memories with ttl_days (7–14).
+
+Unit tests: deterministic input strings → exact patches, confidences, and confirm flags.
+
+3) Profile Sync API
+Extend profile_sync.py:
+
+python
+Copy code
+def propose_patch(uid: str, result: ExtractResult) -> dict:
+    """
+    Returns:
+      {
+        "needs_confirm": bool,
+        "confirmation_text": str | None,
+        "normalized_patch": dict,     # safe, validated, typed
+        "target": "profile|injury|memory"
+      }
+    """
+
+def commit_patch(uid: str, normalized_patch: dict, target: str, source: str, confidence: float) -> dict:
+    """
+    Applies to Firestore:
+      - training_profile_v1 (merge)
+      - injuries subcollection (open/update/resolve entries)
+      - memories (with ttl)
+    Appends profile_event.
+    Returns {"ok": True, "affected": {...}} or raises.
+    """
+Rules
+
+Injury open/update/resolve updates next_check_in_due (see §5).
+
+Equipment adds set last_equipment_confirmed_at = now.
+
+All commits write a profile snapshot hash for the planner to reference.
+
+Integration tests: propose+commit flows for injury open/update/resolve, equipment add, dislike add, goal change.
+
+4) Dialog Policy (Finite State)
+Add a tiny state machine in ai_orchestrator.py:
+
+States & transitions
+IDLE → run focus_router_enhanced.route(text, profile)
+
+clarify_focus → CLARIFY_FOCUS (ask 1 question, update known.focus on reply).
+
+start_interview → PROFILE_GAPS (ask next missing: goal/time/equipment/injury/session_length).
+
+direct_planning → OFFER_PLAN or CONFIRM_PLAN.
+
+CLARIFY_FOCUS → on answer, if enough info → OFFER_PLAN, else → PROFILE_GAPS.
+
+PROFILE_GAPS → after each answer, if more gaps → stay; else → OFFER_PLAN.
+
+OFFER_PLAN → return 2 options (e.g., 45-min hypertrophy vs 60-min strength bias) as a card. On selection → CONFIRM_PLAN.
+
+CONFIRM_PLAN → build whitelist, compose, validate, correction loop → DELIVER_PLAN.
+
+DELIVER_PLAN → send plan card. Immediately move to FOLLOW_UP.
+
+FOLLOW_UP → offer: “Save to Workouts?”, “Start session timer?”, “Track loads today?”.
+
+CHECK_IN → (system-initiated) show injury check-in card; on response, update injury doc and return to IDLE.
+
+Chaining rule:
+Never end a turn with a dead-end “profile updated.” If a field was updated, immediately ask the next question or present OFFER_PLAN.
+
+Integration tests:
+Simulate “build my back” → CLARIFY → PROFILE_GAPS (time + injuries) → OFFER_PLAN → DELIVER_PLAN → FOLLOW_UP.
+
+5) Proactive Check-ins (Scheduler)
+Create cloud/checkins.py (Cloud Function):
+
+Daily scan for:
+
+Injuries where status != resolved and next_check_in_due <= now.
+
+Stale profile fields (experience/session_length/equipment) past their staleness windows.
+
+For each due item, write a check_in_card message into the user’s conversation collection, and (optionally) trigger a push notification.
+
+Scheduling
+
+Cloud Scheduler → checkins.run() daily at local 08:00.
+
+Injury next-due logic
+
+New injury: next due in 7 days.
+
+If status “improving”: extend to 14 days.
+
+If status “unknown” or severity ≥4: 3–7 days.
+
+Unit tests:
+Given a set of injuries and profile fields → compute the due list and ensure cards are produced.
+
+6) Planner Integration (Snapshot & Constraints)
+At the start of DELIVER_PLAN, read training_profile_v1 and open injuries.
+
+Compute a snapshot hash (e.g., SHA256 of sorted JSON) and store with plan metadata.
+
+Convert injuries → hard constraints: ban movement patterns, prefer neutral-grip subs, adjust volumes.
+
+Convert preferences/equipment/session_length → narrow whitelist and choose slot template variant (hypertrophy vs strength).
+
+Log profile_snapshot_hash with observability_dashboard.
+
+Integration tests:
+Active shoulder injury → plan avoids deep presses; resolved injury → presses reintroduced gradually.
+
+7) Frontend Payloads (Chat UI Contracts)
+Return structured payloads so the UI feels premium (no raw JSON walls).
+
+7.1 Message types
+interview_question
+{ type:"interview_question", question_id:"time_available", prompt:"How much time today?", options:[30,45,60,90], allows_free:false }
+
+profile_update_notice
+{ type:"profile_update_notice", text:"Added Life Fitness Pec Deck to your equipment.", undo_token:"..." }
+
+check_in_card
+{ type:"check_in_card", injury_id:"...", body_part:"shoulder", prompt:"How's the shoulder?", options:["gone","mild","moderate","worse"] }
+
+offer_plan
+{ type:"offer_plan", focus:"back", options:[{id:"hypertrophy_45", label:"45-min Hypertrophy (12–16 sets)"}, {id:"strength_60", label:"60-min Strength (8–12 heavy sets)"}] }
+
+plan_card
+{ type:"plan_card", plan:{ warmup:[...], main:[...], accessories:[...], cooldown:[...] }, profile_snapshot_hash:"..." }
+
+follow_up
+{ type:"follow_up", actions:["Save workout","Start timer","Track loads"] }
+
+UI tests: snapshot tests that components render these payloads; on click, the client posts the structured reply to the backend.
+
+8) Privacy & Consent
+In training_profile_v1.consent.remember_bio_notes (default false).
+
+Never surface non-fitness bio notes unless enabled.
+
+Add export_profile() and purge_profile() endpoints (reuse Part 1’s GDPR scaffolding).
+
+Add retention for injuries: archive after retention_days_injury of inactivity.
+
+Tests: toggling consent hides/shows bio notes; purge/export round-trip.
+
+9) Performance & Cost Guardrails
+Extractors: pure Python, no network.
+
+Planner prompt: ≤ 1.5k tokens; correction prompt: ≤ 200 tokens.
+
+Don’t include full chat history—only last 3–6 turns relevant to the current focus + profile snapshot reference.
+
+Planner p95 latency target (excluding model time): < 2.0s.
+
+10) Files to Create/Modify
+Create
+
+server/extractors/injury_extractor.py
+
+server/extractors/equipment_extractor.py
+
+server/extractors/preference_extractor.py
+
+server/extractors/goal_extractor.py
+
+server/extractors/memory_extractor.py
+
+cloud/checkins.py
+
+Modify
+
+server/profile_sync.py (propose_patch, commit_patch)
+
+server/ai_orchestrator.py (state machine, extractor pass, chaining, snapshot hash)
+
+server/trainer_brain.py (conversation vs planning phases)
+
+server/observability_dashboard.py (new metrics)
+
+server/focus_composer.py (read session length variant)
+
+server/focus_validator.py (injury constraint enforcement already present; ensure it reads open injuries)
+
+11) Tests (pytest)
+Create tests/conversational_memory/:
+
+Extractor unit tests
+
+Injury: “my right shoulder’s been sore for 2–3 weeks, 3/5” → patch with body_part=right_shoulder, severity=3, derived contraindications and needs_confirm=True.
+
+Equipment: “We have Technogym Pullover” → resolver maps to machine_pullover.
+
+Preference: “I hate upright row” → dislikes updated.
+
+Profile sync integration
+
+Propose+commit injury open → doc exists with next_check_in_due=+7d.
+
+Update to “improving” → due moves to +14d.
+
+Resolve → status resolved, contraindications cleared, event logged.
+
+Dialog state transitions
+
+“build my back” → CLARIFY_FOCUS/PROFILE_GAPS → OFFER_PLAN → DELIVER_PLAN (no dead-end “profile updated”).
+
+“toenails” → CLARIFY_FOCUS (no plan).
+
+Check-ins scheduler
+
+With injuries due today → produces check_in_card messages.
+
+Planner snapshot
+
+Deliver plan logs profile_snapshot_hash; subsequent runs with changed profile yield different hash.
+
+Privacy
+
+With remember_bio_notes=false, memory_extractor writes bio notes but UI layer does not surface them.
+
+All tests must run without network and pass locally.
+
+12) Definition of Done
+Extractors implemented and returning deterministic patches with confidences.
+
+Profile sync applies patches with event logs and injury scheduling.
+
+Orchestrator uses a state machine and chains next actions (no dead-end confirmations).
+
+Scheduler creates due check-ins.
+
+Planner reads profile snapshot and open injuries, enforces constraints, and logs snapshot hash.
+
+UI payloads are returned per spec.
+
+All tests in tests/conversational_memory/ pass.
+
+Finish by printing:
+
+bash
+Copy code
+CONVERSATIONAL-MEMORY: COMPLETE — [ai_orchestrator.py, profile_sync.py, trainer_brain.py, extractors/*, cloud/checkins.py, observability_dashboard.py, focus_composer.py, focus_validator.py, tests/conversational_memory/*]

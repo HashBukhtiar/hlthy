@@ -42,9 +42,10 @@ import {
 import { useAuth } from '@/context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { sendMessage, IntentClassificationResult } from '@/ai/ai_chat';
+import { sendMessage, sendMessageWithIntent, IntentClassificationResult, AIResponse } from '@/ai/ai_chat';
 import { SmartChatInput } from '@/components/SmartChatInput';
 import { IntentMessageWrapper } from '@/components/IntentBadge';
+import { MessageRenderer } from '@/components/ai/MessageRenderer';
 import { calculateImprovementPercentage } from '@/logic/milesonteUtils';
 import { getOptimalImageUrl } from '@/utils/imageUtils';
 import { useUnits } from '@/hooks/useUnits';
@@ -55,6 +56,9 @@ interface FirestoreMessageData {
   createdAt: Timestamp;
   isAiResponse?: boolean; // Flag to identify AI responses
   intent?: string; // Add intent field
+  workoutPlan?: any; // Add workout plan data
+  responseType?: string; // Add response type
+  profileData?: any; // Add profile data for workout_confirmation
   sharedPost?: {
     id: string;
     imageUrl: string | null;
@@ -96,7 +100,10 @@ interface Message {
   user: 'user' | 'other' | 'ai';
   role: 'user' | 'model';
   createdAt?: Date;
+  profileData?: any; // Profile confirmation data
+  responseType?: string; // Type of AI response  
   intent?: string; // Add intent field
+  workoutPlan?: any; // Add workout plan data
   sharedPost?: {
     id: string;
     imageUrl: string | null;
@@ -219,6 +226,9 @@ async function convertFirestoreDoc(
     role: roleType,
     createdAt: messageDate,
     intent: data.intent, // Include intent data
+    workoutPlan: data.workoutPlan, // Include workout plan data
+    responseType: data.responseType, // Include response type
+    profileData: data.profileData, // Include profile data for workout_confirmation
     sharedPost: resolvedSharedPost,
     sharedMilestone: resolvedSharedMilestone,
     sharedWorkout: resolvedSharedWorkout,
@@ -227,8 +237,17 @@ async function convertFirestoreDoc(
 }
 
 
-const MessageItem = React.memo<{ item: Message; onLongPress: (m: Message) => void; conversationId: string; onReprompt?: (message: string) => void }>(
-  ({ item, onLongPress, conversationId, onReprompt }) => {
+const MessageItem = React.memo<{ 
+  item: Message; 
+  onLongPress: (m: Message) => void; 
+  conversationId: string; 
+  onReprompt?: (message: string) => void; 
+  onSendMessage?: (message: string) => void;
+  onConfirmProfile?: (preferences: any) => void;
+  onEditWorkout?: (workout: any) => void;
+  onSwipeActiveChange?: (active: boolean) => void;
+}>(
+  ({ item, onLongPress, conversationId, onReprompt, onSendMessage, onConfirmProfile, onEditWorkout, onSwipeActiveChange }) => {
     const router = useRouter();
     const { getWeightUnit, getDistanceUnit, convertWeight, convertDistance } = useUnits();
     
@@ -465,13 +484,17 @@ const MessageItem = React.memo<{ item: Message; onLongPress: (m: Message) => voi
         showIntentBadge={!!item.intent}
       >
         {item.user === 'ai' ? (
-          <AIMessageBubble 
+          <MessageRenderer
             message={item.text}
             intent={item.intent}
-            onLongPress={() => onLongPress(item)}
-            isAiConversation={conversationId.endsWith('_ai_conversation')}
-            timestamp={item.createdAt}
-            onReprompt={onReprompt}
+            workoutPlan={item.workoutPlan}
+            responseType={item.responseType}
+            profileData={item.profileData}
+            onFormatAgain={() => onReprompt?.(item.text)}
+            onConfirmProfile={onConfirmProfile}
+            onEditProfile={() => onSendMessage?.('no')}
+            onEditWorkout={onEditWorkout}
+            onSwipeActiveChange={onSwipeActiveChange}
           />
         ) : (
           <TouchableOpacity
@@ -549,541 +572,6 @@ function addDateHeaders(msgs: Message[]): Message[] {
   }, []);
 }
 
-// Enhanced AI Message Component
-interface AIMessageBubbleProps {
-  message: string;
-  intent?: string;
-  onLongPress: () => void;
-  isAiConversation?: boolean;
-  timestamp?: Date;
-  onReprompt?: (message: string) => void;
-}
-
-const AIMessageBubble: React.FC<AIMessageBubbleProps> = ({ message, intent, onLongPress, isAiConversation, timestamp, onReprompt }) => {
-  const [isLiked, setIsLiked] = useState(false);
-  const [shareModalVisible, setShareModalVisible] = useState(false);
-
-  // Handler functions for action buttons
-  const handleCopy = async () => {
-    try {
-      await Clipboard.setString(message);
-      Alert.alert("Copied!", "Message copied to clipboard");
-    } catch (error) {
-      Alert.alert("Error", "Failed to copy message");
-    }
-  };
-
-  const handleShare = () => {
-    setShareModalVisible(true);
-  };
-
-  const handleLike = () => {
-    setIsLiked(!isLiked);
-  };
-
-  const handleReprompt = () => {
-    if (onReprompt) {
-      onReprompt(message);
-    }
-  };
-
-  const intentConfigs = {
-    planner: { 
-      icon: '🏋️', 
-      color: '#FF6B35', 
-      gradient: ['#FF6B35', '#F7931E'],
-      label: 'WORKOUT PLANNER'
-    },
-    technique: { 
-      icon: '🎯', 
-      color: '#F7931E', 
-      gradient: ['#F7931E', '#FFD700'],
-      label: 'TECHNIQUE HELP'
-    },
-    explain: { 
-      icon: '📚', 
-      color: '#4ECDC4', 
-      gradient: ['#4ECDC4', '#45B7D1'],
-      label: 'EDUCATION'
-    },
-    schedule: { 
-      icon: '📅', 
-      color: '#45B7D1', 
-      gradient: ['#45B7D1', '#96CEB4'],
-      label: 'SCHEDULING'
-    },
-    chit_chat: { 
-      icon: '💬', 
-      color: '#96CEB4', 
-      gradient: ['#96CEB4', '#FFEAA7'],
-      label: 'CHAT'
-    },
-  } as const;
-
-  const config = intent && intentConfigs[intent as keyof typeof intentConfigs] 
-    ? intentConfigs[intent as keyof typeof intentConfigs] 
-    : { icon: '🤖', color: '#d466ff', gradient: ['#d466ff', '#9f44ff'], label: 'AI ASSISTANT' };
-
-  // Format message with better structure
-  const formatMessage = (text: string) => {
-    // Clean and split the text
-    const cleanText = text.replace(/```json\s*|\s*```/g, '').trim();
-    const paragraphs = cleanText.split('\n\n').filter(p => p.trim());
-    
-    return paragraphs.map((paragraph, index) => {
-      const trimmedParagraph = paragraph.trim();
-      
-      // Handle workout routines (often contain structured data)
-      if (trimmedParagraph.includes('Week') || trimmedParagraph.includes('Day') || trimmedParagraph.includes('Sets:')) {
-        const lines = trimmedParagraph.split('\n').map(line => line.trim()).filter(line => line);
-        return (
-          <View key={index} style={styles.workoutBlock}>
-            {lines.map((line, lineIndex) => (
-              <Text key={lineIndex} style={styles.workoutLine}>
-                {line}
-              </Text>
-            ))}
-          </View>
-        );
-      }
-      
-      // Handle bullet points and lists
-      if (trimmedParagraph.includes('•') || trimmedParagraph.includes('-') || /^\d+\./.test(trimmedParagraph)) {
-        const lines = trimmedParagraph.split('\n').map(line => line.trim()).filter(line => line);
-        return (
-          <View key={index} style={styles.aiParagraph}>
-            {lines.map((line, lineIndex) => {
-              const cleanLine = line.replace(/^[•\-]\s*/, '').replace(/^\d+\.\s*/, '');
-              const isNumbered = /^\d+\./.test(line);
-              const bulletChar = isNumbered ? `${line.match(/^\d+/)?.[0]}.` : '•';
-              
-              return (
-                <Text key={lineIndex} style={styles.aiListItem}>
-                  <Text style={styles.bulletPoint}>{bulletChar} </Text>
-                  {cleanLine}
-                </Text>
-              );
-            })}
-          </View>
-        );
-      }
-      
-      // Handle headers (lines that are short and followed by content)
-      if (trimmedParagraph.length < 50 && !trimmedParagraph.includes('.') && index < paragraphs.length - 1) {
-        return (
-          <Text key={index} style={styles.aiSectionHeader}>
-            {trimmedParagraph}
-          </Text>
-        );
-      }
-      
-      // Regular paragraphs
-      return (
-        <Text key={index} style={[styles.aiText, styles.aiParagraph]}>
-          {trimmedParagraph}
-        </Text>
-      );
-    });
-  };
-
-  return (
-    <TouchableOpacity
-      onLongPress={onLongPress}
-      delayLongPress={500}
-      activeOpacity={0.7}
-      style={styles.aiMessageContainer}
-    >
-      {/* AI Header */}
-      <View style={styles.aiHeader}>
-        <View style={[styles.aiIconContainer, { backgroundColor: `${config.color}15` }]}>
-          {isAiConversation ? (
-            <Image 
-              source={require('@/assets/images/logo-dark.png')} 
-              style={styles.aiLogo}
-              resizeMode="contain"
-            />
-          ) : (
-            <Text style={styles.aiIcon}>{config.icon}</Text>
-          )}
-        </View>
-        <View style={styles.aiHeaderInfo}>
-          <Text style={styles.aiTitle}>HLTHY Coach</Text>
-          <View style={styles.aiSubtitleRow}>
-            <Text style={[styles.aiSubtitle, { color: config.color }]}>
-              {config.label}
-            </Text>
-            {timestamp && (
-              <Text style={styles.aiTimestamp}>
-                • {timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-              </Text>
-            )}
-          </View>
-        </View>
-        <View style={styles.aiStatus}>
-          <View style={[styles.aiStatusDot, { backgroundColor: config.color }]} />
-          <Text style={styles.aiStatusText}>ONLINE</Text>
-        </View>
-      </View>
-
-      {/* Message Content */}
-      <View style={styles.aiContentContainer}>
-        <View style={[styles.aiContentBubble]}>
-          <View style={styles.aiMessageContent}>
-            <Text style={styles.aiText}>{message}</Text>
-          </View>
-          
-          {/* Action Buttons */}
-          <View style={styles.aiActions}>
-            <TouchableOpacity 
-              style={styles.aiActionButton}
-              onPress={handleCopy}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="copy-outline" size={16} color="#888" />
-              <Text style={styles.aiActionLabel}>Copy</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={styles.aiActionButton}
-              onPress={handleShare}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="share-outline" size={16} color="#888" />
-              <Text style={styles.aiActionLabel}>Share</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.aiActionButton, isLiked && styles.aiActionButtonActive]}
-              onPress={handleLike}
-              activeOpacity={0.7}
-            >
-              <Ionicons 
-                name={isLiked ? "thumbs-up" : "thumbs-up-outline"} 
-                size={16} 
-                color={isLiked ? "#4CD964" : "#888"} 
-              />
-              <Text style={[styles.aiActionLabel, isLiked && { color: "#4CD964" }]}>
-                {isLiked ? "Liked" : "Like"}
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={styles.aiActionButton}
-              onPress={handleReprompt}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="refresh-outline" size={16} color="#888" />
-              <Text style={styles.aiActionLabel}>Retry</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
-      
-      {/* Share Modal */}
-      <ShareModal
-        visible={shareModalVisible}
-        onClose={() => setShareModalVisible(false)}
-        message={message}
-        intent={intent}
-      />
-    </TouchableOpacity>
-  );
-};
-
-// Share Modal Component for sharing AI responses with app users
-interface ShareModalProps {
-  visible: boolean;
-  onClose: () => void;
-  message: string;
-  intent?: string;
-}
-
-const ShareModal: React.FC<ShareModalProps> = ({ visible, onClose, message, intent }) => {
-  const { currentUser } = useAuth();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<any[]>([]);
-  const [selectedUsers, setSelectedUsers] = useState<any[]>([]);
-  const [following, setFollowing] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [sharing, setSharing] = useState(false);
-
-  // Fetch user's following list when modal opens
-  useEffect(() => {
-    if (visible && currentUser) {
-      fetchFollowing();
-    }
-  }, [visible, currentUser]);
-
-  const fetchFollowing = async () => {
-    if (!currentUser) return;
-    
-    try {
-      setLoading(true);
-      const followingRef = collection(db, `users/${currentUser.uid}/following`);
-      const followingSnap = await getDocs(followingRef);
-      
-      const followingData = await Promise.all(
-        followingSnap.docs.map(async (docRef) => {
-          const userRef = doc(db, 'users', docRef.id);
-          const userDoc = await getDoc(userRef);
-          if (userDoc.exists()) {
-            return {
-              id: docRef.id,
-              ...userDoc.data(),
-            };
-          }
-          return null;
-        })
-      );
-      
-      setFollowing(followingData.filter(Boolean));
-    } catch (error) {
-      console.error('Error fetching following:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const searchUsers = async (searchQuery: string) => {
-    if (!searchQuery.trim() || !currentUser) {
-      setSearchResults([]);
-      return;
-    }
-
-    try {
-      setLoading(true);
-      // Search users by username or display name
-      const usersRef = collection(db, 'users');
-      
-      // We'll use a simple approach since Firestore has limited query capabilities
-      const allUsersSnap = await getDocs(usersRef);
-      const searchResults: any[] = [];
-      
-      allUsersSnap.forEach(doc => {
-        if (doc.id !== currentUser.uid) {
-          const userData = doc.data();
-          const username = userData.username?.toLowerCase() || '';
-          const displayName = userData.displayName?.toLowerCase() || '';
-          const search = searchQuery.toLowerCase();
-          
-          if (username.includes(search) || displayName.includes(search)) {
-            searchResults.push({
-              id: doc.id,
-              ...userData
-            });
-          }
-        }
-      });
-
-      setSearchResults(searchResults.slice(0, 10)); // Limit to 10 results
-    } catch (error) {
-      console.error('Error searching users:', error);
-      setSearchResults([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const toggleUserSelection = (user: any) => {
-    setSelectedUsers(prev => {
-      const isSelected = prev.some(u => u.id === user.id);
-      if (isSelected) {
-        return prev.filter(u => u.id !== user.id);
-      } else {
-        return [...prev, user];
-      }
-    });
-  };
-
-  const shareWithUsers = async () => {
-    if (selectedUsers.length === 0 || !currentUser) return;
-
-    try {
-      setSharing(true);
-      
-      const sharePromises = selectedUsers.map(async (user) => {
-        // Create or get conversation with the user
-        const conversationId = [currentUser.uid, user.id].sort().join('_');
-        const conversationRef = doc(db, 'conversations', conversationId);
-        
-        // Ensure conversation exists
-        const conversationSnap = await getDoc(conversationRef);
-        if (!conversationSnap.exists()) {
-          await setDoc(conversationRef, {
-            participants: [currentUser.uid, user.id],
-            participantUsernames: {
-              [currentUser.uid]: currentUser.displayName || currentUser.email,
-              [user.id]: user.displayName || user.username
-            },
-            participantProfileImages: {
-              [currentUser.uid]: currentUser.photoURL || null,
-              [user.id]: user.profileImageUrl || null
-            },
-            createdAt: serverTimestamp(),
-            lastMessageAt: serverTimestamp(),
-            lastMessageText: `Shared AI response: ${message.substring(0, 100)}...`,
-            lastMessageSenderId: currentUser.uid,
-          });
-        }
-
-        // Add the AI response as a shared message
-        const messagesRef = collection(db, 'conversations', conversationId, 'messages');
-        const shareMessage = `🤖 HLTHY Coach Response${intent ? ` (${intent.toUpperCase()})` : ''}:\n\n${message}`;
-        
-        await addDoc(messagesRef, {
-          text: shareMessage,
-          createdAt: serverTimestamp(),
-          senderId: currentUser.uid,
-          isSharedAiResponse: true,
-          ...(intent && { originalIntent: intent }),
-        });
-
-        // Update conversation metadata
-        await updateDoc(conversationRef, {
-          lastMessageAt: serverTimestamp(),
-          lastMessageText: `Shared AI response: ${message.substring(0, 50)}...`,
-          lastMessageSenderId: currentUser.uid,
-        });
-      });
-
-      await Promise.all(sharePromises);
-      
-      Alert.alert(
-        "Shared Successfully!", 
-        `AI response shared with ${selectedUsers.length} user${selectedUsers.length === 1 ? '' : 's'}.`
-      );
-      
-      // Reset and close modal
-      setSelectedUsers([]);
-      setSearchQuery('');
-      setSearchResults([]);
-      onClose();
-      
-    } catch (error) {
-      console.error('Error sharing with users:', error);
-      Alert.alert("Error", "Failed to share AI response. Please try again.");
-    } finally {
-      setSharing(false);
-    }
-  };
-
-  const renderUser = (user: any, isFromFollowing: boolean = false) => (
-    <TouchableOpacity
-      key={user.id}
-      style={[
-        styles.shareUserItem,
-        selectedUsers.some(u => u.id === user.id) && styles.shareUserItemSelected
-      ]}
-      onPress={() => toggleUserSelection(user)}
-    >
-      <Image
-        source={
-          user.profileImageUrl 
-            ? { uri: user.profileImageUrl }
-            : require('@/assets/images/profile-icon.png')
-        }
-        style={styles.shareUserAvatar}
-      />
-      <View style={styles.shareUserInfo}>
-        <Text style={styles.shareUserName}>
-          {user.displayName || user.username}
-        </Text>
-        <Text style={styles.shareUserHandle}>
-          @{user.username}
-          {isFromFollowing && <Text style={styles.followingTag}> • Following</Text>}
-        </Text>
-      </View>
-      {selectedUsers.some(u => u.id === user.id) && (
-        <Ionicons name="checkmark-circle" size={24} color="#4CD964" />
-      )}
-    </TouchableOpacity>
-  );
-
-  return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      presentationStyle="pageSheet"
-      onRequestClose={onClose}
-    >
-      <SafeAreaView style={styles.shareModalContainer}>
-        <View style={styles.shareModalHeader}>
-          <TouchableOpacity onPress={onClose} style={styles.shareModalCloseButton}>
-            <Ionicons name="close" size={24} color="white" />
-          </TouchableOpacity>
-          <Text style={styles.shareModalTitle}>Share AI Response</Text>
-          <TouchableOpacity 
-            onPress={shareWithUsers}
-            disabled={selectedUsers.length === 0 || sharing}
-            style={[
-              styles.shareModalSendButton,
-              (selectedUsers.length === 0 || sharing) && styles.shareModalSendButtonDisabled
-            ]}
-          >
-            <Text style={[
-              styles.shareModalSendButtonText,
-              (selectedUsers.length === 0 || sharing) && styles.shareModalSendButtonTextDisabled
-            ]}>
-              {sharing ? 'Sharing...' : `Share${selectedUsers.length > 0 ? ` (${selectedUsers.length})` : ''}`}
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Preview of what's being shared */}
-        <View style={styles.sharePreview}>
-          <Text style={styles.sharePreviewTitle}>Sharing:</Text>
-          <Text style={styles.sharePreviewText} numberOfLines={3}>
-            🤖 HLTHY Coach Response{intent ? ` (${intent.toUpperCase()})` : ''}:{'\n\n'}{message}
-          </Text>
-        </View>
-
-        {/* Search Bar */}
-        <View style={styles.shareSearchContainer}>
-          <Ionicons name="search" size={20} color="#888" style={styles.shareSearchIcon} />
-          <TextInput
-            style={styles.shareSearchInput}
-            placeholder="Search users..."
-            placeholderTextColor="#888"
-            value={searchQuery}
-            onChangeText={(text) => {
-              setSearchQuery(text);
-              searchUsers(text);
-            }}
-          />
-        </View>
-
-        {/* User Lists */}
-        <ScrollView style={styles.shareUsersList}>
-          {/* Search Results */}
-          {searchQuery.length > 0 && (
-            <>
-              <Text style={styles.shareUsersListTitle}>Search Results</Text>
-              {loading ? (
-                <ActivityIndicator size="small" color="#4CD964" style={styles.shareLoadingIndicator} />
-              ) : searchResults.length === 0 ? (
-                <Text style={styles.shareNoResults}>No users found</Text>
-              ) : (
-                searchResults.map(user => renderUser(user))
-              )}
-            </>
-          )}
-
-          {/* Following List (when no search) */}
-          {searchQuery.length === 0 && (
-            <>
-              <Text style={styles.shareUsersListTitle}>People You Follow</Text>
-              {loading ? (
-                <ActivityIndicator size="small" color="#4CD964" style={styles.shareLoadingIndicator} />
-              ) : following.length === 0 ? (
-                <Text style={styles.shareNoResults}>You're not following anyone yet</Text>
-              ) : (
-                following.map(user => renderUser(user, true))
-              )}
-            </>
-          )}
-        </ScrollView>
-      </SafeAreaView>
-    </Modal>
-  );
-};
-
 export default function ChatScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -1099,6 +587,9 @@ export default function ChatScreen() {
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [otherParticipantId, setOtherParticipantId] = useState<string | null>(null);
   const [isAiThinking, setIsAiThinking] = useState(false);
+  const [editingWorkout, setEditingWorkout] = useState<any>(null);
+  const [workoutPreferences, setWorkoutPreferences] = useState<any>(null);
+  const [scrollEnabled, setScrollEnabled] = useState(true); // Control scroll locking
   const thinkingDotAnimations = useRef([
     new Animated.Value(0.4),
     new Animated.Value(0.4),
@@ -1322,7 +813,7 @@ export default function ChatScreen() {
     }
   };
 
-  const handleSend = async (textToSend: string, intentResult?: IntentClassificationResult) => {
+  const handleSend = async (textToSend: string, preferencesOverride?: any, intentResult?: IntentClassificationResult) => {
     Keyboard.dismiss();
     
     if (!textToSend.trim() || !currentUser || !conversationId) {
@@ -1386,43 +877,175 @@ export default function ChatScreen() {
           // Add the new user message to the history for the API call
           historyForAPI.push({ text: textToSend, role: 'user' });
 
-          // Use the enhanced sendMessage function
-          const aiResponseText = await sendMessage(historyForAPI, textToSend);
-
-          // Save AI's response to Firestore using current user's ID with isAiResponse flag
-          const aiMessageData: any = {
-            text: aiResponseText,
-            createdAt: serverTimestamp(),
-            senderId: currentUser.uid, // Use current user's ID to avoid permission issues
-            isAiResponse: true, // Flag to identify this as an AI response
-          };
+          // Build options object with workout preferences and editing context
+          const messageOptions: any = {};
           
-          // Only add intent field if intentResult exists and has intent property
-          if (intentResult?.intent) {
-            aiMessageData.intent = intentResult.intent;
+          // Use preferencesOverride if provided (for immediate profile confirmation)
+          // Otherwise use state value (for subsequent messages)
+          const currentPreferences = preferencesOverride || workoutPreferences;
+          
+          if (currentPreferences) {
+            messageOptions.workoutPreferences = currentPreferences;
           }
           
-          await addDoc(messagesRef, aiMessageData);
-        } catch (error) {
-          console.error('Error sending message to AI:', error);
-          // Add an error message to the chat
-          await addDoc(messagesRef, {
-            text: "Sorry, I'm having trouble connecting. Please try again later.",
-            createdAt: serverTimestamp(),
-            senderId: currentUser.uid,
-            isAiResponse: true,
-          });
-        } finally {
-          setIsAiThinking(false); // Hide thinking indicator
+          if (editingWorkout) {
+            messageOptions.editingWorkout = editingWorkout;
+          }
+
+          // Use the enhanced sendMessage function
+          const aiResponse = await sendMessage(
+            historyForAPI, 
+            textToSend, 
+            currentUser.uid,
+            Object.keys(messageOptions).length > 0 ? messageOptions : undefined
+          );
+
+        // Save AI's response to Firestore using current user's ID with isAiResponse flag
+        const aiMessageData: any = {
+          text: aiResponse.text,
+          createdAt: serverTimestamp(),
+          senderId: currentUser.uid, // Use current user's ID to avoid permission issues
+          isAiResponse: true, // Flag to identify this as an AI response
+        };
+        
+        // Add workout plan data if present
+        if (aiResponse.workoutPlan) {
+          aiMessageData.workoutPlan = aiResponse.workoutPlan;
+          aiMessageData.responseType = aiResponse.type;
         }
-      } else {
-        // Handle normal conversation updates
-        await updateConversationMetadata(conversationId, currentUser.uid, textToSend);
+        
+        // Add profile data for workout confirmation
+        if (aiResponse.profile && aiResponse.type === 'workout_confirmation') {
+          console.log('🎯 Detected workout_confirmation with profile data:', aiResponse.profile);
+          aiMessageData.profileData = aiResponse.profile;
+          aiMessageData.responseType = aiResponse.type;
+        }
+        
+        // Add responseType if present (for other response types)
+        if (aiResponse.type && !aiMessageData.responseType) {
+          aiMessageData.responseType = aiResponse.type;
+        }
+        
+        console.log('💾 Saving message to Firebase:', {
+          hasProfileData: !!aiMessageData.profileData,
+          responseType: aiMessageData.responseType,
+          type: aiResponse.type
+        });
+        
+        // Only add intent field if intentResult exists and has intent property
+        if (intentResult?.intent) {
+          aiMessageData.intent = intentResult.intent;
+        }
+        
+        await addDoc(messagesRef, aiMessageData);
+        
+        // Clear editing state after successful response
+        if (editingWorkout) {
+          setEditingWorkout(null);
+        }
+      } catch (error) {
+        console.error('Error sending message to AI:', error);
+        // Add an error message to the chat
+        await addDoc(messagesRef, {
+          text: "Sorry, I'm having trouble connecting. Please try again later.",
+          createdAt: serverTimestamp(),
+          senderId: currentUser.uid,
+          isAiResponse: true,
+        });
+      } finally {
+        setIsAiThinking(false); // Hide thinking indicator
       }
-    } catch (error) {
-      console.error('Error in handleSend:', error);
-      Alert.alert("Error", "Failed to send message. Please try again.");
+    } else {
+      // Handle user-to-user chat with message permissions from main branch
+      try {
+        // --- Message Permission Logic from main branch ---
+        if (otherParticipantId && currentUser.uid !== otherParticipantId) {
+          // Fetch recipient's messagePermission
+          const recipientDoc = await getDoc(doc(db, "users", otherParticipantId));
+          const recipientData = recipientDoc.data();
+          const messagePermission = recipientData?.messagePermission || "everyone";
+
+          // Check if sender is a follower
+          let isFollower = false;
+          if (messagePermission === "followers") {
+            const followerDoc = await getDoc(doc(db, "users", otherParticipantId, "followers", currentUser.uid));
+            isFollower = followerDoc.exists();
+          }
+
+          if (messagePermission === "followers" && !isFollower) {
+            // Store as message request
+            await setDoc(
+              doc(db, "users", otherParticipantId, "messageRequests", conversationId),
+              {
+                fromUserId: currentUser.uid,
+                text: textToSend,
+                createdAt: serverTimestamp(),
+                status: "pending",
+                conversationId,
+              }
+            );
+            Alert.alert(
+              "Message Request Sent",
+              "Your message was sent as a request. The user must approve it before you can continue messaging."
+            );
+            return;
+          }
+        }
+
+        // --- Normal Message Send Logic from main branch ---
+        const conversationRef = doc(db, "conversations", conversationId);
+
+        await updateDoc(conversationRef, {
+          lastMessageAt: serverTimestamp(),
+          lastMessageText: textToSend,
+          lastMessageSenderId: currentUser.uid,
+        });
+
+        const userConvRef1 = doc(db, `users/${currentUser.uid}/conversations`, conversationId);
+        await setDoc(
+          userConvRef1,
+          {
+            otherParticipantId,
+            otherParticipantUsername: chatTitle,
+            otherParticipantProfileImage: profileImageUrl || '',
+            lastMessageAt: serverTimestamp(),
+            lastMessageText: textToSend,
+          },
+          { merge: true }
+        );
+
+        // Update other participant's conversation reference if exists
+        if (otherParticipantId) {
+          const userConvRef2 = doc(db, `users/${otherParticipantId}/conversations`, conversationId);
+          const otherUserConvSnap = await getDoc(userConvRef2);
+          if (otherUserConvSnap.exists()) {
+            await updateDoc(userConvRef2, {
+              lastMessageAt: serverTimestamp(),
+              lastMessageText: textToSend,
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Error updating conversation metadata:', error);
+        Alert.alert("Error", "Failed to update conversation. Please try again.");
+      }
     }
+  } catch (error) {
+    console.error('Error in handleSend:', error);
+    Alert.alert("Error", "Failed to send message. Please try again.");
+  }
+};
+
+  const handleConfirmProfile = async (preferences: any) => {
+    console.log('User confirmed profile with preferences:', preferences);
+    setWorkoutPreferences(preferences);
+    // Pass preferences directly since state update is async
+    await handleSend('yes', preferences);
+  };
+
+  const handleEditWorkout = (workout: any) => {
+    console.log('User wants to edit workout:', workout.name || 'Workout');
+    setEditingWorkout(workout);
   };
 
   const handleDeleteMessage = async () => {
@@ -1529,9 +1152,24 @@ export default function ChatScreen() {
     }
   };
 
+  const handleSwipeActiveChange = useCallback((active: boolean) => {
+    setScrollEnabled(!active);
+  }, []);
+
   const renderMessage = useCallback<ListRenderItem<Message>>(
-    ({ item }) => <MessageItem item={item} onLongPress={handleLongPress} conversationId={conversationId} onReprompt={handleReprompt} />,
-    [handleLongPress, conversationId, handleReprompt]
+    ({ item }) => (
+      <MessageItem 
+        item={item} 
+        onLongPress={handleLongPress} 
+        conversationId={conversationId} 
+        onReprompt={handleReprompt} 
+        onSendMessage={handleSend}
+        onConfirmProfile={handleConfirmProfile}
+        onEditWorkout={handleEditWorkout}
+        onSwipeActiveChange={handleSwipeActiveChange}
+      />
+    ),
+    [handleLongPress, conversationId, handleReprompt, handleSend, handleConfirmProfile, handleEditWorkout, handleSwipeActiveChange]
   );
 
   return (
@@ -1594,6 +1232,7 @@ export default function ChatScreen() {
             removeClippedSubviews={true}
 
             inverted
+            scrollEnabled={scrollEnabled}
             onEndReached={fetchMore}
             onEndReachedThreshold={0.1}
 
@@ -1686,6 +1325,27 @@ export default function ChatScreen() {
             </View>
           </TouchableOpacity>
         </Modal>
+        
+        {/* Editing Workout Banner */}
+        {editingWorkout && (
+          <View style={styles.editingBanner}>
+            <View style={styles.editingBannerContent}>
+              <Ionicons name="create-outline" size={16} color="#8B7DFF" />
+              <View style={styles.editingBannerText}>
+                <Text style={styles.editingBannerTitle}>
+                  Editing: {editingWorkout.name || 'Workout'}
+                </Text>
+                <Text style={styles.editingBannerSubtitle}>
+                  Tell me what to change!
+                </Text>
+              </View>
+            </View>
+            <TouchableOpacity onPress={() => setEditingWorkout(null)}>
+              <Ionicons name="close" size={20} color="#888" />
+            </TouchableOpacity>
+          </View>
+        )}
+        
         {/* Smart Input with Intent Classification */}
         <SmartChatInput
           value={input}
@@ -2384,5 +2044,34 @@ const styles = StyleSheet.create({
     color: '#4CD964',
     fontSize: 12,
     fontWeight: '500',
+  },
+  editingBanner: {
+    backgroundColor: '#1a1a1a',
+    borderTopWidth: 1,
+    borderTopColor: '#8B7DFF',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  editingBannerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  editingBannerText: {
+    flex: 1,
+  },
+  editingBannerTitle: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  editingBannerSubtitle: {
+    color: '#888',
+    fontSize: 12,
+    marginTop: 2,
   },
 });

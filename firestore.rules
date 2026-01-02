@@ -39,9 +39,7 @@ service cloud.firestore {
     }
     
     function canInteractWithPost(postData, currentUserId) {
-      return canViewPost(postData, currentUserId) &&
-        !isBlocked(postData.authorId, currentUserId) &&
-        !isBlocked(currentUserId, postData.authorId);
+      return canViewPost(postData, currentUserId);
     }
 
     // Users collection

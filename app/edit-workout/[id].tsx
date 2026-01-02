@@ -28,6 +28,10 @@ interface WorkoutExercise {
   name: string;
   sets: string;
   reps: string;
+  load?: string;
+  restSec?: number;
+  notes?: string;
+  safetyRating?: 'low' | 'medium' | 'high';
 }
 
 interface WorkoutSegment {
@@ -139,7 +143,7 @@ export default function EditWorkout() {
     }, 100);
   };
 
-  const updateExercise = (segmentId: string, exerciseId: string, field: 'name' | 'sets' | 'reps', value: string) => {
+  const updateExercise = (segmentId: string, exerciseId: string, field: keyof WorkoutExercise, value: string | number) => {
     const updatedSegments = segments.map(segment => {
       if (segment.id === segmentId) {
         return {
@@ -259,12 +263,20 @@ export default function EditWorkout() {
           id: segment.id,
           name: segment.name.trim(),
           length: segment.length.trim(),
-          exercises: segment.exercises.map(ex => ({
-            id: ex.id,
-            name: ex.name.trim(),
-            sets: ex.sets.trim(),
-            reps: ex.reps.trim(),
-          })).filter(ex => ex.name.trim() !== '') // Filter out empty exercises
+          exercises: segment.exercises.map(ex => {
+            const exercise: any = {
+              id: ex.id,
+              name: ex.name.trim(),
+              sets: ex.sets.trim(),
+              reps: ex.reps.trim(),
+            };
+            // Include optional fields if they exist
+            if (ex.load) exercise.load = ex.load.trim();
+            if (ex.restSec) exercise.restSec = ex.restSec;
+            if (ex.notes) exercise.notes = ex.notes.trim();
+            if (ex.safetyRating) exercise.safetyRating = ex.safetyRating;
+            return exercise;
+          }).filter(ex => ex.name.trim() !== '') // Filter out empty exercises
         })).filter(seg => seg.exercises.length > 0 || seg.name.trim() !== ''), // Filter out segments with no name and no exercises
         createdAt: new Date(),
         isPublic: isPublic,
@@ -422,12 +434,24 @@ export default function EditWorkout() {
             {/* Exercises in this segment */}
             <View style={styles.exercisesContainer}>
               {segment.exercises.map((exercise, exerciseIndex) => (
-                <View key={exercise.id} style={styles.exerciseItem}>
-                  <View style={styles.exerciseNumberContainer}>
-                    <Text style={styles.exerciseNumber}>{exerciseIndex + 1}</Text>
+                <View key={exercise.id} style={styles.exerciseCard}>
+                  <View style={styles.exerciseHeader}>
+                    <View style={styles.exerciseNumberContainer}>
+                      <Text style={styles.exerciseNumber}>{exerciseIndex + 1}</Text>
+                    </View>
+                    <Text style={styles.exerciseHeaderText}>Exercise {exerciseIndex + 1}</Text>
+                    <TouchableOpacity
+                      style={styles.removeExerciseButton}
+                      onPress={() => !isSaving && removeExercise(segment.id, exercise.id)}
+                      disabled={isSaving}
+                    >
+                      <Ionicons name="close-circle" size={20} color={isSaving ? "#666" : "#ff6b6b"} />
+                    </TouchableOpacity>
                   </View>
 
-                  <View style={styles.exerciseInputContainer}>
+                  {/* Exercise Name */}
+                  <View style={styles.exerciseFieldContainer}>
+                    <Text style={styles.exerciseFieldLabel}>Name</Text>
                     <TextInput
                       style={styles.exerciseNameInput}
                       value={exercise.name}
@@ -436,22 +460,29 @@ export default function EditWorkout() {
                       placeholderTextColor="#666"
                       editable={!isSaving}
                     />
-                    <View style={styles.exerciseDetailsContainer}>
+                  </View>
+
+                  {/* Sets and Reps */}
+                  <View style={styles.exerciseRow}>
+                    <View style={[styles.exerciseFieldContainer, { flex: 1, marginRight: 10 }]}>
+                      <Text style={styles.exerciseFieldLabel}>Sets</Text>
                       <TextInput
-                        style={styles.exerciseDetailInput}
+                        style={styles.exerciseSmallInput}
                         value={exercise.sets}
                         onChangeText={(value) => updateExercise(segment.id, exercise.id, 'sets', value)}
-                        placeholder="Sets"
+                        placeholder="0"
                         placeholderTextColor="#666"
                         keyboardType="number-pad"
                         editable={!isSaving}
                       />
-                      <Text style={styles.exerciseDetailSeparator}>×</Text>
+                    </View>
+                    <View style={[styles.exerciseFieldContainer, { flex: 1 }]}>
+                      <Text style={styles.exerciseFieldLabel}>Reps</Text>
                       <TextInput
-                        style={styles.exerciseDetailInput}
+                        style={styles.exerciseSmallInput}
                         value={exercise.reps}
                         onChangeText={(value) => updateExercise(segment.id, exercise.id, 'reps', value)}
-                        placeholder="Reps"
+                        placeholder="0"
                         placeholderTextColor="#666"
                         keyboardType="number-pad"
                         editable={!isSaving}
@@ -459,13 +490,47 @@ export default function EditWorkout() {
                     </View>
                   </View>
 
-                  <TouchableOpacity
-                    style={styles.removeExerciseButton}
-                    onPress={() => !isSaving && removeExercise(segment.id, exercise.id)}
-                    disabled={isSaving}
-                  >
-                    <Ionicons name="close-circle" size={20} color={isSaving ? "#666" : "#ff6b6b"} />
-                  </TouchableOpacity>
+                  {/* Load and Rest Time */}
+                  <View style={styles.exerciseRow}>
+                    <View style={[styles.exerciseFieldContainer, { flex: 1, marginRight: 10 }]}>
+                      <Text style={styles.exerciseFieldLabel}>Load (optional)</Text>
+                      <TextInput
+                        style={styles.exerciseSmallInput}
+                        value={exercise.load || ''}
+                        onChangeText={(value) => updateExercise(segment.id, exercise.id, 'load', value)}
+                        placeholder="e.g., 135 lbs"
+                        placeholderTextColor="#666"
+                        editable={!isSaving}
+                      />
+                    </View>
+                    <View style={[styles.exerciseFieldContainer, { flex: 1 }]}>
+                      <Text style={styles.exerciseFieldLabel}>Rest (sec)</Text>
+                      <TextInput
+                        style={styles.exerciseSmallInput}
+                        value={exercise.restSec?.toString() || ''}
+                        onChangeText={(value) => updateExercise(segment.id, exercise.id, 'restSec', parseInt(value) || 0)}
+                        placeholder="60"
+                        placeholderTextColor="#666"
+                        keyboardType="number-pad"
+                        editable={!isSaving}
+                      />
+                    </View>
+                  </View>
+
+                  {/* Notes */}
+                  <View style={styles.exerciseFieldContainer}>
+                    <Text style={styles.exerciseFieldLabel}>Notes (optional)</Text>
+                    <TextInput
+                      style={[styles.exerciseNameInput, { minHeight: 60 }]}
+                      value={exercise.notes || ''}
+                      onChangeText={(value) => updateExercise(segment.id, exercise.id, 'notes', value)}
+                      placeholder="Add notes about this exercise..."
+                      placeholderTextColor="#666"
+                      multiline
+                      numberOfLines={2}
+                      editable={!isSaving}
+                    />
+                  </View>
                 </View>
               ))}
 
@@ -613,51 +678,68 @@ const styles = StyleSheet.create({
   exercisesContainer: {
     marginTop: 10,
   },
-  exerciseItem: {
+  exerciseCard: {
+    backgroundColor: '#333',
+    borderRadius: 12,
+    marginBottom: 15,
+    padding: 15,
+  },
+  exerciseHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#333',
-    borderRadius: 10,
-    marginBottom: 10,
-    padding: 10,
+    marginBottom: 12,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#444',
   },
   exerciseNumberContainer: {
-    width: 25,
-    height: 25,
-    borderRadius: 12,
-    backgroundColor: '#909090',
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#ff2d55',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 10,
   },
   exerciseNumber: {
     fontSize: 14,
-    color: 'black',
+    color: 'white',
     fontWeight: 'bold',
   },
-  exerciseInputContainer: {
+  exerciseHeaderText: {
     flex: 1,
-  },
-  exerciseNameInput: {
     color: 'white',
     fontSize: 16,
-    marginBottom: 5,
-  },
-  exerciseDetailsContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  exerciseDetailInput: {
-    color: '#b7b7b7',
-    width: 50,
-    fontSize: 14,
-  },
-  exerciseDetailSeparator: {
-    color: '#b7b7b7',
-    marginHorizontal: 5,
+    fontWeight: '600',
   },
   removeExerciseButton: {
     padding: 5,
+  },
+  exerciseFieldContainer: {
+    marginBottom: 12,
+  },
+  exerciseFieldLabel: {
+    color: '#aaa',
+    fontSize: 13,
+    marginBottom: 6,
+    fontWeight: '500',
+  },
+  exerciseNameInput: {
+    backgroundColor: '#222',
+    borderRadius: 8,
+    padding: 12,
+    color: 'white',
+    fontSize: 15,
+  },
+  exerciseRow: {
+    flexDirection: 'row',
+  },
+  exerciseSmallInput: {
+    backgroundColor: '#222',
+    borderRadius: 8,
+    padding: 12,
+    color: 'white',
+    fontSize: 15,
   },
   addExerciseButton: {
     flexDirection: 'row',
@@ -709,5 +791,10 @@ const styles = StyleSheet.create({
   switchLabel: {
     color: 'white',
     fontSize: 16,
+  },
+  centered: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

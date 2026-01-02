@@ -3,27 +3,25 @@ import React from 'react';
 import { Stack } from 'expo-router';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { View, StyleSheet, Platform } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import BottomButtons from '@/components/BottomButtons';
 import { AuthProvider } from '@/context/AuthContext';
 import { GlobalNetworkMonitor } from '@/components/GlobalNetworkMonitor';
 
 export default function RootLayout() {
   return (
-    <AuthProvider>
-      <SafeAreaProvider>
-        <View style={styles.container}>
-          <GlobalNetworkMonitor />
-          <Stack
-            screenOptions={{
-              headerShown: false,
-              contentStyle: { backgroundColor: 'black' },
-              animation: Platform.OS === 'android' ? 'fade' : 'none',
-            }}
-          >
-            {/* Auth screens with disabled swipe gestures */}
-            <Stack.Screen name="landing" options={{ gestureEnabled: false }} />
-            <Stack.Screen name="login" options={{ gestureEnabled: false }} />
-            <Stack.Screen name="email-verification" options={{ gestureEnabled: false }} />
-            
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <AuthProvider>
+        <SafeAreaProvider>
+          <View style={styles.container}>
+            <GlobalNetworkMonitor />
+            <Stack
+              screenOptions={{
+                headerShown: false,
+                contentStyle: { backgroundColor: 'black' },
+                animation: Platform.OS === 'android' ? 'fade' : 'none',
+              }}
+            >
             {/* Main tab screens with disabled swipe gestures */}
             <Stack.Screen name="(tabs)" options={{ gestureEnabled: false }} />
             <Stack.Screen name="post" options={{ gestureEnabled: false }} />
@@ -37,6 +35,8 @@ export default function RootLayout() {
             <Stack.Screen name="settings" options={{ gestureEnabled: true, animation: 'slide_from_right' }} />
             
             {/* Other screens */}
+            <Stack.Screen name="signup" />
+            <Stack.Screen name="select-archetype" />
             <Stack.Screen name="create-workout" options={{ animation: 'slide_from_bottom', gestureEnabled: true }} />
             <Stack.Screen name="view-workout/[id]" options={{ animation: 'fade_from_bottom', gestureEnabled: true }} />
             <Stack.Screen name="view-post/[id]" options={{ animation: 'fade_from_bottom', gestureEnabled: true }} />
@@ -45,15 +45,19 @@ export default function RootLayout() {
             <Stack.Screen name="diet-plan" />
             <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
           </Stack>
+          
+          {/* Bottom navigation that persists across route changes but hides on specific screens */}
+          <BottomButtons />
         </View>
       </SafeAreaProvider>
     </AuthProvider>
+    </GestureHandlerRootView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: 'black',
+    position: 'relative',
   },
 });

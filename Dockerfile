@@ -1,32 +1,60 @@
-# Dockerfile
-
-FROM python:3.9-slim
+# HLTHY AI Coach Production Dockerfile - Optimized
+# Use Python image with pre-built scientific libraries to avoid build issues
+FROM python:3.11-slim
 
 # Install system dependencies
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-        build-essential \
-        python3-dev \
-        libffi-dev \
-        libssl-dev && \
+        curl \
+        && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
+# Set working directory
 WORKDIR /app
 
-RUN python -m pip install --upgrade pip setuptools wheel
+# Upgrade pip and install wheel support
+RUN python -m pip install --upgrade pip wheel
 
-COPY requirements.txt .
+# Install minimal ML dependencies without heavy models
+RUN pip install --no-cache-dir \
+    numpy==1.24.3 \
+    scipy==1.10.1 \
+    scikit-learn==1.2.2
+
+# Copy requirements and install remaining dependencies (excluding heavy ML libraries)
+COPY ai/requirements-minimal.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
-RUN pip install gunicorn
 
-# Copy the application code
-COPY . .
+# Copy application code
+COPY ai/ ./
 
-# [OPTIONAL] If using a service account key, set the env variable:
-# ENV GOOGLE_APPLICATION_CREDENTIALS="/app/service_account_key.json"
+# Create necessary directories
+RUN mkdir -p exercise_cache user_profiles memory_data rate_limiting_cache
 
-EXPOSE 5001
+# Set environment variables for production
+ENV FLASK_ENV=production
+ENV PYTHONPATH=/app
+ENV PYTHONUNBUFFERED=1
+ENV TRANSFORMERS_CACHE=/tmp/transformers_cache
+ENV HF_HOME=/tmp/huggingface
 
-# Use Gunicorn to run the Flask app; the app is located at ai/vertex_testing.py
-CMD ["gunicorn", "--bind", "0.0.0.0:5001", "ai.vertex_testing:app"]
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:8080/api/health || exit 1
+
+# Expose port
+EXPOSE 8080
+
+# Use Gunicorn with optimized settings for production
+CMD ["gunicorn", \
+     "--bind", "0.0.0.0:8080", \
+     "--workers", "2", \
+     "--worker-class", "sync", \
+     "--timeout", "120", \
+     "--max-requests", "1000", \
+     "--max-requests-jitter", "50", \
+     "--preload", \
+     "--access-logfile", "-", \
+     "--error-logfile", "-", \
+     "api_server:app"]

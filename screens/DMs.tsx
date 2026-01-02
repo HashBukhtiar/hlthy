@@ -118,10 +118,8 @@ const ChatItem = ({
 
     const navigateToChat = () => {
         if (item.isPinnedAI) {
-            if (currentUser) {
-                const aiConversationId = `${currentUser.uid}_ai_conversation`;
-                router.push(`/chat/${aiConversationId}`);
-            }
+            // The AI conversation ID is already in the correct format
+            router.push(`/chat/${item.id}`);
         } else {
             router.push(`/chat/${item.id}`);
         }
@@ -274,14 +272,20 @@ export default function DMs() {
                 return 0;
             });
             
-            const aiConversation: CombinedConversationItem = {
-                id: 'ai_conversation',
-                isPinnedAI: true,
-                lastMessageText: 'Ask me anything!',
-                // isUnread will be undefined/false by default
-            };
+            // Add the AI conversation at the top
+            let finalConversations = [...fetchedConversations];
+            if (currentUser) {
+                const aiConversationId = `${currentUser.uid}_ai_conversation`;
+                const aiConversation: CombinedConversationItem = {
+                    id: aiConversationId,
+                    isPinnedAI: true,
+                    lastMessageText: 'Ask me anything about fitness!',
+                    // isUnread will be undefined/false by default
+                };
+                finalConversations = [aiConversation, ...fetchedConversations];
+            }
 
-            setConversations([aiConversation, ...fetchedConversations]);
+            setConversations(finalConversations);
         } catch (error) {
             console.error("Error fetching conversations: ", error);
         } finally {

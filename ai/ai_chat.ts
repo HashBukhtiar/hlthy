@@ -1,138 +1,195 @@
+import { API_BASE_URL } from '@/config/api';
+import { db } from '@/firebaseConfig';
+import { doc, updateDoc, deleteDoc, collection, query, writeBatch } from 'firebase/firestore';
 
-/**
- * AI Chat module for hlthy app
- * This file contains functionality for sending messages to the AI service with intent classification.
- */
+export interface IntentClassificationResult {
+  intent: string;
+  confidence: number;
+  status: 'success' | 'error';
+  message?: string;
+}
 
-// Local Message interface for AI chat
-interface Message {
+export interface ChatMessage {
   text: string;
   role: 'user' | 'model';
 }
 
-import { API_BASE_URL } from "@/config/api";
-
-export interface IntentClassificationResult {
-  intent: 'planner' | 'technique' | 'explain' | 'schedule' | 'chit_chat';
-  confidence?: number;
-  error?: string;
+export interface AIResponse {
+  text: string;
+  type?: string;
+  workoutPlan?: any;
+  profile?: any; // Profile data for workout_confirmation responses
+  interviewMode?: boolean;
+  responseType?: string;
 }
 
-export interface ChatResponse {
-  text: string;
-  intent?: string;
-  error?: string;
+export interface WorkoutPreferences {
+  includeWarmup: boolean;
+  includeCooldown: boolean;
+  includeCardio: boolean;
+}
+
+export interface SendMessageOptions {
+  workoutPreferences?: WorkoutPreferences;
+  editingWorkout?: any; // Current workout being edited
 }
 
 /**
- * Classify the intent of a user's message
- * @param message The message to classify
- * @returns A promise that resolves to the intent classification result
+ * Send a message to the HLTHY AI Coach backend service
+ * @param history - Array of previous chat messages for context
+ * @param currentMessage - The current message from the user
+ * @param userId - The user's unique ID for profile management
+ * @param options - Optional parameters like workout preferences and editing context
+ * @returns Promise<AIResponse> - AI response with text and optional structured data
  */
-export async function classifyIntent(message: string): Promise<IntentClassificationResult> {
+export async function sendMessage(
+  history: ChatMessage[], 
+  currentMessage: string, 
+  userId?: string,
+  options?: SendMessageOptions
+): Promise<AIResponse> {
   try {
-    console.log("Classifying intent for message:", message);
-    console.log("Using API URL:", API_BASE_URL);
-    
-    const response = await fetch(`${API_BASE_URL}/api/classify-intent`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message }),
-    });
-    
-    console.log("Intent classification response status:", response.status, response.statusText);
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('📡 Sending message to AI backend:');
+    console.log(`🌐 API URL: ${API_BASE_URL}/api/chat`);
+    console.log(`💬 Message: ${currentMessage.substring(0, 100)}...`);
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
-    if (!response.ok) {
-      console.error(`Intent classification failed: ${response.status} ${response.statusText}`);
-      return {
-        intent: 'explain',
-        error: `HTTP ${response.status}: ${response.statusText}`,
-      };
+    const requestBody: any = {
+      message: currentMessage,
+      conversation_history: history
+    };
+
+    // Include user_id if provided for profile management
+    if (userId) {
+      requestBody.user_id = userId;
     }
 
-    const data = await response.json();
-    console.log("Intent classification result:", data);
+    // Include workout preferences if provided
+    if (options?.workoutPreferences) {
+      requestBody.workout_preferences = options.workoutPreferences;
+    }
 
-    // Ensure we return a properly formatted result
-    return {
-      intent: data.intent || 'explain',
-      confidence: data.confidence,
-    };
-  } catch (error) {
-    console.error("Error classifying intent:", error);
-    return {
-      intent: 'explain',
-      error: error instanceof Error ? error.message : 'Unknown error',
-    };
-  }
-}
+    // Include editing context if user is editing a workout
+    if (options?.editingWorkout) {
+      requestBody.editing_workout = options.editingWorkout;
+    }
 
-/**
- * Send a message to the AI service and get a response with intent classification
- * @param history The user's message history to send to the AI
- * @param userMessage Optional current user message for intent classification
- * @returns A promise that resolves to the AI's response with intent info
- */
-export async function sendMessage(history: Message[], userMessage?: string): Promise<string> {
-  try {
-    console.log("Sending request to AI service:", history);
-    console.log("Using API URL:", API_BASE_URL);
-    
     const response = await fetch(`${API_BASE_URL}/api/chat`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        history,
-        user_id: 'mobile_user' // Add user ID for better context
-      }),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(requestBody),
     });
-    console.log("Response from AI service:", response.status, response.statusText);
 
     if (!response.ok) {
-      throw new Error(`Server error: ${response.status} ${response.statusText}`);
+      console.error('AI service response not ok:', response.status, response.statusText);
+      throw new Error(`AI service error: ${response.status} ${response.statusText}`);
     }
 
     const data = await response.json();
-    console.log("Data received from Flask:", data);
-
-    return data.response || data.text || "Sorry, I didn't understand that.";
+    console.log('Raw API response:', data);
+    
+    // Handle different response formats from the AI service
+    const responseText = data.response || data.text || data.message;
+    
+    if (responseText) {
+      return {
+        text: responseText,
+        type: data.type || (data.workoutPlan ? 'workout_plan' : 'text'),
+        workoutPlan: data.workoutPlan || data.workout_plan,
+        profile: data.profile, // Include profile data for workout_confirmation
+        interviewMode: data.interview_mode || false,
+        responseType: data.type // Use data.type as responseType
+      };
+    } else {
+      console.error('Invalid response format from AI service:', data);
+      throw new Error(data.error || 'Invalid response from AI service');
+    }
   } catch (error) {
-    console.error("Error sending message:", error);
-    throw error;
+    console.error('Error communicating with AI service:', error);
+    
+    // Provide helpful error messages based on the error type
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      return { text: "I'm having trouble connecting to the AI service. Please check your internet connection and try again." };
+    } else if (error instanceof Error && error.message.includes('AI service error')) {
+      return { text: "The AI service is temporarily unavailable. Please try again in a moment." };
+    } else {
+      return { text: "Sorry, I encountered an unexpected error. Please try again later." };
+    }
   }
 }
 
 /**
- * Send message with integrated intent classification and response
- * @param history The user's message history
- * @param userMessage The current user message
- * @returns Promise with both intent classification and AI response
+ * @deprecated Use sendMessage() directly instead. Intent classification has been removed.
+ * This function now just calls sendMessage() for backward compatibility.
  */
-export async function sendMessageWithIntent(
-  history: Message[], 
-  userMessage: string
-): Promise<{ response: string; intent: IntentClassificationResult }> {
+/**
+ * @deprecated Use sendMessage() directly instead. Intent classification has been removed.
+ * This function now just calls sendMessage() for backward compatibility.
+ */
+export async function sendMessageWithIntent(history: ChatMessage[], currentMessage: string, userId?: string): Promise<AIResponse> {
+  console.log('⚠️ sendMessageWithIntent is deprecated. Use sendMessage() instead.');
+  return sendMessage(history, currentMessage, userId);
+}
+
+/**
+ * @deprecated Intent classification has been removed. This function always returns a default result.
+ * The AI now handles all intent detection internally.
+ */
+export async function classifyIntent(message: string): Promise<IntentClassificationResult> {
+  console.log('⚠️ classifyIntent is deprecated and no longer used.');
+  return {
+    intent: 'chit_chat',
+    confidence: 1.0,
+    status: 'success',
+    message: 'Intent classification is now handled by the AI directly'
+  };
+}
+
+/**
+ * Check if the AI service is healthy and available
+ * @returns Promise<boolean> - True if service is healthy
+ */
+export async function checkAIServiceHealth(): Promise<boolean> {
   try {
-    // Step 1: Classify intent
-    const intentResult = await classifyIntent(userMessage);
-    
-    // Step 2: Get AI response  
-    const response = await sendMessage(history, userMessage);
-    
-    return {
-      response,
-      intent: intentResult,
-    };
-  } catch (error) {
-    console.error("Error in sendMessageWithIntent:", error);
-    
-    // Fallback response
-    return {
-      response: "Sorry, I'm having trouble connecting. Please try again later.",
-      intent: {
-        intent: 'explain',
-        error: error instanceof Error ? error.message : 'Unknown error',
+    const response = await fetch(`${API_BASE_URL}/api/health`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
       },
-    };
+    });
+
+    return response.ok;
+  } catch (error) {
+    console.error('AI service health check failed:', error);
+    return false;
   }
 }
+
+/**
+ * Clear the AI conversation history for a user
+ * @param userId - The user's unique ID
+ * @returns Promise<boolean> - Success status
+ */
+export async function clearConversationHistory(userId: string): Promise<boolean> {
+  try {
+    console.log('Clearing conversation history for user:', userId);
+    
+    const conversationId = `${userId}_ai_conversation`;
+    
+    // Delete the entire conversation document
+    const conversationRef = doc(db, 'conversations', conversationId);
+    await deleteDoc(conversationRef);
+    
+    console.log('✅ Conversation history cleared successfully!');
+    return true;
+    
+  } catch (error) {
+    console.error('❌ Error clearing conversation history:', error);
+    return false;
+  }
+}
+
+// ChatMessage interface is already exported above
