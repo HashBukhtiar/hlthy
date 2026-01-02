@@ -229,16 +229,42 @@ export default function PostsFeed() {
         console.log('🟡 [PostsFeed] Attempting to UNFOLLOW user:', targetUserId);
         await unfollowUser(targetUserId);
         console.log('✅ [PostsFeed] Successfully unfollowed user:', targetUsername);
+        
+        // Optimistically update the selected post state
+        setSelectedPostForAction(prev => prev ? { ...prev, isFollowing: false } : null);
+        
+        // Update posts in the feed
+        setPosts(prevPosts => 
+          prevPosts.map(post => 
+            post.authorId === targetUserId 
+              ? { ...post, isFollowing: false }
+              : post
+          )
+        );
+        
         Alert.alert('Unfollowed', `You have unfollowed ${targetUsername}`);
       } else {
         // User is not following, so follow
         console.log('🟡 [PostsFeed] Attempting to FOLLOW user:', targetUserId);
         await followUser(targetUserId);
         console.log('✅ [PostsFeed] Successfully followed user:', targetUsername);
+        
+        // Optimistically update the selected post state
+        setSelectedPostForAction(prev => prev ? { ...prev, isFollowing: true } : null);
+        
+        // Update posts in the feed
+        setPosts(prevPosts => 
+          prevPosts.map(post => 
+            post.authorId === targetUserId 
+              ? { ...post, isFollowing: true }
+              : post
+          )
+        );
+        
         Alert.alert('Success', `You are now following ${targetUsername}`);
       }
       
-      // Refresh feed to update the following status
+      // Refresh feed to ensure consistency with server
       console.log('🔵 [PostsFeed] Refreshing feed after follow/unfollow action');
       refreshFeed();
     } catch (error: any) {

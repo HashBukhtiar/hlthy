@@ -250,16 +250,42 @@ export default function MilestonesFeed() {
         console.log('🟡 [MilestonesFeed] Attempting to UNFOLLOW user:', targetUserId);
         await unfollowUser(targetUserId);
         console.log('✅ [MilestonesFeed] Successfully unfollowed user:', targetUsername);
+        
+        // Optimistically update the selected milestone state
+        setSelectedMilestoneForAction(prev => prev ? { ...prev, isFollowing: false } : null);
+        
+        // Update milestones in the feed
+        setMilestones(prevMilestones => 
+          prevMilestones.map(milestone => 
+            milestone.authorId === targetUserId 
+              ? { ...milestone, isFollowing: false }
+              : milestone
+          )
+        );
+        
         Alert.alert('Unfollowed', `You have unfollowed ${targetUsername}`);
       } else {
         // User is not following, so follow
         console.log('🟡 [MilestonesFeed] Attempting to FOLLOW user:', targetUserId);
         await followUser(targetUserId);
         console.log('✅ [MilestonesFeed] Successfully followed user:', targetUsername);
+        
+        // Optimistically update the selected milestone state
+        setSelectedMilestoneForAction(prev => prev ? { ...prev, isFollowing: true } : null);
+        
+        // Update milestones in the feed
+        setMilestones(prevMilestones => 
+          prevMilestones.map(milestone => 
+            milestone.authorId === targetUserId 
+              ? { ...milestone, isFollowing: true }
+              : milestone
+          )
+        );
+        
         Alert.alert('Success', `You are now following ${targetUsername}`);
       }
       
-      // Refresh feed to update the following status
+      // Refresh feed to ensure consistency with server
       console.log('🔵 [MilestonesFeed] Refreshing feed after follow/unfollow action');
       refreshFeed();
     } catch (error: any) {
