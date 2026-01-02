@@ -75,4 +75,7 @@ export interface FeedMilestone {
   imageUrl?: string;
   pinned?: boolean;
   top5Percent?: boolean;
+  isFollowing?: boolean;
+  isBookmarked?: boolean;
+  authorBlockedUsers?: string[];
 }

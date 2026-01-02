@@ -63,6 +63,8 @@ export interface Post {
   visibility: 'public' | 'followers';
   isLiked?: boolean;
   isBookmarked?: boolean;
+  isFollowing?: boolean;
+  isPublic?: boolean;
 }
 
 interface ClientMilestoneDetails {

@@ -29,6 +29,10 @@ import { useAuth } from '@/context/AuthContext';
 import { useBlockEnforcement } from '@/utils/blockUtils';
 import ShareModal from '@/components/ShareModal';
 import { sharePost } from '@/services/ShareService';
+import PostActionMenu from '@/components/PostActionMenu';
+import { useProfileData } from '@/hooks/useProfileData';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { app } from '@/firebaseConfig';
 
 const DEFAULT_PROFILE_IMAGE = 'https://thumbs.dreamstime.com/b/creative-illustration-default-avatar-profile-placeholder-isolated-background-art-design-grey-photo-blank-template-mockup-144855718.jpg';
 
@@ -90,6 +94,9 @@ export default function PostsFeed() {
   const [submittingComment, setSubmittingComment] = useState(false);
   const [shareModalVisible, setShareModalVisible] = useState(false);
   const [postToShare, setPostToShare] = useState<Post | null>(null);
+  const [actionMenuVisible, setActionMenuVisible] = useState(false);
+  const [selectedPostForAction, setSelectedPostForAction] = useState<Post | null>(null);
+  const { followUser, unfollowUser } = useProfileData();
 
   // Double-tap functionality refs
   const tapTimers = useRef<Record<string, number>>({});
@@ -190,6 +197,100 @@ export default function PostsFeed() {
     // TODO: Implement actual bookmark API call
     // For now, just keep the optimistic update
   }, [currentUser]);
+
+  // Handle opening action menu
+  const handleOpenActionMenu = useCallback((post: Post) => {
+    setSelectedPostForAction(post);
+    setActionMenuVisible(true);
+  }, []);
+
+  // Handle follow/unfollow from action menu
+  const handleToggleFollowFromMenu = useCallback(async () => {
+    if (!selectedPostForAction || !currentUser) return;
+
+    try {
+      // We'll check the status dynamically through the API call
+      // The followUser/unfollowUser functions will handle the current state
+      await followUser(selectedPostForAction.authorId);
+      Alert.alert('Success', 'Follow status updated successfully');
+    } catch (error: any) {
+      // If error indicates already following, try unfollowing
+      if (error.message?.includes('already') || error.code === 'already-following') {
+        try {
+          await unfollowUser(selectedPostForAction.authorId);
+          Alert.alert('Unfollowed', `You have unfollowed ${selectedPostForAction.authorUsername}`);
+        } catch (unfollowError) {
+          console.error('Error unfollowing:', unfollowError);
+          Alert.alert('Error', 'Could not update follow status. Please try again.');
+        }
+      } else {
+        console.error('Error toggling follow:', error);
+        Alert.alert('Error', 'Could not update follow status. Please try again.');
+      }
+    }
+  }, [selectedPostForAction, currentUser, followUser, unfollowUser]);
+
+  // Handle block user from action menu
+  const handleBlockUser = useCallback(async () => {
+    if (!selectedPostForAction || !currentUser) return;
+
+    Alert.alert(
+      'Block User',
+      `Are you sure you want to block ${selectedPostForAction.authorUsername}? You won't see their posts and they won't be able to interact with you.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Block',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const functions = getFunctions(app, 'northamerica-northeast2');
+              const blockUserFn = httpsCallable(functions, 'blockUser');
+              await blockUserFn({ targetUserId: selectedPostForAction.authorId });
+              Alert.alert('Blocked', `You have blocked ${selectedPostForAction.authorUsername}`);
+              // Refresh feed to remove blocked user's posts
+              refreshFeed();
+            } catch (error) {
+              console.error('Error blocking user:', error);
+              Alert.alert('Error', 'Could not block user. Please try again.');
+            }
+          },
+        },
+      ]
+    );
+  }, [selectedPostForAction, currentUser, refreshFeed]);
+
+  // Handle report post from action menu
+  const handleReportPost = useCallback(() => {
+    if (!selectedPostForAction) return;
+
+    Alert.alert(
+      'Report Post',
+      'Why are you reporting this post?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Spam',
+          onPress: () => {
+            // TODO: Implement report functionality
+            Alert.alert('Reported', 'Thank you for reporting this post.');
+          },
+        },
+        {
+          text: 'Inappropriate Content',
+          onPress: () => {
+            Alert.alert('Reported', 'Thank you for reporting this post.');
+          },
+        },
+        {
+          text: 'Harassment',
+          onPress: () => {
+            Alert.alert('Reported', 'Thank you for reporting this post.');
+          },
+        },
+      ]
+    );
+  }, [selectedPostForAction]);
 
   // Navigation functions
   const navigateToWorkout = useCallback((workoutId: string) => {
@@ -400,7 +501,10 @@ export default function PostsFeed() {
             </View>
           </TouchableOpacity>
           {canInteract && (
-            <TouchableOpacity style={styles.moreButton}>
+            <TouchableOpacity 
+              style={styles.moreButton}
+              onPress={() => handleOpenActionMenu(item)}
+            >
               <Ionicons name="ellipsis-horizontal" size={20} color="#8E8E93" />
             </TouchableOpacity>
           )}
@@ -590,6 +694,7 @@ export default function PostsFeed() {
     isUserBlocked,
     createDoubleTapHandler,
     handleSharePost,
+    handleOpenActionMenu,
   ]);
 
   // Render footer for load more
@@ -672,6 +777,21 @@ export default function PostsFeed() {
         visible={shareModalVisible}
         onClose={() => setShareModalVisible(false)}
         onShareWith={sharePostWithUser}
+      />
+      <PostActionMenu
+        visible={actionMenuVisible}
+        onClose={() => setActionMenuVisible(false)}
+        isBookmarked={selectedPostForAction?.isBookmarked || false}
+        isFollowing={false} // Following status checked dynamically in handler
+        isOwnPost={selectedPostForAction?.authorId === currentUser?.uid}
+        onToggleBookmark={() => {
+          if (selectedPostForAction) {
+            handleToggleBookmark(selectedPostForAction.id, selectedPostForAction.isBookmarked || false);
+          }
+        }}
+        onToggleFollow={handleToggleFollowFromMenu}
+        onBlock={handleBlockUser}
+        onReport={handleReportPost}
       />
     </>
   );

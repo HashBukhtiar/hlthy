@@ -31,6 +31,10 @@ import { getOptimalImageUrl } from '@/utils/imageUtils';
 import { useBlockEnforcement } from '@/utils/blockUtils';
 import { FeedMilestone, MilestoneDetails, MilestoneStats } from '@/types/milestone';
 import { useUnits } from '@/hooks/useUnits';
+import PostActionMenu from '@/components/PostActionMenu';
+import { useProfileData } from '@/hooks/useProfileData';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { app } from '@/firebaseConfig';
 
 export default function MilestonesFeed() {
   const router = useRouter();
@@ -41,6 +45,9 @@ export default function MilestonesFeed() {
   const [shareModalVisible, setShareModalVisible] = useState(false);
   const milestoneToShare = useRef<FeedMilestone | null>(null);
   const { getWeightUnit, getDistanceUnit } = useUnits();
+  const [actionMenuVisible, setActionMenuVisible] = useState(false);
+  const [selectedMilestoneForAction, setSelectedMilestoneForAction] = useState<FeedMilestone | null>(null);
+  const { followUser, unfollowUser } = useProfileData();
   
   // Local state for optimistic updates  
   const [milestones, setMilestones] = useState<typeof feedMilestones>([]);
@@ -189,6 +196,119 @@ export default function MilestonesFeed() {
       Alert.alert("Error", "Failed to share milestone. Please try again.");
     }
   }, [currentUser]);
+
+  // Handle opening action menu
+  const handleOpenActionMenu = useCallback((milestone: FeedMilestone) => {
+    setSelectedMilestoneForAction(milestone);
+    setActionMenuVisible(true);
+  }, []);
+
+  // Handle bookmark toggle for milestones
+  const handleToggleBookmark = useCallback((milestoneId: string, isCurrentlyBookmarked: boolean) => {
+    if (!currentUser) {
+      Alert.alert('Please log in', 'You need to be logged in to bookmark milestones.');
+      return;
+    }
+
+    // Haptic feedback
+    Haptics.impactAsync(isCurrentlyBookmarked ? Haptics.ImpactFeedbackStyle.Light : Haptics.ImpactFeedbackStyle.Medium);
+
+    // Optimistic update - update UI immediately
+    setMilestones(prevMilestones => 
+      prevMilestones.map(milestone => 
+        milestone.id === milestoneId 
+          ? { ...milestone, isBookmarked: !isCurrentlyBookmarked }
+          : milestone
+      )
+    );
+
+    // TODO: Implement actual bookmark API call
+  }, [currentUser]);
+
+  // Handle follow/unfollow from action menu
+  const handleToggleFollowFromMenu = useCallback(async () => {
+    if (!selectedMilestoneForAction || !currentUser) return;
+
+    try {
+      // We'll check the status dynamically through the API call
+      await followUser(selectedMilestoneForAction.authorId);
+      Alert.alert('Success', 'Follow status updated successfully');
+    } catch (error: any) {
+      // If error indicates already following, try unfollowing
+      if (error.message?.includes('already') || error.code === 'already-following') {
+        try {
+          await unfollowUser(selectedMilestoneForAction.authorId);
+          Alert.alert('Unfollowed', `You have unfollowed ${selectedMilestoneForAction.authorUsername}`);
+        } catch (unfollowError) {
+          console.error('Error unfollowing:', unfollowError);
+          Alert.alert('Error', 'Could not update follow status. Please try again.');
+        }
+      } else {
+        console.error('Error toggling follow:', error);
+        Alert.alert('Error', 'Could not update follow status. Please try again.');
+      }
+    }
+  }, [selectedMilestoneForAction, currentUser, followUser, unfollowUser]);
+
+  // Handle block user from action menu
+  const handleBlockUser = useCallback(async () => {
+    if (!selectedMilestoneForAction || !currentUser) return;
+
+    Alert.alert(
+      'Block User',
+      `Are you sure you want to block ${selectedMilestoneForAction.authorUsername}? You won't see their milestones and they won't be able to interact with you.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Block',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const functions = getFunctions(app, 'northamerica-northeast2');
+              const blockUserFn = httpsCallable(functions, 'blockUser');
+              await blockUserFn({ targetUserId: selectedMilestoneForAction.authorId });
+              Alert.alert('Blocked', `You have blocked ${selectedMilestoneForAction.authorUsername}`);
+              refreshFeed();
+            } catch (error) {
+              console.error('Error blocking user:', error);
+              Alert.alert('Error', 'Could not block user. Please try again.');
+            }
+          },
+        },
+      ]
+    );
+  }, [selectedMilestoneForAction, currentUser, refreshFeed]);
+
+  // Handle report milestone from action menu
+  const handleReportMilestone = useCallback(() => {
+    if (!selectedMilestoneForAction) return;
+
+    Alert.alert(
+      'Report Milestone',
+      'Why are you reporting this milestone?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Spam',
+          onPress: () => {
+            Alert.alert('Reported', 'Thank you for reporting this milestone.');
+          },
+        },
+        {
+          text: 'Inappropriate Content',
+          onPress: () => {
+            Alert.alert('Reported', 'Thank you for reporting this milestone.');
+          },
+        },
+        {
+          text: 'False Achievement',
+          onPress: () => {
+            Alert.alert('Reported', 'Thank you for reporting this milestone.');
+          },
+        },
+      ]
+    );
+  }, [selectedMilestoneForAction]);
 
   const renderMilestoneDetails = useCallback((milestone: FeedMilestone) => {
     const details = milestone.milestoneDetails;
@@ -519,7 +639,7 @@ export default function MilestonesFeed() {
             {/* Three-dot menu */}
             <TouchableOpacity 
               style={styles.menuButton}
-              onPress={() => {}}
+              onPress={() => handleOpenActionMenu(item)}
               activeOpacity={0.8}
             >
               <Ionicons name="ellipsis-horizontal" size={20} color="#8E8E93" />
@@ -642,6 +762,22 @@ export default function MilestonesFeed() {
         visible={shareModalVisible}
         onClose={() => setShareModalVisible(false)}
         onShareWith={handleShareWithUser}
+      />
+      
+      <PostActionMenu
+        visible={actionMenuVisible}
+        onClose={() => setActionMenuVisible(false)}
+        isBookmarked={selectedMilestoneForAction?.isBookmarked || false}
+        isFollowing={false} // Following status checked dynamically in handler
+        isOwnPost={selectedMilestoneForAction?.authorId === currentUser?.uid}
+        onToggleBookmark={() => {
+          if (selectedMilestoneForAction) {
+            handleToggleBookmark(selectedMilestoneForAction.id, selectedMilestoneForAction.isBookmarked || false);
+          }
+        }}
+        onToggleFollow={handleToggleFollowFromMenu}
+        onBlock={handleBlockUser}
+        onReport={handleReportMilestone}
       />
     </>
   );
