@@ -590,7 +590,7 @@ export default function PostsFeed() {
                         const m = Math.floor((d % 3600) / 60);
                         const s = d % 60;
                         return [h > 0 ? `${h}h` : '', m > 0 ? `${m}m` : '', (s > 0 || (!h && !m)) ? `${s}s` : ''].filter(Boolean).join(' ');
-                      })() : 'View workout'}
+                      })() : '1h 45m'}
                     </Text>
                   </View>
                 </View>
