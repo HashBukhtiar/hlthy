@@ -454,6 +454,12 @@ export const onMessageCreated = onDocumentWritten(
       return;
     }
 
+    // Skip notifications for AI conversations
+    if (conversationId.endsWith("_ai_conversation")) {
+      logger.info(`Skipping notification for AI conversation ${conversationId}`);
+      return;
+    }
+
     logger.info(`Processing new message in conversation ${conversationId}:`, messageData);
 
     const {senderId, text, senderUsername} = messageData;
@@ -469,30 +475,51 @@ export const onMessageCreated = onDocumentWritten(
       let actualSenderUsername = senderUsername;
       if (!actualSenderUsername) {
         logger.info(`No senderUsername found for message from ${senderId}, fetching from user document`);
-        const senderDoc = await db.collection("users").doc(senderId).get();
-        if (senderDoc.exists) {
-          const senderData = senderDoc.data();
-          actualSenderUsername = senderData?.username || senderData?.displayName || "User";
-          logger.info(`Retrieved username: ${actualSenderUsername} for user ${senderId}`);
-        } else {
+        try {
+          const senderDoc = await db.collection("users").doc(senderId).get();
+          if (senderDoc.exists) {
+            const senderData = senderDoc.data();
+            actualSenderUsername = senderData?.username || senderData?.displayName || "User";
+            logger.info(`Retrieved username: ${actualSenderUsername} for user ${senderId}`);
+          } else {
+            actualSenderUsername = "User";
+            logger.warn(`Sender document not found for ${senderId}, using 'User' as fallback`);
+          }
+        } catch (senderError) {
+          logger.error(`Error fetching sender document for ${senderId}:`, senderError);
           actualSenderUsername = "User";
-          logger.warn(`User document not found for ${senderId}, using 'User' as fallback`);
         }
       }
 
       const conversationDoc = await db.collection("conversations").doc(conversationId).get();
       if (!conversationDoc.exists) {
-        logger.error(`Conversation ${conversationId} not found`);
+        logger.error(`Conversation ${conversationId} not found, skipping notification`);
         return;
       }
 
       const conversationData = conversationDoc.data();
       const participants = conversationData?.participants || [];
 
+      logger.info(`Conversation ${conversationId} participants:`, participants, `Sender: ${senderId}`);
+
       // Find the recipient (the participant who is not the sender)
       const recipientId = participants.find((id: string) => id !== senderId);
       if (!recipientId) {
-        logger.error(`No recipient found for conversation ${conversationId}`);
+        logger.error(`No recipient found for conversation ${conversationId}. Participants: ${JSON.stringify(participants)}, SenderId: ${senderId}`);
+        return;
+      }
+
+      logger.info(`Attempting to send notification to recipient ${recipientId}`);
+
+      // Check if recipient user document exists before sending notification
+      try {
+        const recipientDoc = await db.collection("users").doc(recipientId).get();
+        if (!recipientDoc.exists) {
+          logger.warn(`Recipient ${recipientId} user document not found, skipping notification`);
+          return;
+        }
+      } catch (recipientCheckError) {
+        logger.error(`Error checking recipient ${recipientId} document:`, recipientCheckError);
         return;
       }
 
@@ -507,8 +534,18 @@ export const onMessageCreated = onDocumentWritten(
         fromUsername: actualSenderUsername,
         conversationId,
       });
+
+      logger.info(`Successfully processed message notification for conversation ${conversationId}`);
     } catch (error) {
       logger.error("Error sending message notification:", error);
+      // Log the full error details
+      if (error instanceof Error) {
+        logger.error("Error details:", {
+          message: error.message,
+          stack: error.stack,
+          name: error.name,
+        });
+      }
     }
   }
 );
