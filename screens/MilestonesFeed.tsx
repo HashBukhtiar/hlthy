@@ -726,20 +726,7 @@ export default function MilestonesFeed() {
     }
     
     return null;
-  }, [formatDate, getWeightUnit, getDistanceUnit]);
-
-  const formatDuration = (durationSeconds: number): string => {
-    const hours = Math.floor(durationSeconds / 3600);
-    const minutes = Math.floor((durationSeconds % 3600) / 60);
-    const seconds = durationSeconds % 60;
-    
-    let result = '';
-    if (hours > 0) result += `${hours}h `;
-    if (minutes > 0 || hours > 0) result += `${minutes}m `;
-    result += `${seconds}s`;
-    
-    return result.trim();
-  };
+  }, [formatDate, getWeightUnit, getDistanceUnit, formatDuration]);
 
   const renderMilestoneCard = useCallback((item: typeof milestones[0]) => {
     // Convert Post to Milestone format
