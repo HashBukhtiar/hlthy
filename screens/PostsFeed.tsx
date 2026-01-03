@@ -406,6 +406,7 @@ export default function PostsFeed() {
           <TouchableOpacity 
             style={styles.userInfoContainer}
             onPress={() => canInteract ? navigateToProfile(item.authorId) : null}
+            activeOpacity={0.8}
           >
             <OptimizedImageLight 
               thumbnailUrl={item.authorProfileThumbnailUrl}

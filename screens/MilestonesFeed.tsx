@@ -834,6 +834,7 @@ export default function MilestonesFeed() {
             <TouchableOpacity 
               style={styles.userInfoContainer}
               onPress={() => canInteract ? navigateToProfile(item.authorId) : null}
+              activeOpacity={0.8}
             >
               <Image 
                 source={{ uri: getOptimalImageUrl(item.authorProfileThumbnailUrl, item.authorProfileImageUrl) }} 
