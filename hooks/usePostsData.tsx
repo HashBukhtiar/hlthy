@@ -522,22 +522,9 @@ export function usePostsData() {
         });
       });
 
-      // Create activity for the post author (if not self-like)
+      // Send notification for the like (only if not self-like)
+      // Note: Activity creation is handled by Cloud Function trigger (createactivityonpostlike)
       if (postData.authorId !== currentUser.uid) {
-        const authorActivityColRef = collection(db, 'activity', postData.authorId, 'userActivity');
-        await addDoc(authorActivityColRef, {
-          type: 'post_like',
-          fromUserId: currentUser.uid,
-          fromUsername: userProfile.username,
-          fromProfileImageUrl: userProfile.profileImageUrl || null,
-          postId: postId,
-          postImageUrl: postData.imageUrl || null,
-          postCaption: postData.caption || '',
-          createdAt: serverTimestamp(),
-          status: 'unread'
-        });
-
-        // Send notification for the like
         try {
           await NotificationService.notifyLikeOrComment(
             postData.authorId,
@@ -638,22 +625,10 @@ export function usePostsData() {
       }
     );
 
-    // Create activity and send notification for the post author (if not self-comment)
+    // Send notification for the post author (if not self-comment)
+    // Note: Activity creation is handled by Cloud Function trigger (createactivityonpostcomment)
     if (postData.authorId !== currentUser.uid) {
       try {
-        const authorActivityColRef = collection(db, 'activity', postData.authorId, 'userActivity');
-        await addDoc(authorActivityColRef, {
-          type: 'post_comment',
-          fromUserId: currentUser.uid,
-          fromUsername: userProfile.username,
-          fromProfileImageUrl: userProfile.profileImageUrl || null,
-          postId: postId,
-          postImageUrl: postData.imageUrl || null,
-          commentText: text.substring(0, 100) + (text.length > 100 ? '...' : ''),
-          createdAt: serverTimestamp(),
-          status: 'unread'
-        });
-
         // Send notification for the comment
         await NotificationService.notifyLikeOrComment(
           postData.authorId,
@@ -704,21 +679,10 @@ export function usePostsData() {
         });
       });
 
-      // Create activity and send notification for comment author (if not self-like)
+      // Send notification for comment author (if not self-like)
+      // Note: Activity creation is handled by Cloud Function trigger (createactivityoncommentlike)
       if (commentData.authorId !== currentUser.uid) {
         try {
-          const authorActivityColRef = collection(db, 'activity', commentData.authorId, 'userActivity');
-          await addDoc(authorActivityColRef, {
-            type: 'comment_like',
-            fromUserId: currentUser.uid,
-            fromUsername: userProfile.username,
-            fromProfileImageUrl: userProfile.profileImageUrl || null,
-            postId: postId,
-            commentId: commentId,
-            createdAt: serverTimestamp(),
-            status: 'unread'
-          });
-
           // Send notification (comments are not milestones, so always false)
           await NotificationService.notifyLikeOrComment(
             commentData.authorId,
@@ -923,26 +887,10 @@ export function usePostsData() {
         });
       });
 
-      // Create activity and send notification for reply author (if not self-liking reply)
-      // Note: This might become noisy. Consider if this notification is necessary.
+      // Send notification for reply author (if not self-liking reply)
+      // Note: Activity creation is handled by Cloud Function trigger (createactivityonreplylike)
       if (replyData.authorId !== currentUser.uid) {
         try {
-          // Create activity for reply like
-          const authorActivityColRef = collection(db, 'activity', replyData.authorId, 'userActivity');
-          const activityRef = await addDoc(authorActivityColRef, {
-            type: 'comment_like', // or 'reply_like' if you want to distinguish
-            fromUserId: currentUser.uid,
-            fromUsername: userProfile.username,
-            fromProfileImageUrl: userProfile.profileImageUrl || null,
-            postId: postId,
-            commentId: commentId,
-            replyId: replyId,
-            createdAt: serverTimestamp(),
-            status: 'unread'
-          });
-
-          console.log(`Created activity document for reply like: ${activityRef.id}`);
-
           // Send notification (replies are never milestones, so always false)
           const notificationResult = await NotificationService.notifyLikeOrComment(
             replyData.authorId,
