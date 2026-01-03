@@ -1,16 +1,12 @@
 import React from 'react';
 import { StyleSheet, SafeAreaView, View } from 'react-native';
 import DMs from '@/screens/DMs';
-import BottomButtons from '@/components/BottomButtons';
 
 export default function DMsScreen() {
   return (
-    <View style={styles.container}>
-      <SafeAreaView style={styles.content}>
-        <DMs />
-      </SafeAreaView>
-      <BottomButtons />
-    </View>
+    <SafeAreaView style={styles.container}>
+      <DMs />
+    </SafeAreaView>
   );
 }
 

@@ -45,15 +45,12 @@ service cloud.firestore {
     // Users collection
     match /users/{userId} {
       allow read: if isAuthenticated() && 
-        (isOwner(userId) || canViewProfile(userId, request.auth.uid));
+        (isOwner(userId) || 
+         resource.data.get('profileVisibility', 'public') == 'public' ||
+         (resource.data.get('profileVisibility', 'public') == 'followers' && 
+          exists(/databases/$(database)/documents/users/$(userId)/followers/$(request.auth.uid))));
       allow create: if isOwner(userId);
       allow update: if isOwner(userId);
-      
-      // Allow clearing push tokens specifically (for logout cleanup)
-      allow update: if isAuthenticated() && 
-        isOwner(userId) && 
-        resource.data.keys().hasAny(['pushTokens', 'lastTokenUpdate']) &&
-        request.data.keys().hasOnly(['pushTokens', 'lastTokenUpdate']);
     }
 
     // Message requests

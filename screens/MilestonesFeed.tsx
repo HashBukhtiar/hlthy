@@ -8,10 +8,19 @@ import {
   FlatList,
   Alert,
   ActivityIndicator,
-  RefreshControl
+  RefreshControl,
+  LayoutAnimation,
+  Platform,
+  UIManager
 } from 'react-native';
+
+// Enable LayoutAnimation on Android
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 import { useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import ShareModal from '@/components/ShareModal';
 import { shareMilestone } from '@/services/ShareService';
@@ -22,6 +31,8 @@ import { getOptimalImageUrl } from '@/utils/imageUtils';
 import { useBlockEnforcement } from '@/utils/blockUtils';
 import { FeedMilestone, MilestoneDetails, MilestoneStats } from '@/types/milestone';
 import { useUnits } from '@/hooks/useUnits';
+import PostActionMenu from '@/components/PostActionMenu';
+import { useContentActions } from '@/hooks/useContentActions';
 
 console.log('[MilestonesFeed] Module loaded');
 
@@ -35,6 +46,22 @@ export default function MilestonesFeed() {
   const [shareModalVisible, setShareModalVisible] = useState(false);
   const milestoneToShare = useRef<FeedMilestone | null>(null);
   const { getWeightUnit, getDistanceUnit } = useUnits();
+  const [actionMenuVisible, setActionMenuVisible] = useState(false);
+  const [selectedMilestoneForAction, setSelectedMilestoneForAction] = useState<FeedMilestone | null>(null);
+
+  // Use shared content actions hook
+  const { 
+    handleToggleFollowFromMenu, 
+    handleBlockUser, 
+    handleReportContent: handleReportMilestone 
+  } = useContentActions({
+    selectedItem: selectedMilestoneForAction,
+    currentUser,
+    setSelectedItem: setSelectedMilestoneForAction,
+    updateItems: setMilestones,
+    refreshFeed,
+    contentType: 'milestone',
+  });
   
   // Local state for optimistic updates  
   const [milestones, setMilestones] = useState<typeof feedMilestones>([]);
@@ -72,11 +99,32 @@ export default function MilestonesFeed() {
     return timestamp.toLocaleDateString();
   }, []);
   
+  // Format the date as "Month Day"
+  const formatDate = useCallback((date: any): string => {
+    if (!date) return '';
+    
+    const timestamp = date.toDate ? date.toDate() : new Date(date);
+    const options: Intl.DateTimeFormatOptions = { month: 'long', day: 'numeric', year: 'numeric' };
+    return timestamp.toLocaleDateString('en-US', options);
+  }, []);
+  
   const handleLike = useCallback(async (milestoneId: string, isCurrentlyLiked: boolean) => {
     if (!currentUser || !userProfile) {
       Alert.alert('Please log in', 'You need to be logged in to like milestones.');
       return;
     }
+
+    // Haptic feedback
+    Haptics.impactAsync(isCurrentlyLiked ? Haptics.ImpactFeedbackStyle.Light : Haptics.ImpactFeedbackStyle.Medium);
+
+    // Configure smooth animation (exclude opacity to avoid TouchableOpacity conflicts)
+    LayoutAnimation.configureNext({
+      duration: 200,
+      update: {
+        type: LayoutAnimation.Types.easeInEaseOut,
+        property: LayoutAnimation.Properties.scaleXY,
+      },
+    });
 
     // Optimistic update - update UI immediately
     setMilestones(prevMilestones => 
@@ -101,6 +149,14 @@ export default function MilestonesFeed() {
       }
     } catch (error) {
       console.error('Error toggling milestone like:', error);
+      // Animate the revert as well
+      LayoutAnimation.configureNext({
+        duration: 200,
+        update: {
+          type: LayoutAnimation.Types.easeInEaseOut,
+          property: LayoutAnimation.Properties.scaleXY,
+        },
+      });
       // Revert optimistic update on error
       setMilestones(prevMilestones => 
         prevMilestones.map(milestone => 
@@ -169,6 +225,34 @@ export default function MilestonesFeed() {
     }
   }, [currentUser]);
 
+  // Handle opening action menu
+  const handleOpenActionMenu = useCallback((milestone: FeedMilestone) => {
+    setSelectedMilestoneForAction(milestone);
+    setActionMenuVisible(true);
+  }, []);
+
+  // Handle bookmark toggle for milestones
+  const handleToggleBookmark = useCallback((milestoneId: string, isCurrentlyBookmarked: boolean) => {
+    if (!currentUser) {
+      Alert.alert('Please log in', 'You need to be logged in to bookmark milestones.');
+      return;
+    }
+
+    // Haptic feedback
+    Haptics.impactAsync(isCurrentlyBookmarked ? Haptics.ImpactFeedbackStyle.Light : Haptics.ImpactFeedbackStyle.Medium);
+
+    // Optimistic update - update UI immediately
+    setMilestones(prevMilestones => 
+      prevMilestones.map(milestone => 
+        milestone.id === milestoneId 
+          ? { ...milestone, isBookmarked: !isCurrentlyBookmarked }
+          : milestone
+      )
+    );
+
+    // TODO: Implement actual bookmark API call
+  }, [currentUser]);
+
   const renderMilestoneDetails = useCallback((milestone: FeedMilestone) => {
     const details = milestone.milestoneDetails;
     
@@ -188,11 +272,30 @@ export default function MilestonesFeed() {
       let convertedValue = value;
       let displayUnit: string;
       
-      if (unit !== userPreferredUnit) {
-        if (unit === 'km' && userPreferredUnit === 'miles') {
-          convertedValue = Math.round(value * 0.621371 * 10) / 10;
-        } else if (unit === 'miles' && userPreferredUnit === 'km') {
-          convertedValue = Math.round(value * 1.60934 * 10) / 10;
+      // Convert to user's preferred unit if different
+      if (originalUnit === 'kg' || originalUnit === 'lbs') {
+        const preferredWeightUnit = getWeightUnit();
+        if (originalUnit !== preferredWeightUnit) {
+          if (originalUnit === 'kg' && preferredWeightUnit === 'lbs') {
+            convertedValue = Math.round(displayValue * 2.20462 * 10) / 10;
+          } else if (originalUnit === 'lbs' && preferredWeightUnit === 'kg') {
+            convertedValue = Math.round(displayValue * 0.453592 * 10) / 10;
+          }
+          displayUnit = preferredWeightUnit;
+        } else {
+          displayUnit = preferredWeightUnit;
+        }
+      } else if (originalUnit === 'km' || originalUnit === 'miles') {
+        const preferredDistanceUnit = getDistanceUnit();
+        if (originalUnit !== preferredDistanceUnit) {
+          if (originalUnit === 'km' && preferredDistanceUnit === 'miles') {
+            convertedValue = Math.round(displayValue * 0.621371 * 10) / 10;
+          } else if (originalUnit === 'miles' && preferredDistanceUnit === 'km') {
+            convertedValue = Math.round(displayValue * 1.60934 * 10) / 10;
+          }
+          displayUnit = preferredDistanceUnit;
+        } else {
+          displayUnit = preferredDistanceUnit;
         }
         displayUnit = `${userPreferredUnit} (${value} ${unit})`;
       } else {
@@ -529,9 +632,30 @@ export default function MilestonesFeed() {
               <Text style={styles.previousPRTitle}>
                 {details.exerciseName || 'Personal Record'}
               </Text>
-              <Text style={styles.previousPRDate}>{formatTimeAgo(milestone.createdAt)}</Text>
+              <Text style={styles.previousPRDate}>{formatDate(milestone.createdAt)}</Text>
             </View>
           </View>
+          
+          {details.previousValue && (
+            <View style={styles.centeredRow}>
+              <View style={styles.previousBestRow}>
+                <Text style={styles.previousBestLabel}>Previous Best: </Text>
+                <View style={styles.prMetricGroup}>
+                  <Text style={styles.previousBestValue}>{previousDisplayValue} </Text>
+                  <Text style={styles.previousBestUnit}>{previousDisplayUnit}</Text>
+                </View>
+                {details.previousReps && (
+                  <>
+                    <Text style={styles.previousBestSeparator}>×</Text>
+                    <View style={styles.prMetricGroup}>
+                      <Text style={styles.previousBestValue}>{details.previousReps}</Text>
+                      <Text style={styles.previousBestUnit}> reps</Text>
+                    </View>
+                  </>
+                )}
+              </View>
+            </View>
+          )}
         </View>
       );
     } else if (details.type === 'weightLoss' || details.type === 'weightGain') {
@@ -549,7 +673,7 @@ export default function MilestonesFeed() {
         } else if (originalWeightUnit === 'lbs' && preferredWeightUnit === 'kg') {
           displayWeight = Math.round(details.newWeight * 0.453592 * 10) / 10;
         }
-        displayWeightUnit = `${preferredWeightUnit} (${details.newWeight} ${originalWeightUnit})`;
+        displayWeightUnit = preferredWeightUnit;
       } else {
         displayWeightUnit = preferredWeightUnit;
       }
@@ -573,7 +697,7 @@ export default function MilestonesFeed() {
             <View style={styles.previousPRHeader}>
               <Ionicons name="fitness-outline" size={18} color="#FF5E69" />
               <Text style={styles.previousPRTitle}>{isLoss ? 'Weight Loss' : 'Weight Gain'}</Text>
-              <Text style={styles.previousPRDate}>{formatTimeAgo(milestone.createdAt)}</Text>
+              <Text style={styles.previousPRDate}>{formatDate(milestone.createdAt)}</Text>
             </View>
             
             <View style={styles.previousPRContent}>
@@ -589,7 +713,7 @@ export default function MilestonesFeed() {
           {details.previousWeight && (
             <View style={styles.centeredRow}>
               <View style={styles.previousBestRow}>
-                <Text style={styles.previousBestLabel}>Previous Weight:</Text>
+                <Text style={styles.previousBestLabel}>Previous Weight: </Text>
                 <View style={styles.prMetricGroup}>
                   <Text style={styles.previousBestValue}>{previousDisplayWeight}</Text>
                   <Text style={styles.previousBestUnit}>{previousDisplayWeightUnit}</Text>
@@ -602,7 +726,20 @@ export default function MilestonesFeed() {
     }
     
     return null;
-  }, [formatTimeAgo, getWeightUnit, getDistanceUnit, formatDuration]);
+  }, [formatDate, getWeightUnit, getDistanceUnit]);
+
+  const formatDuration = (durationSeconds: number): string => {
+    const hours = Math.floor(durationSeconds / 3600);
+    const minutes = Math.floor((durationSeconds % 3600) / 60);
+    const seconds = durationSeconds % 60;
+    
+    let result = '';
+    if (hours > 0) result += `${hours}h `;
+    if (minutes > 0 || hours > 0) result += `${minutes}m `;
+    result += `${seconds}s`;
+    
+    return result.trim();
+  };
 
   const renderMilestoneCard = useCallback((item: typeof milestones[0]) => {
     // Convert Post to Milestone format
@@ -666,12 +803,21 @@ export default function MilestonesFeed() {
       );
     }
     
-    // For pinned or regular milestones
-    return (
-      <View style={milestone.pinned ? styles.pinnedWrapper : null}>
-        <View style={wrapperStyle}>
-          {innerContent}
+    // For pinned milestones
+    if (milestone.pinned) {
+      return (
+        <View style={styles.pinnedWrapper}>
+          <View style={wrapperStyle}>
+            {innerContent}
+          </View>
         </View>
+      );
+    }
+    
+    // Regular milestones
+    return (
+      <View style={wrapperStyle}>
+        {innerContent}
       </View>
     );
   }, []);
@@ -698,41 +844,46 @@ export default function MilestonesFeed() {
           onPress={() => canInteract ? navigateToMilestone(item.id) : null}
         >
           <View style={styles.milestoneHeader}>
-            <View style={styles.milestoneIconContainer}>
-              <TouchableOpacity onPress={() => canInteract ? navigateToProfile(item.authorId) : null}>
-                <Image 
-                  source={{ uri: getOptimalImageUrl(item.authorProfileThumbnailUrl, item.authorProfileImageUrl) }} 
-                  style={styles.profilePic}
-                />
-              </TouchableOpacity>
-            </View>
-            
-            <View style={styles.milestoneTitleContainer}>
-              <Text style={styles.milestoneType}>
-                {item.authorUsername}
-              </Text>
-              <Text style={styles.milestoneDate}>
-                {formatTimeAgo(item.createdAt)}
-                {hasStatus && <Text style={{color: statusColor}}> • {statusText}</Text>}
-              </Text>
-            </View>
-            
-            {/* Post Preview (if available) */}
-            {canInteract && item.imageUrl && (
-              <TouchableOpacity 
-                style={styles.postPreviewContainer}
-                onPress={() => navigateToPost(item.associatedPostId || '')}
-                activeOpacity={0.9}
-              >
-                <Image 
-                  source={{ uri: getOptimalImageUrl(item.imageUrl, item.imageUrl) }} 
-                  style={styles.postPreviewImage} 
-                />
-                <View style={styles.postPreviewOverlay}>
-                  <Ionicons name="camera" size={12} color="#FFF" />
+            <TouchableOpacity 
+              style={styles.userInfoContainer}
+              onPress={() => canInteract ? navigateToProfile(item.authorId) : null}
+            >
+              <Image 
+                source={{ uri: getOptimalImageUrl(item.authorProfileThumbnailUrl, item.authorProfileImageUrl) }} 
+                style={styles.profilePic}
+              />
+              <View>
+                <Text style={styles.milestoneType}>
+                  {item.authorUsername}
+                </Text>
+                <View style={styles.timestampContainer}>
+                  <Text style={styles.milestoneDate}>
+                    {formatTimeAgo(item.createdAt)}
+                    {hasStatus && <Text style={{color: statusColor}}> {statusText}</Text>}
+                  </Text>
+                  {canInteract && item.imageUrl && item.associatedPostId && (
+                    <TouchableOpacity
+                      onPress={() => navigateToPost(item.associatedPostId || '')}
+                      activeOpacity={0.7}
+                      hitSlop={{ top: 10, bottom: 10, left: 5, right: 5 }}
+                    >
+                      <Text style={styles.associatedPostLink}>
+                        {' '}• View Associated Post <Text style={styles.chevronText}>›</Text>
+                      </Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
-              </TouchableOpacity>
-            )}
+              </View>
+            </TouchableOpacity>
+            
+            {/* Three-dot menu */}
+            <TouchableOpacity 
+              style={styles.menuButton}
+              onPress={() => handleOpenActionMenu(item)}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="ellipsis-horizontal" size={20} color="#8E8E93" />
+            </TouchableOpacity>
           </View>
           
           {/* Milestone Details */}
@@ -745,22 +896,22 @@ export default function MilestonesFeed() {
             <TouchableOpacity 
               style={styles.footerButton}
               onPress={() => handleLike(item.id, item.isLiked)}
+              activeOpacity={0.8}
             >
               <Ionicons 
                 name={item.isLiked ? "heart" : "heart-outline"} 
                 size={20} 
-                color={item.isLiked ? "#FF69B4" : "#FFF"} 
+                color={item.isLiked ? "#FF6B6B" : "#FFF"} 
+                style={styles.statIcon}
               />
-              <Text style={styles.footerButtonText}>
-                {item.reactionCount > 0 
-                  ? `${item.reactionCount}` 
-                  : "Like"}
-              </Text>
+              <Text style={styles.statNumber}>{item.reactionCount || 0}</Text>
+              <Text style={styles.statLabel}> {item.reactionCount === 1 ? 'Like' : 'Likes'}</Text>
             </TouchableOpacity>
             
             <TouchableOpacity 
               style={styles.footerButton}
               onPress={() => handleShare(item)}
+              activeOpacity={0.8}
             >
               <Ionicons name="paper-plane-outline" size={20} color="#FFF" />
               <Text style={styles.footerButtonText}>Share</Text>
@@ -776,7 +927,7 @@ export default function MilestonesFeed() {
     if (!loadingMore) return null;
     return (
       <View style={styles.loadingFooter}>
-        <ActivityIndicator size="large" color="#0A84FF" />
+        <ActivityIndicator size="large" color="#FFF" />
         <Text style={styles.loadingText}>Loading more milestones...</Text>
       </View>
     );
@@ -787,7 +938,7 @@ export default function MilestonesFeed() {
     if (loading) {
       return (
         <View style={styles.emptyMilestonesContainer}>
-          <ActivityIndicator size="large" color="#0A84FF" />
+          <ActivityIndicator size="large" color="#FFF" />
           <Text style={styles.emptyMilestonesText}>Loading milestones...</Text>
         </View>
       );
@@ -795,16 +946,22 @@ export default function MilestonesFeed() {
 
     return (
       <View style={styles.emptyMilestonesContainer}>
-        <Ionicons name="trophy-outline" size={80} color="#333" />
-        <Text style={styles.emptyMilestonesTitle}>No milestones yet</Text>
-        <Text style={styles.emptyMilestonesText}>
-          Follow users to see their achievements here, or create your first milestone!
-        </Text>
-        <TouchableOpacity 
-          style={styles.createButton}
-        >
-          <Text style={styles.createButtonText}>Create Milestone</Text>
-        </TouchableOpacity>
+        <View style={styles.emptyMilestonesContent}>
+          <View style={styles.milestoneIconContainer}>
+            <Ionicons name="trophy" size={40} color="#FF6B6B" />
+          </View>
+          <Text style={styles.emptyMilestonesTitle}>No Milestones Yet</Text>
+          <Text style={styles.emptyMilestonesText}>
+            Start following athletes to see their achievements.
+          </Text>
+          <TouchableOpacity 
+            style={styles.createButton}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="add-circle" size={18} color="#000" style={styles.buttonIcon} />
+            <Text style={styles.createButtonText}>Create Milestone</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     );
   }, [loading, router]);
@@ -823,23 +980,19 @@ export default function MilestonesFeed() {
   }
   
   return (
-    <View style={{ flex: 1 }}>
+    <>
       <FlatList
         data={filteredMilestones}
         keyExtractor={(item) => item.id}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={milestones.length === 0 ? { flex: 1 } : styles.milestonesContainer}
-        renderItem={({ item }) => (
-          <View style={styles.milestoneContainer}>
-            {renderMilestoneCard(item)}
-          </View>
-        )}
+        contentContainerStyle={milestones.length === 0 ? styles.emptyContainer : styles.milestonesContainer}
+        renderItem={({ item }) => renderMilestoneCard(item)}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={refreshFeed}
-            colors={['#0A84FF']}
-            tintColor="#0A84FF"
+            colors={['#FFF']}
+            tintColor="#FFF"
           />
         }
         onEndReached={loadMorePosts}
@@ -856,109 +1009,132 @@ export default function MilestonesFeed() {
         onClose={() => setShareModalVisible(false)}
         onShareWith={handleShareWithUser}
       />
-    </View>
+      
+      <PostActionMenu
+        visible={actionMenuVisible}
+        onClose={() => setActionMenuVisible(false)}
+        isBookmarked={selectedMilestoneForAction?.isBookmarked || false}
+        isFollowing={selectedMilestoneForAction?.isFollowing || false}
+        isOwnPost={selectedMilestoneForAction?.authorId === currentUser?.uid}
+        isMilestone={true}
+        onToggleBookmark={() => {
+          if (selectedMilestoneForAction) {
+            handleToggleBookmark(selectedMilestoneForAction.id, selectedMilestoneForAction.isBookmarked || false);
+          }
+        }}
+        onToggleFollow={handleToggleFollowFromMenu}
+        onBlock={handleBlockUser}
+        onReport={handleReportMilestone}
+      />
+    </>
   );
 }
 
 // Add the missing styles
 const styles = StyleSheet.create({
-  milestonesContainer: {
+  postsContainer: {
+    paddingTop: 12,
     paddingBottom: 70,
+    backgroundColor: '#2C2C2E',
   },
-  milestoneContainer: {
-    paddingTop: 15,
-    paddingBottom: 10,
+  emptyContainer: {
+    flex: 1,
+  },
+  milestonesContainer: {
+    paddingTop: 12,
+    paddingBottom: 70,
+    backgroundColor: '#2C2C2E',
   },
   milestoneCard: {
-    backgroundColor: '#1A1A1A',
-    borderRadius: 12,
+    marginBottom: 12,
+    marginHorizontal: 12,
+    backgroundColor: '#000',
+    borderRadius: 16,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#333',
+    borderColor: '#1C1C1E',
   },
   gradientWrapper: {
-    borderRadius: 12,
+    marginBottom: 12,
+    marginHorizontal: 12,
+    borderRadius: 16,
     overflow: 'hidden',
   },
   gradientBorder: {
     padding: 2,
-    borderRadius: 12,
-    backgroundColor: '#1A1A1A',
+    borderRadius: 16,
+    backgroundColor: '#000',
     overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: '#333',
   },
   gradientInnerContainer: {
-    backgroundColor: '#1A1A1A',
-    borderRadius: 10,
+    backgroundColor: '#000',
+    borderRadius: 14,
     overflow: 'hidden',
   },
   pinnedWrapper: {
-    borderRadius: 12,
+    marginBottom: 12,
+    marginHorizontal: 12,
+    borderRadius: 16,
     overflow: 'hidden',
   },
   pinnedBorder: {
     padding: 2,
-    borderRadius: 12,
+    borderRadius: 16,
     borderColor: 'rgba(255, 94, 105, 0.75)',
     borderWidth: 2,
-    backgroundColor: '#1A1A1A',
+    backgroundColor: '#000',
     overflow: 'hidden',
   },
   pinnedInnerContainer: {
-    backgroundColor: '#1A1A1A',
-    borderRadius: 10,
+    backgroundColor: '#000',
+    borderRadius: 14,
     overflow: 'hidden',
   },
   milestoneHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 15,
+    justifyContent: 'space-between',
+    paddingHorizontal: 15,
+    paddingVertical: 12,
   },
-  milestoneIconContainer: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    overflow: 'hidden', 
-    marginRight: 12,
-  },
-  profilePic: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-  },
-  milestoneTitleContainer: {
+  userInfoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
     flex: 1,
   },
+  profilePic: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 10,
+  },
   milestoneType: {
+    fontWeight: '600',
+    fontSize: 15,
     color: '#FFF',
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 4,
   },
   milestoneDate: {
-    color: '#999',
     fontSize: 12,
+    color: '#8E8E93',
   },
-  postPreviewContainer: {
-    width: 60,
-    height: 60,
-    borderRadius: 8,
-    overflow: 'hidden',
-    marginLeft: 10,
-  },
-  postPreviewImage: {
-    width: '100%',
-    height: '100%',
-  },
-  postPreviewOverlay: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    paddingVertical: 2,
+  timestampContainer: {
+    flexDirection: 'row',
     alignItems: 'center',
+    marginTop: 2,
+  },
+  menuButton: {
+    padding: 8,
+    marginRight: -8,
+  },
+  associatedPostLink: {
+    color: '#8E8E93',
+    fontSize: 12,
+    // fontWeight: '500',
+    // color: '#FF6B6B',
+  },
+  chevronText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
   detailsContainer: {
     padding: 15,
@@ -966,30 +1142,32 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   previousPRCard: {
-    backgroundColor: '#0A0A0A',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 8,
+    backgroundColor: '#111',
+    borderRadius: 12,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#333',
+    overflow: 'hidden',
   },
   previousPRHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
-    paddingBottom: 6,
+    padding: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#333',
+    backgroundColor: '#222',
   },
   previousPRHeaderNoLine: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
-    paddingBottom: 6,
+    padding: 12,
+    backgroundColor: '#222',
   },
   previousPRTitle: {
     color: '#FFF',
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
-    marginLeft: 8,
+    marginLeft: 6,
     flex: 1,
   },
   previousPRDate: {
@@ -997,55 +1175,57 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   previousPRContent: {
+    padding: 14,
     alignItems: 'center',
   },
   prMetricsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    marginVertical: 4,
   },
   prMetricGroup: {
-    alignItems: 'center',
+    flexDirection: 'row',
+    alignItems: 'baseline',
   },
   prMetricValue: {
     color: '#FFF',
-    fontSize: 20,
-    fontWeight: 'bold',
+    fontSize: 26,
+    fontWeight: '700',
   },
   prMetricLabel: {
     color: '#999',
-    fontSize: 12,
-    marginTop: 2,
+    fontSize: 14,
+    marginLeft: 4,
   },
   prMetricSeparator: {
-    color: '#999',
-    fontSize: 16,
+    color: '#FF5E69',
+    fontSize: 20,
     marginHorizontal: 8,
   },
   previousBestRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    justifyContent: 'center',
+    marginTop: 0,
+    marginBottom: 4,
   },
   previousBestLabel: {
     color: '#777',
-    fontSize: 12,
-    fontWeight: '600',
+    fontSize: 14,
   },
   previousBestValue: {
     color: '#777',
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   previousBestUnit: {
     color: '#777',
-    fontSize: 12,
-    marginLeft: 2,
+    fontSize: 14,
   },
   previousBestSeparator: {
     color: '#777',
-    fontSize: 12,
+    fontSize: 14,
     marginHorizontal: 6,
   },
   centeredRow: {
@@ -1062,6 +1242,8 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     borderTopWidth: 1,
     borderTopColor: '#333',
+    justifyContent: 'center',
+    gap: 12,
   },
   footerButton: {
     flexDirection: 'row',
@@ -1070,9 +1252,21 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 20,
-    marginRight: 12,
     backgroundColor: 'transparent',
     flex: 1,
+  },
+  statIcon: {
+    marginRight: 6,
+  },
+  statNumber: {
+    color: '#FFF',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  statLabel: {
+    color: '#FFF',
+    fontSize: 14,
+    fontWeight: '400',
   },
   footerButtonText: {
     color: '#fff',
@@ -1084,7 +1278,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loadingText: {
-    color: '#999',
+    color: '#8E8E93',
     marginTop: 10,
   },
   emptyMilestonesContainer: {
@@ -1093,30 +1287,39 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 40,
   },
+  emptyMilestonesContent: {
+    alignItems: 'center',
+    maxWidth: 300,
+  },
+  milestoneIconContainer: {
+    marginBottom: 16,
+  },
   emptyMilestonesTitle: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: '600',
     color: '#FFF',
-    marginTop: 20,
-    marginBottom: 10,
+    marginBottom: 8,
   },
   emptyMilestonesText: {
-    fontSize: 16,
-    color: '#999',
+    fontSize: 15,
+    color: '#8E8E93',
     textAlign: 'center',
-    lineHeight: 24,
-    marginBottom: 30,
+    lineHeight: 22,
+    marginBottom: 24,
   },
   createButton: {
-    backgroundColor: '#0A84FF',
-    paddingHorizontal: 30,
+    backgroundColor: '#FF6B6B',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 24,
     paddingVertical: 12,
-    borderRadius: 25,
+    borderRadius: 24,
+    gap: 6,
   },
   createButtonText: {
-    color: '#FFF',
+    color: '#000',
     fontWeight: '600',
-    fontSize: 16,
+    fontSize: 15,
   },
   retryButton: {
     backgroundColor: '#FF3B30',

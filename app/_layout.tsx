@@ -25,12 +25,13 @@ export default function RootLayout() {
             {/* Main tab screens with disabled swipe gestures */}
             <Stack.Screen name="(tabs)" options={{ gestureEnabled: false }} />
             <Stack.Screen name="post" options={{ gestureEnabled: false }} />
-            <Stack.Screen name="dms" options={{ gestureEnabled: false }} />
+            <Stack.Screen name="ai-chat" options={{ gestureEnabled: false }} />
             <Stack.Screen name="workouts" options={{ gestureEnabled: false }} />
             <Stack.Screen name="profile" options={{ gestureEnabled: false }} />
             
             {/* Screens with swipe back enabled */}
             <Stack.Screen name="pulse" options={{ gestureEnabled: true, animation: 'slide_from_right' }} />
+            <Stack.Screen name="dms" options={{ gestureEnabled: true, animation: 'slide_from_right' }} />
             <Stack.Screen name="explore" options={{ gestureEnabled: true, animation: 'slide_from_right' }} />
             <Stack.Screen name="settings" options={{ gestureEnabled: true, animation: 'slide_from_right' }} />
             
