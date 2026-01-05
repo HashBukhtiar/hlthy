@@ -1,5 +1,5 @@
-import React, { useState, useCallback } from 'react';
-import { View, Text, FlatList, TouchableOpacity, Image, StyleSheet } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet } from 'react-native';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,7 +16,7 @@ export default function AIConversations() {
     const router = useRouter();
     
     // For now, we'll use a default conversation. In the future, you can fetch multiple AI conversations from Firestore
-    const [conversations, setConversations] = useState<AIConversation[]>([
+    const [conversations] = useState<AIConversation[]>([
         {
             id: currentUser ? `${currentUser.uid}_ai_conversation` : 'default_ai',
             title: 'hlthy AI',
