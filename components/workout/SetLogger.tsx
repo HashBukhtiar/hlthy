@@ -213,7 +213,7 @@ export const SetLogger: React.FC<SetLoggerProps> = ({
               onPress={() => incrementWeight(-5)}
               disabled={currentSet.completed}
             >
-              <Ionicons name="remove" size={20} color="#8B7DFF" />
+              <Ionicons name="remove" size={20} color="#ff2d55" />
             </TouchableOpacity>
             <TextInput
               style={[styles.input, currentSet.completed && styles.inputCompleted]}
@@ -229,7 +229,7 @@ export const SetLogger: React.FC<SetLoggerProps> = ({
               onPress={() => incrementWeight(5)}
               disabled={currentSet.completed}
             >
-              <Ionicons name="add" size={20} color="#8B7DFF" />
+              <Ionicons name="add" size={20} color="#ff2d55" />
             </TouchableOpacity>
           </View>
           <Text style={styles.unitLabel}>{weightUnit}</Text>
@@ -244,7 +244,7 @@ export const SetLogger: React.FC<SetLoggerProps> = ({
               onPress={() => incrementReps(-1)}
               disabled={currentSet.completed}
             >
-              <Ionicons name="remove" size={20} color="#8B7DFF" />
+              <Ionicons name="remove" size={20} color="#ff2d55" />
             </TouchableOpacity>
             <TextInput
               style={[styles.input, currentSet.completed && styles.inputCompleted]}
@@ -260,7 +260,7 @@ export const SetLogger: React.FC<SetLoggerProps> = ({
               onPress={() => incrementReps(1)}
               disabled={currentSet.completed}
             >
-              <Ionicons name="add" size={20} color="#8B7DFF" />
+              <Ionicons name="add" size={20} color="#ff2d55" />
             </TouchableOpacity>
           </View>
           <Text style={styles.unitLabel}>reps</Text>
@@ -291,7 +291,7 @@ export const SetLogger: React.FC<SetLoggerProps> = ({
           activeOpacity={0.8}
         >
           <LinearGradient
-            colors={['#8B7DFF', '#6B5DD3']}
+            colors={['#ff2d55', '#d91a40']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
             style={styles.completeGradient}
@@ -315,8 +315,8 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   activeContainer: {
-    backgroundColor: 'rgba(139, 125, 255, 0.1)',
-    borderColor: 'rgba(139, 125, 255, 0.3)',
+    backgroundColor: 'rgba(255, 45, 85, 0.1)',
+    borderColor: 'rgba(255, 45, 85, 0.3)',
   },
   completedContainer: {
     backgroundColor: 'rgba(76, 175, 80, 0.1)',
@@ -403,7 +403,7 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: 'rgba(139, 125, 255, 0.2)',
+    backgroundColor: 'rgba(255, 45, 85, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
   },

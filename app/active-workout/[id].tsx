@@ -390,7 +390,7 @@ export default function ActiveWorkoutScreen() {
           activeOpacity={0.8}
         >
           <LinearGradient
-            colors={['#4CAF50', '#388E3C']}
+            colors={['#ff2d55', '#d91a40']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
             style={styles.completeGradient}
@@ -438,13 +438,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.1)',
+    borderBottomColor: '#222',
   },
   cancelButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 107, 107, 0.15)',
+    width: 35,
+    height: 35,
+    borderRadius: 15,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -455,8 +454,8 @@ const styles = StyleSheet.create({
   },
   workoutName: {
     color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 20,
+    fontWeight: 'bold',
     marginBottom: 2,
   },
   timerRow: {
@@ -483,21 +482,23 @@ const styles = StyleSheet.create({
   progressContainer: {
     paddingHorizontal: 16,
     paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#222',
   },
   progressBar: {
     height: 4,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(80, 80, 80, 0.3)',
     borderRadius: 2,
     overflow: 'hidden',
     marginBottom: 8,
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#8B7DFF',
+    backgroundColor: '#ff2d55',
     borderRadius: 2,
   },
   progressText: {
-    color: 'rgba(255,255,255,0.5)',
+    color: '#888888',
     fontSize: 12,
     textAlign: 'center',
   },

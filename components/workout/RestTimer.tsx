@@ -131,7 +131,7 @@ export const RestTimer: React.FC<RestTimerProps> = ({
     ? '#FF6B6B' 
     : secondsRemaining <= 30 
       ? '#FFA726' 
-      : '#8B7DFF';
+      : '#ff2d55';
   
   if (!isVisible) return null;
   
@@ -247,10 +247,10 @@ export const RestTimer: React.FC<RestTimerProps> = ({
             onPress={onSkip}
           >
             <LinearGradient
-              colors={['rgba(139, 125, 255, 0.3)', 'rgba(139, 125, 255, 0.1)']}
+              colors={['rgba(255, 45, 85, 0.3)', 'rgba(255, 45, 85, 0.1)']}
               style={styles.skipGradient}
             >
-              <Ionicons name="play-skip-forward" size={20} color="#8B7DFF" />
+              <Ionicons name="play-skip-forward" size={20} color="#ff2d55" />
               <Text style={styles.skipText}>Skip Rest</Text>
             </LinearGradient>
           </TouchableOpacity>
@@ -307,7 +307,7 @@ const styles = StyleSheet.create({
     height: 200,
     borderRadius: 100,
     borderWidth: 4,
-    borderColor: '#8B7DFF',
+    borderColor: '#ff2d55',
   },
   timerInner: {
     alignItems: 'center',
@@ -377,8 +377,8 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   presetButtonActive: {
-    backgroundColor: 'rgba(139, 125, 255, 0.2)',
-    borderColor: 'rgba(139, 125, 255, 0.5)',
+    backgroundColor: 'rgba(255, 45, 85, 0.2)',
+    borderColor: 'rgba(255, 45, 85, 0.5)',
   },
   presetText: {
     color: 'rgba(255, 255, 255, 0.6)',
@@ -386,7 +386,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   presetTextActive: {
-    color: '#8B7DFF',
+    color: '#ff2d55',
   },
   nextExercise: {
     alignItems: 'center',
@@ -420,7 +420,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   skipText: {
-    color: '#8B7DFF',
+    color: '#ff2d55',
     fontSize: 16,
     fontWeight: '600',
   },

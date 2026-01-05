@@ -455,7 +455,7 @@ export default function ViewWorkout() {
         activeOpacity={0.8}
       >
         <LinearGradient
-          colors={['#8B7DFF', '#6B5DD3']}
+          colors={['#ff2d55', '#d91a40']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
           style={styles.startButtonGradient}
@@ -690,10 +690,9 @@ const styles = StyleSheet.create({
   startButtonContainer: {
     paddingHorizontal: 20,
     paddingTop: 12,
-
     backgroundColor: 'rgba(0,0,0,0.98)',
     borderTopWidth: 1,
-    borderTopColor: 'rgba(139, 125, 255, 0.3)',
+    borderTopColor: '#222',
   },
   startButton: {
     borderRadius: 16,

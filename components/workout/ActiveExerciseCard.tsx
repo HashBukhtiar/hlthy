@@ -228,10 +228,10 @@ export const ActiveExerciseCard: React.FC<ActiveExerciseCardProps> = ({
           {exercise.suggestedWeight && !exercise.lastSessionData && (
             <View style={styles.aiSuggestionCard}>
               <LinearGradient
-                colors={['rgba(139, 125, 255, 0.2)', 'rgba(139, 125, 255, 0.05)']}
+                colors={['rgba(255, 45, 85, 0.2)', 'rgba(255, 45, 85, 0.05)']}
                 style={styles.aiGradient}
               >
-                <Ionicons name="bulb-outline" size={16} color="#8B7DFF" />
+                <Ionicons name="bulb-outline" size={16} color="#ff2d55" />
                 <Text style={styles.aiSuggestionText}>
                   AI suggests: Start with {exercise.suggestedWeight} {weightUnit}
                 </Text>
@@ -264,7 +264,7 @@ export const ActiveExerciseCard: React.FC<ActiveExerciseCardProps> = ({
                 style={styles.addSetButton}
                 onPress={addSet}
               >
-                <Ionicons name="add" size={18} color="#8B7DFF" />
+                <Ionicons name="add" size={18} color="#ff2d55" />
                 <Text style={styles.addSetText}>Add Set</Text>
               </TouchableOpacity>
               
@@ -303,8 +303,8 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.08)',
   },
   currentContainer: {
-    borderColor: 'rgba(139, 125, 255, 0.3)',
-    backgroundColor: 'rgba(139, 125, 255, 0.05)',
+    borderColor: 'rgba(255, 45, 85, 0.3)',
+    backgroundColor: 'rgba(255, 45, 85, 0.05)',
   },
   completedContainer: {
     backgroundColor: 'rgba(76, 175, 80, 0.05)',
@@ -331,12 +331,12 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: 'rgba(139, 125, 255, 0.2)',
+    backgroundColor: 'rgba(255, 45, 85, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   exerciseNumber: {
-    color: '#8B7DFF',
+    color: '#ff2d55',
     fontSize: 14,
     fontWeight: '700',
   },
@@ -359,13 +359,13 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   progressBadge: {
-    backgroundColor: 'rgba(139, 125, 255, 0.2)',
+    backgroundColor: 'rgba(255, 45, 85, 0.2)',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
   },
   progressText: {
-    color: '#8B7DFF',
+    color: '#ff2d55',
     fontSize: 13,
     fontWeight: '600',
   },
@@ -375,7 +375,7 @@ const styles = StyleSheet.create({
   },
   progressBar: {
     height: '100%',
-    backgroundColor: '#8B7DFF',
+    backgroundColor: '#ff2d55',
     borderRadius: 2,
   },
   progressBarComplete: {
@@ -418,7 +418,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   aiSuggestionText: {
-    color: '#8B7DFF',
+    color: '#ff2d55',
     fontSize: 13,
     fontWeight: '500',
   },
@@ -436,13 +436,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(139, 125, 255, 0.1)',
+    backgroundColor: 'rgba(255, 45, 85, 0.1)',
     paddingVertical: 12,
     borderRadius: 12,
     gap: 6,
   },
   addSetText: {
-    color: '#8B7DFF',
+    color: '#ff2d55',
     fontSize: 14,
     fontWeight: '600',
   },
@@ -475,7 +475,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   volumeValue: {
-    color: '#8B7DFF',
+    color: '#ff2d55',
     fontSize: 16,
     fontWeight: '700',
   },
