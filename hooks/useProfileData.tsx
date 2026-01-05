@@ -201,6 +201,22 @@ export function useProfileData(userId = null, contextUserProfile: UserProfile | 
       return;
     }
     
+    // Add authentication check BEFORE starting any operations
+    if (!currentUser?.uid) {
+      console.log("User logged out, cancelling profile data fetch");
+      setLoading(false);
+      setLoadingWorkouts(false);
+      setProfileData(null);
+      setPosts([]);
+      setGroupedMilestones({});
+      setWorkouts([]);
+      setSavedWorkouts([]);
+      setFollowers([]);
+      setFollowing([]);
+      setError(null);
+      return;
+    }
+    
     console.log(`Fetching profile data for ID (fetchProfileData): ${profileIdToFetch}`);
     setLoading(true);
     setLoadingWorkouts(true);
@@ -218,6 +234,15 @@ export function useProfileData(userId = null, contextUserProfile: UserProfile | 
       // 1. Fetch user profile
       try {
         const userDoc = await getDoc(doc(db, "users", profileIdToFetch));
+        
+        // Check if user still exists after async operation
+        if (!currentUser?.uid) {
+          console.log("User logged out during profile fetch, aborting");
+          setLoading(false);
+          setLoadingWorkouts(false);
+          return;
+        }
+        
         if (userDoc.exists()) {
           const rawUserData = { 
             id: userDoc.id, 
@@ -231,6 +256,13 @@ export function useProfileData(userId = null, contextUserProfile: UserProfile | 
           throw new Error("User profile not found.");
         }
       } catch (profileError) {
+        // Don't log errors if user logged out
+        if (!currentUser?.uid) {
+          console.log("Profile fetch cancelled - user logged out");
+          setLoading(false);
+          setLoadingWorkouts(false);
+          return;
+        }
         console.error("Error fetching user profile:", profileError);
         setError(profileError as Error);
         setLoading(false);
@@ -497,13 +529,29 @@ export function useProfileData(userId = null, contextUserProfile: UserProfile | 
 
   useEffect(() => {
     console.log("useEffect in useProfileData triggered. profileIdToFetch:", profileIdToFetch);
+    
+    // Don't fetch if user is logged out
+    if (!currentUser?.uid) {
+      console.log("No current user, clearing profile data");
+      setLoading(false);
+      setLoadingWorkouts(false);
+      setProfileData(null);
+      setPosts([]);
+      setGroupedMilestones({});
+      setWorkouts([]);
+      setSavedWorkouts([]);
+      setFollowers([]);
+      setFollowing([]);
+      return;
+    }
+    
     if (profileIdToFetch) {
       fetchProfileData();
     } else {
       setLoading(false); 
       console.log("profileIdToFetch is null/undefined in useEffect, not fetching.");
     }
-  }, [fetchProfileData]);
+  }, [fetchProfileData, currentUser?.uid]);
 
   // Note: Removed the profileImage sync effect that was causing infinite loops.
   // The profile data is now fetched once and stays in sync through the main useEffect.
