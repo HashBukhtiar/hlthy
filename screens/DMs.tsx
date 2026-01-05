@@ -60,7 +60,6 @@ const ChatItem = ({
     const [isPressed, setIsPressed] = useState(false);
 
     // static assets
-    const aiIcon   = require('@/assets/images/icon.png');
     const fallback = require('@/assets/images/profile-icon.png');
 
     // pick the best remote URL: full-size first, then thumbnail (or swap if your util is inverted)
@@ -70,9 +69,7 @@ const ChatItem = ({
     );
 
     // build your source prop
-    const source = item.isPinnedAI
-        ? aiIcon             // pinned AI uses bundled icon
-        : remoteUrl
+    const source = remoteUrl
         ? { uri: remoteUrl } // real user → network image
         : fallback;           // fallback → bundled default
 
@@ -111,18 +108,11 @@ const ChatItem = ({
     };
 
     const handleLongPress = () => {
-        if (!item.isPinnedAI) {
-            handleDeleteConversation(item.id, item.otherParticipantUsername || 'User');
-        }
+        handleDeleteConversation(item.id, item.otherParticipantUsername || 'User');
     };
 
     const navigateToChat = () => {
-        if (item.isPinnedAI) {
-            // The AI conversation ID is already in the correct format
-            router.push(`/chat/${item.id}`);
-        } else {
-            router.push(`/chat/${item.id}`);
-        }
+        router.push(`/chat/${item.id}`);
     };
 
     return (
@@ -136,7 +126,6 @@ const ChatItem = ({
         >
             <View style={[
                 styles.itemContainer,
-                item.isPinnedAI ? styles.aiChatItem : null,
                 isPressed ? styles.pressedItem : null
             ]}>
                 <Image
@@ -145,13 +134,13 @@ const ChatItem = ({
                 />
                 <View style={styles.textContainer}>
                     <View style={styles.usernameContainer}>
-                        {item.isUnread && !item.isPinnedAI && <View style={styles.unreadDot} />}
-                        <Text style={styles.username}>{item.isPinnedAI ? "hlthy AI" : item.otherParticipantUsername || "Chat"}</Text>
+                        {item.isUnread && <View style={styles.unreadDot} />}
+                        <Text style={styles.username}>{item.otherParticipantUsername || "Chat"}</Text>
                     </View>
                     <Text 
                         style={[
                             styles.lastMessage, 
-                            item.isUnread && !item.isPinnedAI && styles.unreadLastMessage
+                            item.isUnread && styles.unreadLastMessage
                         ]} 
                         numberOfLines={1}
                     >
@@ -239,7 +228,6 @@ export default function DMs() {
                     const otherUserProfile = profiles[otherParticipantId];
 
                     const isUnread = conversationMetaData.lastMessageAt &&
-                                    !conversationMetaData.isPinnedAI &&
                                     conversationMetaData.lastMessageSenderId !== currentUser.uid &&
                                     (!userConvData.lastRead || (userConvData.lastRead && conversationMetaData.lastMessageAt.toMillis() > userConvData.lastRead.toMillis()));
 
@@ -271,21 +259,8 @@ export default function DMs() {
                 if (b.lastMessageAt) return 1;
                 return 0;
             });
-            
-            // Add the AI conversation at the top
-            let finalConversations = [...fetchedConversations];
-            if (currentUser) {
-                const aiConversationId = `${currentUser.uid}_ai_conversation`;
-                const aiConversation: CombinedConversationItem = {
-                    id: aiConversationId,
-                    isPinnedAI: true,
-                    lastMessageText: 'Ask me anything about fitness!',
-                    // isUnread will be undefined/false by default
-                };
-                finalConversations = [aiConversation, ...fetchedConversations];
-            }
 
-            setConversations(finalConversations);
+            setConversations(fetchedConversations);
         } catch (error) {
             console.error("Error fetching conversations: ", error);
         } finally {
