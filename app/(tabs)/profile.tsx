@@ -1,12 +1,13 @@
 import React from 'react';
-import { StyleSheet, SafeAreaView } from 'react-native';
+import { StyleSheet } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Profile from '@/screens/Profile';
 
 export default function ProfileTabScreen() {
   console.log('[ProfileTabScreen] Rendering tabs/profile.tsx');
   
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <Profile />
     </SafeAreaView>
   );
