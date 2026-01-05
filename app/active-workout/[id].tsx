@@ -139,7 +139,7 @@ export default function ActiveWorkoutScreen() {
       setWorkout({
         workoutId,
         workoutName: workoutData.title || workoutData.name || 'Workout',
-        workoutFocus: workoutData.focus || workoutData.dayType,
+        workoutFocus: workoutData.focus || workoutData.dayType || 'General',
         startedAt: new Date(),
         exercises,
         currentExerciseIndex: 0,
@@ -285,7 +285,7 @@ export default function ActiveWorkoutScreen() {
         userId: currentUser.uid,
         workoutId: workout.workoutId,
         workoutName: workout.workoutName,
-        workoutFocus: workout.workoutFocus,
+        workoutFocus: workout.workoutFocus || 'General',
         startedAt: workout.startedAt,
         completedAt: new Date(),
         durationMinutes: Math.floor(elapsedTime / 60),

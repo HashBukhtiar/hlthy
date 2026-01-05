@@ -134,6 +134,7 @@ const TimedSetRow: React.FC<SetRowProps> = ({
   const [useWeight, setUseWeight] = useState(false);
   const [timerSeconds, setTimerSeconds] = useState(targetDuration);
   const [isRunning, setIsRunning] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
   const [showCountdown, setShowCountdown] = useState(false);
   const [timeLogged, setTimeLogged] = useState(set.duration || 0);
   
@@ -157,11 +158,12 @@ const TimedSetRow: React.FC<SetRowProps> = ({
   }, [isActive]);
   
   useEffect(() => {
-    if (isRunning && timerSeconds > 0) {
+    if (isRunning && !isPaused && timerSeconds > 0) {
       timerRef.current = setInterval(() => {
         setTimerSeconds(prev => {
           if (prev <= 1) {
             setIsRunning(false);
+            setIsPaused(false);
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             return 0;
           }
@@ -175,7 +177,7 @@ const TimedSetRow: React.FC<SetRowProps> = ({
         clearInterval(timerRef.current);
       }
     };
-  }, [isRunning]);
+  }, [isRunning, isPaused]);
   
   const handleWeightChange = (value: string) => {
     const cleaned = value.replace(/[^0-9.]/g, '');
@@ -193,9 +195,20 @@ const TimedSetRow: React.FC<SetRowProps> = ({
     setIsRunning(true);
   };
   
+  const pauseTimer = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setIsPaused(true);
+  };
+  
+  const resumeTimer = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setIsPaused(false);
+  };
+  
   const stopTimer = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setIsRunning(false);
+    setIsPaused(false);
     const elapsed = targetDuration - timerSeconds;
     setTimeLogged(elapsed);
   };
@@ -203,6 +216,7 @@ const TimedSetRow: React.FC<SetRowProps> = ({
   const resetTimer = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setIsRunning(false);
+    setIsPaused(false);
     setShowCountdown(false);
     setTimerSeconds(targetDuration);
   };
@@ -294,15 +308,29 @@ const TimedSetRow: React.FC<SetRowProps> = ({
               <Ionicons name="hourglass-outline" size={24} color="#fff" />
               <Text style={styles.timerBtnText}>Ready...</Text>
             </View>
+          ) : isPaused ? (
+            <TouchableOpacity 
+              style={styles.timerStartBtn}
+              onPress={resumeTimer}
+            >
+              <Ionicons name="play" size={24} color="#fff" />
+              <Text style={styles.timerBtnText}>Resume</Text>
+            </TouchableOpacity>
           ) : (
             <TouchableOpacity 
-              style={styles.timerStopBtn}
-              onPress={stopTimer}
+              style={styles.timerPauseBtn}
+              onPress={pauseTimer}
             >
-              <Ionicons name="stop" size={24} color="#fff" />
-              <Text style={styles.timerBtnText}>Stop</Text>
+              <Ionicons name="pause" size={24} color="#fff" />
+              <Text style={styles.timerBtnText}>Pause</Text>
             </TouchableOpacity>
           )}
+          <TouchableOpacity 
+            style={styles.timerStopBtn}
+            onPress={stopTimer}
+          >
+            <Ionicons name="stop" size={20} color="#fff" />
+          </TouchableOpacity>
           <TouchableOpacity 
             style={styles.timerResetBtn}
             onPress={resetTimer}
@@ -685,13 +713,13 @@ export const FocusedExerciseView: React.FC<FocusedExerciseViewProps> = ({
             <Ionicons name="chevron-down" size={16} color="#888" />
           </TouchableOpacity>
           <View style={styles.dotsContainer}>
-            {Array(totalExercises).fill(0).map((_, i) => (
+            {allExercises.map((ex, i) => (
               <View 
                 key={i} 
                 style={[
                   styles.dot,
                   i === exerciseIndex && styles.dotActive,
-                  i < exerciseIndex && styles.dotCompleted,
+                  ex.isComplete || ex.sets.every(s => s.completed) ? styles.dotCompleted : styles.dotIncomplete,
                 ]} 
               />
             ))}
@@ -947,6 +975,9 @@ const styles = StyleSheet.create({
   },
   dotCompleted: {
     backgroundColor: '#4CAF50',
+  },
+  dotIncomplete: {
+    backgroundColor: '#ff2d55',
   },
   exerciseName: {
     color: '#fff',
@@ -1251,14 +1282,22 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 24,
   },
-  timerStopBtn: {
+  timerPauseBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#ff9500',
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 24,
+  },
+  timerStopBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#FF6B6B',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   timerResetBtn: {
     width: 44,

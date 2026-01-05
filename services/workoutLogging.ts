@@ -161,6 +161,36 @@ export async function getWorkoutLogsByFocus(
   }
 }
 
+/**
+ * Get all workout sessions for a specific workout template
+ * Tracks every time a user completed a particular workout
+ */
+export async function getWorkoutSessions(
+  userId: string, 
+  workoutId: string,
+  limitCount: number = 10
+): Promise<WorkoutLog[]> {
+  try {
+    const logsRef = collection(db, 'users', userId, 'workout_logs');
+    const q = query(
+      logsRef, 
+      where('workoutId', '==', workoutId),
+      orderBy('completedAt', 'desc'), 
+      limit(limitCount)
+    );
+    const snapshot = await getDocs(q);
+    
+    return snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    })) as WorkoutLog[];
+    
+  } catch (error) {
+    console.error('❌ Error fetching workout sessions:', error);
+    return [];
+  }
+}
+
 // ============================================
 // EXERCISE HISTORY OPERATIONS
 // ============================================
