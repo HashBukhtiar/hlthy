@@ -1,25 +1,24 @@
 /**
  * Active Workout Screen
  * 
- * Main workout logging interface - log sets, track PRs, complete workout
+ * Focused workout logging - one exercise per page for better UX
  */
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
-  ScrollView,
   TouchableOpacity,
   StyleSheet,
   Alert,
   StatusBar,
   SafeAreaView,
   Animated,
+  Dimensions,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { LinearGradient } from 'expo-linear-gradient';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/firebaseConfig';
 import { useAuth } from '@/context/AuthContext';
@@ -33,8 +32,10 @@ import {
   saveWorkoutLog, 
   getExerciseHistories,
 } from '@/services/workoutLogging';
-import { ActiveExerciseCard } from '@/components/workout/ActiveExerciseCard';
+import { FocusedExerciseView } from '@/components/workout/FocusedExerciseView';
 import { RestTimer } from '@/components/workout/RestTimer';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export default function ActiveWorkoutScreen() {
   const { id: workoutId } = useLocalSearchParams<{ id: string }>();
@@ -43,14 +44,14 @@ export default function ActiveWorkoutScreen() {
   
   const [workout, setWorkout] = useState<ActiveWorkoutState | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
   const [showRestTimer, setShowRestTimer] = useState(false);
   const [restDuration, setRestDuration] = useState(90);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const scrollViewRef = useRef<ScrollView>(null);
-  const headerOpacity = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(0)).current;
   
   // Load workout and exercise history
   useEffect(() => {
@@ -78,7 +79,6 @@ export default function ActiveWorkoutScreen() {
     try {
       setIsLoading(true);
       
-      // Fetch workout from Firestore
       const workoutRef = doc(db, 'workouts', workoutId);
       const workoutDoc = await getDoc(workoutRef);
       
@@ -90,7 +90,6 @@ export default function ActiveWorkoutScreen() {
       
       const workoutData = workoutDoc.data();
       
-      // Extract exercises from segments
       const exercises: ActiveExerciseState[] = [];
       const exerciseIds: string[] = [];
       
@@ -125,15 +124,12 @@ export default function ActiveWorkoutScreen() {
         }
       }
       
-      // Fetch exercise history for suggestions
       const histories = await getExerciseHistories(currentUser.uid, exerciseIds);
       
-      // Add last session data to exercises
       exercises.forEach(ex => {
         const history = histories.get(ex.exerciseId);
         if (history && history.recentSessions.length > 0) {
           ex.lastSessionData = history.recentSessions[0];
-          // Auto-fill suggested weight from last session if not set
           if (!ex.suggestedWeight && history.recentSessions[0].bestSet) {
             ex.suggestedWeight = history.recentSessions[0].bestSet.weight;
           }
@@ -170,41 +166,78 @@ export default function ActiveWorkoutScreen() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
   
-  const handleExerciseUpdate = useCallback((index: number, updatedExercise: ActiveExerciseState) => {
+  const handleExerciseUpdate = useCallback((updatedExercise: ActiveExerciseState) => {
     setWorkout(prev => {
       if (!prev) return prev;
       const newExercises = [...prev.exercises];
-      newExercises[index] = updatedExercise;
+      newExercises[currentExerciseIndex] = updatedExercise;
       return { ...prev, exercises: newExercises };
     });
-  }, []);
+  }, [currentExerciseIndex]);
   
-  const handleExerciseComplete = useCallback((index: number) => {
+  const animateSlide = (direction: 'next' | 'prev', callback: () => void) => {
+    const toValue = direction === 'next' ? -SCREEN_WIDTH : SCREEN_WIDTH;
+    
+    Animated.timing(slideAnim, {
+      toValue,
+      duration: 200,
+      useNativeDriver: true,
+    }).start(() => {
+      callback();
+      slideAnim.setValue(direction === 'next' ? SCREEN_WIDTH : -SCREEN_WIDTH);
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
+    });
+  };
+  
+  const handleNextExercise = useCallback(() => {
+    if (!workout) return;
+    
+    if (currentExerciseIndex < workout.exercises.length - 1) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      animateSlide('next', () => {
+        setCurrentExerciseIndex(prev => prev + 1);
+      });
+    } else {
+      handleCompleteWorkout();
+    }
+  }, [workout, currentExerciseIndex]);
+  
+  const handlePreviousExercise = useCallback(() => {
+    if (currentExerciseIndex > 0) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      animateSlide('prev', () => {
+        setCurrentExerciseIndex(prev => prev - 1);
+      });
+    }
+  }, [currentExerciseIndex]);
+  
+  const handleSkipExercise = useCallback(() => {
+    if (!workout) return;
+    
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    
     setWorkout(prev => {
       if (!prev) return prev;
-      // Move to next incomplete exercise
-      const nextIndex = prev.exercises.findIndex((ex, i) => 
-        i > index && !ex.isComplete && !ex.isSkipped
-      );
-      return {
-        ...prev,
-        currentExerciseIndex: nextIndex !== -1 ? nextIndex : prev.currentExerciseIndex,
+      const newExercises = [...prev.exercises];
+      newExercises[currentExerciseIndex] = {
+        ...newExercises[currentExerciseIndex],
+        isSkipped: true,
       };
+      return { ...prev, exercises: newExercises };
     });
-  }, []);
-  
-  const handleExerciseSkip = useCallback((index: number) => {
-    setWorkout(prev => {
-      if (!prev) return prev;
-      const nextIndex = prev.exercises.findIndex((ex, i) => 
-        i > index && !ex.isComplete && !ex.isSkipped
-      );
-      return {
-        ...prev,
-        currentExerciseIndex: nextIndex !== -1 ? nextIndex : prev.currentExerciseIndex,
-      };
-    });
-  }, []);
+    
+    if (currentExerciseIndex < workout.exercises.length - 1) {
+      animateSlide('next', () => {
+        setCurrentExerciseIndex(prev => prev + 1);
+      });
+    } else {
+      handleCompleteWorkout();
+    }
+  }, [workout, currentExerciseIndex]);
   
   const handleStartRestTimer = useCallback((seconds: number) => {
     setRestDuration(seconds);
@@ -255,12 +288,11 @@ export default function ActiveWorkoutScreen() {
           sets: ex.sets,
           skipped: ex.isSkipped,
         })),
-        weightUnit: 'lbs', // TODO: Get from user preferences
+        weightUnit: 'lbs',
       };
       
       const { logId, summary } = await saveWorkoutLog(currentUser.uid, workoutLog);
       
-      // Navigate to completion screen
       router.replace({
         pathname: '/workout-complete/[id]',
         params: { 
@@ -299,27 +331,28 @@ export default function ActiveWorkoutScreen() {
     return (
       <View style={styles.loadingContainer}>
         <StatusBar barStyle="light-content" />
-        <Text style={styles.loadingText}>Loading workout...</Text>
+        <View style={styles.loadingContent}>
+          <Ionicons name="barbell" size={48} color="#ff2d55" />
+          <Text style={styles.loadingText}>Preparing your workout...</Text>
+        </View>
       </View>
     );
   }
   
-  const completedCount = workout.exercises.filter(ex => ex.isComplete).length;
-  const skippedCount = workout.exercises.filter(ex => ex.isSkipped).length;
-  const progress = (completedCount + skippedCount) / workout.exercises.length;
-  const nextExercise = workout.exercises[workout.currentExerciseIndex + 1];
+  const currentExercise = workout.exercises[currentExerciseIndex];
+  const completedCount = workout.exercises.filter(ex => ex.isComplete || ex.sets.some(s => s.completed)).length;
   
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
       
-      {/* Header */}
+      {/* Compact Header */}
       <SafeAreaView style={styles.header}>
         <TouchableOpacity 
           style={styles.cancelButton}
           onPress={handleCancelWorkout}
         >
-          <Ionicons name="close" size={24} color="#FF6B6B" />
+          <Ionicons name="close" size={22} color="#FF6B6B" />
         </TouchableOpacity>
         
         <View style={styles.headerCenter}>
@@ -327,13 +360,13 @@ export default function ActiveWorkoutScreen() {
             {workout.workoutName}
           </Text>
           <View style={styles.timerRow}>
-            <Ionicons name="time-outline" size={14} color="rgba(255,255,255,0.6)" />
+            <Ionicons name="time-outline" size={14} color="rgba(255,255,255,0.5)" />
             <Text style={styles.timerText}>{formatElapsedTime(elapsedTime)}</Text>
-            <TouchableOpacity onPress={togglePause}>
+            <TouchableOpacity onPress={togglePause} style={styles.pauseBtn}>
               <Ionicons 
                 name={isPaused ? "play" : "pause"} 
-                size={16} 
-                color="#8B7DFF" 
+                size={14} 
+                color={isPaused ? "#ff2d55" : "rgba(255,255,255,0.5)"} 
               />
             </TouchableOpacity>
           </View>
@@ -343,65 +376,31 @@ export default function ActiveWorkoutScreen() {
           style={styles.finishButton}
           onPress={handleCompleteWorkout}
         >
-          <Text style={styles.finishText}>Finish</Text>
+          <Text style={styles.finishText}>Done</Text>
         </TouchableOpacity>
       </SafeAreaView>
       
-      {/* Progress Bar */}
-      <View style={styles.progressContainer}>
-        <View style={styles.progressBar}>
-          <Animated.View 
-            style={[
-              styles.progressFill,
-              { width: `${progress * 100}%` }
-            ]} 
-          />
-        </View>
-        <Text style={styles.progressText}>
-          {completedCount}/{workout.exercises.length} exercises
-        </Text>
-      </View>
-      
-      {/* Exercise List */}
-      <ScrollView 
-        ref={scrollViewRef}
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
+      {/* Main Exercise View */}
+      <Animated.View 
+        style={[
+          styles.exerciseContainer,
+          { transform: [{ translateX: slideAnim }] }
+        ]}
       >
-        {workout.exercises.map((exercise, index) => (
-          <ActiveExerciseCard
-            key={`${exercise.exerciseId}-${index}`}
-            exercise={exercise}
-            exerciseIndex={index}
-            isCurrentExercise={index === workout.currentExerciseIndex}
-            onExerciseUpdate={(updated) => handleExerciseUpdate(index, updated)}
-            onExerciseComplete={() => handleExerciseComplete(index)}
-            onExerciseSkip={() => handleExerciseSkip(index)}
-            onStartRestTimer={handleStartRestTimer}
-            weightUnit="lbs"
-          />
-        ))}
-        
-        {/* Complete Workout Card */}
-        <TouchableOpacity 
-          style={styles.completeCard}
-          onPress={handleCompleteWorkout}
-          activeOpacity={0.8}
-        >
-          <LinearGradient
-            colors={['#ff2d55', '#d91a40']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.completeGradient}
-          >
-            <Ionicons name="checkmark-circle" size={24} color="#fff" />
-            <Text style={styles.completeCardText}>Complete Workout</Text>
-          </LinearGradient>
-        </TouchableOpacity>
-        
-        <View style={styles.bottomPadding} />
-      </ScrollView>
+        <FocusedExerciseView
+          exercise={currentExercise}
+          exerciseIndex={currentExerciseIndex}
+          totalExercises={workout.exercises.length}
+          onExerciseUpdate={handleExerciseUpdate}
+          onNextExercise={handleNextExercise}
+          onPreviousExercise={handlePreviousExercise}
+          onSkipExercise={handleSkipExercise}
+          onStartRestTimer={handleStartRestTimer}
+          weightUnit="lbs"
+          isFirstExercise={currentExerciseIndex === 0}
+          isLastExercise={currentExerciseIndex === workout.exercises.length - 1}
+        />
+      </Animated.View>
       
       {/* Rest Timer Modal */}
       <RestTimer
@@ -410,7 +409,7 @@ export default function ActiveWorkoutScreen() {
         onComplete={() => setShowRestTimer(false)}
         onDismiss={() => setShowRestTimer(false)}
         onSkip={() => setShowRestTimer(false)}
-        nextExerciseName={nextExercise?.exerciseName}
+        nextExerciseName={workout.exercises[currentExerciseIndex + 1]?.exerciseName}
       />
     </View>
   );
@@ -427,6 +426,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  loadingContent: {
+    alignItems: 'center',
+    gap: 16,
+  },
   loadingText: {
     color: 'rgba(255,255,255,0.6)',
     fontSize: 16,
@@ -436,14 +439,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 10,
     borderBottomWidth: 1,
     borderBottomColor: '#222',
   },
   cancelButton: {
-    width: 35,
-    height: 35,
-    borderRadius: 15,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 107, 107, 0.15)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -454,8 +458,8 @@ const styles = StyleSheet.create({
   },
   workoutName: {
     color: '#fff',
-    fontSize: 20,
-    fontWeight: 'bold',
+    fontSize: 16,
+    fontWeight: '600',
     marginBottom: 2,
   },
   timerRow: {
@@ -464,69 +468,25 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   timerText: {
-    color: 'rgba(255,255,255,0.6)',
-    fontSize: 14,
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 13,
     fontVariant: ['tabular-nums'],
+  },
+  pauseBtn: {
+    padding: 4,
   },
   finishButton: {
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 16,
-    backgroundColor: 'rgba(76, 175, 80, 0.2)',
+    backgroundColor: 'rgba(255, 45, 85, 0.15)',
   },
   finishText: {
-    color: '#4CAF50',
+    color: '#ff2d55',
     fontSize: 14,
     fontWeight: '600',
   },
-  progressContainer: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#222',
-  },
-  progressBar: {
-    height: 4,
-    backgroundColor: 'rgba(80, 80, 80, 0.3)',
-    borderRadius: 2,
-    overflow: 'hidden',
-    marginBottom: 8,
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: '#ff2d55',
-    borderRadius: 2,
-  },
-  progressText: {
-    color: '#888888',
-    fontSize: 12,
-    textAlign: 'center',
-  },
-  scrollView: {
+  exerciseContainer: {
     flex: 1,
-  },
-  scrollContent: {
-    paddingHorizontal: 16,
-    paddingTop: 8,
-  },
-  completeCard: {
-    marginTop: 16,
-    borderRadius: 20,
-    overflow: 'hidden',
-  },
-  completeGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 18,
-    gap: 10,
-  },
-  completeCardText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  bottomPadding: {
-    height: 100,
   },
 });
