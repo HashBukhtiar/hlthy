@@ -526,6 +526,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   bottomPadding: {
-    height: 40,
+    height: 100,
   },
 });

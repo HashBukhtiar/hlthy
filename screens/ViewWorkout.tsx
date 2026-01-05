@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { ScrollView, View, Text, TouchableOpacity, Image, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { ScrollView, View, Text, TouchableOpacity, Image, StyleSheet, ActivityIndicator, Alert, Platform, SafeAreaView } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import ShareModal from '@/components/ShareModal';
 import { shareWorkout } from '@/services/ShareService';
@@ -51,6 +52,7 @@ export default function ViewWorkout() {
   const workoutId = params.id as string;
   const { currentUser } = useAuth();
   const { canInteractWithUser } = useBlockEnforcement();
+  const insets = useSafeAreaInsets();
 
   const [workoutData, setWorkoutData] = useState<WorkoutData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -287,7 +289,7 @@ export default function ViewWorkout() {
   };
   
   return (
-    <View style={styles.mainContainer}>
+    <SafeAreaView style={styles.mainContainer}>
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
@@ -446,7 +448,7 @@ export default function ViewWorkout() {
     </ScrollView>
     
     {/* Start Workout Button */}
-    <View style={styles.startButtonContainer}>
+    <View style={[styles.startButtonContainer, { paddingBottom: Math.max(insets.bottom, 20) + 35 }]}>
       <TouchableOpacity 
         style={styles.startButton} 
         onPress={handleStartWorkout}
@@ -463,7 +465,7 @@ export default function ViewWorkout() {
         </LinearGradient>
       </TouchableOpacity>
     </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -683,19 +685,15 @@ const styles = StyleSheet.create({
     fontWeight: '400', 
   },
   bottomPadding: {
-    height: 100,  // Increased for floating button
+    height: 140,
   },
   startButtonContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
     paddingHorizontal: 20,
-    paddingBottom: 30,
-    paddingTop: 10,
-    backgroundColor: 'rgba(0,0,0,0.9)',
+    paddingTop: 12,
+
+    backgroundColor: 'rgba(0,0,0,0.98)',
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.08)',
+    borderTopColor: 'rgba(139, 125, 255, 0.3)',
   },
   startButton: {
     borderRadius: 16,
