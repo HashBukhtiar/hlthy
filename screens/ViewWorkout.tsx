@@ -9,6 +9,8 @@ import { doc, getDoc, Timestamp, updateDoc, increment, setDoc, deleteDoc, collec
 import { useAuth } from '@/context/AuthContext'; 
 import { getCoverImageSource, deleteImageFromStorage } from '@/utils/imageUtils';
 import { useBlockEnforcement } from '@/utils/blockUtils';
+import { LinearGradient } from 'expo-linear-gradient';
+import * as Haptics from 'expo-haptics';
 
 // Interface for individual exercise within a segment
 interface WorkoutExercise {
@@ -273,9 +275,20 @@ export default function ViewWorkout() {
     
     setShareModalVisible(true);
   };
+
+  const handleStartWorkout = () => {
+    if (!currentUser) {
+      Alert.alert("Please log in", "You need to be logged in to start a workout.");
+      return;
+    }
+    
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    router.push(`/active-workout/${workoutId}`);
+  };
   
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+    <View style={styles.mainContainer}>
+      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color="white" />
@@ -431,6 +444,26 @@ export default function ViewWorkout() {
         onShareWith={shareWorkoutWithUser}
       />
     </ScrollView>
+    
+    {/* Start Workout Button */}
+    <View style={styles.startButtonContainer}>
+      <TouchableOpacity 
+        style={styles.startButton} 
+        onPress={handleStartWorkout}
+        activeOpacity={0.8}
+      >
+        <LinearGradient
+          colors={['#8B7DFF', '#6B5DD3']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={styles.startButtonGradient}
+        >
+          <Ionicons name="play" size={22} color="#fff" />
+          <Text style={styles.startButtonText}>Start Workout</Text>
+        </LinearGradient>
+      </TouchableOpacity>
+    </View>
+    </View>
   );
 }
 
