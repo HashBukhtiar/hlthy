@@ -29,9 +29,33 @@ export interface WorkoutPreferences {
   includeCardio: boolean;
 }
 
+export interface WorkoutHistoryData {
+  recent_workouts?: Array<{
+    date: string;
+    name: string;
+    totalVolume: number;
+    prsHit: number;
+    durationMinutes: number;
+  }>;
+  exercise_history?: Record<string, {
+    prWeight: number;
+    prReps: number;
+    pr1RM: number;
+    lastWeight: number;
+    lastReps: number;
+    totalSessions: number;
+    trend: 'improving' | 'declining' | 'stable' | 'new';
+  }>;
+  weekly_stats?: {
+    workoutsThisWeek: number;
+    volumeThisWeek: number;
+  };
+}
+
 export interface SendMessageOptions {
   workoutPreferences?: WorkoutPreferences;
   editingWorkout?: any; // Current workout being edited
+  workoutHistory?: WorkoutHistoryData; // Recent workout logs and exercise performance
 }
 
 /**
@@ -73,6 +97,11 @@ export async function sendMessage(
     // Include editing context if user is editing a workout
     if (options?.editingWorkout) {
       requestBody.editing_workout = options.editingWorkout;
+    }
+
+    // Include workout history for progressive overload coaching
+    if (options?.workoutHistory) {
+      requestBody.workout_history = options.workoutHistory;
     }
 
     const response = await fetch(`${API_BASE_URL}/api/chat`, {

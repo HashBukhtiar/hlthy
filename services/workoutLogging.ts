@@ -676,3 +676,121 @@ function extractMusclesWorked(exercises: ExerciseLog[]): string[] {
   
   return Array.from(muscles);
 }
+// ============================================
+// AI WORKOUT HISTORY HELPER
+// ============================================
+
+export interface WorkoutHistoryForAI {
+  recent_workouts: Array<{
+    date: string;
+    name: string;
+    totalVolume: number;
+    prsHit: number;
+    durationMinutes: number;
+  }>;
+  exercise_history: Record<string, {
+    prWeight: number;
+    prReps: number;
+    pr1RM: number;
+    lastWeight: number;
+    lastReps: number;
+    totalSessions: number;
+    trend: 'improving' | 'declining' | 'stable' | 'new';
+  }>;
+  weekly_stats: {
+    workoutsThisWeek: number;
+    volumeThisWeek: number;
+  };
+}
+
+/**
+ * Get comprehensive workout history formatted for AI coaching
+ * This includes recent workouts, exercise performance trends, and weekly stats
+ */
+export async function getWorkoutHistoryForAI(userId: string): Promise<WorkoutHistoryForAI> {
+  try {
+    // Get recent workout logs
+    const logsRef = collection(db, 'users', userId, 'workout_logs');
+    const logsQuery = query(logsRef, orderBy('completedAt', 'desc'), limit(10));
+    const logsSnapshot = await getDocs(logsQuery);
+    
+    const recentWorkouts: WorkoutHistoryForAI['recent_workouts'] = [];
+    let volumeThisWeek = 0;
+    let workoutsThisWeek = 0;
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+    
+    logsSnapshot.forEach(doc => {
+      const log = doc.data() as WorkoutLog;
+      const completedDate = log.completedAt instanceof Timestamp 
+        ? log.completedAt.toDate() 
+        : new Date(log.completedAt);
+      
+      recentWorkouts.push({
+        date: completedDate.toLocaleDateString('en-US', { 
+          weekday: 'short', 
+          month: 'short', 
+          day: 'numeric' 
+        }),
+        name: log.workoutName,
+        totalVolume: log.totalVolume,
+        prsHit: log.prsHit,
+        durationMinutes: log.durationMinutes,
+      });
+      
+      // Count this week's stats
+      if (completedDate >= oneWeekAgo) {
+        workoutsThisWeek++;
+        volumeThisWeek += log.totalVolume;
+      }
+    });
+    
+    // Get exercise history
+    const historyRef = collection(db, 'users', userId, 'exercise_history');
+    const historySnapshot = await getDocs(historyRef);
+    
+    const exerciseHistory: WorkoutHistoryForAI['exercise_history'] = {};
+    
+    historySnapshot.forEach(doc => {
+      const history = doc.data() as ExerciseHistory;
+      const lastSession = history.recentSessions?.[0];
+      
+      exerciseHistory[history.exerciseName] = {
+        prWeight: history.personalRecords.maxWeight?.value || 0,
+        prReps: history.personalRecords.maxReps?.value || 0,
+        pr1RM: history.personalRecords.estimatedOneRepMax?.value || 0,
+        lastWeight: lastSession?.bestSet?.weight || 0,
+        lastReps: lastSession?.bestSet?.reps || 0,
+        totalSessions: history.trends?.timesPerformed || 0,
+        trend: mapTrendDirection(history.trends?.strengthTrend || 'stable'),
+      };
+    });
+    
+    return {
+      recent_workouts: recentWorkouts,
+      exercise_history: exerciseHistory,
+      weekly_stats: {
+        workoutsThisWeek,
+        volumeThisWeek,
+      },
+    };
+    
+  } catch (error) {
+    console.error('Error fetching workout history for AI:', error);
+    return {
+      recent_workouts: [],
+      exercise_history: {},
+      weekly_stats: { workoutsThisWeek: 0, volumeThisWeek: 0 },
+    };
+  }
+}
+
+function mapTrendDirection(trend: TrendDirection | string): 'improving' | 'declining' | 'stable' | 'new' {
+  switch (trend) {
+    case 'increasing': return 'improving';
+    case 'decreasing': return 'declining';
+    case 'stable': return 'stable';
+    case 'insufficient_data': return 'new';
+    default: return 'stable';
+  }
+}
