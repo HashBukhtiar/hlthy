@@ -39,7 +39,12 @@ console.log('[PostsFeed] Module loaded');
 const getRelativeTime = (date: Date): string => {
   const now = new Date();
   const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-  
+  // If the date is in the future or exactly now, avoid negative values.
+  // Return a neutral "0s ago" to prevent displaying "-5s ago".
+  if (diffInSeconds <= 0) {
+    return '0s ago';
+  }
+
   if (diffInSeconds < 60) {
     return `${diffInSeconds}s ago`;
   }
