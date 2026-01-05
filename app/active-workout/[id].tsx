@@ -281,11 +281,10 @@ export default function ActiveWorkoutScreen() {
     if (!workout || !currentUser) return;
     
     try {
-      const workoutLog: Omit<WorkoutLog, 'id' | 'createdAt' | 'totalVolume' | 'totalSets' | 'totalReps' | 'exercisesCompleted' | 'exercisesSkipped' | 'prsHit'> = {
+      // Build workout log, filtering out undefined values
+      const workoutLogData: any = {
         userId: currentUser.uid,
-        workoutId: workout.workoutId,
         workoutName: workout.workoutName,
-        workoutFocus: workout.workoutFocus || 'General',
         startedAt: workout.startedAt,
         completedAt: new Date(),
         durationMinutes: Math.floor(elapsedTime / 60),
@@ -300,6 +299,16 @@ export default function ActiveWorkoutScreen() {
         })),
         weightUnit: 'lbs',
       };
+      
+      // Only add optional fields if they have values
+      if (workout.workoutId) {
+        workoutLogData.workoutId = workout.workoutId;
+      }
+      if (workout.workoutFocus) {
+        workoutLogData.workoutFocus = workout.workoutFocus;
+      }
+      
+      const workoutLog = workoutLogData as Omit<WorkoutLog, 'id' | 'createdAt' | 'totalVolume' | 'totalSets' | 'totalReps' | 'exercisesCompleted' | 'exercisesSkipped' | 'prsHit'>;
       
       const { logId, summary } = await saveWorkoutLog(currentUser.uid, workoutLog);
       
