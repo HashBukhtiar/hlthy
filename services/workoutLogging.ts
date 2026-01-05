@@ -44,6 +44,32 @@ import {
 // ============================================
 
 /**
+ * Recursively removes undefined values from an object
+ * Firebase throws errors on undefined values
+ */
+function removeUndefined<T>(obj: T): T {
+  if (obj === null || obj === undefined) {
+    return obj;
+  }
+  
+  if (Array.isArray(obj)) {
+    return obj.map(item => removeUndefined(item)) as T;
+  }
+  
+  if (typeof obj === 'object' && obj !== null) {
+    const cleaned: any = {};
+    for (const [key, value] of Object.entries(obj)) {
+      if (value !== undefined) {
+        cleaned[key] = removeUndefined(value);
+      }
+    }
+    return cleaned as T;
+  }
+  
+  return obj;
+}
+
+/**
  * Save a completed workout log to Firebase
  * Note: totalVolume, totalSets, totalReps, exercisesCompleted, exercisesSkipped, and prsHit
  * are calculated automatically and don't need to be provided
@@ -73,8 +99,8 @@ export async function saveWorkoutLog(
     const prResults = await detectAndSavePRs(userId, workoutLog.exercises, logDoc.id, workoutLog.weightUnit);
     const prsHit = prResults.filter(pr => pr !== null).length;
     
-    // Prepare full log document
-    const fullLog: WorkoutLog = {
+    // Prepare full log document (remove any undefined values)
+    const fullLog = removeUndefined<WorkoutLog>({
       ...workoutLog,
       id: logDoc.id,
       totalVolume,
@@ -84,7 +110,7 @@ export async function saveWorkoutLog(
       exercisesSkipped,
       prsHit,
       createdAt: serverTimestamp() as Timestamp,
-    };
+    });
     
     await setDoc(logDoc, fullLog);
     
