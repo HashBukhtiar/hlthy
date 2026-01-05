@@ -95,11 +95,14 @@ export default function Pulse() {
 
         const unsubscribeFollowRequests = onSnapshot(followRequestsQuery, (querySnapshot) => {
             const fetchedFollowRequests: ActivityItem[] = [];
+            const seenUserIds = new Set<string>(); // Track unique fromUserId to prevent duplicates
+            
             querySnapshot.forEach((doc) => {
                 const activityData = doc.data() as ActivityItem;
                 
-                // Filter out follow requests from blocked users
-                if (!isUserBlocked(activityData.fromUserId)) {
+                // Filter out follow requests from blocked users and duplicates
+                if (!isUserBlocked(activityData.fromUserId) && !seenUserIds.has(activityData.fromUserId)) {
+                    seenUserIds.add(activityData.fromUserId);
                     fetchedFollowRequests.push({ ...activityData, id: doc.id });
                 }
             });
