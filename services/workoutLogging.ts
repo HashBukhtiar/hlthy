@@ -45,10 +45,12 @@ import {
 
 /**
  * Save a completed workout log to Firebase
+ * Note: totalVolume, totalSets, totalReps, exercisesCompleted, exercisesSkipped, and prsHit
+ * are calculated automatically and don't need to be provided
  */
 export async function saveWorkoutLog(
   userId: string, 
-  workoutLog: Omit<WorkoutLog, 'id' | 'createdAt'>
+  workoutLog: Omit<WorkoutLog, 'id' | 'createdAt' | 'totalVolume' | 'totalSets' | 'totalReps' | 'exercisesCompleted' | 'exercisesSkipped' | 'prsHit'>
 ): Promise<{ logId: string; summary: WorkoutCompletionSummary }> {
   try {
     const logsRef = collection(db, 'users', userId, 'workout_logs');

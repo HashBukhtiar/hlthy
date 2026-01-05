@@ -39,7 +39,7 @@ import { RestTimer } from '@/components/workout/RestTimer';
 export default function ActiveWorkoutScreen() {
   const { id: workoutId } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { user } = useAuth();
+  const { currentUser } = useAuth();
   
   const [workout, setWorkout] = useState<ActiveWorkoutState | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -48,7 +48,7 @@ export default function ActiveWorkoutScreen() {
   const [elapsedTime, setElapsedTime] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
   const headerOpacity = useRef(new Animated.Value(0)).current;
   
@@ -73,7 +73,7 @@ export default function ActiveWorkoutScreen() {
   }, [workout, isPaused]);
   
   const loadWorkout = async () => {
-    if (!workoutId || !user) return;
+    if (!workoutId || !currentUser) return;
     
     try {
       setIsLoading(true);
@@ -126,7 +126,7 @@ export default function ActiveWorkoutScreen() {
       }
       
       // Fetch exercise history for suggestions
-      const histories = await getExerciseHistories(user.uid, exerciseIds);
+      const histories = await getExerciseHistories(currentUser.uid, exerciseIds);
       
       // Add last session data to exercises
       exercises.forEach(ex => {
@@ -212,7 +212,7 @@ export default function ActiveWorkoutScreen() {
   }, []);
   
   const handleCompleteWorkout = async () => {
-    if (!workout || !user) return;
+    if (!workout || !currentUser) return;
     
     const completedExercises = workout.exercises.filter(ex => !ex.isSkipped);
     const hasLoggedSets = completedExercises.some(ex => 
@@ -235,11 +235,11 @@ export default function ActiveWorkoutScreen() {
   };
   
   const saveAndComplete = async () => {
-    if (!workout || !user) return;
+    if (!workout || !currentUser) return;
     
     try {
       const workoutLog: Omit<WorkoutLog, 'id' | 'createdAt' | 'totalVolume' | 'totalSets' | 'totalReps' | 'exercisesCompleted' | 'exercisesSkipped' | 'prsHit'> = {
-        userId: user.uid,
+        userId: currentUser.uid,
         workoutId: workout.workoutId,
         workoutName: workout.workoutName,
         workoutFocus: workout.workoutFocus,
@@ -258,7 +258,7 @@ export default function ActiveWorkoutScreen() {
         weightUnit: 'lbs', // TODO: Get from user preferences
       };
       
-      const { logId, summary } = await saveWorkoutLog(user.uid, workoutLog);
+      const { logId, summary } = await saveWorkoutLog(currentUser.uid, workoutLog);
       
       // Navigate to completion screen
       router.replace({
