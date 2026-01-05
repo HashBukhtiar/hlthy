@@ -995,11 +995,12 @@ export default function ChatScreen() {
         // --- Normal Message Send Logic from main branch ---
         const conversationRef = doc(db, "conversations", conversationId);
 
-        await updateDoc(conversationRef, {
+        // Use setDoc with merge to avoid not-found error if conversation doesn't exist yet
+        await setDoc(conversationRef, {
           lastMessageAt: serverTimestamp(),
           lastMessageText: textToSend,
           lastMessageSenderId: currentUser.uid,
-        });
+        }, { merge: true });
 
         const userConvRef1 = doc(db, `users/${currentUser.uid}/conversations`, conversationId);
         await setDoc(
@@ -1014,20 +1015,21 @@ export default function ChatScreen() {
           { merge: true }
         );
 
-        // Update other participant's conversation reference if exists
+        // Update other participant's conversation reference
         if (otherParticipantId) {
           const userConvRef2 = doc(db, `users/${otherParticipantId}/conversations`, conversationId);
-          const otherUserConvSnap = await getDoc(userConvRef2);
-          if (otherUserConvSnap.exists()) {
-            await updateDoc(userConvRef2, {
-              lastMessageAt: serverTimestamp(),
-              lastMessageText: textToSend,
-            });
-          }
+          // Use setDoc with merge instead of checking existence to avoid race conditions
+          await setDoc(userConvRef2, {
+            otherParticipantId: currentUser.uid,
+            otherParticipantUsername: userProfile?.username || currentUser.displayName || currentUser.email || 'User',
+            otherParticipantProfileImage: currentUser.photoURL || '',
+            lastMessageAt: serverTimestamp(),
+            lastMessageText: textToSend,
+          }, { merge: true });
         }
       } catch (error) {
         console.error('Error updating conversation metadata:', error);
-        Alert.alert("Error", "Failed to update conversation. Please try again.");
+        // Don't show alert for metadata updates - the message was already sent successfully
       }
     }
   } catch (error) {

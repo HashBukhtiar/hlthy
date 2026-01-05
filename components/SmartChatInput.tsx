@@ -171,7 +171,10 @@ export const SmartChatInput: React.FC<SmartChatInputProps> = ({
             onSend(messageText);
           }
         } catch (error: any) {
-          console.error('Error sending message:', error);
+          // Only log errors that aren't expected fallback scenarios
+          if (error.code !== 'functions/not-found' && error.message !== 'not-found') {
+            console.error('Error sending message:', error);
+          }
           
           if (error.code === 'functions/already-exists') {
             Alert.alert(
@@ -184,7 +187,7 @@ export const SmartChatInput: React.FC<SmartChatInputProps> = ({
               "You're unable to message this user."
             );
           } else {
-            // Fallback to normal send if cloud function fails
+            // Fallback to normal send if cloud function fails or isn't available
             onSend(messageText);
           }
         }

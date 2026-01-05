@@ -1,4 +1,4 @@
-import { initializeApp, FirebaseApp } from 'firebase/app';
+import { initializeApp, FirebaseApp, getApps, getApp } from 'firebase/app';
 import { getAnalytics, isSupported } from 'firebase/analytics';
 import { getAuth, Auth, initializeAuth, getReactNativePersistence } from 'firebase/auth';
 import { getFirestore, Firestore } from "firebase/firestore";
@@ -28,20 +28,34 @@ let storage: FirebaseStorage;
 let functions;
 
 try {
-  app = initializeApp(firebaseConfig);
+  // Check if Firebase app is already initialized (handles HMR)
+  if (getApps().length === 0) {
+    app = initializeApp(firebaseConfig);
+    console.log("Firebase app initialized");
+  } else {
+    app = getApp();
+    console.log("Firebase app already initialized, reusing existing instance");
+  }
   
   // Initialize Auth with persistence for React Native
+  // Use getAuth which returns existing instance if already initialized
   if (Platform.OS === 'web') {
     auth = getAuth(app);
   } else {
-    auth = initializeAuth(app, {
-      persistence: getReactNativePersistence(AsyncStorage)
-    });
+    // For React Native, try getAuth first (returns existing instance)
+    // Only use initializeAuth on first initialization
+    try {
+      auth = getAuth(app);
+    } catch {
+      auth = initializeAuth(app, {
+        persistence: getReactNativePersistence(AsyncStorage)
+      });
+    }
   }
   
   db = getFirestore(app);
   storage = getStorage(app);
-  functions = getFunctions(app);
+  functions = getFunctions(app, 'northamerica-northeast2');
   
   isSupported()
     .then((supported) => {
