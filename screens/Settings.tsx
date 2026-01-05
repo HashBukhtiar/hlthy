@@ -769,19 +769,27 @@ export default function Settings() {
         try {
           await NotificationService.removePushToken(currentUser.uid);
           await NotificationService.clearCachedTokens();
+          console.log('Push tokens cleared successfully');
         } catch (tokenError) {
           console.error('Error cleaning up tokens (continuing with logout):', tokenError);
           // Continue with logout even if token cleanup fails
         }
       }
       
-      // Then sign out
+      // Sign out
       await signOut(auth);
-      router.replace('/');
+      console.log('User signed out');
+      
+      // Wait longer for all state cleanup
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      // Force replace to landing
+      router.replace('/landing');
+      
     } catch (error) {
       console.error('Error signing out:', error);
       Alert.alert('Error', 'Failed to sign out completely, but you have been logged out.');
-      router.replace('/');
+      router.replace('/landing');
     } finally {
       setLoading(false);
     }

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -19,13 +19,46 @@ export default function EmailVerificationGuard({ children }: EmailVerificationGu
   const [isCheckingVerification, setIsCheckingVerification] = useState(false);
   const [isResending, setIsResending] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
+  const hasRedirected = useRef(false);
+  const isRedirecting = useRef(false);
+  const isMounted = useRef(true);
 
   console.log('[EmailVerificationGuard] Render - authLoading:', authLoading, 'currentUser:', currentUser?.uid || 'null', 'isFromSignup:', isFromSignup);
 
+  // Track mount status
+  useEffect(() => {
+    isMounted.current = true;
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
+
   // Handle navigation when user is not authenticated
   useEffect(() => {
+    // Prevent multiple simultaneous redirects
+    if (isRedirecting.current || !isMounted.current) return;
+    
     if (!authLoading && !currentUser) {
-      router.replace('/landing');
+      // Only redirect once per session
+      if (!hasRedirected.current) {
+        hasRedirected.current = true;
+        isRedirecting.current = true;
+        
+        console.log('[EmailVerificationGuard] Redirecting to landing...');
+        
+        // Use setTimeout to ensure state is settled
+        setTimeout(() => {
+          if (isMounted.current) {
+            router.replace('/landing');
+          }
+        }, 50);
+      }
+    }
+    
+    // Reset redirect flags when user logs back in
+    if (currentUser) {
+      hasRedirected.current = false;
+      isRedirecting.current = false;
     }
   }, [authLoading, currentUser, router]);
 
@@ -134,17 +167,9 @@ export default function EmailVerificationGuard({ children }: EmailVerificationGu
     );
   }
 
-  // If user is not logged in, show loading while navigation happens
-  if (!currentUser) {
-    console.log('[EmailVerificationGuard] No currentUser, showing loading while redirecting');
-    return (
-      <AuthBackground>
-        <View style={styles.loadingContainer}>
-          <CustomSpinner size={48} />
-          <Text style={styles.loadingText}>Loading...</Text>
-        </View>
-      </AuthBackground>
-    );
+  // If user is not logged in, return null immediately to prevent render loop
+  if (!authLoading && !currentUser) {
+    return null;
   }
 
   // If email is verified, show the protected content

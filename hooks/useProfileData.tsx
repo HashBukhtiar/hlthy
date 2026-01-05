@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { collection, query, orderBy, getDocs, doc, getDoc, where, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db, app } from '@/firebaseConfig';
 import { useAuth } from '@/context/AuthContext';
@@ -33,7 +33,16 @@ export function useProfileData(userId = null, contextUserProfile: UserProfile | 
   const functions = getFunctions(app, 'northamerica-northeast2');
   const followUserFn   = httpsCallable(functions, 'followUser');
   const unfollowUserFn = httpsCallable(functions, 'unfollowUser');
-  const isOwnProfile = !userId || userId === currentUser?.uid;
+  
+  // Memoize isOwnProfile to prevent unnecessary recalculations
+  const isOwnProfile = useMemo(() => !userId || userId === currentUser?.uid, [userId, currentUser?.uid]);
+  
+  // Track state to prevent redundant operations
+  const hasCleared = useRef(false);
+  const lastUserId = useRef<string | null | undefined>(undefined);
+  const isFetching = useRef(false);
+  const lastFetchedUserId = useRef<string | null>(null);
+  
   const [loading, setLoading] = useState(true);
   const [profileData, setProfileData] = useState<UserProfile | null>(null);
   const [posts, setPosts] = useState<any[]>([]);
@@ -194,6 +203,12 @@ export function useProfileData(userId = null, contextUserProfile: UserProfile | 
 
   // Memoize fetchProfileData to prevent infinite loops
   const fetchProfileData = useCallback(async () => {
+    // Prevent duplicate fetches
+    if (isFetching.current) {
+      console.log('Fetch already in progress, skipping duplicate call');
+      return;
+    }
+
     if (!profileIdToFetch) {
       setLoading(false);
       setError(new Error("No profile ID available to fetch data."));
@@ -203,19 +218,35 @@ export function useProfileData(userId = null, contextUserProfile: UserProfile | 
     
     // Add authentication check BEFORE starting any operations
     if (!currentUser?.uid) {
-      console.log("User logged out, cancelling profile data fetch");
-      setLoading(false);
-      setLoadingWorkouts(false);
-      setProfileData(null);
-      setPosts([]);
-      setGroupedMilestones({});
-      setWorkouts([]);
-      setSavedWorkouts([]);
-      setFollowers([]);
-      setFollowing([]);
-      setError(null);
+      // Only clear once to avoid redundant state updates
+      if (!hasCleared.current) {
+        console.log("User logged out, cancelling profile data fetch");
+        setLoading(false);
+        setLoadingWorkouts(false);
+        setProfileData(null);
+        setPosts([]);
+        setGroupedMilestones({});
+        setWorkouts([]);
+        setSavedWorkouts([]);
+        setFollowers([]);
+        setFollowing([]);
+        setError(null);
+        hasCleared.current = true;
+        lastFetchedUserId.current = null;
+      }
       return;
     }
+    
+    // Skip if we just fetched this user
+    if (lastFetchedUserId.current === profileIdToFetch) {
+      console.log('Already fetched profile for:', profileIdToFetch);
+      return;
+    }
+    
+    // Reset cleared flag and set fetching state
+    hasCleared.current = false;
+    isFetching.current = true;
+    lastFetchedUserId.current = profileIdToFetch;
     
     console.log(`Fetching profile data for ID (fetchProfileData): ${profileIdToFetch}`);
     setLoading(true);
@@ -428,12 +459,20 @@ export function useProfileData(userId = null, contextUserProfile: UserProfile | 
 
       console.log("Profile data refresh complete for:", profileIdToFetch);
     } catch (err) {
+      // Don't log errors if user logged out
+      if (!currentUser?.uid) {
+        console.log("Error during fetch - user logged out, ignoring");
+        return;
+      }
       console.error("Error in fetchProfileData:", err);
       setError(err as Error);
     } finally {
-      setLoading(false);
-      setLoadingWorkouts(false);
-      console.log("Loading set to false for:", profileIdToFetch);
+      if (currentUser?.uid) {
+        setLoading(false);
+        setLoadingWorkouts(false);
+        console.log("Loading set to false for:", profileIdToFetch);
+      }
+      isFetching.current = false;
     }
   }, [profileIdToFetch, currentUser?.uid, isOwnProfile]);
 
@@ -528,22 +567,45 @@ export function useProfileData(userId = null, contextUserProfile: UserProfile | 
   }, [fetchProfileData]);
 
   useEffect(() => {
+    const currentUserId = currentUser?.uid;
+    
+    // Skip if user hasn't changed and we've already handled this state
+    if (lastUserId.current === currentUserId && hasCleared.current) {
+      return;
+    }
+    
+    // Track user ID change
+    if (lastUserId.current !== currentUserId) {
+      lastUserId.current = currentUserId;
+      hasCleared.current = false; // Reset clear flag on user change
+      isFetching.current = false; // Reset fetching flag
+      lastFetchedUserId.current = null; // Reset last fetched user
+    }
+    
     console.log("useEffect in useProfileData triggered. profileIdToFetch:", profileIdToFetch);
     
     // Don't fetch if user is logged out
-    if (!currentUser?.uid) {
-      console.log("No current user, clearing profile data");
-      setLoading(false);
-      setLoadingWorkouts(false);
-      setProfileData(null);
-      setPosts([]);
-      setGroupedMilestones({});
-      setWorkouts([]);
-      setSavedWorkouts([]);
-      setFollowers([]);
-      setFollowing([]);
+    if (!currentUserId) {
+      // Only clear once per logout
+      if (!hasCleared.current) {
+        console.log("No current user, clearing profile data");
+        setLoading(false);
+        setLoadingWorkouts(false);
+        setProfileData(null);
+        setPosts([]);
+        setGroupedMilestones({});
+        setWorkouts([]);
+        setSavedWorkouts([]);
+        setFollowers([]);
+        setFollowing([]);
+        hasCleared.current = true;
+        lastFetchedUserId.current = null;
+      }
       return;
     }
+    
+    // Reset cleared flag when user is authenticated
+    hasCleared.current = false;
     
     if (profileIdToFetch) {
       fetchProfileData();
@@ -551,7 +613,7 @@ export function useProfileData(userId = null, contextUserProfile: UserProfile | 
       setLoading(false); 
       console.log("profileIdToFetch is null/undefined in useEffect, not fetching.");
     }
-  }, [fetchProfileData, currentUser?.uid]);
+  }, [fetchProfileData, profileIdToFetch, currentUser?.uid]);
 
   // Note: Removed the profileImage sync effect that was causing infinite loops.
   // The profile data is now fetched once and stays in sync through the main useEffect.
