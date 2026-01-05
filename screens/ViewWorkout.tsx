@@ -468,6 +468,10 @@ export default function ViewWorkout() {
 }
 
 const styles = StyleSheet.create({
+  mainContainer: {
+    flex: 1,
+    backgroundColor: 'black',
+  },
   container: { 
     flex: 1, 
     backgroundColor: 'black',
@@ -679,7 +683,35 @@ const styles = StyleSheet.create({
     fontWeight: '400', 
   },
   bottomPadding: {
-    height: 80,
+    height: 100,  // Increased for floating button
+  },
+  startButtonContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 20,
+    paddingBottom: 30,
+    paddingTop: 10,
+    backgroundColor: 'rgba(0,0,0,0.9)',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.08)',
+  },
+  startButton: {
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  startButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    gap: 10,
+  },
+  startButtonText: {
+    color: '#fff',
+    fontSize: 17,
+    fontWeight: '700',
   },
   clickableText: {
     textDecorationLine: 'underline',
