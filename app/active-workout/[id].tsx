@@ -239,6 +239,16 @@ export default function ActiveWorkoutScreen() {
     }
   }, [workout, currentExerciseIndex]);
   
+  const handleJumpToExercise = useCallback((index: number) => {
+    if (!workout || index === currentExerciseIndex) return;
+    
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const direction = index > currentExerciseIndex ? 'next' : 'prev';
+    animateSlide(direction, () => {
+      setCurrentExerciseIndex(index);
+    });
+  }, [workout, currentExerciseIndex]);
+  
   const handleStartRestTimer = useCallback((seconds: number) => {
     setRestDuration(seconds);
     setShowRestTimer(true);
@@ -391,10 +401,12 @@ export default function ActiveWorkoutScreen() {
           exercise={currentExercise}
           exerciseIndex={currentExerciseIndex}
           totalExercises={workout.exercises.length}
+          allExercises={workout.exercises}
           onExerciseUpdate={handleExerciseUpdate}
           onNextExercise={handleNextExercise}
           onPreviousExercise={handlePreviousExercise}
           onSkipExercise={handleSkipExercise}
+          onJumpToExercise={handleJumpToExercise}
           onStartRestTimer={handleStartRestTimer}
           weightUnit="lbs"
           isFirstExercise={currentExerciseIndex === 0}

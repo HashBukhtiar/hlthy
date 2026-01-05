@@ -25,6 +25,7 @@ export interface SetLog {
   isDropSet?: boolean;
   isPR?: boolean;           // Flag if this set was a PR
   notes?: string;
+  duration?: number;        // For timed exercises (in seconds)
 }
 
 /**
