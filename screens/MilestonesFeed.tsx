@@ -48,6 +48,8 @@ export default function MilestonesFeed() {
   const { getWeightUnit, getDistanceUnit } = useUnits();
   const [actionMenuVisible, setActionMenuVisible] = useState(false);
   const [selectedMilestoneForAction, setSelectedMilestoneForAction] = useState<FeedMilestone | null>(null);
+  // Local state for optimistic updates
+  const [milestones, setMilestones] = useState<typeof feedMilestones>([]);
 
   // Use shared content actions hook
   const { 
@@ -62,9 +64,6 @@ export default function MilestonesFeed() {
     refreshFeed,
     contentType: 'milestone',
   });
-  
-  // Local state for optimistic updates  
-  const [milestones, setMilestones] = useState<typeof feedMilestones>([]);
 
   // Update local milestones when feedMilestones change
   useEffect(() => {
@@ -271,37 +270,18 @@ export default function MilestonesFeed() {
       const userPreferredUnit = getDistanceUnit();
       let convertedValue = value;
       let displayUnit: string;
-      
-      // Convert to user's preferred unit if different
-      if (originalUnit === 'kg' || originalUnit === 'lbs') {
-        const preferredWeightUnit = getWeightUnit();
-        if (originalUnit !== preferredWeightUnit) {
-          if (originalUnit === 'kg' && preferredWeightUnit === 'lbs') {
-            convertedValue = Math.round(displayValue * 2.20462 * 10) / 10;
-          } else if (originalUnit === 'lbs' && preferredWeightUnit === 'kg') {
-            convertedValue = Math.round(displayValue * 0.453592 * 10) / 10;
-          }
-          displayUnit = preferredWeightUnit;
-        } else {
-          displayUnit = preferredWeightUnit;
-        }
-      } else if (originalUnit === 'km' || originalUnit === 'miles') {
-        const preferredDistanceUnit = getDistanceUnit();
-        if (originalUnit !== preferredDistanceUnit) {
-          if (originalUnit === 'km' && preferredDistanceUnit === 'miles') {
-            convertedValue = Math.round(displayValue * 0.621371 * 10) / 10;
-          } else if (originalUnit === 'miles' && preferredDistanceUnit === 'km') {
-            convertedValue = Math.round(displayValue * 1.60934 * 10) / 10;
-          }
-          displayUnit = preferredDistanceUnit;
-        } else {
-          displayUnit = preferredDistanceUnit;
+
+      if (unit !== userPreferredUnit) {
+        if (unit === 'km' && userPreferredUnit === 'miles') {
+          convertedValue = Math.round(value * 0.621371 * 10) / 10;
+        } else if (unit === 'miles' && userPreferredUnit === 'km') {
+          convertedValue = Math.round(value * 1.60934 * 10) / 10;
         }
         displayUnit = `${userPreferredUnit} (${value} ${unit})`;
       } else {
         displayUnit = userPreferredUnit;
       }
-      
+
       return { value: convertedValue, unit: displayUnit };
     };
 
