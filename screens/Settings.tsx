@@ -21,6 +21,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { uploadProfileImage } from '@/services/profileStorage';
 import { getFullVersionString } from '@/utils/appVersion';
 import { NotificationService } from '@/services/NotificationService';
+import { VERIFIED_PLATFORMS, type PlatformKey, validatePlatformUrl, validateCustomUrl } from '@/utils/socialLinkValidation';
 
 
 const archetypeData: SelectorItem[] = [
@@ -113,6 +114,21 @@ export default function Settings() {
     },
     twoFactorEnabled: false,
     dateOfBirth: undefined,
+    socialLinks: {
+      instagram: '',
+      facebook: '',
+      twitter: '',
+      tiktok: '',
+      youtube: '',
+      linkedin: '',
+      spotify: '',
+      snapchat: '',
+      twitch: '',
+      github: '',
+      customUrl: '',
+      customLabel: '',
+      showLinksToFollowersOnly: false,
+    },
   });
 
   // UI state
@@ -491,6 +507,31 @@ export default function Settings() {
     
     try {
       setLoading(true);
+      
+      // Validate social links
+      if (settings.socialLinks) {
+        const linkErrors: string[] = [];
+        
+        Object.entries(settings.socialLinks).forEach(([key, value]) => {
+          if (key === 'customUrl' || key === 'customLabel' || key === 'showLinksToFollowersOnly') {
+            if (key === 'customUrl' && value && !validateCustomUrl(value as string)) {
+              linkErrors.push('Custom link URL is invalid');
+            }
+          } else if (value && !validatePlatformUrl(key as PlatformKey, value as string)) {
+            linkErrors.push(`${VERIFIED_PLATFORMS[key as PlatformKey].name} URL is invalid`);
+          }
+        });
+        
+        if (linkErrors.length > 0) {
+          Alert.alert(
+            'Invalid Social Links',
+            linkErrors.join('\n'),
+            [{ text: 'OK' }]
+          );
+          setLoading(false);
+          return;
+        }
+      }
       
       // Validate settings first
       const validation = validateSettings(settings);
@@ -1024,6 +1065,60 @@ export default function Settings() {
             type="info"
             label="Email"
             value={currentUser?.email}
+          />
+
+          {/* Social Links Subsection */}
+          <View style={{ marginTop: 20, marginBottom: 10 }}>
+            <Text style={{ color: '#999', fontSize: 14, fontWeight: '600', paddingHorizontal: 15 }}>
+              SOCIAL LINKS
+            </Text>
+          </View>
+
+          {Object.entries(VERIFIED_PLATFORMS).map(([key, platform]) => (
+            <SettingsItem
+              key={key}
+              type="input"
+              label={platform.name}
+              value={settings.socialLinks?.[key as PlatformKey] || ''}
+              onValueChange={(value) => updateSetting(`socialLinks.${key}`, value)}
+              placeholder={platform.placeholder}
+              helperText={
+                settings.socialLinks?.[key as PlatformKey] && 
+                !validatePlatformUrl(key as PlatformKey, settings.socialLinks[key as PlatformKey]!)
+                  ? `Invalid ${platform.name} URL format`
+                  : undefined
+              }
+            />
+          ))}
+          
+          <SettingsItem
+            type="input"
+            label="Custom Link Label"
+            value={settings.socialLinks?.customLabel || ''}
+            onValueChange={(value) => updateSetting('socialLinks.customLabel', value)}
+            placeholder="My Website"
+            helperText="Label for your custom link (max 30 characters)"
+          />
+          
+          <SettingsItem
+            type="input"
+            label="Custom Link URL"
+            value={settings.socialLinks?.customUrl || ''}
+            onValueChange={(value) => updateSetting('socialLinks.customUrl', value)}
+            placeholder="https://example.com"
+            helperText={
+              settings.socialLinks?.customUrl && !validateCustomUrl(settings.socialLinks.customUrl)
+                ? 'Invalid URL format'
+                : 'Users will see a warning before opening this link'
+            }
+          />
+
+          <SettingsItem
+            type="toggle"
+            label="Show Links to Followers Only"
+            value={settings.socialLinks?.showLinksToFollowersOnly || false}
+            onValueChange={(value) => updateSetting('socialLinks.showLinksToFollowersOnly', value)}
+            helperText="When enabled, only your followers can see your social links (only applies to private profiles)"
           />
         </SettingsSection>
 

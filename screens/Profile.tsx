@@ -32,6 +32,7 @@ const archetypeDescriptions = {
 };
 import { getOptimalImageUrl, getCoverImageSource, DEFAULT_PROFILE_IMAGE } from '@/utils/imageUtils';
 import { MilestoneDetails } from '@/types/milestone';
+import { SocialLinksDisplay } from '@/components/SocialLinksDisplay';
 
 interface ProfileScreenProps {
   userId?: string;
@@ -1146,6 +1147,13 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
           )}
         </View>
         <Text style={styles.profileBio}>{processedProfileData?.bio || 'No bio yet'}</Text>
+
+        {/* Social Links */}
+        <SocialLinksDisplay 
+          socialLinks={processedProfileData?.socialLinks} 
+          profileUserId={viewedProfileId}
+          isFollowing={isFollowingStatus}
+        />
 
         <View style={styles.statsContainer}>
           <TouchableOpacity
