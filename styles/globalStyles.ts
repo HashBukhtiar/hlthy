@@ -1,4 +1,4 @@
-import { StyleSheet, Dimensions, Platform } from 'react-native';
+import { StyleSheet, Platform } from 'react-native';
 
 // Legacy bottom bar height (kept for backward compatibility)
 export const BOTTOM_BAR_HEIGHT = 60;
