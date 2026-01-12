@@ -213,7 +213,26 @@ export default function Settings() {
         },
         twoFactorEnabled: userProfile.twoFactorEnabled || false,
         dateOfBirth: parseDateOfBirth(userProfile.dateOfBirth),
+        socialLinks: {
+          instagram: userProfile.socialLinks?.instagram || '',
+          facebook: userProfile.socialLinks?.facebook || '',
+          twitter: userProfile.socialLinks?.twitter || '',
+          tiktok: userProfile.socialLinks?.tiktok || '',
+          youtube: userProfile.socialLinks?.youtube || '',
+          linkedin: userProfile.socialLinks?.linkedin || '',
+          spotify: userProfile.socialLinks?.spotify || '',
+          snapchat: userProfile.socialLinks?.snapchat || '',
+          twitch: userProfile.socialLinks?.twitch || '',
+          github: userProfile.socialLinks?.github || '',
+          customUrl: userProfile.socialLinks?.customUrl || '',
+          customLabel: userProfile.socialLinks?.customLabel || '',
+          showLinksToFollowersOnly: userProfile.socialLinks?.showLinksToFollowersOnly || false,
+        },
       }));
+      
+      // Debug logging for socialLinks loading
+      console.log('[Settings] Loaded socialLinks from userProfile:', JSON.stringify(userProfile.socialLinks, null, 2));
+      
       if (!imageManuallyChanged) {
         setProfileImage(userProfile.profileImageUrl);
       }
@@ -269,6 +288,21 @@ export default function Settings() {
         },
         twoFactorEnabled: userProfile.twoFactorEnabled || false,
         dateOfBirth: parseDateOfBirth(userProfile.dateOfBirth),
+        socialLinks: {
+          instagram: userProfile.socialLinks?.instagram || '',
+          facebook: userProfile.socialLinks?.facebook || '',
+          twitter: userProfile.socialLinks?.twitter || '',
+          tiktok: userProfile.socialLinks?.tiktok || '',
+          youtube: userProfile.socialLinks?.youtube || '',
+          linkedin: userProfile.socialLinks?.linkedin || '',
+          spotify: userProfile.socialLinks?.spotify || '',
+          snapchat: userProfile.socialLinks?.snapchat || '',
+          twitch: userProfile.socialLinks?.twitch || '',
+          github: userProfile.socialLinks?.github || '',
+          customUrl: userProfile.socialLinks?.customUrl || '',
+          customLabel: userProfile.socialLinks?.customLabel || '',
+          showLinksToFollowersOnly: userProfile.socialLinks?.showLinksToFollowersOnly || false,
+        },
       };
 
       setOriginalSettings(originalSettingsData);
@@ -432,14 +466,41 @@ export default function Settings() {
     setSettings(prev => {
       if (key.includes('.')) {
         const keys = key.split('.');
+        // Create a deep copy for nested updates
         const newSettings = { ...prev };
-        let current: any = newSettings;
         
-        for (let i = 0; i < keys.length - 1; i++) {
-          if (!current[keys[i]]) current[keys[i]] = {};
-          current = current[keys[i]];
+        // Handle socialLinks specifically to ensure proper deep copy
+        if (keys[0] === 'socialLinks') {
+          newSettings.socialLinks = {
+            ...prev.socialLinks,
+            [keys[1]]: value,
+          };
+          return newSettings;
         }
         
+        // Handle other nested objects (notifications, units)
+        if (keys[0] === 'notifications') {
+          newSettings.notifications = {
+            ...prev.notifications,
+            [keys[1]]: value,
+          };
+          return newSettings;
+        }
+        
+        if (keys[0] === 'units') {
+          newSettings.units = {
+            ...prev.units,
+            [keys[1]]: value,
+          };
+          return newSettings;
+        }
+        
+        // Fallback for other nested paths
+        let current: any = newSettings;
+        for (let i = 0; i < keys.length - 1; i++) {
+          current[keys[i]] = { ...current[keys[i]] };
+          current = current[keys[i]];
+        }
         current[keys[keys.length - 1]] = value;
         return newSettings;
       } else {
@@ -594,29 +655,28 @@ export default function Settings() {
         profileVisibility: sanitizedSettings.profileVisibility,
       };
       
-      // Save using existing logic...
-      if (!functions || !functions.app) {
-        console.warn('Functions not properly initialized, falling back to direct Firestore update');
-        
-        await updateDoc(doc(db, "users", currentUser!.uid), {
-          ...settingsToSave,
-          lastModified: new Date(),
-          version: 1,
-        });
-      } else {
-        try {
-          const updateUserSettings = httpsCallable(functions, 'updateUserSettings');
-          
-          await updateUserSettings({ settings: settingsToSave });
-        } catch (functionError) {
-          console.error('Cloud Function failed, falling back to direct update:', functionError);
-          
-          await updateDoc(doc(db, "users", currentUser!.uid), {
-            ...settingsToSave,
-            lastModified: new Date(),
-            version: 1,
-          });
-        }
+      // Debug logging for socialLinks
+      console.log('[Settings] Saving settings with socialLinks:', JSON.stringify(settingsToSave.socialLinks, null, 2));
+      
+      // Use direct Firestore update since Cloud Functions may not be deployed with socialLinks support
+      // This ensures the data is saved properly
+      console.log('[Settings] Saving to Firestore directly...');
+      
+      // Create the exact update object to send to Firestore
+      const firestoreUpdateData = {
+        ...settingsToSave,
+        lastModified: new Date(),
+        version: 1,
+      };
+      
+      console.log('[Settings] Full Firestore update data:', JSON.stringify(firestoreUpdateData, null, 2));
+      
+      try {
+        await updateDoc(doc(db, "users", currentUser!.uid), firestoreUpdateData);
+        console.log('[Settings] Firestore update successful');
+      } catch (firestoreError: any) {
+        console.error('[Settings] Firestore update failed:', firestoreError);
+        throw firestoreError;
       }
       
       if (imageHasChanged) {
@@ -630,7 +690,9 @@ export default function Settings() {
       
       await new Promise(resolve => setTimeout(resolve, 1000));
       
+      console.log('[Settings] Refreshing user profile after save...');
       await refreshUserProfile();
+      console.log('[Settings] User profile refreshed, socialLinks now:', JSON.stringify(userProfile?.socialLinks, null, 2));
       
       setOriginalSettings({ ...settings });
       setHasUnsavedChanges(false);

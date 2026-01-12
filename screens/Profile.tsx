@@ -95,7 +95,24 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
   const [tooltipText, setTooltipText] = useState('');
 
   const isOwnProfile = !routeUserId || routeUserId === currentUser?.uid;
-  const displayProfileData = isOwnProfile ? (profileData || currentUserProfile) : profileData;
+  
+  // For own profile, merge profileData with currentUserProfile to get latest socialLinks
+  // currentUserProfile is updated immediately after settings save via refreshUserProfile()
+  const displayProfileData = useMemo(() => {
+    if (isOwnProfile) {
+      // Use profileData as base but overlay with currentUserProfile for fields that are updated in Settings
+      const baseData = profileData || currentUserProfile;
+      if (baseData && currentUserProfile) {
+        return {
+          ...baseData,
+          // Use currentUserProfile's socialLinks as it's updated immediately after save
+          socialLinks: currentUserProfile.socialLinks,
+        };
+      }
+      return baseData;
+    }
+    return profileData;
+  }, [isOwnProfile, profileData, currentUserProfile]);
 
   useEffect(() => {
     if (displayProfileData?.blockedUsers && currentUser) {
@@ -109,6 +126,12 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
   // Process profile data to ensure consistent count structure
   const processedProfileData = useMemo(() => {
     if (!displayProfileData) return null;
+    
+    // Debug logging for socialLinks
+    console.log('[Profile] displayProfileData.socialLinks:', JSON.stringify(displayProfileData.socialLinks, null, 2));
+    console.log('[Profile] isOwnProfile:', isOwnProfile);
+    console.log('[Profile] using profileData:', !!profileData);
+    console.log('[Profile] using currentUserProfile:', !!currentUserProfile);
     
     return {
       ...displayProfileData,
