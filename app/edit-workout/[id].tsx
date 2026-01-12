@@ -22,6 +22,7 @@ import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { generateId, generateUniqueFilename } from '@/logic/idGenerator';
 import { deleteImageFromStorage } from '@/utils/imageUtils';
+import { ACCENT_COLOR } from '@/constants/Colors';
 
 interface WorkoutExercise {
   id: string;
@@ -382,8 +383,8 @@ export default function EditWorkout() {
           <View style={styles.switchContainer}>
             <Text style={styles.switchLabel}>{isPublic ? 'Public' : 'Private'}</Text>
             <Switch
-              trackColor={{ false: "#3e3e3e", true: "#ff2d55" }}
-              thumbColor={isPublic ? "#f4f3f4" : "#f4f3f4"}
+              trackColor={{ false: "#3e3e3e", true: ACCENT_COLOR }}
+              thumbColor={isPublic ? "#f4f3f4" : "#f4f3f4"}}
               ios_backgroundColor="#3e3e3e"
               onValueChange={setIsPublic}
               value={isPublic}
@@ -578,7 +579,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   saveButton: {
-    backgroundColor: '#ff2d55',
+    backgroundColor: ACCENT_COLOR,
     paddingVertical: 8,
     paddingHorizontal: 15,
     borderRadius: 20,
@@ -696,7 +697,7 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#ff2d55',
+    backgroundColor: ACCENT_COLOR,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 10,

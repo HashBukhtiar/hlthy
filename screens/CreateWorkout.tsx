@@ -24,6 +24,7 @@ import SelectExercise from './SelectExercise';
 import { Exercise } from '@/data/exercises';
 import { CustomSelector, SelectorItem } from '@/components/CustomSelector';
 import { generateId, generateUniqueFilename } from '@/logic/idGenerator';
+import { ACCENT_COLOR } from '@/constants/Colors';
 
 // Visibility options for workouts
 const visibilityItems: SelectorItem[] = [
@@ -683,7 +684,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   saveButton: {
-    backgroundColor: '#ff2d55',
+    backgroundColor: ACCENT_COLOR,
     paddingVertical: 8,
     paddingHorizontal: 15,
     borderRadius: 20,

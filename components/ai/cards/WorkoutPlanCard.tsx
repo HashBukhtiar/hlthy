@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/context/AuthContext';
 import { WorkoutSaveModal } from '../modals/WorkoutSaveModal';
 import { WorkoutPlanData } from '@/utils/aiMessage';
+import { ACCENT_COLOR } from '@/constants/Colors';
 
 // Enable LayoutAnimation on Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -394,7 +395,7 @@ export const WorkoutPlanCard: React.FC<WorkoutPlanCardProps> = ({
                       width: 36,
                       height: 36,
                       borderRadius: 18,
-                      backgroundColor: '#ff2d55',
+                      backgroundColor: ACCENT_COLOR,
                       justifyContent: 'center',
                       alignItems: 'center',
                       marginRight: 15,
@@ -510,12 +511,12 @@ export const WorkoutPlanCard: React.FC<WorkoutPlanCardProps> = ({
             onPress={() => handleMenuAction('add_to_workouts')}
             style={{
               flex: 1,
-              backgroundColor: '#ff2d55',
+              backgroundColor: ACCENT_COLOR,
               paddingVertical: 14,
               borderRadius: 12,
               alignItems: 'center',
               marginRight: 10,
-              shadowColor: '#ff2d55',
+              shadowColor: ACCENT_COLOR,
               shadowOffset: { width: 0, height: 4 },
               shadowOpacity: 0.3,
               shadowRadius: 8,
@@ -576,9 +577,9 @@ export const WorkoutPlanCard: React.FC<WorkoutPlanCardProps> = ({
           borderColor: 'rgba(255, 45, 85, 0.3)',
         }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-            <Ionicons name="warning-outline" size={20} color="#ff2d55" />
+            <Ionicons name="warning-outline" size={20} color={ACCENT_COLOR} />
             <Text style={{
-              color: '#ff2d55',
+              color: ACCENT_COLOR,
               fontSize: 16,
               fontWeight: 'bold',
               marginLeft: 8,
@@ -787,7 +788,7 @@ export const WorkoutPlanCard: React.FC<WorkoutPlanCardProps> = ({
                     onPress={handleSaveEdit}
                     style={{
                       flex: 1,
-                      backgroundColor: '#ff2d55',
+                      backgroundColor: ACCENT_COLOR,
                       paddingVertical: 14,
                       borderRadius: 12,
                       alignItems: 'center',
