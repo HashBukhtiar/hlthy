@@ -16,6 +16,7 @@ import {
   Dimensions,
   ScrollView,
   Modal,
+  PanResponder,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -274,16 +275,6 @@ const TimedSetRow: React.FC<SetRowProps> = ({
         { transform: [{ scale: scaleAnim }] }
       ]}
     >
-      <View style={styles.setHeader}>
-        <View style={styles.setNumberBadge}>
-          <Text style={styles.setNumber}>{set.setNumber}</Text>
-        </View>
-        <View style={styles.timedBadge}>
-          <Ionicons name="timer-outline" size={14} color="#ff2d55" />
-          <Text style={styles.timedBadgeText}>{targetReps}</Text>
-        </View>
-      </View>
-      
       {/* Timer Display */}
       <View style={styles.timerContainer}>
         <Text style={[
@@ -617,6 +608,28 @@ export const FocusedExerciseView: React.FC<FocusedExerciseViewProps> = ({
   
   const slideAnim = useRef(new Animated.Value(0)).current;
   
+  // Swipe gesture handler
+  const panResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (evt, gestureState) => {
+        // Only respond to horizontal swipes
+        return Math.abs(gestureState.dx) > 10 && Math.abs(gestureState.dx) > Math.abs(gestureState.dy);
+      },
+      onPanResponderRelease: (evt, gestureState) => {
+        // Swipe left (next exercise)
+        if (gestureState.dx < -50 && !isLastExercise) {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          onNextExercise();
+        }
+        // Swipe right (previous exercise)
+        else if (gestureState.dx > 50 && !isFirstExercise) {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          onPreviousExercise();
+        }
+      },
+    })
+  ).current;
+  
   // Update active set when exercise changes
   useEffect(() => {
     const nextIncomplete = exercise.sets.findIndex(s => !s.completed);
@@ -699,7 +712,7 @@ export const FocusedExerciseView: React.FC<FocusedExerciseViewProps> = ({
   };
   
   return (
-    <View style={styles.container}>
+    <View style={styles.container} {...panResponder.panHandlers}>
       {/* Exercise Header */}
       <View style={styles.exerciseHeader}>
         <View style={styles.exerciseProgress}>
@@ -1162,7 +1175,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   addSetText: {
-    color: '#ff2d55',
+    color: 'rgba(255,255,255,0.5)',
     fontSize: 15,
     fontWeight: '600',
   },
@@ -1295,7 +1308,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#3A3A3C',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1303,7 +1316,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: '#3A3A3C',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1368,17 +1381,25 @@ const styles = StyleSheet.create({
   modeToggle: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 20,
+    gap: 6,
+    backgroundColor: '#2C2C2E',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 22,
     marginLeft: 'auto',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 45, 85, 0.3)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
   },
   modeToggleText: {
-    color: 'rgba(255,255,255,0.5)',
-    fontSize: 12,
-    fontWeight: '500',
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
+    letterSpacing: 0.3,
   },
   modeToggleTextActive: {
     color: '#ff2d55',
