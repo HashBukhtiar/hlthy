@@ -400,7 +400,7 @@ export default function EditWorkout() {
               <View style={styles.segmentTitleContainer}>
                 <Text style={styles.segmentLabel}>Segment {segmentIndex + 1}</Text>
                 <TouchableOpacity onPress={() => !isSaving && removeSegment(segment.id)} disabled={isSaving}>
-                  <Ionicons name="trash-outline" size={20} color={isSaving ? "#666" : "#ff6b6b"} />
+                  <Ionicons name="trash-outline" size={20} color={isSaving ? "#666" : ACCENT_COLOR} />
                 </TouchableOpacity>
               </View>
 
@@ -446,7 +446,7 @@ export default function EditWorkout() {
                       onPress={() => !isSaving && removeExercise(segment.id, exercise.id)}
                       disabled={isSaving}
                     >
-                      <Ionicons name="close-circle" size={20} color={isSaving ? "#666" : "#ff6b6b"} />
+                      <Ionicons name="close-circle" size={20} color={isSaving ? "#666" : ACCENT_COLOR} />
                     </TouchableOpacity>
                   </View>
 
