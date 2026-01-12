@@ -107,6 +107,7 @@ firebase-debug.log
 .env*.local
 .env
 expo-env.d.ts
+config/devFlags.ts
 
 # typescript
 *.tsbuildinfo
