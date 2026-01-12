@@ -512,10 +512,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 16,
-    backgroundColor: 'rgba(255, 45, 85, 0.15)',
+    backgroundColor: 'rgba(255, 45, 85, 0.25)',
   },
   finishText: {
-    color: '#ff2d55',
+    color: '#fff',
     fontSize: 14,
     fontWeight: '600',
   },
