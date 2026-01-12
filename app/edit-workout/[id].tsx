@@ -384,7 +384,7 @@ export default function EditWorkout() {
             <Text style={styles.switchLabel}>{isPublic ? 'Public' : 'Private'}</Text>
             <Switch
               trackColor={{ false: "#3e3e3e", true: ACCENT_COLOR }}
-              thumbColor={isPublic ? "#f4f3f4" : "#f4f3f4"}}
+              thumbColor={isPublic ? "#f4f3f4" : "#f4f3f4"}
               ios_backgroundColor="#3e3e3e"
               onValueChange={setIsPublic}
               value={isPublic}
