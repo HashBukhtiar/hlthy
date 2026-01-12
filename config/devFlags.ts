@@ -24,8 +24,8 @@ export const devFlags = {
    * Email and password used when bypassAuth is enabled.
    * These credentials should point to a test account.
    */
-  devEmail: 'dev2@gmail.com',
-  devPassword: 'dev1232',
+  devEmail: 'dev3@gmail.com',
+  devPassword: 'dev1233',
   
   /**
    * Email Verification Bypass

@@ -3,7 +3,6 @@ import {
   StyleSheet,
   Text, 
   View, 
-  Image, 
   TouchableOpacity,
   Dimensions,
   FlatList,
@@ -34,7 +33,7 @@ export default function HomeFeed() {
   console.log('[HomeFeed] Hooks initialized successfully');
   
   // Animated value for indicator position
-  const indicatorWidth = screenWidth / 2;
+  const indicatorWidth = screenWidth * 0.43;
   
   // Keep track of current scroll position
   const scrollX = useRef(new Animated.Value(0)).current;
@@ -73,27 +72,40 @@ export default function HomeFeed() {
     console.log('[HomeFeed] renderTopBar called');
     return (
       <View style={styles.topBar}>
-        <View style={styles.logoContainer}>
-          <Image source={require('@/assets/images/logo-dark.png')} style={styles.icon} />
-          <Text style={globalStyles.title}>hlthy</Text>
+        {/* Left side: hlthy logo with icon */}
+        <View style={styles.leftContainer}>
+          <View style={styles.logoContainer}>
+            <View style={styles.logoIcon}>
+              <Ionicons name="cube-outline" size={24} color="#000" />
+            </View>
+            <Text style={styles.logoText}>hlthy</Text>
+          </View>
         </View>
-        <View style={styles.buttonContainer}>
-          {/* Pulse Button */}
+
+        {/* Right side: Pulse, DMs, and Explore Buttons */}
+        <View style={styles.rightButtonContainer}>
           <TouchableOpacity
             activeOpacity={0.7}
             onPress={() => router.push('/pulse')}
-            style={styles.button}
+            style={styles.iconButton}
           >
-            <Ionicons name="fitness-outline" size={32} color="#FFF" />
+            <Ionicons name="fitness-outline" size={24} color="#FFF" />
           </TouchableOpacity>
 
-          {/* Explore Button */}
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => router.push('/dms')}
+            style={styles.iconButton}
+          >
+            <Ionicons name="chatbubbles-outline" size={24} color="#FFF" />
+          </TouchableOpacity>
+
           <TouchableOpacity
             activeOpacity={0.7}
             onPress={() => router.push('/explore')}
-            style={styles.button}
+            style={styles.iconButton}
           >
-            <Ionicons name="search" size={32} color="#FFF" />
+            <Ionicons name="search" size={24} color="#FFF" />
           </TouchableOpacity>
         </View>
       </View>
@@ -101,35 +113,50 @@ export default function HomeFeed() {
   }
 
   function renderTabBar() {
+    // Interpolate colors for smooth transitions
+    const postsColor = scrollX.interpolate({
+      inputRange: [0, screenWidth],
+      outputRange: ['rgba(255, 255, 255, 1)', 'rgba(102, 102, 102, 1)'],
+      extrapolate: 'clamp'
+    });
+
+    const milestonesColor = scrollX.interpolate({
+      inputRange: [0, screenWidth],
+      outputRange: ['rgba(102, 102, 102, 1)', 'rgba(255, 255, 255, 1)'],
+      extrapolate: 'clamp'
+    });
+
     return (
       <View style={styles.tabBar}>
         <TouchableOpacity 
           style={styles.tabButton}
+          activeOpacity={1}
           onPress={() => {
             setActiveTab(TabType.POSTS);
             flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
           }}
         >
-          <Text style={[
-            styles.tabButtonText, 
-            activeTab === TabType.POSTS && styles.activeTabButtonText
+          <Animated.Text style={[
+            styles.tabButtonText,
+            { color: postsColor }
           ]}>
             POSTS
-          </Text>
+          </Animated.Text>
         </TouchableOpacity>
         <TouchableOpacity 
           style={styles.tabButton}
+          activeOpacity={1}
           onPress={() => {
             setActiveTab(TabType.MILESTONES);
             flatListRef.current?.scrollToOffset({ offset: screenWidth, animated: true });
           }}
         >
-          <Text style={[
-            styles.tabButtonText, 
-            activeTab === TabType.MILESTONES && styles.activeTabButtonText
+          <Animated.Text style={[
+            styles.tabButtonText,
+            { color: milestonesColor }
           ]}>
             MILESTONES
-          </Text>
+          </Animated.Text>
         </TouchableOpacity>
         
         {/* Animated indicator that moves with swipe */}
@@ -141,7 +168,7 @@ export default function HomeFeed() {
               transform: [{ 
                 translateX: scrollX.interpolate({
                   inputRange: [0, screenWidth],
-                  outputRange: [0, indicatorWidth],
+                  outputRange: [(screenWidth / 2 - indicatorWidth) / 2, screenWidth / 2 + (screenWidth / 2 - indicatorWidth) / 2],
                   extrapolate: 'clamp'
                 }) 
               }]
@@ -199,32 +226,53 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    borderBottomColor: '#222',
-    borderBottomWidth: 1,
-    paddingVertical: 10,
-    paddingHorizontal: 15,
+    paddingTop: 12,
+    paddingBottom: 12,
+    paddingHorizontal: 16,
     backgroundColor: '#000',
+    borderBottomWidth: 0,
+  },
+  leftContainer: {
+    flex: 1,
+    alignItems: 'flex-start',
   },
   logoContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 8,
   },
-  icon: {
-    width: 30,
-    height: 30,
-    borderRadius: 5,
-    marginRight: 8,
+  logoIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: '#FF6B6B',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  buttonContainer: {
+  logoText: {
+    fontSize: 26,
+    fontWeight: 'bold',
+    color: '#FFF',
+    letterSpacing: -0.5,
+  },
+  rightButtonContainer: {
     flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
   },
-  button: {
-    marginLeft: 15,
+  iconButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#2C2C2E',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 8,
   },
   tabBar: {
     flexDirection: 'row',
     borderBottomWidth: 1,
-    borderBottomColor: '#333',
+    borderBottomColor: '#1C1C1E',
     backgroundColor: 'black',
     position: 'relative',
   },
@@ -237,18 +285,14 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 0,
     height: 2,
-    backgroundColor: 'white',
+    backgroundColor: '#FF6B6B',
   },
   tabButtonText: {
-    color: 'gray',
     fontSize: 13,
     fontWeight: 'bold',
   },
-  activeTabButtonText: {
-    color: 'white',
-  },
   tabContent: {
     flex: 1,
-    backgroundColor: 'black',
+    backgroundColor: '#2C2C2E',
   },
 });
