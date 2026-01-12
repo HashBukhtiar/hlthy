@@ -21,7 +21,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { uploadProfileImage } from '@/services/profileStorage';
 import { getFullVersionString } from '@/utils/appVersion';
 import { NotificationService } from '@/services/NotificationService';
-import { VERIFIED_PLATFORMS, type PlatformKey, validatePlatformUrl, validateCustomUrl } from '@/utils/socialLinkValidation';
+import { VERIFIED_PLATFORMS, type PlatformKey, validatePlatformUrl, validateCustomUrl, usernameToUrl } from '@/utils/socialLinkValidation';
 
 
 const archetypeData: SelectorItem[] = [
@@ -514,6 +514,20 @@ export default function Settings() {
         console.log('Analytics tracking failed (non-critical):', error.message);
         // Don't show error to user - analytics failure is not critical
       });
+    }
+  };
+
+  // Handler to convert username to URL when user finishes editing
+  const handleSocialLinkBlur = (platform: PlatformKey) => {
+    const currentValue = settings.socialLinks?.[platform] || '';
+    if (!currentValue) return;
+    
+    // Convert username to full URL
+    const formattedUrl = usernameToUrl(platform, currentValue);
+    
+    // Update the setting if the value changed
+    if (formattedUrl !== currentValue) {
+      updateSetting(`socialLinks.${platform}`, formattedUrl);
     }
   };
 
@@ -1143,12 +1157,13 @@ export default function Settings() {
               label={platform.name}
               value={settings.socialLinks?.[key as PlatformKey] || ''}
               onValueChange={(value) => updateSetting(`socialLinks.${key}`, value)}
+              onBlur={() => handleSocialLinkBlur(key as PlatformKey)}
               placeholder={platform.placeholder}
               helperText={
                 settings.socialLinks?.[key as PlatformKey] && 
                 !validatePlatformUrl(key as PlatformKey, settings.socialLinks[key as PlatformKey]!)
                   ? `Invalid ${platform.name} URL format`
-                  : undefined
+                  : 'Enter full URL or just username'
               }
             />
           ))}

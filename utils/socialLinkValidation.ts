@@ -63,6 +63,54 @@ export const VERIFIED_PLATFORMS = {
 
 export type PlatformKey = keyof typeof VERIFIED_PLATFORMS;
 
+/**
+ * Checks if the input is a username (not a URL)
+ */
+const isUsername = (input: string): boolean => {
+  return !input.startsWith('http://') && !input.startsWith('https://') && !input.startsWith('www.');
+};
+
+/**
+ * Converts a username to a full URL for the given platform
+ */
+export const usernameToUrl = (platform: PlatformKey, input: string): string => {
+  if (!input) return '';
+  
+  // If it's already a URL, return as-is
+  if (!isUsername(input)) return input;
+  
+  // Clean username - remove @ symbol and whitespace
+  let username = input.trim().replace(/^@/, '');
+  
+  // Convert username to proper URL based on platform
+  switch (platform) {
+    case 'instagram':
+      return `https://instagram.com/${username}`;
+    case 'facebook':
+      return `https://facebook.com/${username}`;
+    case 'twitter':
+      return `https://twitter.com/${username}`;
+    case 'tiktok':
+      // TikTok requires @ prefix
+      return `https://tiktok.com/@${username}`;
+    case 'youtube':
+      // YouTube uses @ prefix for handles
+      return `https://youtube.com/@${username}`;
+    case 'linkedin':
+      return `https://linkedin.com/in/${username}`;
+    case 'spotify':
+      return `https://open.spotify.com/user/${username}`;
+    case 'snapchat':
+      return `https://snapchat.com/add/${username}`;
+    case 'twitch':
+      return `https://twitch.tv/${username}`;
+    case 'github':
+      return `https://github.com/${username}`;
+    default:
+      return input;
+  }
+};
+
 export const validatePlatformUrl = (platform: PlatformKey, url: string): boolean => {
   if (!url) return true; // Empty is valid (optional field)
   return VERIFIED_PLATFORMS[platform].pattern.test(url);

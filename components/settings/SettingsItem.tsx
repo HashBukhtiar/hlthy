@@ -7,6 +7,7 @@ interface SettingsItemProps {
   label: string;
   value?: any;
   onValueChange?: (value: any) => void;
+  onBlur?: () => void;
   options?: { label: string; value: any }[];
   placeholder?: string;
   maxLength?: number;
@@ -22,6 +23,7 @@ export const SettingsItem: React.FC<SettingsItemProps> = ({
   label,
   value,
   onValueChange,
+  onBlur,
   options,
   placeholder,
   maxLength,
@@ -63,6 +65,7 @@ export const SettingsItem: React.FC<SettingsItemProps> = ({
             style={[styles.input, disabled && styles.disabled]}
             value={value}
             onChangeText={onValueChange}
+            onBlur={onBlur}
             placeholder={placeholder}
             placeholderTextColor="#666"
             editable={!disabled}
