@@ -16,7 +16,6 @@ import {
   Dimensions,
   ScrollView,
   Modal,
-  PanResponder,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -606,30 +605,6 @@ export const FocusedExerciseView: React.FC<FocusedExerciseViewProps> = ({
   const [editingSetIndex, setEditingSetIndex] = useState<number | null>(null);
   const [forceTimedMode, setForceTimedMode] = useState<boolean | null>(null); // null = auto-detect
   
-  const slideAnim = useRef(new Animated.Value(0)).current;
-  
-  // Swipe gesture handler
-  const panResponder = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (evt, gestureState) => {
-        // Only respond to horizontal swipes
-        return Math.abs(gestureState.dx) > 10 && Math.abs(gestureState.dx) > Math.abs(gestureState.dy);
-      },
-      onPanResponderRelease: (evt, gestureState) => {
-        // Swipe left (next exercise)
-        if (gestureState.dx < -50 && !isLastExercise) {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-          onNextExercise();
-        }
-        // Swipe right (previous exercise)
-        else if (gestureState.dx > 50 && !isFirstExercise) {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-          onPreviousExercise();
-        }
-      },
-    })
-  ).current;
-  
   // Update active set when exercise changes
   useEffect(() => {
     const nextIncomplete = exercise.sets.findIndex(s => !s.completed);
@@ -712,7 +687,7 @@ export const FocusedExerciseView: React.FC<FocusedExerciseViewProps> = ({
   };
   
   return (
-    <View style={styles.container} {...panResponder.panHandlers}>
+    <View style={styles.container}>
       {/* Exercise Header */}
       <View style={styles.exerciseHeader}>
         <View style={styles.exerciseProgress}>

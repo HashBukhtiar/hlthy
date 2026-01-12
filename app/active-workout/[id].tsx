@@ -13,8 +13,9 @@ import {
   Alert,
   StatusBar,
   SafeAreaView,
-  Animated,
   Dimensions,
+  FlatList,
+  ViewToken,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -51,7 +52,7 @@ export default function ActiveWorkoutScreen() {
   const [isPaused, setIsPaused] = useState(false);
   
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const slideAnim = useRef(new Animated.Value(0)).current;
+  const flatListRef = useRef<FlatList>(null);
   
   // Load workout and exercise history
   useEffect(() => {
@@ -166,40 +167,37 @@ export default function ActiveWorkoutScreen() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
   
-  const handleExerciseUpdate = useCallback((updatedExercise: ActiveExerciseState) => {
+  const handleExerciseUpdate = useCallback((index: number, updatedExercise: ActiveExerciseState) => {
     setWorkout(prev => {
       if (!prev) return prev;
       const newExercises = [...prev.exercises];
-      newExercises[currentExerciseIndex] = updatedExercise;
+      newExercises[index] = updatedExercise;
       return { ...prev, exercises: newExercises };
     });
+  }, []);
+  
+  // Handle viewable items change from FlatList swipe
+  const onViewableItemsChanged = useCallback(({ viewableItems }: { viewableItems: ViewToken[] }) => {
+    if (viewableItems.length > 0 && viewableItems[0].index !== null) {
+      const newIndex = viewableItems[0].index;
+      if (newIndex !== currentExerciseIndex) {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        setCurrentExerciseIndex(newIndex);
+      }
+    }
   }, [currentExerciseIndex]);
   
-  const animateSlide = (direction: 'next' | 'prev', callback: () => void) => {
-    const toValue = direction === 'next' ? -SCREEN_WIDTH : SCREEN_WIDTH;
-    
-    Animated.timing(slideAnim, {
-      toValue,
-      duration: 200,
-      useNativeDriver: true,
-    }).start(() => {
-      callback();
-      slideAnim.setValue(direction === 'next' ? SCREEN_WIDTH : -SCREEN_WIDTH);
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 200,
-        useNativeDriver: true,
-      }).start();
-    });
-  };
+  const viewabilityConfig = useRef({
+    itemVisiblePercentThreshold: 50,
+  }).current;
   
   const handleNextExercise = useCallback(() => {
     if (!workout) return;
     
     if (currentExerciseIndex < workout.exercises.length - 1) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      animateSlide('next', () => {
-        setCurrentExerciseIndex(prev => prev + 1);
+      flatListRef.current?.scrollToIndex({ 
+        index: currentExerciseIndex + 1, 
+        animated: true 
       });
     } else {
       handleCompleteWorkout();
@@ -208,9 +206,9 @@ export default function ActiveWorkoutScreen() {
   
   const handlePreviousExercise = useCallback(() => {
     if (currentExerciseIndex > 0) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      animateSlide('prev', () => {
-        setCurrentExerciseIndex(prev => prev - 1);
+      flatListRef.current?.scrollToIndex({ 
+        index: currentExerciseIndex - 1, 
+        animated: true 
       });
     }
   }, [currentExerciseIndex]);
@@ -231,8 +229,9 @@ export default function ActiveWorkoutScreen() {
     });
     
     if (currentExerciseIndex < workout.exercises.length - 1) {
-      animateSlide('next', () => {
-        setCurrentExerciseIndex(prev => prev + 1);
+      flatListRef.current?.scrollToIndex({ 
+        index: currentExerciseIndex + 1, 
+        animated: true 
       });
     } else {
       handleCompleteWorkout();
@@ -243,9 +242,9 @@ export default function ActiveWorkoutScreen() {
     if (!workout || index === currentExerciseIndex) return;
     
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    const direction = index > currentExerciseIndex ? 'next' : 'prev';
-    animateSlide(direction, () => {
-      setCurrentExerciseIndex(index);
+    flatListRef.current?.scrollToIndex({ 
+      index, 
+      animated: true 
     });
   }, [workout, currentExerciseIndex]);
   
@@ -399,29 +398,42 @@ export default function ActiveWorkoutScreen() {
         </TouchableOpacity>
       </SafeAreaView>
       
-      {/* Main Exercise View */}
-      <Animated.View 
-        style={[
-          styles.exerciseContainer,
-          { transform: [{ translateX: slideAnim }] }
-        ]}
-      >
-        <FocusedExerciseView
-          exercise={currentExercise}
-          exerciseIndex={currentExerciseIndex}
-          totalExercises={workout.exercises.length}
-          allExercises={workout.exercises}
-          onExerciseUpdate={handleExerciseUpdate}
-          onNextExercise={handleNextExercise}
-          onPreviousExercise={handlePreviousExercise}
-          onSkipExercise={handleSkipExercise}
-          onJumpToExercise={handleJumpToExercise}
-          onStartRestTimer={handleStartRestTimer}
-          weightUnit="lbs"
-          isFirstExercise={currentExerciseIndex === 0}
-          isLastExercise={currentExerciseIndex === workout.exercises.length - 1}
-        />
-      </Animated.View>
+      {/* Horizontal Paging Exercise Views */}
+      <FlatList
+        ref={flatListRef}
+        data={workout.exercises}
+        keyExtractor={(item, index) => `exercise-${index}-${item.exerciseId}`}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        onViewableItemsChanged={onViewableItemsChanged}
+        viewabilityConfig={viewabilityConfig}
+        initialScrollIndex={currentExerciseIndex}
+        getItemLayout={(data, index) => ({
+          length: SCREEN_WIDTH,
+          offset: SCREEN_WIDTH * index,
+          index,
+        })}
+        renderItem={({ item, index }) => (
+          <View style={styles.exerciseContainer}>
+            <FocusedExerciseView
+              exercise={item}
+              exerciseIndex={index}
+              totalExercises={workout.exercises.length}
+              allExercises={workout.exercises}
+              onExerciseUpdate={(updatedExercise) => handleExerciseUpdate(index, updatedExercise)}
+              onNextExercise={handleNextExercise}
+              onPreviousExercise={handlePreviousExercise}
+              onSkipExercise={handleSkipExercise}
+              onJumpToExercise={handleJumpToExercise}
+              onStartRestTimer={handleStartRestTimer}
+              weightUnit="lbs"
+              isFirstExercise={index === 0}
+              isLastExercise={index === workout.exercises.length - 1}
+            />
+          </View>
+        )}
+      />
       
       {/* Rest Timer Modal */}
       <RestTimer
@@ -509,5 +521,6 @@ const styles = StyleSheet.create({
   },
   exerciseContainer: {
     flex: 1,
+    width: SCREEN_WIDTH,
   },
 });
