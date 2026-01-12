@@ -3,9 +3,7 @@ import { Platform, StyleSheet } from 'react-native';
 import { NativeTabs, Icon, Label, VectorIcon } from 'expo-router/unstable-native-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import EmailVerificationGuard from '@/components/EmailVerificationGuard';
-
-// App accent color - vibrant red-pink from the app's theme
-const ACCENT_COLOR = '#FF2D55';
+import { ACCENT_COLOR } from '@/constants/Colors';
 
 console.log('[TabLayout] Module loaded');
 

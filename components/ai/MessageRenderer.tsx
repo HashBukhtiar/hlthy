@@ -12,6 +12,7 @@ import { ExplanationCard } from './cards/ExplanationCard';
 import { ProfileConfirmationCard, ProfileConfirmationData, WorkoutPreferences } from './cards/ProfileConfirmationCard';
 import { Colors, Layout, Typography, getIntentConfig } from '@/theme/ai';
 import { safeParseAssistant, WorkoutPlanData, TechniqueAdviceData, SchedulePlanData, ExplanationData } from '@/utils/aiMessage';
+import { ACCENT_COLOR } from '@/constants/Colors';
 
 interface MessageRendererProps {
   message: string;
@@ -485,7 +486,7 @@ const FormattedReasoningBubble: React.FC<FormattedReasoningBubbleProps> = ({ mes
           <Text
             key={key++}
             style={{
-              color: '#ff2d55',
+              color: ACCENT_COLOR,
               fontSize: 17,
               fontWeight: 'bold',
               marginTop: index > 0 ? 16 : 0,
@@ -514,7 +515,7 @@ const FormattedReasoningBubble: React.FC<FormattedReasoningBubbleProps> = ({ mes
                 paddingLeft: 8,
               }}
             >
-              <Text style={{ color: '#ff2d55', fontSize: 15, marginRight: 8, marginTop: 2 }}>
+              <Text style={{ color: ACCENT_COLOR, fontSize: 15, marginRight: 8, marginTop: 2 }}>
                 •
               </Text>
               <Text style={{ flex: 1, fontSize: 15, lineHeight: 22 }}>
@@ -539,7 +540,7 @@ const FormattedReasoningBubble: React.FC<FormattedReasoningBubbleProps> = ({ mes
                 paddingLeft: 8,
               }}
             >
-              <Text style={{ color: '#ff2d55', fontSize: 15, marginRight: 8, marginTop: 2 }}>
+              <Text style={{ color: ACCENT_COLOR, fontSize: 15, marginRight: 8, marginTop: 2 }}>
                 •
               </Text>
               <Text style={{ color: '#b0b0b0', fontSize: 15, lineHeight: 22, flex: 1 }}>

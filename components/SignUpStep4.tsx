@@ -6,6 +6,7 @@ import LoadingOverlay from '@/components/LoadingOverlay';
 import { Image } from 'react-native';
 // router not needed in this component
 import { SignupService } from '@/services/signupService';
+import { ACCENT_COLOR } from '@/constants/Colors';
 
 interface SignUpStep4Props {
   visible: boolean;
@@ -253,7 +254,7 @@ export default function SignUpStep4({ visible, onBackPress, onComplete, onShowLo
               transform: [{ translateY: errorSlideAnim }]
             }
           ]}>
-            <Ionicons name="warning" size={20} color="#FF6B6B" />
+            <Ionicons name="warning" size={20} color={ACCENT_COLOR} />
             <Text style={styles.errorText}>{errorMessage}</Text>
           </Animated.View>
         )}
@@ -458,7 +459,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   errorText: {
-    color: '#FF6B6B',
+    color: ACCENT_COLOR,
     fontSize: 14,
     flex: 1,
     fontWeight: '500',

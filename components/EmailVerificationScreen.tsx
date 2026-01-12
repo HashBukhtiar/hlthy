@@ -17,6 +17,7 @@ import CustomSpinner from '@/components/CustomSpinner';
 import LoadingOverlay from '@/components/LoadingOverlay';
 import { SignupService } from '@/services/signupService';
 import { devFlags } from '@/config/devFlags';
+import { ACCENT_COLOR } from '@/constants/Colors';
 
 // Animated wrappers for touchable and text so we can animate colors
 const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
@@ -649,7 +650,7 @@ export default function EmailVerificationScreen({
       <View style={styles.container}>
         <View style={styles.content}>
           <View style={styles.emailIconContainer}>
-            <Ionicons name="hourglass-outline" size={50} color="#FF6B6B" />
+            <Ionicons name="hourglass-outline" size={50} color={ACCENT_COLOR} />
           </View>
           
           <Text style={styles.title}>Verification Expired</Text>

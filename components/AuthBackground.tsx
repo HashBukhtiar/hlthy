@@ -3,6 +3,7 @@ import { View, StyleSheet, Dimensions, StatusBar } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Aurora from '@/components/Aurora';
 import { useScreenIsFocused } from '@/hooks/useScreenIsFocused';
+import { ACCENT_COLOR } from '@/constants/Colors';
 
 interface AuthBackgroundProps {
   children: React.ReactNode;
@@ -25,7 +26,7 @@ export default function AuthBackground({ children }: AuthBackgroundProps) {
       <View style={styles.auroraContainer}>
         {isFocused && (
           <Aurora 
-            colorStops={['#FF2D55', '#a434eb', '#5227FF']}
+            colorStops={[ACCENT_COLOR, '#a434eb', '#5227FF']}
             speed={0.8}
             intensity={1.2}
           />

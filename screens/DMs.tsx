@@ -13,6 +13,7 @@ import { useBlockEnforcement } from '@/utils/blockUtils';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@/firebaseConfig';
 import MessageRequestItem from '@/components/MessageRequestItem';
+import { ACCENT_COLOR } from '@/constants/Colors';
 
 interface UserConversationData {
     // Fields from /users/{userId}/conversations/{conversationId}
@@ -762,7 +763,7 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     requestsBadge: {
-        backgroundColor: '#FF2D55',
+        backgroundColor: ACCENT_COLOR,
         borderRadius: 12,
         paddingHorizontal: 8,
         paddingVertical: 2,
