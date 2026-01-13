@@ -1085,7 +1085,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
   // Main return statement for the component
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" />
+      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
       
       <ScrollView 
         style={styles.scrollView}
@@ -1437,12 +1437,15 @@ const styles = StyleSheet.create({
   // Banner
   bannerContainer: {
     width: '100%',
-    height: 100,
+    height: 140,
     position: 'relative',
   },
   bannerImage: {
     width: '100%',
     height: '100%',
+    position: 'absolute',
+    top: 0,
+    left: 0,
   },
   bannerGradient: {
     position: 'absolute',
