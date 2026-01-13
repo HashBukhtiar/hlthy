@@ -687,6 +687,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
       key={item.id || index} 
       style={styles.workoutItem} 
       onPress={() => router.push(`/view-workout/${item.id}`)}
+      activeOpacity={0.85}
     >
       <Image
         source={getCoverImageSource(item.thumbnailUrl, item.coverImageUrl)}
@@ -729,7 +730,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
       key="posts-grid"
       data={displayablePosts}
       renderItem={({ item }) => (
-        <TouchableOpacity onPress={() => handleImagePress(item)}>
+        <TouchableOpacity onPress={() => handleImagePress(item)} activeOpacity={0.85}>
           <OptimizedImageLight 
             thumbnailUrl={item.thumbnailUrl} 
             originalUrl={item.imageUrl} 
@@ -820,6 +821,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
                   key={milestoneItem.id}
                   onPress={() => handleMilestonePress(milestoneItem.id)}
                   style={styles.milestoneItemCard}
+                  activeOpacity={0.85}
                 >
                   {renderMilestoneDetails(milestoneForDetails)}
                 </TouchableOpacity>
@@ -890,6 +892,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
               key={item.id} 
               onPress={() => handleWorkoutPress(item.id)} 
               style={styles.workoutListItemRowStyle}
+              activeOpacity={0.85}
             >
               <Image
                 source={getCoverImageSource(item.thumbnailUrl, item.coverImageUrl)}
@@ -938,6 +941,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
       <TouchableOpacity 
         style={styles.tabButton}
         onPress={() => scrollToTab(TabType.POSTS)}
+        activeOpacity={0.85}
       >
         <Ionicons 
           name="grid" 
@@ -948,6 +952,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
       <TouchableOpacity 
         style={styles.tabButton}
         onPress={() => scrollToTab(TabType.MILESTONES)}
+        activeOpacity={0.85}
       >
         <MaterialCommunityIcons 
           name="trophy" 
@@ -958,6 +963,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
       <TouchableOpacity 
         style={styles.tabButton}
         onPress={() => scrollToTab(TabType.WORKOUTS)}
+        activeOpacity={0.85}
       >
         <Ionicons 
           name="flame" 
@@ -1009,6 +1015,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
           <TouchableOpacity
             style={styles.backButton}
             onPress={() => router.back()}
+            activeOpacity={0.85}
           >
             <Ionicons name="arrow-back" size={28} color="white" />
           </TouchableOpacity>
@@ -1034,6 +1041,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
             <TouchableOpacity
               style={styles.settingsButton}
               onPress={handleSettingsPress}
+              activeOpacity={0.85}
             >
               <Ionicons name="settings-outline" size={24} color="white" />
             </TouchableOpacity>
@@ -1043,6 +1051,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
             <TouchableOpacity
               style={styles.backButton}
               onPress={() => router.back()}
+              activeOpacity={0.85}
             >
               <Ionicons name="arrow-back" size={28} color="white" />
             </TouchableOpacity>
@@ -1064,6 +1073,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
           <TouchableOpacity 
             style={styles.retryButton} 
             onPress={onRefresh}
+            activeOpacity={0.85}
           >
             <Text style={styles.retryText}>Retry</Text>
           </TouchableOpacity>
@@ -1115,6 +1125,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
                 <TouchableOpacity
                   style={styles.navButton}
                   onPress={() => router.back()}
+                  activeOpacity={0.85}
                 >
                   <BlurView intensity={30} tint="dark" style={styles.navButtonBlur}>
                     <Ionicons name="chevron-back" size={24} color="white" />
@@ -1128,6 +1139,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
                 <TouchableOpacity
                   style={styles.navButton}
                   onPress={handleSettingsPress}
+                  activeOpacity={0.85}
                 >
                   <BlurView intensity={30} tint="dark" style={styles.navButtonBlur}>
                     <Ionicons name="settings-outline" size={22} color="white" />
@@ -1137,6 +1149,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
                 <TouchableOpacity
                   style={styles.navButton}
                   onPress={showMoreOptions}
+                  activeOpacity={0.85}
                 >
                   <BlurView intensity={30} tint="dark" style={styles.navButtonBlur}>
                     <Ionicons name="ellipsis-horizontal" size={22} color="white" />
@@ -1165,6 +1178,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
                 {processedProfileData?.archetype && (
                   <TouchableOpacity 
                     style={styles.archetypeBadge}
+                    activeOpacity={0.85}
                     onPress={() => {
                       if (!isBlockedByUser) {
                         setTooltipText(archetypeDescriptions[processedProfileData.archetype.toLowerCase() || 'generalist']);
@@ -1186,6 +1200,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
                   <TouchableOpacity
                     style={styles.messageButton}
                     onPress={handleDirectMessage}
+                    activeOpacity={0.85}
                   >
                     <Ionicons name="mail-outline" size={20} color="#FFF" />
                   </TouchableOpacity>
@@ -1193,6 +1208,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
                 
                 {!isOwnProfile && displayProfileData && !isBlockedByUser && (
                   <TouchableOpacity
+                    activeOpacity={0.85}
                     style={[
                       styles.followButtonNew,
                       hasBlockedUser
@@ -1238,6 +1254,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
                   <TouchableOpacity
                     style={styles.editProfileButton}
                     onPress={() => router.push('/settings')}
+                    activeOpacity={0.85}
                   >
                     <Text style={styles.editProfileButtonText}>Edit Profile</Text>
                   </TouchableOpacity>
@@ -1269,6 +1286,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
               
               <TouchableOpacity
                 style={styles.statItemNew}
+                activeOpacity={0.85}
                 onPress={() => {
                   if (isPrivate && !isOwnProfile) return;
                   if (isBlockedByUser) return;
@@ -1286,6 +1304,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
               
               <TouchableOpacity
                 style={styles.statItemNew}
+                activeOpacity={0.85}
                 onPress={() => {
                   if (isPrivate && !isOwnProfile) return;
                   if (isBlockedByUser) return;
@@ -1303,9 +1322,9 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
               
               <View style={styles.statItemNew}>
                 <Text style={styles.statValueNew}>
-                  {formatCount(processedProfileData?.stats?.totalLikes || 0)}
+                  {formatCount(processedProfileData?.stats?.totalWorkouts || 0)}
                 </Text>
-                <Text style={styles.statLabelNew}>Likes</Text>
+                <Text style={styles.statLabelNew}>Workouts</Text>
               </View>
             </View>
           </View>
@@ -1370,7 +1389,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
       >
         <TouchableOpacity
           style={styles.tooltipOverlay}
-          activeOpacity={1}
+          activeOpacity={0.85}
           onPress={() => setTooltipVisible(false)}
         >
           <View style={styles.tooltipCard}>
@@ -1390,6 +1409,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
             <TouchableOpacity
               onPress={() => setTooltipVisible(false)}
               style={styles.tooltipCloseButton}
+              activeOpacity={0.85}
             >
               <Text style={styles.tooltipButtonText}>Got it</Text>
             </TouchableOpacity>
@@ -1417,7 +1437,7 @@ const styles = StyleSheet.create({
   // Banner
   bannerContainer: {
     width: '100%',
-    height: 140,
+    height: 100,
     position: 'relative',
   },
   bannerImage: {
@@ -1598,7 +1618,7 @@ const styles = StyleSheet.create({
   statsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    // backgroundColor: 'rgba(255,255,255,0.05)',
     borderRadius: 16,
     paddingVertical: 16,
     paddingHorizontal: 8,
