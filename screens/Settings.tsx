@@ -1165,6 +1165,7 @@ export default function Settings() {
                   ? `Invalid ${platform.name} URL format`
                   : 'Enter full URL or just username'
               }
+              fullWidth
             />
           ))}
           
@@ -1175,6 +1176,7 @@ export default function Settings() {
             onValueChange={(value) => updateSetting('socialLinks.customLabel', value)}
             placeholder="My Website"
             helperText="Label for your custom link (max 30 characters)"
+            fullWidth
           />
           
           <SettingsItem
@@ -1188,6 +1190,7 @@ export default function Settings() {
                 ? 'Invalid URL format'
                 : 'Users will see a warning before opening this link'
             }
+            fullWidth
           />
 
           <SettingsItem

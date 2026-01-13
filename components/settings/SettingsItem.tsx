@@ -16,6 +16,7 @@ interface SettingsItemProps {
   disabled?: boolean;
   displayValue?: string;
   onPress?: () => void;
+  fullWidth?: boolean; // Make input take full width below label
 }
 
 export const SettingsItem: React.FC<SettingsItemProps> = ({
@@ -32,6 +33,7 @@ export const SettingsItem: React.FC<SettingsItemProps> = ({
   disabled = false,
   displayValue,
   onPress,
+  fullWidth = false,
 }) => {
   const renderContent = () => {
     switch (type) {
@@ -62,7 +64,7 @@ export const SettingsItem: React.FC<SettingsItemProps> = ({
       case 'input':
         return (
           <TextInput
-            style={[styles.input, disabled && styles.disabled]}
+            style={[styles.input, fullWidth && styles.inputFullWidth, disabled && styles.disabled]}
             value={value}
             onChangeText={onValueChange}
             onBlur={onBlur}
@@ -132,17 +134,33 @@ export const SettingsItem: React.FC<SettingsItemProps> = ({
 
   return (
     <View style={styles.container}>
-      <View style={styles.row}>
-        <View style={styles.labelContainer}>
-          <Text style={[styles.label, destructive && styles.destructiveText, disabled && styles.disabledText]}>
-            {label}
-          </Text>
-          {helperText && (
-            <Text style={styles.helperText}>{helperText}</Text>
-          )}
+      {fullWidth ? (
+        <View>
+          <View style={styles.labelContainer}>
+            <Text style={[styles.label, destructive && styles.destructiveText, disabled && styles.disabledText]}>
+              {label}
+            </Text>
+            {helperText && (
+              <Text style={styles.helperText}>{helperText}</Text>
+            )}
+          </View>
+          <View style={styles.fullWidthContent}>
+            {renderContent()}
+          </View>
         </View>
-        {renderContent()}
-      </View>
+      ) : (
+        <View style={styles.row}>
+          <View style={styles.labelContainer}>
+            <Text style={[styles.label, destructive && styles.destructiveText, disabled && styles.disabledText]}>
+              {label}
+            </Text>
+            {helperText && (
+              <Text style={styles.helperText}>{helperText}</Text>
+            )}
+          </View>
+          {renderContent()}
+        </View>
+      )}
     </View>
   );
 };
@@ -205,6 +223,15 @@ const styles = StyleSheet.create({
     maxWidth: 200,
     flex: 1,
     textAlignVertical: 'top',
+  },
+  fullWidthContent: {
+    marginTop: 8,
+    width: '100%',
+  },
+  inputFullWidth: {
+    width: '100%',
+    maxWidth: '100%',
+    minWidth: 0,
   },
   button: {
     flexDirection: 'row',
