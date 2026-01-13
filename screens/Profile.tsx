@@ -939,21 +939,31 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
         style={styles.tabButton}
         onPress={() => scrollToTab(TabType.POSTS)}
       >
-        <Text style={[styles.tabButtonText, activeTab === TabType.POSTS && styles.activeTabButtonText]}>
-          POSTS {displayablePosts ? `(${formatCount(displayablePosts.length)})` : '(0)'}
-        </Text>
+        <Ionicons 
+          name="grid" 
+          size={22} 
+          color={activeTab === TabType.POSTS ? '#FFF' : 'rgba(255,255,255,0.5)'} 
+        />
       </TouchableOpacity>
       <TouchableOpacity 
         style={styles.tabButton}
         onPress={() => scrollToTab(TabType.MILESTONES)}
       >
-        <Text style={[styles.tabButtonText, activeTab === TabType.MILESTONES && styles.activeTabButtonText]}>MILESTONES</Text>
+        <MaterialCommunityIcons 
+          name="trophy" 
+          size={22} 
+          color={activeTab === TabType.MILESTONES ? '#FFF' : 'rgba(255,255,255,0.5)'} 
+        />
       </TouchableOpacity>
       <TouchableOpacity 
         style={styles.tabButton}
         onPress={() => scrollToTab(TabType.WORKOUTS)}
       >
-        <Text style={[styles.tabButtonText, activeTab === TabType.WORKOUTS && styles.activeTabButtonText]}>WORKOUTS</Text>
+        <Ionicons 
+          name="flame" 
+          size={22} 
+          color={activeTab === TabType.WORKOUTS ? '#FFF' : 'rgba(255,255,255,0.5)'} 
+        />
       </TouchableOpacity>
       <Animated.View style={[styles.tabIndicator, { transform: [{ translateX: indicatorPosition }] }]} />
     </View>
@@ -1094,8 +1104,8 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
               resizeMode="cover"
             />
             <LinearGradient
-              colors={['transparent', 'rgba(0,0,0,0.3)', 'rgba(0,0,0,0.9)', '#000']}
-              locations={[0, 0.4, 0.75, 1]}
+              colors={['transparent', 'rgba(0,0,0,0.2)']}
+              locations={[0, 1]}
               style={styles.bannerGradient}
             />
             
@@ -1302,7 +1312,9 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
         </View>
 
         {/* Tab Bar */}
-        {renderCustomTabBar()}
+        <View style={{ width: '100%' }}>
+          {renderCustomTabBar()}
+        </View>
 
         {/* Tab Content */}
         {canViewContent ? (
@@ -1405,7 +1417,7 @@ const styles = StyleSheet.create({
   // Banner
   bannerContainer: {
     width: '100%',
-    height: 180,
+    height: 140,
     position: 'relative',
   },
   bannerImage: {
@@ -1417,7 +1429,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    height: 120,
+    height: 60,
   },
   
   // Top Navigation
@@ -1429,7 +1441,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     paddingTop: 8,
   },
   navButton: {
@@ -1454,7 +1466,7 @@ const styles = StyleSheet.create({
   profileInfoSection: {
     paddingHorizontal: 20,
     paddingTop: 0,
-    marginTop: -50,
+    marginTop: -40,
   },
   
   // Profile Top Row
@@ -1498,7 +1510,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    marginBottom: 8,
+    marginBottom: 4,
   },
   messageButton: {
     width: 44,
@@ -1545,16 +1557,16 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.8)',
   },
   editProfileButton: {
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 25,
+    paddingHorizontal: 20,
+    paddingVertical: 9,
+    borderRadius: 22,
     backgroundColor: 'rgba(255,255,255,0.1)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.2)',
   },
   editProfileButtonText: {
     color: '#FFF',
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '600',
   },
   
@@ -1616,6 +1628,7 @@ const styles = StyleSheet.create({
   // Tab Bar
   tabBar: {
     flexDirection: 'row',
+    width: '100%',
     backgroundColor: '#000',
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255,255,255,0.1)',
@@ -1623,8 +1636,9 @@ const styles = StyleSheet.create({
   },
   tabButton: {
     flex: 1,
-    paddingVertical: 16,
+    paddingVertical: 14,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   tabButtonText: {
     color: 'rgba(255,255,255,0.5)',
