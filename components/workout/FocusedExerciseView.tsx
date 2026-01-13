@@ -513,10 +513,12 @@ const SetRow: React.FC<SetRowProps> = ({
           <Text style={styles.inputLabel}>WEIGHT</Text>
           <View style={styles.inputWithControls}>
             <TouchableOpacity 
-              style={styles.controlBtn}
+              style={[styles.controlBtn, (parseFloat(weight) || 0) <= 0 && styles.controlBtnDisabled]}
               onPress={() => incrementWeight(-5)}
+              disabled={(parseFloat(weight) || 0) <= 0}
+              activeOpacity={0.7}
             >
-              <Ionicons name="remove" size={20} color="#ff2d55" />
+              <Ionicons name="remove" size={20} color="#fff" style={{ opacity: (parseFloat(weight) || 0) <= 0 ? 0.3 : 1 }} />
             </TouchableOpacity>
             <TextInput
               style={styles.input}
@@ -529,8 +531,9 @@ const SetRow: React.FC<SetRowProps> = ({
             <TouchableOpacity 
               style={styles.controlBtn}
               onPress={() => incrementWeight(5)}
+              activeOpacity={0.7}
             >
-              <Ionicons name="add" size={20} color="#ff2d55" />
+              <Ionicons name="add" size={20} color="#fff" />
             </TouchableOpacity>
           </View>
           <Text style={styles.unitLabel}>{weightUnit}</Text>
@@ -541,10 +544,12 @@ const SetRow: React.FC<SetRowProps> = ({
           <Text style={styles.inputLabel}>REPS</Text>
           <View style={styles.inputWithControls}>
             <TouchableOpacity 
-              style={styles.controlBtn}
+              style={[styles.controlBtn, (parseInt(reps) || 0) <= 0 && styles.controlBtnDisabled]}
               onPress={() => incrementReps(-1)}
+              disabled={(parseInt(reps) || 0) <= 0}
+              activeOpacity={0.7}
             >
-              <Ionicons name="remove" size={20} color="#ff2d55" />
+              <Ionicons name="remove" size={20} color="#fff" style={{ opacity: (parseInt(reps) || 0) <= 0 ? 0.3 : 1 }} />
             </TouchableOpacity>
             <TextInput
               style={styles.input}
@@ -557,8 +562,9 @@ const SetRow: React.FC<SetRowProps> = ({
             <TouchableOpacity 
               style={styles.controlBtn}
               onPress={() => incrementReps(1)}
+              activeOpacity={0.7}
             >
-              <Ionicons name="add" size={20} color="#ff2d55" />
+              <Ionicons name="add" size={20} color="#fff" />
             </TouchableOpacity>
           </View>
           <Text style={styles.unitLabel}>reps</Text>
@@ -1059,7 +1065,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   setNumber: {
-    color: '#ff2d55',
+    color: '#fff',
     fontSize: 16,
     fontWeight: '700',
   },
@@ -1120,6 +1126,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.4,
     shadowRadius: 8,
     elevation: 8,
+  },
+  controlBtnDisabled: {
+    opacity: 0.4,
   },
   input: {
     backgroundColor: 'rgba(0,0,0,0.4)',
