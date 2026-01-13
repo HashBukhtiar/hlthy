@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { View, ScrollView, Text, Image, StyleSheet, Dimensions, FlatList, TouchableOpacity, SafeAreaView, Animated, ActivityIndicator, RefreshControl, Modal, Platform, ActionSheetIOS, Alert } from 'react-native';
+import { View, ScrollView, Text, Image, StyleSheet, Dimensions, FlatList, TouchableOpacity, SafeAreaView, Animated, ActivityIndicator, RefreshControl, Modal, Platform, ActionSheetIOS, Alert, StatusBar, ImageBackground } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useProfileData } from '@/hooks/useProfileData';
 import { useAuth } from '@/context/AuthContext';
@@ -13,6 +13,9 @@ import { useUnits } from '@/hooks/useUnits';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/firebaseConfig';
 import { OptimizedImageLight } from '@/components/OptimizedImage';
+import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
+import { ACCENT_COLOR } from '@/constants/Colors';
 
 const archetypeIcons = {
   'athlete': require('@/assets/images/athlete.png'),
@@ -1061,157 +1064,292 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
   
   // Main return statement for the component
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Profile Header */}
-      <View style={styles.profileHeader}>
-        {/* Settings Button (Own Profile) */}
-        {isOwnProfile && (
-          <TouchableOpacity
-            style={styles.settingsButton}
-            onPress={handleSettingsPress}
-          >
-            <Ionicons name="settings-outline" size={24} color="white" />
-          </TouchableOpacity>
-        )}
-        {/* Back Button (Other's Profile) */}
-        {!isOwnProfile && router.canGoBack() && (
-           <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => router.back()}
-          >
-            <Ionicons name="arrow-back" size={28} color="white" />
-          </TouchableOpacity>
-        )}
-
-        {/* Follow/Unfollow Button (Other's Profile) */}
-        {!isOwnProfile && displayProfileData && !isBlockedByUser && (
-          <TouchableOpacity
-            style={[
-              styles.followButton,
-              hasBlockedUser
-                ? styles.blockedButtonActive
-                : isFollowingStatus 
-                  ? styles.unfollowButtonActive 
-                  : isRequestPending
-                    ? styles.requestedButtonActive
-                    : styles.followButtonActive,
-              (followActionLoading || hasBlockedUser) && styles.followButtonDisabled
-            ]}
-            onPress={() => {
-              if (followActionLoading || hasBlockedUser) return;
-              if (isFollowingStatus) {
-                unfollowUser(displayProfileData.id);
-              } else if (isRequestPending) {
-                unfollowUser(displayProfileData.id); 
-              } else {
-                followUser(displayProfileData.id);
-              }
-            }}
-            disabled={followActionLoading || hasBlockedUser}
-          >
-            {followActionLoading ? (
-              <ActivityIndicator size="small" color="#FFF" />
-            ) : (
-              <Text style={styles.followButtonText}>
-                {hasBlockedUser 
-                  ? "Blocked" 
-                  : isFollowingStatus 
-                    ? "Unfollow" 
-                    : isRequestPending 
-                      ? "Requested" 
-                      : "Follow"}
-              </Text>
-            )}
-          </TouchableOpacity>
-        )}
-        <Image
-          source={{ 
-            uri: getOptimalImageUrl(
-              processedProfileData?.profileThumbnailUrl,
-              processedProfileData?.profileImageUrl
-            )
-          }}
-          style={styles.profileImage}
-        />
-        <Text style={styles.profileName}>{processedProfileData?.displayName || 'User'}</Text>
-        <View style={styles.profileNameRow}>
-          <Text style={styles.profileUsername}>
-            @{processedProfileData?.username || 'username'}
-          </Text>
-          
-          {/* DM Button (Other's Profile) */}
-          {!isOwnProfile && displayProfileData && !isBlockedByUser && !hasBlockedUser && (
-            <TouchableOpacity
-              style={styles.dmButton}
-              onPress={handleDirectMessage}
-            >
-              <Ionicons name="chatbubble-outline" size={18} color="#007AFF" />
-            </TouchableOpacity>
-          )}
-          
-          {/* Three dots button (Other's Profile) */}
-          {!isOwnProfile && displayProfileData && (
-            <TouchableOpacity
-              style={styles.inlineMoreButton}
-              onPress={showMoreOptions}
-            >
-              <Ionicons name="ellipsis-horizontal" size={22} color="white" />
-            </TouchableOpacity>
-          )}
-        </View>
-        <Text style={styles.profileBio}>{processedProfileData?.bio || 'No bio yet'}</Text>
-
-        <View style={styles.statsContainer}>
-          <TouchableOpacity
-            style={styles.statItem}
-            onPress={() => {
-              if (processedProfileData?.archetype && !isBlockedByUser) {
-                setTooltipText(archetypeDescriptions[processedProfileData.archetype.toLowerCase() || 'generalist']);
-                setTooltipVisible(true);
-              }
-            }}
-            disabled={!processedProfileData?.archetype || isBlockedByUser}
-          >
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" />
+      
+      <ScrollView 
+        style={styles.scrollView}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#FFFFFF"
+            colors={["#FFFFFF"]}
+            progressBackgroundColor="#212121"
+          />
+        }
+        stickyHeaderIndices={[1]}
+      >
+        {/* Banner Section with Profile Info Overlay */}
+        <View style={styles.headerSection}>
+          {/* Banner Image */}
+          <View style={styles.bannerContainer}>
             <Image
-              source={archetypeIcons[processedProfileData?.archetype?.toLowerCase() || 'generalist']}
-              style={[styles.archetypeIcon, isBlockedByUser && styles.disabledIcon]}
+              source={{ 
+                uri: processedProfileData?.bannerImageUrl || 
+                     'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800&q=80'
+              }}
+              style={styles.bannerImage}
+              resizeMode="cover"
             />
-            <Text style={[styles.statLabel, isBlockedByUser && styles.disabledText]}>Archetype</Text>
-          </TouchableOpacity>
+            <LinearGradient
+              colors={['transparent', 'rgba(0,0,0,0.3)', 'rgba(0,0,0,0.9)', '#000']}
+              locations={[0, 0.4, 0.75, 1]}
+              style={styles.bannerGradient}
+            />
+            
+            {/* Top Navigation Buttons */}
+            <SafeAreaView style={styles.topNavigation}>
+              {!isOwnProfile && router.canGoBack() && (
+                <TouchableOpacity
+                  style={styles.navButton}
+                  onPress={() => router.back()}
+                >
+                  <BlurView intensity={30} tint="dark" style={styles.navButtonBlur}>
+                    <Ionicons name="chevron-back" size={24} color="white" />
+                  </BlurView>
+                </TouchableOpacity>
+              )}
+              
+              <View style={styles.navSpacer} />
+              
+              {isOwnProfile ? (
+                <TouchableOpacity
+                  style={styles.navButton}
+                  onPress={handleSettingsPress}
+                >
+                  <BlurView intensity={30} tint="dark" style={styles.navButtonBlur}>
+                    <Ionicons name="settings-outline" size={22} color="white" />
+                  </BlurView>
+                </TouchableOpacity>
+              ) : displayProfileData && (
+                <TouchableOpacity
+                  style={styles.navButton}
+                  onPress={showMoreOptions}
+                >
+                  <BlurView intensity={30} tint="dark" style={styles.navButtonBlur}>
+                    <Ionicons name="ellipsis-horizontal" size={22} color="white" />
+                  </BlurView>
+                </TouchableOpacity>
+              )}
+            </SafeAreaView>
+          </View>
           
-          <TouchableOpacity
-            style={styles.statItem}
-            onPress={() => {
-              if (isPrivate && !isOwnProfile) return;
-              if (isBlockedByUser) return;
-              router.push(`/followers/${viewedProfileId}`);
-            }}
-            disabled={(isPrivate && !isOwnProfile) || isBlockedByUser}
-          >
-            <Text style={[styles.statNumber, isBlockedByUser && styles.disabledText]}>
-              {isBlockedByUser ? "••" : (processedProfileData?.followerCount ?? followers.length)}
-            </Text>
-            <Text style={[styles.statLabel, isBlockedByUser && styles.disabledText]}>Followers</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={styles.statItem}
-            onPress={() => {
-              if (isPrivate && !isOwnProfile) return;
-              if (isBlockedByUser) return;
-              router.push(`/following/${viewedProfileId}`);
-            }}
-            disabled={(isPrivate && !isOwnProfile) || isBlockedByUser}
-          >
-            <Text style={[styles.statNumber, isBlockedByUser && styles.disabledText]}>
-              {isBlockedByUser ? "••" : (processedProfileData?.followingCount ?? following.length)}
-            </Text>
-            <Text style={[styles.statLabel, isBlockedByUser && styles.disabledText]}>Following</Text>
-          </TouchableOpacity>
+          {/* Profile Info Section */}
+          <View style={styles.profileInfoSection}>
+            {/* Profile Image & Actions Row */}
+            <View style={styles.profileTopRow}>
+              {/* Profile Image */}
+              <View style={styles.profileImageWrapper}>
+                <Image
+                  source={{ 
+                    uri: getOptimalImageUrl(
+                      processedProfileData?.profileThumbnailUrl,
+                      processedProfileData?.profileImageUrl
+                    )
+                  }}
+                  style={styles.profileImage}
+                />
+                {/* Archetype Badge */}
+                {processedProfileData?.archetype && (
+                  <TouchableOpacity 
+                    style={styles.archetypeBadge}
+                    onPress={() => {
+                      if (!isBlockedByUser) {
+                        setTooltipText(archetypeDescriptions[processedProfileData.archetype.toLowerCase() || 'generalist']);
+                        setTooltipVisible(true);
+                      }
+                    }}
+                  >
+                    <Image
+                      source={archetypeIcons[processedProfileData?.archetype?.toLowerCase() || 'generalist']}
+                      style={styles.archetypeBadgeIcon}
+                    />
+                  </TouchableOpacity>
+                )}
+              </View>
+              
+              {/* Action Buttons */}
+              <View style={styles.actionButtonsContainer}>
+                {!isOwnProfile && displayProfileData && !isBlockedByUser && !hasBlockedUser && (
+                  <TouchableOpacity
+                    style={styles.messageButton}
+                    onPress={handleDirectMessage}
+                  >
+                    <Ionicons name="mail-outline" size={20} color="#FFF" />
+                  </TouchableOpacity>
+                )}
+                
+                {!isOwnProfile && displayProfileData && !isBlockedByUser && (
+                  <TouchableOpacity
+                    style={[
+                      styles.followButtonNew,
+                      hasBlockedUser
+                        ? styles.blockedButtonStyle
+                        : isFollowingStatus 
+                          ? styles.followingButtonStyle 
+                          : isRequestPending
+                            ? styles.requestedButtonStyle
+                            : styles.followButtonStyle,
+                    ]}
+                    onPress={() => {
+                      if (followActionLoading || hasBlockedUser) return;
+                      if (isFollowingStatus) {
+                        unfollowUser(displayProfileData.id);
+                      } else if (isRequestPending) {
+                        unfollowUser(displayProfileData.id); 
+                      } else {
+                        followUser(displayProfileData.id);
+                      }
+                    }}
+                    disabled={followActionLoading || hasBlockedUser}
+                  >
+                    {followActionLoading ? (
+                      <ActivityIndicator size="small" color="#FFF" />
+                    ) : (
+                      <Text style={[
+                        styles.followButtonTextNew,
+                        (isFollowingStatus || isRequestPending) && styles.followButtonTextSecondary
+                      ]}>
+                        {hasBlockedUser 
+                          ? "Blocked" 
+                          : isFollowingStatus 
+                            ? "Following" 
+                            : isRequestPending 
+                              ? "Requested" 
+                              : "Follow"}
+                      </Text>
+                    )}
+                  </TouchableOpacity>
+                )}
+                
+                {isOwnProfile && (
+                  <TouchableOpacity
+                    style={styles.editProfileButton}
+                    onPress={() => router.push('/settings')}
+                  >
+                    <Text style={styles.editProfileButtonText}>Edit Profile</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+            
+            {/* Name & Username */}
+            <View style={styles.nameSection}>
+              <Text style={styles.displayName}>{processedProfileData?.displayName || 'User'}</Text>
+              <Text style={styles.username}>@{processedProfileData?.username || 'username'}</Text>
+            </View>
+            
+            {/* Bio */}
+            {processedProfileData?.bio && (
+              <Text style={styles.bio}>{processedProfileData.bio}</Text>
+            )}
+            
+            {/* Stats Row */}
+            <View style={styles.statsRow}>
+              <View style={styles.statItemNew}>
+                <Text style={styles.statValueNew}>
+                  {formatCount(displayablePosts?.length || 0)}
+                </Text>
+                <Text style={styles.statLabelNew}>Posts</Text>
+              </View>
+              
+              <View style={styles.statDivider} />
+              
+              <TouchableOpacity
+                style={styles.statItemNew}
+                onPress={() => {
+                  if (isPrivate && !isOwnProfile) return;
+                  if (isBlockedByUser) return;
+                  router.push(`/followers/${viewedProfileId}`);
+                }}
+                disabled={(isPrivate && !isOwnProfile) || isBlockedByUser}
+              >
+                <Text style={styles.statValueNew}>
+                  {isBlockedByUser ? "••" : formatCount(processedProfileData?.followerCount ?? followers.length)}
+                </Text>
+                <Text style={styles.statLabelNew}>Followers</Text>
+              </TouchableOpacity>
+              
+              <View style={styles.statDivider} />
+              
+              <TouchableOpacity
+                style={styles.statItemNew}
+                onPress={() => {
+                  if (isPrivate && !isOwnProfile) return;
+                  if (isBlockedByUser) return;
+                  router.push(`/following/${viewedProfileId}`);
+                }}
+                disabled={(isPrivate && !isOwnProfile) || isBlockedByUser}
+              >
+                <Text style={styles.statValueNew}>
+                  {isBlockedByUser ? "••" : formatCount(processedProfileData?.followingCount ?? following.length)}
+                </Text>
+                <Text style={styles.statLabelNew}>Following</Text>
+              </TouchableOpacity>
+              
+              <View style={styles.statDivider} />
+              
+              <View style={styles.statItemNew}>
+                <Text style={styles.statValueNew}>
+                  {formatCount(processedProfileData?.stats?.totalLikes || 0)}
+                </Text>
+                <Text style={styles.statLabelNew}>Likes</Text>
+              </View>
+            </View>
+          </View>
         </View>
-      </View>
 
-      {/* Archetype Tooltip Modal - For all profiles */}
+        {/* Tab Bar */}
+        {renderCustomTabBar()}
+
+        {/* Tab Content */}
+        {canViewContent ? (
+          <View style={styles.tabContentInline}>
+            <FlatList
+              ref={flatListRef}
+              data={tabScenes}
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              onScroll={handleScroll}
+              onMomentumScrollEnd={handleScrollEnd}
+              scrollEnabled={true}
+              nestedScrollEnabled={true}
+              renderItem={({ item }) => (
+                <View style={[styles.tabContentContainer, { width: screenWidth }]}>
+                  {item.component}
+                </View>
+              )}
+              keyExtractor={(item) => item.key}
+              initialScrollIndex={0}
+            />
+          </View>
+        ) : (
+          <View style={styles.lockedContainer}>
+            <View style={styles.lockedIconContainer}>
+              <Ionicons 
+                name={isBlockedByUser ? "person-remove" : "lock-closed"} 
+                size={32} 
+                color="#666" 
+              />
+            </View>
+            <Text style={styles.lockedTitle}>
+              {isBlockedByUser 
+                ? "Profile Unavailable" 
+                : "Private Account"}
+            </Text>
+            <Text style={styles.lockedSubtitle}>
+              {isBlockedByUser 
+                ? "This user has restricted access to their profile" 
+                : "Follow to see their posts and content"}
+            </Text>
+          </View>
+        )}
+      </ScrollView>
+
+      {/* Archetype Tooltip Modal */}
       <Modal
         transparent={true}
         visible={tooltipVisible}
@@ -1219,11 +1357,11 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
         onRequestClose={() => setTooltipVisible(false)}
       >
         <TouchableOpacity
-          style={styles.tooltipContainer}
+          style={styles.tooltipOverlay}
           activeOpacity={1}
           onPress={() => setTooltipVisible(false)}
         >
-          <View style={styles.tooltip}>
+          <View style={styles.tooltipCard}>
             <View style={styles.tooltipHeader}>
               <Image
                 source={archetypeIcons[processedProfileData?.archetype?.toLowerCase() || 'generalist']}
@@ -1241,88 +1379,551 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
               onPress={() => setTooltipVisible(false)}
               style={styles.tooltipCloseButton}
             >
-              <Text style={styles.tooltipButtonText}>Close</Text>
+              <Text style={styles.tooltipButtonText}>Got it</Text>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
       </Modal>
-
-      {renderCustomTabBar()}
-
-      {canViewContent ? (
-        <View style={styles.tabContent}>
-          <FlatList
-            ref={flatListRef}
-            data={tabScenes}
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            onScroll={handleScroll}
-            onMomentumScrollEnd={handleScrollEnd}
-            renderItem={({ item }) => (
-              <View style={[styles.tabContentContainer, { width: screenWidth }]}>
-                {item.component}
-              </View>
-            )}
-            keyExtractor={(item) => item.key}
-            initialScrollIndex={0}
-          />
-        </View>
-      ) : (
-        <View style={styles.lockedContainer}>
-          <Ionicons 
-            name={isBlockedByUser ? "person-remove" : "lock-closed"} 
-            size={48} 
-            color="gray" 
-          />
-          <Text style={styles.lockedText}>
-            {isBlockedByUser 
-              ? "This user has restricted access to their profile" 
-              : "This account is private"}
-          </Text>
-        </View>
-      )}
-    </SafeAreaView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: 'black',
+    backgroundColor: '#000',
+  },
+  scrollView: {
+    flex: 1,
+  },
+  
+  // Header Section
+  headerSection: {
+    width: '100%',
+  },
+  
+  // Banner
+  bannerContainer: {
+    width: '100%',
+    height: 180,
+    position: 'relative',
+  },
+  bannerImage: {
+    width: '100%',
+    height: '100%',
+  },
+  bannerGradient: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 120,
+  },
+  
+  // Top Navigation
+  topNavigation: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 8,
+  },
+  navButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    overflow: 'hidden',
+  },
+  navButtonBlur: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+  },
+  navSpacer: {
+    flex: 1,
+  },
+  
+  // Profile Info Section
+  profileInfoSection: {
+    paddingHorizontal: 20,
+    paddingTop: 0,
+    marginTop: -50,
+  },
+  
+  // Profile Top Row
+  profileTopRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  profileImageWrapper: {
+    position: 'relative',
+  },
+  profileImage: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    borderWidth: 4,
+    borderColor: '#000',
+    backgroundColor: '#1C1C1E',
+  },
+  archetypeBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#1C1C1E',
+    borderWidth: 3,
+    borderColor: '#000',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  archetypeBadgeIcon: {
+    width: 20,
+    height: 20,
+  },
+  
+  // Action Buttons
+  actionButtonsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 8,
+  },
+  messageButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  followButtonNew: {
+    paddingHorizontal: 28,
+    paddingVertical: 12,
+    borderRadius: 25,
+    minWidth: 110,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  followButtonStyle: {
+    backgroundColor: ACCENT_COLOR,
+  },
+  followingButtonStyle: {
+    backgroundColor: 'transparent',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.3)',
+  },
+  requestedButtonStyle: {
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  blockedButtonStyle: {
+    backgroundColor: 'rgba(255,59,48,0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,59,48,0.3)',
+  },
+  followButtonTextNew: {
+    color: '#FFF',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  followButtonTextSecondary: {
+    color: 'rgba(255,255,255,0.8)',
+  },
+  editProfileButton: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 25,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  editProfileButtonText: {
+    color: '#FFF',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  
+  // Name Section
+  nameSection: {
+    marginBottom: 12,
+  },
+  displayName: {
+    fontSize: 26,
+    fontWeight: '700',
+    color: '#FFF',
+    letterSpacing: -0.5,
+  },
+  username: {
+    fontSize: 16,
+    color: 'rgba(255,255,255,0.6)',
+    marginTop: 2,
+  },
+  
+  // Bio
+  bio: {
+    fontSize: 15,
+    color: 'rgba(255,255,255,0.85)',
+    lineHeight: 22,
+    marginBottom: 20,
+  },
+  
+  // Stats Row
+  statsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 8,
+    marginBottom: 8,
+  },
+  statItemNew: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  statValueNew: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#FFF',
+  },
+  statLabelNew: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.5)',
+    marginTop: 4,
+    fontWeight: '500',
+  },
+  statDivider: {
+    width: 1,
+    height: 32,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+  },
+  
+  // Tab Bar
+  tabBar: {
+    flexDirection: 'row',
+    backgroundColor: '#000',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.1)',
+    position: 'relative',
+  },
+  tabButton: {
+    flex: 1,
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  tabButtonText: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 13,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+  },
+  activeTabButtonText: {
+    color: '#FFF',
+  },
+  tabIndicator: {
+    position: 'absolute',
+    bottom: 0,
+    height: 3,
+    width: Dimensions.get('window').width / 3,
+    backgroundColor: ACCENT_COLOR,
+    borderRadius: 1.5,
+  },
+  
+  // Tab Content
+  tabContent: {
+    flex: 1,
+    backgroundColor: '#000',
+    marginBottom: BOTTOM_BAR_HEIGHT,
+  },
+  tabContentInline: {
+    minHeight: 400,
+    backgroundColor: '#000',
   },
   tabContentContainer: {
-    paddingHorizontal: 10,
+    paddingHorizontal: 0,
   },
-  tabSectionHeader: {
-    color: 'white',
+  
+  // Posts Grid
+  postsContainer: {
+    padding: 0,
+  },
+  postImage: {
+    width: Dimensions.get('window').width / 3,
+    height: Dimensions.get('window').width / 3,
+    margin: 0,
+  },
+  
+  // Locked Content
+  lockedContainer: {
+    paddingVertical: 60,
+    paddingHorizontal: 40,
+    alignItems: 'center',
+  },
+  lockedIconContainer: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  lockedTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    marginTop: 20,
+    fontWeight: '600',
+    color: '#FFF',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  lockedSubtitle: {
+    fontSize: 15,
+    color: 'rgba(255,255,255,0.5)',
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  lockedText: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 16,
+    marginTop: 12,
+    textAlign: 'center',
+  },
+  
+  // Tooltip Modal
+  tooltipOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+  },
+  tooltipCard: {
+    backgroundColor: '#1C1C1E',
+    paddingVertical: 24,
+    paddingHorizontal: 24,
+    borderRadius: 20,
+    alignItems: 'center',
+    maxWidth: '85%',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  tooltipHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  tooltipIcon: {
+    width: 36,
+    height: 36,
+    marginRight: 12,
+  },
+  tooltipTitle: {
+    color: '#FFF',
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  tooltipDivider: {
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    width: '100%',
+    marginBottom: 16,
+  },
+  tooltipText: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 20,
+    lineHeight: 24,
+  },
+  tooltipCloseButton: {
+    backgroundColor: ACCENT_COLOR,
+    paddingVertical: 12,
+    paddingHorizontal: 32,
+    borderRadius: 25,
+  },
+  tooltipButtonText: {
+    color: '#FFF',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  
+  // Milestones
+  monthHeader: {
+    color: '#FFF',
+    fontSize: 22,
+    fontWeight: '700',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: '#000',
+    marginTop: 8,
+  },
+  milestoneItemCard: {
+    backgroundColor: '#1C1C1E',
+    marginVertical: 6,
+    borderRadius: 16,
+    marginHorizontal: 12,
+    overflow: 'hidden',
+  },
+  previousPRCard: {
+    backgroundColor: '#1C1C1E',
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  previousPRHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: 'rgba(255,255,255,0.03)',
+  },
+  previousPRTitle: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 10,
+    flex: 1,
+  },
+  previousPRDate: {
+    color: 'rgba(255,255,255,0.4)',
+    fontSize: 13,
+  },
+  previousPRContent: {
+    padding: 16,
+  },
+  prMetricsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: 6,
+  },
+  prMetricGroup: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+  },
+  prMetricValue: {
+    color: '#FFF',
+    fontSize: 28,
+    fontWeight: '700',
+  },
+  prMetricLabel: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 15,
+    marginLeft: 6,
+  },
+  prMetricSeparator: {
+    color: ACCENT_COLOR,
+    fontSize: 22,
+    marginHorizontal: 10,
+  },
+  
+  // Workouts
+  workoutsListSingleColumn: {
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+  },
+  workoutListItemRowStyle: {
+    flexDirection: 'row',
+    backgroundColor: '#1C1C1E',
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 12,
+    alignItems: 'center',
+  },
+  workoutListItemImageStyle: {
+    width: 72,
+    height: 72,
+    borderRadius: 12,
+    marginRight: 14,
+    backgroundColor: '#2C2C2E',
+  },
+  workoutListItemTextContainerStyle: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  workoutListItemTitleStyle: {
+    color: '#FFF',
+    fontSize: 17,
+    fontWeight: '600',
+    marginBottom: 6,
+  },
+  workoutListItemMetaStyle: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 14,
+    marginBottom: 2,
+  },
+  workoutItem: {
+    flexDirection: 'row',
+    backgroundColor: '#1C1C1E',
+    borderRadius: 12,
+    padding: 12,
     marginBottom: 10,
-    paddingHorizontal: 5,
+    alignItems: 'center',
+  },
+  workoutItemImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 10,
+    marginRight: 12,
+    backgroundColor: '#2C2C2E',
+  },
+  workoutItemTextContainer: {
+    flex: 1,
+  },
+  workoutItemTitle: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  workoutItemCreator: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 13,
+    marginTop: 4,
+  },
+  workoutsList: {
+    padding: 12,
+  },
+  
+  // Tab Section Headers
+  tabSectionHeader: {
+    color: '#FFF',
+    fontSize: 18,
+    fontWeight: '700',
+    marginTop: 20,
+    marginBottom: 12,
+    paddingHorizontal: 4,
   },
   emptyTabText: {
-    color: 'grey',
+    color: 'rgba(255,255,255,0.4)',
     textAlign: 'center',
-    marginTop: 10,
-    marginBottom: 20,
-    fontSize: 14,
+    marginTop: 12,
+    marginBottom: 24,
+    fontSize: 15,
   },
+  
+  // Legacy styles kept for compatibility
   profileHeader: {
     alignItems: 'center',
     padding: 20,
-    backgroundColor: 'black',
-  },
-  profileImage: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    backgroundColor: '#000',
   },
   profileName: {
-    color: 'white',
+    color: '#FFF',
     fontSize: 24,
-    fontWeight: 'bold',
+    fontWeight: '700',
     marginVertical: 10,
   },
   profileNameRow: {
@@ -1333,28 +1934,24 @@ const styles = StyleSheet.create({
   },
   dmButton: {
     marginLeft: 8,
-    padding: 4,
+    padding: 6,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(0, 122, 255, 0.1)',
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: 'rgba(0, 122, 255, 0.3)',
+    backgroundColor: 'rgba(0, 122, 255, 0.15)',
+    borderRadius: 8,
   },
   inlineMoreButton: {
     marginLeft: 8,
-    padding: 4,
-    alignItems: 'center',
-    justifyContent: 'center',
+    padding: 6,
   },
   profileUsername: {
-    color: '#a6a6a6',
+    color: 'rgba(255,255,255,0.6)',
     fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 5
+    fontWeight: '500',
+    marginBottom: 5,
   },
   profileBio: {
-    color: 'gray',
+    color: 'rgba(255,255,255,0.7)',
     fontSize: 16,
     textAlign: 'center',
   },
@@ -1368,229 +1965,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   statNumber: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: 'bold',
+    color: '#FFF',
+    fontSize: 20,
+    fontWeight: '700',
   },
   statLabel: {
-    color: 'gray',
-    fontSize: 14,
-  },
-  tabBar: {
-    flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: '#333',
-    backgroundColor: 'black',
-  },
-  tabButton: {
-    flex: 1,
-    paddingVertical: 15,
-    alignItems: 'center',
-  },
-  tabButtonText: {
-    color: 'gray',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  activeTabButtonText: {
-    color: 'white',
-  },
-  tabIndicator: {
-    position: 'absolute',
-    bottom: 0,
-    height: 3,
-    width: Dimensions.get('window').width / 3,
-    backgroundColor: 'white',
-  },
-  tabContent: {
-    flex: 1,
-    backgroundColor: 'black',
-    marginBottom: BOTTOM_BAR_HEIGHT
-  },
-  postsContainer: {
-    padding: 0,
-  },
-  postImage: {
-    width: Dimensions.get('window').width / 3,
-    height: Dimensions.get('window').width / 3,
-    margin: 0,
-  },
-  milestoneItem: {
-    backgroundColor: '#1c1c1e',
-    padding: 15,
-    marginVertical: 5,
-    borderRadius: 10,
-    marginHorizontal: 'auto',
-    width: '95%',
-    alignSelf: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  milestoneDetail: {
-    alignItems: 'center',
-  },
-  milestoneExercise: {
-    color: 'white',
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 5,
-  },
-  milestoneNumber: {
-    color: 'white',
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginTop: -5,
-  },
-  milestoneDescriptor: {
-    color: 'gray',
-    fontSize: 14,
-    marginTop: 0,
-    marginBottom: -5,
-  },
-  monthHeader: {
-    color: 'white',
-    fontSize: 25,
-    fontWeight: 'bold',
-    paddingVertical: 10,
-    paddingHorizontal: 15,
-    backgroundColor: 'black',
-    marginTop: 10
-  },
-  workoutsList: {
-    padding: 10,
-  },
-  workoutItem: {
-    flexDirection: 'row',
-    backgroundColor: '#222',
-    borderRadius: 10,
-    padding: 10,
-    marginBottom: 10,
-    alignItems: 'center',
-  },
-  workoutItemImage: {
-    width: 60,
-    height: 60,
-    borderRadius: 8,
-    marginRight: 10,
-    backgroundColor: '#333',
-  },
-  workoutItemTextContainer: {
-    flex: 1,
-  },
-  workoutItemTitle: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  workoutItemCreator: {
-    color: '#aaa',
-    fontSize: 12,
-    marginTop: 2,
-  },
-  workoutsListSingleColumn: {
-    paddingVertical: 10,
-    paddingHorizontal: 5,
-  },
-  workoutListItemRowStyle: {
-    flexDirection: 'row',
-    backgroundColor: '#1C1C1E',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 12,
-    alignItems: 'center',
-    marginHorizontal: 10,
-    justifyContent: 'space-between', 
-  },
-  workoutListItemImageStyle: {
-    width: 70, 
-    height: 70,
-    borderRadius: 6,
-    marginRight: 12,
-    backgroundColor: '#333', 
-  },
-  workoutListItemTextContainerStyle: {
-    flex: 1,
-    justifyContent: 'center',
-  },
-  workoutListItemTitleStyle: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  workoutListItemMetaStyle: {
-    color: '#AEAEB2',
-    fontSize: 13,
-    marginBottom: 2,
-  },
-  archetypeContainer: {
-    backgroundColor: '#212121',
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-    borderRadius: 10,
-    marginTop: 10,
-  },
-  archetypeLabel: {
-    color: 'gray',
-    fontSize: 12,
-    textAlign: 'center',
-  },
-  archetypeIcon: {
-    width: 24,
-    height: 24,
-    marginBottom: 5,
-  },
-  tooltipContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-  },
-  tooltip: {
-    backgroundColor: '#333',
-    paddingVertical: 20,
-    paddingHorizontal: 15,
-    borderRadius: 10,
-    alignItems: 'center',
-    maxWidth: '80%',
-  },
-  tooltipHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  tooltipIcon: {
-    width: 30,
-    height: 30,
-    marginRight: 10,
-  },
-  tooltipTitle: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  tooltipDivider: {
-    height: 1,
-    backgroundColor: 'white',
-    width: '100%',
-    marginVertical: 5,
-  },
-  tooltipText: {
-    color: 'white',
-    fontSize: 16,
-    textAlign: 'center',
-    marginBottom: 10,
-  },
-  tooltipCloseButton: {
-    marginTop: 10,
-    backgroundColor: '#555',
-    paddingVertical: 5,
-    paddingHorizontal: 15,
-    borderRadius: 5,
-  },
-  tooltipButtonText: {
-    color: 'white',
+    color: 'rgba(255,255,255,0.5)',
     fontSize: 14,
   },
   settingsButton: {
@@ -1610,7 +1990,7 @@ const styles = StyleSheet.create({
   moreButton: {
     position: 'absolute',
     top: 15,
-    right: 15 + 48 + 8,
+    right: 67,
     zIndex: 1,
     padding: 8,
   },
@@ -1620,110 +2000,124 @@ const styles = StyleSheet.create({
     right: 15,
     zIndex: 1,
     paddingVertical: 8,
-    paddingHorizontal: 15,
-    borderRadius: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
     borderWidth: 1,
   },
   followButtonActive: {
-    backgroundColor: '#007AFF',
-    borderColor: '#007AFF',
+    backgroundColor: ACCENT_COLOR,
+    borderColor: ACCENT_COLOR,
   },
   unfollowButtonActive: {
     backgroundColor: 'transparent',
-    borderColor: '#555',
+    borderColor: 'rgba(255,255,255,0.3)',
   },
   followButtonText: {
-    color: 'white',
-    fontWeight: 'bold',
+    color: '#FFF',
+    fontWeight: '600',
     fontSize: 14,
   },
   followButtonDisabled: {
-    opacity: 0.7,
+    opacity: 0.6,
   },
   requestedButtonActive: {
-    backgroundColor: '#444',
-    borderColor: '#555',
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderColor: 'rgba(255,255,255,0.2)',
   },
-  archetypeText: { 
-    color: 'white',
-    fontSize: 13, 
+  archetypeContainer: {
+    backgroundColor: '#1C1C1E',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    marginTop: 10,
+  },
+  archetypeLabel: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 12,
+    textAlign: 'center',
+  },
+  archetypeIcon: {
+    width: 28,
+    height: 28,
+    marginBottom: 6,
+  },
+  archetypeText: {
+    color: '#FFF',
+    fontSize: 14,
     fontWeight: '600',
   },
   retryButton: {
-    backgroundColor: '#007AFF',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    marginTop: 15,
+    backgroundColor: ACCENT_COLOR,
+    paddingVertical: 12,
+    paddingHorizontal: 28,
+    borderRadius: 25,
+    marginTop: 16,
   },
   retryText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  previousPRCard: {
-    backgroundColor: '#1c1c1e',
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  previousPRHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#333',
-    backgroundColor: '#222',
-  },
-  previousPRTitle: {
     color: '#FFF',
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '600',
-    marginLeft: 8,
+  },
+  blockedContainer: {
     flex: 1,
-  },
-  previousPRDate: {
-    color: '#999',
-    fontSize: 12,
-  },
-  previousPRContent: {
-    padding: 14,
-  },
-  prMetricsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'center',
-    marginVertical: 4,
+    alignItems: 'center',
+    padding: 40,
   },
-  prMetricGroup: {
+  blockedTitle: {
+    color: '#FFF',
+    fontSize: 20,
+    fontWeight: '600',
+    marginTop: 20,
+    marginBottom: 8,
+  },
+  blockedSubtitle: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 16,
+    textAlign: 'center',
+    lineHeight: 24,
+  },
+  blockedButtonActive: {
+    backgroundColor: 'rgba(255,59,48,0.2)',
+    borderColor: 'rgba(255,59,48,0.4)',
+  },
+  disabledIcon: {
+    opacity: 0.4,
+  },
+  disabledText: {
+    opacity: 0.4,
+    color: 'rgba(255,255,255,0.4)',
+  },
+  milestoneItem: {
+    backgroundColor: '#1C1C1E',
+    padding: 16,
+    marginVertical: 6,
+    borderRadius: 14,
+    marginHorizontal: 12,
     flexDirection: 'row',
-    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
-  prMetricValue: {
+  milestoneDetail: {
+    alignItems: 'center',
+  },
+  milestoneExercise: {
+    color: '#FFF',
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: 6,
+  },
+  milestoneNumber: {
     color: '#FFF',
     fontSize: 26,
     fontWeight: '700',
   },
-  prMetricLabel: {
-    color: '#999',
+  milestoneDescriptor: {
+    color: 'rgba(255,255,255,0.5)',
     fontSize: 14,
-    marginLeft: 4,
-  },
-  prMetricSeparator: {
-    color: '#FF5E69',
-    fontSize: 20,
-    marginHorizontal: 8,
-  },
-  milestoneItemCard: {
-    backgroundColor: '#1c1c1e',
-    marginVertical: 5,
-    borderRadius: 10,
-    marginHorizontal: 'auto',
-    width: '95%',
-    alignSelf: 'center',
-    overflow: 'hidden',
   },
   detailsContainer: {
-    padding: 15,
+    padding: 16,
   },
   detailRow: {
     flexDirection: 'row',
@@ -1731,7 +2125,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   detailLabel: {
-    color: '#999',
+    color: 'rgba(255,255,255,0.5)',
     fontSize: 14,
   },
   detailValue: {
@@ -1742,60 +2136,33 @@ const styles = StyleSheet.create({
   },
   highlightedValue: {
     color: '#4CD964',
-    fontWeight: 'bold',
+    fontWeight: '700',
   },
   improvementValue: {
     color: '#4CD964',
-    fontWeight: 'bold',
+    fontWeight: '700',
   },
   lossValue: {
     color: '#4CD964',
-    fontWeight: 'bold',
+    fontWeight: '700',
   },
   gainValue: {
     color: '#FF9500',
-    fontWeight: 'bold',
+    fontWeight: '700',
   },
-  lockedContainer: {
+  tooltip: {
+    backgroundColor: '#1C1C1E',
+    paddingVertical: 24,
+    paddingHorizontal: 24,
+    borderRadius: 20,
+    alignItems: 'center',
+    maxWidth: '85%',
+  },
+  tooltipContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
-  },
-  lockedText: {
-    color: 'gray',
-    fontSize: 16,
-    marginTop: 12,
-  },
-  blockedContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 40,
-  },
-  blockedTitle: {
-    color: '#fff',
-    fontSize: 20,
-    fontWeight: '600',
-    marginTop: 20,
-    marginBottom: 8,
-  },
-  blockedSubtitle: {
-    color: '#999',
-    fontSize: 16,
-    textAlign: 'center',
-    lineHeight: 22,
-  },
-  blockedButtonActive: {
-    backgroundColor: '#444',
-    borderColor: '#666',
-  },
-  disabledIcon: {
-    opacity: 0.5,
-  },
-  disabledText: {
-    opacity: 0.5,
-    color: '#666',
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
   },
 });
 
