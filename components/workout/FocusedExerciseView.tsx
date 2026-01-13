@@ -5,7 +5,7 @@
  * Designed for one exercise at a time, swipeable workout flow
  */
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -16,10 +16,12 @@ import {
   Dimensions,
   ScrollView,
   Modal,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ActiveExerciseState, SetLog } from '@/types/workoutLog';
 
@@ -613,8 +615,73 @@ export const FocusedExerciseView: React.FC<FocusedExerciseViewProps> = ({
     exercise.sets.findIndex(s => !s.completed)
   );
   const [showExercisePicker, setShowExercisePicker] = useState(false);
+  const [modalVisible, setModalVisible] = useState(false);
   const [editingSetIndex, setEditingSetIndex] = useState<number | null>(null);
   const [forceTimedMode, setForceTimedMode] = useState<boolean | null>(null); // null = auto-detect
+  
+  // Animation refs for iOS-style modal
+  const backdropOpacity = useRef(new Animated.Value(0)).current;
+  const sheetTranslateY = useRef(new Animated.Value(32)).current;
+  const sheetOpacity = useRef(new Animated.Value(0)).current;
+  const contentScale = useRef(new Animated.Value(1)).current;
+  
+  // Open modal with animations
+  const openExercisePicker = useCallback(() => {
+    setModalVisible(true);
+    setShowExercisePicker(true);
+    
+    Animated.parallel([
+      Animated.timing(backdropOpacity, {
+        toValue: 0.35,
+        duration: 280,
+        useNativeDriver: true,
+      }),
+      Animated.timing(sheetTranslateY, {
+        toValue: 0,
+        duration: 280,
+        useNativeDriver: true,
+      }),
+      Animated.timing(sheetOpacity, {
+        toValue: 1,
+        duration: 280,
+        useNativeDriver: true,
+      }),
+      Animated.timing(contentScale, {
+        toValue: 0.98,
+        duration: 280,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
+  
+  // Close modal with animations
+  const closeExercisePicker = useCallback(() => {
+    Animated.parallel([
+      Animated.timing(backdropOpacity, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(sheetTranslateY, {
+        toValue: 32,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(sheetOpacity, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(contentScale, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      setShowExercisePicker(false);
+      setModalVisible(false);
+    });
+  }, []);
   
   // Update active set when exercise changes
   useEffect(() => {
@@ -699,12 +766,14 @@ export const FocusedExerciseView: React.FC<FocusedExerciseViewProps> = ({
   
   return (
     <View style={styles.container}>
+      {/* Main Content - scales when modal is open */}
+      <Animated.View style={[styles.mainContent, { transform: [{ scale: contentScale }] }]}>
       {/* Exercise Header */}
       <View style={styles.exerciseHeader}>
         <View style={styles.exerciseProgress}>
           <TouchableOpacity 
             style={styles.exercisePickerBtn}
-            onPress={() => setShowExercisePicker(true)}
+            onPress={openExercisePicker}
           >
             <Text style={styles.exerciseCount}>
               Exercise {exerciseIndex + 1} of {totalExercises}
@@ -865,26 +934,60 @@ export const FocusedExerciseView: React.FC<FocusedExerciseViewProps> = ({
           <Ionicons name="chevron-forward" size={24} color="#fff" />
         </TouchableOpacity>
       </View>
+      </Animated.View>
       
-      {/* Exercise Picker Modal */}
+      {/* Exercise Picker Modal - iOS Style */}
       <Modal
-        visible={showExercisePicker}
+        visible={modalVisible}
         transparent
-        animationType="slide"
-        onRequestClose={() => setShowExercisePicker(false)}
+        animationType="none"
+        statusBarTranslucent
+        presentationStyle="overFullScreen"
+        onRequestClose={closeExercisePicker}
       >
-        <View style={styles.modalOverlay}>
+        {/* Uniform backdrop fade */}
+        <Animated.View 
+          style={[
+            styles.modalBackdrop,
+            { opacity: backdropOpacity }
+          ]}
+        >
+          <TouchableOpacity 
+            style={StyleSheet.absoluteFill}
+            activeOpacity={1}
+            onPress={closeExercisePicker}
+          />
+        </Animated.View>
+        
+        {/* Animated sheet */}
+        <Animated.View 
+          style={[
+            styles.modalSheetContainer,
+            {
+              opacity: sheetOpacity,
+              transform: [{ translateY: sheetTranslateY }],
+            }
+          ]}
+          pointerEvents="box-none"
+        >
           <View style={[styles.exercisePickerModal, { paddingBottom: Math.max(insets.bottom, 20) }]}>
+            {/* Blur background for iOS glass effect */}
+            <BlurView
+              intensity={80}
+              tint="dark"
+              style={StyleSheet.absoluteFill}
+            />
             <View style={styles.exercisePickerHeader}>
               <Text style={styles.exercisePickerTitle}>Jump to Exercise</Text>
               <TouchableOpacity 
                 style={styles.closeModalBtn}
-                onPress={() => setShowExercisePicker(false)}
+                onPress={closeExercisePicker}
+                activeOpacity={0.7}
               >
                 <Ionicons name="close" size={24} color="#fff" />
               </TouchableOpacity>
             </View>
-            <ScrollView style={styles.exercisePickerList}>
+            <ScrollView style={styles.exercisePickerList} showsVerticalScrollIndicator={false}>
               {allExercises.map((ex, idx) => {
                 const exerciseCompleted = ex.sets.filter(s => s.completed).length;
                 const exerciseTotal = ex.sets.length;
@@ -899,9 +1002,10 @@ export const FocusedExerciseView: React.FC<FocusedExerciseViewProps> = ({
                       isCurrent && styles.exercisePickerItemActive,
                       isDone && styles.exercisePickerItemDone,
                     ]}
+                    activeOpacity={0.7}
                     onPress={() => {
                       onJumpToExercise(idx);
-                      setShowExercisePicker(false);
+                      closeExercisePicker();
                     }}
                   >
                     <View style={styles.exercisePickerItemLeft}>
@@ -931,7 +1035,7 @@ export const FocusedExerciseView: React.FC<FocusedExerciseViewProps> = ({
               })}
             </ScrollView>
           </View>
-        </View>
+        </Animated.View>
       </Modal>
     </View>
   );
@@ -941,6 +1045,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#000',
+  },
+  mainContent: {
+    flex: 1,
   },
   exerciseHeader: {
     paddingHorizontal: 20,
@@ -1498,24 +1605,28 @@ const styles = StyleSheet.create({
     marginTop: -4,
   },
   // Modal styles
-  modalOverlay: {
+  modalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#000',
+  },
+  modalSheetContainer: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.8)',
     justifyContent: 'flex-end',
   },
   exercisePickerModal: {
-    backgroundColor: '#1a1a1a',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    backgroundColor: 'rgba(30, 30, 30, 0.85)',
+    borderTopLeftRadius: 14,
+    borderTopRightRadius: 14,
     maxHeight: '70%',
+    overflow: 'hidden',
   },
   exercisePickerHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#333',
+    padding: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(255, 255, 255, 0.15)',
   },
   exercisePickerTitle: {
     color: '#fff',
@@ -1523,16 +1634,12 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   closeModalBtn: {
-    padding: 4,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.25)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   exercisePickerList: {
     padding: 16,
@@ -1543,36 +1650,19 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 14,
     paddingHorizontal: 16,
-    borderRadius: 12,
+    borderRadius: 10,
     marginBottom: 8,
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   exercisePickerItemActive: {
-    backgroundColor: 'rgba(255, 45, 85, 0.3)',
-    borderWidth: 2,
-    borderColor: 'rgba(255, 45, 85, 0.8)',
-    shadowColor: '#ff2d55',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.5,
-    shadowRadius: 16,
-    elevation: 12,
+    backgroundColor: 'rgba(255, 45, 85, 0.15)',
+    borderColor: 'rgba(255, 45, 85, 0.4)',
   },
   exercisePickerItemDone: {
-    backgroundColor: 'rgba(76, 175, 80, 0.25)',
-    borderWidth: 1.5,
-    borderColor: 'rgba(76, 175, 80, 0.6)',
-    shadowColor: '#4CAF50',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35,
-    shadowRadius: 10,
-    elevation: 8,
+    backgroundColor: 'rgba(76, 175, 80, 0.1)',
+    borderColor: 'rgba(76, 175, 80, 0.3)',
   },
   exercisePickerItemLeft: {
     flexDirection: 'row',
