@@ -289,6 +289,7 @@ const TimedSetRow: React.FC<SetRowProps> = ({
             <TouchableOpacity 
               style={styles.timerStartBtn}
               onPress={initiateTimer}
+              activeOpacity={0.8}
             >
               <Ionicons name="play" size={24} color="#fff" />
               <Text style={styles.timerBtnText}>Start</Text>
@@ -302,6 +303,7 @@ const TimedSetRow: React.FC<SetRowProps> = ({
             <TouchableOpacity 
               style={styles.timerStartBtn}
               onPress={resumeTimer}
+              activeOpacity={0.8}
             >
               <Ionicons name="play" size={24} color="#fff" />
               <Text style={styles.timerBtnText}>Resume</Text>
@@ -310,6 +312,7 @@ const TimedSetRow: React.FC<SetRowProps> = ({
             <TouchableOpacity 
               style={styles.timerPauseBtn}
               onPress={pauseTimer}
+              activeOpacity={0.8}
             >
               <Ionicons name="pause" size={24} color="#fff" />
               <Text style={styles.timerBtnText}>Pause</Text>
@@ -318,12 +321,14 @@ const TimedSetRow: React.FC<SetRowProps> = ({
           <TouchableOpacity 
             style={styles.timerStopBtn}
             onPress={stopTimer}
+            activeOpacity={0.8}
           >
             <Ionicons name="stop" size={20} color="#fff" />
           </TouchableOpacity>
           <TouchableOpacity 
             style={styles.timerResetBtn}
             onPress={resetTimer}
+            activeOpacity={0.8}
           >
             <Ionicons name="refresh" size={20} color="rgba(255,255,255,0.6)" />
           </TouchableOpacity>
@@ -681,8 +686,8 @@ export const FocusedExerciseView: React.FC<FocusedExerciseViewProps> = ({
       // Currently auto-detect, switch to opposite of detected
       setForceTimedMode(!autoDetectedTimed);
     } else {
-      // Toggle between forced modes or back to auto
-      setForceTimedMode(forceTimedMode ? false : null);
+      // Toggle to the opposite mode
+      setForceTimedMode(!forceTimedMode);
     }
   };
   
@@ -718,7 +723,11 @@ export const FocusedExerciseView: React.FC<FocusedExerciseViewProps> = ({
         
         <View style={styles.targetInfo}>
           <View style={[styles.targetBadge, isTimed && styles.timedTargetBadge]}>
-            {isTimed && <Ionicons name="timer-outline" size={14} color="#ff2d55" style={{ marginRight: 4 }} />}
+            {isTimed ? (
+              <Ionicons name="timer-outline" size={14} color="#ff2d55" style={{ marginRight: 4 }} />
+            ) : (
+              <Ionicons name="barbell-outline" size={14} color="#ff2d55" style={{ marginRight: 4 }} />
+            )}
             <Text style={styles.targetText}>
               {isTimed 
                 ? `${exercise.targetSets} sets × ${exercise.targetReps}` 
@@ -738,16 +747,14 @@ export const FocusedExerciseView: React.FC<FocusedExerciseViewProps> = ({
           <TouchableOpacity 
             style={styles.modeToggle}
             onPress={toggleTimedMode}
+            activeOpacity={0.8}
           >
             <Ionicons 
               name={isTimed ? "timer" : "barbell"} 
               size={14} 
-              color={forceTimedMode !== null ? "#ff2d55" : "rgba(255,255,255,0.5)"} 
+              color="#fff"
             />
-            <Text style={[
-              styles.modeToggleText,
-              forceTimedMode !== null && styles.modeToggleTextActive
-            ]}>
+            <Text style={styles.modeToggleText}>
               {isTimed ? 'Timed' : 'Reps'}
             </Text>
           </TouchableOpacity>
@@ -976,18 +983,23 @@ const styles = StyleSheet.create({
   targetInfo: {
     flexDirection: 'row',
     gap: 12,
-    flexWrap: 'wrap',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   targetBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: 'rgba(255,255,255,0.1)',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
+    flexShrink: 1,
   },
   targetText: {
     color: 'rgba(255,255,255,0.7)',
     fontSize: 14,
     fontWeight: '500',
+    flexShrink: 1,
   },
   suggestedBadge: {
     flexDirection: 'row',
@@ -1018,8 +1030,8 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.1)',
   },
   setRowActive: {
-    backgroundColor: 'rgba(255, 45, 85, 0.08)',
-    borderColor: 'rgba(255, 45, 85, 0.3)',
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   setRowCompleted: {
     backgroundColor: 'rgba(76, 175, 80, 0.1)',
@@ -1129,15 +1141,15 @@ const styles = StyleSheet.create({
   },
   completeSetBtn: {
     marginTop: 16,
-    borderRadius: 14,
+    borderRadius: 12,
     overflow: 'hidden',
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-    shadowColor: '#ff2d55',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.5,
-    shadowRadius: 16,
-    elevation: 12,
+    borderWidth: 0.5,
+    borderColor: 'rgba(255, 255, 255, 0.18)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
   },
   completeSetGradient: {
     flexDirection: 'row',
@@ -1295,63 +1307,63 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: 'rgba(255, 45, 85, 0.85)',
+    backgroundColor: '#ff2d55',
     paddingHorizontal: 24,
     paddingVertical: 12,
-    borderRadius: 24,
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.35)',
-    shadowColor: '#ff2d55',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.5,
-    shadowRadius: 16,
-    elevation: 12,
+    borderRadius: 22,
+    borderWidth: 0.5,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
   },
   timerPauseBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: 'rgba(255, 149, 0, 0.85)',
+    backgroundColor: '#ff9500',
     paddingHorizontal: 24,
     paddingVertical: 12,
-    borderRadius: 24,
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.35)',
-    shadowColor: '#ff9500',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.5,
-    shadowRadius: 16,
-    elevation: 12,
+    borderRadius: 22,
+    borderWidth: 0.5,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
   },
   timerStopBtn: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: 'rgba(58, 58, 60, 0.85)',
+    backgroundColor: 'rgba(120, 120, 128, 0.36)',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.25)',
+    borderWidth: 0.5,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.45,
-    shadowRadius: 12,
-    elevation: 10,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
+    elevation: 3,
   },
   timerResetBtn: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: 'rgba(58, 58, 60, 0.85)',
+    backgroundColor: 'rgba(120, 120, 128, 0.36)',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.25)',
+    borderWidth: 0.5,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.45,
-    shadowRadius: 12,
-    elevation: 10,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
+    elevation: 3,
   },
   timerBtnText: {
     color: '#fff',
@@ -1420,6 +1432,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 22,
     marginLeft: 'auto',
+    flexShrink: 0,
     borderWidth: 2,
     borderColor: 'rgba(255, 45, 85, 0.5)',
     shadowColor: '#ff2d55',
