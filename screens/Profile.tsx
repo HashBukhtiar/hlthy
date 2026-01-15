@@ -952,7 +952,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
       >
         <Ionicons 
           name="grid" 
-          size={22} 
+          size={20} 
           color={activeTab === TabType.POSTS ? '#FFF' : 'rgba(255,255,255,0.5)'} 
         />
       </TouchableOpacity>
@@ -963,7 +963,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
       >
         <MaterialCommunityIcons 
           name="trophy" 
-          size={22} 
+          size={20} 
           color={activeTab === TabType.MILESTONES ? '#FFF' : 'rgba(255,255,255,0.5)'} 
         />
       </TouchableOpacity>
@@ -974,7 +974,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
       >
         <Ionicons 
           name="flame" 
-          size={22} 
+          size={20} 
           color={activeTab === TabType.WORKOUTS ? '#FFF' : 'rgba(255,255,255,0.5)'} 
         />
       </TouchableOpacity>
@@ -1629,7 +1629,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderRadius: 14,
-    paddingVertical: 12,
+    paddingVertical: 10,
     paddingHorizontal: 4,
     marginBottom: 4,
   },
