@@ -1444,7 +1444,7 @@ const styles = StyleSheet.create({
   // Banner
   bannerContainer: {
     width: '100%',
-    height: 140,
+    height: 120,
     position: 'relative',
   },
   bannerImage: {
