@@ -96,6 +96,9 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
   const [tooltipVisible, setTooltipVisible] = useState(false);
   const [tooltipText, setTooltipText] = useState('');
 
+  const indicatorWidth = screenWidth * 0.2;
+  const tabCenterOffset = (screenWidth / 3 - indicatorWidth) / 2;
+
   const isOwnProfile = !routeUserId || routeUserId === currentUser?.uid;
   const displayProfileData = isOwnProfile ? (profileData || currentUserProfile) : profileData;
 
@@ -143,7 +146,11 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
 
   const indicatorPosition = tabIndicator.interpolate({
     inputRange: [0, screenWidth, screenWidth * 2],
-    outputRange: [0, tabWidth, tabWidth * 2],
+    outputRange: [
+      tabCenterOffset,
+      tabWidth + tabCenterOffset,
+      tabWidth * 2 + tabCenterOffset
+    ],
     extrapolate: 'clamp'
   });
 
@@ -1676,7 +1683,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 0,
     height: 3,
-    width: Dimensions.get('window').width / 3,
+    width: Dimensions.get('window').width * 0.2,
     backgroundColor: ACCENT_COLOR,
     borderRadius: 1.5,
   },
