@@ -132,6 +132,12 @@ export interface UserProfile {
   // Profile Completion
   isProfileComplete?: boolean;
   profileCompletionPercentage?: number;
+
+  // Moderation fields
+  warnings?: number;
+  suspendedUntil?: Timestamp;
+  isBanned?: boolean;
+  reportedCount?: number;
 }
 
 export interface Achievement {
