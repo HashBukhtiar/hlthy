@@ -1209,7 +1209,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
                     onPress={handleDirectMessage}
                     activeOpacity={0.85}
                   >
-                    <Ionicons name="mail-outline" size={20} color="#FFF" />
+                    <Ionicons name="mail-outline" size={18} color="#FFF" />
                   </TouchableOpacity>
                 )}
                 
@@ -1494,9 +1494,9 @@ const styles = StyleSheet.create({
   
   // Profile Info Section
   profileInfoSection: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingTop: 0,
-    marginTop: -40,
+    marginTop: -50,
   },
   
   // Profile Top Row
@@ -1504,35 +1504,35 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-end',
     justifyContent: 'space-between',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   profileImageWrapper: {
     position: 'relative',
   },
   profileImage: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    borderWidth: 4,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 3,
     borderColor: '#000',
     backgroundColor: '#1C1C1E',
   },
   archetypeBadge: {
     position: 'absolute',
-    bottom: 0,
-    right: 0,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    bottom: -2,
+    right: -2,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     backgroundColor: '#1C1C1E',
-    borderWidth: 3,
+    borderWidth: 2.5,
     borderColor: '#000',
     justifyContent: 'center',
     alignItems: 'center',
   },
   archetypeBadgeIcon: {
-    width: 20,
-    height: 20,
+    width: 18,
+    height: 18,
   },
   
   // Action Buttons
@@ -1543,9 +1543,9 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   messageButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: 'rgba(255,255,255,0.1)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.2)',
@@ -1553,10 +1553,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   followButtonNew: {
-    paddingHorizontal: 28,
-    paddingVertical: 12,
-    borderRadius: 25,
-    minWidth: 110,
+    paddingHorizontal: 24,
+    paddingVertical: 10,
+    borderRadius: 20,
+    minWidth: 100,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1580,7 +1580,7 @@ const styles = StyleSheet.create({
   },
   followButtonTextNew: {
     color: '#FFF',
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '600',
   },
   followButtonTextSecondary: {
@@ -1588,70 +1588,69 @@ const styles = StyleSheet.create({
   },
   editProfileButton: {
     paddingHorizontal: 20,
-    paddingVertical: 9,
-    borderRadius: 22,
+    paddingVertical: 8,
+    borderRadius: 20,
     backgroundColor: 'rgba(255,255,255,0.1)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.2)',
   },
   editProfileButtonText: {
     color: '#FFF',
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
   },
   
   // Name Section
   nameSection: {
-    marginBottom: 12,
+    marginBottom: 8,
   },
   displayName: {
-    fontSize: 26,
+    fontSize: 22,
     fontWeight: '700',
     color: '#FFF',
-    letterSpacing: -0.5,
+    letterSpacing: -0.3,
   },
   username: {
-    fontSize: 16,
+    fontSize: 14,
     color: 'rgba(255,255,255,0.6)',
     marginTop: 2,
   },
   
   // Bio
   bio: {
-    fontSize: 15,
-    color: 'rgba(255,255,255,0.85)',
-    lineHeight: 22,
-    marginBottom: 20,
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.8)',
+    lineHeight: 20,
+    marginBottom: 14,
   },
   
   // Stats Row
   statsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    // backgroundColor: 'rgba(255,255,255,0.05)',
-    borderRadius: 16,
-    paddingVertical: 16,
-    paddingHorizontal: 8,
-    marginBottom: 8,
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 4,
+    marginBottom: 4,
   },
   statItemNew: {
     flex: 1,
     alignItems: 'center',
   },
   statValueNew: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '700',
     color: '#FFF',
   },
   statLabelNew: {
-    fontSize: 13,
+    fontSize: 11,
     color: 'rgba(255,255,255,0.5)',
-    marginTop: 4,
+    marginTop: 3,
     fontWeight: '500',
   },
   statDivider: {
     width: 1,
-    height: 32,
+    height: 28,
     backgroundColor: 'rgba(255,255,255,0.1)',
   },
   
@@ -1666,7 +1665,7 @@ const styles = StyleSheet.create({
   },
   tabButton: {
     flex: 1,
-    paddingVertical: 14,
+    paddingVertical: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -2003,7 +2002,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-around',
     width: '100%',
-    marginTop: 20,
+    marginTop: 16,
   },
   statItem: {
     alignItems: 'center',
