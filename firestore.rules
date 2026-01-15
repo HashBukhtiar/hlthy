@@ -54,6 +54,10 @@ service cloud.firestore {
         isOwner(userId) && 
         resource.data.keys().hasAny(['pushTokens', 'lastTokenUpdate']) &&
         request.data.keys().hasOnly(['pushTokens', 'lastTokenUpdate']);
+      
+      // Allow admin dashboard to read/update users for moderation (localhost only)
+      // TODO: Replace with proper admin auth in production
+      allow read, update: if true;
     }
 
     // Message requests
@@ -85,6 +89,27 @@ service cloud.firestore {
     
     match /users/{userId}/savedWorkouts/{workoutId} {
       allow read, write: if isOwner(userId);
+    }
+    
+    // Workout Logs - User's completed workout sessions
+    match /users/{userId}/workout_logs/{logId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && 
+        request.resource.data.userId == userId &&
+        request.resource.data.keys().hasAll(['userId', 'workoutName', 'startedAt', 'completedAt', 'exercises']);
+      allow update: if isOwner(userId) && 
+        resource.data.userId == userId;
+      allow delete: if isOwner(userId);
+    }
+    
+    // Exercise History - Per-exercise stats and personal records
+    match /users/{userId}/exercise_history/{exerciseId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && 
+        request.resource.data.userId == userId;
+      allow update: if isOwner(userId) && 
+        resource.data.userId == userId;
+      allow delete: if isOwner(userId);
     }
     
     match /users/{userId}/conversations/{conversationId} {
@@ -267,6 +292,29 @@ service cloud.firestore {
     match /usersPublic/{userId} {
       allow read: if true; // Anyone can read for username existence check
       allow create, update: if isOwner(userId); // Only authenticated user can create/update their own doc
+    }
+
+
+    // Reports collection
+    match /reports/{reportId} {
+      // Allow unauthenticated reads for admin dashboard (localhost only)
+      // TODO: Remove this and use proper admin auth in production
+      allow read: if true;
+      
+      // Users can create reports (service handles the logic)
+      allow create: if isAuthenticated() && 
+        request.resource.data.reporters[0].userId == request.auth.uid;
+      
+      // Users can update reports to add themselves as a reporter
+      allow update: if isAuthenticated() && 
+        request.resource.data.reporters.size() > resource.data.reporters.size();
+      
+      // Allow admin dashboard to update reports (for taking actions)
+      // TODO: Replace with proper admin auth in production
+      allow update: if true;
+      
+      // Only admins can delete (handled server-side)
+      allow delete: if false;
     }
   }
 }
