@@ -329,7 +329,7 @@ const styles = StyleSheet.create({
   },
   profileTopRow: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
     marginBottom: 12,
   },
@@ -365,7 +365,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    marginBottom: 4,
+    marginTop: 60,
   },
   messageButton: {
     width: 40,
@@ -425,6 +425,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   nameSection: {
+    marginTop: -8,
     marginBottom: 8,
   },
   displayName: {
