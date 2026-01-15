@@ -1,21 +1,18 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { View, ScrollView, Text, Image, StyleSheet, Dimensions, FlatList, TouchableOpacity, SafeAreaView, Animated, ActivityIndicator, RefreshControl, Modal, Platform, ActionSheetIOS, Alert, StatusBar, ImageBackground } from 'react-native';
+import { View, ScrollView, Text, Image, StyleSheet, Dimensions, FlatList, TouchableOpacity, Animated, ActivityIndicator, RefreshControl, Modal, StatusBar } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useProfileData } from '@/hooks/useProfileData';
 import { useAuth } from '@/context/AuthContext';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { formatCount } from '@/logic/formattingFunctions';
-import { getFunctions, httpsCallable } from 'firebase/functions';
-import { app } from '@/firebaseConfig';
 import { BOTTOM_BAR_HEIGHT } from '@/styles/globalStyles';
 import { useBlockEnforcement } from '@/utils/blockUtils';
-import { useUnits } from '@/hooks/useUnits';
-import { doc, getDoc } from 'firebase/firestore';
-import { db } from '@/firebaseConfig';
-import { OptimizedImageLight } from '@/components/OptimizedImage';
-import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
 import { ACCENT_COLOR } from '@/constants/Colors';
+import { ProfileHeader } from '@/components/profile/ProfileHeader';
+import { PostsTab, MilestonesTab, WorkoutsTab } from '@/components/profile/ProfileTabs';
+import { useProfileActions } from '@/hooks/useProfileActions';
+import { formatTimeAgo, archetypeDescriptions } from '@/utils/profileUtils';
+import { getOptimalImageUrl } from '@/utils/imageUtils';
+import { formatCount } from '@/logic/formattingFunctions';
 
 const archetypeIcons = {
   'athlete': require('@/assets/images/athlete.png'),
@@ -25,16 +22,7 @@ const archetypeIcons = {
   'powerlifter': require('@/assets/images/powerlifter.png'),
 };
 
-// Archetype descriptions for tooltips
-const archetypeDescriptions = {
-  'athlete': 'Balanced all-round athletic performance with focus on endurance and strength.',
-  'bodybuilder': 'Focus on muscle hypertrophy, symmetry, and aesthetic physique development.',
-  'crossfitter': 'High-intensity functional movements combining gymnastics, weightlifting, and cardio.',
-  'generalist': 'Well-rounded fitness approach with balanced strength, cardio, and flexibility goals.',
-  'powerlifter': 'Specialized in maximizing strength in the squat, bench press, and deadlift.',
-};
-import { getOptimalImageUrl, getCoverImageSource, DEFAULT_PROFILE_IMAGE } from '@/utils/imageUtils';
-import { MilestoneDetails } from '@/types/milestone';
+
 
 interface ProfileScreenProps {
   userId?: string;
@@ -46,14 +34,9 @@ enum TabType {
   WORKOUTS = 'WORKOUTS'
 }
 
-const generateConversationId = (userId1: string, userId2: string): string => {
-  // Sort user IDs alphabetically to ensure consistent conversation ID
-  const sortedIds = [userId1, userId2].sort();
-  return `${sortedIds[0]}_${sortedIds[1]}`;
-};
-
 const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
   const { currentUser, userProfile: currentUserProfile, refreshUserProfile } = useAuth();
+  const router = useRouter();
   
   const {
     loading,
@@ -76,7 +59,18 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
   } = useProfileData(routeUserId, currentUserProfile);
   const createdWorkouts = workouts || [];
   const { isUserBlocked } = useBlockEnforcement();
-  const { getWeightUnit, getDistanceUnit, formatWeight, formatDistance, convertWeight } = useUnits();
+  
+  const profileActions = useProfileActions({
+    currentUser,
+    displayProfileData: processedProfileData,
+    refreshUserProfile,
+    refreshProfileData,
+    followUser,
+    unfollowUser,
+    isFollowingStatus,
+    isRequestPending,
+    followActionLoading,
+  });
   const [isBlockedByUser, setIsBlockedByUser] = useState(false);
   const [hasBlockedUser, setHasBlockedUser] = useState(false);
 
@@ -87,7 +81,6 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
   }, [posts]);
 
   const [refreshing, setRefreshing] = useState(false);
-  const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabType>(TabType.POSTS);
   const flatListRef = useRef<FlatList>(null);
   const { width: screenWidth } = Dimensions.get('window');
@@ -153,472 +146,6 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
     ],
     extrapolate: 'clamp'
   });
-
-  const formatTimeAgo = (date: any) => {
-    if (!date) return 'Just now';
-    const dateObj = date.toDate ? date.toDate() : new Date(date);
-    
-    const seconds = Math.floor((new Date().getTime() - dateObj.getTime()) / 1000);
-    
-    if (seconds < 60) return `${seconds}s ago`;
-    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
-    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
-    if (seconds < 604800) return `${Math.floor(seconds / 86400)}d ago`;
-    
-    return dateObj.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    });
-  };
-
-  const renderMilestoneDetails = (milestone: { milestoneType: string, details: any }) => {
-    // Helper function to check if unit is a distance unit
-    const isDistanceUnit = (unit?: string): boolean => {
-      return unit === 'km' || unit === 'miles';
-    };
-
-    // Helper function to check if unit is a weight unit
-    const isWeightUnit = (unit?: string): boolean => {
-      return unit === 'kg' || unit === 'lbs';
-    };
-
-    // Helper function for duration formatting
-    const formatDuration = (seconds: number): string => {
-      const hours = Math.floor(seconds / 3600);
-      const minutes = Math.floor((seconds % 3600) / 60);
-      const secs = seconds % 60;
-      
-      const parts: string[] = [];
-      if (hours > 0) parts.push(`${hours}h`);
-      if (minutes > 0 || hours > 0) parts.push(`${minutes}m`);
-      parts.push(`${secs}s`);
-      
-      return parts.join(' ');
-    };
-
-    // Helper function for weight conversion
-    const convertAndFormatWeight = (value: number, unit: string) => {
-      const userPreferredUnit = getWeightUnit();
-      let convertedValue = value;
-      let displayUnit = unit;
-      
-      if (unit !== userPreferredUnit) {
-        if (unit === 'kg' && userPreferredUnit === 'lbs') {
-          convertedValue = Math.round(value * 2.20462 * 10) / 10;
-        } else if (unit === 'lbs' && userPreferredUnit === 'kg') {
-          convertedValue = Math.round(value * 0.453592 * 10) / 10;
-        }
-        displayUnit = userPreferredUnit;
-      }
-      
-      return { value: Math.round(convertedValue * 10) / 10, unit: displayUnit };
-    };
-
-    // Helper function for distance conversion
-    const convertAndFormatDistance = (value: number, unit: string) => {
-      const userPreferredUnit = getDistanceUnit();
-      let convertedValue = value;
-      let displayUnit = unit;
-      
-      if (unit !== userPreferredUnit) {
-        if (unit === 'km' && userPreferredUnit === 'miles') {
-          convertedValue = Math.round(value * 0.621371 * 10) / 10;
-        } else if (unit === 'miles' && userPreferredUnit === 'km') {
-          convertedValue = Math.round(value * 1.60934 * 10) / 10;
-        }
-        displayUnit = userPreferredUnit;
-      }
-      
-      return { value: convertedValue, unit: displayUnit };
-    };
-
-    // **FIX: Parse the weight string from useProfileData hook format**
-    const parseWeightString = (weightStr?: string) => {
-      if (!weightStr) return { value: null, unit: null };
-      const parts = weightStr.split(' ');
-      const value = parseFloat(parts[0]);
-      const unit = parts[1] || null;
-      return { value: isNaN(value) ? null : value, unit };
-    };
-
-    if (milestone.milestoneType === 'PR') {
-      const details = milestone.details;
-      
-      // **FIX: Handle both old format (weight string) and new format (value + weightUnit)**
-      const parsedWeight = parseWeightString(details.weight);
-      const actualValue = details.value ?? parsedWeight.value;
-      const actualWeightUnit = details.weightUnit ?? parsedWeight.unit;
-      const actualReps = details.reps;
-      const actualDuration = details.duration;
-      const actualLevel = details.level;
-      const actualDistance = details.distance;
-      const actualDistanceUnit = details.distanceUnit;
-      
-      // Determine which metric type this PR uses
-      const hasWeightReps = actualValue && actualReps && actualWeightUnit && isWeightUnit(actualWeightUnit);
-      const hasBodyweightReps = actualReps && !actualValue && !actualDuration && !actualLevel;
-      const hasDuration = actualDuration && !actualValue && !actualLevel;
-      const hasDurationLevel = actualDuration && actualLevel && !actualValue;
-      const hasDistance = (actualValue && actualWeightUnit && isDistanceUnit(actualWeightUnit) && !actualDuration) ||
-                        (actualDistance && actualDistanceUnit && !actualDuration);
-      const hasDistanceTime = ((actualValue && actualDuration && actualWeightUnit && isDistanceUnit(actualWeightUnit)) ||
-                              (actualDistance && actualDistanceUnit && actualDuration));
-
-      // Weight + Reps (e.g., Bench Press 225 lbs × 5 reps)
-      if (hasWeightReps) {
-        const converted = convertAndFormatWeight(actualValue!, actualWeightUnit!);
-        
-        return (
-          <View style={styles.previousPRCard}>
-            <View style={styles.previousPRHeader}>
-              <MaterialCommunityIcons name="dumbbell" size={18} color="#FF5E69" />
-              <Text style={styles.previousPRTitle}>
-                {details.exerciseName || 'Strength PR'}
-              </Text>
-              <Text style={styles.previousPRDate}>{formatTimeAgo(details.date)}</Text>
-            </View>
-            
-            <View style={styles.previousPRContent}>
-              <View style={styles.prMetricsRow}>
-                <View style={styles.prMetricGroup}>
-                  <Text style={styles.prMetricValue}>{converted.value}</Text>
-                  <Text style={styles.prMetricLabel}>{converted.unit}</Text>
-                </View>
-                <Text style={styles.prMetricSeparator}>×</Text>
-                <View style={styles.prMetricGroup}>
-                  <Text style={styles.prMetricValue}>{actualReps}</Text>
-                  <Text style={styles.prMetricLabel}>reps</Text>
-                </View>
-              </View>
-            </View>
-          </View>
-        );
-      }
-
-      // Bodyweight Reps (e.g., Push-ups 50 reps)
-      if (hasBodyweightReps) {
-        return (
-          <View style={styles.previousPRCard}>
-            <View style={styles.previousPRHeader}>
-              <MaterialCommunityIcons name="human-handsup" size={18} color="#FF5E69" />
-              <Text style={styles.previousPRTitle}>
-                {details.exerciseName || 'Bodyweight PR'}
-              </Text>
-              <Text style={styles.previousPRDate}>{formatTimeAgo(details.date)}</Text>
-            </View>
-            
-            <View style={styles.previousPRContent}>
-              <View style={styles.prMetricsRow}>
-                <View style={styles.prMetricGroup}>
-                  <Text style={styles.prMetricValue}>{actualReps}</Text>
-                  <Text style={styles.prMetricLabel}>reps</Text>
-                </View>
-              </View>
-            </View>
-          </View>
-        );
-      }
-
-      // Duration Only (e.g., Plank 3m 45s)
-      if (hasDuration) {
-        return (
-          <View style={styles.previousPRCard}>
-            <View style={styles.previousPRHeader}>
-              <MaterialCommunityIcons name="timer-outline" size={18} color="#FF5E69" />
-              <Text style={styles.previousPRTitle}>
-                {details.exerciseName || 'Endurance PR'}
-              </Text>
-              <Text style={styles.previousPRDate}>{formatTimeAgo(details.date)}</Text>
-            </View>
-            
-            <View style={styles.previousPRContent}>
-              <View style={styles.prMetricsRow}>
-                <View style={styles.prMetricGroup}>
-                  <Text style={styles.prMetricValue}>{formatDuration(actualDuration)}</Text>
-                  <Text style={styles.prMetricLabel}>time</Text>
-                </View>
-              </View>
-            </View>
-          </View>
-        );
-      }
-
-      // Duration + Level (e.g., Plank Level 7: 2m 30s)
-      if (hasDurationLevel) {
-        return (
-          <View style={styles.previousPRCard}>
-            <View style={styles.previousPRHeader}>
-              <MaterialCommunityIcons name="timer-sand" size={18} color="#FF5E69" />
-              <Text style={styles.previousPRTitle}>
-                {details.exerciseName || 'Endurance PR'}
-              </Text>
-              <Text style={styles.previousPRDate}>{formatTimeAgo(details.date)}</Text>
-            </View>
-            
-            <View style={styles.previousPRContent}>
-              <View style={styles.prMetricsRow}>
-                <View style={styles.prMetricGroup}>
-                  <Text style={styles.prMetricValue}>{formatDuration(actualDuration)}</Text>
-                  <Text style={styles.prMetricLabel}>time</Text>
-                </View>
-              </View>
-              <View style={styles.prMetricsRow}>
-                <View style={styles.prMetricGroup}>
-                  <Text style={styles.prMetricValue}>Level {actualLevel}</Text>
-                  <Text style={styles.prMetricLabel}>difficulty</Text>
-                </View>
-              </View>
-            </View>
-          </View>
-        );
-      }
-
-      // Distance Only (e.g., Run 5.2 km)
-      if (hasDistance) {
-        const distValue = actualDistance || actualValue!;
-        const distUnit = actualDistanceUnit || actualWeightUnit!;
-        const converted = convertAndFormatDistance(distValue, distUnit);
-        
-        return (
-          <View style={styles.previousPRCard}>
-            <View style={styles.previousPRHeader}>
-              <MaterialCommunityIcons name="run" size={18} color="#FF5E69" />
-              <Text style={styles.previousPRTitle}>
-                {details.exerciseName || 'Distance PR'}
-              </Text>
-              <Text style={styles.previousPRDate}>{formatTimeAgo(details.date)}</Text>
-            </View>
-            
-            <View style={styles.previousPRContent}>
-              <View style={styles.prMetricsRow}>
-                <View style={styles.prMetricGroup}>
-                  <Text style={styles.prMetricValue}>{converted.value}</Text>
-                  <Text style={styles.prMetricLabel}>{converted.unit}</Text>
-                </View>
-              </View>
-            </View>
-          </View>
-        );
-      }
-
-      // Distance + Time (e.g., 5K in 23m 15s, pace: 4m 39s/km)
-      if (hasDistanceTime) {
-        const distValue = actualDistance || actualValue!;
-        const distUnit = actualDistanceUnit || actualWeightUnit!;
-        const converted = convertAndFormatDistance(distValue, distUnit);
-        const pace = distValue > 0 ? Math.round(actualDuration! / distValue) : 0;
-        const paceUnit = converted.unit.endsWith('s') ? converted.unit.slice(0, -1) : converted.unit;
-        
-        return (
-          <View style={styles.previousPRCard}>
-            <View style={styles.previousPRHeader}>
-              <MaterialCommunityIcons name="run-fast" size={18} color="#FF5E69" />
-              <Text style={styles.previousPRTitle}>
-                {details.exerciseName || 'Cardio PR'}
-              </Text>
-              <Text style={styles.previousPRDate}>{formatTimeAgo(details.date)}</Text>
-            </View>
-            
-            <View style={styles.previousPRContent}>
-              <View style={styles.prMetricsRow}>
-                <View style={styles.prMetricGroup}>
-                  <Text style={styles.prMetricValue}>{converted.value}</Text>
-                  <Text style={styles.prMetricLabel}>{converted.unit}</Text>
-                </View>
-              </View>
-              <View style={styles.prMetricsRow}>
-                <View style={styles.prMetricGroup}>
-                  <Text style={styles.prMetricValue}>{formatDuration(actualDuration!)}</Text>
-                  <Text style={styles.prMetricLabel}>time</Text>
-                </View>
-              </View>
-              <View style={styles.prMetricsRow}>
-                <View style={styles.prMetricGroup}>
-                  <Text style={styles.prMetricValue}>{formatDuration(pace)}</Text>
-                  <Text style={styles.prMetricLabel}>per {paceUnit}</Text>
-                </View>
-              </View>
-            </View>
-          </View>
-        );
-      }
-
-      // Fallback for unknown PR type
-      return (
-        <View style={styles.previousPRCard}>
-          <View style={styles.previousPRHeader}>
-            <MaterialCommunityIcons name="trophy-outline" size={18} color="#FF5E69" />
-            <Text style={styles.previousPRTitle}>
-              {details.exerciseName || 'Personal Record'}
-            </Text>
-            <Text style={styles.previousPRDate}>{formatTimeAgo(details.date)}</Text>
-          </View>
-        </View>
-      );
-    } else if (milestone.milestoneType === 'weightLoss' || milestone.milestoneType === 'weightGain') {
-      const isLoss = milestone.milestoneType === 'weightLoss';
-      const details = milestone.details;
-      
-      // Parse old weight string format if it exists
-      const weightString = details.weight || '';
-      const weightParts = weightString.split(' ');
-      const legacyWeightValue = parseFloat(weightParts[0]) || 0;
-      const legacyWeightUnit = weightParts.length > 1 ? weightParts[1] : '';
-      
-      // Use new format if available, otherwise fall back to legacy
-      const weightValue = details.newWeight || legacyWeightValue;
-      const weightUnit = details.newWeightUnit || legacyWeightUnit || getWeightUnit();
-      
-      const converted = convertAndFormatWeight(weightValue, weightUnit);
-      
-      return (
-        <View style={styles.previousPRCard}>
-          <View style={styles.previousPRHeader}>
-            <Ionicons name="fitness-outline" size={18} color="#FF5E69" />
-            <Text style={styles.previousPRTitle}>{isLoss ? 'Weight Loss' : 'Weight Gain'}</Text>
-            <Text style={styles.previousPRDate}>{formatTimeAgo(details.date)}</Text>
-          </View>
-          
-          <View style={styles.previousPRContent}>
-            <View style={styles.prMetricsRow}>
-              <View style={styles.prMetricGroup}>
-                <Text style={styles.prMetricValue}>{converted.value}</Text>
-                <Text style={styles.prMetricLabel}>{converted.unit}</Text>
-              </View>
-            </View>
-          </View>
-        </View>
-      );
-    }
-    return null;
-  };
-
-  const handleDirectMessage = async () => {
-    if (!currentUser || !displayProfileData?.id) return;
-    
-    const conversationId = generateConversationId(currentUser.uid, displayProfileData.id);
-    
-    try {
-      // Check if conversation already exists
-      const conversationRef = doc(db, 'conversations', conversationId);
-      const conversationSnap = await getDoc(conversationRef);
-      
-      if (conversationSnap.exists()) {
-        // Conversation exists, navigate directly
-        router.push(`/chat/${conversationId}`);
-      } else {
-        // New conversation, navigate and let SmartChatInput handle permission checking
-        router.push(`/chat/${conversationId}`);
-      }
-    } catch (error) {
-      console.error('Error navigating to chat:', error);
-      Alert.alert('Error', 'Failed to open chat. Please try again.');
-    }
-  };
-
-  const handleBlockUser = async () => {
-    if (!displayProfileData?.id) return;
-    const username = displayProfileData.username || 'this user';
-
-    Alert.alert(
-      'Block User',
-      `Are you sure you want to block @${username}? They will not be able to interact with you.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Block',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const functions = getFunctions(app, 'northamerica-northeast2');
-              const blockUserFn = httpsCallable(functions, 'blockUser');
-              await blockUserFn({ targetUserId: displayProfileData.id });
-              
-              // Refresh user profile to update blocked users list
-              if (refreshUserProfile) {
-                await refreshUserProfile();
-              }
-              
-              Alert.alert('Blocked', `You have blocked @${username}.`);
-              router.replace('/');
-            } catch (error) {
-              Alert.alert('Error', 'Failed to block user. Please try again.');
-              console.error('Block user error:', error);
-            }
-          }
-        }
-      ]
-    );
-  };
-
-  // Add new handleUnblockUser function
-  const handleUnblockUser = async () => {
-    if (!displayProfileData?.id) return;
-    const username = displayProfileData.username || 'this user';
-
-    Alert.alert(
-      'Unblock User',
-      `Are you sure you want to unblock @${username}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Unblock',
-          style: 'default',
-          onPress: async () => {
-            try {
-              const functions = getFunctions(app, 'northamerica-northeast2');
-              const unblockUserFn = httpsCallable(functions, 'unblockUser');
-              await unblockUserFn({ targetUserId: displayProfileData.id });
-              Alert.alert('Success', `@${username} has been unblocked.`);
-              // Refresh the profile data to update the UI
-              await refreshProfileData();
-            } catch (error) {
-              Alert.alert('Error', 'Failed to unblock user. Please try again.');
-              console.error('Unblock user error:', error);
-            }
-          }
-        }
-      ]
-    );
-  };
-
-  // Show action sheet (three dots)
-  const showMoreOptions = () => {
-    if (!displayProfileData?.id) return;
-    
-    const isBlocked = isUserBlocked(displayProfileData.id);
-    const actionText = isBlocked ? 'Unblock User' : 'Block User';
-    const actionHandler = isBlocked ? handleUnblockUser : handleBlockUser;
-    
-    if (Platform.OS === 'ios') {
-      ActionSheetIOS.showActionSheetWithOptions(
-        {
-          options: ['Cancel', actionText],
-          destructiveButtonIndex: isBlocked ? -1 : 1,
-          cancelButtonIndex: 0,
-          userInterfaceStyle: 'dark',
-        },
-        (buttonIndex) => {
-          if (buttonIndex === 1) actionHandler();
-        }
-      );
-    } else {
-      // Android fallback
-      Alert.alert(
-        'More Options',
-        '',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { 
-            text: actionText, 
-            style: isBlocked ? 'default' : 'destructive', 
-            onPress: actionHandler 
-          }
-        ]
-      );
-    }
-  };
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -689,248 +216,52 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
     });
   }, [router]);
 
-  const renderWorkoutListItem = (item: any, index: number) => ( 
-    <TouchableOpacity 
-      key={item.id || index} 
-      style={styles.workoutItem} 
-      onPress={() => router.push(`/view-workout/${item.id}`)}
-      activeOpacity={0.85}
-    >
-      <Image
-        source={getCoverImageSource(item.thumbnailUrl, item.coverImageUrl)}
-        style={styles.workoutItemImage}
-      />
-      <View style={styles.workoutItemTextContainer}>
-        <Text style={styles.workoutItemTitle} numberOfLines={1}>{item.title}</Text>
-        <Text style={styles.workoutItemCreator} numberOfLines={1}>by {item.creatorUsername}</Text>
-      </View>
-    </TouchableOpacity>
-  );
-
-  const renderWorkoutsTab = () => {
-    if (loadingWorkouts && createdWorkouts.length === 0 && savedWorkouts.length === 0) {
-      return <ActivityIndicator style={{ marginTop: 20 }} size="large" color="white"/>;
+  const handleArchetypeBadgePress = useCallback(() => {
+    if (!isBlockedByUser && processedProfileData?.archetype) {
+      setTooltipText(archetypeDescriptions[processedProfileData.archetype.toLowerCase()] || archetypeDescriptions['generalist']);
+      setTooltipVisible(true);
     }
+  }, [isBlockedByUser, processedProfileData]);
 
-    return (
-      <ScrollView style={styles.tabContentContainer}>
-        <Text style={styles.tabSectionHeader}>Created Workouts ({createdWorkouts.length})</Text>
-        {createdWorkouts.length > 0 ? (
-          createdWorkouts.map(renderWorkoutListItem)
-        ) : (
-          <Text style={styles.emptyTabText}>No workouts created yet.</Text>
-        )}
+  const handleFollowersPress = useCallback(() => {
+    if (isPrivate && !isOwnProfile) return;
+    if (isBlockedByUser) return;
+    router.push(`/followers/${viewedProfileId}`);
+  }, [isPrivate, isOwnProfile, isBlockedByUser, viewedProfileId, router]);
 
-        <Text style={styles.tabSectionHeader}>Saved Workouts ({savedWorkouts.length})</Text>
-        {savedWorkouts.length > 0 ? (
-          savedWorkouts.map(renderWorkoutListItem)
-        ) : (
-          <Text style={styles.emptyTabText}>No workouts saved yet.</Text>
-        )}
-        <View style={{ height: 20 }} />
-      </ScrollView>
-    );
-  };
+  const handleFollowingPress = useCallback(() => {
+    if (isPrivate && !isOwnProfile) return;
+    if (isBlockedByUser) return;
+    router.push(`/following/${viewedProfileId}`);
+  }, [isPrivate, isOwnProfile, isBlockedByUser, viewedProfileId, router]);
 
   const renderPostsContent = useCallback(() => (
-    <FlatList
-      key="posts-grid"
-      data={displayablePosts}
-      renderItem={({ item }) => (
-        <TouchableOpacity onPress={() => handleImagePress(item)} activeOpacity={0.85}>
-          <OptimizedImageLight 
-            thumbnailUrl={item.thumbnailUrl} 
-            originalUrl={item.imageUrl} 
-            style={styles.postImage} 
-          />
-        </TouchableOpacity>
-      )}
-      keyExtractor={(item) => item.id}
-      numColumns={3}
-      contentContainerStyle={styles.postsContainer}
-      ListEmptyComponent={
-        <Text style={{ color: 'gray', textAlign: 'center', padding: 30 }}>No posts yet</Text>
-      }
-      refreshControl={
-        <RefreshControl
-          refreshing={refreshing}
-          onRefresh={onRefresh}
-          tintColor="#FFFFFF"
-          colors={["#FFFFFF"]}
-          progressBackgroundColor="#212121"
-        />
-      }
+    <PostsTab
+      displayablePosts={displayablePosts}
+      refreshing={refreshing}
+      onRefresh={onRefresh}
+      onImagePress={handleImagePress}
     />
-  ), [displayablePosts, refreshing, handleImagePress, onRefresh]);
+  ), [displayablePosts, refreshing, onRefresh, handleImagePress]);
 
-  const renderMilestonesContent = useCallback(() => {
-    const monthKeys = Object.keys(groupedMilestones).sort((a, b) => {
-      try {
-        const dateA = new Date(`01 ${a}`);
-        const dateB = new Date(`01 ${b}`);
-        return dateB.getTime() - dateA.getTime();
-      } catch (e) { return 0; }
-    });
-
-    if (monthKeys.length === 0) {
-      return (
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32, minHeight: 200 }}>
-          <Ionicons name="trophy-outline" size={36} color="#666" style={{ marginBottom: 12 }} />
-          <Text style={{ 
-            color: '#FFF', 
-            fontSize: 18,
-            fontWeight: '600',
-            marginBottom: 6,
-            textAlign: 'center' 
-          }}>No Milestones Yet</Text>
-          <Text style={{ 
-            color: '#8E8E93', 
-            fontSize: 14,
-            textAlign: 'center',
-            lineHeight: 20,
-            maxWidth: 260
-          }}>Track your fitness journey by adding milestones.</Text>
-        </View>
-      );
-    }
-    
-    return (
-      <FlatList
-        key="milestones-list"
-        data={monthKeys}
-        renderItem={({ item: month }) => (
-          <View>
-            <Text style={styles.monthHeader}>{month}</Text>
-            {groupedMilestones[month].map((milestoneItem: any, idx: number) => {
-              // Infer type
-              let milestoneType = "PR";
-              if (
-                milestoneItem.exerciseName &&
-                typeof milestoneItem.exerciseName === "string" &&
-                milestoneItem.exerciseName.toLowerCase().includes("weight loss")
-              ) {
-                milestoneType = "weightLoss";
-              } else if (
-                milestoneItem.exerciseName &&
-                typeof milestoneItem.exerciseName === "string" &&
-                milestoneItem.exerciseName.toLowerCase().includes("weight gain")
-              ) {
-                milestoneType = "weightGain";
-              }
-
-              const milestoneForDetails = {
-                milestoneType,
-                details: milestoneItem
-              };
-
-              return (
-                <TouchableOpacity
-                  key={milestoneItem.id}
-                  onPress={() => handleMilestonePress(milestoneItem.id)}
-                  style={styles.milestoneItemCard}
-                  activeOpacity={0.85}
-                >
-                  {renderMilestoneDetails(milestoneForDetails)}
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        )}
-        keyExtractor={(item) => item}
-      />
-    );
-  }, [groupedMilestones, handleMilestonePress]);
+  const renderMilestonesContent = useCallback(() => (
+    <MilestonesTab
+      groupedMilestones={groupedMilestones}
+      onMilestonePress={handleMilestonePress}
+      formatTimeAgo={formatTimeAgo}
+    />
+  ), [groupedMilestones, handleMilestonePress]);
   
-  const renderWorkoutsContent = useCallback(() => {
-    if (loadingWorkouts && (!workouts || workouts.length === 0)) { 
-        return (
-          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20, minHeight: 200 }}>
-            <ActivityIndicator size="large" color="white" />
-          </View>
-        );
-    }
-    if (!workouts || workouts.length === 0) {
-      return (
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20, minHeight: 200 }}>
-          <Text style={{ color: 'gray', textAlign: 'center' }}>No workouts yet. Create or save a workout to see it here.</Text>
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor="#FFFFFF"
-            colors={["#FFFFFF"]}
-            progressBackgroundColor="#212121"
-          />
-        </View>
-      );
-    }
-    // Sort workouts by creation date, newest first
-    const sortedWorkoutsData = [...workouts].sort((a, b) => {
-      try {
-        // Assuming createdAt can be a Firestore Timestamp or a string/number date
-        const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0);
-        const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0);
-        return dateB.getTime() - dateA.getTime();
-      } catch (error) { return 0; }
-    });
-
-    return (
-      <FlatList
-        key="workouts-list-single-column"
-        data={sortedWorkoutsData}
-        renderItem={({ item }) => {
-          let formattedDate = "Date N/A";
-          try {
-            if (item.createdAt) {
-              const workoutDate = item.createdAt?.toDate ? item.createdAt.toDate() : new Date(item.createdAt);
-              formattedDate = workoutDate.toLocaleDateString('en-US', { 
-                year: 'numeric', 
-                month: 'short', 
-                day: 'numeric' 
-              });
-            }
-          } catch (error) { formattedDate = "Invalid Date"; }
-          
-          if (!item.isPublic && !isOwnProfile) {
-            return null;
-          }
-
-          return (
-            <TouchableOpacity 
-              key={item.id} 
-              onPress={() => handleWorkoutPress(item.id)} 
-              style={styles.workoutListItemRowStyle}
-              activeOpacity={0.85}
-            >
-              <Image
-                source={getCoverImageSource(item.thumbnailUrl, item.coverImageUrl)}
-                style={styles.workoutListItemImageStyle}
-              />
-              <View style={styles.workoutListItemTextContainerStyle}>
-                <Text style={styles.workoutListItemTitleStyle} numberOfLines={2}>{item.title || 'Unnamed Workout'}</Text>
-                <Text style={styles.workoutListItemMetaStyle}>{formattedDate}</Text>
-                <Text style={styles.workoutListItemMetaStyle}>{item.savedCount || 0} saves</Text>
-              </View>
-              {item.isPublic !== true && isOwnProfile && (
-                <Ionicons name="lock-closed" size={24} color="#888" />
-              )}
-            </TouchableOpacity>
-          );
-        }}
-        keyExtractor={(item) => item.id.toString()}
-        contentContainerStyle={styles.workoutsListSingleColumn} 
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor="#FFFFFF"
-            colors={["#FFFFFF"]}
-            progressBackgroundColor="#212121"
-          />
-        }
-      />
-    );
-  }, [workouts, refreshing, handleWorkoutPress, onRefresh, loadingWorkouts, isOwnProfile]);
+  const renderWorkoutsContent = useCallback(() => (
+    <WorkoutsTab
+      workouts={workouts}
+      loadingWorkouts={loadingWorkouts}
+      refreshing={refreshing}
+      onRefresh={onRefresh}
+      onWorkoutPress={handleWorkoutPress}
+      isOwnProfile={isOwnProfile}
+    />
+  ), [workouts, loadingWorkouts, refreshing, onRefresh, handleWorkoutPress, isOwnProfile]);
 
   const postsTabComponent = useMemo(() => renderPostsContent(), [renderPostsContent]);
   const milestonesTabComponent = useMemo(() => renderMilestonesContent(), [renderMilestonesContent]);
@@ -1108,234 +439,30 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
         }
         stickyHeaderIndices={[1]}
       >
-        {/* Banner Section with Profile Info Overlay */}
-        <View style={styles.headerSection}>
-          {/* Banner Image */}
-          <View style={styles.bannerContainer}>
-            <Image
-              source={{ 
-                uri: processedProfileData?.bannerImageUrl || 
-                     'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800&q=80'
-              }}
-              style={styles.bannerImage}
-              resizeMode="cover"
-            />
-            <LinearGradient
-              colors={['transparent', 'rgba(0,0,0,0.2)']}
-              locations={[0, 1]}
-              style={styles.bannerGradient}
-            />
-            
-            {/* Top Navigation Buttons */}
-            <SafeAreaView style={styles.topNavigation}>
-              {!isOwnProfile && router.canGoBack() && (
-                <TouchableOpacity
-                  style={styles.navButton}
-                  onPress={() => router.back()}
-                  activeOpacity={0.85}
-                >
-                  <BlurView intensity={30} tint="dark" style={styles.navButtonBlur}>
-                    <Ionicons name="chevron-back" size={24} color="white" />
-                  </BlurView>
-                </TouchableOpacity>
-              )}
-              
-              <View style={styles.navSpacer} />
-              
-              {isOwnProfile ? (
-                <TouchableOpacity
-                  style={styles.navButton}
-                  onPress={handleSettingsPress}
-                  activeOpacity={0.85}
-                >
-                  <BlurView intensity={30} tint="dark" style={styles.navButtonBlur}>
-                    <Ionicons name="settings-outline" size={22} color="white" />
-                  </BlurView>
-                </TouchableOpacity>
-              ) : displayProfileData && (
-                <TouchableOpacity
-                  style={styles.navButton}
-                  onPress={showMoreOptions}
-                  activeOpacity={0.85}
-                >
-                  <BlurView intensity={30} tint="dark" style={styles.navButtonBlur}>
-                    <Ionicons name="ellipsis-horizontal" size={22} color="white" />
-                  </BlurView>
-                </TouchableOpacity>
-              )}
-            </SafeAreaView>
-          </View>
-          
-          {/* Profile Info Section */}
-          <View style={styles.profileInfoSection}>
-            {/* Profile Image & Actions Row */}
-            <View style={styles.profileTopRow}>
-              {/* Profile Image */}
-              <View style={styles.profileImageWrapper}>
-                <Image
-                  source={{ 
-                    uri: getOptimalImageUrl(
-                      processedProfileData?.profileThumbnailUrl,
-                      processedProfileData?.profileImageUrl
-                    )
-                  }}
-                  style={styles.profileImage}
-                />
-                {/* Archetype Badge */}
-                {processedProfileData?.archetype && (
-                  <TouchableOpacity 
-                    style={styles.archetypeBadge}
-                    activeOpacity={0.85}
-                    onPress={() => {
-                      if (!isBlockedByUser) {
-                        setTooltipText(archetypeDescriptions[processedProfileData.archetype.toLowerCase() || 'generalist']);
-                        setTooltipVisible(true);
-                      }
-                    }}
-                  >
-                    <Image
-                      source={archetypeIcons[processedProfileData?.archetype?.toLowerCase() || 'generalist']}
-                      style={styles.archetypeBadgeIcon}
-                    />
-                  </TouchableOpacity>
-                )}
-              </View>
-              
-              {/* Action Buttons */}
-              <View style={styles.actionButtonsContainer}>
-                {!isOwnProfile && displayProfileData && !isBlockedByUser && !hasBlockedUser && (
-                  <TouchableOpacity
-                    style={styles.messageButton}
-                    onPress={handleDirectMessage}
-                    activeOpacity={0.85}
-                  >
-                    <Ionicons name="mail-outline" size={18} color="#FFF" />
-                  </TouchableOpacity>
-                )}
-                
-                {!isOwnProfile && displayProfileData && !isBlockedByUser && (
-                  <TouchableOpacity
-                    activeOpacity={0.85}
-                    style={[
-                      styles.followButtonNew,
-                      hasBlockedUser
-                        ? styles.blockedButtonStyle
-                        : isFollowingStatus 
-                          ? styles.followingButtonStyle 
-                          : isRequestPending
-                            ? styles.requestedButtonStyle
-                            : styles.followButtonStyle,
-                    ]}
-                    onPress={() => {
-                      if (followActionLoading || hasBlockedUser) return;
-                      if (isFollowingStatus) {
-                        unfollowUser(displayProfileData.id);
-                      } else if (isRequestPending) {
-                        unfollowUser(displayProfileData.id); 
-                      } else {
-                        followUser(displayProfileData.id);
-                      }
-                    }}
-                    disabled={followActionLoading || hasBlockedUser}
-                  >
-                    {followActionLoading ? (
-                      <ActivityIndicator size="small" color="#FFF" />
-                    ) : (
-                      <Text style={[
-                        styles.followButtonTextNew,
-                        (isFollowingStatus || isRequestPending) && styles.followButtonTextSecondary
-                      ]}>
-                        {hasBlockedUser 
-                          ? "Blocked" 
-                          : isFollowingStatus 
-                            ? "Following" 
-                            : isRequestPending 
-                              ? "Requested" 
-                              : "Follow"}
-                      </Text>
-                    )}
-                  </TouchableOpacity>
-                )}
-                
-                {isOwnProfile && (
-                  <TouchableOpacity
-                    style={styles.editProfileButton}
-                    onPress={() => router.push('/settings')}
-                    activeOpacity={0.85}
-                  >
-                    <Text style={styles.editProfileButtonText}>Edit Profile</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-            </View>
-            
-            {/* Name & Username */}
-            <View style={styles.nameSection}>
-              <Text style={styles.displayName}>{processedProfileData?.displayName || 'User'}</Text>
-              <Text style={styles.username}>@{processedProfileData?.username || 'username'}</Text>
-            </View>
-            
-            {/* Bio */}
-            {processedProfileData?.bio && (
-              <Text style={styles.bio}>{processedProfileData.bio}</Text>
-            )}
-            
-            {/* Stats Row */}
-            <View style={styles.statsRow}>
-              <View style={styles.statItemNew}>
-                <Text style={styles.statValueNew}>
-                  {formatCount(displayablePosts?.length || 0)}
-                </Text>
-                <Text style={styles.statLabelNew}>Posts</Text>
-              </View>
-              
-              <View style={styles.statDivider} />
-              
-              <TouchableOpacity
-                style={styles.statItemNew}
-                activeOpacity={0.85}
-                onPress={() => {
-                  if (isPrivate && !isOwnProfile) return;
-                  if (isBlockedByUser) return;
-                  router.push(`/followers/${viewedProfileId}`);
-                }}
-                disabled={(isPrivate && !isOwnProfile) || isBlockedByUser}
-              >
-                <Text style={styles.statValueNew}>
-                  {isBlockedByUser ? "••" : formatCount(processedProfileData?.followerCount ?? followers.length)}
-                </Text>
-                <Text style={styles.statLabelNew}>Followers</Text>
-              </TouchableOpacity>
-              
-              <View style={styles.statDivider} />
-              
-              <TouchableOpacity
-                style={styles.statItemNew}
-                activeOpacity={0.85}
-                onPress={() => {
-                  if (isPrivate && !isOwnProfile) return;
-                  if (isBlockedByUser) return;
-                  router.push(`/following/${viewedProfileId}`);
-                }}
-                disabled={(isPrivate && !isOwnProfile) || isBlockedByUser}
-              >
-                <Text style={styles.statValueNew}>
-                  {isBlockedByUser ? "••" : formatCount(processedProfileData?.followingCount ?? following.length)}
-                </Text>
-                <Text style={styles.statLabelNew}>Following</Text>
-              </TouchableOpacity>
-              
-              <View style={styles.statDivider} />
-              
-              <View style={styles.statItemNew}>
-                <Text style={styles.statValueNew}>
-                  {formatCount(processedProfileData?.stats?.totalWorkouts || 0)}
-                </Text>
-                <Text style={styles.statLabelNew}>Workouts</Text>
-              </View>
-            </View>
-          </View>
-        </View>
+        {/* Profile Header */}
+        <ProfileHeader
+          profileData={processedProfileData}
+          isOwnProfile={isOwnProfile}
+          isFollowingStatus={isFollowingStatus}
+          isRequestPending={isRequestPending}
+          followActionLoading={followActionLoading}
+          hasBlockedUser={hasBlockedUser}
+          isBlockedByUser={isBlockedByUser}
+          displayablePosts={displayablePosts}
+          followers={followers}
+          following={following}
+          viewedProfileId={viewedProfileId}
+          isPrivate={isPrivate}
+          canGoBack={router.canGoBack()}
+          onBack={() => router.back()}
+          onSettings={handleSettingsPress}
+          onMoreOptions={profileActions.showMoreOptions}
+          onDirectMessage={profileActions.handleDirectMessage}
+          onFollowAction={profileActions.handleFollowAction}
+          onArchetypeBadgePress={handleArchetypeBadgePress}
+          onFollowersPress={handleFollowersPress}
+          onFollowingPress={handleFollowingPress}
+        />
 
         {/* Tab Bar */}
         <View style={{ width: '100%' }}>
