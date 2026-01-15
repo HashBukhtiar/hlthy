@@ -17,6 +17,7 @@ interface SettingsItemProps {
   displayValue?: string;
   onPress?: () => void;
   fullWidth?: boolean; // Make input take full width below label
+  error?: boolean; // Show helper text in red for errors
 }
 
 export const SettingsItem: React.FC<SettingsItemProps> = ({
@@ -34,6 +35,7 @@ export const SettingsItem: React.FC<SettingsItemProps> = ({
   displayValue,
   onPress,
   fullWidth = false,
+  error = false,
 }) => {
   const renderContent = () => {
     switch (type) {
@@ -123,7 +125,7 @@ export const SettingsItem: React.FC<SettingsItemProps> = ({
               {label}
             </Text>
             {helperText && (
-              <Text style={styles.helperText}>{helperText}</Text>
+              <Text style={[styles.helperText, error && styles.errorText]}>{helperText}</Text>
             )}
           </View>
           {renderContent()}
@@ -141,7 +143,7 @@ export const SettingsItem: React.FC<SettingsItemProps> = ({
               {label}
             </Text>
             {helperText && (
-              <Text style={styles.helperText}>{helperText}</Text>
+              <Text style={[styles.helperText, error && styles.errorText]}>{helperText}</Text>
             )}
           </View>
           <View style={styles.fullWidthContent}>
@@ -155,7 +157,7 @@ export const SettingsItem: React.FC<SettingsItemProps> = ({
               {label}
             </Text>
             {helperText && (
-              <Text style={styles.helperText}>{helperText}</Text>
+              <Text style={[styles.helperText, error && styles.errorText]}>{helperText}</Text>
             )}
           </View>
           {renderContent()}
@@ -191,6 +193,9 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 4,
     flexWrap: 'wrap',
+  },
+  errorText: {
+    color: '#FF3B30',
   },
   selectButton: {
     flexDirection: 'row',

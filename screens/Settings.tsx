@@ -1165,6 +1165,7 @@ export default function Settings() {
                   ? `Invalid ${platform.name} URL format`
                   : 'Enter full URL or just username'
               }
+              error={!!(settings.socialLinks?.[key as PlatformKey] && !validatePlatformUrl(key as PlatformKey, settings.socialLinks[key as PlatformKey]!))}
               fullWidth
             />
           ))}
@@ -1190,6 +1191,7 @@ export default function Settings() {
                 ? 'Invalid URL format'
                 : 'Users will see a warning before opening this link'
             }
+            error={!!(settings.socialLinks?.customUrl && !validateCustomUrl(settings.socialLinks.customUrl))}
             fullWidth
           />
 
