@@ -8,6 +8,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import ShareModal from '@/components/ShareModal';
+import ReportModal from '@/components/ReportModal';
 import { sharePost } from '@/services/ShareService';
 import { usePostsData, Post, Comment, Reply } from '@/hooks/usePostsData';
 import { useAuth } from '@/context/AuthContext';
@@ -16,9 +17,12 @@ import { db } from '@/firebaseConfig';
 import { getOptimalImageUrl, deleteImageFromStorage, deleteMilestoneFromFirestore } from '@/utils/imageUtils';
 import { useBlockEnforcement } from '@/utils/blockUtils';
 import { useUnits } from '@/hooks/useUnits';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { app } from '@/firebaseConfig';
 
 export default function ViewPost() {
   const [menuVisible, setMenuVisible] = useState(false);
+  const [reportModalVisible, setReportModalVisible] = useState(false);
   const params = useLocalSearchParams();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -1153,6 +1157,11 @@ export default function ViewPost() {
                 <Ionicons name="ellipsis-horizontal" size={20} color="#FFF" />
               </TouchableOpacity>
             )}
+            {post.authorId !== currentUser?.uid && currentUser && (
+              <TouchableOpacity style={styles.moreButton} onPress={() => setMenuVisible(true)}>
+                <Ionicons name="ellipsis-horizontal" size={20} color="#FFF" />
+              </TouchableOpacity>
+            )}
           </View>
 
           {post.imageUrl && (
@@ -1375,31 +1384,48 @@ export default function ViewPost() {
             onPress={() => setMenuVisible(false)}
           >
             <View style={styles.menuModalContent}>
-              {post?.isMilestone && post.milestoneDetails ? (
+              {/* Owner-only options */}
+              {post?.authorId === currentUser?.uid ? (
                 <>
-                  <TouchableOpacity 
-                    style={styles.menuItem}
-                    onPress={() => performPostDeletion(false)}
-                  >
-                    <Ionicons name="document-outline" size={20} color="#FF9500" />
-                    <Text style={[styles.menuItemText, { color: '#FF9500' }]}>Delete Post Only</Text>
-                  </TouchableOpacity>
-                  
-                  <TouchableOpacity 
-                    style={styles.menuItem}
-                    onPress={() => performPostDeletion(true)}
-                  >
-                    <Ionicons name="trash-outline" size={20} color="#FF3B30" />
-                    <Text style={[styles.menuItemText, { color: '#FF3B30' }]}>Delete Post & Milestone</Text>
-                  </TouchableOpacity>
+                  {post?.isMilestone && post.milestoneDetails ? (
+                    <>
+                      <TouchableOpacity 
+                        style={styles.menuItem}
+                        onPress={() => performPostDeletion(false)}
+                      >
+                        <Ionicons name="document-outline" size={20} color="#FF9500" />
+                        <Text style={[styles.menuItemText, { color: '#FF9500' }]}>Delete Post Only</Text>
+                      </TouchableOpacity>
+                      
+                      <TouchableOpacity 
+                        style={styles.menuItem}
+                        onPress={() => performPostDeletion(true)}
+                      >
+                        <Ionicons name="trash-outline" size={20} color="#FF3B30" />
+                        <Text style={[styles.menuItemText, { color: '#FF3B30' }]}>Delete Post & Milestone</Text>
+                      </TouchableOpacity>
+                    </>
+                  ) : (
+                    <TouchableOpacity 
+                      style={styles.menuItem}
+                      onPress={() => performPostDeletion(false)}
+                    >
+                      <Ionicons name="trash-outline" size={20} color="#FF3B30" />
+                      <Text style={[styles.menuItemText, { color: '#FF3B30' }]}>Delete Post</Text>
+                    </TouchableOpacity>
+                  )}
                 </>
               ) : (
+                /* Non-owner options - Report */
                 <TouchableOpacity 
                   style={styles.menuItem}
-                  onPress={() => performPostDeletion(false)}
+                  onPress={() => {
+                    setMenuVisible(false);
+                    setReportModalVisible(true);
+                  }}
                 >
-                  <Ionicons name="trash-outline" size={20} color="#FF3B30" />
-                  <Text style={[styles.menuItemText, { color: '#FF3B30' }]}>Delete Post</Text>
+                  <Ionicons name="flag-outline" size={20} color="#FF9500" />
+                  <Text style={[styles.menuItemText, { color: '#FF9500' }]}>Report Post</Text>
                 </TouchableOpacity>
               )}
               
@@ -1412,6 +1438,22 @@ export default function ViewPost() {
             </View>
           </TouchableOpacity>
         </Modal>
+
+        {/* Report Post Modal */}
+        {post && post.authorId !== currentUser?.uid && (
+          <ReportModal
+            visible={reportModalVisible}
+            onClose={() => setReportModalVisible(false)}
+            contentType="post"
+            contentId={post.id}
+            reportedUserId={post.authorId}
+            contentSnapshot={{
+              caption: post.caption,
+              imageUrl: post.imageUrl,
+              authorUsername: post.authorUsername,
+            }}
+          />
+        )}
 
         {/* Share Post Modal */}
         <ShareModal

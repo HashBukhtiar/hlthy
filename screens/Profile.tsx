@@ -33,6 +33,8 @@ const archetypeDescriptions = {
 import { getOptimalImageUrl, getCoverImageSource, DEFAULT_PROFILE_IMAGE } from '@/utils/imageUtils';
 import { MilestoneDetails } from '@/types/milestone';
 import { SocialLinksDisplay } from '@/components/SocialLinksDisplay';
+import ReportModal from '@/components/ReportModal';
+import { ContentSnapshot } from '@/types/report';
 
 interface ProfileScreenProps {
   userId?: string;
@@ -93,6 +95,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
   const tabWidth = screenWidth / 3;
   const [tooltipVisible, setTooltipVisible] = useState(false);
   const [tooltipText, setTooltipText] = useState('');
+  const [reportModalVisible, setReportModalVisible] = useState(false);
 
   const isOwnProfile = !routeUserId || routeUserId === currentUser?.uid;
   
@@ -602,19 +605,20 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
     if (!displayProfileData?.id) return;
     
     const isBlocked = isUserBlocked(displayProfileData.id);
-    const actionText = isBlocked ? 'Unblock User' : 'Block User';
-    const actionHandler = isBlocked ? handleUnblockUser : handleBlockUser;
+    const blockActionText = isBlocked ? 'Unblock User' : 'Block User';
+    const blockActionHandler = isBlocked ? handleUnblockUser : handleBlockUser;
     
     if (Platform.OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
         {
-          options: ['Cancel', actionText],
-          destructiveButtonIndex: isBlocked ? -1 : 1,
+          options: ['Cancel', 'Report User', blockActionText],
+          destructiveButtonIndex: isBlocked ? -1 : 2,
           cancelButtonIndex: 0,
           userInterfaceStyle: 'dark',
         },
         (buttonIndex) => {
-          if (buttonIndex === 1) actionHandler();
+          if (buttonIndex === 1) setReportModalVisible(true);
+          if (buttonIndex === 2) blockActionHandler();
         }
       );
     } else {
@@ -625,9 +629,13 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
         [
           { text: 'Cancel', style: 'cancel' },
           { 
-            text: actionText, 
+            text: 'Report User', 
+            onPress: () => setReportModalVisible(true)
+          },
+          { 
+            text: blockActionText, 
             style: isBlocked ? 'default' : 'destructive', 
-            onPress: actionHandler 
+            onPress: blockActionHandler 
           }
         ]
       );
@@ -1298,6 +1306,22 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
               : "This account is private"}
           </Text>
         </View>
+      )}
+
+      {/* Report Modal */}
+      {displayProfileData && !isOwnProfile && (
+        <ReportModal
+          visible={reportModalVisible}
+          onClose={() => setReportModalVisible(false)}
+          contentType="user"
+          contentId={displayProfileData.id || displayProfileData.uid}
+          reportedUserId={displayProfileData.id || displayProfileData.uid}
+          contentSnapshot={{
+            username: displayProfileData.username,
+            profileImageUrl: displayProfileData.profileImageUrl,
+          }}
+          onBlockUser={isUserBlocked(displayProfileData.id || displayProfileData.uid) ? undefined : handleBlockUser}
+        />
       )}
     </SafeAreaView>
   );
