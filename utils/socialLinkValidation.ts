@@ -26,7 +26,7 @@ export const VERIFIED_PLATFORMS = {
   youtube: {
     name: 'YouTube',
     icon: 'logo-youtube',
-    pattern: /^https?:\/\/(www\.)?youtube\.com\/(c|channel|user|@)\/[\w-]+\/?$/,
+    pattern: /^https?:\/\/(www\.)?youtube\.com\/(c\/|channel\/|user\/|@)?[\w-]+\/?$/,
     placeholder: 'https://youtube.com/@username'
   },
   linkedin: {
