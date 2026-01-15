@@ -102,12 +102,10 @@
 pglite-debug.log
 firebase-debug.log
 
-
 # local env files
 .env*.local
 .env
 expo-env.d.ts
-config/devFlags.ts
 
 # typescript
 *.tsbuildinfo
