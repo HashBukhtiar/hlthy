@@ -96,17 +96,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
           
           <View style={styles.navSpacer} />
           
-          {isOwnProfile ? (
-            <TouchableOpacity
-              style={styles.navButton}
-              onPress={onSettings}
-              activeOpacity={0.85}
-            >
-              <BlurView intensity={30} tint="dark" style={styles.navButtonBlur}>
-                <Ionicons name="settings-outline" size={22} color="white" />
-              </BlurView>
-            </TouchableOpacity>
-          ) : profileData && (
+          {!isOwnProfile && profileData && (
             <TouchableOpacity
               style={styles.navButton}
               onPress={onMoreOptions}
@@ -198,13 +188,22 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
             )}
             
             {isOwnProfile && (
-              <TouchableOpacity
-                style={styles.editProfileButton}
-                onPress={onSettings}
-                activeOpacity={0.85}
-              >
-                <Text style={styles.editProfileButtonText}>Edit Profile</Text>
-              </TouchableOpacity>
+              <>
+                <TouchableOpacity
+                  style={styles.settingsButton}
+                  onPress={onSettings}
+                  activeOpacity={0.85}
+                >
+                  <Ionicons name="settings-outline" size={16} color="#FFF" />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.editProfileButton}
+                  onPress={onSettings}
+                  activeOpacity={0.85}
+                >
+                  <Text style={styles.editProfileButtonText}>Edit Profile</Text>
+                </TouchableOpacity>
+              </>
             )}
           </View>
         </View>
@@ -362,6 +361,16 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  settingsButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     backgroundColor: 'rgba(255,255,255,0.1)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.2)',
