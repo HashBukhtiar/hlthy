@@ -128,49 +128,50 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
           
           {/* Action Buttons */}
           <View style={styles.actionButtonsContainer}>
-            {!isOwnProfile && profileData && !isBlockedByUser && !hasBlockedUser && (
-              <TouchableOpacity
-                style={styles.messageButton}
-                onPress={onDirectMessage}
-                activeOpacity={0.85}
-              >
-                <Ionicons name="mail-outline" size={18} color="#FFF" />
-              </TouchableOpacity>
-            )}
-            
-            {!isOwnProfile && profileData && !isBlockedByUser && (
-              <TouchableOpacity
-                activeOpacity={0.85}
-                style={[
-                  styles.followButtonNew,
-                  hasBlockedUser
-                    ? styles.blockedButtonStyle
-                    : isFollowingStatus 
-                      ? styles.followingButtonStyle 
-                      : isRequestPending
-                        ? styles.requestedButtonStyle
-                        : styles.followButtonStyle,
-                ]}
-                onPress={onFollowAction}
-                disabled={followActionLoading || hasBlockedUser}
-              >
-                {followActionLoading ? (
-                  <ActivityIndicator size="small" color="#FFF" />
-                ) : (
-                  <Text style={[
-                    styles.followButtonTextNew,
-                    (isFollowingStatus || isRequestPending) && styles.followButtonTextSecondary
-                  ]}>
-                    {hasBlockedUser 
-                      ? "Blocked" 
-                      : isFollowingStatus 
-                        ? "Following" 
-                        : isRequestPending 
-                          ? "Requested" 
-                          : "Follow"}
-                  </Text>
+            {!isOwnProfile && profileData && (
+              <>
+                <TouchableOpacity
+                  style={styles.settingsButton}
+                  onPress={onMoreOptions}
+                  activeOpacity={0.85}
+                >
+                  <Ionicons name="ellipsis-horizontal" size={16} color="#FFF" />
+                </TouchableOpacity>
+                {!isBlockedByUser && (
+                  <TouchableOpacity
+                    activeOpacity={0.85}
+                    style={[
+                      styles.followButtonNew,
+                      hasBlockedUser
+                        ? styles.blockedButtonStyle
+                        : isFollowingStatus 
+                          ? styles.followingButtonStyle 
+                          : isRequestPending
+                            ? styles.requestedButtonStyle
+                            : styles.followButtonStyle,
+                    ]}
+                    onPress={onFollowAction}
+                    disabled={followActionLoading || hasBlockedUser}
+                  >
+                    {followActionLoading ? (
+                      <ActivityIndicator size="small" color="#FFF" />
+                    ) : (
+                      <Text style={[
+                        styles.followButtonTextNew,
+                        (isFollowingStatus || isRequestPending) && styles.followButtonTextSecondary
+                      ]}>
+                        {hasBlockedUser 
+                          ? "Blocked" 
+                          : isFollowingStatus 
+                            ? "Following" 
+                            : isRequestPending 
+                              ? "Requested" 
+                              : "Follow"}
+                      </Text>
+                    )}
+                  </TouchableOpacity>
                 )}
-              </TouchableOpacity>
+              </>
             )}
             
             {isOwnProfile && (
@@ -365,7 +366,7 @@ const styles = StyleSheet.create({
   },
   followButtonNew: {
     paddingHorizontal: 24,
-    paddingVertical: 10,
+    paddingVertical: 8,
     borderRadius: 20,
     minWidth: 100,
     alignItems: 'center',
@@ -375,9 +376,9 @@ const styles = StyleSheet.create({
     backgroundColor: ACCENT_COLOR,
   },
   followingButtonStyle: {
-    backgroundColor: 'transparent',
-    borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.3)',
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
   },
   requestedButtonStyle: {
     backgroundColor: 'rgba(255,255,255,0.1)',
