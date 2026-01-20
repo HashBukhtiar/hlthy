@@ -60,17 +60,6 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
   const createdWorkouts = workouts || [];
   const { isUserBlocked } = useBlockEnforcement();
   
-  const profileActions = useProfileActions({
-    currentUser,
-    displayProfileData: processedProfileData,
-    refreshUserProfile,
-    refreshProfileData,
-    followUser,
-    unfollowUser,
-    isFollowingStatus,
-    isRequestPending,
-    followActionLoading,
-  });
   const [isBlockedByUser, setIsBlockedByUser] = useState(false);
   const [hasBlockedUser, setHasBlockedUser] = useState(false);
 
@@ -124,6 +113,18 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
       }
     };
   }, [displayProfileData]);
+
+  const profileActions = useProfileActions({
+    currentUser,
+    displayProfileData: processedProfileData,
+    refreshUserProfile,
+    refreshProfileData,
+    followUser,
+    unfollowUser,
+    isFollowingStatus,
+    isRequestPending,
+    followActionLoading,
+  });
 
   const isPrivate = processedProfileData?.profileVisibility === 'private';
   const canViewContent = useMemo(() => {
