@@ -32,9 +32,27 @@ export interface UserProfile {
   // Fitness Identity
   archetype: string; // 'athlete' | 'bodybuilder' | 'crossfitter' | 'generalist' | 'powerlifter'
   
-  // Social Stats - Using top-level structure to match Firebase
-  followerCount: number;
-  followingCount: number;
+  // Settings & Preferences
+  messagePermission?: 'everyone' | 'followers';
+  theme?: 'light' | 'dark' | 'system';
+  language?: string;
+  twoFactorEnabled?: boolean;
+  
+  // Notifications Preferences
+  notifications?: {
+    newFollowers?: boolean;
+    likesAndComments?: boolean;
+    directMessages?: boolean;
+    followRequestAccepted?: boolean;
+    taggedInComments?: boolean;
+    mentionedInReplies?: boolean;
+  };
+  
+  // Units for measurements
+  units?: {
+    weight: 'metric' | 'imperial';
+    distance: 'metric' | 'imperial';
+  };
   
   // Stats object - Keep for additional metrics
   stats: {
@@ -98,15 +116,6 @@ export interface UserProfile {
     showLinksToFollowersOnly?: boolean;
   };
   
-  // Notification Preferences
-  notificationSettings?: {
-    pushNotifications: boolean;
-    emailNotifications: boolean;
-    followRequests: boolean;
-    workoutReminders: boolean;
-    socialUpdates: boolean;
-  };
-  
   // Achievement System
   badges?: string[];
   achievements?: Achievement[];
@@ -121,12 +130,7 @@ export interface UserProfile {
     profileVisibility: 'everyone' | 'followers' | 'friends';
   };
   
-  // App Preferences
-  units?: {
-    weight: 'metric' | 'imperial';
-    distance: 'metric' | 'imperial';
-  };
-  language?: string;
+  // Regional preferences
   region?: string;
   
   // Profile Completion
