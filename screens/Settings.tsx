@@ -143,6 +143,7 @@ export default function Settings() {
   ]);
 
   const [profileImage, setProfileImage] = useState(userProfile?.profileImageUrl);
+  const [originalProfileImage, setOriginalProfileImage] = useState(userProfile?.profileImageUrl);
   const [dateModalVisible, setDateModalVisible] = useState(false);
   const [loading, setLoading] = useState(false);
   const [insights, setInsights] = useState<string[]>([]);
@@ -306,6 +307,7 @@ export default function Settings() {
       };
 
       setOriginalSettings(originalSettingsData);
+      setOriginalProfileImage(userProfile?.profileImageUrl);
     }
   }, [userProfile, originalSettings]);
 
@@ -431,6 +433,9 @@ export default function Settings() {
             text: "Discard", 
             style: "destructive", 
             onPress: () => {
+              // Revert profile image to original when discarding changes
+              setProfileImage(originalProfileImage);
+              setImageManuallyChanged(false);
               setHasUnsavedChanges(false);
               router.back();
             }
@@ -847,6 +852,8 @@ export default function Settings() {
           text: "Reset",
           style: "destructive",
           onPress: () => {
+            setProfileImage(originalProfileImage);
+            setImageManuallyChanged(false);
             setSettings({
               displayName: userProfile?.displayName || '',
               bio: '',
