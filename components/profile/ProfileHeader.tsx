@@ -93,20 +93,6 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
               </BlurView>
             </TouchableOpacity>
           )}
-          
-          <View style={styles.navSpacer} />
-          
-          {!isOwnProfile && profileData && (
-            <TouchableOpacity
-              style={styles.navButton}
-              onPress={onMoreOptions}
-              activeOpacity={0.85}
-            >
-              <BlurView intensity={30} tint="dark" style={styles.navButtonBlur}>
-                <Ionicons name="ellipsis-horizontal" size={22} color="white" />
-              </BlurView>
-            </TouchableOpacity>
-          )}
         </SafeAreaView>
       </View>
       
