@@ -235,10 +235,18 @@ export default function Settings() {
       console.log('[Settings] Loaded socialLinks from userProfile:', JSON.stringify(userProfile.socialLinks, null, 2));
       
       if (!imageManuallyChanged) {
-        setProfileImage(userProfile.profileImageUrl);
+        const imageUrl = userProfile.profileImageUrl;
+        console.log('[Settings] Updating profileImage from userProfile:', imageUrl);
+        setProfileImage(imageUrl);
+        
+        // Also ensure originalProfileImage is set on every load if not manually changed
+        if (!originalProfileImage) {
+          console.log('[Settings] Setting originalProfileImage:', imageUrl);
+          setOriginalProfileImage(imageUrl);
+        }
       }
     }
-  }, [userProfile, isSaving]);
+  }, [userProfile, isSaving, imageManuallyChanged, originalProfileImage]);
 
   useEffect(() => {
     if (userProfile && Object.keys(originalSettings).length === 0) {
@@ -445,18 +453,28 @@ export default function Settings() {
                   }
                 }
               } finally {
-                // Revert profile image to original when discarding changes
-                setProfileImage(originalProfileImage);
-                setImageManuallyChanged(false);
-                setHasUnsavedChanges(false);
-                
-                // Refresh user profile to ensure we have the latest saved data
+                // Refresh user profile FIRST to get the latest data from Firestore
                 try {
                   await refreshUserProfile();
                   console.log('[Settings] User profile refreshed after discard');
+                  
+                  // Wait for AuthContext state to update
+                  await new Promise(resolve => setTimeout(resolve, 150));
                 } catch (refreshError) {
                   console.error('Error refreshing profile after discard:', refreshError);
                 }
+                
+                // Now explicitly restore the profile image from the refreshed userProfile or fallback to original
+                const restoredImageUrl = userProfile?.profileImageUrl || originalProfileImage;
+                console.log('[Settings] Restoring profileImage to:', restoredImageUrl);
+                setProfileImage(restoredImageUrl);
+                
+                // Reset state flags AFTER setting the image
+                setImageManuallyChanged(false);
+                setHasUnsavedChanges(false);
+                
+                // Small delay to ensure state is committed before unmounting
+                await new Promise(resolve => setTimeout(resolve, 50));
                 
                 router.back();
               }
