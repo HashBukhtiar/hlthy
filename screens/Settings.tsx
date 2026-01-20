@@ -464,7 +464,7 @@ export default function Settings() {
 
   const updateSetting = (key: string, value: any) => {
     const oldValue = key.includes('.') 
-      ? key.split('.').reduce((obj, k) => obj?.[k], settings)
+      ? (key.split('.').reduce((obj: any, k) => obj?.[k], settings) as any)
       : settings[key as keyof typeof settings];
 
     setSettings(prev => {
@@ -485,7 +485,12 @@ export default function Settings() {
         // Handle other nested objects (notifications, units)
         if (keys[0] === 'notifications') {
           newSettings.notifications = {
-            ...prev.notifications,
+            newFollowers: prev.notifications?.newFollowers ?? true,
+            likesAndComments: prev.notifications?.likesAndComments ?? true,
+            directMessages: prev.notifications?.directMessages ?? true,
+            followRequestAccepted: prev.notifications?.followRequestAccepted ?? true,
+            taggedInComments: prev.notifications?.taggedInComments ?? true,
+            mentionedInReplies: prev.notifications?.mentionedInReplies ?? true,
             [keys[1]]: value,
           };
           return newSettings;
@@ -493,7 +498,8 @@ export default function Settings() {
         
         if (keys[0] === 'units') {
           newSettings.units = {
-            ...prev.units,
+            weight: prev.units?.weight ?? 'metric',
+            distance: prev.units?.distance ?? 'metric',
             [keys[1]]: value,
           };
           return newSettings;
