@@ -327,9 +327,9 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   profileImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 90,
+    height: 90,
+    borderRadius: 45,
     borderWidth: 3,
     borderColor: '#000',
     backgroundColor: '#1C1C1E',
@@ -429,7 +429,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   displayName: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '700',
     color: '#FFF',
     letterSpacing: -0.3,
