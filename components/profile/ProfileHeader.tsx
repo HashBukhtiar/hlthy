@@ -222,12 +222,17 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
         
         {/* Stats Row */}
         <View style={styles.statsRow}>
-          <View style={styles.statItemNew}>
+          <TouchableOpacity
+            style={styles.statItemNew}
+            activeOpacity={0.85}
+            onPress={onFollowingPress}
+            disabled={(isPrivate && !isOwnProfile) || isBlockedByUser}
+          >
             <Text style={styles.statValueNew}>
-              {formatCount(displayablePosts?.length || 0)}
+              {isBlockedByUser ? "••" : formatCount(profileData?.followingCount ?? following.length)}
             </Text>
-            <Text style={styles.statLabelNew}>Posts</Text>
-          </View>
+            <Text style={styles.statLabelNew}>Following</Text>
+          </TouchableOpacity>
           
           <View style={styles.statDivider} />
           
@@ -245,25 +250,11 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
           
           <View style={styles.statDivider} />
           
-          <TouchableOpacity
-            style={styles.statItemNew}
-            activeOpacity={0.85}
-            onPress={onFollowingPress}
-            disabled={(isPrivate && !isOwnProfile) || isBlockedByUser}
-          >
-            <Text style={styles.statValueNew}>
-              {isBlockedByUser ? "••" : formatCount(profileData?.followingCount ?? following.length)}
-            </Text>
-            <Text style={styles.statLabelNew}>Following</Text>
-          </TouchableOpacity>
-          
-          <View style={styles.statDivider} />
-          
           <View style={styles.statItemNew}>
             <Text style={styles.statValueNew}>
-              {formatCount(profileData?.stats?.totalWorkouts || 0)}
+              {formatCount(profileData?.stats?.totalLikes || 0)}
             </Text>
-            <Text style={styles.statLabelNew}>Workouts</Text>
+            <Text style={styles.statLabelNew}>Hype</Text>
           </View>
         </View>
       </View>
@@ -443,19 +434,21 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: 'rgba(255,255,255,0.8)',
     lineHeight: 20,
-    marginBottom: 14,
+    marginBottom: 4,
   },
   statsRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     borderRadius: 14,
     paddingVertical: 10,
     paddingHorizontal: 4,
     marginBottom: 4,
+    gap: 12,
   },
   statItemNew: {
-    flex: 1,
     alignItems: 'center',
+    minWidth: 70,
   },
   statValueNew: {
     fontSize: 18,
@@ -472,5 +465,6 @@ const styles = StyleSheet.create({
     width: 1,
     height: 28,
     backgroundColor: 'rgba(255,255,255,0.1)',
+    marginHorizontal: 4,
   },
 });
