@@ -13,6 +13,7 @@ import { useProfileActions } from '@/hooks/useProfileActions';
 import { formatTimeAgo, archetypeDescriptions } from '@/utils/profileUtils';
 import { getOptimalImageUrl } from '@/utils/imageUtils';
 import { formatCount } from '@/logic/formattingFunctions';
+import BottomActionMenu, { BottomActionMenuItem } from '@/components/BottomActionMenu';
 
 const archetypeIcons = {
   'athlete': require('@/assets/images/athlete.png'),
@@ -551,6 +552,46 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
           </View>
         </TouchableOpacity>
       </Modal>
+
+      {/* Profile Action Menu */}
+      <BottomActionMenu
+        visible={profileActions.showActionMenu}
+        onClose={() => profileActions.setShowActionMenu(false)}
+        items={[
+          {
+            icon: "chatbubble-outline",
+            label: "Message",
+            sublabel: `Send a direct message`,
+            color: "#0A84FF",
+            backgroundColor: "rgba(10, 132, 255, 0.22)",
+            onPress: profileActions.handleDirectMessage,
+          },
+          {
+            icon: isFollowingStatus ? "person-remove-outline" : "person-add-outline",
+            label: isFollowingStatus ? "Unfollow" : "Follow",
+            sublabel: isFollowingStatus ? "Stop seeing posts from this user" : "See more from this user",
+            color: isFollowingStatus ? "#FF453A" : "#30D158",
+            backgroundColor: isFollowingStatus ? "rgba(255, 69, 58, 0.22)" : "rgba(48, 209, 88, 0.22)",
+            onPress: profileActions.handleFollowAction,
+          },
+          {
+            icon: "ban-outline",
+            label: hasBlockedUser ? "Unblock User" : "Block User",
+            sublabel: hasBlockedUser ? "You will see their content again" : "You won't see their content",
+            color: "#FF9F0A",
+            backgroundColor: "rgba(255, 159, 10, 0.22)",
+            onPress: hasBlockedUser ? profileActions.handleUnblockUser : profileActions.handleBlockUser,
+          },
+          {
+            icon: "flag-outline",
+            label: "Report",
+            sublabel: "Report inappropriate content",
+            color: "#FF453A",
+            backgroundColor: "rgba(255, 69, 58, 0.22)",
+            onPress: profileActions.handleReportUser,
+          },
+        ]}
+      />
     </View>
   );
 };

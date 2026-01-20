@@ -1,6 +1,6 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { useRouter } from 'expo-router';
-import { Alert, Platform, ActionSheetIOS } from 'react-native';
+import { Alert } from 'react-native';
 import { doc, getDoc } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { db, app } from '@/firebaseConfig';
@@ -31,6 +31,7 @@ export const useProfileActions = ({
 }: UseProfileActionsProps) => {
   const router = useRouter();
   const { isUserBlocked } = useBlockEnforcement();
+  const [showActionMenu, setShowActionMenu] = useState(false);
 
   const handleDirectMessage = useCallback(async () => {
     if (!currentUser || !displayProfileData?.id) return;
@@ -113,38 +114,29 @@ export const useProfileActions = ({
 
   const showMoreOptions = useCallback(() => {
     if (!displayProfileData?.id) return;
+    setShowActionMenu(true);
+  }, [displayProfileData]);
+
+  const handleReportUser = useCallback(() => {
+    if (!displayProfileData?.id) return;
+    const username = displayProfileData.username || 'this user';
     
-    const isBlocked = isUserBlocked(displayProfileData.id);
-    const actionText = isBlocked ? 'Unblock User' : 'Block User';
-    const actionHandler = isBlocked ? handleUnblockUser : handleBlockUser;
-    
-    if (Platform.OS === 'ios') {
-      ActionSheetIOS.showActionSheetWithOptions(
+    Alert.alert(
+      'Report User',
+      `Report @${username} for violating community guidelines?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
         {
-          options: ['Cancel', actionText],
-          destructiveButtonIndex: isBlocked ? -1 : 1,
-          cancelButtonIndex: 0,
-          userInterfaceStyle: 'dark',
-        },
-        (buttonIndex) => {
-          if (buttonIndex === 1) actionHandler();
-        }
-      );
-    } else {
-      Alert.alert(
-        'More Options',
-        '',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { 
-            text: actionText, 
-            style: isBlocked ? 'default' : 'destructive', 
-            onPress: actionHandler 
+          text: 'Report',
+          style: 'destructive',
+          onPress: async () => {
+            // TODO: Implement report functionality
+            Alert.alert('Reported', `Thank you for reporting @${username}. We will review this account.`);
           }
-        ]
-      );
-    }
-  }, [displayProfileData, isUserBlocked, handleUnblockUser, handleBlockUser]);
+        }
+      ]
+    );
+  }, [displayProfileData]);
 
   const handleFollowAction = useCallback(() => {
     if (followActionLoading || !displayProfileData?.id) return;
@@ -164,6 +156,9 @@ export const useProfileActions = ({
     handleUnblockUser,
     showMoreOptions,
     handleFollowAction,
+    handleReportUser,
+    showActionMenu,
+    setShowActionMenu,
   };
 };
 
