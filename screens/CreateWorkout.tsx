@@ -24,6 +24,7 @@ import SelectExercise from './SelectExercise';
 import { Exercise } from '@/data/exercises';
 import { CustomSelector, SelectorItem } from '@/components/CustomSelector';
 import { generateId, generateUniqueFilename } from '@/logic/idGenerator';
+import { ACCENT_COLOR } from '@/constants/Colors';
 
 // Visibility options for workouts
 const visibilityItems: SelectorItem[] = [
@@ -541,7 +542,7 @@ export default function CreateWorkout() {
               <View style={styles.segmentTitleContainer}>
                 <Text style={styles.segmentLabel}>Segment {segmentIndex + 1}</Text>
                 <TouchableOpacity onPress={() => !isSaving && removeSegment(segment.id)} disabled={isSaving}>
-                  <Ionicons name="trash-outline" size={20} color={isSaving ? "#666" : "#ff6b6b"} />
+                    <Ionicons name="trash-outline" size={20} color={isSaving ? "#666" : ACCENT_COLOR} />
                 </TouchableOpacity>
               </View>
               
@@ -618,7 +619,7 @@ export default function CreateWorkout() {
                     onPress={() => !isSaving && removeExercise(segment.id, exercise.id)}
                     disabled={isSaving}
                   >
-                    <Ionicons name="close-circle" size={20} color={isSaving ? "#666" :"#ff6b6b"} />
+                    <Ionicons name="close-circle" size={20} color={isSaving ? "#666" :ACCENT_COLOR} />
                   </TouchableOpacity>
                 </View>
               ))}
@@ -683,7 +684,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   saveButton: {
-    backgroundColor: '#ff2d55',
+    backgroundColor: ACCENT_COLOR,
     paddingVertical: 8,
     paddingHorizontal: 15,
     borderRadius: 20,

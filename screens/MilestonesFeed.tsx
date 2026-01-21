@@ -33,6 +33,7 @@ import { FeedMilestone, MilestoneDetails, MilestoneStats } from '@/types/milesto
 import { useUnits } from '@/hooks/useUnits';
 import PostActionMenu from '@/components/PostActionMenu';
 import { useContentActions } from '@/hooks/useContentActions';
+import { ACCENT_COLOR } from '@/constants/Colors';
 
 console.log('[MilestonesFeed] Module loaded');
 
@@ -869,7 +870,7 @@ export default function MilestonesFeed() {
               <Ionicons 
                 name={item.isLiked ? "heart" : "heart-outline"} 
                 size={20} 
-                color={item.isLiked ? "#FF6B6B" : "#FFF"} 
+                color={item.isLiked ? ACCENT_COLOR : "#FFF"} 
                 style={styles.statIcon}
               />
               <Text style={styles.statNumber}>{item.reactionCount || 0}</Text>
@@ -916,7 +917,7 @@ export default function MilestonesFeed() {
       <View style={styles.emptyMilestonesContainer}>
         <View style={styles.emptyMilestonesContent}>
           <View style={styles.milestoneIconContainer}>
-            <Ionicons name="trophy" size={40} color="#FF6B6B" />
+            <Ionicons name="trophy" size={40} color={ACCENT_COLOR} />
           </View>
           <Text style={styles.emptyMilestonesTitle}>No Milestones Yet</Text>
           <Text style={styles.emptyMilestonesText}>
@@ -1276,7 +1277,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   createButton: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: ACCENT_COLOR,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 24,

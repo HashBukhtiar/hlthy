@@ -15,6 +15,7 @@ import globalStyles from '@/styles/globalStyles';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MilestonesFeed from './MilestonesFeed';
 import PostsFeed from './PostsFeed';
+import { ACCENT_COLOR } from '@/constants/Colors';
 
 enum TabType {
   POSTS = 'POSTS',
@@ -245,7 +246,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 10,
-    backgroundColor: '#FF6B6B',
+    backgroundColor: ACCENT_COLOR,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -285,7 +286,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 0,
     height: 2,
-    backgroundColor: '#FF6B6B',
+    backgroundColor: ACCENT_COLOR,
   },
   tabButtonText: {
     fontSize: 13,

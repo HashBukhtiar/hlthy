@@ -4,7 +4,6 @@ import { Stack } from 'expo-router';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { View, StyleSheet, Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import BottomButtons from '@/components/BottomButtons';
 import { AuthProvider } from '@/context/AuthContext';
 import { GlobalNetworkMonitor } from '@/components/GlobalNetworkMonitor';
 
@@ -22,12 +21,8 @@ export default function RootLayout() {
                 animation: Platform.OS === 'android' ? 'fade' : 'none',
               }}
             >
-            {/* Main tab screens with disabled swipe gestures */}
+            {/* Main tab screens - NativeTabs handles the tab bar */}
             <Stack.Screen name="(tabs)" options={{ gestureEnabled: false }} />
-            <Stack.Screen name="post" options={{ gestureEnabled: false }} />
-            <Stack.Screen name="ai-chat" options={{ gestureEnabled: false }} />
-            <Stack.Screen name="workouts" options={{ gestureEnabled: false }} />
-            <Stack.Screen name="profile" options={{ gestureEnabled: false }} />
             
             {/* Screens with swipe back enabled */}
             <Stack.Screen name="pulse" options={{ gestureEnabled: true, animation: 'slide_from_right' }} />
@@ -45,10 +40,13 @@ export default function RootLayout() {
             <Stack.Screen name="workout-plan" />
             <Stack.Screen name="diet-plan" />
             <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
+            
+            {/* Legacy standalone screens - kept for deep linking compatibility */}
+            <Stack.Screen name="ai-chat" options={{ gestureEnabled: false }} />
+            <Stack.Screen name="workouts" options={{ gestureEnabled: false }} />
+            <Stack.Screen name="profile" options={{ gestureEnabled: false }} />
+            <Stack.Screen name="post" options={{ gestureEnabled: false }} />
           </Stack>
-          
-          {/* Bottom navigation that persists across route changes but hides on specific screens */}
-          <BottomButtons />
         </View>
       </SafeAreaProvider>
     </AuthProvider>

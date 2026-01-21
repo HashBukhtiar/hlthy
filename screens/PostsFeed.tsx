@@ -32,6 +32,7 @@ import ShareModal from '@/components/ShareModal';
 import { sharePost } from '@/services/ShareService';
 import PostActionMenu from '@/components/PostActionMenu';
 import { useContentActions } from '@/hooks/useContentActions';
+import { ACCENT_COLOR } from '@/constants/Colors';
 
 console.log('[PostsFeed] Module loaded');
 
@@ -477,7 +478,7 @@ export default function PostsFeed() {
                 <Ionicons 
                   name={item.isLiked ? "heart" : "heart-outline"} 
                   size={20} 
-                  color={item.isLiked ? "#FF6B6B" : "#FFF"} 
+                  color={item.isLiked ? ACCENT_COLOR : "#FFF"} 
                   style={styles.statIcon} 
                 />
                 <Text style={styles.statNumber}>{item.reactionCount || 0}</Text>
@@ -655,7 +656,7 @@ export default function PostsFeed() {
       <View style={styles.emptyState}>
         <View style={styles.emptyStateContent}>
           <View style={styles.iconContainer}>
-            <Ionicons name="people-outline" size={40} color="#FF6B6B" />
+            <Ionicons name="people-outline" size={40} color={ACCENT_COLOR} />
           </View>
           <Text style={styles.emptyStateTitle}>Your Feed Awaits</Text>
           <Text style={styles.emptyStateText}>
@@ -879,7 +880,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   postButtonText: {
-    color: '#FF6B6B',
+    color: ACCENT_COLOR,
     fontWeight: '600',
   },
   disabledButton: {
@@ -916,7 +917,7 @@ const styles = StyleSheet.create({
   },
   workoutIconContainer: {
     marginRight: 12,
-    backgroundColor: '#FF6B6B',
+    backgroundColor: ACCENT_COLOR,
     padding: 8,
     borderRadius: 18,
   },
@@ -969,7 +970,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   exploreButton: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: ACCENT_COLOR,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 24,

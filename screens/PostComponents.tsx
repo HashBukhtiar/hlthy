@@ -22,9 +22,10 @@ import { db } from '@/firebaseConfig';
 import { collection, doc, getDoc, getDocs, query, where, orderBy } from 'firebase/firestore';
 import { getCoverImageSource } from '@/utils/imageUtils';
 import { useUnits } from '@/hooks/useUnits';
+import { ACCENT_COLOR } from '@/constants/Colors';
 
-// Secondary color and its variations
-export const SECONDARY_COLOR = '#ff2d55';
+// Secondary color and its variations - use centralized ACCENT_COLOR
+export const SECONDARY_COLOR = ACCENT_COLOR;
 export const SECONDARY_COLOR_LIGHT = 'rgba(255, 45, 85, 0.1)';
 export const SECONDARY_COLOR_MEDIUM = 'rgba(255, 45, 85, 0.5)';
 

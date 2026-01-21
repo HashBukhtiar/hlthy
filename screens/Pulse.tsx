@@ -22,6 +22,7 @@ import { collection, query, where, orderBy, onSnapshot, Timestamp } from 'fireba
 import { getOptimalImageUrl } from '@/utils/imageUtils';
 import { useBlockEnforcement } from '@/utils/blockUtils';
 import { OptimizedImageLight } from '@/components/OptimizedImage';
+import { ACCENT_COLOR } from '@/constants/Colors';
 
 // Helper function to display shortened string
 const displayShortenedString = (str: string, maxLength: number): string => {
@@ -180,7 +181,7 @@ export default function Pulse() {
             <View>
                 <View style={activityStyles.sectionHeader}>
                     <View style={activityStyles.sectionTitleContainer}>
-                        <MaterialIcons name="person-add" size={20} color="#ff2d55" />
+                        <MaterialIcons name="person-add" size={20} color={ACCENT_COLOR} />
                         <Text style={activityStyles.sectionTitle}>Follow Requests</Text>
                     </View>
                     {followRequests.length > 0 && (
@@ -192,12 +193,12 @@ export default function Pulse() {
 
                 {loadingRequests ? (
                     <View style={activityStyles.loadingContainer}>
-                        <ActivityIndicator size="small" color="#ff2d55" />
+                        <ActivityIndicator size="small" color={ACCENT_COLOR} />
                         <Text style={activityStyles.loadingText}>Loading requests...</Text>
                     </View>
                 ) : followRequests.length === 0 ? (
                     <View style={activityStyles.emptyRequestsContainer}>
-                        <MaterialIcons name="people" size={32} color="#ff2d55" style={activityStyles.emptyStateIcon} />
+                        <MaterialIcons name="people" size={32} color={ACCENT_COLOR} style={activityStyles.emptyStateIcon} />
                         <Text style={activityStyles.emptyRequestsText}>No pending follow requests</Text>
                     </View>
                 ) : (
@@ -356,7 +357,7 @@ export default function Pulse() {
         if (loadingActivities && otherActivities.length === 0) {
             return (
                 <View style={activityStyles.loadingContainer}>
-                    <ActivityIndicator size="small" color="#ff2d55" />
+                    <ActivityIndicator size="small" color={ACCENT_COLOR} />
                     <Text style={activityStyles.loadingText}>Loading activities...</Text>
                 </View>
             );
@@ -378,23 +379,23 @@ export default function Pulse() {
         const getActivityIcon = (type: string) => {
             switch (type) {
                 case 'post_like':
-                return <MaterialIcons name="favorite" size={16} color="#ff2d55" />;
+                return <MaterialIcons name="favorite" size={16} color={ACCENT_COLOR} />;
                 case 'post_comment':
-                return <MaterialIcons name="chat-bubble" size={16} color="#ff2d55" />;
+                return <MaterialIcons name="chat-bubble" size={16} color={ACCENT_COLOR} />;
                 case 'comment_like':
-                return <MaterialIcons name="favorite" size={16} color="#ff2d55" />;
+                return <MaterialIcons name="favorite" size={16} color={ACCENT_COLOR} />;
                 case 'reply_like':
-                return <MaterialIcons name="favorite" size={16} color="#ff2d55" />;
+                return <MaterialIcons name="favorite" size={16} color={ACCENT_COLOR} />;
                 case 'comment_reply':
-                return <MaterialIcons name="reply" size={16} color="#ff2d55" />;
+                return <MaterialIcons name="reply" size={16} color={ACCENT_COLOR} />;
                 case 'workout_save':
-                return <MaterialIcons name="bookmark" size={16} color="#ff2d55" />;
+                return <MaterialIcons name="bookmark" size={16} color={ACCENT_COLOR} />;
                 case 'new_follower':
-                return <MaterialIcons name="person-add" size={16} color="#ff2d55" />;
+                return <MaterialIcons name="person-add" size={16} color={ACCENT_COLOR} />;
                 case 'follow_accepted':
-                return <MaterialIcons name="check-circle" size={16} color="#ff2d55" />;
+                return <MaterialIcons name="check-circle" size={16} color={ACCENT_COLOR} />;
                 default:
-                return <MaterialIcons name="notifications" size={16} color="#ff2d55" />;
+                return <MaterialIcons name="notifications" size={16} color={ACCENT_COLOR} />;
             }
         };
 
@@ -402,7 +403,7 @@ export default function Pulse() {
             <View>
                 <View style={activityStyles.sectionHeader}>
                     <View style={activityStyles.sectionTitleContainer}>
-                        <MaterialIcons name="timeline" size={20} color="#ff2d55" />
+                        <MaterialIcons name="timeline" size={20} color={ACCENT_COLOR} />
                         <Text style={activityStyles.sectionTitle}>Recent Activity</Text>
                     </View>
                 </View>
@@ -541,7 +542,7 @@ export default function Pulse() {
         if (isCompletelyLoading) {
             return (
                 <View style={activityStyles.emptyStateContainer}>
-                    <ActivityIndicator size="large" color="#ff2d55" />
+                    <ActivityIndicator size="large" color={ACCENT_COLOR} />
                     <Text style={activityStyles.loadingText}>Checking your Pulse...</Text>
                 </View>
             );
@@ -566,8 +567,8 @@ export default function Pulse() {
                     <RefreshControl
                         refreshing={refreshing}
                         onRefresh={onRefresh}
-                        tintColor="#ff2d55"
-                        colors={["#ff2d55"]}
+                        tintColor={ACCENT_COLOR}
+                        colors={[ACCENT_COLOR]}
                     />
                 }
                 showsVerticalScrollIndicator={false}
@@ -656,7 +657,7 @@ const activityStyles = StyleSheet.create({
         letterSpacing: 0.3,
     },
     badgeContainer: {
-        backgroundColor: '#ff2d55',
+        backgroundColor: ACCENT_COLOR,
         borderRadius: 10,
         minWidth: 20,
         height: 20,
@@ -665,7 +666,7 @@ const activityStyles = StyleSheet.create({
         paddingHorizontal: 6,
         ...Platform.select({
             ios: {
-                shadowColor: '#ff2d55',
+                shadowColor: ACCENT_COLOR,
                 shadowOffset: { width: 0, height: 2 },
                 shadowOpacity: 0.5,
                 shadowRadius: 4,
@@ -735,7 +736,7 @@ const activityStyles = StyleSheet.create({
         borderColor: 'rgba(255, 255, 255, 0.15)',
         ...Platform.select({
             ios: {
-                shadowColor: '#ff2d55',
+                shadowColor: ACCENT_COLOR,
                 shadowOffset: { width: 0, height: 2 },
                 shadowOpacity: 0.4,
                 shadowRadius: 4,
@@ -752,7 +753,7 @@ const activityStyles = StyleSheet.create({
         width: 14,
         height: 14,
         borderRadius: 7,
-        backgroundColor: '#ff2d55',
+        backgroundColor: ACCENT_COLOR,
         borderWidth: 2,
         borderColor: '#1a1a1a',
         alignItems: 'center',
@@ -805,11 +806,11 @@ const activityStyles = StyleSheet.create({
         justifyContent: 'center',
     },
     acceptButton: {
-        backgroundColor: '#ff2d55',
+        backgroundColor: ACCENT_COLOR,
         borderWidth: 0,
         ...Platform.select({
             ios: {
-                shadowColor: '#ff2d55',
+                shadowColor: ACCENT_COLOR,
                 shadowOffset: { width: 0, height: 4 },
                 shadowOpacity: 0.5,
                 shadowRadius: 8,
@@ -866,7 +867,7 @@ const activityStyles = StyleSheet.create({
         borderColor: 'rgba(255, 255, 255, 0.15)',
         ...Platform.select({
             ios: {
-                shadowColor: '#ff2d55',
+                shadowColor: ACCENT_COLOR,
                 shadowOffset: { width: 0, height: 2 },
                 shadowOpacity: 0.3,
                 shadowRadius: 4,
@@ -892,7 +893,7 @@ const activityStyles = StyleSheet.create({
         borderColor: 'rgba(255, 255, 255, 0.1)',
         ...Platform.select({
             ios: {
-                shadowColor: '#ff2d55',
+                shadowColor: ACCENT_COLOR,
                 shadowOffset: { width: 0, height: 1 },
                 shadowOpacity: 0.3,
                 shadowRadius: 2,
