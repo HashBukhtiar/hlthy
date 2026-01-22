@@ -20,6 +20,7 @@ import {
   Clipboard,
   ScrollView,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { db } from '@/firebaseConfig';
 import { 
   doc, 
@@ -49,6 +50,7 @@ import { MessageRenderer } from '@/components/ai/MessageRenderer';
 import { calculateImprovementPercentage } from '@/logic/milesonteUtils';
 import { getOptimalImageUrl } from '@/utils/imageUtils';
 import { useUnits } from '@/hooks/useUnits';
+import { uploadPhotoToChat, deletePhotoFromChat, formatFileSize } from '@/utils/photoSharingUtils';
 
 interface FirestoreMessageData {
   senderId: string;
@@ -91,6 +93,13 @@ interface FirestoreMessageData {
     coverImageUrl?: string;
     thumbnailUrl?: string | null;
     creatorUsername: string;
+  };
+  sharedPhoto?: {
+    id: string;
+    imageUrl: string;
+    thumbnailUrl?: string;
+    originalFileSize?: number;
+    compressedFileSize?: number;
   };
 }
 
@@ -139,6 +148,13 @@ interface Message {
     thumbnailUrl?: string | null;
     creatorUsername: string;
     isAvailable?: boolean;
+  };
+  sharedPhoto?: {
+    id: string;
+    imageUrl: string;
+    thumbnailUrl?: string;
+    originalFileSize?: number;
+    compressedFileSize?: number;
   };
   type?: 'message' | 'dateHeader';
 }
@@ -232,6 +248,7 @@ async function convertFirestoreDoc(
     sharedPost: resolvedSharedPost,
     sharedMilestone: resolvedSharedMilestone,
     sharedWorkout: resolvedSharedWorkout,
+    sharedPhoto: data.sharedPhoto, // Include photo data
     type: "message",
   };
 }
@@ -477,6 +494,33 @@ const MessageItem = React.memo<{
       );
     }
 
+    if (item.sharedPhoto) {
+      return (
+        <TouchableOpacity
+          style={[
+            styles.sharedPhotoContainer,
+            item.user === 'user' ? { alignSelf: 'flex-end' } : { alignSelf: 'flex-start' }
+          ]}
+          onLongPress={() => onLongPress(item)}
+          delayLongPress={500}
+          activeOpacity={0.8}
+        >
+          <Image
+            source={{ uri: getOptimalImageUrl(item.sharedPhoto.thumbnailUrl, item.sharedPhoto.imageUrl) }}
+            style={styles.sharedPhotoImage}
+          />
+          {item.sharedPhoto.compressedFileSize && (
+            <View style={styles.photoInfoBar}>
+              <Ionicons name="image" size={12} color="#888" style={{ marginRight: 4 }} />
+              <Text style={styles.photoInfoText}>
+                {formatFileSize(item.sharedPhoto.compressedFileSize)}
+              </Text>
+            </View>
+          )}
+        </TouchableOpacity>
+      );
+    }
+
     return (
       <IntentMessageWrapper 
         intent={item.intent} 
@@ -530,7 +574,8 @@ const MessageItem = React.memo<{
       prev.item.sharedPost?.thumbnailUrl === next.item.sharedPost?.thumbnailUrl &&
       prev.item.sharedMilestone?.isAvailable === next.item.sharedMilestone?.isAvailable &&
       prev.item.sharedWorkout?.isAvailable === next.item.sharedWorkout?.isAvailable &&
-      prev.item.sharedWorkout?.thumbnailUrl === next.item.sharedWorkout?.thumbnailUrl
+      prev.item.sharedWorkout?.thumbnailUrl === next.item.sharedWorkout?.thumbnailUrl &&
+      prev.item.sharedPhoto?.imageUrl === next.item.sharedPhoto?.imageUrl
     );
   }
 );
@@ -590,6 +635,7 @@ export default function ChatScreen() {
   const [editingWorkout, setEditingWorkout] = useState<any>(null);
   const [workoutPreferences, setWorkoutPreferences] = useState<any>(null);
   const [scrollEnabled, setScrollEnabled] = useState(true); // Control scroll locking
+  const [photoUploadProgress, setPhotoUploadProgress] = useState(false);
   const thinkingDotAnimations = useRef([
     new Animated.Value(0.4),
     new Animated.Value(0.4),
@@ -810,6 +856,156 @@ export default function ChatScreen() {
     } catch (error) {
       console.error('Error updating conversation metadata:', error);
       // Don't throw error - this is not critical for message sending
+    }
+  };
+
+  const handlePhotoSelect = async () => {
+    try {
+      // Request permission
+      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      
+      if (!permissionResult.granted) {
+        Alert.alert('Permission Required', 'Camera roll access is needed to share photos.');
+        return;
+      }
+
+      // Launch image picker
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: false,
+        quality: 1, // We'll handle compression server-side
+        exif: false,
+      });
+
+      if (result.canceled) {
+        return;
+      }
+
+      const selectedAsset = result.assets[0];
+      if (!selectedAsset.uri) {
+        Alert.alert('Error', 'Failed to get image URI');
+        return;
+      }
+
+      // Upload photo
+      setPhotoUploadProgress(true);
+      try {
+        console.log('Starting photo upload...');
+        const sharedPhoto = await uploadPhotoToChat(
+          selectedAsset.uri,
+          conversationId,
+          currentUser!.uid
+        );
+
+        // Send message with photo
+        const messagesRef = collection(db, "conversations", conversationId, "messages");
+        const messageData: any = {
+          senderId: currentUser!.uid,
+          text: '',
+          createdAt: serverTimestamp(),
+          sharedPhoto: {
+            id: sharedPhoto.id,
+            imageUrl: sharedPhoto.imageUrl,
+            thumbnailUrl: sharedPhoto.thumbnailUrl,
+            originalFileSize: sharedPhoto.originalFileSize,
+            compressedFileSize: sharedPhoto.compressedFileSize,
+          },
+        };
+
+        await addDoc(messagesRef, messageData);
+
+        // Update conversation metadata with empty text but photo
+        await updateConversationMetadata(
+          conversationId,
+          currentUser!.uid,
+          '📷 Photo'
+        );
+
+        console.log('Photo sent successfully');
+      } catch (uploadError) {
+        console.error('Error uploading photo:', uploadError);
+        Alert.alert('Upload Failed', 'Failed to upload photo. Please try again.');
+      } finally {
+        setPhotoUploadProgress(false);
+      }
+    } catch (error) {
+      console.error('Error selecting photo:', error);
+      Alert.alert('Error', 'Failed to select photo');
+    }
+  };
+
+  const handlePhotoCapture = async () => {
+    try {
+      // Request camera permission
+      const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
+      
+      if (!permissionResult.granted) {
+        Alert.alert('Permission Required', 'Camera access is needed to take photos.');
+        return;
+      }
+
+      // Launch camera
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: false,
+        quality: 1,
+        exif: false,
+      });
+
+      if (result.canceled) {
+        return;
+      }
+
+      const selectedAsset = result.assets[0];
+      if (!selectedAsset.uri) {
+        Alert.alert('Error', 'Failed to get image URI');
+        return;
+      }
+
+      // Upload photo (same as library)
+      setPhotoUploadProgress(true);
+      try {
+        console.log('Starting photo upload from camera...');
+        const sharedPhoto = await uploadPhotoToChat(
+          selectedAsset.uri,
+          conversationId,
+          currentUser!.uid
+        );
+
+        // Send message with photo
+        const messagesRef = collection(db, "conversations", conversationId, "messages");
+        const messageData: any = {
+          senderId: currentUser!.uid,
+          text: '',
+          createdAt: serverTimestamp(),
+          sharedPhoto: {
+            id: sharedPhoto.id,
+            imageUrl: sharedPhoto.imageUrl,
+            thumbnailUrl: sharedPhoto.thumbnailUrl,
+            originalFileSize: sharedPhoto.originalFileSize,
+            compressedFileSize: sharedPhoto.compressedFileSize,
+          },
+        };
+
+        await addDoc(messagesRef, messageData);
+
+        // Update conversation metadata
+        await updateConversationMetadata(
+          conversationId,
+          currentUser!.uid,
+          '📷 Photo'
+        );
+
+        console.log('Photo from camera sent successfully');
+      } catch (uploadError) {
+        console.error('Error uploading photo from camera:', uploadError);
+        Alert.alert('Upload Failed', 'Failed to upload photo. Please try again.');
+      } finally {
+        setPhotoUploadProgress(false);
+      }
+    } catch (error) {
+      console.error('Error capturing photo:', error);
+      Alert.alert('Error', 'Failed to capture photo');
     }
   };
 
@@ -1348,12 +1544,40 @@ export default function ChatScreen() {
           </View>
         )}
         
+        {/* Photo Upload Progress */}
+        {photoUploadProgress && (
+          <View style={styles.photoUploadContainer}>
+            <ActivityIndicator size="small" color="#d466ff" style={{ marginRight: 8 }} />
+            <Text style={styles.photoUploadText}>Uploading photo...</Text>
+          </View>
+        )}
+
+        {/* Photo Action Buttons */}
+        <View style={styles.photoActionContainer}>
+          <TouchableOpacity 
+            style={styles.photoActionButton}
+            onPress={handlePhotoSelect}
+            disabled={photoUploadProgress}
+          >
+            <Ionicons name="image-outline" size={24} color="#d466ff" />
+            <Text style={styles.photoActionLabel}>Gallery</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.photoActionButton}
+            onPress={handlePhotoCapture}
+            disabled={photoUploadProgress}
+          >
+            <Ionicons name="camera-outline" size={24} color="#d466ff" />
+            <Text style={styles.photoActionLabel}>Camera</Text>
+          </TouchableOpacity>
+        </View>
+        
         {/* Smart Input with Intent Classification */}
         <SmartChatInput
           value={input}
           onChangeText={setInput}
           onSend={handleSend}
-          disabled={isAiThinking}
+          disabled={isAiThinking || photoUploadProgress}
           conversationId={conversationId}
           otherParticipantId={otherParticipantId}
           isAiConversation={conversationId.endsWith('_ai_conversation')}
@@ -2075,5 +2299,68 @@ const styles = StyleSheet.create({
     color: '#888',
     fontSize: 12,
     marginTop: 2,
+  },
+  // Photo Sharing Styles
+  sharedPhotoContainer: {
+    marginVertical: 8,
+    marginHorizontal: 10,
+    borderRadius: 12,
+    overflow: 'hidden',
+    maxWidth: 250,
+  },
+  sharedPhotoImage: {
+    width: '100%',
+    height: 250,
+    backgroundColor: '#333',
+  },
+  photoInfoBar: {
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+  },
+  photoInfoText: {
+    color: '#ccc',
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  photoUploadContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(212, 102, 255, 0.1)',
+    paddingVertical: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#d466ff',
+  },
+  photoUploadText: {
+    color: '#d466ff',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  photoActionContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#1E1E1E',
+    borderTopWidth: 1,
+    borderTopColor: '#333',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    justifyContent: 'center',
+    gap: 20,
+  },
+  photoActionButton: {
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: 'rgba(212, 102, 255, 0.1)',
+    flexDirection: 'row',
+    gap: 6,
+  },
+  photoActionLabel: {
+    color: '#d466ff',
+    fontSize: 12,
+    fontWeight: '600',
   },
 });
