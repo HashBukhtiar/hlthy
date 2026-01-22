@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { TextInput } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
+import { ACCENT_COLOR } from '@/constants/Colors';
 
 interface SignUpStep3Props {
   visible: boolean;
@@ -108,7 +109,7 @@ export default function SignUpStep3({ visible, onBackPress, onComplete, onShowLo
     if (/\d/.test(password)) score++;
     if (/[^A-Za-z\d]/.test(password)) score++;
     
-    if (score <= 2) return { strength: score, label: 'Weak', color: '#FF6B6B' };
+    if (score <= 2) return { strength: score, label: 'Weak', color: ACCENT_COLOR };
     if (score <= 3) return { strength: score, label: 'Fair', color: '#FFB347' };
     if (score <= 4) return { strength: score, label: 'Good', color: '#87CEEB' };
     return { strength: score, label: 'Strong', color: '#90EE90' };

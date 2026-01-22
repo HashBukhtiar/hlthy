@@ -9,18 +9,75 @@ import {
   TextInput,
   ActivityIndicator,
   RefreshControl,
-  Alert
+  Alert,
+  LayoutAnimation,
+  Platform,
+  UIManager
 } from 'react-native';
+
+// Enable LayoutAnimation on Android
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { getOptimalImageUrl, DEFAULT_PROFILE_IMAGE } from '@/utils/imageUtils';
+import * as Haptics from 'expo-haptics';
 import { useFeedData } from '@/hooks/useFeedData';
 import { usePostsData, Post } from '@/hooks/usePostsData';
 import { useAuth } from '@/context/AuthContext';
 import { useBlockEnforcement } from '@/utils/blockUtils';
 import { OptimizedImageLight } from '@/components/OptimizedImage';
+import ShareModal from '@/components/ShareModal';
+import { sharePost } from '@/services/ShareService';
+import PostActionMenu from '@/components/PostActionMenu';
+import { useContentActions } from '@/hooks/useContentActions';
+import { ACCENT_COLOR } from '@/constants/Colors';
 
 console.log('[PostsFeed] Module loaded');
+
+// Helper function to format relative time
+const getRelativeTime = (date: Date): string => {
+  const now = new Date();
+  const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+  // If the date is in the future or exactly now, avoid negative values.
+  // Return a neutral "0s ago" to prevent displaying "-5s ago".
+  if (diffInSeconds <= 0) {
+    return '0s ago';
+  }
+
+  if (diffInSeconds < 60) {
+    return `${diffInSeconds}s ago`;
+  }
+  
+  const diffInMinutes = Math.floor(diffInSeconds / 60);
+  if (diffInMinutes < 60) {
+    return `${diffInMinutes}m ago`;
+  }
+  
+  const diffInHours = Math.floor(diffInMinutes / 60);
+  if (diffInHours < 24) {
+    return `${diffInHours}h ago`;
+  }
+  
+  const diffInDays = Math.floor(diffInHours / 24);
+  if (diffInDays < 7) {
+    return `${diffInDays}d ago`;
+  }
+  
+  const diffInWeeks = Math.floor(diffInDays / 7);
+  if (diffInWeeks < 4) {
+    return `${diffInWeeks}w ago`;
+  }
+  
+  const diffInMonths = Math.floor(diffInDays / 30);
+  if (diffInMonths < 12) {
+    return `${diffInMonths}mo ago`;
+  }
+  
+  const diffInYears = Math.floor(diffInDays / 365);
+  return `${diffInYears}y ago`;
+};
 
 export default function PostsFeed() {
   console.log('[PostsFeed] Component rendering');
@@ -41,6 +98,24 @@ export default function PostsFeed() {
   const [newComment, setNewComment] = useState('');
   const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
   const [submittingComment, setSubmittingComment] = useState(false);
+  const [shareModalVisible, setShareModalVisible] = useState(false);
+  const [postToShare, setPostToShare] = useState<Post | null>(null);
+  const [actionMenuVisible, setActionMenuVisible] = useState(false);
+  const [selectedPostForAction, setSelectedPostForAction] = useState<Post | null>(null);
+
+  // Use shared content actions hook
+  const { 
+    handleToggleFollowFromMenu, 
+    handleBlockUser, 
+    handleReportContent: handleReportPost 
+  } = useContentActions({
+    selectedItem: selectedPostForAction,
+    currentUser,
+    setSelectedItem: setSelectedPostForAction,
+    updateItems: setPosts,
+    refreshFeed,
+    contentType: 'post',
+  });
 
   // Double-tap functionality refs
   const tapTimers = useRef<Record<string, number>>({});
@@ -57,6 +132,18 @@ export default function PostsFeed() {
       Alert.alert('Please log in', 'You need to be logged in to like posts.');
       return;
     }
+
+    // Haptic feedback
+    Haptics.impactAsync(isCurrentlyLiked ? Haptics.ImpactFeedbackStyle.Light : Haptics.ImpactFeedbackStyle.Medium);
+
+    // Configure smooth animation (exclude opacity to avoid TouchableOpacity conflicts)
+    LayoutAnimation.configureNext({
+      duration: 200,
+      update: {
+        type: LayoutAnimation.Types.easeInEaseOut,
+        property: LayoutAnimation.Properties.scaleXY,
+      },
+    });
 
     // Optimistic update - update UI immediately
     setPosts(prevPosts => 
@@ -81,6 +168,14 @@ export default function PostsFeed() {
       }
     } catch (error) {
       console.error('Error toggling like:', error);
+      // Animate the revert as well
+      LayoutAnimation.configureNext({
+        duration: 200,
+        update: {
+          type: LayoutAnimation.Types.easeInEaseOut,
+          property: LayoutAnimation.Properties.scaleXY,
+        },
+      });
       // Revert optimistic update on error
       setPosts(prevPosts => 
         prevPosts.map(post => 
@@ -100,9 +195,32 @@ export default function PostsFeed() {
   }, [currentUser, likePost, unlikePost]);
 
   // Handle bookmark toggle
-  const handleToggleBookmark = useCallback((postId: string) => {
-    // TODO: Implement bookmark functionality
-    console.log('Bookmark toggle for post:', postId);
+  const handleToggleBookmark = useCallback((postId: string, isCurrentlyBookmarked: boolean) => {
+    if (!currentUser) {
+      Alert.alert('Please log in', 'You need to be logged in to bookmark posts.');
+      return;
+    }
+
+    // Haptic feedback
+    Haptics.impactAsync(isCurrentlyBookmarked ? Haptics.ImpactFeedbackStyle.Light : Haptics.ImpactFeedbackStyle.Medium);
+
+    // Optimistic update - update UI immediately
+    setPosts(prevPosts => 
+      prevPosts.map(post => 
+        post.id === postId 
+          ? { ...post, isBookmarked: !isCurrentlyBookmarked }
+          : post
+      )
+    );
+
+    // TODO: Implement actual bookmark API call
+    // For now, just keep the optimistic update
+  }, [currentUser]);
+
+  // Handle opening action menu
+  const handleOpenActionMenu = useCallback((post: Post) => {
+    setSelectedPostForAction(post);
+    setActionMenuVisible(true);
   }, []);
 
   // Navigation functions
@@ -123,6 +241,48 @@ export default function PostsFeed() {
     setActiveCommentId(activeCommentId === postId ? null : postId);
     setNewComment('');
   }, [activeCommentId]);
+
+  // Share functions
+  const handleSharePost = useCallback((post: Post) => {
+    if (!currentUser) {
+      Alert.alert('Please log in', 'You need to be logged in to share posts.');
+      return;
+    }
+    setPostToShare(post);
+    setShareModalVisible(true);
+  }, [currentUser]);
+
+  const sharePostWithUser = useCallback(async (
+    userId: string, 
+    username: string, 
+    profileImageUrl?: string, 
+    profileThumbnailUrl?: string
+  ) => {
+    if (!currentUser || !postToShare) return;
+
+    try {
+      await sharePost(
+        currentUser,
+        userId,
+        username,
+        profileImageUrl,
+        profileThumbnailUrl,
+        {
+          id: postToShare.id,
+          caption: postToShare.caption,
+          imageUrl: postToShare.imageUrl,
+          thumbnailUrl: postToShare.thumbnailUrl,
+          authorUsername: postToShare.authorUsername
+        }
+      );
+
+      setShareModalVisible(false);
+      Alert.alert('Success', 'Post shared successfully');
+    } catch (error) {
+      console.error('Error sharing post:', error);
+      Alert.alert('Error', 'Failed to share post. Please try again.');
+    }
+  }, [currentUser, postToShare]);
 
   const handleAddComment = useCallback(async (postId: string) => {
     if (!currentUser || !newComment.trim() || submittingComment) return;
@@ -157,9 +317,7 @@ export default function PostsFeed() {
         delete tapTimers.current[postId];
         try {
           // Haptic feedback
-          import('expo-haptics').then(({ impactAsync, ImpactFeedbackStyle }) => {
-            impactAsync?.(ImpactFeedbackStyle.Light);
-          }).catch(() => {});
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
           
           // Set in progress flag
           likingInProgress.current[postId] = true;
@@ -252,6 +410,7 @@ export default function PostsFeed() {
           <TouchableOpacity 
             style={styles.userInfoContainer}
             onPress={() => canInteract ? navigateToProfile(item.authorId) : null}
+            activeOpacity={0.8}
           >
             <OptimizedImageLight 
               thumbnailUrl={item.authorProfileThumbnailUrl}
@@ -260,91 +419,102 @@ export default function PostsFeed() {
             />
             <View>
               <Text style={styles.username}>{item.authorUsername}</Text>
-              <Text style={styles.timestamp}>
-                {item.createdAt ? new Date(item.createdAt.toDate()).toLocaleDateString() : 'Unknown'}
-              </Text>
+              <View style={styles.timestampContainer}>
+                <Text style={styles.timestamp}>
+                  {item.createdAt ? getRelativeTime(new Date(item.createdAt.toDate())) : 'Unknown'}
+                </Text>
+                <Ionicons 
+                  name={item.isPublic ? "earth-outline" : "people"} 
+                  size={12} 
+                  color="#8E8E93" 
+                  style={styles.visibilityIcon}
+                />
+              </View>
             </View>
           </TouchableOpacity>
           {canInteract && (
-            <TouchableOpacity style={styles.moreButton}>
-              <Ionicons name="ellipsis-horizontal" size={20} color="#FFF" />
+            <TouchableOpacity 
+              style={styles.moreButton}
+              onPress={() => handleOpenActionMenu(item)}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="ellipsis-horizontal" size={20} color="#8E8E93" />
             </TouchableOpacity>
           )}
         </View>
 
-        {/* Post Image */}
-        {item.imageUrl && (
-          <TouchableOpacity 
-            activeOpacity={0.9}
-            onPress={canInteract ? createDoubleTapHandler(item.id, item.isLiked || false) : undefined}
-          >
-            <Image
-              source={{ uri: item.imageUrl! }}
-              style={styles.postImage}
-              onError={({ nativeEvent }) => console.error('❌ post image failed to load:', item.imageUrl, nativeEvent)}
-            />
-          </TouchableOpacity>
+        {/* Caption */}
+        {item.caption && (
+          <View style={styles.captionContainer}>
+            <Text style={styles.caption} numberOfLines={3}>{item.caption}</Text>
+          </View>
         )}
 
-        {/* Action Buttons */}
-        {canInteract && (
-          <View style={styles.actionButtons}>
-            <View style={styles.leftActions}>
-              <TouchableOpacity 
-                style={styles.actionButton} 
-                onPress={() => handleToggleLike(item.id, item.isLiked || false)}
-              >
-                <Ionicons 
-                  name={item.isLiked ? "heart" : "heart-outline"} 
-                  size={28} 
-                  color={item.isLiked ? "#FF3B30" : "#FFF"} 
-                />
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={styles.actionButton}
-                onPress={() => toggleCommentInput(item.id)}
-              >
-                <Ionicons name="chatbubble-outline" size={26} color="#FFF" />
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.actionButton}>
-                <Ionicons name="paper-plane-outline" size={26} color="#FFF" />
-              </TouchableOpacity>
-            </View>
+        {/* Post Image */}
+        {item.imageUrl && (
+          <View style={styles.imageWrapper}>
             <TouchableOpacity 
-              style={[styles.actionButton, styles.bookmarkButton]}
-              onPress={() => handleToggleBookmark(item.id)}
+              activeOpacity={0.9}
+              onPress={canInteract ? createDoubleTapHandler(item.id, item.isLiked || false) : undefined}
             >
-              <Ionicons 
-                name={item.isBookmarked ? "bookmark" : "bookmark-outline"} 
-                size={26} 
-                color="#FFF" 
+              <Image
+                source={{ uri: item.imageUrl! }}
+                style={styles.postImage}
+                onError={({ nativeEvent }) => console.error('❌ post image failed to load:', item.imageUrl, nativeEvent)}
               />
             </TouchableOpacity>
           </View>
         )}
 
-        {/* Likes */}
+        {/* Likes and Comments Stats */}
         {canInteract && (
-          <Text style={styles.likes}>{item.reactionCount || 0} likes</Text>
-        )}
-
-        {/* Caption */}
-        {item.caption && (
-          <View style={styles.captionContainer}>
-            <Text style={styles.caption} numberOfLines={2}>{item.caption}</Text>
+          <View style={styles.statsContainer}>
+            <View style={styles.statsLeft}>
+              <TouchableOpacity 
+                style={styles.statItem}
+                onPress={() => handleToggleLike(item.id, item.isLiked || false)}
+                activeOpacity={0.8}
+              >
+                <Ionicons 
+                  name={item.isLiked ? "heart" : "heart-outline"} 
+                  size={20} 
+                  color={item.isLiked ? ACCENT_COLOR : "#FFF"} 
+                  style={styles.statIcon} 
+                />
+                <Text style={styles.statNumber}>{item.reactionCount || 0}</Text>
+                <Text style={styles.statLabel}> {item.reactionCount === 1 ? 'Like' : 'Likes'}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.statItem}
+                onPress={() => handleViewPost(item.id)}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="chatbubble-outline" size={20} color="#FFF" style={styles.statIcon} />
+                <Text style={styles.statNumber}>{item.commentCount || 0}</Text>
+                <Text style={styles.statLabel}> {item.commentCount === 1 ? 'Comment' : 'Comments'}</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.statsRight}>
+              <TouchableOpacity 
+                style={styles.iconButtonSmall} 
+                activeOpacity={0.8}
+                onPress={() => handleSharePost(item)}
+              >
+                <Ionicons name="paper-plane-outline" size={20} color="#FFF" />
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.iconButtonSmall}
+                onPress={() => handleToggleBookmark(item.id, item.isBookmarked || false)}
+                activeOpacity={0.8}
+              >
+                <Ionicons 
+                  name={item.isBookmarked ? "bookmark" : "bookmark-outline"} 
+                  size={20} 
+                  color="#FFF"
+                />
+              </TouchableOpacity>
+            </View>
           </View>
-        )}
-        
-        {/* Comments preview */}
-        {canInteract && (
-          <TouchableOpacity 
-            style={styles.commentsPreview}
-            onPress={() => handleViewPost(item.id)}
-          >
-            <Text style={styles.commentsPreviewText}>
-              View all {item.commentCount || 0} comments
-            </Text>
-          </TouchableOpacity>
         )}
 
         {/* Comment Input (shown only for active comment) */}
@@ -370,7 +540,7 @@ export default function PostsFeed() {
               disabled={newComment.trim() === '' || submittingComment}
             >
               {submittingComment ? (
-                <ActivityIndicator size="small" color="#0A84FF" />
+                <ActivityIndicator size="small" color="#FFF" />
               ) : (
                 <Text style={[styles.postButtonText, newComment.trim() === '' && styles.disabledButtonText]}>
                   Post
@@ -388,7 +558,9 @@ export default function PostsFeed() {
           >
             <View style={styles.attachedItemContent}>
               <View style={styles.attachedItemInfo}>
-                <Ionicons name="trophy-outline" size={18} color="#FFF" style={styles.attachedItemIcon} />
+                <View style={styles.workoutIconContainer}>
+                  <Ionicons name="trophy" size={18} color="#000" />
+                </View>
                 <View>
                   <Text style={styles.attachedItemTitle}>
                     {item.milestoneDetails.type === 'PR' ? 'Personal Record' : 
@@ -412,14 +584,24 @@ export default function PostsFeed() {
           >
             <View style={styles.attachedItemContent}>
               <View style={styles.attachedItemInfo}>
-                <Ionicons name="flame" size={18} color="#FFF" style={styles.attachedItemIcon} />
+                <View style={styles.workoutIconContainer}>
+                  <Ionicons name="flame" size={20} color="#000" />
+                </View>
                 <View>
                   <Text style={styles.attachedItemTitle}>
-                    Workout
+                    {item.workoutTitle || 'Workout'}
                   </Text>
-                  <Text style={styles.attachedItemDetails}>
-                    View attached workout
-                  </Text>
+                  <View style={styles.workoutDetailsContainer}>
+                    <Text style={styles.attachedItemDetails}>
+                      {item.workoutAuthor || item.authorUsername} • {item.workoutDuration ? (() => {
+                        const d = item.workoutDuration;
+                        const h = Math.floor(d / 3600);
+                        const m = Math.floor((d % 3600) / 60);
+                        const s = d % 60;
+                        return [h > 0 ? `${h}h` : '', m > 0 ? `${m}m` : '', (s > 0 || (!h && !m)) ? `${s}s` : ''].filter(Boolean).join(' ');
+                      })() : '1h 45m'}
+                    </Text>
+                  </View>
                 </View>
               </View>
               <Ionicons name="chevron-forward" size={20} color="#999" />
@@ -444,6 +626,8 @@ export default function PostsFeed() {
     userProfile,
     isUserBlocked,
     createDoubleTapHandler,
+    handleSharePost,
+    handleOpenActionMenu,
   ]);
 
   // Render footer for load more
@@ -451,7 +635,7 @@ export default function PostsFeed() {
     if (!loadingMore) return null;
     return (
       <View style={styles.loadingFooter}>
-        <ActivityIndicator size="large" color="#0A84FF" />
+        <ActivityIndicator size="large" color="#FFF" />
         <Text style={styles.loadingText}>Loading more posts...</Text>
       </View>
     );
@@ -462,7 +646,7 @@ export default function PostsFeed() {
     if (loading) {
       return (
         <View style={styles.emptyState}>
-          <ActivityIndicator size="large" color="#0A84FF" />
+          <ActivityIndicator size="large" color="#FFF" />
           <Text style={styles.emptyStateText}>Loading your feed...</Text>
         </View>
       );
@@ -470,17 +654,23 @@ export default function PostsFeed() {
 
     return (
       <View style={styles.emptyState}>
-        <Ionicons name="people-outline" size={80} color="#333" />
-        <Text style={styles.emptyStateTitle}>Your feed is empty</Text>
-        <Text style={styles.emptyStateText}>
-          Follow other users to see their posts here, or check out trending content in Explore.
-        </Text>
-        <TouchableOpacity 
-          style={styles.exploreButton}
-          onPress={() => router.push('/explore')}
-        >
-          <Text style={styles.exploreButtonText}>Explore</Text>
-        </TouchableOpacity>
+        <View style={styles.emptyStateContent}>
+          <View style={styles.iconContainer}>
+            <Ionicons name="people-outline" size={40} color={ACCENT_COLOR} />
+          </View>
+          <Text style={styles.emptyStateTitle}>Your Feed Awaits</Text>
+          <Text style={styles.emptyStateText}>
+            Start following creators to see their latest posts and workouts.
+          </Text>
+          <TouchableOpacity 
+            style={styles.exploreButton}
+            onPress={() => router.push('/explore')}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="compass" size={18} color="#000" style={styles.buttonIcon} />
+            <Text style={styles.exploreButtonText}>Explore Content</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     );
   }, [loading, router]);
@@ -499,52 +689,77 @@ export default function PostsFeed() {
   }
 
   return (
-    <FlatList
-      data={filteredPosts}
-      renderItem={renderPost}
-      keyExtractor={(item, index) => `${item.id}-${index}`}
-      showsVerticalScrollIndicator={false}
-      contentContainerStyle={posts.length === 0 ? styles.emptyContainer : styles.postsContainer}
-      refreshControl={
-        <RefreshControl
-          refreshing={refreshing}
-          onRefresh={refreshFeed}
-          colors={['#0A84FF']}
-          tintColor="#0A84FF"
-        />
-      }
-      onEndReached={loadMorePosts}
-      onEndReachedThreshold={0.5}
-      ListFooterComponent={renderFooter}
-      ListEmptyComponent={renderEmptyState}
-      removeClippedSubviews={true}
-      maxToRenderPerBatch={5}
-      windowSize={10}
-    />
+    <>
+      <FlatList
+        data={filteredPosts}
+        renderItem={renderPost}
+        keyExtractor={(item, index) => `${item.id}-${index}`}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={posts.length === 0 ? styles.emptyContainer : styles.postsContainer}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={refreshFeed}
+            colors={['#FFF']}
+            tintColor="#FFF"
+          />
+        }
+        onEndReached={loadMorePosts}
+        onEndReachedThreshold={0.5}
+        ListFooterComponent={renderFooter}
+        ListEmptyComponent={renderEmptyState}
+        removeClippedSubviews={true}
+        maxToRenderPerBatch={5}
+        windowSize={10}
+      />
+      <ShareModal
+        visible={shareModalVisible}
+        onClose={() => setShareModalVisible(false)}
+        onShareWith={sharePostWithUser}
+      />
+      <PostActionMenu
+        visible={actionMenuVisible}
+        onClose={() => setActionMenuVisible(false)}
+        isBookmarked={selectedPostForAction?.isBookmarked || false}
+        isFollowing={selectedPostForAction?.isFollowing || false}
+        isOwnPost={selectedPostForAction?.authorId === currentUser?.uid}
+        onToggleBookmark={() => {
+          if (selectedPostForAction) {
+            handleToggleBookmark(selectedPostForAction.id, selectedPostForAction.isBookmarked || false);
+          }
+        }}
+        onToggleFollow={handleToggleFollowFromMenu}
+        onBlock={handleBlockUser}
+        onReport={handleReportPost}
+      />
+    </>
   );
 };
 
 const styles = StyleSheet.create({
   postsContainer: {
+    paddingTop: 12,
     paddingBottom: 70,
+    backgroundColor: '#2C2C2E',
   },
   emptyContainer: {
     flex: 1,
   },
   postContainer: {
-    marginBottom: 15,
-    borderBottomColor: '#222',
-    borderBottomWidth: 1,
-    paddingBottom: 15,
+    marginBottom: 12,
+    marginHorizontal: 12,
+    backgroundColor: '#000',
+    borderRadius: 16,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#1C1C1E',
   },
   postHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 15,
-    paddingVertical: 10,
-    borderBottomColor: '#222',
-    borderBottomWidth: 0.5,
+    paddingVertical: 12,
   },
   userInfoContainer: {
     flexDirection: 'row',
@@ -563,64 +778,84 @@ const styles = StyleSheet.create({
   },
   timestamp: {
     fontSize: 12,
-    color: '#999',
+    color: '#8E8E93',
+  },
+  timestampContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 2,
+  },
+  visibilityIcon: {
+    marginLeft: 4,
   },
   moreButton: {
     padding: 5,
+  },
+  imageWrapper: {
+    paddingHorizontal: 12,
   },
   postImage: {
     width: '100%',
     height: undefined,
     aspectRatio: 1,
     resizeMode: 'cover',
+    borderRadius: 12,
+    marginBottom: 0,
   },
-  actionButtons: {
+  statsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
     paddingHorizontal: 15,
-    paddingVertical: 10,
-    marginRight: -15,
+    paddingVertical: 12,
   },
-  leftActions: {
+  statsLeft: {
     flexDirection: 'row',
+    gap: 20,
   },
-  actionButton: {
-    marginRight: 15,
+  statsRight: {
+    flexDirection: 'row',
+    gap: 12,
   },
-  bookmarkButton: {},
-  likes: {
-    fontWeight: '600',
-    paddingHorizontal: 15,
-    marginBottom: 5,
+  statItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  statIcon: {
+    marginRight: 6,
+  },
+  statNumber: {
     color: '#FFF',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  statLabel: {
+    color: '#8E8E93',
+    fontSize: 14,
+    fontWeight: '400',
+  },
+  iconButtonSmall: {
+    padding: 4,
   },
   captionContainer: {
     flexDirection: 'row',
     paddingHorizontal: 15,
-    marginBottom: 8,
+    paddingTop: 8,
+    paddingBottom: 12,
   },
   caption: {
     flex: 1,
-    color: '#FFF',
-  },
-  commentsPreview: {
-    paddingHorizontal: 15,
-    marginBottom: 5,
-  },
-  commentsPreviewText: {
-    color: '#999',
+    color: '#E5E5EA',
+    lineHeight: 20,
     fontSize: 14,
   },
   commentInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 15,
-    paddingVertical: 10,
-    borderTopColor: '#222',
+    paddingVertical: 12,
+    borderTopColor: '#1C1C1E',
     borderTopWidth: 1,
-    borderBottomColor: '#222',
-    borderBottomWidth: 1,
-    marginBottom: 10,
     backgroundColor: '#000',
   },
   commentInputProfilePic: {
@@ -631,21 +866,21 @@ const styles = StyleSheet.create({
   },
   commentInput: {
     flex: 1,
-    height: 36,
-    borderColor: '#333',
+    height: 38,
+    borderColor: '#1C1C1E',
     borderWidth: 1,
-    borderRadius: 18,
-    paddingHorizontal: 15,
+    borderRadius: 20,
+    paddingHorizontal: 16,
     fontSize: 14,
     color: '#FFF',
-    backgroundColor: '#111',
+    backgroundColor: '#1C1C1E',
   },
   postButton: {
     marginLeft: 10,
     paddingHorizontal: 12,
   },
   postButtonText: {
-    color: '#0A84FF',
+    color: ACCENT_COLOR,
     fontWeight: '600',
   },
   disabledButton: {
@@ -655,12 +890,12 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   attachedItemContainer: {
-    backgroundColor: '#111',
+    backgroundColor: '#1C1C1E',
     marginHorizontal: 15,
-    marginBottom: 10,
+    marginBottom: 12,
     borderRadius: 12,
     overflow: 'hidden',
-    borderColor: '#222',
+    borderColor: '#2C2C2E',
     borderWidth: 1,
     padding: 12,
   },
@@ -676,9 +911,19 @@ const styles = StyleSheet.create({
   },
   attachedItemIcon: {
     marginRight: 12,
-    backgroundColor: '#333',
+    backgroundColor: '#2C2C2E',
     padding: 8,
     borderRadius: 18,
+  },
+  workoutIconContainer: {
+    marginRight: 12,
+    backgroundColor: ACCENT_COLOR,
+    padding: 8,
+    borderRadius: 18,
+  },
+  workoutDetailsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   attachedItemTitle: {
     color: '#FFF',
@@ -686,7 +931,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   attachedItemDetails: {
-    color: '#999',
+    color: '#8E8E93',
     fontSize: 13,
     marginTop: 2,
   },
@@ -695,7 +940,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loadingText: {
-    color: '#999',
+    color: '#8E8E93',
     marginTop: 10,
   },
   emptyState: {
@@ -704,30 +949,42 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 40,
   },
+  emptyStateContent: {
+    alignItems: 'center',
+    maxWidth: 300,
+  },
+  iconContainer: {
+    marginBottom: 16,
+  },
   emptyStateTitle: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: '600',
     color: '#FFF',
-    marginTop: 20,
-    marginBottom: 10,
+    marginBottom: 8,
   },
   emptyStateText: {
-    fontSize: 16,
-    color: '#999',
+    fontSize: 15,
+    color: '#8E8E93',
     textAlign: 'center',
-    lineHeight: 24,
-    marginBottom: 30,
+    lineHeight: 22,
+    marginBottom: 24,
   },
   exploreButton: {
-    backgroundColor: '#0A84FF',
-    paddingHorizontal: 30,
+    backgroundColor: ACCENT_COLOR,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 24,
     paddingVertical: 12,
-    borderRadius: 25,
+    borderRadius: 24,
+    gap: 6,
+  },
+  buttonIcon: {
+    marginRight: 2,
   },
   exploreButtonText: {
-    color: '#FFF',
+    color: '#000',
     fontWeight: '600',
-    fontSize: 16,
+    fontSize: 15,
   },
   errorState: {
     flex: 1,
@@ -744,7 +1001,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 16,
-    color: '#999',
+    color: '#8E8E93',
     textAlign: 'center',
     lineHeight: 24,
     marginBottom: 30,

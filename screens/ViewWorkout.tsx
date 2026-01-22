@@ -12,6 +12,7 @@ import { getCoverImageSource, deleteImageFromStorage } from '@/utils/imageUtils'
 import { useBlockEnforcement } from '@/utils/blockUtils';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
+import { ACCENT_COLOR } from '@/constants/Colors';
 
 // Interface for individual exercise within a segment
 interface WorkoutExercise {
@@ -211,7 +212,7 @@ export default function ViewWorkout() {
   if (loading) {
     return (
       <View style={[styles.container, styles.centered]}>
-        <ActivityIndicator size="large" color="#ff2d55" />
+        <ActivityIndicator size="large" color={ACCENT_COLOR} />
         <Text style={{ color: 'grey', marginTop: 10 }}>Loading Workout...</Text>
       </View>
     );
@@ -550,7 +551,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   creatorName: { 
-    color: '#ff2d55',
+    color: ACCENT_COLOR,
     fontSize: 16,
     marginTop: 5,
     textAlign: 'center',
@@ -623,7 +624,7 @@ const styles = StyleSheet.create({
     width: 36, 
     height: 36, 
     borderRadius: 18, 
-    backgroundColor: '#ff2d55', 
+    backgroundColor: ACCENT_COLOR, 
     justifyContent: 'center', 
     alignItems: 'center', 
     marginRight: 15,

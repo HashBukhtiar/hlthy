@@ -82,7 +82,27 @@ export function useFeedData() {
       return acc;
     }, {} as Record<string, boolean>);
 
-    // 4. Enhance posts with author profile data and like status
+    // 4. Fetch following status for all authors in parallel
+    const followingStatusPromises = authorIds.map(async (authorId) => {
+      if (authorId === currentUser.uid) {
+        return { authorId, isFollowing: false }; // Don't follow yourself
+      }
+      try {
+        const followerDoc = await getDoc(doc(db, 'users', authorId, 'followers', currentUser.uid));
+        return { authorId, isFollowing: followerDoc.exists() };
+      } catch (error) {
+        console.error(`Error fetching following status for author ${authorId}:`, error);
+        return { authorId, isFollowing: false };
+      }
+    });
+
+    const followingStatuses = await Promise.all(followingStatusPromises);
+    const followingStatusMap = followingStatuses.reduce((acc, { authorId, isFollowing }) => {
+      acc[authorId] = isFollowing;
+      return acc;
+    }, {} as Record<string, boolean>);
+
+    // 5. Enhance posts with author profile data, like status, and following status
     const enrichedPosts: FeedPost[] = postDocs.map(post => {
       const authorProfile = authorProfiles[post.authorId];
       return {
@@ -92,10 +112,30 @@ export function useFeedData() {
         authorBlockedUsers: authorProfile?.blockedUsers || [],
         // Set the actual like status for the current user
         isLiked: likeStatusMap[post.id] || false,
+        // Set the actual following status for the post author
+        isFollowing: followingStatusMap[post.authorId] || false,
       };
     });
 
-    return enrichedPosts;
+    // 6. Filter out posts from private accounts unless the user is following them or it's their own post
+    const filteredPosts = enrichedPosts.filter(post => {
+      const authorProfile = authorProfiles[post.authorId];
+      
+      // Always show user's own posts
+      if (post.authorId === currentUser.uid) {
+        return true;
+      }
+      
+      // Show posts from public accounts
+      if (!authorProfile || authorProfile.profileVisibility !== 'private') {
+        return true;
+      }
+      
+      // Only show posts from private accounts if the user is following them
+      return followingStatusMap[post.authorId] || false;
+    });
+
+    return filteredPosts;
   }, [currentUser?.uid]);
 
   const fetchFeedData = useCallback(async (isRefresh = false, isLoadMore = false) => {

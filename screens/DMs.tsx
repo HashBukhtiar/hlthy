@@ -13,6 +13,7 @@ import { useBlockEnforcement } from '@/utils/blockUtils';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@/firebaseConfig';
 import MessageRequestItem from '@/components/MessageRequestItem';
+import { ACCENT_COLOR } from '@/constants/Colors';
 
 interface UserConversationData {
     // Fields from /users/{userId}/conversations/{conversationId}
@@ -60,7 +61,6 @@ const ChatItem = ({
     const [isPressed, setIsPressed] = useState(false);
 
     // static assets
-    const aiIcon   = require('@/assets/images/icon.png');
     const fallback = require('@/assets/images/profile-icon.png');
 
     // pick the best remote URL: full-size first, then thumbnail (or swap if your util is inverted)
@@ -70,9 +70,7 @@ const ChatItem = ({
     );
 
     // build your source prop
-    const source = item.isPinnedAI
-        ? aiIcon             // pinned AI uses bundled icon
-        : remoteUrl
+    const source = remoteUrl
         ? { uri: remoteUrl } // real user → network image
         : fallback;           // fallback → bundled default
 
@@ -111,18 +109,11 @@ const ChatItem = ({
     };
 
     const handleLongPress = () => {
-        if (!item.isPinnedAI) {
-            handleDeleteConversation(item.id, item.otherParticipantUsername || 'User');
-        }
+        handleDeleteConversation(item.id, item.otherParticipantUsername || 'User');
     };
 
     const navigateToChat = () => {
-        if (item.isPinnedAI) {
-            // The AI conversation ID is already in the correct format
-            router.push(`/chat/${item.id}`);
-        } else {
-            router.push(`/chat/${item.id}`);
-        }
+        router.push(`/chat/${item.id}`);
     };
 
     return (
@@ -136,7 +127,6 @@ const ChatItem = ({
         >
             <View style={[
                 styles.itemContainer,
-                item.isPinnedAI ? styles.aiChatItem : null,
                 isPressed ? styles.pressedItem : null
             ]}>
                 <Image
@@ -145,13 +135,13 @@ const ChatItem = ({
                 />
                 <View style={styles.textContainer}>
                     <View style={styles.usernameContainer}>
-                        {item.isUnread && !item.isPinnedAI && <View style={styles.unreadDot} />}
-                        <Text style={styles.username}>{item.isPinnedAI ? "hlthy AI" : item.otherParticipantUsername || "Chat"}</Text>
+                        {item.isUnread && <View style={styles.unreadDot} />}
+                        <Text style={styles.username}>{item.otherParticipantUsername || "Chat"}</Text>
                     </View>
                     <Text 
                         style={[
                             styles.lastMessage, 
-                            item.isUnread && !item.isPinnedAI && styles.unreadLastMessage
+                            item.isUnread && styles.unreadLastMessage
                         ]} 
                         numberOfLines={1}
                     >
@@ -239,7 +229,6 @@ export default function DMs() {
                     const otherUserProfile = profiles[otherParticipantId];
 
                     const isUnread = conversationMetaData.lastMessageAt &&
-                                    !conversationMetaData.isPinnedAI &&
                                     conversationMetaData.lastMessageSenderId !== currentUser.uid &&
                                     (!userConvData.lastRead || (userConvData.lastRead && conversationMetaData.lastMessageAt.toMillis() > userConvData.lastRead.toMillis()));
 
@@ -271,21 +260,8 @@ export default function DMs() {
                 if (b.lastMessageAt) return 1;
                 return 0;
             });
-            
-            // Add the AI conversation at the top
-            let finalConversations = [...fetchedConversations];
-            if (currentUser) {
-                const aiConversationId = `${currentUser.uid}_ai_conversation`;
-                const aiConversation: CombinedConversationItem = {
-                    id: aiConversationId,
-                    isPinnedAI: true,
-                    lastMessageText: 'Ask me anything about fitness!',
-                    // isUnread will be undefined/false by default
-                };
-                finalConversations = [aiConversation, ...fetchedConversations];
-            }
 
-            setConversations(finalConversations);
+            setConversations(fetchedConversations);
         } catch (error) {
             console.error("Error fetching conversations: ", error);
         } finally {
@@ -513,6 +489,9 @@ export default function DMs() {
     return (
         <View style={{ flex: 1, backgroundColor: 'black' }}>
             <View style={styles.header}>
+                <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+                    <Ionicons name="arrow-back" size={28} color="white" />
+                </TouchableOpacity>
                 <Text style={styles.headerText}>Messages</Text>
                 <TouchableOpacity style={styles.composeButton} onPress={handleComposePress}>
                     <Ionicons name="pencil-sharp" size={30} color="white" />
@@ -614,6 +593,11 @@ const styles = StyleSheet.create({
         borderBottomWidth: 1,
         borderBottomColor: '#333',
         paddingVertical: 5,
+        paddingHorizontal: 10,
+    },
+    backButton: {
+        padding: 5,
+        width: 40,
     },
     headerText: {
         color: 'white',
@@ -624,6 +608,7 @@ const styles = StyleSheet.create({
     },
     composeButton: {
         padding: 5,
+        width: 40,
     },
     itemContainer: {
         flexDirection: 'row',
@@ -778,7 +763,7 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     requestsBadge: {
-        backgroundColor: '#FF2D55',
+        backgroundColor: ACCENT_COLOR,
         borderRadius: 12,
         paddingHorizontal: 8,
         paddingVertical: 2,

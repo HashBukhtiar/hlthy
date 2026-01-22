@@ -15,6 +15,7 @@ import { getOptimalImageUrl } from '@/utils/imageUtils';
 import { useBlockEnforcement } from '@/utils/blockUtils';
 import { useUnits } from '@/hooks/useUnits';
 import { Milestone, MilestoneDetails, MilestoneStats } from '@/types/milestone';
+import { ACCENT_COLOR } from '@/constants/Colors';
 
 export default function ViewMilestone() {
   const { currentUser } = useAuth();
@@ -689,7 +690,7 @@ export default function ViewMilestone() {
   if (loading) {
     return (
       <View style={[styles.container, { paddingTop: insets.top, justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color="#ff2d55" />
+        <ActivityIndicator size="large" color={ACCENT_COLOR} />
         <Text style={{ color: '#999', marginTop: 20 }}>Loading milestone...</Text>
       </View>
     );
@@ -843,7 +844,7 @@ export default function ViewMilestone() {
             <Image source={{ uri: milestone.postImageUrl }} style={styles.associatedPostImage} />
             <View style={styles.viewPostButton}>
               <Text style={styles.viewPostButtonText}>View Full Post</Text>
-              <Ionicons name="chevron-forward" size={16} color="#ff2d55" />
+              <Ionicons name="chevron-forward" size={16} color={ACCENT_COLOR} />
             </View>
           </TouchableOpacity>
         )}
@@ -1043,7 +1044,7 @@ const styles = StyleSheet.create({
     borderTopColor: '#333',
   },
   viewPostButtonText: {
-    color: '#ff2d55',
+    color: ACCENT_COLOR,
     fontWeight: '500',
     marginRight: 5,
   },

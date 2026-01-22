@@ -1,6 +1,16 @@
-import { StyleSheet, Dimensions } from 'react-native';
+import { StyleSheet, Platform } from 'react-native';
 
+// Legacy bottom bar height (kept for backward compatibility)
 export const BOTTOM_BAR_HEIGHT = 60;
+
+// Native tab bar height (approximation for proper spacing)
+// iOS native tab bar is ~49pt base + safe area bottom
+// Android Material bottom nav is ~56dp
+export const NATIVE_TAB_BAR_HEIGHT = Platform.select({
+  ios: 83, // 49pt bar + ~34pt safe area (iPhone with notch)
+  android: 72, // 56dp + some padding
+  default: 80,
+});
 
 const globalStyles = StyleSheet.create({
   container: {
@@ -71,7 +81,7 @@ const globalStyles = StyleSheet.create({
     marginTop: 10
   },
   contentContainer: {
-    paddingBottom: BOTTOM_BAR_HEIGHT + 20,
+    paddingBottom: NATIVE_TAB_BAR_HEIGHT + 10,
   }
 });
 
