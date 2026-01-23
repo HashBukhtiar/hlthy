@@ -283,17 +283,19 @@ const styles = StyleSheet.create({
     paddingTop: 8,
   },
   navButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     overflow: 'hidden',
+    top: -5,
+    marginLeft: 5,
   },
   navButtonBlur: {
     width: '100%',
     height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: 20,
+    borderRadius: 18,
     backgroundColor: 'rgba(0,0,0,0.3)',
   },
   navSpacer: {
