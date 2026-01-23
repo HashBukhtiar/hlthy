@@ -89,7 +89,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
               activeOpacity={0.85}
             >
               <BlurView intensity={30} tint="dark" style={styles.navButtonBlur}>
-                <Ionicons name="chevron-back" size={24} color="white" />
+                <Ionicons name="chevron-back" size={18} color="white" />
               </BlurView>
             </TouchableOpacity>
           )}

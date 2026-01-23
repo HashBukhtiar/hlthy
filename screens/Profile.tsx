@@ -350,16 +350,6 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
   if (isBlockedByUser && !isOwnProfile) {
     return (
       <SafeAreaView style={styles.container}>
-        {/* Back Button */}
-        {router.canGoBack() && (
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => router.back()}
-            activeOpacity={0.85}
-          >
-            <Ionicons name="arrow-back" size={28} color="white" />
-          </TouchableOpacity>
-        )}
         
         <View style={styles.blockedContainer}>
           <Ionicons name="person-remove" size={64} color="#666" />
@@ -1189,13 +1179,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 15,
     right: 15,
-    zIndex: 1,
-    padding: 8,
-  },
-  backButton: {
-    position: 'absolute',
-    top: 15,
-    left: 15,
     zIndex: 1,
     padding: 8,
   },
