@@ -8,6 +8,7 @@ import { BOTTOM_BAR_HEIGHT } from '@/styles/globalStyles';
 import { useBlockEnforcement } from '@/utils/blockUtils';
 import { ACCENT_COLOR } from '@/constants/Colors';
 import { ProfileHeader } from '@/components/profile/ProfileHeader';
+import { FollowersModal } from '@/components/profile/FollowersModal';
 import { PostsTab, MilestonesTab, WorkoutsTab } from '@/components/profile/ProfileTabs';
 import { useProfileActions } from '@/hooks/useProfileActions';
 import { formatTimeAgo, archetypeDescriptions } from '@/utils/profileUtils';
@@ -78,6 +79,8 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
   const tabWidth = screenWidth / 3;
   const [tooltipVisible, setTooltipVisible] = useState(false);
   const [tooltipText, setTooltipText] = useState('');
+  const [followersModalVisible, setFollowersModalVisible] = useState(false);
+  const [followingModalVisible, setFollowingModalVisible] = useState(false);
 
   const indicatorWidth = screenWidth * 0.2;
   const tabCenterOffset = (screenWidth / 3 - indicatorWidth) / 2;
@@ -228,14 +231,14 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
   const handleFollowersPress = useCallback(() => {
     if (isPrivate && !isOwnProfile) return;
     if (isBlockedByUser) return;
-    router.push(`/followers/${viewedProfileId}`);
-  }, [isPrivate, isOwnProfile, isBlockedByUser, viewedProfileId, router]);
+    setFollowersModalVisible(true);
+  }, [isPrivate, isOwnProfile, isBlockedByUser]);
 
   const handleFollowingPress = useCallback(() => {
     if (isPrivate && !isOwnProfile) return;
     if (isBlockedByUser) return;
-    router.push(`/following/${viewedProfileId}`);
-  }, [isPrivate, isOwnProfile, isBlockedByUser, viewedProfileId, router]);
+    setFollowingModalVisible(true);
+  }, [isPrivate, isOwnProfile, isBlockedByUser]);
 
   const renderPostsContent = useCallback(() => (
     <PostsTab
@@ -581,6 +584,24 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
             onPress: profileActions.handleReportUser,
           },
         ]}
+      />
+
+      {/* Followers Modal */}
+      <FollowersModal
+        visible={followersModalVisible}
+        onClose={() => setFollowersModalVisible(false)}
+        userId={viewedProfileId}
+        type="followers"
+        onUserPress={(userId) => router.push(`/profile/${userId}`)}
+      />
+
+      {/* Following Modal */}
+      <FollowersModal
+        visible={followingModalVisible}
+        onClose={() => setFollowingModalVisible(false)}
+        userId={viewedProfileId}
+        type="following"
+        onUserPress={(userId) => router.push(`/profile/${userId}`)}
       />
     </View>
   );
