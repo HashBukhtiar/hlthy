@@ -48,6 +48,9 @@ import { SmartChatInput } from '@/components/SmartChatInput';
 import { IntentMessageWrapper } from '@/components/IntentBadge';
 import { MessageRenderer } from '@/components/ai/MessageRenderer';
 import { calculateImprovementPercentage } from '@/logic/milesonteUtils';
+import { uploadPhotoToChat, deletePhotoFromChat, formatFileSize } from '@/utils/photoSharingUtils';
+import { useUnits } from '@/hooks/useUnits';
+import { getOptimalImageUrl } from '@/utils/thumbnailUtils';
 import { getOptimalImageUrl } from '@/utils/imageUtils';
 import { useUnits } from '@/hooks/useUnits';
 import { uploadPhotoToChat, deletePhotoFromChat, formatFileSize } from '@/utils/photoSharingUtils';
@@ -1255,6 +1258,11 @@ export default function ChatScreen() {
     }
     
     try {
+      // Delete photo from Storage if message has one
+      if (selectedMessage.sharedPhoto) {
+        await deletePhotoFromChat(selectedMessage.sharedPhoto.id, conversationId);
+      }
+
       const messageRef = doc(db, "conversations", conversationId, "messages", selectedMessage.id);
       await deleteDoc(messageRef);
       
@@ -1303,20 +1311,21 @@ export default function ChatScreen() {
         
       const conversationSnap = await getDoc(conversationRef);
       const conversationData = conversationSnap.data();
-      const userConvRef2 = conversationData?.participants?.find((uid: string) => uid !== currentUser.uid);
+      
+      if (conversationData && conversationData.participants && Array.isArray(conversationData.participants)) {
+        const otherParticipantIdForRef = conversationData.participants.find((uid: string) => uid !== currentUser.uid);
 
-      if (userConvRef2) {
-        await setDoc(
-          userConvRef2,
-          {
+        if (otherParticipantIdForRef && typeof otherParticipantIdForRef === 'string') {
+          const userConvRef2 = doc(db, `users/${otherParticipantIdForRef}/conversations`, conversationId);
+          const updateData = {
             otherParticipantId: currentUser.uid,
             otherParticipantUsername: currentUser.displayName || currentUser.email || 'Current User',
             otherParticipantProfileImage: currentUser.photoURL || '',
             lastMessageAt: newLastMessageAt,
             lastMessageText: newLastMessageText,
-          },
-          { merge: true }
-        );
+          };
+          await setDoc(userConvRef2, updateData, { merge: true });
+        }
       }
     } catch (error) {
       console.error("Error deleting message:", error);
