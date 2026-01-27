@@ -101,8 +101,7 @@ export const compressImage = async (
 };
 
 /**
- * Uploads a photo to Firebase Storage with optimization
- * Creates both a display version and thumbnail
+ * Uploads a photo to Firebase Storage
  * @param imageUri - Local URI of the image
  * @param conversationId - ID of the conversation for storage path
  * @param userId - ID of the user uploading
@@ -119,34 +118,16 @@ export const uploadPhotoToChat = async (
 
     // Get original file info
     const originalFileSize = await getFileSizeAsync(imageUri);
+    console.log(`Uploading photo (${(originalFileSize / 1024 / 1024).toFixed(2)} MB)...`);
 
-    // Compress for display (600x1000, 60% quality)
-    console.log('Compressing image for display...');
-    const displayCompressed = await compressImage(
-      imageUri,
-      COMPRESSION_CONFIG.display.quality,
-      COMPRESSION_CONFIG.display.maxWidth,
-      COMPRESSION_CONFIG.display.maxHeight
-    );
-
-    // Compress for thumbnail (200x200, 30% quality)
-    console.log('Creating thumbnail...');
-    const thumbCompressed = await compressImage(
-      imageUri,
-      COMPRESSION_CONFIG.thumbnail.quality,
-      COMPRESSION_CONFIG.thumbnail.maxWidth,
-      COMPRESSION_CONFIG.thumbnail.maxHeight
-    );
-
-    // Upload display version
-    console.log('Uploading display version to Storage...');
-    const displayRef = ref(
+    // Upload photo to Storage
+    const photoRef = ref(
       storage,
-      `conversations/${conversationId}/photos/${photoId}/display.jpg`
+      `conversations/${conversationId}/photos/${photoId}/photo.jpg`
     );
     
     // For React Native, fetch the file as a blob using XMLHttpRequest
-    const displayBlob = await new Promise<Blob>((resolve, reject) => {
+    const photoBlob = await new Promise<Blob>((resolve, reject) => {
       const xhr = new XMLHttpRequest();
       xhr.onload = function() {
         resolve(xhr.response);
@@ -155,55 +136,21 @@ export const uploadPhotoToChat = async (
         reject(new Error('Failed to fetch file'));
       };
       xhr.responseType = 'blob';
-      xhr.open('GET', displayCompressed.uri, true);
+      xhr.open('GET', imageUri, true);
       xhr.send(null);
     });
     
-    await uploadBytesResumable(displayRef, displayBlob, { contentType: 'image/jpeg' });
-    const imageUrl = await getDownloadURL(displayRef);
+    await uploadBytesResumable(photoRef, photoBlob, { contentType: 'image/jpeg' });
+    const imageUrl = await getDownloadURL(photoRef);
 
-    // Upload thumbnail
-    console.log('Uploading thumbnail to Storage...');
-    const thumbRef = ref(
-      storage,
-      `conversations/${conversationId}/photos/${photoId}/thumb.jpg`
-    );
-    
-    // For React Native, fetch the file as a blob using XMLHttpRequest
-    const thumbBlob = await new Promise<Blob>((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
-      xhr.onload = function() {
-        resolve(xhr.response);
-      };
-      xhr.onerror = function() {
-        reject(new Error('Failed to fetch file'));
-      };
-      xhr.responseType = 'blob';
-      xhr.open('GET', thumbCompressed.uri, true);
-      xhr.send(null);
-    });
-    
-    await uploadBytesResumable(thumbRef, thumbBlob, { contentType: 'image/jpeg' });
-    const thumbnailUrl = await getDownloadURL(thumbRef);
-
-    // Clean up cache files
-    try {
-      await FileSystem.deleteAsync(displayCompressed.uri, { idempotent: true });
-      await FileSystem.deleteAsync(thumbCompressed.uri, { idempotent: true });
-    } catch (e) {
-      console.log('Could not clean up cache files:', e);
-    }
-
-    console.log(
-      `Photo uploaded successfully. Original: ${(originalFileSize / 1024 / 1024).toFixed(2)}MB`
-    );
+    console.log('Photo uploaded successfully!');
 
     return {
       id: photoId,
       imageUrl,
-      thumbnailUrl,
+      thumbnailUrl: imageUrl, // Use same URL for thumbnail
       originalFileSize,
-      compressedFileSize: displayCompressed.fileSize,
+      compressedFileSize: originalFileSize,
       timestamp,
     };
   } catch (error) {
@@ -213,7 +160,7 @@ export const uploadPhotoToChat = async (
 };
 
 /**
- * Deletes a photo and its variants from Firebase Storage
+ * Deletes a photo from Firebase Storage
  * @param photoId - ID of the photo to delete
  * @param conversationId - ID of the conversation containing the photo
  */
@@ -222,15 +169,8 @@ export const deletePhotoFromChat = async (
   conversationId: string
 ): Promise<void> => {
   try {
-    const displayRef = ref(storage, `conversations/${conversationId}/photos/${photoId}/display.jpg`);
-    const thumbRef = ref(storage, `conversations/${conversationId}/photos/${photoId}/thumb.jpg`);
-
-    // Delete both in parallel, but don't fail if they don't exist
-    await Promise.allSettled([
-      deletePhotoFromStorage(displayRef),
-      deletePhotoFromStorage(thumbRef),
-    ]);
-
+    const photoRef = ref(storage, `conversations/${conversationId}/photos/${photoId}/photo.jpg`);
+    await deletePhotoFromStorage(photoRef);
     console.log(`Photo ${photoId} deleted from chat`);
   } catch (error) {
     console.error('Error deleting photo from chat:', error);

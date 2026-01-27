@@ -506,14 +506,15 @@ const MessageItem = React.memo<{
           activeOpacity={0.8}
         >
           <Image
-            source={{ uri: getOptimalImageUrl(item.sharedPhoto.thumbnailUrl, item.sharedPhoto.imageUrl) }}
+            source={{ uri: item.sharedPhoto.imageUrl }}
             style={styles.sharedPhotoImage}
+            resizeMode="cover"
           />
-          {item.sharedPhoto.compressedFileSize && (
+          {item.sharedPhoto.originalFileSize && (
             <View style={styles.photoInfoBar}>
               <Ionicons name="image" size={12} color="#888" style={{ marginRight: 4 }} />
               <Text style={styles.photoInfoText}>
-                {formatFileSize(item.sharedPhoto.compressedFileSize)}
+                {formatFileSize(item.sharedPhoto.originalFileSize)}
               </Text>
             </View>
           )}
