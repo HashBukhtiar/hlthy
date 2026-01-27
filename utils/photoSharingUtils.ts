@@ -1,5 +1,5 @@
 import * as FileSystem from 'expo-file-system/legacy';
-import { ref, uploadString, getDownloadURL, deleteObject } from 'firebase/storage';
+import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
 import { storage } from '@/firebaseConfig';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -140,38 +140,50 @@ export const uploadPhotoToChat = async (
 
     // Upload display version
     console.log('Uploading display version to Storage...');
-    const displayBase64 = await FileSystem.readAsStringAsync(displayCompressed.uri, {
-      encoding: 'base64',
-    });
     const displayRef = ref(
       storage,
       `conversations/${conversationId}/photos/${photoId}/display.jpg`
     );
-    // Use data_url format for React Native compatibility
-    const displayDataUrl = `data:image/jpeg;base64,${displayBase64}`;
-    await uploadString(
-      displayRef,
-      displayDataUrl,
-      'data_url'
-    );
+    
+    // For React Native, fetch the file as a blob using XMLHttpRequest
+    const displayBlob = await new Promise<Blob>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.onload = function() {
+        resolve(xhr.response);
+      };
+      xhr.onerror = function() {
+        reject(new Error('Failed to fetch file'));
+      };
+      xhr.responseType = 'blob';
+      xhr.open('GET', displayCompressed.uri, true);
+      xhr.send(null);
+    });
+    
+    await uploadBytesResumable(displayRef, displayBlob, { contentType: 'image/jpeg' });
     const imageUrl = await getDownloadURL(displayRef);
 
     // Upload thumbnail
     console.log('Uploading thumbnail to Storage...');
-    const thumbBase64 = await FileSystem.readAsStringAsync(thumbCompressed.uri, {
-      encoding: 'base64',
-    });
     const thumbRef = ref(
       storage,
       `conversations/${conversationId}/photos/${photoId}/thumb.jpg`
     );
-    // Use data_url format for React Native compatibility
-    const thumbDataUrl = `data:image/jpeg;base64,${thumbBase64}`;
-    await uploadString(
-      thumbRef,
-      thumbDataUrl,
-      'data_url'
-    );
+    
+    // For React Native, fetch the file as a blob using XMLHttpRequest
+    const thumbBlob = await new Promise<Blob>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.onload = function() {
+        resolve(xhr.response);
+      };
+      xhr.onerror = function() {
+        reject(new Error('Failed to fetch file'));
+      };
+      xhr.responseType = 'blob';
+      xhr.open('GET', thumbCompressed.uri, true);
+      xhr.send(null);
+    });
+    
+    await uploadBytesResumable(thumbRef, thumbBlob, { contentType: 'image/jpeg' });
     const thumbnailUrl = await getDownloadURL(thumbRef);
 
     // Clean up cache files
