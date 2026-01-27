@@ -1,8 +1,7 @@
 import * as FileSystem from 'expo-file-system/legacy';
-import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
+import { ref, uploadString, getDownloadURL, deleteObject } from 'firebase/storage';
 import { storage } from '@/firebaseConfig';
 import { v4 as uuidv4 } from 'uuid';
-import { Buffer } from 'buffer';
 
 // Helper function to get file size by reading as base64
 const getFileSizeAsync = async (uri: string): Promise<number> => {
@@ -100,12 +99,6 @@ export const compressImage = async (
     };
   }
 };
-    return {
-      uri: sourceUri,
-      fileSize,
-    };
-  }
-};
 
 /**
  * Uploads a photo to Firebase Storage with optimization
@@ -154,12 +147,14 @@ export const uploadPhotoToChat = async (
       storage,
       `conversations/${conversationId}/photos/${photoId}/display.jpg`
     );
-    const displayStorageRef = await uploadBytes(
+    // Use data_url format for React Native compatibility
+    const displayDataUrl = `data:image/jpeg;base64,${displayBase64}`;
+    await uploadString(
       displayRef,
-      Buffer.from(displayBase64, 'base64'),
-      { contentType: 'image/jpeg' }
+      displayDataUrl,
+      'data_url'
     );
-    const imageUrl = await getDownloadURL(displayStorageRef.ref);
+    const imageUrl = await getDownloadURL(displayRef);
 
     // Upload thumbnail
     console.log('Uploading thumbnail to Storage...');
@@ -170,12 +165,14 @@ export const uploadPhotoToChat = async (
       storage,
       `conversations/${conversationId}/photos/${photoId}/thumb.jpg`
     );
-    const thumbStorageRef = await uploadBytes(
+    // Use data_url format for React Native compatibility
+    const thumbDataUrl = `data:image/jpeg;base64,${thumbBase64}`;
+    await uploadString(
       thumbRef,
-      Buffer.from(thumbBase64, 'base64'),
-      { contentType: 'image/jpeg' }
+      thumbDataUrl,
+      'data_url'
     );
-    const thumbnailUrl = await getDownloadURL(thumbStorageRef.ref);
+    const thumbnailUrl = await getDownloadURL(thumbRef);
 
     // Clean up cache files
     try {
