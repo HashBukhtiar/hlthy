@@ -51,9 +51,6 @@ import { calculateImprovementPercentage } from '@/logic/milesonteUtils';
 import { uploadPhotoToChat, deletePhotoFromChat, formatFileSize } from '@/utils/photoSharingUtils';
 import { useUnits } from '@/hooks/useUnits';
 import { getOptimalImageUrl } from '@/utils/thumbnailUtils';
-import { getOptimalImageUrl } from '@/utils/imageUtils';
-import { useUnits } from '@/hooks/useUnits';
-import { uploadPhotoToChat, deletePhotoFromChat, formatFileSize } from '@/utils/photoSharingUtils';
 
 interface FirestoreMessageData {
   senderId: string;
@@ -512,6 +509,9 @@ const MessageItem = React.memo<{
             source={{ uri: item.sharedPhoto.imageUrl }}
             style={styles.sharedPhotoImage}
             resizeMode="cover"
+            onError={(error) => console.log('Image load error for', item.sharedPhoto?.imageUrl, ':', error.nativeEvent.error)}
+            onLoadStart={() => console.log('Loading image from:', item.sharedPhoto?.imageUrl)}
+            onLoad={() => console.log('Image loaded successfully')}
           />
           {item.sharedPhoto.originalFileSize && (
             <View style={styles.photoInfoBar}>
@@ -1260,11 +1260,15 @@ export default function ChatScreen() {
     try {
       // Delete photo from Storage if message has one
       if (selectedMessage.sharedPhoto) {
+        console.log('Deleting photo from storage:', selectedMessage.sharedPhoto.id);
         await deletePhotoFromChat(selectedMessage.sharedPhoto.id, conversationId);
+        console.log('Photo deleted from storage successfully');
       }
 
+      console.log('Deleting message document:', selectedMessage.id);
       const messageRef = doc(db, "conversations", conversationId, "messages", selectedMessage.id);
       await deleteDoc(messageRef);
+      console.log('Message deleted from Firestore');
       
       setDeleteModalVisible(false);
       setSelectedMessage(null);
@@ -1272,36 +1276,38 @@ export default function ChatScreen() {
       const messagesQuery = query(
         collection(db, "conversations", conversationId, "messages"),
         orderBy("createdAt", "desc"),
-        limit(1) // We only need the new last message
+        limit(1)
       );
       const messagesSnapshot = await getDocs(messagesQuery);
       
       const conversationRef = doc(db, "conversations", conversationId);
       let newLastMessageText = "Message deleted";
-      let newLastMessageSenderId = null;
+      let newLastMessageSenderId: string | null = null;
       let newLastMessageAt: any = serverTimestamp();
 
       if (!messagesSnapshot.empty) {
         const lastMessageData = messagesSnapshot.docs[0].data() as FirestoreMessageData;
         newLastMessageText = lastMessageData.text || "Message deleted";
-        newLastMessageSenderId = lastMessageData.senderId;
-        newLastMessageAt = lastMessageData.createdAt;
+        newLastMessageSenderId = lastMessageData.senderId || null;
+        newLastMessageAt = lastMessageData.createdAt || serverTimestamp();
       } else {
         newLastMessageText = "";
       }
         
+      console.log('Updating conversation metadata');
       await updateDoc(conversationRef, {
         lastMessageText: newLastMessageText,
         lastMessageSenderId: newLastMessageSenderId,
         lastMessageAt: newLastMessageAt
       });
 
+      console.log('Updating current user conversation reference');
       const userConvRef1 = doc(db, `users/${currentUser.uid}/conversations`, conversationId);
       await setDoc(
         userConvRef1,
         {
-          otherParticipantId,
-          otherParticipantUsername: chatTitle,
+          otherParticipantId: otherParticipantId || '',
+          otherParticipantUsername: chatTitle || '',
           otherParticipantProfileImage: profileImageUrl || '',
           lastMessageAt: newLastMessageAt,
           lastMessageText: newLastMessageText,
@@ -1309,26 +1315,39 @@ export default function ChatScreen() {
         { merge: true }
       );
         
+      console.log('Fetching conversation data for other participant');
       const conversationSnap = await getDoc(conversationRef);
       const conversationData = conversationSnap.data();
       
       if (conversationData && conversationData.participants && Array.isArray(conversationData.participants)) {
         const otherParticipantIdForRef = conversationData.participants.find((uid: string) => uid !== currentUser.uid);
+        console.log('Other participant ID:', otherParticipantIdForRef);
 
         if (otherParticipantIdForRef && typeof otherParticipantIdForRef === 'string') {
+          console.log('Updating other user conversation reference');
           const userConvRef2 = doc(db, `users/${otherParticipantIdForRef}/conversations`, conversationId);
           const updateData = {
             otherParticipantId: currentUser.uid,
-            otherParticipantUsername: currentUser.displayName || currentUser.email || 'Current User',
+            otherParticipantUsername: currentUser.displayName || currentUser.email || 'User',
             otherParticipantProfileImage: currentUser.photoURL || '',
             lastMessageAt: newLastMessageAt,
             lastMessageText: newLastMessageText,
           };
+          console.log('Update data being sent:', updateData);
           await setDoc(userConvRef2, updateData, { merge: true });
+          console.log('Other user conversation reference updated');
+        } else {
+          console.log('No other participant found or invalid type');
         }
+      } else {
+        console.log('Conversation data structure invalid');
       }
     } catch (error) {
-      console.error("Error deleting message:", error);
+      console.error("Error deleting message - Full details:", error);
+      if (error instanceof Error) {
+        console.error("Error message:", error.message);
+        console.error("Error stack:", error.stack);
+      }
       Alert.alert("Error", "Failed to delete message. Please try again.");
     }
   };

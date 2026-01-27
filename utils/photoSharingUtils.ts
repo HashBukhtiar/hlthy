@@ -126,6 +126,8 @@ export const uploadPhotoToChat = async (
       `conversations/${conversationId}/photos/${photoId}/photo.jpg`
     );
     
+    console.log('Storage path:', `conversations/${conversationId}/photos/${photoId}/photo.jpg`);
+    
     // For React Native, fetch the file as a blob using XMLHttpRequest
     const photoBlob = await new Promise<Blob>((resolve, reject) => {
       const xhr = new XMLHttpRequest();
@@ -142,6 +144,10 @@ export const uploadPhotoToChat = async (
     
     await uploadBytesResumable(photoRef, photoBlob, { contentType: 'image/jpeg' });
     const imageUrl = await getDownloadURL(photoRef);
+    
+    console.log('Generated image URL:', imageUrl);
+    console.log('Image URL type:', typeof imageUrl);
+    console.log('Image URL length:', imageUrl?.length);
 
     console.log('Photo uploaded successfully!');
 
