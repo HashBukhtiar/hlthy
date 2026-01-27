@@ -1,8 +1,23 @@
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { storage } from '@/firebaseConfig';
 import { v4 as uuidv4 } from 'uuid';
 import { Buffer } from 'buffer';
+
+// Helper function to get file size by reading as base64
+const getFileSizeAsync = async (uri: string): Promise<number> => {
+  try {
+    // Read file as base64 and calculate actual file size
+    const base64 = await FileSystem.readAsStringAsync(uri, {
+      encoding: 'base64',
+    });
+    // Base64 encoding expands by ~33%, so: base64Length * 3 / 4 = actual bytes
+    return Math.ceil((base64.length * 3) / 4);
+  } catch (error) {
+    console.error('Error getting file size:', error);
+    return 0;
+  }
+};
 
 /**
  * Photo data structure for sharing in DMs
@@ -50,28 +65,26 @@ export const compressImage = async (
   try {
     const filename = sourceUri.split('/').pop() || 'image.jpg';
     const newFilename = `compressed_${Date.now()}_${filename}`;
-    // Get the document directory - using direct access since type defs may be incomplete
-    const docDir = (FileSystem as any).documentDirectory || '';
+    const docDir = FileSystem.documentDirectory || '';
     const newPath = `${docDir}${newFilename}`;
 
-    // Read the original file
-    const originalInfo = await FileSystem.getInfoAsync(sourceUri);
-    const originalFileSize = (originalInfo as any).size || 0;
-    console.log(`Original image size: ${originalFileSize / 1024 / 1024} MB`);
+    // Read the original file size
+    const originalFileSize = await getFileSizeAsync(sourceUri);
+    console.log(`Original image size: ${(originalFileSize / 1024 / 1024).toFixed(2)} MB`);
 
-    // For React Native, we'll use a simpler approach:
-    // Copy the file and let Firebase handle the optimization
-    // This is because direct image manipulation requires native modules
-    // The compression happens via JPEG encoding in the upload process
-
-    // However, we can at least move it to a consistent location
-    await FileSystem.copyAsync({
-      from: sourceUri,
-      to: newPath,
+    // For React Native, we can't do actual image compression without native modules
+    // Instead, we read the source and write it to cache, letting Firebase handle optimization
+    // Read source file as base64
+    const base64Data = await FileSystem.readAsStringAsync(sourceUri, {
+      encoding: 'base64',
+    });
+    
+    // Write to new location
+    await FileSystem.writeAsStringAsync(newPath, base64Data, {
+      encoding: 'base64',
     });
 
-    const compressedInfo = await FileSystem.getInfoAsync(newPath);
-    const compressedFileSize = (compressedInfo as any).size || 0;
+    const compressedFileSize = await getFileSizeAsync(newPath);
     
     return {
       uri: newPath,
@@ -80,8 +93,13 @@ export const compressImage = async (
   } catch (error) {
     console.error('Error compressing image:', error);
     // If compression fails, use original
-    const info = await FileSystem.getInfoAsync(sourceUri);
-    const fileSize = (info as any).size || 0;
+    const fileSize = await getFileSizeAsync(sourceUri);
+    return {
+      uri: sourceUri,
+      fileSize,
+    };
+  }
+};
     return {
       uri: sourceUri,
       fileSize,
@@ -107,8 +125,7 @@ export const uploadPhotoToChat = async (
     const timestamp = Date.now();
 
     // Get original file info
-    const originalInfo = await FileSystem.getInfoAsync(imageUri);
-    const originalFileSize = (originalInfo as any).size || 0;
+    const originalFileSize = await getFileSizeAsync(imageUri);
 
     // Compress for display (600x1000, 60% quality)
     console.log('Compressing image for display...');
@@ -130,7 +147,7 @@ export const uploadPhotoToChat = async (
 
     // Upload display version
     console.log('Uploading display version to Storage...');
-    const displayBlob = await FileSystem.readAsStringAsync(displayCompressed.uri, {
+    const displayBase64 = await FileSystem.readAsStringAsync(displayCompressed.uri, {
       encoding: 'base64',
     });
     const displayRef = ref(
@@ -139,14 +156,14 @@ export const uploadPhotoToChat = async (
     );
     const displayStorageRef = await uploadBytes(
       displayRef,
-      Buffer.from(displayBlob, 'base64'),
+      Buffer.from(displayBase64, 'base64'),
       { contentType: 'image/jpeg' }
     );
     const imageUrl = await getDownloadURL(displayStorageRef.ref);
 
     // Upload thumbnail
     console.log('Uploading thumbnail to Storage...');
-    const thumbBlob = await FileSystem.readAsStringAsync(thumbCompressed.uri, {
+    const thumbBase64 = await FileSystem.readAsStringAsync(thumbCompressed.uri, {
       encoding: 'base64',
     });
     const thumbRef = ref(
@@ -155,7 +172,7 @@ export const uploadPhotoToChat = async (
     );
     const thumbStorageRef = await uploadBytes(
       thumbRef,
-      Buffer.from(thumbBlob, 'base64'),
+      Buffer.from(thumbBase64, 'base64'),
       { contentType: 'image/jpeg' }
     );
     const thumbnailUrl = await getDownloadURL(thumbStorageRef.ref);
