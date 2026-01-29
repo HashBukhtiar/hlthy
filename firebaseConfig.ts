@@ -4,6 +4,7 @@ import { getAuth, Auth, initializeAuth, getReactNativePersistence } from 'fireba
 import { getFirestore, Firestore } from "firebase/firestore";
 import { getStorage, FirebaseStorage } from "firebase/storage";
 import { getFunctions } from 'firebase/functions';
+import type { Functions } from 'firebase/functions';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
@@ -25,7 +26,7 @@ let auth: Auth;
 let db: Firestore;
 let analytics;
 let storage: FirebaseStorage;
-let functions;
+let functions: Functions;
 
 try {
   // Check if Firebase app is already initialized (handles HMR)

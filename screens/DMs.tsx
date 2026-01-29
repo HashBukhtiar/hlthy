@@ -11,11 +11,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { getOptimalImageUrl } from '@/utils/imageUtils';
 import { useBlockEnforcement } from '@/utils/blockUtils';
 import { httpsCallable } from 'firebase/functions';
-import type { Functions as FirebaseFunctions } from 'firebase/functions';
 import { functions } from '@/firebaseConfig';
-
-// Ensure `functions` has an explicit Firebase Functions type for TS checks.
-const firebaseFunctions = functions as unknown as FirebaseFunctions;
 import MessageRequestItem from '@/components/MessageRequestItem';
 
 /**
@@ -334,7 +330,7 @@ export default function DMs() {
 
     const handleApproveRequest = async (req: any) => {
         try {
-            const approveMessageRequest = httpsCallable(firebaseFunctions, 'approveMessageRequest');
+            const approveMessageRequest = httpsCallable(functions, 'approveMessageRequest');
             await approveMessageRequest({
             requestId: req.id,
             conversationId: req.conversationId,
@@ -355,7 +351,7 @@ export default function DMs() {
 
     const handleIgnoreRequest = async (req: any) => {
         try {
-            const ignoreMessageRequest = httpsCallable(firebaseFunctions, 'ignoreMessageRequest');
+            const ignoreMessageRequest = httpsCallable(functions, 'ignoreMessageRequest');
             await ignoreMessageRequest({
             requestId: req.id,
             });
