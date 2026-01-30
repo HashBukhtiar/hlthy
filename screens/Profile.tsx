@@ -424,6 +424,8 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
         stickyHeaderIndices={[1]}
+        bounces={false}
+        overScrollMode="never"
       >
         {/* Profile Header */}
         <ProfileHeader
