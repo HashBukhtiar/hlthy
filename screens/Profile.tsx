@@ -450,6 +450,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
           onArchetypeBadgePress={handleArchetypeBadgePress}
           onFollowersPress={handleFollowersPress}
           onFollowingPress={handleFollowingPress}
+          onViewProfileCard={() => router.push(`/view-profile-card/${viewedProfileId}`)}
         />
 
         {/* Tab Bar */}
@@ -544,6 +545,17 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
         visible={profileActions.showActionMenu}
         onClose={() => profileActions.setShowActionMenu(false)}
         items={[
+          {
+            icon: "id-card-outline",
+            label: "View Profile Card",
+            sublabel: "See their profile card with QR code",
+            color: "#AF52DE",
+            backgroundColor: "rgba(175, 82, 222, 0.22)",
+            onPress: () => {
+              profileActions.setShowActionMenu(false);
+              router.push(`/view-profile-card/${viewedProfileId}`);
+            },
+          },
           {
             icon: "chatbubble-outline",
             label: "Message",

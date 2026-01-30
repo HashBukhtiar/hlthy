@@ -39,6 +39,7 @@ interface ProfileHeaderProps {
   onArchetypeBadgePress: () => void;
   onFollowersPress: () => void;
   onFollowingPress: () => void;
+  onViewProfileCard: () => void;
 }
 
 export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
@@ -63,6 +64,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
   onArchetypeBadgePress,
   onFollowersPress,
   onFollowingPress,
+  onViewProfileCard,
 }) => {
   const [imageViewerVisible, setImageViewerVisible] = useState(false);
   const [imagePosition, setImagePosition] = useState<ImagePosition | null>(null);
@@ -228,6 +230,13 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
             
             {isOwnProfile && (
               <>
+                <TouchableOpacity
+                  style={styles.settingsButton}
+                  onPress={onViewProfileCard}
+                  activeOpacity={0.85}
+                >
+                  <Ionicons name="id-card-outline" size={16} color="#FFF" />
+                </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.settingsButton}
                   onPress={onSettings}
