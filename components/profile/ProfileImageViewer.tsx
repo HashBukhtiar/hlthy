@@ -1,18 +1,29 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Image,
   StyleSheet,
   Modal,
-  TouchableWithoutFeedback,
   TouchableOpacity,
   Animated,
   Dimensions,
   StatusBar,
   Platform,
+  Pressable,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
+import {
+  GestureHandlerRootView,
+  PinchGestureHandler,
+  PanGestureHandler,
+  TapGestureHandler,
+  State,
+  PinchGestureHandlerStateChangeEvent,
+  PanGestureHandlerStateChangeEvent,
+  TapGestureHandlerStateChangeEvent,
+  PanGestureHandlerGestureEvent,
+} from 'react-native-gesture-handler';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const ENLARGED_SIZE = SCREEN_WIDTH * 0.85;
@@ -41,6 +52,23 @@ export const ProfileImageViewer: React.FC<ProfileImageViewerProps> = ({
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const animationProgress = useRef(new Animated.Value(0)).current;
 
+  // Zoom and pan state
+  const scale = useRef(new Animated.Value(1)).current;
+  const translateX = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(0)).current;
+  const [isZoomed, setIsZoomed] = useState(false);
+  
+  // Base values for gestures
+  const baseScale = useRef(1);
+  const baseTranslateX = useRef(0);
+  const baseTranslateY = useRef(0);
+  const lastScale = useRef(1);
+
+  // Gesture refs
+  const pinchRef = useRef(null);
+  const panRef = useRef(null);
+  const doubleTapRef = useRef(null);
+
   // Calculate center position for the enlarged image
   const centerX = SCREEN_WIDTH / 2;
   const centerY = SCREEN_HEIGHT / 2;
@@ -56,6 +84,20 @@ export const ProfileImageViewer: React.FC<ProfileImageViewerProps> = ({
   // Calculate translate offsets (from center of screen to center of original image position)
   const translateXOffset = startX - centerX;
   const translateYOffset = startY - centerY;
+
+  // Reset zoom when modal closes
+  useEffect(() => {
+    if (!visible) {
+      scale.setValue(1);
+      translateX.setValue(0);
+      translateY.setValue(0);
+      baseScale.current = 1;
+      baseTranslateX.current = 0;
+      baseTranslateY.current = 0;
+      lastScale.current = 1;
+      setIsZoomed(false);
+    }
+  }, [visible]);
 
   useEffect(() => {
     if (visible) {
@@ -79,7 +121,41 @@ export const ProfileImageViewer: React.FC<ProfileImageViewerProps> = ({
     }
   }, [visible]);
 
+  const resetZoom = () => {
+    Animated.parallel([
+      Animated.spring(scale, {
+        toValue: 1,
+        friction: 5,
+        tension: 100,
+        useNativeDriver: true,
+      }),
+      Animated.spring(translateX, {
+        toValue: 0,
+        friction: 5,
+        tension: 100,
+        useNativeDriver: true,
+      }),
+      Animated.spring(translateY, {
+        toValue: 0,
+        friction: 5,
+        tension: 100,
+        useNativeDriver: true,
+      }),
+    ]).start();
+    baseScale.current = 1;
+    baseTranslateX.current = 0;
+    baseTranslateY.current = 0;
+    lastScale.current = 1;
+    setIsZoomed(false);
+  };
+
   const handleClose = () => {
+    // Reset zoom first
+    scale.setValue(1);
+    translateX.setValue(0);
+    translateY.setValue(0);
+    setIsZoomed(false);
+    
     // Animate back to original position
     Animated.parallel([
       Animated.timing(fadeAnim, {
@@ -98,19 +174,96 @@ export const ProfileImageViewer: React.FC<ProfileImageViewerProps> = ({
     });
   };
 
-  // Interpolate scale from small (original size) to full size
-  const scale = animationProgress.interpolate({
+  const onDoubleTap = (event: TapGestureHandlerStateChangeEvent) => {
+    if (event.nativeEvent.state === State.ACTIVE) {
+      if (isZoomed) {
+        resetZoom();
+      } else {
+        // Zoom to 2.5x
+        const targetScale = 2.5;
+        Animated.spring(scale, {
+          toValue: targetScale,
+          friction: 5,
+          tension: 100,
+          useNativeDriver: true,
+        }).start();
+        baseScale.current = targetScale;
+        lastScale.current = targetScale;
+        setIsZoomed(true);
+      }
+    }
+  };
+
+  const onPinchGestureEvent = Animated.event(
+    [{ nativeEvent: { scale: scale } }],
+    { useNativeDriver: true }
+  );
+
+  const onPinchHandlerStateChange = (event: PinchGestureHandlerStateChangeEvent) => {
+    if (event.nativeEvent.oldState === State.ACTIVE) {
+      let newScale = baseScale.current * event.nativeEvent.scale;
+      
+      // Clamp scale between 1 and 4
+      if (newScale < 1) {
+        newScale = 1;
+        resetZoom();
+        return;
+      } else if (newScale > 4) {
+        newScale = 4;
+      }
+      
+      baseScale.current = newScale;
+      lastScale.current = newScale;
+      scale.setValue(newScale);
+      setIsZoomed(newScale > 1);
+    }
+  };
+
+  const onPanGestureEvent = (event: PanGestureHandlerGestureEvent) => {
+    if (lastScale.current > 1) {
+      const maxTranslate = (ENLARGED_SIZE * (lastScale.current - 1)) / 2;
+      
+      let newTranslateX = baseTranslateX.current + event.nativeEvent.translationX;
+      let newTranslateY = baseTranslateY.current + event.nativeEvent.translationY;
+      
+      // Clamp translation
+      newTranslateX = Math.max(-maxTranslate, Math.min(maxTranslate, newTranslateX));
+      newTranslateY = Math.max(-maxTranslate, Math.min(maxTranslate, newTranslateY));
+      
+      translateX.setValue(newTranslateX);
+      translateY.setValue(newTranslateY);
+    }
+  };
+
+  const onPanHandlerStateChange = (event: PanGestureHandlerStateChangeEvent) => {
+    if (event.nativeEvent.oldState === State.ACTIVE) {
+      const maxTranslate = (ENLARGED_SIZE * (lastScale.current - 1)) / 2;
+      
+      let newTranslateX = baseTranslateX.current + event.nativeEvent.translationX;
+      let newTranslateY = baseTranslateY.current + event.nativeEvent.translationY;
+      
+      // Clamp translation
+      newTranslateX = Math.max(-maxTranslate, Math.min(maxTranslate, newTranslateX));
+      newTranslateY = Math.max(-maxTranslate, Math.min(maxTranslate, newTranslateY));
+      
+      baseTranslateX.current = newTranslateX;
+      baseTranslateY.current = newTranslateY;
+    }
+  };
+
+  // Interpolate entry animation scale
+  const entryScale = animationProgress.interpolate({
     inputRange: [0, 1],
     outputRange: [scaleFactor, 1],
   });
 
   // Interpolate position from original location to center
-  const translateX = animationProgress.interpolate({
+  const entryTranslateX = animationProgress.interpolate({
     inputRange: [0, 1],
     outputRange: [translateXOffset, 0],
   });
 
-  const translateY = animationProgress.interpolate({
+  const entryTranslateY = animationProgress.interpolate({
     inputRange: [0, 1],
     outputRange: [translateYOffset, 0],
   });
@@ -123,97 +276,165 @@ export const ProfileImageViewer: React.FC<ProfileImageViewerProps> = ({
       statusBarTranslucent
       onRequestClose={handleClose}
     >
-      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
-      <TouchableWithoutFeedback onPress={handleClose}>
+      <GestureHandlerRootView style={styles.gestureRoot}>
+        <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
         <View style={styles.container}>
-          {/* Dimmed background with blur */}
-          <Animated.View
-            style={[
-              styles.backdrop,
-              {
-                opacity: fadeAnim,
-              },
-            ]}
+          {/* Dimmed background with blur - tappable to close */}
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={isZoomed ? undefined : handleClose}
           >
-            {Platform.OS === 'ios' ? (
-              <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
-            ) : (
-              <View style={[StyleSheet.absoluteFill, styles.androidBackdrop]} />
-            )}
-          </Animated.View>
-
-          {/* Profile Image - animates from original position using transforms */}
-          <TouchableWithoutFeedback>
             <Animated.View
               style={[
-                styles.imageContainer,
+                styles.backdrop,
                 {
+                  opacity: fadeAnim,
+                },
+              ]}
+            >
+              {Platform.OS === 'ios' ? (
+                <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
+              ) : (
+                <View style={[StyleSheet.absoluteFill, styles.androidBackdrop]} />
+              )}
+            </Animated.View>
+          </Pressable>
+
+          {/* Profile Image - with gestures */}
+          <PanGestureHandler
+              ref={panRef}
+              onGestureEvent={onPanGestureEvent}
+              onHandlerStateChange={onPanHandlerStateChange}
+              enabled={isZoomed}
+              simultaneousHandlers={pinchRef}
+              minPointers={1}
+              maxPointers={2}
+            >
+              <Animated.View>
+                <PinchGestureHandler
+                  ref={pinchRef}
+                  onGestureEvent={onPinchGestureEvent}
+                  onHandlerStateChange={onPinchHandlerStateChange}
+                  simultaneousHandlers={panRef}
+                >
+                  <Animated.View>
+                    <TapGestureHandler
+                      ref={doubleTapRef}
+                      onHandlerStateChange={onDoubleTap}
+                      numberOfTaps={2}
+                    >
+                      <Animated.View
+                        style={[
+                          styles.imageContainer,
+                          {
+                            transform: [
+                              { translateX: entryTranslateX },
+                              { translateY: entryTranslateY },
+                              { scale: entryScale },
+                            ],
+                          },
+                        ]}
+                      >
+                        <Animated.View
+                          style={[
+                            styles.imageShadow,
+                            {
+                              opacity: animationProgress,
+                            },
+                          ]}
+                        >
+                          <Animated.Image
+                            source={{ uri: imageUrl }}
+                            style={[
+                              styles.enlargedImage,
+                              {
+                                transform: [
+                                  { scale },
+                                  { translateX },
+                                  { translateY },
+                                ],
+                              },
+                            ]}
+                            resizeMode="cover"
+                          />
+                        </Animated.View>
+                      </Animated.View>
+                    </TapGestureHandler>
+                  </Animated.View>
+                </PinchGestureHandler>
+              </Animated.View>
+            </PanGestureHandler>
+
+            {/* Close Button */}
+            <Animated.View
+              style={[
+                styles.closeButtonContainer,
+                {
+                  opacity: fadeAnim,
                   transform: [
-                    { translateX },
-                    { translateY },
-                    { scale },
+                    {
+                      translateY: fadeAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [-20, 0],
+                      }),
+                    },
                   ],
                 },
               ]}
             >
+              <TouchableOpacity
+                style={styles.closeButton}
+                onPress={handleClose}
+                activeOpacity={0.8}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                {Platform.OS === 'ios' ? (
+                  <BlurView intensity={40} tint="dark" style={styles.closeButtonBlur}>
+                    <Ionicons name="close" size={22} color="rgba(255, 255, 255, 0.9)" />
+                  </BlurView>
+                ) : (
+                  <View style={styles.closeButtonAndroid}>
+                    <Ionicons name="close" size={22} color="rgba(255, 255, 255, 0.9)" />
+                  </View>
+                )}
+              </TouchableOpacity>
+            </Animated.View>
+
+            {/* Zoom indicator */}
+            {isZoomed && (
               <Animated.View
                 style={[
-                  styles.imageShadow,
-                  {
-                    opacity: animationProgress,
-                  },
+                  styles.zoomIndicator,
+                  { opacity: fadeAnim },
                 ]}
               >
-                <Image
-                  source={{ uri: imageUrl }}
-                  style={styles.enlargedImage}
-                  resizeMode="cover"
-                />
+                <TouchableOpacity
+                  onPress={resetZoom}
+                  style={styles.zoomResetButton}
+                  activeOpacity={0.8}
+                >
+                  {Platform.OS === 'ios' ? (
+                    <BlurView intensity={40} tint="dark" style={styles.zoomResetBlur}>
+                      <Ionicons name="contract-outline" size={18} color="rgba(255, 255, 255, 0.9)" />
+                    </BlurView>
+                  ) : (
+                    <View style={styles.zoomResetAndroid}>
+                      <Ionicons name="contract-outline" size={18} color="rgba(255, 255, 255, 0.9)" />
+                    </View>
+                  )}
+                </TouchableOpacity>
               </Animated.View>
-            </Animated.View>
-          </TouchableWithoutFeedback>
-
-          {/* Close Button */}
-          <Animated.View
-            style={[
-              styles.closeButtonContainer,
-              {
-                opacity: fadeAnim,
-                transform: [
-                  {
-                    translateY: fadeAnim.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [-20, 0],
-                    }),
-                  },
-                ],
-              },
-            ]}
-          >
-            <TouchableOpacity
-              style={styles.closeButton}
-              onPress={handleClose}
-              activeOpacity={0.8}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-              {Platform.OS === 'ios' ? (
-                <BlurView intensity={40} tint="dark" style={styles.closeButtonBlur}>
-                  <Ionicons name="close" size={22} color="rgba(255, 255, 255, 0.9)" />
-                </BlurView>
-              ) : (
-                <View style={styles.closeButtonAndroid}>
-                  <Ionicons name="close" size={22} color="rgba(255, 255, 255, 0.9)" />
-                </View>
-              )}
-            </TouchableOpacity>
-          </Animated.View>
-        </View>
-      </TouchableWithoutFeedback>
+            )}
+          </View>
+      </GestureHandlerRootView>
     </Modal>
   );
 };
 
 const styles = StyleSheet.create({
+  gestureRoot: {
+    flex: 1,
+  },
   container: {
     flex: 1,
     justifyContent: 'center',
@@ -251,6 +472,34 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
     borderRadius: 18,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  zoomIndicator: {
+    position: 'absolute',
+    bottom: Platform.OS === 'ios' ? 50 : 30,
+    alignSelf: 'center',
+  },
+  zoomResetButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    overflow: 'hidden',
+  },
+  zoomResetBlur: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  zoomResetAndroid: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: 22,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.2)',
   },
