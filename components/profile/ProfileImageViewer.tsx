@@ -125,20 +125,20 @@ export const ProfileImageViewer: React.FC<ProfileImageViewerProps> = ({
     Animated.parallel([
       Animated.spring(scale, {
         toValue: 1,
-        friction: 5,
-        tension: 100,
+        friction: 10,
+        tension: 80,
         useNativeDriver: true,
       }),
       Animated.spring(translateX, {
         toValue: 0,
-        friction: 5,
-        tension: 100,
+        friction: 10,
+        tension: 80,
         useNativeDriver: true,
       }),
       Animated.spring(translateY, {
         toValue: 0,
-        friction: 5,
-        tension: 100,
+        friction: 10,
+        tension: 80,
         useNativeDriver: true,
       }),
     ]).start();
@@ -183,8 +183,8 @@ export const ProfileImageViewer: React.FC<ProfileImageViewerProps> = ({
         const targetScale = 2.5;
         Animated.spring(scale, {
           toValue: targetScale,
-          friction: 5,
-          tension: 100,
+          friction: 10,
+          tension: 80,
           useNativeDriver: true,
         }).start();
         baseScale.current = targetScale;
