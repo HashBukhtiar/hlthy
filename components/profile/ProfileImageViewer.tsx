@@ -14,74 +14,104 @@ import { BlurView } from 'expo-blur';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const ENLARGED_SIZE = SCREEN_WIDTH * 0.85;
+const ORIGINAL_SIZE = 90; // Original profile image size
+
+export interface ImagePosition {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
 
 interface ProfileImageViewerProps {
   visible: boolean;
   imageUrl: string;
   onClose: () => void;
+  originPosition: ImagePosition | null;
 }
 
 export const ProfileImageViewer: React.FC<ProfileImageViewerProps> = ({
   visible,
   imageUrl,
   onClose,
+  originPosition,
 }) => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const scaleAnim = useRef(new Animated.Value(0.3)).current;
-  const translateYAnim = useRef(new Animated.Value(50)).current;
+  const animationProgress = useRef(new Animated.Value(0)).current;
+
+  // Calculate center position for the enlarged image
+  const centerX = SCREEN_WIDTH / 2;
+  const centerY = SCREEN_HEIGHT / 2;
+
+  // Starting position (center of the original image)
+  const startX = originPosition ? originPosition.x + originPosition.width / 2 : 16 + ORIGINAL_SIZE / 2;
+  const startY = originPosition ? originPosition.y + originPosition.height / 2 : 150 + ORIGINAL_SIZE / 2;
+  const startSize = originPosition?.width ?? ORIGINAL_SIZE;
+
+  // Calculate scale factor (how much smaller the original is compared to enlarged)
+  const scaleFactor = startSize / ENLARGED_SIZE;
+
+  // Calculate translate offsets (from center of screen to center of original image position)
+  const translateXOffset = startX - centerX;
+  const translateYOffset = startY - centerY;
 
   useEffect(() => {
     if (visible) {
-      // Animate in
+      // Reset and animate in
+      animationProgress.setValue(0);
+      fadeAnim.setValue(0);
+      
       Animated.parallel([
         Animated.timing(fadeAnim, {
           toValue: 1,
-          duration: 250,
+          duration: 280,
           useNativeDriver: true,
         }),
-        Animated.spring(scaleAnim, {
+        Animated.spring(animationProgress, {
           toValue: 1,
-          friction: 8,
-          tension: 65,
-          useNativeDriver: true,
-        }),
-        Animated.spring(translateYAnim, {
-          toValue: 0,
-          friction: 8,
-          tension: 65,
+          friction: 7,
+          tension: 50,
           useNativeDriver: true,
         }),
       ]).start();
-    } else {
-      // Reset animations
-      fadeAnim.setValue(0);
-      scaleAnim.setValue(0.3);
-      translateYAnim.setValue(50);
     }
   }, [visible]);
 
   const handleClose = () => {
-    // Animate out
+    // Animate back to original position
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 0,
-        duration: 200,
+        duration: 250,
         useNativeDriver: true,
       }),
-      Animated.timing(scaleAnim, {
-        toValue: 0.3,
-        duration: 200,
-        useNativeDriver: true,
-      }),
-      Animated.timing(translateYAnim, {
-        toValue: 50,
-        duration: 200,
+      Animated.spring(animationProgress, {
+        toValue: 0,
+        friction: 8,
+        tension: 60,
         useNativeDriver: true,
       }),
     ]).start(() => {
       onClose();
     });
   };
+
+  // Interpolate scale from small (original size) to full size
+  const scale = animationProgress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [scaleFactor, 1],
+  });
+
+  // Interpolate position from original location to center
+  const translateX = animationProgress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [translateXOffset, 0],
+  });
+
+  const translateY = animationProgress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [translateYOffset, 0],
+  });
 
   return (
     <Modal
@@ -110,41 +140,36 @@ export const ProfileImageViewer: React.FC<ProfileImageViewerProps> = ({
             )}
           </Animated.View>
 
-          {/* Profile Image */}
+          {/* Profile Image - animates from original position using transforms */}
           <TouchableWithoutFeedback>
             <Animated.View
               style={[
                 styles.imageContainer,
                 {
-                  opacity: fadeAnim,
                   transform: [
-                    { scale: scaleAnim },
-                    { translateY: translateYAnim },
+                    { translateX },
+                    { translateY },
+                    { scale },
                   ],
                 },
               ]}
             >
-              <View style={styles.imageShadow}>
+              <Animated.View
+                style={[
+                  styles.imageShadow,
+                  {
+                    opacity: animationProgress,
+                  },
+                ]}
+              >
                 <Image
                   source={{ uri: imageUrl }}
                   style={styles.enlargedImage}
                   resizeMode="cover"
                 />
-              </View>
+              </Animated.View>
             </Animated.View>
           </TouchableWithoutFeedback>
-
-          {/* Close hint */}
-          <Animated.View
-            style={[
-              styles.closeHint,
-              {
-                opacity: fadeAnim,
-              },
-            ]}
-          >
-            {/* Optional: Add a subtle "Tap to close" text if desired */}
-          </Animated.View>
         </View>
       </TouchableWithoutFeedback>
     </Modal>
@@ -185,9 +210,5 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: 'rgba(255, 255, 255, 0.15)',
     backgroundColor: '#1C1C1E',
-  },
-  closeHint: {
-    position: 'absolute',
-    bottom: 60,
   },
 });

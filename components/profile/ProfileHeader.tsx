@@ -1,12 +1,12 @@
-import React, { useState } from 'react';
-import { View, Text, Image, TouchableOpacity, StyleSheet, ActivityIndicator, SafeAreaView, Platform } from 'react-native';
+import React, { useState, useRef, useCallback } from 'react';
+import { View, Text, Image, TouchableOpacity, StyleSheet, ActivityIndicator, SafeAreaView, Platform, findNodeHandle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { ACCENT_COLOR } from '@/constants/Colors';
 import { formatCount } from '@/logic/formattingFunctions';
 import { getOptimalImageUrl } from '@/utils/imageUtils';
-import { ProfileImageViewer } from './ProfileImageViewer';
+import { ProfileImageViewer, ImagePosition } from './ProfileImageViewer';
 
 const archetypeIcons = {
   'athlete': require('@/assets/images/athlete.png'),
@@ -64,6 +64,8 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
   onFollowingPress,
 }) => {
   const [imageViewerVisible, setImageViewerVisible] = useState(false);
+  const [imagePosition, setImagePosition] = useState<ImagePosition | null>(null);
+  const profileImageRef = useRef<View>(null);
 
   const profileImageUrl = getOptimalImageUrl(
     profileData?.profileThumbnailUrl,
@@ -72,6 +74,18 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
 
   // Use the full-resolution image for the viewer
   const fullResImageUrl = profileData?.profileImageUrl || profileImageUrl;
+
+  const handleProfileImagePress = useCallback(() => {
+    if (profileImageRef.current) {
+      profileImageRef.current.measureInWindow((x, y, width, height) => {
+        setImagePosition({ x, y, width, height });
+        setImageViewerVisible(true);
+      });
+    } else {
+      // Fallback if ref isn't available
+      setImageViewerVisible(true);
+    }
+  }, []);
 
   return (
     <View style={styles.headerSection}>
@@ -115,13 +129,15 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
           <View style={styles.profileImageWrapper}>
             <TouchableOpacity
               activeOpacity={0.9}
-              onPress={() => setImageViewerVisible(true)}
+              onPress={handleProfileImagePress}
               style={styles.profileImageTouchable}
             >
-              <Image
-                source={{ uri: profileImageUrl }}
-                style={styles.profileImage}
-              />
+              <View ref={profileImageRef} collapsable={false}>
+                <Image
+                  source={{ uri: profileImageUrl }}
+                  style={styles.profileImage}
+                />
+              </View>
             </TouchableOpacity>
             {/* Archetype Badge */}
             {profileData?.archetype && (
@@ -261,6 +277,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
         visible={imageViewerVisible}
         imageUrl={fullResImageUrl}
         onClose={() => setImageViewerVisible(false)}
+        originPosition={imagePosition}
       />
     </View>
   );
