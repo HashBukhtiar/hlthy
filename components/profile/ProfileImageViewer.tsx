@@ -5,12 +5,14 @@ import {
   StyleSheet,
   Modal,
   TouchableWithoutFeedback,
+  TouchableOpacity,
   Animated,
   Dimensions,
   StatusBar,
   Platform,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
+import { Ionicons } from '@expo/vector-icons';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const ENLARGED_SIZE = SCREEN_WIDTH * 0.85;
@@ -170,6 +172,41 @@ export const ProfileImageViewer: React.FC<ProfileImageViewerProps> = ({
               </Animated.View>
             </Animated.View>
           </TouchableWithoutFeedback>
+
+          {/* Close Button */}
+          <Animated.View
+            style={[
+              styles.closeButtonContainer,
+              {
+                opacity: fadeAnim,
+                transform: [
+                  {
+                    translateY: fadeAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [-20, 0],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          >
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={handleClose}
+              activeOpacity={0.8}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              {Platform.OS === 'ios' ? (
+                <BlurView intensity={40} tint="dark" style={styles.closeButtonBlur}>
+                  <Ionicons name="close" size={22} color="rgba(255, 255, 255, 0.9)" />
+                </BlurView>
+              ) : (
+                <View style={styles.closeButtonAndroid}>
+                  <Ionicons name="close" size={22} color="rgba(255, 255, 255, 0.9)" />
+                </View>
+              )}
+            </TouchableOpacity>
+          </Animated.View>
         </View>
       </TouchableWithoutFeedback>
     </Modal>
@@ -188,6 +225,34 @@ const styles = StyleSheet.create({
   },
   androidBackdrop: {
     backgroundColor: 'rgba(0, 0, 0, 0.92)',
+  },
+  closeButtonContainer: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 60 : 40,
+    right: 20,
+  },
+  closeButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    overflow: 'hidden',
+  },
+  closeButtonBlur: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  closeButtonAndroid: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   imageContainer: {
     justifyContent: 'center',
