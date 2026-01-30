@@ -7,6 +7,7 @@ import { ACCENT_COLOR } from '@/constants/Colors';
 import { formatCount } from '@/logic/formattingFunctions';
 import { getOptimalImageUrl } from '@/utils/imageUtils';
 import { ProfileImageViewer, ImagePosition } from './ProfileImageViewer';
+import { BannerImageViewer, BannerPosition } from './BannerImageViewer';
 
 const archetypeIcons = {
   'athlete': require('@/assets/images/athlete.png'),
@@ -67,6 +68,10 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
   const [imagePosition, setImagePosition] = useState<ImagePosition | null>(null);
   const profileImageRef = useRef<View>(null);
 
+  const [bannerViewerVisible, setBannerViewerVisible] = useState(false);
+  const [bannerPosition, setBannerPosition] = useState<BannerPosition | null>(null);
+  const bannerRef = useRef<View>(null);
+
   const profileImageUrl = getOptimalImageUrl(
     profileData?.profileThumbnailUrl,
     profileData?.profileImageUrl
@@ -74,6 +79,10 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
 
   // Use the full-resolution image for the viewer
   const fullResImageUrl = profileData?.profileImageUrl || profileImageUrl;
+
+  // Banner image URL
+  const bannerImageUrl = profileData?.bannerImageUrl || 
+    'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800&q=80';
 
   const handleProfileImagePress = useCallback(() => {
     if (profileImageRef.current) {
@@ -87,18 +96,33 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
     }
   }, []);
 
+  const handleBannerPress = useCallback(() => {
+    if (bannerRef.current) {
+      bannerRef.current.measureInWindow((x, y, width, height) => {
+        setBannerPosition({ x, y, width, height });
+        setBannerViewerVisible(true);
+      });
+    } else {
+      // Fallback if ref isn't available
+      setBannerViewerVisible(true);
+    }
+  }, []);
+
   return (
     <View style={styles.headerSection}>
       {/* Banner Image */}
-      <View style={styles.bannerContainer}>
-        <Image
-          source={{ 
-            uri: profileData?.bannerImageUrl || 
-                 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800&q=80'
-          }}
-          style={styles.bannerImage}
-          resizeMode="cover"
-        />
+      <TouchableOpacity 
+        activeOpacity={0.9} 
+        onPress={handleBannerPress}
+        style={styles.bannerContainer}
+      >
+        <View ref={bannerRef} collapsable={false} style={styles.bannerImageWrapper}>
+          <Image
+            source={{ uri: bannerImageUrl }}
+            style={styles.bannerImage}
+            resizeMode="cover"
+          />
+        </View>
         <LinearGradient
           colors={['transparent', 'rgba(0,0,0,0.2)']}
           locations={[0, 1]}
@@ -119,7 +143,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
             </TouchableOpacity>
           )}
         </SafeAreaView>
-      </View>
+      </TouchableOpacity>
       
       {/* Profile Info Section */}
       <View style={styles.profileInfoSection}>
@@ -279,6 +303,13 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
         onClose={() => setImageViewerVisible(false)}
         originPosition={imagePosition}
       />
+      {/* Banner Image Viewer Modal */}
+      <BannerImageViewer
+        visible={bannerViewerVisible}
+        imageUrl={bannerImageUrl}
+        onClose={() => setBannerViewerVisible(false)}
+        originPosition={bannerPosition}
+      />
     </View>
   );
 };
@@ -291,6 +322,10 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 120,
     position: 'relative',
+  },
+  bannerImageWrapper: {
+    width: '100%',
+    height: '100%',
   },
   bannerImage: {
     width: '100%',
