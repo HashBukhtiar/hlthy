@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { View, ScrollView, Text, Image, StyleSheet, Dimensions, FlatList, TouchableOpacity, Animated, ActivityIndicator, RefreshControl, Modal, StatusBar } from 'react-native';
+import { View, ScrollView, Text, Image, StyleSheet, Dimensions, FlatList, TouchableOpacity, Animated, ActivityIndicator, Modal, StatusBar } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useProfileData } from '@/hooks/useProfileData';
 import { useAuth } from '@/context/AuthContext';
@@ -423,15 +423,6 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
       <ScrollView 
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor="#FFFFFF"
-            colors={["#FFFFFF"]}
-            progressBackgroundColor="#212121"
-          />
-        }
         stickyHeaderIndices={[1]}
       >
         {/* Profile Header */}
