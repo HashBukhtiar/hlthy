@@ -248,12 +248,12 @@ export const FollowersModal: React.FC<FollowersModalProps> = ({
               <ActivityIndicator size="small" color="#fff" />
             ) : (
               <View style={styles.followButtonContent}>
-                <Text style={[styles.followButtonText, isFollowing && styles.followingButtonText]}>
-                  {isFollowing ? 'Following' : 'Follow'}
-                </Text>
                 {!isFollowing && (
                   <Ionicons name="person-add" size={14} color="#fff" style={styles.followIcon} />
                 )}
+                <Text style={[styles.followButtonText, isFollowing && styles.followingButtonText]}>
+                  {isFollowing ? 'Following' : 'Follow'}
+                </Text>
               </View>
             )}
           </TouchableOpacity>
@@ -630,7 +630,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 5,
+    gap: 6,
   },
   followButtonText: {
     color: '#fff',
@@ -641,6 +641,6 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.8)',
   },
   followIcon: {
-    marginLeft: 2,
+    marginRight: -1,
   },
 });
