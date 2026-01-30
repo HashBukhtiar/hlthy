@@ -247,9 +247,14 @@ export const FollowersModal: React.FC<FollowersModalProps> = ({
             {isFollowLoading ? (
               <ActivityIndicator size="small" color="#fff" />
             ) : (
-              <Text style={[styles.followButtonText, isFollowing && styles.followingButtonText]}>
-                {isFollowing ? 'Following' : 'Follow'}
-              </Text>
+              <View style={styles.followButtonContent}>
+                <Text style={[styles.followButtonText, isFollowing && styles.followingButtonText]}>
+                  {isFollowing ? 'Following' : 'Follow'}
+                </Text>
+                {!isFollowing && (
+                  <Ionicons name="person-add" size={14} color="#fff" style={styles.followIcon} />
+                )}
+              </View>
             )}
           </TouchableOpacity>
         )}
@@ -284,7 +289,9 @@ export const FollowersModal: React.FC<FollowersModalProps> = ({
                   <Text style={styles.title}>
                     {type === 'followers' ? 'Followers' : 'Following'}
                   </Text>
-                  <Text style={styles.count}>{users.length}</Text>
+                <View style={styles.countBadge}>
+                  <Text style={styles.countText}>{users.length}</Text>
+                </View>
                 </View>
                 {Platform.OS === 'ios' ? (
                   <TouchableOpacity
@@ -314,7 +321,7 @@ export const FollowersModal: React.FC<FollowersModalProps> = ({
                 <Ionicons name="search" size={18} color="#888" style={styles.searchIcon} />
                 <TextInput
                   style={styles.searchInput}
-                  placeholder="Search users..."
+                  placeholder="Search..."
                   placeholderTextColor="#666"
                   value={searchQuery}
                   onChangeText={setSearchQuery}
@@ -332,6 +339,16 @@ export const FollowersModal: React.FC<FollowersModalProps> = ({
                 )}
               </View>
             </View>
+
+            {/* Divider and People Count */}
+            <View style={styles.divider} />
+            {!loading && filteredUsers.length > 0 && (
+              <View style={styles.peopleCountContainer}>
+                <Text style={styles.peopleCountText}>
+                  {filteredUsers.length} {filteredUsers.length === 1 ? 'PERSON' : 'PEOPLE'}
+                </Text>
+              </View>
+            )}
 
             {/* Content */}
             {loading ? (
@@ -421,8 +438,8 @@ const styles = StyleSheet.create({
   titleContainer: {
     flex: 1,
     flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: 8,
+    alignItems: 'center',
+    gap: 10,
   },
   title: {
     fontSize: 24,
@@ -430,10 +447,19 @@ const styles = StyleSheet.create({
     color: '#fff',
     letterSpacing: -0.5,
   },
-  count: {
-    fontSize: 16,
+  countBadge: {
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: 12,
+    minWidth: 24,
+    height: 24,
+    paddingHorizontal: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  countText: {
+    fontSize: 13,
     fontWeight: '600',
-    color: '#888',
+    color: '#fff',
   },
   closeButtonIOS: {
     width: 30,
@@ -481,6 +507,22 @@ const styles = StyleSheet.create({
   },
   clearButton: {
     padding: 4,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    marginHorizontal: 20,
+  },
+  peopleCountContainer: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 8,
+  },
+  peopleCountText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#666',
+    letterSpacing: 0.5,
   },
   centerContainer: {
     flex: 1,
@@ -570,11 +612,12 @@ const styles = StyleSheet.create({
     marginLeft: 80,
   },
   followButton: {
-    paddingHorizontal: 18,
-    paddingVertical: 6,
-    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 18,
     backgroundColor: ACCENT_COLOR,
-    minWidth: 90,
+    width: 100,
+    height: 34,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -583,12 +626,21 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.2)',
   },
+  followButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+  },
   followButtonText: {
     color: '#fff',
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
   },
   followingButtonText: {
     color: 'rgba(255, 255, 255, 0.8)',
+  },
+  followIcon: {
+    marginLeft: 2,
   },
 });
