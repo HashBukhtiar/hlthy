@@ -65,6 +65,10 @@ export const BannerImageViewer: React.FC<BannerImageViewerProps> = ({
   const baseTranslateY = useRef(0);
   const lastScale = useRef(1);
 
+  // Swipe to dismiss
+  const dismissTranslateY = useRef(new Animated.Value(0)).current;
+  const dismissOpacity = useRef(new Animated.Value(1)).current;
+
   // Gesture refs
   const pinchRef = useRef(null);
   const panRef = useRef(null);
@@ -89,6 +93,8 @@ export const BannerImageViewer: React.FC<BannerImageViewerProps> = ({
       scale.setValue(1);
       translateX.setValue(0);
       translateY.setValue(0);
+      dismissTranslateY.setValue(0);
+      dismissOpacity.setValue(1);
       baseScale.current = 1;
       baseTranslateX.current = 0;
       baseTranslateY.current = 0;
@@ -99,9 +105,11 @@ export const BannerImageViewer: React.FC<BannerImageViewerProps> = ({
 
   useEffect(() => {
     if (visible) {
-      // Reset and animate in
+      // Reset all animations to initial state
       animationProgress.setValue(0);
       fadeAnim.setValue(0);
+      dismissTranslateY.setValue(0);
+      dismissOpacity.setValue(1);
       
       Animated.parallel([
         Animated.timing(fadeAnim, {
@@ -167,6 +175,16 @@ export const BannerImageViewer: React.FC<BannerImageViewerProps> = ({
         tension: 60,
         useNativeDriver: true,
       }),
+      Animated.timing(dismissTranslateY, {
+        toValue: 0,
+        duration: 250,
+        useNativeDriver: true,
+      }),
+      Animated.timing(dismissOpacity, {
+        toValue: 1,
+        duration: 250,
+        useNativeDriver: true,
+      }),
     ]).start(() => {
       onClose();
     });
@@ -219,6 +237,7 @@ export const BannerImageViewer: React.FC<BannerImageViewerProps> = ({
 
   const onPanGestureEvent = (event: PanGestureHandlerGestureEvent) => {
     if (lastScale.current > 1) {
+      // When zoomed, allow panning the image
       const maxTranslateX = (ENLARGED_WIDTH * (lastScale.current - 1)) / 2;
       const maxTranslateY = (ENLARGED_HEIGHT * (lastScale.current - 1)) / 2;
       
@@ -231,23 +250,84 @@ export const BannerImageViewer: React.FC<BannerImageViewerProps> = ({
       
       translateX.setValue(newTranslateX);
       translateY.setValue(newTranslateY);
+    } else {
+      // When not zoomed, allow vertical swipe to dismiss
+      const translationY = event.nativeEvent.translationY;
+      
+      // Only respond to predominantly vertical gestures
+      if (Math.abs(translationY) > Math.abs(event.nativeEvent.translationX)) {
+        dismissTranslateY.setValue(translationY);
+        const opacity = 1 - Math.abs(translationY) / 400;
+        dismissOpacity.setValue(Math.max(0, opacity));
+      }
     }
   };
 
   const onPanHandlerStateChange = (event: PanGestureHandlerStateChangeEvent) => {
     if (event.nativeEvent.oldState === State.ACTIVE) {
-      const maxTranslateX = (ENLARGED_WIDTH * (lastScale.current - 1)) / 2;
-      const maxTranslateY = (ENLARGED_HEIGHT * (lastScale.current - 1)) / 2;
-      
-      let newTranslateX = baseTranslateX.current + event.nativeEvent.translationX;
-      let newTranslateY = baseTranslateY.current + event.nativeEvent.translationY;
-      
-      // Clamp translation
-      newTranslateX = Math.max(-maxTranslateX, Math.min(maxTranslateX, newTranslateX));
-      newTranslateY = Math.max(-maxTranslateY, Math.min(maxTranslateY, newTranslateY));
-      
-      baseTranslateX.current = newTranslateX;
-      baseTranslateY.current = newTranslateY;
+      if (lastScale.current > 1) {
+        // Update base values for zoomed panning
+        const maxTranslateX = (ENLARGED_WIDTH * (lastScale.current - 1)) / 2;
+        const maxTranslateY = (ENLARGED_HEIGHT * (lastScale.current - 1)) / 2;
+        
+        let newTranslateX = baseTranslateX.current + event.nativeEvent.translationX;
+        let newTranslateY = baseTranslateY.current + event.nativeEvent.translationY;
+        
+        // Clamp translation
+        newTranslateX = Math.max(-maxTranslateX, Math.min(maxTranslateX, newTranslateX));
+        newTranslateY = Math.max(-maxTranslateY, Math.min(maxTranslateY, newTranslateY));
+        
+        baseTranslateX.current = newTranslateX;
+        baseTranslateY.current = newTranslateY;
+      } else {
+        // Check if swipe should dismiss
+        const translationY = event.nativeEvent.translationY;
+        
+        if (Math.abs(translationY) > 150) {
+          // Swipe threshold met - animate dismiss then close
+          Animated.parallel([
+            Animated.timing(dismissTranslateY, {
+              toValue: translationY > 0 ? 400 : -400,
+              duration: 200,
+              useNativeDriver: true,
+            }),
+            Animated.timing(dismissOpacity, {
+              toValue: 0,
+              duration: 200,
+              useNativeDriver: true,
+            }),
+            Animated.timing(fadeAnim, {
+              toValue: 0,
+              duration: 200,
+              useNativeDriver: true,
+            }),
+            Animated.timing(animationProgress, {
+              toValue: 0,
+              duration: 200,
+              useNativeDriver: true,
+            }),
+          ]).start(() => {
+            // Reset all values before closing
+            dismissTranslateY.setValue(0);
+            dismissOpacity.setValue(1);
+            onClose();
+          });
+        } else {
+          // Snap back to original position
+          Animated.parallel([
+            Animated.spring(dismissTranslateY, {
+              toValue: 0,
+              useNativeDriver: true,
+              friction: 8,
+            }),
+            Animated.timing(dismissOpacity, {
+              toValue: 1,
+              duration: 150,
+              useNativeDriver: true,
+            }),
+          ]).start();
+        }
+      }
     }
   };
 
@@ -283,7 +363,7 @@ export const BannerImageViewer: React.FC<BannerImageViewerProps> = ({
               style={[
                 styles.backdrop,
                 {
-                  opacity: fadeAnim,
+                  opacity: Animated.multiply(fadeAnim, dismissOpacity),
                 },
               ]}
             >
@@ -300,7 +380,7 @@ export const BannerImageViewer: React.FC<BannerImageViewerProps> = ({
               ref={panRef}
               onGestureEvent={onPanGestureEvent}
               onHandlerStateChange={onPanHandlerStateChange}
-              enabled={isZoomed}
+              enabled={true}
               simultaneousHandlers={pinchRef}
               minPointers={1}
               maxPointers={2}
@@ -333,7 +413,8 @@ export const BannerImageViewer: React.FC<BannerImageViewerProps> = ({
                           style={[
                             styles.imageShadow,
                             {
-                              opacity: animationProgress,
+                              opacity: Animated.multiply(animationProgress, dismissOpacity),
+                              transform: [{ translateY: dismissTranslateY }],
                             },
                           ]}
                         >
