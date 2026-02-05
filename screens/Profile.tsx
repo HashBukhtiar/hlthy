@@ -548,7 +548,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
           {
             icon: "id-card-outline",
             label: "View Profile Card",
-            sublabel: "See their profile card with QR code",
+            sublabel: "See their hlthy profile card",
             color: "#AF52DE",
             backgroundColor: "rgba(175, 82, 222, 0.22)",
             onPress: () => {
