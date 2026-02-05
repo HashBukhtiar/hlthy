@@ -2401,12 +2401,10 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     overflow: 'hidden',
     maxWidth: 280,
-    backgroundColor: '#1a1a1a',
   },
   sharedPhotoImage: {
-    width: '100%',
-    maxHeight: 400,
-    aspectRatio: 1,
+    width: 280,
+    height: 280,
   },
   // Image Viewer Modal Styles
   imageViewerOverlay: {
