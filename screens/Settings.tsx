@@ -22,13 +22,13 @@ import { uploadProfileImage } from '@/services/profileStorage';
 import { getFullVersionString } from '@/utils/appVersion';
 import { NotificationService } from '@/services/NotificationService';
 
-
+// todo: probs should move this stuff to the cloud
 const archetypeData: SelectorItem[] = [
   { 
     label: 'Athlete', 
     value: 'athlete', 
     image: require('@/assets/images/athlete.png'),
-    description: 'Focused on athletic performance and competition'
+    description: 'Focused on athletic performance'
   },
   { 
     label: 'Bodybuilder', 
