@@ -286,30 +286,20 @@ export const CustomSelector = ({
                             );
                         })}
                         
-                        <View style={styles.buttonContainer}>
-                            <TouchableOpacity 
-                                style={[styles.actionButton, styles.cancelButton]}
-                                onPress={handleClose}
-                                activeOpacity={0.8}
-                            >
-                                <Text style={styles.cancelButtonText}>Cancel</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity 
-                                style={[
-                                    styles.actionButton,
-                                    styles.saveButton,
-                                    !tempValue && styles.saveButtonDisabled
-                                ]}
-                                onPress={handleSave}
-                                activeOpacity={0.8}
-                                disabled={!tempValue}
-                            >
-                                <Text style={[
-                                    styles.saveButtonText,
-                                    !tempValue && styles.saveButtonTextDisabled
-                                ]}>Save</Text>
-                            </TouchableOpacity>
-                        </View>
+                        <TouchableOpacity 
+                            style={[
+                                styles.saveButton,
+                                !tempValue && styles.saveButtonDisabled
+                            ]}
+                            onPress={handleSave}
+                            activeOpacity={0.8}
+                            disabled={!tempValue}
+                        >
+                            <Text style={[
+                                styles.saveButtonText,
+                                !tempValue && styles.saveButtonTextDisabled
+                            ]}>Save</Text>
+                        </TouchableOpacity>
                     </Animated.View>
                 </Animated.View>
             </Modal>
@@ -466,44 +456,34 @@ const styles = StyleSheet.create({
     checkmarkContainer: {
         marginLeft: 'auto',
     },
-    buttonContainer: {
-        flexDirection: 'row',
-        gap: 12,
-        marginTop: 12,
-        marginBottom: 8,
-    },
-    actionButton: {
-        flex: 1,
-        paddingVertical: 14,
-        borderRadius: 12,
-        alignItems: 'center',
-        borderWidth: 1,
-    },
-    cancelButton: {
-        backgroundColor: 'rgba(255, 255, 255, 0.08)',
-        borderColor: 'rgba(255, 255, 255, 0.15)',
-    },
-    cancelButtonText: {
-        color: '#FFF',
-        fontWeight: '600',
-        fontSize: 16,
-    },
     saveButton: {
+        marginTop: 16,
+        marginBottom: 8,
+        paddingVertical: 16,
+        borderRadius: 14,
         backgroundColor: ACCENT_COLOR,
-        borderColor: ACCENT_COLOR,
+        alignItems: 'center',
+        justifyContent: 'center',
+        shadowColor: ACCENT_COLOR,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 6,
     },
     saveButtonDisabled: {
         backgroundColor: 'rgba(255, 255, 255, 0.08)',
-        borderColor: 'rgba(255, 255, 255, 0.15)',
-        opacity: 0.5,
+        shadowOpacity: 0,
+        elevation: 0,
     },
     saveButtonText: {
         color: '#FFF',
         fontWeight: '700',
-        fontSize: 16,
+        fontSize: 17,
+        letterSpacing: 0.3,
     },
     saveButtonTextDisabled: {
-        color: 'rgba(255, 255, 255, 0.4)',
+        color: 'rgba(255, 255, 255, 0.3)',
+        fontWeight: '600',
     },
     handleBarContainer: {
         alignItems: 'center',
