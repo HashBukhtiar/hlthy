@@ -324,7 +324,7 @@ export const CustomSelector = ({
                             <Text style={[
                                 styles.saveButtonText,
                                 !tempValue && styles.saveButtonTextDisabled
-                            ]}>Save Selection</Text>
+                            ]}>Save</Text>
                         </TouchableOpacity>
                     </Animated.View>
                 </Animated.View>
@@ -490,11 +490,6 @@ const styles = StyleSheet.create({
         backgroundColor: ACCENT_COLOR,
         alignItems: 'center',
         justifyContent: 'center',
-        shadowColor: ACCENT_COLOR,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-        elevation: 6,
     },
     saveButtonDisabled: {
         backgroundColor: 'rgba(255, 255, 255, 0.08)',
