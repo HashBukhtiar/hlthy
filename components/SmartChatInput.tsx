@@ -308,10 +308,7 @@ export const SmartChatInput: React.FC<SmartChatInputProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    paddingHorizontal: 10,
-    paddingTop: 10,
-    paddingBottom: 20,
-    backgroundColor: '#1E1E1E',
+    flex: 1,
   },
   intentIndicator: {
     marginBottom: 8,
@@ -352,12 +349,10 @@ const styles = StyleSheet.create({
   },
   inputRow: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
-    backgroundColor: '#333',
-    borderRadius: 25,
-    paddingHorizontal: 15,
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+    paddingRight: 15,
     paddingVertical: 8,
-    borderWidth: 2,
     gap: 10,
   },
   textInput: {

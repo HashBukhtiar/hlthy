@@ -1686,14 +1686,14 @@ export default function ChatScreen() {
         
         {/* Input Container */}
         <View style={styles.inputContainer}>
-          <TouchableOpacity 
-            style={styles.addPhotoButton}
-            onPress={() => setShowPhotoOptions(!showPhotoOptions)}
-            disabled={photoUploadProgress}
-          >
-            <Ionicons name="add" size={28} color={photoUploadProgress ? "#666" : "#d466ff"} />
-          </TouchableOpacity>
-          <View style={{ flex: 1 }}>
+          <View style={styles.unifiedInputPill}>
+            <TouchableOpacity 
+              style={styles.addPhotoButton}
+              onPress={() => setShowPhotoOptions(!showPhotoOptions)}
+              disabled={photoUploadProgress}
+            >
+              <Ionicons name="add" size={28} color={photoUploadProgress ? "#666" : "#d466ff"} />
+            </TouchableOpacity>
             <SmartChatInput
               value={input}
               onChangeText={setInput}
@@ -1817,13 +1817,20 @@ const styles = StyleSheet.create({
     alignItems: 'center'
   },
   inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
     paddingHorizontal: 10,
     paddingTop: 10,
     paddingBottom: 20,
     backgroundColor: '#1E1E1E',
-    gap: 8,
+  },
+  unifiedInputPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#333',
+    borderRadius: 30,
+    borderWidth: 2,
+    borderColor: '#333',
+    overflow: 'hidden',
+    paddingLeft: 8,
   },
   input: {
     flex: 1,
@@ -2502,6 +2509,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(212, 102, 255, 0.15)',
     justifyContent: 'center',
     alignItems: 'center',
+    marginRight: 8,
   },
   photoOptionsOverlay: {
     position: 'absolute',
