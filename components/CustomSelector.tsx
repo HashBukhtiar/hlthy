@@ -1,7 +1,10 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, Modal, StyleSheet, PanResponder, Animated, Image } from 'react-native';
+import { View, Text, TouchableOpacity, Modal, StyleSheet, PanResponder, Animated, Image, Dimensions, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ACCENT_COLOR } from '@/constants/Colors';
+
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+const DRAG_THRESHOLD = 100;
 
 export interface SelectorItem {
     label: string;
@@ -36,70 +39,97 @@ export const CustomSelector = ({
 }: CustomSelectorProps) => {
     const selectedItem = items.find(item => item.value === value);
     const [tempValue, setTempValue] = useState<string | null>(value);
-    const translateY = useRef(new Animated.Value(0)).current;
-    const offsetY = useRef(0);
+    const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
+    const opacity = useRef(new Animated.Value(0)).current;
+    const optionScales = useRef(items.map(() => new Animated.Value(1))).current;
 
     const panResponder = useRef(
         PanResponder.create({
-            onMoveShouldSetPanResponder: (evt, gestureState) => {
-                return Math.abs(gestureState.dy) > 3;
+            onStartShouldSetPanResponder: () => true,
+            onMoveShouldSetPanResponder: (_, gestureState) => {
+                return Math.abs(gestureState.dy) > 5;
             },
-            onPanResponderGrant: () => {
-                // Stop any ongoing animation and remember current position
-                translateY.stopAnimation((value) => {
-                    offsetY.current = value;
-                });
-            },
-            onPanResponderMove: (evt, gestureState) => {
-                // Calculate new position from the starting offset
-                const newValue = offsetY.current + gestureState.dy;
-                
-                if (newValue >= 0) {
-                    // Moving down - allow full movement
-                    translateY.setValue(newValue);
-                } else {
-                    // Moving up - allow limited movement with resistance
-                    const resistanceFactor = 0.2;
-                    translateY.setValue(newValue * resistanceFactor);
+            onPanResponderMove: (_, gestureState) => {
+                if (gestureState.dy > 0) {
+                    translateY.setValue(gestureState.dy);
                 }
             },
-            onPanResponderRelease: (evt, gestureState) => {
-                const threshold = 80; // Lower threshold for easier dismissal
-                const velocityThreshold = 0.5;
-                
-                if (gestureState.dy > threshold || gestureState.vy > velocityThreshold) {
-                    // Dismiss modal with smooth animation
-                    Animated.timing(translateY, {
-                        toValue: 400,
-                        duration: 250,
-                        useNativeDriver: true,
-                    }).start(() => {
-                        setModalVisible(false);
-                    });
+            onPanResponderRelease: (_, gestureState) => {
+                if (gestureState.dy > DRAG_THRESHOLD || gestureState.vy > 0.5) {
+                    handleClose();
                 } else {
-                    // Snap back to original position with spring animation
                     Animated.spring(translateY, {
                         toValue: 0,
-                        tension: 120,
-                        friction: 8,
                         useNativeDriver: true,
+                        tension: 65,
+                        friction: 11,
                     }).start();
                 }
             },
         })
     ).current;
 
-    // Reset animation when modal opens and sync tempValue with actual value
+    const handleClose = () => {
+        Animated.parallel([
+            Animated.timing(translateY, {
+                toValue: SCREEN_HEIGHT,
+                duration: 250,
+                useNativeDriver: true,
+            }),
+            Animated.timing(opacity, {
+                toValue: 0,
+                duration: 200,
+                useNativeDriver: true,
+            }),
+        ]).start(() => {
+            setModalVisible(false);
+        });
+    };
+
+    const handleOptionSelect = (itemValue: string, index: number) => {
+        // Animate the selected option
+        Animated.sequence([
+            Animated.timing(optionScales[index], {
+                toValue: 0.95,
+                duration: 100,
+                useNativeDriver: true,
+            }),
+            Animated.spring(optionScales[index], {
+                toValue: 1,
+                tension: 300,
+                friction: 10,
+                useNativeDriver: true,
+            }),
+        ]).start();
+
+        setTempValue(itemValue);
+        
+        // Delay the close slightly to show the animation
+        setTimeout(() => {
+            onSelect(itemValue);
+            handleClose();
+        }, 150);
+    };
+
     useEffect(() => {
         if (modalVisible) {
-            // Reset position smoothly when modal opens
-            translateY.setValue(0);
-            offsetY.current = 0;
             setTempValue(value);
+            Animated.parallel([
+                Animated.spring(translateY, {
+                    toValue: 0,
+                    useNativeDriver: true,
+                    tension: 65,
+                    friction: 11,
+                }),
+                Animated.timing(opacity, {
+                    toValue: 1,
+                    duration: 250,
+                    useNativeDriver: true,
+                }),
+            ]).start();
         } else {
-            // Ensure clean state when modal closes
-            translateY.setValue(0);
-            offsetY.current = 0;
+            translateY.setValue(SCREEN_HEIGHT);
+            opacity.setValue(0);
         }
     }, [modalVisible, value]);
 
@@ -168,105 +198,102 @@ export const CustomSelector = ({
             )}
 
             <Modal
-                animationType="slide"
+                animationType="none"
                 transparent={true}
                 visible={modalVisible}
-                onRequestClose={() => setModalVisible(false)}
+                onRequestClose={handleClose}
+                statusBarTranslucent
             >
-                <TouchableOpacity 
-                    style={styles.modalOverlay}
-                    activeOpacity={1}
-                    onPress={() => {
-                        // Animate out smoothly when tapping overlay
-                        Animated.timing(translateY, {
-                            toValue: 400,
-                            duration: 200,
-                            useNativeDriver: true,
-                        }).start(() => {
-                            setModalVisible(false);
-                        });
-                    }}
-                >
+                <Animated.View style={[styles.modalOverlay, { opacity }]}>
+                    <Pressable 
+                        style={styles.overlayPressable}
+                        onPress={handleClose}
+                    />
                     <Animated.View 
                         style={[
                             styles.modalContent,
                             {
-                                transform: [{ translateY: translateY }]
+                                transform: [{ translateY }]
                             }
                         ]}
-                        {...panResponder.panHandlers}
                     >
-                        {/* Dismissal Handle Bar */}
-                        <View style={styles.handleBarContainer}>
+                        {/* Drag Handle */}
+                        <View style={styles.handleBarContainer} {...panResponder.panHandlers}>
                             <View style={styles.handleBar} />
                         </View>
                         
                         <Text style={styles.modalTitle}>Select {title}</Text>
                         
-                        {items.map((item) => (
-                            <TouchableOpacity
-                                key={item.value}
-                                style={[
-                                    styles.modalOption,
-                                    tempValue === item.value && styles.selectedOption
-                                ]}
-                                onPress={() => {
-                                    setTempValue(item.value);
-                                }}
-                            >
-                                <View style={styles.optionHeader}>
-                                    {item.image ? (
-                                        <Image 
-                                            source={item.image} 
-                                            style={[
-                                                styles.optionImage,
-                                                { tintColor: tempValue === item.value ? ACCENT_COLOR : "#FFF" }
-                                            ]}
-                                        />
-                                    ) : item.icon ? (
-                                        <Ionicons 
-                                            name={item.icon as any} 
-                                            size={20} 
-                                            color={tempValue === item.value ? ACCENT_COLOR : "#FFF"} 
-                                        />
-                                    ) : null}
-                                    <Text style={[
-                                        styles.optionLabel,
-                                        tempValue === item.value && styles.selectedOptionText
-                                    ]}>
-                                        {item.label}
-                                    </Text>
-                                </View>
-                                {item.description && (
-                                    <Text style={styles.optionDescription}>
-                                        {item.description}
-                                    </Text>
-                                )}
-                            </TouchableOpacity>
-                        ))}
+                        {items.map((item, index) => {
+                            const isSelected = tempValue === item.value;
+                            return (
+                                <Animated.View
+                                    key={item.value}
+                                    style={[
+                                        {
+                                            transform: [{ scale: optionScales[index] }]
+                                        }
+                                    ]}
+                                >
+                                    <TouchableOpacity
+                                        style={[
+                                            styles.modalOption,
+                                            isSelected && styles.selectedOption
+                                        ]}
+                                        onPress={() => handleOptionSelect(item.value, index)}
+                                        activeOpacity={0.8}
+                                    >
+                                        <View style={styles.optionHeader}>
+                                            {item.image ? (
+                                                <Image 
+                                                    source={item.image} 
+                                                    style={[
+                                                        styles.optionImage,
+                                                        { tintColor: isSelected ? ACCENT_COLOR : "#FFF" }
+                                                    ]}
+                                                />
+                                            ) : item.icon ? (
+                                                <Ionicons 
+                                                    name={item.icon as any} 
+                                                    size={20} 
+                                                    color={isSelected ? ACCENT_COLOR : "#FFF"} 
+                                                />
+                                            ) : null}
+                                            <Text style={[
+                                                styles.optionLabel,
+                                                isSelected && styles.selectedOptionText
+                                            ]}>
+                                                {item.label}
+                                            </Text>
+                                            {isSelected && (
+                                                <View style={styles.checkmarkContainer}>
+                                                    <Ionicons 
+                                                        name="checkmark-circle" 
+                                                        size={22} 
+                                                        color={ACCENT_COLOR} 
+                                                    />
+                                                </View>
+                                            )}
+                                        </View>
+                                        {item.description && (
+                                            <Text style={styles.optionDescription}>
+                                                {item.description}
+                                            </Text>
+                                        )}
+                                    </TouchableOpacity>
+                                </Animated.View>
+                            );
+                        })}
                         
                         <TouchableOpacity 
-                            style={[
-                                styles.cancelButton,
-                                tempValue && styles.saveButton
-                            ]}
-                            onPress={() => {
-                                if (tempValue) {
-                                    // Save the selection
-                                    onSelect(tempValue);
-                                }
-                                setModalVisible(false);
-                            }}
+                            style={styles.cancelButton}
+                            onPress={handleClose}
+                            activeOpacity={0.8}
                         >
-                            <Text style={[
-                                styles.cancelButtonText,
-                                tempValue && styles.saveButtonText
-                            ]}>
-                                {tempValue ? "Save" : "Cancel"}
-                            </Text>
+                            <Text style={styles.cancelButtonText}>Cancel</Text>
                         </TouchableOpacity>
                     </Animated.View>
-                </TouchableOpacity>
+                </Animated.View>
             </Modal>
         </>
     );
@@ -356,36 +383,45 @@ const styles = StyleSheet.create({
     },
     modalOverlay: {
         flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.8)',
+        backgroundColor: 'rgba(0,0,0,0.75)',
         justifyContent: 'flex-end',
+    },
+    overlayPressable: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
     },
     modalContent: {
         backgroundColor: '#1a1a1a',
         borderTopLeftRadius: 24,
         borderTopRightRadius: 24,
-        paddingTop: 8,
+        paddingTop: 4,
         paddingHorizontal: 24,
-        paddingBottom: 24,
+        paddingBottom: 34,
         maxHeight: '92%',
     },
     modalTitle: {
         fontSize: 20,
-        fontWeight: 'bold',
+        fontWeight: '700',
         color: '#FFF',
         marginBottom: 20,
         textAlign: 'center',
+        letterSpacing: -0.3,
     },
     modalOption: {
         padding: 16,
-        backgroundColor: '#333',
-        marginBottom: 12,
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor: '#444',
+        backgroundColor: 'rgba(255, 255, 255, 0.06)',
+        marginBottom: 10,
+        borderRadius: 14,
+        borderWidth: 1.5,
+        borderColor: 'rgba(255, 255, 255, 0.1)',
     },
     selectedOption: {
         borderColor: ACCENT_COLOR,
-        backgroundColor: 'rgba(255, 45, 85, 0.1)',
+        backgroundColor: 'rgba(255, 45, 85, 0.12)',
+        borderWidth: 2,
     },
     optionHeader: {
         flexDirection: 'row',
@@ -396,47 +432,46 @@ const styles = StyleSheet.create({
         color: 'white',
         marginLeft: 10,
         fontSize: 16,
+        fontWeight: '500',
+        flex: 1,
     },
     selectedOptionText: {
-        fontWeight: 'bold',
+        fontWeight: '700',
         color: '#fff',
     },
     optionDescription: {
-        color: '#ccc',
-        fontSize: 14,
+        color: 'rgba(255, 255, 255, 0.6)',
+        fontSize: 13,
         marginLeft: 30,
+        lineHeight: 18,
+    },
+    checkmarkContainer: {
+        marginLeft: 'auto',
     },
     cancelButton: {
-        marginTop: 10,
-        marginBottom: 20,
-        paddingVertical: 12,
-        borderRadius: 8,
-        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+        marginTop: 12,
+        marginBottom: 8,
+        paddingVertical: 14,
+        borderRadius: 12,
+        backgroundColor: 'rgba(255, 255, 255, 0.08)',
         alignItems: 'center',
         borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.2)',
-    },
-    saveButton: {
-        backgroundColor: ACCENT_COLOR,
-        borderColor: ACCENT_COLOR,
+        borderColor: 'rgba(255, 255, 255, 0.15)',
     },
     cancelButtonText: {
         color: '#FFF',
-        fontWeight: 'bold',
-    },
-    saveButtonText: {
-        color: 'white',
+        fontWeight: '600',
+        fontSize: 16,
     },
     handleBarContainer: {
         alignItems: 'center',
-        paddingTop: 8,
-        paddingBottom: 16,
+        paddingTop: 12,
+        paddingBottom: 20,
     },
     handleBar: {
-        width: 40,
+        width: 36,
         height: 4,
-        backgroundColor: '#999',
+        backgroundColor: 'rgba(255, 255, 255, 0.3)',
         borderRadius: 2,
-        opacity: 0.8,
     },
 });
