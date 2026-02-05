@@ -255,59 +255,59 @@ export const CustomSelector = ({
                                 outputRange: ['rgba(255, 255, 255, 0.1)', ACCENT_COLOR],
                             });
                             
-                            const borderWidth = optionSelectionProgress[index].interpolate({
-                                inputRange: [0, 1],
-                                outputRange: [1.5, 2],
-                            });
-                            
                             return (
                                 <Animated.View
                                     key={item.value}
                                     style={[
                                         styles.modalOption,
                                         {
-                                            transform: [{ scale: optionScales[index] }],
                                             backgroundColor,
                                             borderColor,
-                                            borderWidth,
+                                            borderWidth: isSelected ? 2 : 1.5,
                                         }
                                     ]}
                                 >
-                                    <TouchableOpacity
-                                        style={styles.optionTouchable}
-                                        onPress={() => handleOptionSelect(item.value, index)}
-                                        activeOpacity={0.8}
+                                    <Animated.View
+                                        style={{
+                                            transform: [{ scale: optionScales[index] }],
+                                        }}
                                     >
-                                        <View style={styles.optionHeader}>
-                                            {item.image ? (
-                                                <Image 
-                                                    source={item.image} 
-                                                    style={[
-                                                        styles.optionImage,
-                                                        { tintColor: isSelected ? ACCENT_COLOR : "#FFF" }
-                                                    ]}
-                                                />
-                                            ) : item.icon ? (
-                                                <Ionicons 
-                                                    name={item.icon as any} 
-                                                    size={20} 
-                                                    color={isSelected ? ACCENT_COLOR : "#FFF"} 
-                                                />
-                                            ) : null}
-                                            <Animated.Text style={[
-                                                styles.optionLabel,
-                                                isSelected && styles.selectedOptionText
-                                            ]}>
-                                                {item.label}
-                                            </Animated.Text>
-                                            {/* checkmark removed - selection now highlights only */}
-                                        </View>
-                                        {item.description && (
-                                            <Text style={styles.optionDescription}>
-                                                {item.description}
-                                            </Text>
-                                        )}
-                                    </TouchableOpacity>
+                                        <TouchableOpacity
+                                            style={styles.optionTouchable}
+                                            onPress={() => handleOptionSelect(item.value, index)}
+                                            activeOpacity={0.8}
+                                        >
+                                            <View style={styles.optionHeader}>
+                                                {item.image ? (
+                                                    <Image 
+                                                        source={item.image} 
+                                                        style={[
+                                                            styles.optionImage,
+                                                            { tintColor: isSelected ? ACCENT_COLOR : "#FFF" }
+                                                        ]}
+                                                    />
+                                                ) : item.icon ? (
+                                                    <Ionicons 
+                                                        name={item.icon as any} 
+                                                        size={20} 
+                                                        color={isSelected ? ACCENT_COLOR : "#FFF"} 
+                                                    />
+                                                ) : null}
+                                                <Animated.Text style={[
+                                                    styles.optionLabel,
+                                                    isSelected && styles.selectedOptionText
+                                                ]}>
+                                                    {item.label}
+                                                </Animated.Text>
+                                                {/* checkmark removed - selection now highlights only */}
+                                            </View>
+                                            {item.description && (
+                                                <Text style={styles.optionDescription}>
+                                                    {item.description}
+                                                </Text>
+                                            )}
+                                        </TouchableOpacity>
+                                    </Animated.View>
                                 </Animated.View>
                             );
                         })}
@@ -324,7 +324,7 @@ export const CustomSelector = ({
                             <Text style={[
                                 styles.saveButtonText,
                                 !tempValue && styles.saveButtonTextDisabled
-                            ]}>Save</Text>
+                            ]}>Save Selection</Text>
                         </TouchableOpacity>
                     </Animated.View>
                 </Animated.View>
