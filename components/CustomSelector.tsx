@@ -266,15 +266,7 @@ export const CustomSelector = ({
                                             ]}>
                                                 {item.label}
                                             </Text>
-                                            {isSelected && (
-                                                <View style={styles.checkmarkContainer}>
-                                                    <Ionicons 
-                                                        name="checkmark-circle" 
-                                                        size={22} 
-                                                        color={ACCENT_COLOR} 
-                                                    />
-                                                </View>
-                                            )}
+                                            {/* checkmark removed - selection now highlights only */}
                                         </View>
                                         {item.description && (
                                             <Text style={styles.optionDescription}>
