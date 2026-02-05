@@ -42,6 +42,7 @@ export const CustomSelector = ({
     const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
     const opacity = useRef(new Animated.Value(0)).current;
     const optionScales = useRef(items.map(() => new Animated.Value(1))).current;
+    const optionSelectionProgress = useRef(items.map(() => new Animated.Value(0))).current;
 
     const panResponder = useRef(
         PanResponder.create({
@@ -102,6 +103,15 @@ export const CustomSelector = ({
             }),
         ]).start();
 
+        // Animate color transitions for all options
+        items.forEach((_, idx) => {
+            Animated.timing(optionSelectionProgress[idx], {
+                toValue: idx === index ? 1 : 0,
+                duration: 250,
+                useNativeDriver: false,
+            }).start();
+        });
+
         setTempValue(itemValue);
     };
 
@@ -115,6 +125,12 @@ export const CustomSelector = ({
     useEffect(() => {
         if (modalVisible) {
             setTempValue(value);
+            
+            // Initialize selection animations
+            items.forEach((item, idx) => {
+                optionSelectionProgress[idx].setValue(item.value === value ? 1 : 0);
+            });
+            
             Animated.parallel([
                 Animated.spring(translateY, {
                     toValue: 0,
@@ -227,20 +243,38 @@ export const CustomSelector = ({
                         
                         {items.map((item, index) => {
                             const isSelected = tempValue === item.value;
+                            
+                            // Interpolate colors based on selection progress
+                            const backgroundColor = optionSelectionProgress[index].interpolate({
+                                inputRange: [0, 1],
+                                outputRange: ['rgba(255, 255, 255, 0.06)', 'rgba(255, 45, 85, 0.12)'],
+                            });
+                            
+                            const borderColor = optionSelectionProgress[index].interpolate({
+                                inputRange: [0, 1],
+                                outputRange: ['rgba(255, 255, 255, 0.1)', ACCENT_COLOR],
+                            });
+                            
+                            const borderWidth = optionSelectionProgress[index].interpolate({
+                                inputRange: [0, 1],
+                                outputRange: [1.5, 2],
+                            });
+                            
                             return (
                                 <Animated.View
                                     key={item.value}
                                     style={[
+                                        styles.modalOption,
                                         {
-                                            transform: [{ scale: optionScales[index] }]
+                                            transform: [{ scale: optionScales[index] }],
+                                            backgroundColor,
+                                            borderColor,
+                                            borderWidth,
                                         }
                                     ]}
                                 >
                                     <TouchableOpacity
-                                        style={[
-                                            styles.modalOption,
-                                            isSelected && styles.selectedOption
-                                        ]}
+                                        style={styles.optionTouchable}
                                         onPress={() => handleOptionSelect(item.value, index)}
                                         activeOpacity={0.8}
                                     >
@@ -260,12 +294,12 @@ export const CustomSelector = ({
                                                     color={isSelected ? ACCENT_COLOR : "#FFF"} 
                                                 />
                                             ) : null}
-                                            <Text style={[
+                                            <Animated.Text style={[
                                                 styles.optionLabel,
                                                 isSelected && styles.selectedOptionText
                                             ]}>
                                                 {item.label}
-                                            </Text>
+                                            </Animated.Text>
                                             {/* checkmark removed - selection now highlights only */}
                                         </View>
                                         {item.description && (
@@ -411,12 +445,12 @@ const styles = StyleSheet.create({
         letterSpacing: -0.3,
     },
     modalOption: {
-        padding: 16,
-        backgroundColor: 'rgba(255, 255, 255, 0.06)',
         marginBottom: 10,
         borderRadius: 14,
-        borderWidth: 1.5,
-        borderColor: 'rgba(255, 255, 255, 0.1)',
+        overflow: 'hidden',
+    },
+    optionTouchable: {
+        padding: 16,
     },
     selectedOption: {
         borderColor: ACCENT_COLOR,
