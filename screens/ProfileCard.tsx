@@ -195,7 +195,7 @@ export default function ProfileCard({ userId: propUserId }: ProfileCardProps) {
       </View>
 
       {/* Card */}
-      <View style={styles.cardContainer}>
+      <View style={[styles.cardContainer, { paddingTop: insets.top }]}> 
         <LinearGradient
           colors={['#1a1a1a', '#141414', '#0f0f0f']}
           style={styles.card}
@@ -390,9 +390,9 @@ const styles = StyleSheet.create({
   },
   cardContainer: {
     flex: 1,
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     alignItems: 'center',
-    paddingHorizontal: 28,
+    paddingHorizontal: 20,
   },
   card: {
     width: CARD_WIDTH,
