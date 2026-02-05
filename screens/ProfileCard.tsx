@@ -22,8 +22,7 @@ import { formatCount } from '@/logic/formattingFunctions';
 import { getOptimalImageUrl } from '@/utils/imageUtils';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
-const CARD_WIDTH = SCREEN_WIDTH - 48;
-const CARD_HEIGHT = SCREEN_HEIGHT * 0.75;
+const CARD_WIDTH = SCREEN_WIDTH - 56;
 
 const archetypeIcons: Record<string, any> = {
   'athlete': require('@/assets/images/athlete.png'),
@@ -196,146 +195,139 @@ export default function ProfileCard({ userId: propUserId }: ProfileCardProps) {
       </View>
 
       {/* Card */}
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.cardContainer}>
-          <LinearGradient
-            colors={['#1a1a1a', '#141414', '#0f0f0f']}
-            style={styles.card}
-          >
-            {/* Card Border Glow */}
-            <View style={styles.cardBorderGlow} />
-            
-            {/* Profile Image Section */}
-            <View style={styles.profileImageSection}>
-              <View style={styles.profileImageWrapper}>
-                <Image
-                  source={{ uri: profileData.profileImageUrl }}
-                  style={styles.profileImage}
-                />
-                {/* Archetype Badge */}
-                <View style={styles.archetypeBadge}>
-                  <Image
-                    source={archetypeIcons[profileData.archetype?.toLowerCase() || 'generalist']}
-                    style={styles.archetypeBadgeIcon}
-                  />
-                </View>
-              </View>
-            </View>
-
-            {/* Name & Username */}
-            <View style={styles.nameSection}>
-              <Text style={styles.displayName}>{profileData.displayName}</Text>
-              <Text style={styles.username}>@{profileData.username}</Text>
-              <View style={styles.archetypeRow}>
+      <View style={styles.cardContainer}>
+        <LinearGradient
+          colors={['#1a1a1a', '#141414', '#0f0f0f']}
+          style={styles.card}
+        >
+          {/* Card Border Glow */}
+          <View style={styles.cardBorderGlow} />
+          
+          {/* Profile Image Section */}
+          <View style={styles.profileImageSection}>
+            <View style={styles.profileImageWrapper}>
+              <Image
+                source={{ uri: profileData.profileImageUrl }}
+                style={styles.profileImage}
+              />
+              {/* Archetype Badge */}
+              <View style={styles.archetypeBadge}>
                 <Image
                   source={archetypeIcons[profileData.archetype?.toLowerCase() || 'generalist']}
-                  style={styles.archetypeIcon}
+                  style={styles.archetypeBadgeIcon}
                 />
-                <Text style={styles.archetypeText}>
-                  {capitalizeArchetype(profileData.archetype)}
-                </Text>
               </View>
             </View>
+          </View>
 
-            {/* Divider */}
-            <View style={styles.divider} />
-
-            {/* Primary Stats Row */}
-            <View style={styles.primaryStatsRow}>
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>
-                  {formatCount(profileData.followingCount)}
-                </Text>
-                <Text style={styles.statLabel}>Following</Text>
-              </View>
-              <View style={styles.statDivider} />
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>
-                  {formatCount(profileData.followerCount)}
-                </Text>
-                <Text style={styles.statLabel}>Followers</Text>
-              </View>
-              <View style={styles.statDivider} />
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>
-                  {formatCount(profileData.totalLikes)}
-                </Text>
-                <Text style={styles.statLabel}>Hype</Text>
-              </View>
+          {/* Name & Username */}
+          <View style={styles.nameSection}>
+            <Text style={styles.displayName}>{profileData.displayName}</Text>
+            <Text style={styles.username}>@{profileData.username}</Text>
+            <View style={styles.archetypeRow}>
+              <Image
+                source={archetypeIcons[profileData.archetype?.toLowerCase() || 'generalist']}
+                style={styles.archetypeIcon}
+              />
+              <Text style={styles.archetypeText}>
+                {capitalizeArchetype(profileData.archetype)}
+              </Text>
             </View>
+          </View>
 
-            {/* Divider */}
-            <View style={styles.divider} />
+          {/* Divider */}
+          <View style={styles.divider} />
 
-            {/* Secondary Stats Grid */}
-            <View style={styles.secondaryStatsGrid}>
-              <View style={styles.secondaryStatItem}>
-                <Ionicons name="grid-outline" size={18} color={ACCENT_COLOR} />
-                <Text style={styles.secondaryStatValue}>
-                  {formatCount(profileData.postCount)}
-                </Text>
-                <Text style={styles.secondaryStatLabel}>Posts</Text>
-              </View>
-              <View style={styles.secondaryStatItem}>
-                <Ionicons name="trophy-outline" size={18} color={ACCENT_COLOR} />
-                <Text style={styles.secondaryStatValue}>
-                  {formatCount(profileData.milestoneCount)}
-                </Text>
-                <Text style={styles.secondaryStatLabel}>Milestones</Text>
-              </View>
-              <View style={styles.secondaryStatItem}>
-                <Ionicons name="barbell-outline" size={18} color={ACCENT_COLOR} />
-                <Text style={styles.secondaryStatValue}>
-                  {formatCount(profileData.workoutsCreated)}
-                </Text>
-                <Text style={styles.secondaryStatLabel}>Created</Text>
-              </View>
-              <View style={styles.secondaryStatItem}>
-                <Ionicons name="flame-outline" size={18} color={ACCENT_COLOR} />
-                <Text style={styles.secondaryStatValue}>
-                  {formatCount(profileData.workoutsLogged)}
-                </Text>
-                <Text style={styles.secondaryStatLabel}>Logged</Text>
-              </View>
+          {/* Primary Stats Row */}
+          <View style={styles.primaryStatsRow}>
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>
+                {formatCount(profileData.followingCount)}
+              </Text>
+              <Text style={styles.statLabel}>Following</Text>
             </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>
+                {formatCount(profileData.followerCount)}
+              </Text>
+              <Text style={styles.statLabel}>Followers</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>
+                {formatCount(profileData.totalLikes)}
+              </Text>
+              <Text style={styles.statLabel}>Hype</Text>
+            </View>
+          </View>
 
-            {/* Divider */}
-            <View style={styles.divider} />
+          {/* Divider */}
+          <View style={styles.divider} />
 
-            {/* Join Date */}
+          {/* Secondary Stats Grid */}
+          <View style={styles.secondaryStatsGrid}>
+            <View style={styles.secondaryStatItem}>
+              <Ionicons name="grid-outline" size={16} color={ACCENT_COLOR} />
+              <Text style={styles.secondaryStatValue}>
+                {formatCount(profileData.postCount)}
+              </Text>
+              <Text style={styles.secondaryStatLabel}>Posts</Text>
+            </View>
+            <View style={styles.secondaryStatItem}>
+              <Ionicons name="trophy-outline" size={16} color={ACCENT_COLOR} />
+              <Text style={styles.secondaryStatValue}>
+                {formatCount(profileData.milestoneCount)}
+              </Text>
+              <Text style={styles.secondaryStatLabel}>Milestones</Text>
+            </View>
+            <View style={styles.secondaryStatItem}>
+              <Ionicons name="barbell-outline" size={16} color={ACCENT_COLOR} />
+              <Text style={styles.secondaryStatValue}>
+                {formatCount(profileData.workoutsCreated)}
+              </Text>
+              <Text style={styles.secondaryStatLabel}>Created</Text>
+            </View>
+            <View style={styles.secondaryStatItem}>
+              <Ionicons name="flame-outline" size={16} color={ACCENT_COLOR} />
+              <Text style={styles.secondaryStatValue}>
+                {formatCount(profileData.workoutsLogged)}
+              </Text>
+              <Text style={styles.secondaryStatLabel}>Logged</Text>
+            </View>
+          </View>
+
+          {/* Divider */}
+          <View style={styles.divider} />
+
+          {/* Bottom Section */}
+          <View style={styles.bottomSection}>
             <View style={styles.joinDateSection}>
-              <Ionicons name="calendar-outline" size={16} color="#666" />
+              <Ionicons name="calendar-outline" size={14} color="#666" />
               <Text style={styles.joinDateText}>
                 Member since {formatJoinDate(profileData.createdAt)}
               </Text>
             </View>
-
-            {/* QR Code Section */}
+            
+            {/* QR Code */}
             <View style={styles.qrCodeSection}>
               <View style={styles.qrCodeWrapper}>
-                {/* Sample QR Code - Using a placeholder pattern */}
-                <View style={styles.qrCodePlaceholder}>
-                  <Image
-                    source={{ uri: `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=hlthy://profile/${profileData.id}&bgcolor=1a1a1a&color=ffffff` }}
-                    style={styles.qrCodeImage}
-                    resizeMode="contain"
-                  />
-                </View>
+                <Image
+                  source={{ uri: `https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=hlthy://profile/${profileData.id}&bgcolor=1a1a1a&color=ffffff` }}
+                  style={styles.qrCodeImage}
+                  resizeMode="contain"
+                />
               </View>
-              <Text style={styles.qrCodeHint}>Scan to view profile</Text>
+              <Text style={styles.qrCodeHint}>Scan profile</Text>
             </View>
+          </View>
 
-            {/* Branding */}
-            <View style={styles.brandingSection}>
-              <Text style={styles.brandingText}>hlthy</Text>
-            </View>
-          </LinearGradient>
-        </View>
-      </ScrollView>
+          {/* Branding */}
+          <View style={styles.brandingSection}>
+            <Text style={styles.brandingText}>hlthy</Text>
+          </View>
+        </LinearGradient>
+      </View>
     </View>
   );
 }
@@ -396,32 +388,24 @@ const styles = StyleSheet.create({
   headerSpacer: {
     width: 36,
   },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingHorizontal: 24,
-    paddingTop: 8,
-    paddingBottom: 40,
-    alignItems: 'center',
-  },
   cardContainer: {
-    width: CARD_WIDTH,
-    borderRadius: 24,
-    overflow: 'hidden',
-    // Shadow
-    shadowColor: ACCENT_COLOR,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 20,
-    elevation: 10,
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 28,
   },
   card: {
-    width: '100%',
-    padding: 24,
-    borderRadius: 24,
+    width: CARD_WIDTH,
+    maxWidth: 400,
+    padding: 20,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    shadowColor: ACCENT_COLOR,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 24,
+    elevation: 12,
   },
   cardBorderGlow: {
     position: 'absolute',
@@ -429,29 +413,29 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
   },
   profileImageSection: {
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   profileImageWrapper: {
     position: 'relative',
   },
   profileImage: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    borderWidth: 3,
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    borderWidth: 2.5,
     borderColor: ACCENT_COLOR,
   },
   archetypeBadge: {
     position: 'absolute',
-    bottom: -4,
-    right: -4,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    bottom: -2,
+    right: -2,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: '#1a1a1a',
     borderWidth: 2,
     borderColor: '#0f0f0f',
@@ -459,48 +443,48 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   archetypeBadgeIcon: {
-    width: 24,
-    height: 24,
+    width: 20,
+    height: 20,
     resizeMode: 'contain',
   },
   nameSection: {
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 14,
   },
   displayName: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '700',
     color: '#FFF',
-    marginBottom: 4,
+    marginBottom: 3,
   },
   username: {
-    fontSize: 15,
+    fontSize: 14,
     color: '#888',
-    marginBottom: 8,
+    marginBottom: 7,
   },
   archetypeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
   },
   archetypeIcon: {
-    width: 18,
-    height: 18,
+    width: 16,
+    height: 16,
     resizeMode: 'contain',
-    marginRight: 6,
+    marginRight: 5,
   },
   archetypeText: {
-    fontSize: 13,
+    fontSize: 12,
     color: '#AAA',
-    fontWeight: '500',
+    fontWeight: '600',
   },
   divider: {
     height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
-    marginVertical: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    marginVertical: 12,
   },
   primaryStatsRow: {
     flexDirection: 'row',
@@ -512,95 +496,90 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   statValue: {
-    fontSize: 20,
+    fontSize: 19,
     fontWeight: '700',
     color: '#FFF',
     marginBottom: 2,
   },
   statLabel: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#666',
-    fontWeight: '500',
+    fontWeight: '600',
   },
   statDivider: {
     width: 1,
-    height: 32,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    height: 28,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
   },
   secondaryStatsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
+    gap: 8,
   },
   secondaryStatItem: {
     width: '48%',
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
-    borderRadius: 12,
-    padding: 14,
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    borderRadius: 10,
+    padding: 10,
     alignItems: 'center',
-    marginBottom: 10,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.04)',
+    borderColor: 'rgba(255, 255, 255, 0.06)',
   },
   secondaryStatValue: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 16,
+    fontWeight: '700',
     color: '#FFF',
-    marginTop: 6,
-    marginBottom: 2,
+    marginTop: 4,
+    marginBottom: 1,
   },
   secondaryStatLabel: {
-    fontSize: 11,
+    fontSize: 10,
     color: '#666',
-    fontWeight: '500',
+    fontWeight: '600',
   },
-  joinDateSection: {
+  bottomSection: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
+    justifyContent: 'space-between',
+  },
+  joinDateSection: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   joinDateText: {
-    fontSize: 13,
+    fontSize: 11,
     color: '#666',
-    marginLeft: 6,
+    marginLeft: 5,
   },
   qrCodeSection: {
     alignItems: 'center',
-    marginTop: 8,
   },
   qrCodeWrapper: {
-    padding: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.02)',
-    borderRadius: 16,
+    padding: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.04)',
-  },
-  qrCodePlaceholder: {
-    width: 120,
-    height: 120,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#1a1a1a',
-    borderRadius: 8,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
   },
   qrCodeImage: {
-    width: 120,
-    height: 120,
+    width: 64,
+    height: 64,
   },
   qrCodeHint: {
-    fontSize: 11,
+    fontSize: 9,
     color: '#555',
-    marginTop: 10,
+    marginTop: 4,
   },
   brandingSection: {
     alignItems: 'center',
-    marginTop: 20,
+    marginTop: 12,
   },
   brandingText: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '700',
-    color: 'rgba(255, 255, 255, 0.15)',
-    letterSpacing: 2,
+    color: 'rgba(255, 255, 255, 0.12)',
+    letterSpacing: 2.5,
   },
 });
