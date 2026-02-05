@@ -1654,7 +1654,11 @@ export default function ChatScreen() {
             activeOpacity={1}
             onPress={() => setShowPhotoOptions(false)}
           >
-            <View style={styles.photoOptionsMenu}>
+            <TouchableOpacity 
+              style={styles.photoOptionsMenu}
+              activeOpacity={1}
+              onPress={(e) => e.stopPropagation()}
+            >
               <TouchableOpacity 
                 style={styles.photoOptionItem}
                 onPress={() => {
@@ -1680,7 +1684,7 @@ export default function ChatScreen() {
                 </View>
                 <Text style={styles.photoOptionText}>Camera</Text>
               </TouchableOpacity>
-            </View>
+            </TouchableOpacity>
           </TouchableOpacity>
         )}
         
@@ -2513,15 +2517,22 @@ const styles = StyleSheet.create({
   },
   photoOptionsOverlay: {
     position: 'absolute',
-    bottom: 60,
-    left: 10,
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     zIndex: 1000,
+    justifyContent: 'flex-end',
+    paddingLeft: 10,
+    paddingBottom: 60,
   },
   photoOptionsMenu: {
     backgroundColor: '#2a2a2a',
     borderRadius: 12,
     overflow: 'hidden',
     minWidth: 160,
+    maxWidth: 200,
+    alignSelf: 'flex-start',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.5,
