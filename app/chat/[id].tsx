@@ -495,6 +495,13 @@ const MessageItem = React.memo<{
     }
 
     if (item.sharedPhoto) {
+      console.log('=== RENDERING SHARED PHOTO ===');
+      console.log('Photo ID:', item.sharedPhoto.id);
+      console.log('Image URL:', item.sharedPhoto.imageUrl);
+      console.log('URL starts with https:', item.sharedPhoto.imageUrl?.startsWith('https://'));
+      console.log('URL includes firebasestorage:', item.sharedPhoto.imageUrl?.includes('firebasestorage'));
+      console.log('===========================');
+      
       return (
         <TouchableOpacity
           style={[
@@ -508,10 +515,23 @@ const MessageItem = React.memo<{
           <Image
             source={{ uri: item.sharedPhoto.imageUrl }}
             style={styles.sharedPhotoImage}
-            resizeMode="cover"
-            onError={(error) => console.log('Image load error for', item.sharedPhoto?.imageUrl, ':', error.nativeEvent.error)}
-            onLoadStart={() => console.log('Loading image from:', item.sharedPhoto?.imageUrl)}
-            onLoad={() => console.log('Image loaded successfully')}
+            resizeMode="contain"
+            onError={(error) => {
+              console.error('❌ IMAGE LOAD ERROR ❌');
+              console.error('URL:', item.sharedPhoto?.imageUrl);
+              console.error('Error:', error.nativeEvent.error);
+              console.error('Error type:', typeof error.nativeEvent.error);
+            }}
+            onLoadStart={() => {
+              console.log('🔄 Loading image from:', item.sharedPhoto?.imageUrl);
+            }}
+            onLoad={(event) => {
+              console.log('✅ Image loaded successfully');
+              console.log('Image dimensions:', event.nativeEvent.source);
+            }}
+            onLayout={(event) => {
+              console.log('Image layout:', event.nativeEvent.layout);
+            }}
           />
           {item.sharedPhoto.originalFileSize && (
             <View style={styles.photoInfoBar}>
@@ -2335,12 +2355,13 @@ const styles = StyleSheet.create({
     marginHorizontal: 10,
     borderRadius: 12,
     overflow: 'hidden',
-    maxWidth: 250,
+    width: 250,
+    backgroundColor: '#1a1a1a',
   },
   sharedPhotoImage: {
-    width: '100%',
+    width: 250,
     height: 250,
-    backgroundColor: '#333',
+    backgroundColor: '#000',
   },
   photoInfoBar: {
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
