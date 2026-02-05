@@ -263,8 +263,9 @@ const MessageItem = React.memo<{
   onConfirmProfile?: (preferences: any) => void;
   onEditWorkout?: (workout: any) => void;
   onSwipeActiveChange?: (active: boolean) => void;
+  onViewPhoto?: (photo: { imageUrl: string; fileSize?: number }) => void;
 }>(
-  ({ item, onLongPress, conversationId, onReprompt, onSendMessage, onConfirmProfile, onEditWorkout, onSwipeActiveChange }) => {
+  ({ item, onLongPress, conversationId, onReprompt, onSendMessage, onConfirmProfile, onEditWorkout, onSwipeActiveChange, onViewPhoto }) => {
     const router = useRouter();
     const { getWeightUnit, getDistanceUnit, convertWeight, convertDistance } = useUnits();
     
@@ -508,6 +509,10 @@ const MessageItem = React.memo<{
             styles.sharedPhotoContainer,
             item.user === 'user' ? { alignSelf: 'flex-end' } : { alignSelf: 'flex-start' }
           ]}
+          onPress={() => onViewPhoto?.({
+            imageUrl: item.sharedPhoto!.imageUrl,
+            fileSize: item.sharedPhoto!.originalFileSize
+          })}
           onLongPress={() => onLongPress(item)}
           delayLongPress={500}
           activeOpacity={0.8}
@@ -533,14 +538,6 @@ const MessageItem = React.memo<{
               console.log('Image layout:', event.nativeEvent.layout);
             }}
           />
-          {item.sharedPhoto.originalFileSize && (
-            <View style={styles.photoInfoBar}>
-              <Ionicons name="image" size={12} color="#888" style={{ marginRight: 4 }} />
-              <Text style={styles.photoInfoText}>
-                {formatFileSize(item.sharedPhoto.originalFileSize)}
-              </Text>
-            </View>
-          )}
         </TouchableOpacity>
       );
     }
@@ -660,6 +657,7 @@ export default function ChatScreen() {
   const [workoutPreferences, setWorkoutPreferences] = useState<any>(null);
   const [scrollEnabled, setScrollEnabled] = useState(true); // Control scroll locking
   const [photoUploadProgress, setPhotoUploadProgress] = useState(false);
+  const [viewingPhoto, setViewingPhoto] = useState<{ imageUrl: string; fileSize?: number } | null>(null);
   const thinkingDotAnimations = useRef([
     new Animated.Value(0.4),
     new Animated.Value(0.4),
@@ -1403,6 +1401,10 @@ export default function ChatScreen() {
     setScrollEnabled(!active);
   }, []);
 
+  const handleViewPhoto = useCallback((photo: { imageUrl: string; fileSize?: number }) => {
+    setViewingPhoto(photo);
+  }, []);
+
   const renderMessage = useCallback<ListRenderItem<Message>>(
     ({ item }) => (
       <MessageItem 
@@ -1414,9 +1416,10 @@ export default function ChatScreen() {
         onConfirmProfile={handleConfirmProfile}
         onEditWorkout={handleEditWorkout}
         onSwipeActiveChange={handleSwipeActiveChange}
+        onViewPhoto={handleViewPhoto}
       />
     ),
-    [handleLongPress, conversationId, handleReprompt, handleSend, handleConfirmProfile, handleEditWorkout, handleSwipeActiveChange]
+    [handleLongPress, conversationId, handleReprompt, handleSend, handleConfirmProfile, handleEditWorkout, handleSwipeActiveChange, handleViewPhoto]
   );
 
   return (
@@ -1571,6 +1574,48 @@ export default function ChatScreen() {
               </View>
             </View>
           </TouchableOpacity>
+        </Modal>
+
+        {/* Image Viewer Modal */}
+        <Modal
+          visible={!!viewingPhoto}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setViewingPhoto(null)}
+        >
+          <View style={styles.imageViewerOverlay}>
+            <TouchableOpacity
+              style={styles.imageViewerCloseArea}
+              activeOpacity={1}
+              onPress={() => setViewingPhoto(null)}
+            >
+              <SafeAreaView style={styles.imageViewerHeader}>
+                <TouchableOpacity
+                  style={styles.imageViewerCloseButton}
+                  onPress={() => setViewingPhoto(null)}
+                >
+                  <Ionicons name="close" size={28} color="white" />
+                </TouchableOpacity>
+              </SafeAreaView>
+              
+              <View style={styles.imageViewerContainer}>
+                <Image
+                  source={{ uri: viewingPhoto?.imageUrl || '' }}
+                  style={styles.imageViewerImage}
+                  resizeMode="contain"
+                />
+              </View>
+              
+              {viewingPhoto?.fileSize && (
+                <View style={styles.imageViewerInfoBar}>
+                  <Ionicons name="image" size={16} color="#ccc" style={{ marginRight: 6 }} />
+                  <Text style={styles.imageViewerInfoText}>
+                    {formatFileSize(viewingPhoto.fileSize)}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          </View>
         </Modal>
         
         {/* Editing Workout Banner */}
@@ -2355,24 +2400,57 @@ const styles = StyleSheet.create({
     marginHorizontal: 10,
     borderRadius: 12,
     overflow: 'hidden',
-    width: 250,
+    maxWidth: 280,
     backgroundColor: '#1a1a1a',
   },
   sharedPhotoImage: {
-    width: 250,
-    height: 250,
-    backgroundColor: '#000',
+    width: '100%',
+    maxHeight: 400,
+    aspectRatio: 1,
   },
-  photoInfoBar: {
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+  // Image Viewer Modal Styles
+  imageViewerOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.95)',
+  },
+  imageViewerCloseArea: {
+    flex: 1,
+  },
+  imageViewerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    paddingHorizontal: 16,
+    paddingTop: 8,
+  },
+  imageViewerCloseButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  imageViewerContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+  },
+  imageViewerImage: {
+    width: '100%',
+    height: '100%',
+  },
+  imageViewerInfoBar: {
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 6,
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
   },
-  photoInfoText: {
+  imageViewerInfoText: {
     color: '#ccc',
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '500',
   },
   photoUploadContainer: {
