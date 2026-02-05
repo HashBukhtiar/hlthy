@@ -103,12 +103,13 @@ export const CustomSelector = ({
         ]).start();
 
         setTempValue(itemValue);
-        
-        // Delay the close slightly to show the animation
-        setTimeout(() => {
-            onSelect(itemValue);
-            handleClose();
-        }, 150);
+    };
+
+    const handleSave = () => {
+        if (tempValue) {
+            onSelect(tempValue);
+        }
+        handleClose();
     };
 
     useEffect(() => {
@@ -285,13 +286,30 @@ export const CustomSelector = ({
                             );
                         })}
                         
-                        <TouchableOpacity 
-                            style={styles.cancelButton}
-                            onPress={handleClose}
-                            activeOpacity={0.8}
-                        >
-                            <Text style={styles.cancelButtonText}>Cancel</Text>
-                        </TouchableOpacity>
+                        <View style={styles.buttonContainer}>
+                            <TouchableOpacity 
+                                style={[styles.actionButton, styles.cancelButton]}
+                                onPress={handleClose}
+                                activeOpacity={0.8}
+                            >
+                                <Text style={styles.cancelButtonText}>Cancel</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity 
+                                style={[
+                                    styles.actionButton,
+                                    styles.saveButton,
+                                    !tempValue && styles.saveButtonDisabled
+                                ]}
+                                onPress={handleSave}
+                                activeOpacity={0.8}
+                                disabled={!tempValue}
+                            >
+                                <Text style={[
+                                    styles.saveButtonText,
+                                    !tempValue && styles.saveButtonTextDisabled
+                                ]}>Save</Text>
+                            </TouchableOpacity>
+                        </View>
                     </Animated.View>
                 </Animated.View>
             </Modal>
@@ -448,20 +466,44 @@ const styles = StyleSheet.create({
     checkmarkContainer: {
         marginLeft: 'auto',
     },
-    cancelButton: {
+    buttonContainer: {
+        flexDirection: 'row',
+        gap: 12,
         marginTop: 12,
         marginBottom: 8,
+    },
+    actionButton: {
+        flex: 1,
         paddingVertical: 14,
         borderRadius: 12,
-        backgroundColor: 'rgba(255, 255, 255, 0.08)',
         alignItems: 'center',
         borderWidth: 1,
+    },
+    cancelButton: {
+        backgroundColor: 'rgba(255, 255, 255, 0.08)',
         borderColor: 'rgba(255, 255, 255, 0.15)',
     },
     cancelButtonText: {
         color: '#FFF',
         fontWeight: '600',
         fontSize: 16,
+    },
+    saveButton: {
+        backgroundColor: ACCENT_COLOR,
+        borderColor: ACCENT_COLOR,
+    },
+    saveButtonDisabled: {
+        backgroundColor: 'rgba(255, 255, 255, 0.08)',
+        borderColor: 'rgba(255, 255, 255, 0.15)',
+        opacity: 0.5,
+    },
+    saveButtonText: {
+        color: '#FFF',
+        fontWeight: '700',
+        fontSize: 16,
+    },
+    saveButtonTextDisabled: {
+        color: 'rgba(255, 255, 255, 0.4)',
     },
     handleBarContainer: {
         alignItems: 'center',
