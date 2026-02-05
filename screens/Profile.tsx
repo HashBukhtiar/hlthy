@@ -102,6 +102,11 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
   // For own profile, merge profileData with currentUserProfile to get latest socialLinks
   // currentUserProfile is updated immediately after settings save via refreshUserProfile()
   const displayProfileData = useMemo(() => {
+    console.log('[Profile] displayProfileData calculation');
+    console.log('[Profile] isOwnProfile:', isOwnProfile);
+    console.log('[Profile] profileData?.profileImageUrl:', profileData?.profileImageUrl);
+    console.log('[Profile] currentUserProfile?.profileImageUrl:', currentUserProfile?.profileImageUrl);
+    
     if (isOwnProfile) {
       // Use profileData as base but overlay with currentUserProfile for fields that are updated in Settings
       const baseData = profileData || currentUserProfile;

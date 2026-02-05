@@ -134,8 +134,16 @@ export default function Settings() {
     { id: 'advanced', title: 'Advanced', icon: 'cog', expanded: false }, // Add this line
   ]);
 
-  const [profileImage, setProfileImage] = useState(userProfile?.profileImageUrl);
-  const [originalProfileImage, setOriginalProfileImage] = useState(userProfile?.profileImageUrl);
+  const [profileImage, setProfileImage] = useState(() => {
+    const initialImage = userProfile?.profileImageUrl;
+    console.log('[Settings Init] Initial profileImage:', initialImage);
+    return initialImage;
+  });
+  const [originalProfileImage, setOriginalProfileImage] = useState(() => {
+    const initialOriginal = userProfile?.profileImageUrl;
+    console.log('[Settings Init] Initial originalProfileImage:', initialOriginal);
+    return initialOriginal;
+  });
   const [dateModalVisible, setDateModalVisible] = useState(false);
   const [loading, setLoading] = useState(false);
   const [insights, setInsights] = useState<string[]>([]);
@@ -153,6 +161,17 @@ export default function Settings() {
 
 
   const MODAL_DEBOUNCE_MS = 300;
+
+  // Track profileImage changes for debugging
+  useEffect(() => {
+    console.log('[Settings] profileImage state changed to:', profileImage);
+    console.log('[Settings] imageManuallyChanged:', imageManuallyChanged);
+  }, [profileImage, imageManuallyChanged]);
+
+  // Track originalProfileImage changes for debugging
+  useEffect(() => {
+    console.log('[Settings] originalProfileImage state changed to:', originalProfileImage);
+  }, [originalProfileImage]);
 
   // Update settings when userProfile changes
   useEffect(() => {
@@ -228,17 +247,26 @@ export default function Settings() {
       
       if (!imageManuallyChanged) {
         const imageUrl = userProfile.profileImageUrl;
-        console.log('[Settings] Updating profileImage from userProfile:', imageUrl);
+        console.log('[Settings] === PROFILE IMAGE SYNC START ===');
+        console.log('[Settings] Current profileImage state:', profileImage);
+        console.log('[Settings] Current originalProfileImage state:', originalProfileImage);
+        console.log('[Settings] userProfile.profileImageUrl:', imageUrl);
+        console.log('[Settings] imageManuallyChanged:', imageManuallyChanged);
+        console.log('[Settings] Updating profileImage from userProfile to:', imageUrl);
         setProfileImage(imageUrl);
         
-        // Also ensure originalProfileImage is set on every load if not manually changed
-        if (!originalProfileImage) {
-          console.log('[Settings] Setting originalProfileImage:', imageUrl);
-          setOriginalProfileImage(imageUrl);
-        }
+        // Ensure originalProfileImage is kept in sync when not manually changed
+        // This handles the case where user returns to settings after discarding
+        setOriginalProfileImage(imageUrl);
+        console.log('[Settings] Also updated originalProfileImage to:', imageUrl);
+        console.log('[Settings] === PROFILE IMAGE SYNC END ===');
+      } else {
+        console.log('[Settings] Skipping profile image sync - imageManuallyChanged is true');
+        console.log('[Settings] Current profileImage:', profileImage);
+        console.log('[Settings] Current originalProfileImage:', originalProfileImage);
       }
     }
-  }, [userProfile, isSaving, imageManuallyChanged, originalProfileImage]);
+  }, [userProfile, isSaving, imageManuallyChanged]);
 
   useEffect(() => {
     if (userProfile && Object.keys(originalSettings).length === 0) {

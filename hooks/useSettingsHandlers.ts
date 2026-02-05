@@ -5,7 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import { httpsCallable } from 'firebase/functions';
 import { signOut } from 'firebase/auth';
 import { auth, functions, db } from '@/firebaseConfig';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc, getDoc } from 'firebase/firestore';
 import { deleteImageFromStorage } from '@/utils/imageUtils';
 import { UserSettings } from '@/types/settings';
 import { validateSettings, sanitizeSettings } from '@/utils/settingsValidation';
@@ -66,33 +66,72 @@ export function useSettingsHandlers(props: UseSettingsHandlersProps) {
           text: "Discard",
           style: "destructive",
           onPress: async () => {
+            console.log('[Discard] ========== DISCARD FLOW START ==========');
+            console.log('[Discard] Current profileImage:', profileImage);
+            console.log('[Discard] Current originalProfileImage:', originalProfileImage);
+            console.log('[Discard] userProfile.profileImageUrl:', userProfile?.profileImageUrl);
+            
             try {
+              // Delete the temporary uploaded image if one exists
               if (profileImage !== originalProfileImage && profileImage) {
+                console.log('[Discard] Deleting temporary image:', profileImage);
                 try {
                   await deleteImageFromStorage(profileImage);
-                  console.log('[Settings] Deleted temporary profile image on discard');
+                  console.log('[Discard] ✓ Deleted temporary profile image');
                 } catch (deleteError) {
-                  console.error('Error deleting temporary profile image:', deleteError);
+                  console.error('[Discard] ✗ Error deleting temporary profile image:', deleteError);
                 }
+              } else {
+                console.log('[Discard] No temporary image to delete (images match or no profile image)');
               }
-            } finally {
-              try {
-                await refreshUserProfile();
-                console.log('[Settings] User profile refreshed after discard');
-                await new Promise(resolve => setTimeout(resolve, 150));
-              } catch (refreshError) {
-                console.error('Error refreshing profile after discard:', refreshError);
-              }
-
-              const restoredImageUrl = userProfile?.profileImageUrl || originalProfileImage;
-              console.log('[Settings] Restoring profileImage to:', restoredImageUrl);
-              setProfileImage(restoredImageUrl);
-              setImageManuallyChanged(false);
-              setHasUnsavedChanges(false);
-
-              await new Promise(resolve => setTimeout(resolve, 50));
-              router.back();
+            } catch (error) {
+              console.error('[Discard] ✗ Error during discard cleanup:', error);
             }
+
+            // Restore Firebase document to original image URL if image was changed
+            console.log('[Discard] Restoring Firebase document to originalProfileImage...');
+            
+            try {
+              if (currentUser?.uid && originalProfileImage) {
+                const userDocRef = doc(db, 'users', currentUser.uid);
+                console.log('[Discard] Updating Firebase with originalProfileImage:', originalProfileImage);
+                
+                await updateDoc(userDocRef, {
+                  profileImageUrl: originalProfileImage,
+                });
+                
+                console.log('[Discard] ✓ Firebase document restored to original image');
+              }
+            } catch (updateError) {
+              console.error('[Discard] ✗ Error restoring Firebase document:', updateError);
+            }
+
+            // Reset state flags BEFORE refreshing to prevent race conditions
+            console.log('[Discard] Resetting state flags...');
+            setImageManuallyChanged(false);
+            setHasUnsavedChanges(false);
+            
+            // Set the correct image immediately - always use originalProfileImage
+            console.log('[Discard] ----- Restoration Decision -----');
+            console.log('[Discard] originalProfileImage:', originalProfileImage);
+            console.log('[Discard] Setting profileImage to originalProfileImage');
+            setProfileImage(originalProfileImage);
+            console.log('[Discard] ✓ profileImage state updated');
+
+            // Now refresh the context to sync with the restored Firebase data
+            try {
+              console.log('[Discard] Refreshing AuthContext...');
+              await refreshUserProfile();
+              console.log('[Discard] ✓ AuthContext refreshed');
+            } catch (refreshError) {
+              console.error('[Discard] ✗ Error refreshing AuthContext:', refreshError);
+            }
+
+            // Give React time to process state updates
+            await new Promise(resolve => setTimeout(resolve, 100));
+            console.log('[Discard] ========== DISCARD FLOW END ==========');
+            console.log('[Discard] Navigating back...');
+            router.back();
           },
         },
         { text: "Cancel", style: "cancel" },
@@ -321,8 +360,13 @@ export function useSettingsHandlers(props: UseSettingsHandlersProps) {
               }
             }
           } finally {
-            setProfileImage(originalProfileImage);
+            // Reset imageManuallyChanged first to allow useEffect to update profileImage
             setImageManuallyChanged(false);
+            
+            // Restore to original profile image
+            const restoredImageUrl = originalProfileImage || userProfile?.profileImageUrl;
+            setProfileImage(restoredImageUrl);
+            
             setSettings({
               displayName: userProfile?.displayName || '',
               bio: '',
