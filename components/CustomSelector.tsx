@@ -61,8 +61,8 @@ export const CustomSelector = ({
                     Animated.spring(translateY, {
                         toValue: 0,
                         useNativeDriver: true,
-                        tension: 65,
-                        friction: 11,
+                        tension: 100,
+                        friction: 15,
                     }).start();
                 }
             },
@@ -73,12 +73,12 @@ export const CustomSelector = ({
         Animated.parallel([
             Animated.timing(translateY, {
                 toValue: SCREEN_HEIGHT,
-                duration: 250,
+                duration: 280,
                 useNativeDriver: true,
             }),
             Animated.timing(opacity, {
                 toValue: 0,
-                duration: 200,
+                duration: 240,
                 useNativeDriver: true,
             }),
         ]).start(() => {
@@ -87,17 +87,17 @@ export const CustomSelector = ({
     };
 
     const handleOptionSelect = (itemValue: string, index: number) => {
-        // Animate the selected option
+        // Animate the selected option with subtle scale
         Animated.sequence([
             Animated.timing(optionScales[index], {
-                toValue: 0.95,
-                duration: 100,
+                toValue: 0.98,
+                duration: 120,
                 useNativeDriver: true,
             }),
             Animated.spring(optionScales[index], {
                 toValue: 1,
-                tension: 300,
-                friction: 10,
+                tension: 200,
+                friction: 12,
                 useNativeDriver: true,
             }),
         ]).start();
@@ -119,12 +119,12 @@ export const CustomSelector = ({
                 Animated.spring(translateY, {
                     toValue: 0,
                     useNativeDriver: true,
-                    tension: 65,
-                    friction: 11,
+                    tension: 80,
+                    friction: 14,
                 }),
                 Animated.timing(opacity, {
                     toValue: 1,
-                    duration: 250,
+                    duration: 300,
                     useNativeDriver: true,
                 }),
             ]).start();
