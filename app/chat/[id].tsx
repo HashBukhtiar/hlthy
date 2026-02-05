@@ -658,6 +658,7 @@ export default function ChatScreen() {
   const [scrollEnabled, setScrollEnabled] = useState(true); // Control scroll locking
   const [photoUploadProgress, setPhotoUploadProgress] = useState(false);
   const [viewingPhoto, setViewingPhoto] = useState<{ imageUrl: string; fileSize?: number } | null>(null);
+  const [showPhotoOptions, setShowPhotoOptions] = useState(false);
   const thinkingDotAnimations = useRef([
     new Animated.Value(0.4),
     new Animated.Value(0.4),
@@ -1646,36 +1647,64 @@ export default function ChatScreen() {
           </View>
         )}
 
-        {/* Photo Action Buttons */}
-        <View style={styles.photoActionContainer}>
+        {/* Photo Options Modal */}
+        {showPhotoOptions && (
           <TouchableOpacity 
-            style={styles.photoActionButton}
-            onPress={handlePhotoSelect}
-            disabled={photoUploadProgress}
+            style={styles.photoOptionsOverlay}
+            activeOpacity={1}
+            onPress={() => setShowPhotoOptions(false)}
           >
-            <Ionicons name="image-outline" size={24} color="#d466ff" />
-            <Text style={styles.photoActionLabel}>Gallery</Text>
+            <View style={styles.photoOptionsMenu}>
+              <TouchableOpacity 
+                style={styles.photoOptionItem}
+                onPress={() => {
+                  setShowPhotoOptions(false);
+                  handlePhotoSelect();
+                }}
+              >
+                <View style={styles.photoOptionIconContainer}>
+                  <Ionicons name="image" size={24} color="#d466ff" />
+                </View>
+                <Text style={styles.photoOptionText}>Gallery</Text>
+              </TouchableOpacity>
+              <View style={styles.photoOptionDivider} />
+              <TouchableOpacity 
+                style={styles.photoOptionItem}
+                onPress={() => {
+                  setShowPhotoOptions(false);
+                  handlePhotoCapture();
+                }}
+              >
+                <View style={styles.photoOptionIconContainer}>
+                  <Ionicons name="camera" size={24} color="#d466ff" />
+                </View>
+                <Text style={styles.photoOptionText}>Camera</Text>
+              </TouchableOpacity>
+            </View>
           </TouchableOpacity>
-          <TouchableOpacity 
-            style={styles.photoActionButton}
-            onPress={handlePhotoCapture}
-            disabled={photoUploadProgress}
-          >
-            <Ionicons name="camera-outline" size={24} color="#d466ff" />
-            <Text style={styles.photoActionLabel}>Camera</Text>
-          </TouchableOpacity>
-        </View>
+        )}
         
-        {/* Smart Input with Intent Classification */}
-        <SmartChatInput
-          value={input}
-          onChangeText={setInput}
-          onSend={handleSend}
-          disabled={isAiThinking || photoUploadProgress}
-          conversationId={conversationId}
-          otherParticipantId={otherParticipantId}
-          isAiConversation={conversationId.endsWith('_ai_conversation')}
-        />
+        {/* Input Container */}
+        <View style={styles.inputContainer}>
+          <TouchableOpacity 
+            style={styles.addPhotoButton}
+            onPress={() => setShowPhotoOptions(!showPhotoOptions)}
+            disabled={photoUploadProgress}
+          >
+            <Ionicons name="add" size={28} color={photoUploadProgress ? "#666" : "#d466ff"} />
+          </TouchableOpacity>
+          <View style={{ flex: 1 }}>
+            <SmartChatInput
+              value={input}
+              onChangeText={setInput}
+              onSend={handleSend}
+              disabled={isAiThinking || photoUploadProgress}
+              conversationId={conversationId}
+              otherParticipantId={otherParticipantId}
+              isAiConversation={conversationId.endsWith('_ai_conversation')}
+            />
+          </View>
+        </View>
       </View>
     </KeyboardAvoidingView>
   );
@@ -1794,6 +1823,7 @@ const styles = StyleSheet.create({
     paddingTop: 10,
     paddingBottom: 20,
     backgroundColor: '#1E1E1E',
+    gap: 8,
   },
   input: {
     flex: 1,
@@ -2465,28 +2495,53 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
   },
-  photoActionContainer: {
-    flexDirection: 'row',
-    backgroundColor: '#1E1E1E',
-    borderTopWidth: 1,
-    borderTopColor: '#333',
-    paddingHorizontal: 10,
-    paddingVertical: 8,
+  addPhotoButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(212, 102, 255, 0.15)',
     justifyContent: 'center',
-    gap: 20,
-  },
-  photoActionButton: {
     alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    backgroundColor: 'rgba(212, 102, 255, 0.1)',
-    flexDirection: 'row',
-    gap: 6,
   },
-  photoActionLabel: {
-    color: '#d466ff',
-    fontSize: 12,
-    fontWeight: '600',
+  photoOptionsOverlay: {
+    position: 'absolute',
+    bottom: 60,
+    left: 10,
+    zIndex: 1000,
+  },
+  photoOptionsMenu: {
+    backgroundColor: '#2a2a2a',
+    borderRadius: 12,
+    overflow: 'hidden',
+    minWidth: 160,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.5,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  photoOptionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+  },
+  photoOptionIconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(212, 102, 255, 0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  photoOptionText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  photoOptionDivider: {
+    height: 1,
+    backgroundColor: '#444',
   },
 });
