@@ -1017,6 +1017,13 @@ export default function Settings() {
             label="Email"
             value={currentUser?.email}
           />
+
+          <SettingsItem
+            type="button"
+            label="View Profile Card"
+            onPress={() => router.push(`/view-profile-card/${currentUser?.uid}`)}
+            helperText="Open your public profile card"
+          />
         </SettingsSection>
 
         {/* Account & Security Section */}
