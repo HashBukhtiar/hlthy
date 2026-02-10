@@ -1,5 +1,6 @@
 import React from 'react';
-import { StyleSheet, SafeAreaView, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import HomeFeed from '@/screens/HomeFeed';
 
 export default function HomeScreen() {
@@ -7,7 +8,7 @@ export default function HomeScreen() {
   
   try {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['top']}>
         <HomeFeed />
       </SafeAreaView>
     );

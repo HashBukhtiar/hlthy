@@ -65,8 +65,6 @@ export default function ConversationsListScreen() {
                                             .filter(conv => conv !== null) as CombinedConversationItem[];
             
             fetchedConversations.sort((a, b) => {
-                if (a.isPinnedAI && !b.isPinnedAI) return -1;
-                if (!a.isPinnedAI && b.isPinnedAI) return 1;
                 const timeA = a.lastMessageAt?.toDate().getTime() || 0;
                 const timeB = b.lastMessageAt?.toDate().getTime() || 0;
                 return timeB - timeA;
@@ -87,20 +85,14 @@ export default function ConversationsListScreen() {
     const renderItem = ({ item }: { item: CombinedConversationItem }) => (
         <TouchableOpacity 
             style={styles.itemContainer} 
-            onPress={() => {
-                if (item.isPinnedAI) {
-                    router.push('/dms');
-                } else {
-                    router.push(`/chat/${item.id}`);
-                }
-            }}
+            onPress={() => router.push(`/chat/${item.id}`)}
         >
             <Image 
                 source={item.otherParticipantProfileImage ? { uri: item.otherParticipantProfileImage } : require('@/assets/images/profile-icon.png')} 
                 style={styles.profilePic} 
             />
             <View style={styles.textContainer}>
-                <Text style={styles.username}>{item.isPinnedAI ? "hlthy AI" : item.otherParticipantUsername || "Chat"}</Text>
+                <Text style={styles.username}>{item.otherParticipantUsername || "Chat"}</Text>
                 <Text style={styles.lastMessage} numberOfLines={1}>{item.lastMessageText || "No messages yet"}</Text>
             </View>
             {item.lastMessageAt && <Text style={styles.time}>{item.lastMessageAt.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>}

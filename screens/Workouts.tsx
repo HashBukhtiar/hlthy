@@ -21,6 +21,7 @@ import { db } from '@/firebaseConfig';
 import { collection, query, where, getDocs, orderBy, limit, doc, getDoc as getFirestoreDoc } from 'firebase/firestore';
 import { getCoverImageSource } from '@/utils/imageUtils';
 import { icon } from '@/assets/images';
+import { ACCENT_COLOR } from '@/constants/Colors';
 
 interface WorkoutItemData {
     id: string;
@@ -594,7 +595,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     createWorkoutButton: {
-        backgroundColor: '#ff2d55', 
+        backgroundColor: ACCENT_COLOR, 
         borderRadius: 5, 
         width: 140,
         height: 30,

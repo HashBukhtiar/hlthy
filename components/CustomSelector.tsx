@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, Modal, StyleSheet, PanResponder, Animated, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { ACCENT_COLOR } from '@/constants/Colors';
 
 export interface SelectorItem {
     label: string;
@@ -219,14 +220,14 @@ export const CustomSelector = ({
                                             source={item.image} 
                                             style={[
                                                 styles.optionImage,
-                                                { tintColor: tempValue === item.value ? "#ff2d55" : "#FFF" }
+                                                { tintColor: tempValue === item.value ? ACCENT_COLOR : "#FFF" }
                                             ]}
                                         />
                                     ) : item.icon ? (
                                         <Ionicons 
                                             name={item.icon as any} 
                                             size={20} 
-                                            color={tempValue === item.value ? "#ff2d55" : "#FFF"} 
+                                            color={tempValue === item.value ? ACCENT_COLOR : "#FFF"} 
                                         />
                                     ) : null}
                                     <Text style={[
@@ -383,7 +384,7 @@ const styles = StyleSheet.create({
         borderColor: '#444',
     },
     selectedOption: {
-        borderColor: '#ff2d55',
+        borderColor: ACCENT_COLOR,
         backgroundColor: 'rgba(255, 45, 85, 0.1)',
     },
     optionHeader: {
@@ -416,8 +417,8 @@ const styles = StyleSheet.create({
         borderColor: 'rgba(255, 255, 255, 0.2)',
     },
     saveButton: {
-        backgroundColor: '#ff2d55',
-        borderColor: '#ff2d55',
+        backgroundColor: ACCENT_COLOR,
+        borderColor: ACCENT_COLOR,
     },
     cancelButtonText: {
         color: '#FFF',

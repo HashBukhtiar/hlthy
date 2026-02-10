@@ -19,6 +19,7 @@ import { useBlockEnforcement } from '@/utils/blockUtils';
 import { useUnits } from '@/hooks/useUnits';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { app } from '@/firebaseConfig';
+import { ACCENT_COLOR } from '@/constants/Colors';
 
 export default function ViewPost() {
   const [menuVisible, setMenuVisible] = useState(false);
@@ -1627,7 +1628,7 @@ const styles = StyleSheet.create({
   },
   workoutIcon: {
     marginRight: 12,
-    backgroundColor: '#ff2d55',
+    backgroundColor: ACCENT_COLOR,
     padding: 8,
     borderRadius: 18,
   },
@@ -1663,7 +1664,7 @@ const styles = StyleSheet.create({
   },
   milestoneIcon: {
     marginRight: 12,
-    backgroundColor: '#ff2d55',
+    backgroundColor: ACCENT_COLOR,
     padding: 8,
     borderRadius: 18,
   },

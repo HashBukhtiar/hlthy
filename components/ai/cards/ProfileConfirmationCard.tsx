@@ -6,6 +6,7 @@ import { View, Text, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { GradientSurface } from '../atoms/GradientSurface';
 import { Colors, Layout, Typography } from '@/theme/ai';
+import { ACCENT_COLOR } from '@/constants/Colors';
 
 export interface WorkoutPreferences {
   includeWarmup: boolean;
@@ -156,7 +157,7 @@ export const ProfileConfirmationCard: React.FC<ProfileConfirmationCardProps> = (
 
         {/* Profile Information - Compact Grid */}
         <View style={{ marginBottom: Layout.spacing.md }}>
-          {renderProfileItem('barbell-outline', 'Experience', data.experience, '#FF6B6B')}
+          {renderProfileItem('barbell-outline', 'Experience', data.experience, ACCENT_COLOR)}
           {renderProfileItem('calendar-outline', 'Training Frequency', data.trainingFrequency, '#4ECDC4')}
           {renderProfileItem('trophy-outline', 'Goals', data.goals, '#FFD93D')}
           {renderProfileItem('close-circle-outline', 'Dislikes', data.dislikes, '#FF8C42')}

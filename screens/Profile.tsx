@@ -787,8 +787,22 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
 
     if (monthKeys.length === 0) {
       return (
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20, minHeight: 200 }}>
-          <Text style={{ color: 'gray', textAlign: 'center' }}>No milestones yet. Add a milestone to see it here.</Text>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32, minHeight: 200 }}>
+          <Ionicons name="trophy-outline" size={36} color="#666" style={{ marginBottom: 12 }} />
+          <Text style={{ 
+            color: '#FFF', 
+            fontSize: 18,
+            fontWeight: '600',
+            marginBottom: 6,
+            textAlign: 'center' 
+          }}>No Milestones Yet</Text>
+          <Text style={{ 
+            color: '#8E8E93', 
+            fontSize: 14,
+            textAlign: 'center',
+            lineHeight: 20,
+            maxWidth: 260
+          }}>Track your fitness journey by adding milestones.</Text>
         </View>
       );
     }

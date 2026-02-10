@@ -3,13 +3,15 @@
  * Design System for Futuristic Athletic UI
  */
 
+import { ACCENT_COLOR } from '@/constants/Colors';
+
 // Core Colors
 export const Colors = {
   bg: '#0B0B0C',
   surface: '#101114',
   text: '#EDEDF0',
   subtext: '#A3A6AD',
-  accent: '#FF2D55',
+  accent: ACCENT_COLOR,
   success: '#3EE68C',
   warn: '#FFB020',
   white: '#FFFFFF',
@@ -18,7 +20,7 @@ export const Colors = {
 
 // Gradients
 export const Gradients = {
-  accentSweep: ['#FF7A00', '#FF2D55', '#9D4EDD'],
+  accentSweep: ['#FF7A00', ACCENT_COLOR, '#9D4EDD'],
   auroraBg: ['#0C0C11', '#0E0D18'],
   successGlow: ['#11271A', '#0D1E14'],
   cardGlow: ['rgba(255, 45, 85, 0.08)', 'rgba(255, 45, 85, 0.02)'],
