@@ -174,38 +174,46 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
     else if (tabType === TabType.WORKOUTS) index = 2;
     
     currentTabIndex.current = index;
-    Animated.spring(horizontalOffset, {
+    Animated.timing(horizontalOffset, {
       toValue: -(index * screenWidth),
       useNativeDriver: true,
-      friction: 26,
-      tension: 200,
+      duration: 250,
     }).start();
   };
+
+  const snapToTab = useCallback((index: number) => {
+    currentTabIndex.current = index;
+    setActiveTab(index === 0 ? TabType.POSTS : index === 1 ? TabType.MILESTONES : TabType.WORKOUTS);
+    Animated.timing(horizontalOffset, {
+      toValue: -(index * screenWidth),
+      useNativeDriver: true,
+      duration: 250,
+    }).start();
+  }, [horizontalOffset, screenWidth]);
 
   const panResponder = useRef(
     PanResponder.create({
       onMoveShouldSetPanResponder: (_evt, gestureState) => {
         // Only capture horizontal gestures; let vertical pass to outer ScrollView
-        return Math.abs(gestureState.dx) > Math.abs(gestureState.dy) && Math.abs(gestureState.dx) > 10;
+        return Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 1.5 && Math.abs(gestureState.dx) > 8;
       },
       onMoveShouldSetPanResponderCapture: (_evt, gestureState) => {
-        return Math.abs(gestureState.dx) > Math.abs(gestureState.dy) && Math.abs(gestureState.dx) > 15;
+        return Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 2 && Math.abs(gestureState.dx) > 12;
       },
       onPanResponderGrant: () => {
-        // Stop any running animation
         horizontalOffset.stopAnimation();
       },
       onPanResponderMove: (_evt, gestureState) => {
         const base = -(currentTabIndex.current * screenWidth);
         const newOffset = base + gestureState.dx;
-        // Clamp with rubber-band effect at edges
         const clamped = Math.max(-(2 * screenWidth), Math.min(0, newOffset));
         horizontalOffset.setValue(clamped);
       },
       onPanResponderRelease: (_evt, gestureState) => {
         let newIndex = currentTabIndex.current;
         
-        if (Math.abs(gestureState.dx) > screenWidth * 0.2 || Math.abs(gestureState.vx) > 0.5) {
+        // Lower thresholds for easier tab switching
+        if (Math.abs(gestureState.dx) > screenWidth * 0.15 || Math.abs(gestureState.vx) > 0.3) {
           if (gestureState.dx > 0 && currentTabIndex.current > 0) {
             newIndex = currentTabIndex.current - 1;
           } else if (gestureState.dx < 0 && currentTabIndex.current < 2) {
@@ -213,15 +221,11 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
           }
         }
         
-        currentTabIndex.current = newIndex;
-        setActiveTab(newIndex === 0 ? TabType.POSTS : newIndex === 1 ? TabType.MILESTONES : TabType.WORKOUTS);
-        
-        Animated.spring(horizontalOffset, {
-          toValue: -(newIndex * screenWidth),
-          useNativeDriver: true,
-          friction: 26,
-          tension: 200,
-        }).start();
+        snapToTab(newIndex);
+      },
+      onPanResponderTerminate: () => {
+        // If gesture is interrupted, snap back to current tab
+        snapToTab(currentTabIndex.current);
       },
     })
   ).current;
