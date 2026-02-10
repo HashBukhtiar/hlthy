@@ -481,7 +481,7 @@ export function useProfileData(userId = null, contextUserProfile: UserProfile | 
 
       // Always use the Cloud Function for follow logic
       const result = await followUserFn({ targetUserId });
-      const message = result?.data?.message || "";
+      const message = (result?.data as { message?: string })?.message || "";
 
       if (message.includes("pending approval")) {
         setIsRequestPending(true);
