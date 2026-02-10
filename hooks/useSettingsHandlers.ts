@@ -92,12 +92,15 @@ export function useSettingsHandlers(props: UseSettingsHandlersProps) {
             console.log('[Discard] Restoring Firebase document to originalProfileImage...');
             
             try {
-              if (currentUser?.uid && originalProfileImage) {
+              if (currentUser?.uid) {
                 const userDocRef = doc(db, 'users', currentUser.uid);
                 console.log('[Discard] Updating Firebase with originalProfileImage:', originalProfileImage);
                 
+                // Always update Firebase, even if originalProfileImage is empty/null
+                // This ensures we properly restore to "no profile image" state if needed
                 await updateDoc(userDocRef, {
-                  profileImageUrl: originalProfileImage,
+                  profileImageUrl: originalProfileImage || null,
+                  profileThumbnailUrl: null, // Cloud function will regenerate if needed
                 });
                 
                 console.log('[Discard] ✓ Firebase document restored to original image');
@@ -127,8 +130,8 @@ export function useSettingsHandlers(props: UseSettingsHandlersProps) {
               console.error('[Discard] ✗ Error refreshing AuthContext:', refreshError);
             }
 
-            // Give React time to process state updates
-            await new Promise(resolve => setTimeout(resolve, 100));
+            // Give React more time to process state updates and propagate through the component tree
+            await new Promise(resolve => setTimeout(resolve, 300));
             console.log('[Discard] ========== DISCARD FLOW END ==========');
             console.log('[Discard] Navigating back...');
             router.back();
@@ -144,7 +147,7 @@ export function useSettingsHandlers(props: UseSettingsHandlersProps) {
         },
       ]
     );
-  }, [profileImage, originalProfileImage, router, userProfile, setProfileImage, setImageManuallyChanged, setHasUnsavedChanges, refreshUserProfile]);
+  }, [profileImage, originalProfileImage, router, userProfile, currentUser, setProfileImage, setImageManuallyChanged, setHasUnsavedChanges, refreshUserProfile]);
 
   const pickImage = useCallback(async () => {
     try {
@@ -175,64 +178,28 @@ export function useSettingsHandlers(props: UseSettingsHandlersProps) {
       }
 
       try {
+        // Set imageManuallyChanged BEFORE uploading to prevent the useEffect 
+        // in Settings.tsx from overwriting originalProfileImage when Firestore updates
+        setImageManuallyChanged(true);
+        
         const downloadURL = await uploadProfileImage(currentUser.uid, blob);
         setProfileImage(downloadURL);
-        setImageManuallyChanged(true);
         Alert.alert('Success', "Profile photo updated! Don't forget to save.");
       } catch (e) {
         console.error('Profile image upload failed:', e);
+        // Reset the flag since upload failed and nothing was changed
+        setImageManuallyChanged(false);
         Alert.alert('Upload Failed', 'Could not upload image. Try again later.');
       }
     } catch (error) {
       console.error('Error in image picking process:', error);
+      // Reset the flag in case it was set before the error
+      setImageManuallyChanged(false);
       Alert.alert('Error', 'Failed to update profile picture');
     } finally {
       setLoading(false);
     }
   }, [currentUser, setLoading, setProfileImage, setImageManuallyChanged]);
-
-  const handleSaveSettings = useCallback(async () => {
-    if (!currentUser) return;
-
-    try {
-      setLoading(true);
-      const validation = validateSettings(settings);
-
-      if (!validation.isValid) {
-        Alert.alert(
-          'Invalid Settings',
-          'Please fix the following issues:\n' + validation.errors.join('\n'),
-          [{ text: 'OK' }]
-        );
-        return;
-      }
-
-      if (validation.warnings.length > 0) {
-        Alert.alert(
-          'Warning',
-          validation.warnings.join('\n'),
-          [
-            { text: 'Cancel', style: 'cancel', onPress: () => setLoading(false) },
-            { text: 'Continue', onPress: () => saveSettingsAfterValidation() },
-          ]
-        );
-        return;
-      }
-
-      await saveSettingsAfterValidation();
-    } catch (error: any) {
-      console.error('Error updating settings:', error);
-      const errorMessage =
-        error?.code === 'unavailable'
-          ? 'Service temporarily unavailable. Please try again.'
-          : error?.code === 'permission-denied'
-          ? "You don't have permission to update these settings."
-          : 'Failed to update settings: ' + (error?.message || 'Unknown error');
-
-      Alert.alert('Error', errorMessage);
-      setLoading(false);
-    }
-  }, [currentUser, settings, setLoading]);
 
   const saveSettingsAfterValidation = useCallback(async () => {
     try {
@@ -300,6 +267,49 @@ export function useSettingsHandlers(props: UseSettingsHandlersProps) {
       setIsSaving(false);
     }
   }, [settings, userProfile, profileImage, currentUser, refreshUserProfile, setIsSaving, setLoading, setOriginalSettings, setOriginalProfileImage, setHasUnsavedChanges, setImageManuallyChanged]);
+
+  const handleSaveSettings = useCallback(async () => {
+    if (!currentUser) return;
+
+    try {
+      setLoading(true);
+      const validation = validateSettings(settings);
+
+      if (!validation.isValid) {
+        Alert.alert(
+          'Invalid Settings',
+          'Please fix the following issues:\n' + validation.errors.join('\n'),
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+
+      if (validation.warnings.length > 0) {
+        Alert.alert(
+          'Warning',
+          validation.warnings.join('\n'),
+          [
+            { text: 'Cancel', style: 'cancel', onPress: () => setLoading(false) },
+            { text: 'Continue', onPress: () => saveSettingsAfterValidation() },
+          ]
+        );
+        return;
+      }
+
+      await saveSettingsAfterValidation();
+    } catch (error: any) {
+      console.error('Error updating settings:', error);
+      const errorMessage =
+        error?.code === 'unavailable'
+          ? 'Service temporarily unavailable. Please try again.'
+          : error?.code === 'permission-denied'
+          ? "You don't have permission to update these settings."
+          : 'Failed to update settings: ' + (error?.message || 'Unknown error');
+
+      Alert.alert('Error', errorMessage);
+      setLoading(false);
+    }
+  }, [currentUser, settings, setLoading, saveSettingsAfterValidation]);
 
   const handleExportSettings = useCallback(async () => {
     if (!currentUser || !userProfile) return;

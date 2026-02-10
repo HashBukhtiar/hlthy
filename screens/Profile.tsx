@@ -113,8 +113,10 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
       if (baseData && currentUserProfile) {
         return {
           ...baseData,
-          // Use currentUserProfile's socialLinks as it's updated immediately after save
+          // Use currentUserProfile's values as they're updated immediately after save/discard
           socialLinks: currentUserProfile.socialLinks,
+          profileImageUrl: currentUserProfile.profileImageUrl,
+          profileThumbnailUrl: currentUserProfile.profileThumbnailUrl,
         };
       }
       return baseData;
@@ -1152,9 +1154,11 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
             uri: getOptimalImageUrl(
               processedProfileData?.profileThumbnailUrl,
               processedProfileData?.profileImageUrl
-            )
+            ),
+            cache: 'reload'
           }}
           style={styles.profileImage}
+          key={processedProfileData?.profileImageUrl || 'default-profile'}
         />
         <Text style={styles.profileName}>{processedProfileData?.displayName || 'User'}</Text>
         <View style={styles.profileNameRow}>
