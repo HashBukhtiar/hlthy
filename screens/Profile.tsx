@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { View, ScrollView, Text, Image, StyleSheet, Dimensions, FlatList, TouchableOpacity, Animated, ActivityIndicator, Modal, StatusBar } from 'react-native';
+import { View, ScrollView, Text, Image, StyleSheet, Dimensions, TouchableOpacity, Animated, ActivityIndicator, Modal, StatusBar, RefreshControl, PanResponder } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useProfileData } from '@/hooks/useProfileData';
 import { useAuth } from '@/context/AuthContext';
@@ -73,9 +73,9 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
 
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>(TabType.POSTS);
-  const flatListRef = useRef<FlatList>(null);
+  const currentTabIndex = useRef(0);
+  const horizontalOffset = useRef(new Animated.Value(0)).current;
   const { width: screenWidth } = Dimensions.get('window');
-  const tabIndicator = useRef(new Animated.Value(0)).current;
   const tabWidth = screenWidth / 3;
   const [tooltipVisible, setTooltipVisible] = useState(false);
   const [tooltipText, setTooltipText] = useState('');
@@ -142,12 +142,12 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
     return isOwnProfile || !isPrivate || isFollowingStatus;
   }, [isOwnProfile, isPrivate, isFollowingStatus, isBlockedByUser]);
 
-  const indicatorPosition = tabIndicator.interpolate({
-    inputRange: [0, screenWidth, screenWidth * 2],
+  const indicatorPosition = horizontalOffset.interpolate({
+    inputRange: [-(screenWidth * 2), -screenWidth, 0],
     outputRange: [
-      tabCenterOffset,
+      tabWidth * 2 + tabCenterOffset,
       tabWidth + tabCenterOffset,
-      tabWidth * 2 + tabCenterOffset
+      tabCenterOffset
     ],
     extrapolate: 'clamp'
   });
@@ -173,24 +173,58 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
     else if (tabType === TabType.MILESTONES) index = 1;
     else if (tabType === TabType.WORKOUTS) index = 2;
     
-    flatListRef.current?.scrollToOffset({ 
-      offset: index * screenWidth,
-      animated: true 
-    });
+    currentTabIndex.current = index;
+    Animated.spring(horizontalOffset, {
+      toValue: -(index * screenWidth),
+      useNativeDriver: true,
+      friction: 26,
+      tension: 200,
+    }).start();
   };
 
-  const handleScroll = Animated.event(
-    [{ nativeEvent: { contentOffset: { x: tabIndicator } } }],
-    { useNativeDriver: false }
-  );
-
-  const handleScrollEnd = (e: any) => {
-    const contentOffsetX = e.nativeEvent.contentOffset.x;
-    const index = Math.round(contentOffsetX / screenWidth);
-    if (index === 0) setActiveTab(TabType.POSTS);
-    else if (index === 1) setActiveTab(TabType.MILESTONES);
-    else if (index === 2) setActiveTab(TabType.WORKOUTS);
-  };
+  const panResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_evt, gestureState) => {
+        // Only capture horizontal gestures; let vertical pass to outer ScrollView
+        return Math.abs(gestureState.dx) > Math.abs(gestureState.dy) && Math.abs(gestureState.dx) > 10;
+      },
+      onMoveShouldSetPanResponderCapture: (_evt, gestureState) => {
+        return Math.abs(gestureState.dx) > Math.abs(gestureState.dy) && Math.abs(gestureState.dx) > 15;
+      },
+      onPanResponderGrant: () => {
+        // Stop any running animation
+        horizontalOffset.stopAnimation();
+      },
+      onPanResponderMove: (_evt, gestureState) => {
+        const base = -(currentTabIndex.current * screenWidth);
+        const newOffset = base + gestureState.dx;
+        // Clamp with rubber-band effect at edges
+        const clamped = Math.max(-(2 * screenWidth), Math.min(0, newOffset));
+        horizontalOffset.setValue(clamped);
+      },
+      onPanResponderRelease: (_evt, gestureState) => {
+        let newIndex = currentTabIndex.current;
+        
+        if (Math.abs(gestureState.dx) > screenWidth * 0.2 || Math.abs(gestureState.vx) > 0.5) {
+          if (gestureState.dx > 0 && currentTabIndex.current > 0) {
+            newIndex = currentTabIndex.current - 1;
+          } else if (gestureState.dx < 0 && currentTabIndex.current < 2) {
+            newIndex = currentTabIndex.current + 1;
+          }
+        }
+        
+        currentTabIndex.current = newIndex;
+        setActiveTab(newIndex === 0 ? TabType.POSTS : newIndex === 1 ? TabType.MILESTONES : TabType.WORKOUTS);
+        
+        Animated.spring(horizontalOffset, {
+          toValue: -(newIndex * screenWidth),
+          useNativeDriver: true,
+          friction: 26,
+          tension: 200,
+        }).start();
+      },
+    })
+  ).current;
 
   const handleSettingsPress = () => {
     console.log(`Settings clicked`);
@@ -243,11 +277,9 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
   const renderPostsContent = useCallback(() => (
     <PostsTab
       displayablePosts={displayablePosts}
-      refreshing={refreshing}
-      onRefresh={onRefresh}
       onImagePress={handleImagePress}
     />
-  ), [displayablePosts, refreshing, onRefresh, handleImagePress]);
+  ), [displayablePosts, handleImagePress]);
 
   const renderMilestonesContent = useCallback(() => (
     <MilestonesTab
@@ -261,22 +293,14 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
     <WorkoutsTab
       workouts={workouts}
       loadingWorkouts={loadingWorkouts}
-      refreshing={refreshing}
-      onRefresh={onRefresh}
       onWorkoutPress={handleWorkoutPress}
       isOwnProfile={isOwnProfile}
     />
-  ), [workouts, loadingWorkouts, refreshing, onRefresh, handleWorkoutPress, isOwnProfile]);
+  ), [workouts, loadingWorkouts, handleWorkoutPress, isOwnProfile]);
 
   const postsTabComponent = useMemo(() => renderPostsContent(), [renderPostsContent]);
   const milestonesTabComponent = useMemo(() => renderMilestonesContent(), [renderMilestonesContent]);
   const workoutsTabComponent = useMemo(() => renderWorkoutsContent(), [renderWorkoutsContent]);
-
-  const tabScenes = useMemo(() => [
-    { key: 'posts', component: postsTabComponent },
-    { key: 'milestones', component: milestonesTabComponent },
-    { key: 'workouts', component: workoutsTabComponent },
-  ], [postsTabComponent, milestonesTabComponent, workoutsTabComponent]);
 
   // Custom Tab Bar - Not a hook, so its definition order is more flexible but good to keep with related logic
   const renderCustomTabBar = () => (
@@ -322,20 +346,14 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
 
   useEffect(() => { 
     if (prevLoading.current === true && loading === false) {
-      if (flatListRef.current) {
-        let targetIndex = 0;
-        if (activeTab === TabType.MILESTONES) {
-          targetIndex = 1;
-        } else if (activeTab === TabType.WORKOUTS) {
-          targetIndex = 2;
-        }
-        setTimeout(() => {
-          flatListRef.current?.scrollToOffset({
-            offset: targetIndex * screenWidth,
-            animated: false, 
-          });
-        }, 0); 
+      let targetIndex = 0;
+      if (activeTab === TabType.MILESTONES) {
+        targetIndex = 1;
+      } else if (activeTab === TabType.WORKOUTS) {
+        targetIndex = 2;
       }
+      currentTabIndex.current = targetIndex;
+      horizontalOffset.setValue(-(targetIndex * screenWidth));
     }
     prevLoading.current = loading;
   }, [loading, activeTab, screenWidth]);
@@ -424,8 +442,16 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
         stickyHeaderIndices={[1]}
-        bounces={false}
         overScrollMode="never"
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#FFFFFF"
+            colors={["#FFFFFF"]}
+            progressBackgroundColor="#212121"
+          />
+        }
       >
         {/* Profile Header */}
         <ProfileHeader
@@ -460,25 +486,25 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
 
         {/* Tab Content */}
         {canViewContent ? (
-          <View style={styles.tabContentInline}>
-            <FlatList
-              ref={flatListRef}
-              data={tabScenes}
-              horizontal
-              pagingEnabled
-              showsHorizontalScrollIndicator={false}
-              onScroll={handleScroll}
-              onMomentumScrollEnd={handleScrollEnd}
-              scrollEnabled={true}
-              nestedScrollEnabled={true}
-              renderItem={({ item }) => (
-                <View style={[styles.tabContentContainer, { width: screenWidth }]}>
-                  {item.component}
-                </View>
-              )}
-              keyExtractor={(item) => item.key}
-              initialScrollIndex={0}
-            />
+          <View style={[styles.tabContentInline, { overflow: 'hidden' }]}>
+            <Animated.View
+              style={{
+                flexDirection: 'row',
+                width: screenWidth * 3,
+                transform: [{ translateX: horizontalOffset }],
+              }}
+              {...panResponder.panHandlers}
+            >
+              <View style={[styles.tabContentContainer, { width: screenWidth }]}>
+                {postsTabComponent}
+              </View>
+              <View style={[styles.tabContentContainer, { width: screenWidth }]}>
+                {milestonesTabComponent}
+              </View>
+              <View style={[styles.tabContentContainer, { width: screenWidth }]}>
+                {workoutsTabComponent}
+              </View>
+            </Animated.View>
           </View>
         ) : (
           <View style={styles.lockedContainer}>

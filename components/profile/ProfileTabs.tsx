@@ -1,5 +1,5 @@
-import React, { useCallback } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, ScrollView, Dimensions, RefreshControl } from 'react-native';
+import React from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Dimensions } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { OptimizedImageLight } from '@/components/OptimizedImage';
@@ -10,46 +10,41 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 interface PostsTabProps {
   displayablePosts: any[];
-  refreshing: boolean;
-  onRefresh: () => void;
   onImagePress: (post: any) => void;
 }
 
 export const PostsTab: React.FC<PostsTabProps> = ({ 
   displayablePosts, 
-  refreshing, 
-  onRefresh, 
   onImagePress 
 }) => {
+  if (displayablePosts.length === 0) {
+    return (
+      <Text style={{ color: 'gray', textAlign: 'center', padding: 30 }}>No posts yet</Text>
+    );
+  }
+
+  // Create rows of 3 for grid layout
+  const rows: any[][] = [];
+  for (let i = 0; i < displayablePosts.length; i += 3) {
+    rows.push(displayablePosts.slice(i, i + 3));
+  }
+
   return (
-    <FlatList
-      key="posts-grid"
-      data={displayablePosts}
-      renderItem={({ item }) => (
-        <TouchableOpacity onPress={() => onImagePress(item)} activeOpacity={0.85}>
-          <OptimizedImageLight 
-            thumbnailUrl={item.thumbnailUrl} 
-            originalUrl={item.imageUrl} 
-            style={styles.postImage} 
-          />
-        </TouchableOpacity>
-      )}
-      keyExtractor={(item) => item.id}
-      numColumns={3}
-      contentContainerStyle={styles.postsContainer}
-      ListEmptyComponent={
-        <Text style={{ color: 'gray', textAlign: 'center', padding: 30 }}>No posts yet</Text>
-      }
-      refreshControl={
-        <RefreshControl
-          refreshing={refreshing}
-          onRefresh={onRefresh}
-          tintColor="#FFFFFF"
-          colors={["#FFFFFF"]}
-          progressBackgroundColor="#212121"
-        />
-      }
-    />
+    <View style={styles.postsContainer}>
+      {rows.map((row, rowIndex) => (
+        <View key={`row-${rowIndex}`} style={styles.postsRow}>
+          {row.map((item) => (
+            <TouchableOpacity key={item.id} onPress={() => onImagePress(item)} activeOpacity={0.85}>
+              <OptimizedImageLight 
+                thumbnailUrl={item.thumbnailUrl} 
+                originalUrl={item.imageUrl} 
+                style={styles.postImage} 
+              />
+            </TouchableOpacity>
+          ))}
+        </View>
+      ))}
+    </View>
   );
 };
 
@@ -152,12 +147,14 @@ export const MilestonesTab: React.FC<MilestonesTabProps> = ({
         </View>
       </View>
 
-      <FlatList
-        key="milestones-list"
-        data={flattenedData}
-        renderItem={({ item, index }) => {
+      <View style={styles.milestonesListContent}>
+        {flattenedData.map((item, index) => {
           if (item.type === 'header') {
-            return renderMonthHeader(item.data, item.count || 0, item.isFirst || false);
+            return (
+              <React.Fragment key={`header-${item.data}`}>
+                {renderMonthHeader(item.data, item.count || 0, item.isFirst || false)}
+              </React.Fragment>
+            );
           }
           
           const milestoneItem = item.data;
@@ -180,7 +177,7 @@ export const MilestonesTab: React.FC<MilestonesTabProps> = ({
 
           return (
             <TouchableOpacity
-              key={milestoneItem.id}
+              key={`milestone-${milestoneItem.id}-${index}`}
               onPress={() => onMilestonePress(milestoneItem.id)}
               style={styles.milestoneItemCard}
               activeOpacity={0.7}
@@ -192,13 +189,8 @@ export const MilestonesTab: React.FC<MilestonesTabProps> = ({
               />
             </TouchableOpacity>
           );
-        }}
-        keyExtractor={(item, index) => 
-          item.type === 'header' ? `header-${item.data}` : `milestone-${item.data.id}-${index}`
-        }
-        contentContainerStyle={styles.milestonesListContent}
-        showsVerticalScrollIndicator={false}
-      />
+        })}
+      </View>
     </View>
   );
 };
@@ -206,8 +198,6 @@ export const MilestonesTab: React.FC<MilestonesTabProps> = ({
 interface WorkoutsTabProps {
   workouts: any[];
   loadingWorkouts: boolean;
-  refreshing: boolean;
-  onRefresh: () => void;
   onWorkoutPress: (workoutId: number) => void;
   isOwnProfile: boolean;
 }
@@ -215,8 +205,6 @@ interface WorkoutsTabProps {
 export const WorkoutsTab: React.FC<WorkoutsTabProps> = ({ 
   workouts, 
   loadingWorkouts, 
-  refreshing, 
-  onRefresh, 
   onWorkoutPress,
   isOwnProfile
 }) => {
@@ -234,13 +222,6 @@ export const WorkoutsTab: React.FC<WorkoutsTabProps> = ({
         <Text style={{ color: 'gray', textAlign: 'center' }}>
           No workouts yet. Create or save a workout to see it here.
         </Text>
-        <RefreshControl
-          refreshing={refreshing}
-          onRefresh={onRefresh}
-          tintColor="#FFFFFF"
-          colors={["#FFFFFF"]}
-          progressBackgroundColor="#212121"
-        />
       </View>
     );
   }
@@ -255,41 +236,31 @@ export const WorkoutsTab: React.FC<WorkoutsTabProps> = ({
   });
 
   return (
-    <FlatList
-      key="workouts-list-single-column"
-      data={sortedWorkoutsData}
-      renderItem={({ item }) => {
+    <View style={styles.workoutsListSingleColumn}>
+      {sortedWorkoutsData.map((item) => {
         if (!item.isPublic && !isOwnProfile) {
           return null;
         }
 
         return (
           <WorkoutListItem 
+            key={item.id.toString()}
             workout={item}
             onPress={onWorkoutPress}
             isOwnProfile={isOwnProfile}
           />
         );
-      }}
-      keyExtractor={(item) => item.id.toString()}
-      contentContainerStyle={styles.workoutsListSingleColumn} 
-      showsVerticalScrollIndicator={false}
-      refreshControl={
-        <RefreshControl
-          refreshing={refreshing}
-          onRefresh={onRefresh}
-          tintColor="#FFFFFF"
-          colors={["#FFFFFF"]}
-          progressBackgroundColor="#212121"
-        />
-      }
-    />
+      })}
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   postsContainer: {
     padding: 0,
+  },
+  postsRow: {
+    flexDirection: 'row',
   },
   postImage: {
     width: Dimensions.get('window').width / 3,
