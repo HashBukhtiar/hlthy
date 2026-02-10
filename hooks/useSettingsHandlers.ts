@@ -66,74 +66,46 @@ export function useSettingsHandlers(props: UseSettingsHandlersProps) {
           text: "Discard",
           style: "destructive",
           onPress: async () => {
-            console.log('[Discard] ========== DISCARD FLOW START ==========');
-            console.log('[Discard] Current profileImage:', profileImage);
-            console.log('[Discard] Current originalProfileImage:', originalProfileImage);
-            console.log('[Discard] userProfile.profileImageUrl:', userProfile?.profileImageUrl);
-            
             try {
               // Delete the temporary uploaded image if one exists
               if (profileImage !== originalProfileImage && profileImage) {
-                console.log('[Discard] Deleting temporary image:', profileImage);
                 try {
                   await deleteImageFromStorage(profileImage);
-                  console.log('[Discard] ✓ Deleted temporary profile image');
                 } catch (deleteError) {
-                  console.error('[Discard] ✗ Error deleting temporary profile image:', deleteError);
+                  console.error('Error deleting temporary profile image:', deleteError);
                 }
-              } else {
-                console.log('[Discard] No temporary image to delete (images match or no profile image)');
               }
             } catch (error) {
-              console.error('[Discard] ✗ Error during discard cleanup:', error);
+              console.error('Error during discard cleanup:', error);
             }
 
-            // Restore Firebase document to original image URL if image was changed
-            console.log('[Discard] Restoring Firebase document to originalProfileImage...');
-            
+            // Restore Firebase document to original image URL
             try {
               if (currentUser?.uid) {
                 const userDocRef = doc(db, 'users', currentUser.uid);
-                console.log('[Discard] Updating Firebase with originalProfileImage:', originalProfileImage);
-                
-                // Always update Firebase, even if originalProfileImage is empty/null
-                // This ensures we properly restore to "no profile image" state if needed
                 await updateDoc(userDocRef, {
                   profileImageUrl: originalProfileImage || null,
-                  profileThumbnailUrl: null, // Cloud function will regenerate if needed
+                  profileThumbnailUrl: null,
                 });
-                
-                console.log('[Discard] ✓ Firebase document restored to original image');
               }
             } catch (updateError) {
-              console.error('[Discard] ✗ Error restoring Firebase document:', updateError);
+              console.error('Error restoring Firebase document:', updateError);
             }
 
-            // Reset state flags BEFORE refreshing to prevent race conditions
-            console.log('[Discard] Resetting state flags...');
+            // Reset state flags
             setImageManuallyChanged(false);
             setHasUnsavedChanges(false);
-            
-            // Set the correct image immediately - always use originalProfileImage
-            console.log('[Discard] ----- Restoration Decision -----');
-            console.log('[Discard] originalProfileImage:', originalProfileImage);
-            console.log('[Discard] Setting profileImage to originalProfileImage');
             setProfileImage(originalProfileImage);
-            console.log('[Discard] ✓ profileImage state updated');
 
-            // Now refresh the context to sync with the restored Firebase data
+            // Refresh the context to sync with the restored Firebase data
             try {
-              console.log('[Discard] Refreshing AuthContext...');
               await refreshUserProfile();
-              console.log('[Discard] ✓ AuthContext refreshed');
             } catch (refreshError) {
-              console.error('[Discard] ✗ Error refreshing AuthContext:', refreshError);
+              console.error('Error refreshing AuthContext:', refreshError);
             }
 
-            // Give React more time to process state updates and propagate through the component tree
+            // Give React time to process state updates
             await new Promise(resolve => setTimeout(resolve, 300));
-            console.log('[Discard] ========== DISCARD FLOW END ==========');
-            console.log('[Discard] Navigating back...');
             router.back();
           },
         },
@@ -230,7 +202,6 @@ export function useSettingsHandlers(props: UseSettingsHandlersProps) {
       };
 
       await updateDoc(doc(db, 'users', currentUser!.uid), firestoreUpdateData);
-      console.log('[Settings] Firestore update successful');
 
       if (imageHasChanged) {
         try {
@@ -241,7 +212,7 @@ export function useSettingsHandlers(props: UseSettingsHandlersProps) {
             try {
               await deleteImageFromStorage(oldThumbnailUrl);
             } catch (thumbError) {
-              console.log('Thumbnail deletion optional');
+              // Thumbnail deletion is optional
             }
           }
         } catch (deleteError) {
@@ -412,14 +383,12 @@ export function useSettingsHandlers(props: UseSettingsHandlersProps) {
         try {
           await NotificationService.removePushToken(currentUser.uid);
           await NotificationService.clearCachedTokens();
-          console.log('Push tokens cleared successfully');
         } catch (tokenError) {
           console.error('Error cleaning up tokens (continuing with logout):', tokenError);
         }
       }
 
       await signOut(auth);
-      console.log('User signed out');
 
       await new Promise(resolve => setTimeout(resolve, 300));
       router.replace('/landing');

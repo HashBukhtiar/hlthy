@@ -205,14 +205,12 @@ export function useProfileData(userId = null, contextUserProfile: UserProfile | 
   const fetchProfileData = useCallback(async () => {
     // Prevent duplicate fetches
     if (isFetching.current) {
-      console.log('Fetch already in progress, skipping duplicate call');
       return;
     }
 
     if (!profileIdToFetch) {
       setLoading(false);
       setError(new Error("No profile ID available to fetch data."));
-      console.log("No profileIdToFetch, returning early from fetchProfileData");
       return;
     }
     
@@ -220,7 +218,6 @@ export function useProfileData(userId = null, contextUserProfile: UserProfile | 
     if (!currentUser?.uid) {
       // Only clear once to avoid redundant state updates
       if (!hasCleared.current) {
-        console.log("User logged out, cancelling profile data fetch");
         setLoading(false);
         setLoadingWorkouts(false);
         setProfileData(null);
@@ -239,7 +236,6 @@ export function useProfileData(userId = null, contextUserProfile: UserProfile | 
     
     // Skip if we just fetched this user
     if (lastFetchedUserId.current === profileIdToFetch) {
-      console.log('Already fetched profile for:', profileIdToFetch);
       return;
     }
     
@@ -248,7 +244,6 @@ export function useProfileData(userId = null, contextUserProfile: UserProfile | 
     isFetching.current = true;
     lastFetchedUserId.current = profileIdToFetch;
     
-    console.log(`Fetching profile data for ID (fetchProfileData): ${profileIdToFetch}`);
     setLoading(true);
     setLoadingWorkouts(true);
     setError(null);
@@ -268,7 +263,6 @@ export function useProfileData(userId = null, contextUserProfile: UserProfile | 
         
         // Check if user still exists after async operation
         if (!currentUser?.uid) {
-          console.log("User logged out during profile fetch, aborting");
           setLoading(false);
           setLoadingWorkouts(false);
           return;
@@ -281,15 +275,12 @@ export function useProfileData(userId = null, contextUserProfile: UserProfile | 
           }; 
           // Process the raw user data through our migration function
           userData = processUserProfile(rawUserData);
-          console.log("User profile data retrieved and processed for:", profileIdToFetch);
         } else {
-          console.log("User profile not found for:", profileIdToFetch);
           throw new Error("User profile not found.");
         }
       } catch (profileError) {
         // Don't log errors if user logged out
         if (!currentUser?.uid) {
-          console.log("Profile fetch cancelled - user logged out");
           setLoading(false);
           setLoadingWorkouts(false);
           return;
@@ -318,7 +309,6 @@ export function useProfileData(userId = null, contextUserProfile: UserProfile | 
             authorProfileThumbnailUrl: userData.profileThumbnailUrl,
           };
         });
-        console.log(`Retrieved ${userPosts.length} user posts for:`, profileIdToFetch);
       } catch (postsError) {
         console.error("Error fetching posts:", postsError);
       }
@@ -358,7 +348,6 @@ export function useProfileData(userId = null, contextUserProfile: UserProfile | 
             }
             return milestone;
           });
-        console.log(`Extracted ${userMilestonesRaw.length} raw milestones from posts for:`, profileIdToFetch);
       } catch (milestoneError) {
         console.error("Error processing milestones:", milestoneError);
       }
@@ -371,7 +360,6 @@ export function useProfileData(userId = null, contextUserProfile: UserProfile | 
         );
         const workoutsSnapshot = await getDocs(workoutsQuery);
         userWorkouts = workoutsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        console.log(`Retrieved ${userWorkouts.length} workouts for:`, profileIdToFetch);
       } catch (workoutsError) {
         console.error("Error fetching workouts:", workoutsError);
       }
@@ -400,7 +388,6 @@ export function useProfileData(userId = null, contextUserProfile: UserProfile | 
             userSavedWorkouts = savedWorkoutResults.filter(workout => workout !== null);
           }
           
-          console.log(`Retrieved ${userSavedWorkouts.length} saved workouts for:`, profileIdToFetch);
         } catch (savedWorkoutsError) {
           console.error("Error fetching saved workouts:", savedWorkoutsError);
         }
@@ -411,7 +398,6 @@ export function useProfileData(userId = null, contextUserProfile: UserProfile | 
         const followersQuery = query(collection(db, "users", profileIdToFetch, "followers"));
         const followersSnap = await getDocs(followersQuery);
         userFollowers = followersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        console.log(`Retrieved ${userFollowers.length} followers for:`, profileIdToFetch);
       } catch (followersError) {
         console.error("Error fetching followers:", followersError);
       }
@@ -421,7 +407,6 @@ export function useProfileData(userId = null, contextUserProfile: UserProfile | 
         const followingQuery = query(collection(db, "users", profileIdToFetch, "following"));
         const followingSnap = await getDocs(followingQuery);
         userFollowingData = followingSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        console.log(`Retrieved ${userFollowingData.length} following for:`, profileIdToFetch);
       } catch (followingError) {
         console.error("Error fetching following:", followingError);
       }
@@ -437,7 +422,6 @@ export function useProfileData(userId = null, contextUserProfile: UserProfile | 
           } else {
             setIsRequestPending(false);
           }
-          console.log(`Follow status for ${profileIdToFetch} by ${currentUser.uid}: following=${followDoc.exists()}, pending=${!followDoc.exists() && isRequestPending}`);
         } catch (followStatusError) {
           console.error("Error checking follow/pending status:", followStatusError);
         }
@@ -456,12 +440,9 @@ export function useProfileData(userId = null, contextUserProfile: UserProfile | 
       setSavedWorkouts(userSavedWorkouts);
       setFollowers(userFollowers);
       setFollowing(userFollowingData);
-
-      console.log("Profile data refresh complete for:", profileIdToFetch);
     } catch (err) {
       // Don't log errors if user logged out
       if (!currentUser?.uid) {
-        console.log("Error during fetch - user logged out, ignoring");
         return;
       }
       console.error("Error in fetchProfileData:", err);
@@ -470,7 +451,6 @@ export function useProfileData(userId = null, contextUserProfile: UserProfile | 
       if (currentUser?.uid) {
         setLoading(false);
         setLoadingWorkouts(false);
-        console.log("Loading set to false for:", profileIdToFetch);
       }
       isFetching.current = false;
     }
@@ -506,11 +486,9 @@ export function useProfileData(userId = null, contextUserProfile: UserProfile | 
       if (message.includes("pending approval")) {
         setIsRequestPending(true);
         setIsFollowingStatus(false);
-        console.log("Follow request sent to private account:", targetUserId);
       } else {
         setIsFollowingStatus(true);
         setIsRequestPending(false);
-        console.log("Successfully followed public account:", targetUserId);
       }
     } catch (error) {
       console.error("Error in follow operation:", error);
@@ -542,16 +520,13 @@ export function useProfileData(userId = null, contextUserProfile: UserProfile | 
       const pendingRequestSnap = await getDoc(pendingFollowerRef);
       if (pendingRequestSnap.exists()) {
         // This means the current user had sent a request to targetUserId, and is now cancelling it.
-        console.log("Cancelling sent follow request to user:", targetUserId);
         const cancelRequestFunction = httpsCallable(functions, 'cancelSentFollowRequest');
         await cancelRequestFunction({ targetUserId: targetUserId });
         setIsRequestPending(false);
-        console.log("Cancelled follow request to user:", targetUserId);
       } else {
         // Public unfollow → call Cloud Function
         await unfollowUserFn({ targetUserId });
         setIsFollowingStatus(false);
-        console.log("Successfully unfollowed user:", targetUserId);
       }
     } catch (error) {
       console.error("Error in unfollow/cancel request operation:", error);
@@ -562,7 +537,6 @@ export function useProfileData(userId = null, contextUserProfile: UserProfile | 
 
   // Memoize refreshProfileData as well
   const refreshProfileData = useCallback(async () => {
-    console.log("Manual refresh triggered for profile ID:", profileIdToFetch);
     await fetchProfileData();
   }, [fetchProfileData]);
 
@@ -582,13 +556,10 @@ export function useProfileData(userId = null, contextUserProfile: UserProfile | 
       lastFetchedUserId.current = null; // Reset last fetched user
     }
     
-    console.log("useEffect in useProfileData triggered. profileIdToFetch:", profileIdToFetch);
-    
     // Don't fetch if user is logged out
     if (!currentUserId) {
       // Only clear once per logout
       if (!hasCleared.current) {
-        console.log("No current user, clearing profile data");
         setLoading(false);
         setLoadingWorkouts(false);
         setProfileData(null);
@@ -610,8 +581,7 @@ export function useProfileData(userId = null, contextUserProfile: UserProfile | 
     if (profileIdToFetch) {
       fetchProfileData();
     } else {
-      setLoading(false); 
-      console.log("profileIdToFetch is null/undefined in useEffect, not fetching.");
+      setLoading(false);
     }
   }, [fetchProfileData, profileIdToFetch, currentUser?.uid]);
 
