@@ -121,6 +121,27 @@ service cloud.firestore {
       allow read, write: if isOwner(userId);
     }
     
+    // Workout Logs - User's completed workout sessions
+    match /users/{userId}/workout_logs/{logId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && 
+        request.resource.data.userId == userId &&
+        request.resource.data.keys().hasAll(['userId', 'workoutName', 'startedAt', 'completedAt', 'exercises']);
+      allow update: if isOwner(userId) && 
+        resource.data.userId == userId;
+      allow delete: if isOwner(userId);
+    }
+    
+    // Exercise History - Per-exercise stats and personal records
+    match /users/{userId}/exercise_history/{exerciseId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && 
+        request.resource.data.userId == userId;
+      allow update: if isOwner(userId) && 
+        resource.data.userId == userId;
+      allow delete: if isOwner(userId);
+    }
+    
     match /users/{userId}/conversations/{conversationId} {
       allow read: if isOwner(userId);
       allow write: if isAuthenticated() &&
