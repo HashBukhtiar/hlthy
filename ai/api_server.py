@@ -220,6 +220,7 @@ def chat():
         conversation_history = data.get('conversation_history', [])
         workout_preferences = data.get('workout_preferences')
         editing_workout = data.get('editing_workout')
+        workout_history = data.get('workout_history')  # Recent workout logs and exercise performance
         
         if not message:
             return jsonify({"error": "Missing message field"}), 400
@@ -229,6 +230,8 @@ def chat():
             print(f"  📋 Workout preferences: {workout_preferences}")
         if editing_workout:
             print(f"  ✏️  Editing workout: {editing_workout.get('name', 'Unknown')}")
+        if workout_history:
+            print(f"  📊 Workout history: {len(workout_history.get('recent_workouts', []))} recent workouts, {len(workout_history.get('exercise_history', {}))} exercises tracked")
         
         # Use AI Orchestrator if available
         if ai_orchestrator:
@@ -245,6 +248,10 @@ def chat():
                 # Add editing context if user is editing a workout
                 if editing_workout:
                     context_data['editing_workout'] = editing_workout
+                
+                # Add workout history for progressive overload coaching
+                if workout_history:
+                    context_data['workout_history'] = workout_history
                 
                 result = ai_orchestrator.process_message(user_id, message, context_data)
                 

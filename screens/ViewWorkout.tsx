@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { ScrollView, View, Text, TouchableOpacity, Image, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { ScrollView, View, Text, TouchableOpacity, Image, StyleSheet, ActivityIndicator, Alert, Platform, SafeAreaView } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import ShareModal from '@/components/ShareModal';
 import ReportModal from '@/components/ReportModal';
@@ -10,6 +11,8 @@ import { doc, getDoc, Timestamp, updateDoc, increment, setDoc, deleteDoc, collec
 import { useAuth } from '@/context/AuthContext'; 
 import { getCoverImageSource, deleteImageFromStorage } from '@/utils/imageUtils';
 import { useBlockEnforcement } from '@/utils/blockUtils';
+import { LinearGradient } from 'expo-linear-gradient';
+import * as Haptics from 'expo-haptics';
 import { ACCENT_COLOR } from '@/constants/Colors';
 
 // Interface for individual exercise within a segment
@@ -51,6 +54,7 @@ export default function ViewWorkout() {
   const workoutId = params.id as string;
   const { currentUser } = useAuth();
   const { canInteractWithUser } = useBlockEnforcement();
+  const insets = useSafeAreaInsets();
 
   const [workoutData, setWorkoutData] = useState<WorkoutData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -276,9 +280,20 @@ export default function ViewWorkout() {
     
     setShareModalVisible(true);
   };
+
+  const handleStartWorkout = () => {
+    if (!currentUser) {
+      Alert.alert("Please log in", "You need to be logged in to start a workout.");
+      return;
+    }
+    
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    router.push(`/active-workout/${workoutId}`);
+  };
   
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+    <SafeAreaView style={styles.mainContainer}>
+      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color="white" />
@@ -461,10 +476,34 @@ export default function ViewWorkout() {
         />
       )}
     </ScrollView>
+    
+    {/* Start Workout Button */}
+    <View style={[styles.startButtonContainer, { paddingBottom: Math.max(insets.bottom, 20) + 35 }]}>
+      <TouchableOpacity 
+        style={styles.startButton} 
+        onPress={handleStartWorkout}
+        activeOpacity={0.8}
+      >
+        <LinearGradient
+          colors={['#ff2d55', '#d91a40']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={styles.startButtonGradient}
+        >
+          <Ionicons name="play" size={22} color="#fff" />
+          <Text style={styles.startButtonText}>Start Workout</Text>
+        </LinearGradient>
+      </TouchableOpacity>
+    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  mainContainer: {
+    flex: 1,
+    backgroundColor: 'black',
+  },
   container: { 
     flex: 1, 
     backgroundColor: 'black',
@@ -676,7 +715,30 @@ const styles = StyleSheet.create({
     fontWeight: '400', 
   },
   bottomPadding: {
-    height: 80,
+    height: 140,
+  },
+  startButtonContainer: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    backgroundColor: 'rgba(0,0,0,0.98)',
+    borderTopWidth: 1,
+    borderTopColor: '#222',
+  },
+  startButton: {
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  startButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    gap: 10,
+  },
+  startButtonText: {
+    color: '#fff',
+    fontSize: 17,
+    fontWeight: '700',
   },
   clickableText: {
     textDecorationLine: 'underline',
