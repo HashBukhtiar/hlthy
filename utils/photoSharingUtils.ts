@@ -19,36 +19,21 @@ const getFileSizeAsync = async (uri: string): Promise<number> => {
  */
 export interface SharedPhoto {
   id: string;
-  imageUrl: string;           // Optimized/compressed version
-  thumbnailUrl?: string;      // Ultra-lightweight thumbnail
+  imageUrl: string;           // Photo URL
+  thumbnailUrl?: string;      // Currently same as imageUrl (no separate thumbnail)
   originalFileSize?: number;  // Original file size in bytes
-  compressedFileSize?: number; // Compressed file size in bytes
+  compressedFileSize?: number; // Currently same as originalFileSize (no compression)
   timestamp?: number;
 }
 
 /**
- * Compression configuration for different quality levels
- */
-const COMPRESSION_CONFIG = {
-  thumbnail: {
-    quality: 0.3,
-    maxWidth: 200,
-    maxHeight: 200,
-  },
-  display: {
-    quality: 0.6,
-    maxWidth: 800,
-    maxHeight: 1200,
-  },
-};
-
-/**
  * Compresses an image file to a target quality and size
- * Uses native JPEG compression via file manipulation
+ * NOTE: Currently just copies the file without actual compression.
+ * To implement real compression, integrate a native image manipulation library.
  * @param sourceUri - File URI of the source image
- * @param quality - JPEG quality (0-1)
- * @param maxWidth - Maximum width in pixels
- * @param maxHeight - Maximum height in pixels
+ * @param quality - JPEG quality (0-1) - NOT CURRENTLY USED
+ * @param maxWidth - Maximum width in pixels - NOT CURRENTLY USED
+ * @param maxHeight - Maximum height in pixels - NOT CURRENTLY USED
  * @returns Compressed image URI and file size
  */
 export const compressImage = async (
@@ -65,10 +50,9 @@ export const compressImage = async (
 
     // Read the original file size
     const originalFileSize = await getFileSizeAsync(sourceUri);
-    console.log(`Original image size: ${(originalFileSize / 1024 / 1024).toFixed(2)} MB`);
 
-    // For React Native, we can't do actual image compression without native modules
-    // Instead, we read the source and write it to cache, letting Firebase handle optimization
+    // NOTE: For React Native, we can't do actual image compression without native modules
+    // This function currently just copies the file without compression
     // Read source file as base64
     const base64Data = await FileSystem.readAsStringAsync(sourceUri, {
       encoding: 'base64',
@@ -97,7 +81,7 @@ export const compressImage = async (
 };
 
 /**
- * Uploads a photo to Firebase Storage
+ * Uploads a photo to Firebase Storage (without compression)
  * @param imageUri - Local URI of the image
  * @param conversationId - ID of the conversation for storage path
  * @param userId - ID of the user uploading
@@ -114,15 +98,12 @@ export const uploadPhotoToChat = async (
 
     // Get original file info
     const originalFileSize = await getFileSizeAsync(imageUri);
-    console.log(`Uploading photo (${(originalFileSize / 1024 / 1024).toFixed(2)} MB)...`);
 
     // Upload photo to Storage
     const photoRef = ref(
       storage,
       `conversations/${conversationId}/photos/${photoId}/photo.jpg`
     );
-    
-    console.log('Storage path:', `conversations/${conversationId}/photos/${photoId}/photo.jpg`);
     
     // For React Native, fetch the file as a blob using XMLHttpRequest
     const photoBlob = await new Promise<Blob>((resolve, reject) => {
@@ -140,12 +121,6 @@ export const uploadPhotoToChat = async (
     
     await uploadBytesResumable(photoRef, photoBlob, { contentType: 'image/jpeg' });
     const imageUrl = await getDownloadURL(photoRef);
-    
-    console.log('Generated image URL:', imageUrl);
-    console.log('Image URL type:', typeof imageUrl);
-    console.log('Image URL length:', imageUrl?.length);
-
-    console.log('Photo uploaded successfully!');
 
     return {
       id: photoId,
@@ -194,6 +169,7 @@ const deletePhotoFromStorage = async (storageRef: any): Promise<void> => {
 
 /**
  * Calculates storage savings from compression
+ * NOTE: Currently returns 0 savings since no compression is implemented
  * @param originalSize - Original file size in bytes
  * @param compressedSize - Compressed file size in bytes
  * @returns Savings percentage and absolute size reduction
