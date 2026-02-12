@@ -511,14 +511,14 @@ const MessageItem = React.memo<{
           ]}
           onPress={() => onViewPhoto?.({
             imageUrl: item.sharedPhoto!.imageUrl,
-            fileSize: item.sharedPhoto!.originalFileSize
+            fileSize: item.sharedPhoto!.compressedFileSize ?? item.sharedPhoto!.originalFileSize
           })}
           onLongPress={() => onLongPress(item)}
           delayLongPress={500}
           activeOpacity={0.8}
         >
           <Image
-            source={{ uri: item.sharedPhoto.imageUrl }}
+            source={{ uri: getOptimalImageUrl(item.sharedPhoto.thumbnailUrl, item.sharedPhoto.imageUrl) }}
             style={styles.sharedPhotoImage}
             resizeMode="contain"
             onError={(error) => {
