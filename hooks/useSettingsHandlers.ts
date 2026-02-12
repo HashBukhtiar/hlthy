@@ -22,6 +22,7 @@ interface UseSettingsHandlersProps {
   settings: Partial<UserSettings>;
   userProfile: any;
   currentUser: any;
+  hasUnsavedChanges: boolean;
   setProfileImage: (url: string | undefined) => void;
   setImageManuallyChanged: (changed: boolean) => void;
   setHasUnsavedChanges: (changed: boolean) => void;
@@ -53,7 +54,10 @@ export function useSettingsHandlers(props: UseSettingsHandlersProps) {
   } = props;
 
   const handleBackPress = useCallback(async () => {
-    if (originalProfileImage === profileImage) {
+    const hasUnsavedChanges = originalProfileImage !== profileImage;
+    const hasUnsavedSettings = props.hasUnsavedChanges;
+    
+    if (!hasUnsavedChanges && !hasUnsavedSettings) {
       router.back();
       return;
     }
