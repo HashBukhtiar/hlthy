@@ -3,15 +3,11 @@ import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebas
 import { storage } from '@/firebaseConfig';
 import { v4 as uuidv4 } from 'uuid';
 
-// Helper function to get file size by reading as base64
+// Helper function to get file size using metadata (no file read needed)
 const getFileSizeAsync = async (uri: string): Promise<number> => {
   try {
-    // Read file as base64 and calculate actual file size
-    const base64 = await FileSystem.readAsStringAsync(uri, {
-      encoding: 'base64',
-    });
-    // Base64 encoding expands by ~33%, so: base64Length * 3 / 4 = actual bytes
-    return Math.ceil((base64.length * 3) / 4);
+    const fileInfo = await FileSystem.getInfoAsync(uri, { size: true });
+    return fileInfo.exists && 'size' in fileInfo ? fileInfo.size : 0;
   } catch (error) {
     console.error('Error getting file size:', error);
     return 0;
