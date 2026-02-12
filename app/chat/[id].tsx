@@ -873,7 +873,7 @@ export default function ChatScreen() {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
         allowsEditing: false,
-        quality: 1, // We'll handle compression server-side
+        quality: 0.7, // Balanced quality to reduce upload size
         exif: false,
       });
 
@@ -948,7 +948,7 @@ export default function ChatScreen() {
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ['images'],
         allowsEditing: false,
-        quality: 1,
+        quality: 0.7, // Balanced quality to reduce upload size
         exif: false,
       });
 
