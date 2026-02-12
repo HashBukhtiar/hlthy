@@ -873,7 +873,7 @@ export default function ChatScreen() {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
         allowsEditing: false,
-        quality: 0.7,
+        quality: 0.7, 
         exif: false,
       });
 

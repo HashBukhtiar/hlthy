@@ -26,9 +26,8 @@ export const sendMessageRequest = onCall(
       // Get recipient's profile and message permissions
       const recipientDoc = await db.collection("users").doc(recipientId).get();
       if (!recipientDoc.exists) {
-        logger.error(`Recipient user document not found for ${recipientId}`);
-        // Allow the message to go through anyway - the conversation might still be valid
-        return {success: true, requestNeeded: false};
+        // Fail explicitly when the recipient user document does not exist
+        throw new HttpsError("not-found", "Recipient user not found");
       }
 
       const recipientData = recipientDoc.data()!;
