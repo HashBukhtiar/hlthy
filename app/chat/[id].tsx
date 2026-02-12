@@ -496,13 +496,6 @@ const MessageItem = React.memo<{
     }
 
     if (item.sharedPhoto) {
-      console.log('=== RENDERING SHARED PHOTO ===');
-      console.log('Photo ID:', item.sharedPhoto.id);
-      console.log('Image URL:', item.sharedPhoto.imageUrl);
-      console.log('URL starts with https:', item.sharedPhoto.imageUrl?.startsWith('https://'));
-      console.log('URL includes firebasestorage:', item.sharedPhoto.imageUrl?.includes('firebasestorage'));
-      console.log('===========================');
-      
       return (
         <TouchableOpacity
           style={[
@@ -521,22 +514,6 @@ const MessageItem = React.memo<{
             source={{ uri: getOptimalImageUrl(item.sharedPhoto.thumbnailUrl, item.sharedPhoto.imageUrl) }}
             style={styles.sharedPhotoImage}
             resizeMode="contain"
-            onError={(error) => {
-              console.error('❌ IMAGE LOAD ERROR ❌');
-              console.error('URL:', item.sharedPhoto?.imageUrl);
-              console.error('Error:', error.nativeEvent.error);
-              console.error('Error type:', typeof error.nativeEvent.error);
-            }}
-            onLoadStart={() => {
-              console.log('🔄 Loading image from:', item.sharedPhoto?.imageUrl);
-            }}
-            onLoad={(event) => {
-              console.log('✅ Image loaded successfully');
-              console.log('Image dimensions:', event.nativeEvent.source);
-            }}
-            onLayout={(event) => {
-              console.log('Image layout:', event.nativeEvent.layout);
-            }}
           />
         </TouchableOpacity>
       );
