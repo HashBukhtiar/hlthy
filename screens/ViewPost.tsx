@@ -1439,7 +1439,7 @@ export default function ViewPost() {
         </Modal>
 
         {/* Report Post Modal */}
-        {post && post.authorId !== currentUser?.uid && (
+        {post.authorId !== currentUser?.uid && (
           <ReportModal
             visible={reportModalVisible}
             onClose={() => setReportModalVisible(false)}

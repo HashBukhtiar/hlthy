@@ -446,7 +446,7 @@ export default function ViewWorkout() {
         onShareWith={shareWorkoutWithUser}
       />
       {/* Report Modal - only for non-owner */}
-      {workoutData && currentUser && workoutData.creatorId !== currentUser.uid && (
+      {currentUser && workoutData.creatorId !== currentUser.uid && (
         <ReportModal
           visible={reportModalVisible}
           onClose={() => setReportModalVisible(false)}

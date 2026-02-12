@@ -168,7 +168,7 @@ export default function EmailVerificationGuard({ children }: EmailVerificationGu
   }
 
   // If user is not logged in, return null immediately to prevent render loop
-  if (!authLoading && !currentUser) {
+  if (!currentUser) {
     return null;
   }
 
