@@ -1,5 +1,5 @@
 import React from 'react';
-import { View } from 'react-native';
+import { View, Text } from 'react-native';
 import { CustomSelector, SelectorItem } from '@/components/CustomSelector';
 
 interface SettingsModalsProps {
@@ -239,15 +239,15 @@ export function SettingsModals({
                       marginBottom: 8,
                     }}
                   >
-                    <View style={{ color: '#fff', fontSize: 14, lineHeight: 20 }}>
+                    <Text style={{ color: '#fff', fontSize: 14, lineHeight: 20 }}>
                       {insight}
-                    </View>
+                    </Text>
                   </View>
                 ))
               ) : (
-                <View style={{ color: '#999', fontSize: 14, textAlign: 'center', fontStyle: 'italic' }}>
+                <Text style={{ color: '#999', fontSize: 14, textAlign: 'center', fontStyle: 'italic' }}>
                   No insights available
-                </View>
+                </Text>
               )}
             </View>
 
@@ -268,7 +268,7 @@ export function SettingsModals({
                   alignItems: 'center',
                 }}
               >
-                <View style={{ color: '#fff', fontSize: 16, fontWeight: '500' }}>Close</View>
+                <Text style={{ color: '#fff', fontSize: 16, fontWeight: '500' }}>Close</Text>
               </View>
             </View>
           </View>
