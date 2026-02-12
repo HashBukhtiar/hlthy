@@ -191,8 +191,12 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
     }).start();
   }, [horizontalOffset, screenWidth]);
 
-  const panResponder = useRef(
-    PanResponder.create({
+  // Keep a ref to snapToTab so the PanResponder always calls the latest version
+  const snapToTabRef = useRef(snapToTab);
+  useEffect(() => { snapToTabRef.current = snapToTab; }, [snapToTab]);
+
+  const panResponder = useMemo(
+    () => PanResponder.create({
       onMoveShouldSetPanResponder: (_evt, gestureState) => {
         // Only capture horizontal gestures; let vertical pass to outer ScrollView
         return Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 1.5 && Math.abs(gestureState.dx) > 8;
@@ -221,14 +225,17 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
           }
         }
         
-        snapToTab(newIndex);
+        snapToTabRef.current(newIndex);
       },
+      // Prevent the parent ScrollView from stealing the gesture mid-swipe
+      onPanResponderTerminationRequest: () => false,
       onPanResponderTerminate: () => {
         // If gesture is interrupted, snap back to current tab
-        snapToTab(currentTabIndex.current);
+        snapToTabRef.current(currentTabIndex.current);
       },
-    })
-  ).current;
+    }),
+    [horizontalOffset, screenWidth]
+  );
 
   const handleSettingsPress = () => {
     console.log(`Settings clicked`);
