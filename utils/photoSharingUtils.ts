@@ -6,7 +6,7 @@ import { v4 as uuidv4 } from 'uuid';
 // Helper function to get file size using metadata (no file read needed)
 const getFileSizeAsync = async (uri: string): Promise<number> => {
   try {
-    const fileInfo = await FileSystem.getInfoAsync(uri, { size: true });
+    const fileInfo = await FileSystem.getInfoAsync(uri);
     return fileInfo.exists && 'size' in fileInfo ? fileInfo.size : 0;
   } catch (error) {
     console.error('Error getting file size:', error);

@@ -511,7 +511,7 @@ const MessageItem = React.memo<{
           activeOpacity={0.8}
         >
           <Image
-            source={{ uri: getOptimalImageUrl(item.sharedPhoto.thumbnailUrl, item.sharedPhoto.imageUrl) }}
+            source={{ uri: getOptimalImageUrl(item.sharedPhoto.thumbnailUrl, item.sharedPhoto.imageUrl) || undefined }}
             style={styles.sharedPhotoImage}
             resizeMode="contain"
           />
