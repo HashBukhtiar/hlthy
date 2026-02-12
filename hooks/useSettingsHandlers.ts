@@ -1,17 +1,15 @@
 import { useCallback } from 'react';
 import { Alert } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useAuth } from '@/context/AuthContext';
 import { httpsCallable } from 'firebase/functions';
 import { signOut } from 'firebase/auth';
 import { auth, functions, db } from '@/firebaseConfig';
-import { doc, updateDoc, getDoc } from 'firebase/firestore';
+import { doc, updateDoc } from 'firebase/firestore';
 import { deleteImageFromStorage } from '@/utils/imageUtils';
 import { UserSettings } from '@/types/settings';
 import { validateSettings, sanitizeSettings } from '@/utils/settingsValidation';
 import { createSettingsBackup, restoreSettingsBackup } from '@/utils/settingsBackup';
 import { exportSettings, importSettings } from '@/utils/settingsExport';
-import { trackSettingsChange } from '@/utils/settingsAnalytics';
 import { uploadProfileImage } from '@/services/profileStorage';
 import { NotificationService } from '@/services/NotificationService';
 import * as ImagePicker from 'expo-image-picker';

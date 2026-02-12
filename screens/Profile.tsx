@@ -13,6 +13,9 @@ import { useUnits } from '@/hooks/useUnits';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/firebaseConfig';
 import { OptimizedImageLight } from '@/components/OptimizedImage';
+import { getOptimalImageUrl, getCoverImageSource, DEFAULT_PROFILE_IMAGE } from '@/utils/imageUtils';
+import { SocialLinksDisplay } from '@/components/SocialLinksDisplay';
+import ReportModal from '@/components/ReportModal';
 
 const archetypeIcons = {
   'athlete': require('@/assets/images/athlete.png'),
@@ -30,11 +33,6 @@ const archetypeDescriptions = {
   'generalist': 'Well-rounded fitness approach with balanced strength, cardio, and flexibility goals.',
   'powerlifter': 'Specialized in maximizing strength in the squat, bench press, and deadlift.',
 };
-import { getOptimalImageUrl, getCoverImageSource, DEFAULT_PROFILE_IMAGE } from '@/utils/imageUtils';
-import { MilestoneDetails } from '@/types/milestone';
-import { SocialLinksDisplay } from '@/components/SocialLinksDisplay';
-import ReportModal from '@/components/ReportModal';
-import { ContentSnapshot } from '@/types/report';
 
 interface ProfileScreenProps {
   userId?: string;

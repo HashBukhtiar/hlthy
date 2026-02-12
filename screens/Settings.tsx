@@ -12,7 +12,7 @@ import { validatePlatformUrl, validateCustomUrl, usernameToUrl, VERIFIED_PLATFOR
 import { generateSettingsInsights, calculatePrivacyLevel, trackSettingsChange } from '@/utils/settingsAnalytics';
 import { useSettingsHandlers } from '@/hooks/useSettingsHandlers';
 import { SettingsModals } from '@/components/settings/SettingsModals';
-import { CustomSelector, SelectorItem } from '@/components/CustomSelector';
+import { SelectorItem } from '@/components/CustomSelector';
 import { getOptimalImageUrl } from '@/utils/imageUtils';
 
 
@@ -471,6 +471,7 @@ export default function Settings() {
     settings,
     userProfile,
     currentUser,
+    hasUnsavedChanges,
     setProfileImage,
     setImageManuallyChanged,
     setHasUnsavedChanges,

@@ -17,8 +17,6 @@ import { db } from '@/firebaseConfig';
 import { getOptimalImageUrl, deleteImageFromStorage, deleteMilestoneFromFirestore } from '@/utils/imageUtils';
 import { useBlockEnforcement } from '@/utils/blockUtils';
 import { useUnits } from '@/hooks/useUnits';
-import { getFunctions, httpsCallable } from 'firebase/functions';
-import { app } from '@/firebaseConfig';
 import { ACCENT_COLOR } from '@/constants/Colors';
 
 export default function ViewPost() {

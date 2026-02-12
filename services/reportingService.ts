@@ -6,10 +6,6 @@ import {
   arrayUnion, 
   increment,
   Timestamp,
-  collection,
-  query,
-  where,
-  getDocs
 } from 'firebase/firestore';
 import { db } from '@/firebaseConfig';
 import { 
