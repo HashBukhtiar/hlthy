@@ -202,6 +202,9 @@ export const calculateStorageSavings = (
   originalSize: number,
   compressedSize: number
 ): { percentage: number; bytes: number } => {
+  if (originalSize <= 0) {
+    return { percentage: 0, bytes: 0 };
+  }
   const savings = originalSize - compressedSize;
   const percentage = (savings / originalSize) * 100;
   return { percentage, bytes: savings };
