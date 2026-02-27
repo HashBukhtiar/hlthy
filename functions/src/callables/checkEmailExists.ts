@@ -1,5 +1,5 @@
 import {onCall, HttpsError} from "firebase-functions/v2/https";
-import {getAuth} from "./firebaseAdmin";
+import {getAuth} from "../admin/firebaseAdmin";
 
 /**
  * Callable function used by the client to check whether an email is already registered.
