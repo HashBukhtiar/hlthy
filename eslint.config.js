@@ -67,12 +67,12 @@ module.exports = [
     // Remove each entry from this list as its domain moves to features/.
     files: [
       // hooks/useFeedData.tsx graduated — Phase 3 complete
+      // hooks/useContentActions.ts graduated — no firebase/firestore imports
+      // hooks/useReporting.tsx graduated — no firebase/firestore imports
+      // hooks/useProfileActions.ts graduated — dead Firestore call removed
       'hooks/usePostsData.tsx',
       'hooks/useProfileData.tsx',
-      'hooks/useProfileActions.ts',
-      'hooks/useContentActions.ts',
       'hooks/useSettingsHandlers.ts',
-      'hooks/useReporting.tsx',
     ],
     rules: {
       'no-restricted-imports': 'off',
