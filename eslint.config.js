@@ -26,9 +26,9 @@ module.exports = [
     rules: {
       // Prevent direct Firebase SDK imports in presentation and application layers.
       // Repositories in features/*/infra/ are the only allowed Firestore access point.
-      // Currently 'warn' during migration; promote to 'error' per directory as domains migrate.
+      // All hooks and screens have been migrated — rule promoted from 'warn' to 'error'.
       'no-restricted-imports': [
-        'warn',
+        'error',
         {
           paths: [
             {

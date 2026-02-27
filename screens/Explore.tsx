@@ -1,40 +1,14 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { View, TouchableOpacity, Text, TextInput, StyleSheet, ActivityIndicator, Image, FlatList, Animated } from 'react-native';
 import { useRouter } from 'expo-router';
 import globalStyles from '@/styles/globalStyles';
-import { collection, query, where, getDocs, limit, orderBy, startAfter, QueryDocumentSnapshot, DocumentData, QuerySnapshot } from 'firebase/firestore';
-import { db } from '@/firebaseConfig';
-import { useAuth } from '@/context/AuthContext';
 import { LinearGradient } from 'expo-linear-gradient';
 import { getOptimalImageUrl } from '@/utils/imageUtils';
-import { useBlockEnforcement } from '@/utils/blockUtils';
 import { OptimizedImageLight } from '@/components/OptimizedImage';
+import { useExplore } from '@/features/explore/ui/useExplore';
+import type { ExplorePost, UserSearchResult } from '@/features/explore/domain/ExploreTypes';
 
-interface ExplorePost {
-  id: string;
-  imageUrl: string;
-  thumbnailUrl?: string;
-  authorId?: string;
-  authorArchetype?: string;
-  isArchetypePost?: boolean;
-}
-
-interface UserSearchResult {
-  id: string;
-  username?: string;
-  displayName?: string;
-  profilePictureUrl?: string;
-  profileThumbnailUrl?: string;
-}
-
-// Fisher-Yates shuffle algorithm
-const shuffleArray = (array: any[]) => {
-  for (let i = array.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [array[i], array[j]] = [array[j], array[i]];
-  }
-  return array;
-};
+// ── Sub-components ───────────────────────────────────────────────────────────
 
 const ShimmerPlaceholder = () => {
   const animatedValue = new Animated.Value(0);
@@ -59,10 +33,7 @@ const ShimmerPlaceholder = () => {
       <Animated.View
         style={[
           StyleSheet.absoluteFill,
-          { 
-            transform: [{ translateX }],
-            backgroundColor: 'transparent',
-          },
+          { transform: [{ translateX }], backgroundColor: 'transparent' },
         ]}
       >
         <LinearGradient
@@ -82,16 +53,13 @@ const PostGridItem = ({ item, onPress }: { item: ExplorePost; onPress: () => voi
   const onImageLoad = () => {
     Animated.timing(imageOpacity, {
       toValue: 1,
-      duration: 300, // Fade in duration
+      duration: 300,
       useNativeDriver: true,
     }).start();
   };
 
   return (
-    <TouchableOpacity
-      style={styles.postPreview}
-      onPress={onPress}
-    >
+    <TouchableOpacity style={styles.postPreview} onPress={onPress}>
       <ShimmerPlaceholder />
       <Animated.View style={[styles.postImage, { position: 'absolute', opacity: imageOpacity }]}>
         <OptimizedImageLight
@@ -105,309 +73,20 @@ const PostGridItem = ({ item, onPress }: { item: ExplorePost; onPress: () => voi
   );
 };
 
+// ── Screen ───────────────────────────────────────────────────────────────────
+
 export default function Explore() {
   const router = useRouter();
-  const { userProfile, currentUser } = useAuth();
-  const { canInteractWithUser } = useBlockEnforcement();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<UserSearchResult[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [searchPerformed, setSearchPerformed] = useState(false);
-
-  const [posts, setPosts] = useState<ExplorePost[]>([]);
-  const [loadingPosts, setLoadingPosts] = useState(false);
-
-  // New state for dual pagination
-  const [lastVisibleArchetype, setLastVisibleArchetype] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
-  const [lastVisiblePopular, setLastVisiblePopular] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
-  const [nextFetchType, setNextFetchType] = useState<'archetype' | 'popular'>('archetype');
-
-  const [allPostsLoaded, setAllPostsLoaded] = useState(false);
-
-  // Debounce timer ref - Use number type for React Native
-  const debounceTimer = useRef<number | null>(null);
-
-  // Actual search function (separated from input handler)
-  const performSearch = useCallback(async (searchText: string) => {
-    if (searchText.trim().length < 2) {
-      setSearchResults([]);
-      setSearchPerformed(false);
-      setIsLoading(false);
-      return;
-    }
-
-    setIsLoading(true);
-    setSearchPerformed(true);
-    
-    try {
-      const usersRef = collection(db, 'users');
-      const q = query(
-        usersRef,
-        where('username', '>=', searchText.toLowerCase()),
-        where('username', '<=', searchText.toLowerCase() + '\uf8ff'),
-        limit(20) // Fetch more to account for filtering
-      );
-      const querySnapshot = await getDocs(q);
-      
-      // Filter out blocked users
-      const users: UserSearchResult[] = [];
-      querySnapshot.docs.forEach(doc => {
-        const userData = doc.data();
-        const userId = doc.id;
-        
-        // Skip current user and blocked users
-        if (userId === currentUser?.uid) return;
-        
-        // Check if we can interact with this user
-        if (canInteractWithUser(userId, userData.blockedUsers)) {
-          users.push({
-            id: userId,
-            username: userData.username,
-            displayName: userData.displayName,
-            profilePictureUrl: userData.profileImageUrl,
-            profileThumbnailUrl: userData.profileThumbnailUrl,
-          });
-        }
-      });
-      
-      // Limit final results
-      setSearchResults(users.slice(0, 10));
-    } catch (error) {
-      console.error("Error searching users:", error);
-      setSearchResults([]);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [canInteractWithUser, currentUser?.uid]);
-
-  // Debounced search handler
-  const handleSearch = useCallback((text: string) => {
-    setSearchQuery(text);
-    
-    // Clear existing timer
-    if (debounceTimer.current) {
-      clearTimeout(debounceTimer.current);
-    }
-    
-    // If search is empty, immediately clear results
-    if (text.trim().length === 0) {
-      setSearchResults([]);
-      setSearchPerformed(false);
-      setIsLoading(false);
-      return;
-    }
-    
-    // Show loading state immediately for better UX
-    if (text.trim().length >= 2) {
-      setIsLoading(true);
-    }
-    
-    // Set new timer with 300ms delay
-    debounceTimer.current = setTimeout(() => {
-      performSearch(text);
-    }, 300);
-  }, [performSearch]);
-
-  // Cleanup debounce timer on unmount
-  useEffect(() => {
-    return () => {
-      if (debounceTimer.current) {
-        clearTimeout(debounceTimer.current);
-      }
-    };
-  }, []);
-
-  const checkArchetypePosts = async () => {
-    try {
-      console.log("Running diagnostic query for 'bodybuilder' archetype...");
-      const postsRef = collection(db, 'posts');
-      const q = query(postsRef, where('authorArchetype', '==', 'bodybuilder'));
-      const querySnapshot = await getDocs(q);
-
-      if (querySnapshot.empty) {
-        console.log("DIAGNOSTIC: No documents found with authorArchetype: 'bodybuilder'. Check your Firestore data for exact spelling and case.");
-      } else {
-        console.log(`DIAGNOSTIC: Found ${querySnapshot.size} documents with this archetype.`, 'Now checking other fields:');
-        querySnapshot.forEach(doc => {
-          const data = doc.data();
-          console.log({
-            id: doc.id,
-            visibility: data.visibility, // Should be 'public'
-            imageUrl: data.imageUrl,     // Should not be null
-            authorArchetype: data.authorArchetype,
-          });
-        });
-      }
-    } catch (error) {
-      console.error("DIAGNOSTIC ERROR:", error);
-      console.log("If you see a 'FAILED_PRECONDITION' error, Firestore requires a composite index. The error message will contain a link to create it in the Firebase console.");
-    }
-  };
-
-  // You can call it from your useEffect like this to test:
-  useEffect(() => {
-    if (!searchQuery) {
-      fetchExplorePosts();
-      console.log('checking....')
-      checkArchetypePosts(); // <-- Add this call for testing
-    }
-  }, [userProfile]);
-
-  const fetchExplorePosts = useCallback(async (isInitialLoad = false) => {
-    if (loadingPosts || (!isInitialLoad && allPostsLoaded) || !currentUser) return;
-
-    setLoadingPosts(true);
-    try {
-      const postsRef = collection(db, 'posts');
-      const userArchetype = userProfile?.archetype;
-      const BATCH_SIZE = 12;
-      let fetchedPosts: ExplorePost[] = [];
-
-      if (isInitialLoad) {
-        // Reset pagination states
-        setLastVisibleArchetype(null);
-        setLastVisiblePopular(null);
-        setAllPostsLoaded(false);
-        
-        // --- Initial Load: Fetch both archetype and popular posts sequentially ---
-        let archetypePosts: ExplorePost[] = [];
-        let popularPosts: ExplorePost[] = [];
-
-        // 1. Fetch Archetype Posts
-        if (userArchetype) {
-          const archetypeQuery = query(
-            postsRef,
-            where('visibility', '==', 'public'),
-            where('authorArchetype', '==', userArchetype),
-            where('imageUrl', '!=', null), // Exclude posts without images
-            orderBy('createdAt', 'desc'),
-            limit(BATCH_SIZE)
-          );
-          const archetypeSnapshot = await getDocs(archetypeQuery);
-          archetypePosts = archetypeSnapshot.docs
-            .map(doc => ({ id: doc.id, imageUrl: doc.data().imageUrl, thumbnailUrl: doc.data().thumbnailUrl, authorId: doc.data().authorId, isArchetypePost: true }))
-            .filter(p => p.authorId !== currentUser.uid);
-          if (archetypeSnapshot.docs.length > 0) {
-            setLastVisibleArchetype(archetypeSnapshot.docs[archetypeSnapshot.docs.length - 1]);
-          }
-        }
-
-        // 2. Fetch Popular Posts
-        const popularQuery = query(
-          postsRef,
-          where('visibility', '==', 'public'),
-          where('imageUrl', '!=', null),
-          orderBy('reactionCount', 'desc'),
-          orderBy('createdAt', 'desc'),
-          limit(BATCH_SIZE)
-        );
-        const popularSnapshot = await getDocs(popularQuery);
-        popularPosts = popularSnapshot.docs
-          .map(doc => {
-            const data = doc.data();
-            return {
-              id: doc.id,
-              imageUrl: data.imageUrl,
-              thumbnailUrl: data.thumbnailUrl,
-              authorId: data.authorId,
-              authorArchetype: data.authorArchetype,
-              isArchetypePost: false,
-            };
-          })
-          .filter(p => p.authorId !== currentUser.uid && p.authorArchetype !== userArchetype);
-        if (popularSnapshot.docs.length > 0) {
-          setLastVisiblePopular(popularSnapshot.docs[popularSnapshot.docs.length - 1]);
-        }
-        
-        // 3. Combine and set initial posts
-        const archetypePostIds = new Set(archetypePosts.map(p => p.id));
-        const uniquePopularPosts = popularPosts.filter(p => !archetypePostIds.has(p.id));
-
-        fetchedPosts = shuffleArray([...archetypePosts, ...uniquePopularPosts]);
-        setPosts(fetchedPosts);
-        setNextFetchType('archetype'); // Start pagination with archetype posts
-
-      } else {
-        // --- Pagination Logic (On-Scroll) ---
-        const currentFetchType = nextFetchType;
-        let querySnapshot: QuerySnapshot<DocumentData>;
-
-        if (currentFetchType === 'archetype' && userArchetype) {
-          const archetypeQuery = query(
-            postsRef,
-            where('visibility', '==', 'public'),
-            where('authorArchetype', '==', userArchetype),
-            where('imageUrl', '!=', null), // Exclude posts without images
-            orderBy('createdAt', 'desc'),
-            ...(lastVisibleArchetype ? [startAfter(lastVisibleArchetype)] : []),
-            limit(BATCH_SIZE)
-          );
-          querySnapshot = await getDocs(archetypeQuery);
-          fetchedPosts = querySnapshot.docs
-            .map(doc => ({ id: doc.id, imageUrl: doc.data().imageUrl, thumbnailUrl: doc.data().thumbnailUrl, authorId: doc.data().authorId, isArchetypePost: true }))
-            .filter(p => p.authorId !== currentUser.uid);
-          if (querySnapshot.docs.length > 0) {
-            setLastVisibleArchetype(querySnapshot.docs[querySnapshot.docs.length - 1]);
-          }
-          setNextFetchType('popular');
-
-        } else {
-          const popularQuery = query(
-            postsRef,
-            where('visibility', '==', 'public'),
-            where('imageUrl', '!=', null),
-            orderBy('reactionCount', 'desc'),
-            orderBy('createdAt', 'desc'),
-            ...(lastVisiblePopular ? [startAfter(lastVisiblePopular)] : []),
-            limit(BATCH_SIZE)
-          );
-          querySnapshot = await getDocs(popularQuery);
-          fetchedPosts = querySnapshot.docs
-            .map(doc => {
-              const data = doc.data();
-              return {
-                id: doc.id,
-                imageUrl: data.imageUrl,
-                thumbnailUrl: data.thumbnailUrl,
-                authorId: data.authorId,
-                authorArchetype: data.authorArchetype,
-                isArchetypePost: false,
-              };
-            })
-            .filter(p => p.authorId !== currentUser.uid && p.authorArchetype !== userArchetype);
-          if (querySnapshot.docs.length > 0) {
-            setLastVisiblePopular(querySnapshot.docs[querySnapshot.docs.length - 1]);
-          }
-          setNextFetchType('archetype');
-        }
-
-        if (querySnapshot.empty) {
-          if (nextFetchType === 'popular') {
-             setNextFetchType('archetype');
-          } else {
-            setAllPostsLoaded(true);
-          }
-        } else {
-            setPosts(prevPosts => {
-                const existingPostIds = new Set(prevPosts.map(p => p.id));
-                const uniqueNewPosts = fetchedPosts.filter(p => !existingPostIds.has(p.id));
-                return [...prevPosts, ...uniqueNewPosts];
-            });
-        }
-      }
-
-    } catch (error) {
-      console.error("Error fetching explore posts:", error);
-    } finally {
-      setLoadingPosts(false);
-    }
-  }, [loadingPosts, allPostsLoaded, userProfile, currentUser, lastVisibleArchetype, lastVisiblePopular, nextFetchType]);
-
-  useEffect(() => {
-    if (!searchQuery) {
-      fetchExplorePosts(true);
-    }
-  }, [userProfile]);
+  const {
+    searchQuery,
+    searchResults,
+    searchLoading,
+    searchPerformed,
+    handleSearch,
+    posts,
+    loadingPosts,
+    loadMore,
+  } = useExplore();
 
   const renderSearchBar = () => (
     <View style={styles.searchBarView}>
@@ -442,19 +121,17 @@ export default function Explore() {
   );
 
   const renderSearchResultsView = () => {
-    if (isLoading) {
+    if (searchLoading) {
       return <ActivityIndicator size="large" color="#fff" style={{ marginTop: 20 }} />;
     }
-    if (!searchPerformed) {
-      return null;
-    }
+    if (!searchPerformed) return null;
     if (searchResults.length === 0 && searchQuery.trim().length >= 2) {
       return <Text style={styles.noResultsText}>No users found for "{searchQuery}"</Text>;
     }
     return (
       <FlatList
         data={searchResults}
-        keyExtractor={(item) => item.id}
+        keyExtractor={item => item.id}
         renderItem={({ item }) => renderUserResultItem(item)}
       />
     );
@@ -476,13 +153,17 @@ export default function Explore() {
       <FlatList
         data={posts}
         numColumns={3}
-        keyExtractor={(item) => item.id}
+        keyExtractor={item => item.id}
         renderItem={({ item }) => (
           <PostGridItem item={item} onPress={() => router.push(`/view-post/${item.id}`)} />
         )}
-        onEndReached={() => fetchExplorePosts(false)}
+        onEndReached={loadMore}
         onEndReachedThreshold={0.7}
-        ListFooterComponent={loadingPosts && posts.length > 0 ? <ActivityIndicator style={{ margin: 20 }} size="small" color="#FFF" /> : null}
+        ListFooterComponent={
+          loadingPosts && posts.length > 0
+            ? <ActivityIndicator style={{ margin: 20 }} size="small" color="#FFF" />
+            : null
+        }
       />
     );
   };
@@ -494,7 +175,9 @@ export default function Explore() {
       </View>
       {renderSearchBar()}
       <View style={{ flex: 1 }}>
-        {searchQuery.trim().length > 0 || searchPerformed ? renderSearchResultsView() : renderPostsGrid()}
+        {searchQuery.trim().length > 0 || searchPerformed
+          ? renderSearchResultsView()
+          : renderPostsGrid()}
       </View>
     </View>
   );
