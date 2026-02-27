@@ -30,118 +30,29 @@ const displayShortenedString = (str: string, maxLength: number): string => {
     return str.substring(0, maxLength) + '...';
 };
 
-export type { ActivityItem } from '@/features/notifications/domain/ActivityItem';
+import type { ActivityItem } from '@/features/notifications/domain/ActivityItem';
+export type { ActivityItem };
 
 export default function Pulse() {
     const router = useRouter();
     const authData = useAuth() as any;
     const currentUser = authData?.currentUser;
     const functions = getFunctions(app, 'northamerica-northeast2');
-    const { canInteractWithUser, isUserBlocked } = useBlockEnforcement();
+    const { canInteractWithUser } = useBlockEnforcement();
 
-    const [followRequests, setFollowRequests] = useState<ActivityItem[]>([]);
-    const [otherActivities, setOtherActivities] = useState<ActivityItem[]>([]);    
-    const [loading, setLoading] = useState(true);
-    const [loadingActivities, setLoadingActivities] = useState(true);
-    const [loadingRequests, setLoadingRequests] = useState(true);
+    const { followRequests, otherActivities, loadingRequests, loadingActivities } = usePulse();
+
     const [refreshing, setRefreshing] = useState(false);
     const [processingRequestInfo, setProcessingRequestInfo] = useState<{ id: string, action: 'accept' | 'ignore' } | null>(null);
     const fadeAnim = new Animated.Value(1); // Start visible
     const slideAnim = new Animated.Value(0); // Start in position
     const acceptRequestFunction = httpsCallable(functions, 'acceptfollowrequest');
 
-    // Pull to refresh handler
+    // Pull to refresh handler — listeners are real-time so just reset flag
     const onRefresh = async () => {
         setRefreshing(true);
-        // Refresh is handled by the real-time listeners, so just reset the refreshing state
         setTimeout(() => setRefreshing(false), 1000);
     };
-
-    // useEffect for Follow Requests
-    useEffect(() => {
-        if (!currentUser) {
-            setLoadingRequests(false);
-            setFollowRequests([]);
-            return;
-        }
-
-        setLoadingRequests(true);
-        const activityRef = collection(db, 'activity', currentUser.uid, 'userActivity');
-        
-        const followRequestsQuery = query(
-            activityRef,
-            where('type', '==', 'follow_request'),
-            where('status', '==', 'pending'),
-            orderBy('createdAt', 'desc')
-        );
-
-        const unsubscribeFollowRequests = onSnapshot(followRequestsQuery, (querySnapshot) => {
-            const fetchedFollowRequests: ActivityItem[] = [];
-            const seenUserIds = new Set<string>(); // Track unique fromUserId to prevent duplicates
-            
-            querySnapshot.forEach((doc) => {
-                const activityData = doc.data() as ActivityItem;
-                
-                // Filter out follow requests from blocked users and duplicates
-                if (!isUserBlocked(activityData.fromUserId) && !seenUserIds.has(activityData.fromUserId)) {
-                    seenUserIds.add(activityData.fromUserId);
-                    fetchedFollowRequests.push({ ...activityData, id: doc.id });
-                }
-            });
-            setFollowRequests(fetchedFollowRequests);
-            setLoadingRequests(false);
-        }, (error) => {
-            console.error("Error fetching follow requests: ", error);
-            setLoadingRequests(false);
-        });
-        
-        return () => {
-            unsubscribeFollowRequests();
-        };
-    }, [currentUser?.uid, isUserBlocked]);
-
-    useEffect(() => {
-        if (!currentUser) {
-            setLoadingActivities(false);
-            setOtherActivities([]); 
-            return;
-        }
-
-        setLoadingActivities(true);
-        const activityRef = collection(db, 'activity', currentUser.uid, 'userActivity');
-
-        const otherActivitiesQuery = query(
-            activityRef,
-            where('type', '!=', 'follow_request'),
-            orderBy('createdAt', 'desc')
-        );
-
-        const unsubscribeOtherActivities = onSnapshot(otherActivitiesQuery, (querySnapshot) => {
-            const fetchedOtherActivities: ActivityItem[] = [];
-            querySnapshot.forEach((doc) => {
-                const activityData = doc.data();
-                
-                // Skip follow requests and blocked users
-                if (activityData.type === 'follow_request') {
-                    return;
-                }
-                
-                // Filter out activities from blocked users
-                if (!isUserBlocked(activityData.fromUserId)) {
-                    fetchedOtherActivities.push({ ...activityData, id: doc.id } as ActivityItem);
-                }
-            });
-            setOtherActivities(fetchedOtherActivities);
-            setLoadingActivities(false);
-        }, (error) => {
-            console.error("Error fetching other activities: ", error);
-            setLoadingActivities(false);
-        });
-
-        return () => {
-            unsubscribeOtherActivities();
-        };
-    }, [currentUser?.uid, isUserBlocked]);
 
     const formatTimeAgo = (timestamp: Timestamp | undefined): string => {
         if (!timestamp) return '';
