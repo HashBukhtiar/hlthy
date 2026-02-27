@@ -4,8 +4,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import HomeFeed from '@/screens/HomeFeed';
 
 export default function HomeScreen() {
-  console.log('[HomeScreen] Rendering tabs/index.tsx');
-  
   try {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
