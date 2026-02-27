@@ -63,22 +63,6 @@ module.exports = [
     },
   },
   {
-    // Existing hooks have Firestore imports; suppress until each hook is migrated.
-    // Remove each entry from this list as its domain moves to features/.
-    files: [
-      // hooks/useFeedData.tsx graduated — Phase 3 complete
-      // hooks/useContentActions.ts graduated — no firebase/firestore imports
-      // hooks/useReporting.tsx graduated — no firebase/firestore imports
-      // hooks/useProfileActions.ts graduated — dead Firestore call removed
-      // hooks/useSettingsHandlers.ts graduated — Phase 6 settings repository
-      // hooks/usePostsData.tsx graduated — delegates to PostRepository
-      'hooks/useProfileData.tsx',
-    ],
-    rules: {
-      'no-restricted-imports': 'off',
-    },
-  },
-  {
     // Ignore generated/vendor directories.
     ignores: ['node_modules/**', '.expo/**', 'dist/**', 'build/**'],
   },
