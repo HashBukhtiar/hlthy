@@ -392,7 +392,9 @@ IMPORTANT: Return the FULL workout structure with ALL segments and exercises, no
                 profile=profile,
                 history=history,
                 allowed_exercises=allowed_exercises,
-                force_workout_generation=is_confirming
+                force_workout_generation=is_confirming,
+                workout_preferences=context_data.get('workout_preferences'),
+                workout_history=context_data.get('workout_history')
             )
             
             # Let Gemini decide what to do
@@ -515,9 +517,18 @@ IMPORTANT: Return the FULL workout structure with ALL segments and exercises, no
                 'error': str(e)
             }
     
-    def _build_orchestration_prompt(self, message: str, profile: Any, history: List, allowed_exercises: List, force_workout_generation: bool = False) -> str:
+    def _build_orchestration_prompt(self, message: str, profile: Any, history: List, allowed_exercises: List, force_workout_generation: bool = False, workout_preferences: Dict = None, workout_history: Dict = None) -> str:
         """
         Build comprehensive prompt for Gemini to orchestrate everything
+        
+        Args:
+            message: User's message
+            profile: User profile object
+            history: Conversation history
+            allowed_exercises: List of allowed exercises
+            force_workout_generation: Whether to force workout generation
+            workout_preferences: Workout structure preferences from frontend
+            workout_history: Recent workout logs and exercise performance data
         """
         # Format profile context with NEW fields
         profile_context = "No profile yet"
@@ -639,6 +650,50 @@ WORKOUT STRUCTURE PREFERENCES:
             exercise_names = [ex.get('name', '') for ex in allowed_exercises[:50]]
             exercises_context = f"Available: {', '.join(exercise_names)}"
         
+        # Format workout history context for progressive overload coaching
+        workout_history_context = "No workout history available"
+        if workout_history:
+            history_parts = []
+            
+            # Recent workouts summary
+            recent_workouts = workout_history.get('recent_workouts', [])
+            if recent_workouts:
+                history_parts.append("RECENT WORKOUTS:")
+                for workout in recent_workouts[:5]:  # Last 5 workouts
+                    date = workout.get('date', 'Unknown date')
+                    name = workout.get('name', 'Workout')
+                    volume = workout.get('totalVolume', 0)
+                    prs = workout.get('prsHit', 0)
+                    duration = workout.get('durationMinutes', 0)
+                    history_parts.append(f"  • {date}: {name} - {duration} min, {volume:,} lbs volume, {prs} PRs")
+            
+            # Exercise-specific performance history
+            exercise_history = workout_history.get('exercise_history', {})
+            if exercise_history:
+                history_parts.append("\nEXERCISE PERFORMANCE HISTORY:")
+                for exercise_name, data in list(exercise_history.items())[:10]:  # Top 10 exercises
+                    pr_weight = data.get('prWeight', 0)
+                    pr_reps = data.get('prReps', 0)
+                    pr_1rm = data.get('pr1RM', 0)
+                    last_weight = data.get('lastWeight', 0)
+                    last_reps = data.get('lastReps', 0)
+                    sessions = data.get('totalSessions', 0)
+                    trend = data.get('trend', 'stable')
+                    
+                    trend_emoji = {'improving': '📈', 'declining': '📉', 'stable': '➡️', 'new': '🆕'}.get(trend, '➡️')
+                    
+                    history_parts.append(f"  • {exercise_name}: PR {pr_weight}lbs x {pr_reps}, Last: {last_weight}lbs x {last_reps}, {sessions} sessions {trend_emoji}")
+            
+            # Weekly training volume/frequency
+            weekly_stats = workout_history.get('weekly_stats', {})
+            if weekly_stats:
+                workouts_this_week = weekly_stats.get('workoutsThisWeek', 0)
+                volume_this_week = weekly_stats.get('volumeThisWeek', 0)
+                history_parts.append(f"\nTHIS WEEK: {workouts_this_week} workouts, {volume_this_week:,} lbs total volume")
+            
+            if history_parts:
+                workout_history_context = "\n".join(history_parts)
+        
         prompt = f"""You are a professional fitness AI coach and workout programmer. Create personalized, safe, and effective workouts.
 
 USER MESSAGE: "{message}"
@@ -646,10 +701,30 @@ USER MESSAGE: "{message}"
 USER PROFILE:
 {profile_context}
 
+WORKOUT HISTORY & PERFORMANCE DATA:
+{workout_history_context}
+
 RECENT CONVERSATION HISTORY (READ THIS CAREFULLY - DO NOT ASK FOR INFO ALREADY PROVIDED):
 {history_context}
 
 {"🚨 URGENT: The user just confirmed their profile! SKIP STEP B and IMMEDIATELY generate the workout (type: workout_plan)! DO NOT ask for confirmation again!" if force_workout_generation else ""}
+
+PROGRESSIVE OVERLOAD COACHING (IMPORTANT - Act like a real personal trainer!):
+When the user has workout history, you should:
+1. Reference their recent performance: "I see you did 135lbs on bench last week..."
+2. Suggest progressive overload: "Let's try adding 5lbs today" or "Go for 1 more rep"
+3. Acknowledge PRs: "Great job hitting that PR on squats! 💪"
+4. Note declining performance: "I noticed your deadlift dropped - are you recovering well?"
+5. Track consistency: "You've been consistent with {X} workouts this week!"
+6. Provide context-aware suggestions: Base weight recommendations on their actual history
+7. Celebrate progress: "You've added 20lbs to your bench in the last month!"
+
+When generating workouts with history available:
+- Set "suggestedWeight" based on their last session + progressive overload
+- Reference specific exercises they've done and their typical weights
+- If they're improving: push them slightly harder
+- If they're declining: check on recovery, sleep, stress
+- If they're stable: suggest small increments to break plateaus
 
 CRITICAL INSTRUCTIONS:
 - READ THE CONVERSATION HISTORY ABOVE CAREFULLY
@@ -756,6 +831,7 @@ For workout generation (after confirmation):
     • Using [equipment] - [how this shaped exercise choices]
     • Targeting [goals] - [how workout structure supports this]
     [• Your preference for [preferences] - [how you incorporated it]]
+    [• Based on your recent workouts - [reference any history/PRs]]
     
     Let me know if you'd like any adjustments!",
     "workout": {{
@@ -778,7 +854,8 @@ For workout generation (after confirmation):
                         "rest_seconds": 60,
                         "notes": "Form cues and tips",
                         "muscle_groups": ["chest", "triceps"],
-                        "equipment": "none" or "dumbbells" etc.
+                        "equipment": "none" or "dumbbells" etc.,
+                        "suggestedWeight": 135  // Optional: Based on user's history + progressive overload
                     }}
                 ]
             }},

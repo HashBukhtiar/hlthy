@@ -175,6 +175,7 @@ export default function Workouts() {
     }, [currentUser]);
 
     const fetchTrendingWorkouts = useCallback(async () => {
+        if (!currentUser) return; // Don't fetch if user is not authenticated
         setLoadingTrending(true);
         try {
             const q = query(
@@ -203,15 +204,15 @@ export default function Workouts() {
         } finally {
             setLoadingTrending(false);
         }
-    }, []);
+    }, [currentUser]);
 
     useEffect(() => {
         if (currentUser) {
             fetchMyWorkouts();
             fetchFavoriteWorkouts();
-            fetchFollowingWorkouts(); 
+            fetchFollowingWorkouts();
+            fetchTrendingWorkouts();
         }
-        fetchTrendingWorkouts();
     }, [currentUser, fetchMyWorkouts, fetchFavoriteWorkouts, fetchTrendingWorkouts, fetchFollowingWorkouts]);
 
     useEffect(() => {

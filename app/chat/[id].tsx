@@ -20,6 +20,7 @@ import {
   Clipboard,
   ScrollView,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { db } from '@/firebaseConfig';
 import { 
   doc, 
@@ -47,8 +48,9 @@ import { SmartChatInput } from '@/components/SmartChatInput';
 import { IntentMessageWrapper } from '@/components/IntentBadge';
 import { MessageRenderer } from '@/components/ai/MessageRenderer';
 import { calculateImprovementPercentage } from '@/logic/milesonteUtils';
-import { getOptimalImageUrl } from '@/utils/imageUtils';
+import { uploadPhotoToChat, deletePhotoFromChat, formatFileSize } from '@/utils/photoSharingUtils';
 import { useUnits } from '@/hooks/useUnits';
+import { getOptimalImageUrl } from '@/utils/thumbnailUtils';
 
 interface FirestoreMessageData {
   senderId: string;
@@ -91,6 +93,13 @@ interface FirestoreMessageData {
     coverImageUrl?: string;
     thumbnailUrl?: string | null;
     creatorUsername: string;
+  };
+  sharedPhoto?: {
+    id: string;
+    imageUrl: string;
+    thumbnailUrl?: string;
+    originalFileSize?: number;
+    compressedFileSize?: number;
   };
 }
 
@@ -139,6 +148,13 @@ interface Message {
     thumbnailUrl?: string | null;
     creatorUsername: string;
     isAvailable?: boolean;
+  };
+  sharedPhoto?: {
+    id: string;
+    imageUrl: string;
+    thumbnailUrl?: string;
+    originalFileSize?: number;
+    compressedFileSize?: number;
   };
   type?: 'message' | 'dateHeader';
 }
@@ -232,6 +248,7 @@ async function convertFirestoreDoc(
     sharedPost: resolvedSharedPost,
     sharedMilestone: resolvedSharedMilestone,
     sharedWorkout: resolvedSharedWorkout,
+    sharedPhoto: data.sharedPhoto, // Include photo data
     type: "message",
   };
 }
@@ -246,8 +263,9 @@ const MessageItem = React.memo<{
   onConfirmProfile?: (preferences: any) => void;
   onEditWorkout?: (workout: any) => void;
   onSwipeActiveChange?: (active: boolean) => void;
+  onViewPhoto?: (photo: { imageUrl: string; fileSize?: number }) => void;
 }>(
-  ({ item, onLongPress, conversationId, onReprompt, onSendMessage, onConfirmProfile, onEditWorkout, onSwipeActiveChange }) => {
+  ({ item, onLongPress, conversationId, onReprompt, onSendMessage, onConfirmProfile, onEditWorkout, onSwipeActiveChange, onViewPhoto }) => {
     const router = useRouter();
     const { getWeightUnit, getDistanceUnit, convertWeight, convertDistance } = useUnits();
     
@@ -477,6 +495,30 @@ const MessageItem = React.memo<{
       );
     }
 
+    if (item.sharedPhoto) {
+      return (
+        <TouchableOpacity
+          style={[
+            styles.sharedPhotoContainer,
+            item.user === 'user' ? { alignSelf: 'flex-end' } : { alignSelf: 'flex-start' }
+          ]}
+          onPress={() => onViewPhoto?.({
+            imageUrl: item.sharedPhoto!.imageUrl,
+            fileSize: item.sharedPhoto!.compressedFileSize ?? item.sharedPhoto!.originalFileSize
+          })}
+          onLongPress={() => onLongPress(item)}
+          delayLongPress={500}
+          activeOpacity={0.8}
+        >
+          <Image
+            source={{ uri: getOptimalImageUrl(item.sharedPhoto.thumbnailUrl, item.sharedPhoto.imageUrl) || undefined }}
+            style={styles.sharedPhotoImage}
+            resizeMode="contain"
+          />
+        </TouchableOpacity>
+      );
+    }
+
     return (
       <IntentMessageWrapper 
         intent={item.intent} 
@@ -530,7 +572,8 @@ const MessageItem = React.memo<{
       prev.item.sharedPost?.thumbnailUrl === next.item.sharedPost?.thumbnailUrl &&
       prev.item.sharedMilestone?.isAvailable === next.item.sharedMilestone?.isAvailable &&
       prev.item.sharedWorkout?.isAvailable === next.item.sharedWorkout?.isAvailable &&
-      prev.item.sharedWorkout?.thumbnailUrl === next.item.sharedWorkout?.thumbnailUrl
+      prev.item.sharedWorkout?.thumbnailUrl === next.item.sharedWorkout?.thumbnailUrl &&
+      prev.item.sharedPhoto?.imageUrl === next.item.sharedPhoto?.imageUrl
     );
   }
 );
@@ -590,6 +633,9 @@ export default function ChatScreen() {
   const [editingWorkout, setEditingWorkout] = useState<any>(null);
   const [workoutPreferences, setWorkoutPreferences] = useState<any>(null);
   const [scrollEnabled, setScrollEnabled] = useState(true); // Control scroll locking
+  const [photoUploadProgress, setPhotoUploadProgress] = useState(false);
+  const [viewingPhoto, setViewingPhoto] = useState<{ imageUrl: string; fileSize?: number } | null>(null);
+  const [showPhotoOptions, setShowPhotoOptions] = useState(false);
   const thinkingDotAnimations = useRef([
     new Animated.Value(0.4),
     new Animated.Value(0.4),
@@ -813,6 +859,156 @@ export default function ChatScreen() {
     }
   };
 
+  const handlePhotoSelect = async () => {
+    try {
+      // Request permission
+      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      
+      if (!permissionResult.granted) {
+        Alert.alert('Permission Required', 'Camera roll access is needed to share photos.');
+        return;
+      }
+
+      // Launch image picker
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: false,
+        quality: 0.7, 
+        exif: false,
+      });
+
+      if (result.canceled) {
+        return;
+      }
+
+      const selectedAsset = result.assets[0];
+      if (!selectedAsset.uri) {
+        Alert.alert('Error', 'Failed to get image URI');
+        return;
+      }
+
+      // Upload photo
+      setPhotoUploadProgress(true);
+      try {
+        console.log('Starting photo upload...');
+        const sharedPhoto = await uploadPhotoToChat(
+          selectedAsset.uri,
+          conversationId,
+          currentUser!.uid
+        );
+
+        // Send message with photo
+        const messagesRef = collection(db, "conversations", conversationId, "messages");
+        const messageData: any = {
+          senderId: currentUser!.uid,
+          text: '',
+          createdAt: serverTimestamp(),
+          sharedPhoto: {
+            id: sharedPhoto.id,
+            imageUrl: sharedPhoto.imageUrl,
+            thumbnailUrl: sharedPhoto.thumbnailUrl,
+            originalFileSize: sharedPhoto.originalFileSize,
+            compressedFileSize: sharedPhoto.compressedFileSize,
+          },
+        };
+
+        await addDoc(messagesRef, messageData);
+
+        // Update conversation metadata with empty text but photo
+        await updateConversationMetadata(
+          conversationId,
+          currentUser!.uid,
+          '📷 Photo'
+        );
+
+        console.log('Photo sent successfully');
+      } catch (uploadError) {
+        console.error('Error uploading photo:', uploadError);
+        Alert.alert('Upload Failed', 'Failed to upload photo. Please try again.');
+      } finally {
+        setPhotoUploadProgress(false);
+      }
+    } catch (error) {
+      console.error('Error selecting photo:', error);
+      Alert.alert('Error', 'Failed to select photo');
+    }
+  };
+
+  const handlePhotoCapture = async () => {
+    try {
+      // Request camera permission
+      const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
+      
+      if (!permissionResult.granted) {
+        Alert.alert('Permission Required', 'Camera access is needed to take photos.');
+        return;
+      }
+
+      // Launch camera
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ['images'],
+        allowsEditing: false,
+        quality: 0.7, // Balanced quality to reduce upload size
+        exif: false,
+      });
+
+      if (result.canceled) {
+        return;
+      }
+
+      const selectedAsset = result.assets[0];
+      if (!selectedAsset.uri) {
+        Alert.alert('Error', 'Failed to get image URI');
+        return;
+      }
+
+      // Upload photo (same as library)
+      setPhotoUploadProgress(true);
+      try {
+        console.log('Starting photo upload from camera...');
+        const sharedPhoto = await uploadPhotoToChat(
+          selectedAsset.uri,
+          conversationId,
+          currentUser!.uid
+        );
+
+        // Send message with photo
+        const messagesRef = collection(db, "conversations", conversationId, "messages");
+        const messageData: any = {
+          senderId: currentUser!.uid,
+          text: '',
+          createdAt: serverTimestamp(),
+          sharedPhoto: {
+            id: sharedPhoto.id,
+            imageUrl: sharedPhoto.imageUrl,
+            thumbnailUrl: sharedPhoto.thumbnailUrl,
+            originalFileSize: sharedPhoto.originalFileSize,
+            compressedFileSize: sharedPhoto.compressedFileSize,
+          },
+        };
+
+        await addDoc(messagesRef, messageData);
+
+        // Update conversation metadata
+        await updateConversationMetadata(
+          conversationId,
+          currentUser!.uid,
+          '📷 Photo'
+        );
+
+        console.log('Photo from camera sent successfully');
+      } catch (uploadError) {
+        console.error('Error uploading photo from camera:', uploadError);
+        Alert.alert('Upload Failed', 'Failed to upload photo. Please try again.');
+      } finally {
+        setPhotoUploadProgress(false);
+      }
+    } catch (error) {
+      console.error('Error capturing photo:', error);
+      Alert.alert('Error', 'Failed to capture photo');
+    }
+  };
+
   const handleSend = async (textToSend: string, preferencesOverride?: any, intentResult?: IntentClassificationResult) => {
     Keyboard.dismiss();
     
@@ -995,11 +1191,12 @@ export default function ChatScreen() {
         // --- Normal Message Send Logic from main branch ---
         const conversationRef = doc(db, "conversations", conversationId);
 
-        await updateDoc(conversationRef, {
+        // Use setDoc with merge to avoid not-found error if conversation doesn't exist yet
+        await setDoc(conversationRef, {
           lastMessageAt: serverTimestamp(),
           lastMessageText: textToSend,
           lastMessageSenderId: currentUser.uid,
-        });
+        }, { merge: true });
 
         const userConvRef1 = doc(db, `users/${currentUser.uid}/conversations`, conversationId);
         await setDoc(
@@ -1014,20 +1211,21 @@ export default function ChatScreen() {
           { merge: true }
         );
 
-        // Update other participant's conversation reference if exists
+        // Update other participant's conversation reference
         if (otherParticipantId) {
           const userConvRef2 = doc(db, `users/${otherParticipantId}/conversations`, conversationId);
-          const otherUserConvSnap = await getDoc(userConvRef2);
-          if (otherUserConvSnap.exists()) {
-            await updateDoc(userConvRef2, {
-              lastMessageAt: serverTimestamp(),
-              lastMessageText: textToSend,
-            });
-          }
+          // Use setDoc with merge instead of checking existence to avoid race conditions
+          await setDoc(userConvRef2, {
+            otherParticipantId: currentUser.uid,
+            otherParticipantUsername: userProfile?.username || currentUser.displayName || currentUser.email || 'User',
+            otherParticipantProfileImage: currentUser.photoURL || '',
+            lastMessageAt: serverTimestamp(),
+            lastMessageText: textToSend,
+          }, { merge: true });
         }
       } catch (error) {
         console.error('Error updating conversation metadata:', error);
-        Alert.alert("Error", "Failed to update conversation. Please try again.");
+        // Don't show alert for metadata updates - the message was already sent successfully
       }
     }
   } catch (error) {
@@ -1056,8 +1254,17 @@ export default function ChatScreen() {
     }
     
     try {
+      // Delete photo from Storage if message has one
+      if (selectedMessage.sharedPhoto) {
+        console.log('Deleting photo from storage:', selectedMessage.sharedPhoto.id);
+        await deletePhotoFromChat(selectedMessage.sharedPhoto.id, conversationId);
+        console.log('Photo deleted from storage successfully');
+      }
+
+      console.log('Deleting message document:', selectedMessage.id);
       const messageRef = doc(db, "conversations", conversationId, "messages", selectedMessage.id);
       await deleteDoc(messageRef);
+      console.log('Message deleted from Firestore');
       
       setDeleteModalVisible(false);
       setSelectedMessage(null);
@@ -1065,36 +1272,38 @@ export default function ChatScreen() {
       const messagesQuery = query(
         collection(db, "conversations", conversationId, "messages"),
         orderBy("createdAt", "desc"),
-        limit(1) // We only need the new last message
+        limit(1)
       );
       const messagesSnapshot = await getDocs(messagesQuery);
       
       const conversationRef = doc(db, "conversations", conversationId);
       let newLastMessageText = "Message deleted";
-      let newLastMessageSenderId = null;
+      let newLastMessageSenderId: string | null = null;
       let newLastMessageAt: any = serverTimestamp();
 
       if (!messagesSnapshot.empty) {
         const lastMessageData = messagesSnapshot.docs[0].data() as FirestoreMessageData;
         newLastMessageText = lastMessageData.text || "Message deleted";
-        newLastMessageSenderId = lastMessageData.senderId;
-        newLastMessageAt = lastMessageData.createdAt;
+        newLastMessageSenderId = lastMessageData.senderId || null;
+        newLastMessageAt = lastMessageData.createdAt || serverTimestamp();
       } else {
         newLastMessageText = "";
       }
         
+      console.log('Updating conversation metadata');
       await updateDoc(conversationRef, {
         lastMessageText: newLastMessageText,
         lastMessageSenderId: newLastMessageSenderId,
         lastMessageAt: newLastMessageAt
       });
 
+      console.log('Updating current user conversation reference');
       const userConvRef1 = doc(db, `users/${currentUser.uid}/conversations`, conversationId);
       await setDoc(
         userConvRef1,
         {
-          otherParticipantId,
-          otherParticipantUsername: chatTitle,
+          otherParticipantId: otherParticipantId || '',
+          otherParticipantUsername: chatTitle || '',
           otherParticipantProfileImage: profileImageUrl || '',
           lastMessageAt: newLastMessageAt,
           lastMessageText: newLastMessageText,
@@ -1102,25 +1311,39 @@ export default function ChatScreen() {
         { merge: true }
       );
         
+      console.log('Fetching conversation data for other participant');
       const conversationSnap = await getDoc(conversationRef);
       const conversationData = conversationSnap.data();
-      const userConvRef2 = conversationData?.participants?.find((uid: string) => uid !== currentUser.uid);
+      
+      if (conversationData && conversationData.participants && Array.isArray(conversationData.participants)) {
+        const otherParticipantIdForRef = conversationData.participants.find((uid: string) => uid !== currentUser.uid);
+        console.log('Other participant ID:', otherParticipantIdForRef);
 
-      if (userConvRef2) {
-        await setDoc(
-          userConvRef2,
-          {
+        if (otherParticipantIdForRef && typeof otherParticipantIdForRef === 'string') {
+          console.log('Updating other user conversation reference');
+          const userConvRef2 = doc(db, `users/${otherParticipantIdForRef}/conversations`, conversationId);
+          const updateData = {
             otherParticipantId: currentUser.uid,
-            otherParticipantUsername: currentUser.displayName || currentUser.email || 'Current User',
+            otherParticipantUsername: currentUser.displayName || currentUser.email || 'User',
             otherParticipantProfileImage: currentUser.photoURL || '',
             lastMessageAt: newLastMessageAt,
             lastMessageText: newLastMessageText,
-          },
-          { merge: true }
-        );
+          };
+          console.log('Update data being sent:', updateData);
+          await setDoc(userConvRef2, updateData, { merge: true });
+          console.log('Other user conversation reference updated');
+        } else {
+          console.log('No other participant found or invalid type');
+        }
+      } else {
+        console.log('Conversation data structure invalid');
       }
     } catch (error) {
-      console.error("Error deleting message:", error);
+      console.error("Error deleting message - Full details:", error);
+      if (error instanceof Error) {
+        console.error("Error message:", error.message);
+        console.error("Error stack:", error.stack);
+      }
       Alert.alert("Error", "Failed to delete message. Please try again.");
     }
   };
@@ -1156,6 +1379,10 @@ export default function ChatScreen() {
     setScrollEnabled(!active);
   }, []);
 
+  const handleViewPhoto = useCallback((photo: { imageUrl: string; fileSize?: number }) => {
+    setViewingPhoto(photo);
+  }, []);
+
   const renderMessage = useCallback<ListRenderItem<Message>>(
     ({ item }) => (
       <MessageItem 
@@ -1167,9 +1394,10 @@ export default function ChatScreen() {
         onConfirmProfile={handleConfirmProfile}
         onEditWorkout={handleEditWorkout}
         onSwipeActiveChange={handleSwipeActiveChange}
+        onViewPhoto={handleViewPhoto}
       />
     ),
-    [handleLongPress, conversationId, handleReprompt, handleSend, handleConfirmProfile, handleEditWorkout, handleSwipeActiveChange]
+    [handleLongPress, conversationId, handleReprompt, handleSend, handleConfirmProfile, handleEditWorkout, handleSwipeActiveChange, handleViewPhoto]
   );
 
   return (
@@ -1325,6 +1553,48 @@ export default function ChatScreen() {
             </View>
           </TouchableOpacity>
         </Modal>
+
+        {/* Image Viewer Modal */}
+        <Modal
+          visible={!!viewingPhoto}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setViewingPhoto(null)}
+        >
+          <View style={styles.imageViewerOverlay}>
+            <TouchableOpacity
+              style={styles.imageViewerCloseArea}
+              activeOpacity={1}
+              onPress={() => setViewingPhoto(null)}
+            >
+              <SafeAreaView style={styles.imageViewerHeader}>
+                <TouchableOpacity
+                  style={styles.imageViewerCloseButton}
+                  onPress={() => setViewingPhoto(null)}
+                >
+                  <Ionicons name="close" size={28} color="white" />
+                </TouchableOpacity>
+              </SafeAreaView>
+              
+              <View style={styles.imageViewerContainer}>
+                <Image
+                  source={{ uri: viewingPhoto?.imageUrl || '' }}
+                  style={styles.imageViewerImage}
+                  resizeMode="contain"
+                />
+              </View>
+              
+              {viewingPhoto?.fileSize && (
+                <View style={styles.imageViewerInfoBar}>
+                  <Ionicons name="image" size={16} color="#ccc" style={{ marginRight: 6 }} />
+                  <Text style={styles.imageViewerInfoText}>
+                    {formatFileSize(viewingPhoto.fileSize)}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          </View>
+        </Modal>
         
         {/* Editing Workout Banner */}
         {editingWorkout && (
@@ -1346,16 +1616,76 @@ export default function ChatScreen() {
           </View>
         )}
         
-        {/* Smart Input with Intent Classification */}
-        <SmartChatInput
-          value={input}
-          onChangeText={setInput}
-          onSend={handleSend}
-          disabled={isAiThinking}
-          conversationId={conversationId}
-          otherParticipantId={otherParticipantId}
-          isAiConversation={conversationId.endsWith('_ai_conversation')}
-        />
+        {/* Photo Upload Progress */}
+        {photoUploadProgress && (
+          <View style={styles.photoUploadContainer}>
+            <ActivityIndicator size="small" color="#d466ff" style={{ marginRight: 8 }} />
+            <Text style={styles.photoUploadText}>Uploading photo...</Text>
+          </View>
+        )}
+
+        {/* Photo Options Modal */}
+        {showPhotoOptions && (
+          <TouchableOpacity 
+            style={styles.photoOptionsOverlay}
+            activeOpacity={1}
+            onPress={() => setShowPhotoOptions(false)}
+          >
+            <TouchableOpacity 
+              style={styles.photoOptionsMenu}
+              activeOpacity={1}
+              onPress={(e) => e.stopPropagation()}
+            >
+              <TouchableOpacity 
+                style={styles.photoOptionItem}
+                onPress={() => {
+                  setShowPhotoOptions(false);
+                  handlePhotoSelect();
+                }}
+              >
+                <View style={styles.photoOptionIconContainer}>
+                  <Ionicons name="image" size={24} color="#d466ff" />
+                </View>
+                <Text style={styles.photoOptionText}>Gallery</Text>
+              </TouchableOpacity>
+              <View style={styles.photoOptionDivider} />
+              <TouchableOpacity 
+                style={styles.photoOptionItem}
+                onPress={() => {
+                  setShowPhotoOptions(false);
+                  handlePhotoCapture();
+                }}
+              >
+                <View style={styles.photoOptionIconContainer}>
+                  <Ionicons name="camera" size={24} color="#d466ff" />
+                </View>
+                <Text style={styles.photoOptionText}>Camera</Text>
+              </TouchableOpacity>
+            </TouchableOpacity>
+          </TouchableOpacity>
+        )}
+        
+        {/* Input Container */}
+        <View style={styles.inputContainer}>
+          <View style={styles.unifiedInputPill}>
+            <TouchableOpacity 
+              style={styles.addPhotoButton}
+              onPress={() => setShowPhotoOptions(!showPhotoOptions)}
+              disabled={photoUploadProgress}
+            >
+              <Ionicons name="add" size={28} color={photoUploadProgress ? "#666" : "#d466ff"} />
+            </TouchableOpacity>
+            <SmartChatInput
+              value={input}
+              onChangeText={setInput}
+              onSend={handleSend}
+              disabled={isAiThinking || photoUploadProgress}
+              conversationId={conversationId}
+              otherParticipantId={otherParticipantId}
+              isAiConversation={conversationId.endsWith('_ai_conversation')}
+            />
+          </View>
+        </View>
       </View>
     </KeyboardAvoidingView>
   );
@@ -1468,12 +1798,20 @@ const styles = StyleSheet.create({
     alignItems: 'center'
   },
   inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
     paddingHorizontal: 10,
     paddingTop: 10,
     paddingBottom: 20,
     backgroundColor: '#1E1E1E',
+  },
+  unifiedInputPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#333',
+    borderRadius: 30,
+    borderWidth: 2,
+    borderColor: '#333',
+    overflow: 'hidden',
+    paddingLeft: 8,
   },
   input: {
     flex: 1,
@@ -2073,5 +2411,133 @@ const styles = StyleSheet.create({
     color: '#888',
     fontSize: 12,
     marginTop: 2,
+  },
+  // Photo Sharing Styles
+  sharedPhotoContainer: {
+    marginVertical: 8,
+    marginHorizontal: 10,
+    borderRadius: 12,
+    overflow: 'hidden',
+    maxWidth: 280,
+  },
+  sharedPhotoImage: {
+    width: 280,
+    height: 280,
+  },
+  // Image Viewer Modal Styles
+  imageViewerOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.95)',
+  },
+  imageViewerCloseArea: {
+    flex: 1,
+  },
+  imageViewerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    paddingHorizontal: 16,
+    paddingTop: 8,
+  },
+  imageViewerCloseButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  imageViewerContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+  },
+  imageViewerImage: {
+    width: '100%',
+    height: '100%',
+  },
+  imageViewerInfoBar: {
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  imageViewerInfoText: {
+    color: '#ccc',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  photoUploadContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(212, 102, 255, 0.1)',
+    paddingVertical: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#d466ff',
+  },
+  photoUploadText: {
+    color: '#d466ff',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  addPhotoButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(212, 102, 255, 0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
+  },
+  photoOptionsOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 1000,
+    justifyContent: 'flex-end',
+    paddingLeft: 10,
+    paddingBottom: 60,
+  },
+  photoOptionsMenu: {
+    backgroundColor: '#2a2a2a',
+    borderRadius: 12,
+    overflow: 'hidden',
+    minWidth: 160,
+    maxWidth: 200,
+    alignSelf: 'flex-start',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.5,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  photoOptionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+  },
+  photoOptionIconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(212, 102, 255, 0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  photoOptionText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  photoOptionDivider: {
+    height: 1,
+    backgroundColor: '#444',
   },
 });

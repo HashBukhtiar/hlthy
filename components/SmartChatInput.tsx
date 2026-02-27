@@ -171,7 +171,10 @@ export const SmartChatInput: React.FC<SmartChatInputProps> = ({
             onSend(messageText);
           }
         } catch (error: any) {
-          console.error('Error sending message:', error);
+          // Only log errors that aren't expected fallback scenarios
+          if (error.code !== 'functions/not-found' && error.message !== 'not-found') {
+            console.error('Error sending message:', error);
+          }
           
           if (error.code === 'functions/already-exists') {
             Alert.alert(
@@ -184,7 +187,7 @@ export const SmartChatInput: React.FC<SmartChatInputProps> = ({
               "You're unable to message this user."
             );
           } else {
-            // Fallback to normal send if cloud function fails
+            // Fallback to normal send if cloud function fails or isn't available
             onSend(messageText);
           }
         }
@@ -305,10 +308,7 @@ export const SmartChatInput: React.FC<SmartChatInputProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    paddingHorizontal: 10,
-    paddingTop: 10,
-    paddingBottom: 20,
-    backgroundColor: '#1E1E1E',
+    flex: 1,
   },
   intentIndicator: {
     marginBottom: 8,
@@ -349,12 +349,10 @@ const styles = StyleSheet.create({
   },
   inputRow: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
-    backgroundColor: '#333',
-    borderRadius: 25,
-    paddingHorizontal: 15,
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+    paddingRight: 15,
     paddingVertical: 8,
-    borderWidth: 2,
     gap: 10,
   },
   textInput: {

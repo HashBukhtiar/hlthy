@@ -27,6 +27,7 @@ export const updateUserSettings = onCall(
         "displayName", "bio", "archetype", "dateOfBirth", "profileImageUrl",
         "profileVisibility", "followPermission", "commentPermission", "messagePermission",
         "theme", "language", "units", "notifications", "twoFactorEnabled",
+        "socialLinks",
       ];
 
       const sanitizedSettings: any = {};
@@ -34,6 +35,20 @@ export const updateUserSettings = onCall(
         if (allowedFields.includes(key)) {
           sanitizedSettings[key] = value;
         }
+      }
+
+      // Validate socialLinks if present
+      if (settings.socialLinks) {
+        const validPlatforms = [
+          "instagram", "facebook", "twitter", "tiktok", "youtube",
+          "linkedin", "spotify", "snapchat", "twitch", "github",
+          "customUrl", "customLabel", "showLinksToFollowersOnly",
+        ];
+        Object.keys(settings.socialLinks).forEach((key) => {
+          if (!validPlatforms.includes(key)) {
+            throw new HttpsError("invalid-argument", `Invalid social link platform: ${key}`);
+          }
+        });
       }
 
       // Add metadata

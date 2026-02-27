@@ -1,13 +1,16 @@
-import { initializeApp, FirebaseApp } from 'firebase/app';
+import { initializeApp, FirebaseApp, getApps, getApp } from 'firebase/app';
 import { getAnalytics, isSupported } from 'firebase/analytics';
-import { getAuth, Auth, initializeAuth, getReactNativePersistence } from 'firebase/auth';
+import { getAuth, Auth } from 'firebase/auth';
 import { getFirestore, Firestore } from "firebase/firestore";
 import { getStorage, FirebaseStorage } from "firebase/storage";
 import { getFunctions } from 'firebase/functions';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import type { Functions } from 'firebase/functions';
 import { Platform } from 'react-native';
 
-// Firebase configuration
+/**
+ * Firebase configuration loaded from environment variables at runtime.
+ * Keep credentials out of source control; use environment management.
+ */
 const firebaseConfig = {
   apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.EXPO_PUBLIC_AUTH_DOMAIN,
@@ -25,24 +28,24 @@ let auth: Auth;
 let db: Firestore;
 let analytics;
 let storage: FirebaseStorage;
-let functions;
+let functions: Functions;
 
 try {
-  app = initializeApp(firebaseConfig);
-  
-  // Initialize Auth with persistence for React Native
-  if (Platform.OS === 'web') {
-    auth = getAuth(app);
+  // Reuse existing Firebase app instance when available (HMR-safe).
+  if (getApps().length === 0) {
+    app = initializeApp(firebaseConfig);
+    console.log("Firebase app initialized");
   } else {
-    auth = initializeAuth(app, {
-      persistence: getReactNativePersistence(AsyncStorage)
-    });
+    app = getApp();
+    console.log("Firebase app already initialized, reusing existing instance");
   }
-  
+  // Initialize core Firebase services.
+  auth = getAuth(app);
   db = getFirestore(app);
   storage = getStorage(app);
-  functions = getFunctions(app);
-  
+  functions = getFunctions(app, 'northamerica-northeast2');
+
+  // Initialize analytics only when supported in the runtime environment.
   isSupported()
     .then((supported) => {
       if (supported) {

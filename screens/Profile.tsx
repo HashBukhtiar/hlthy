@@ -86,7 +86,26 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
   const tabCenterOffset = (screenWidth / 3 - indicatorWidth) / 2;
 
   const isOwnProfile = !routeUserId || routeUserId === currentUser?.uid;
-  const displayProfileData = isOwnProfile ? (profileData || currentUserProfile) : profileData;
+  
+  // For own profile, merge profileData with currentUserProfile to get latest socialLinks
+  // currentUserProfile is updated immediately after settings save via refreshUserProfile()
+  const displayProfileData = useMemo(() => {
+    if (isOwnProfile) {
+      // Use profileData as base but overlay with currentUserProfile for fields that are updated in Settings
+      const baseData = profileData || currentUserProfile;
+      if (baseData && currentUserProfile) {
+        return {
+          ...baseData,
+          // Use currentUserProfile's values as they're updated immediately after save/discard
+          socialLinks: currentUserProfile.socialLinks,
+          profileImageUrl: currentUserProfile.profileImageUrl,
+          profileThumbnailUrl: currentUserProfile.profileThumbnailUrl,
+        };
+      }
+      return baseData;
+    }
+    return profileData;
+  }, [isOwnProfile, profileData, currentUserProfile]);
 
   useEffect(() => {
     if (displayProfileData?.blockedUsers && currentUser) {
@@ -238,12 +257,10 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
   );
 
   const handleSettingsPress = () => {
-    console.log(`Settings clicked`);
     router.push('/settings');
   };
 
   const handleImagePress = useCallback((post: any) => {
-    console.log(`Image clicked - Post ID: ${post.id}`);
     router.push({
       pathname: '/view-post/[id]',
       params: { id: post.id }
@@ -251,7 +268,6 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
   }, [router]);
 
   const handleMilestonePress = useCallback((postId: string) => {
-    console.log(`Milestone clicked, navigating to Post ID=${postId}`);
      router.push({
        pathname: '/view-milestone/[id]', 
        params: { id: postId }
@@ -259,7 +275,6 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
   }, [router]);
 
   const handleWorkoutPress = useCallback((workoutId: number) => {
-    console.log(`Workout clicked, navigating to Workout ID=${workoutId}`);
     router.push({
       pathname: '/view-workout/[id]',
       params: { id: workoutId.toString() }

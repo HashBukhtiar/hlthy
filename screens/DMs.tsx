@@ -15,16 +15,22 @@ import { functions } from '@/firebaseConfig';
 import MessageRequestItem from '@/components/MessageRequestItem';
 import { ACCENT_COLOR } from '@/constants/Colors';
 
+/**
+ * User-specific conversation metadata stored at
+ * `/users/{userId}/conversations/{conversationId}`.
+ */
 interface UserConversationData {
-    // Fields from /users/{userId}/conversations/{conversationId}
+    /** Last time this user read the conversation. */
     lastRead?: Timestamp;
     otherParticipantId?: string;
     otherParticipantUsername?: string;
     otherParticipantProfileImage?: string;
 }
 
+/**
+ * Shared conversation metadata stored at `/conversations/{conversationId}`.
+ */
 interface ConversationMetadata {
-    // Fields from /conversations/{conversationId}
     participants?: string[];
     lastMessageAt?: Timestamp;
     lastMessageText?: string;
@@ -34,6 +40,7 @@ interface ConversationMetadata {
     isPinnedAI?: boolean;
 }
 
+/** Combined view used by the UI (user + conversation metadata). */
 interface CombinedConversationItem extends UserConversationData, ConversationMetadata {
     id: string;
     isPinnedAI?: boolean;
@@ -60,19 +67,21 @@ const ChatItem = ({
     const router = useRouter();
     const [isPressed, setIsPressed] = useState(false);
 
-    // static assets
+    // Asset fallbacks and resolved avatar source.
+    const aiIcon = require('@/assets/images/icon.png');
     const fallback = require('@/assets/images/profile-icon.png');
 
-    // pick the best remote URL: full-size first, then thumbnail (or swap if your util is inverted)
+    // Prefer thumbnail, then full image; fall back to bundled assets.
     const remoteUrl = getOptimalImageUrl(
         item.otherParticipantThumbnailUrl,
         item.otherParticipantProfileImage
     );
 
-    // build your source prop
-    const source = remoteUrl
-        ? { uri: remoteUrl } // real user → network image
-        : fallback;           // fallback → bundled default
+    const source = item.isPinnedAI
+        ? aiIcon
+        : remoteUrl
+        ? { uri: remoteUrl }
+        : fallback;
 
     const handleDeleteConversation = async (conversationId: string, username: string) => {
         Alert.alert(
@@ -85,11 +94,10 @@ const ChatItem = ({
             },
             {
                 text: "Delete",
-                onPress: async () => {
+                    onPress: async () => {
                 try {
                     if (!currentUser) return;
-
-                    // Delete only the user-specific conversation data
+                    // Remove only this user's conversation document (retain global conversation doc).
                     const userConvRef = doc(db, `users/${currentUser.uid}/conversations`, conversationId);
                     await deleteDoc(userConvRef);
 
@@ -176,6 +184,8 @@ export default function DMs() {
         }, 0);
     };
 
+    // Load conversations for current user, merge with participant profiles
+    // and conversation metadata for display.
     const fetchConversations = useCallback(async () => {
         if (!currentUser) {
             setLoading(false);
@@ -183,7 +193,7 @@ export default function DMs() {
         }
         setLoading(true);
         try {
-            // 1. Fetch all of the current user's conversation references
+            // Load the user's conversation refs
             const userConversationsRef = collection(db, `users/${currentUser.uid}/conversations`);
             const userConversationsSnap = await getDocs(userConversationsRef);
             if (userConversationsSnap.empty) {
@@ -192,14 +202,14 @@ export default function DMs() {
                 return;
             }
 
-            // 2. Collect all other participant IDs
+            // Collect participant IDs referenced from the user's conversation docs
             const participantIds = new Set<string>();
             userConversationsSnap.docs.forEach(doc => {
                 const otherId = doc.data().otherParticipantId;
                 if (otherId) participantIds.add(otherId);
             });
 
-            // 3. Fetch all participant profiles in a single batched query
+            // Batch-load participant profiles by document id when possible.
             const profiles: Record<string, UserData> = {};
             if (participantIds.size > 0) {
                 const usersQuery = query(collection(db, 'users'), where('__name__', 'in', Array.from(participantIds)));
@@ -215,7 +225,7 @@ export default function DMs() {
                 });
             }
 
-            // 4. Fetch conversation metadata and combine with fresh profile data
+            // Load conversation metadata and merge with fresh profile data.
             const combinedDataPromises = userConversationsSnap.docs.map(async (userConvDoc) => {
                 const userConvData = userConvDoc.data() as UserConversationData;
                 const conversationId = userConvDoc.id;
@@ -228,6 +238,7 @@ export default function DMs() {
                     const conversationMetaData = conversationMetaSnap.data() as ConversationMetadata;
                     const otherUserProfile = profiles[otherParticipantId];
 
+                    // Determine whether the conversation has unread messages for this user.
                     const isUnread = conversationMetaData.lastMessageAt &&
                                     conversationMetaData.lastMessageSenderId !== currentUser.uid &&
                                     (!userConvData.lastRead || (userConvData.lastRead && conversationMetaData.lastMessageAt.toMillis() > userConvData.lastRead.toMillis()));
@@ -249,7 +260,7 @@ export default function DMs() {
             const fetchedConversations = (await Promise.all(combinedDataPromises))
                 .filter(conv => conv !== null) as CombinedConversationItem[];
 
-            // Sort conversations: unread first, then by lastMessageAt
+            // Sort: unread first, then most recent messages.
             fetchedConversations.sort((a, b) => {
                 if (a.isUnread && !b.isUnread) return -1;
                 if (!a.isUnread && b.isUnread) return 1;
@@ -260,6 +271,19 @@ export default function DMs() {
                 if (b.lastMessageAt) return 1;
                 return 0;
             });
+            
+            // Ensure pinned AI conversation appears first in the list.
+            let finalConversations = [...fetchedConversations];
+            if (currentUser) {
+                const aiConversationId = `${currentUser.uid}_ai_conversation`;
+                const aiConversation: CombinedConversationItem = {
+                    id: aiConversationId,
+                    isPinnedAI: true,
+                    lastMessageText: 'Ask me anything about fitness!',
+                    // isUnread will be undefined/false by default
+                };
+                finalConversations = [aiConversation, ...fetchedConversations];
+            }
 
             setConversations(fetchedConversations);
         } catch (error) {
@@ -337,6 +361,7 @@ export default function DMs() {
         setRefreshing(false);
     }, [fetchConversations]);
 
+    // Search users by username prefix.
     const searchUsers = useCallback(async () => {
         if (!searchText.trim()) {
             setSearchResults([]);
@@ -360,10 +385,8 @@ export default function DMs() {
                 const userData = doc.data();
                 const userId = doc.id;
                 
-                // Skip current user and blocked users
+                // Skip current user and any blocked users.
                 if (userId === currentUser?.uid) return;
-                
-                // Check if we can interact with this user
                 if (canInteractWithUser(userId, userData.blockedUsers)) {
                     users.push({
                         id: userId,
@@ -385,7 +408,7 @@ export default function DMs() {
     }, [searchText, currentUser, canInteractWithUser]);
 
     useEffect(() => {
-        // Debounce the search function
+        // Debounce search input to avoid excessive queries.
         const delayDebounceFn = setTimeout(() => {
             searchUsers();
         }, 500);

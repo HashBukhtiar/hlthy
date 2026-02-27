@@ -28,6 +28,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
           if (userDoc.exists()) {
             const userData = userDoc.data();
+            
+            // Debug logging for socialLinks
+            console.log('[AuthContext] refreshUserProfile - userData.socialLinks:', JSON.stringify(userData.socialLinks, null, 2));
 
             // Only update Firestore when Auth is verified (true) and Firestore is not yet
             if (currentUser.emailVerified && !userData.emailVerified) {

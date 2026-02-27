@@ -32,9 +32,27 @@ export interface UserProfile {
   // Fitness Identity
   archetype: string; // 'athlete' | 'bodybuilder' | 'crossfitter' | 'generalist' | 'powerlifter'
   
-  // Social Stats - Using top-level structure to match Firebase
-  followerCount: number;
-  followingCount: number;
+  // Settings & Preferences
+  messagePermission?: 'everyone' | 'followers';
+  theme?: 'light' | 'dark' | 'system';
+  language?: string;
+  twoFactorEnabled?: boolean;
+  
+  // Notifications Preferences
+  notifications?: {
+    newFollowers?: boolean;
+    likesAndComments?: boolean;
+    directMessages?: boolean;
+    followRequestAccepted?: boolean;
+    taggedInComments?: boolean;
+    mentionedInReplies?: boolean;
+  };
+  
+  // Units for measurements
+  units?: {
+    weight: 'metric' | 'imperial';
+    distance: 'metric' | 'imperial';
+  };
   
   // Stats object - Keep for additional metrics
   stats: {
@@ -84,17 +102,18 @@ export interface UserProfile {
   // Social Links
   socialLinks?: {
     instagram?: string;
+    facebook?: string;
+    twitter?: string;
+    tiktok?: string;
     youtube?: string;
-    website?: string;
-  };
-  
-  // Notification Preferences
-  notificationSettings?: {
-    pushNotifications: boolean;
-    emailNotifications: boolean;
-    followRequests: boolean;
-    workoutReminders: boolean;
-    socialUpdates: boolean;
+    linkedin?: string;
+    spotify?: string;
+    snapchat?: string;
+    twitch?: string;
+    github?: string;
+    customUrl?: string;
+    customLabel?: string;
+    showLinksToFollowersOnly?: boolean;
   };
   
   // Achievement System
@@ -111,17 +130,18 @@ export interface UserProfile {
     profileVisibility: 'everyone' | 'followers' | 'friends';
   };
   
-  // App Preferences
-  units?: {
-    weight: 'metric' | 'imperial';
-    distance: 'metric' | 'imperial';
-  };
-  language?: string;
+  // Regional preferences
   region?: string;
   
   // Profile Completion
   isProfileComplete?: boolean;
   profileCompletionPercentage?: number;
+
+  // Moderation fields
+  warnings?: number;
+  suspendedUntil?: Timestamp;
+  isBanned?: boolean;
+  reportedCount?: number;
 }
 
 export interface Achievement {

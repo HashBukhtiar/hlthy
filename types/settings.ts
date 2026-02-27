@@ -5,6 +5,23 @@ export interface UserSettings {
   dateOfBirth?: Date;
   archetype: string;
   
+  // Social Links
+  socialLinks?: {
+    instagram?: string;
+    facebook?: string;
+    twitter?: string;
+    tiktok?: string;
+    youtube?: string;
+    linkedin?: string;
+    spotify?: string;
+    snapchat?: string;
+    twitch?: string;
+    github?: string;
+    customUrl?: string;
+    customLabel?: string;
+    showLinksToFollowersOnly?: boolean;
+  };
+  
   // Account & Security
   email: string;
   twoFactorEnabled: boolean;
