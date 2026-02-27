@@ -71,7 +71,7 @@ module.exports = [
       // hooks/useReporting.tsx graduated — no firebase/firestore imports
       // hooks/useProfileActions.ts graduated — dead Firestore call removed
       // hooks/useSettingsHandlers.ts graduated — Phase 6 settings repository
-      'hooks/usePostsData.tsx',
+      // hooks/usePostsData.tsx graduated — delegates to PostRepository
       'hooks/useProfileData.tsx',
     ],
     rules: {
