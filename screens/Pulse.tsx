@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { 
     StyleSheet,
     View,
@@ -16,11 +16,11 @@ import globalStyles from '@/styles/globalStyles';
 import { useRouter } from 'expo-router';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useAuth } from '@/context/AuthContext'; 
-import { db, app } from '@/firebaseConfig';
+import { app } from '@/firebaseConfig';
 import { getFunctions, httpsCallable } from 'firebase/functions';
-import { collection, query, where, orderBy, onSnapshot, Timestamp } from 'firebase/firestore';
+import { Timestamp } from 'firebase/firestore';
 import { getOptimalImageUrl } from '@/utils/imageUtils';
-import { useBlockEnforcement } from '@/utils/blockUtils';
+import { usePulse } from '@/features/notifications/ui/usePulse';
 import { OptimizedImageLight } from '@/components/OptimizedImage';
 import { ACCENT_COLOR } from '@/constants/Colors';
 
@@ -30,26 +30,7 @@ const displayShortenedString = (str: string, maxLength: number): string => {
     return str.substring(0, maxLength) + '...';
 };
 
-export interface ActivityItem {
-    id: string; 
-    type: 'follow_request' | 'new_follower' | 'post_like' | 'post_comment' | 'comment_like' | 'reply_like' | 'comment_reply' | 'workout_save' | string;
-    fromUserId: string;
-    fromUsername: string;
-    fromProfileImageUrl?: string;
-    fromProfileThumbnailUrl?: string;
-    postId?: string;
-    postImageUrl?: string;
-    postThumbnailUrl?: string;
-    commentId?: string;
-    replyId?: string;
-    workoutId?: string; 
-    workoutTitle?: string;
-    workoutThumbnailUrl?: string;
-    commentText?: string;
-    createdAt: Timestamp;
-    isRead: boolean;
-    status?: 'pending' | 'accepted' | 'ignored'; 
-}
+export type { ActivityItem } from '@/features/notifications/domain/ActivityItem';
 
 export default function Pulse() {
     const router = useRouter();
