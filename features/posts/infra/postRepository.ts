@@ -226,13 +226,14 @@ export const PostRepository = {
     }
   },
 
-  /** Adds a comment to a post. Returns the new comment's Firestore ID. */
+  /** Adds a comment to a post. Returns the new comment with a client-side timestamp. */
   async addComment(
     postId: string,
     uid: string,
     username: string,
-    text: string
-  ): Promise<string> {
+    text: string,
+    profileImageUrl: string = ''
+  ): Promise<Comment> {
     const ref = await addDoc(collection(db, 'posts', postId, 'comments'), {
       text,
       authorId: uid,
@@ -242,7 +243,19 @@ export const PostRepository = {
       likedBy: [],
       replyCount: 0,
     });
-    return ref.id;
+    return {
+      id: ref.id,
+      text,
+      authorId: uid,
+      authorUsername: username,
+      authorProfileImageUrl: profileImageUrl,
+      createdAt: Timestamp.now(),
+      likes: 0,
+      likedBy: [],
+      replyCount: 0,
+      isLiked: false,
+      replies: [],
+    };
   },
 
   /** Atomically likes a comment. No-ops if already liked. */
