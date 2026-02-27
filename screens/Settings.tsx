@@ -15,13 +15,13 @@ import { SettingsModals } from '@/components/settings/SettingsModals';
 import { SelectorItem } from '@/components/CustomSelector';
 import { getOptimalImageUrl } from '@/utils/imageUtils';
 
-
+// todo: probs should move this stuff to the cloud
 const archetypeData: SelectorItem[] = [
   { 
     label: 'Athlete', 
     value: 'athlete', 
     image: require('@/assets/images/athlete.png'),
-    description: 'Focused on athletic performance and competition'
+    description: 'Focused on athletic performance'
   },
   { 
     label: 'Bodybuilder', 
@@ -684,6 +684,13 @@ export default function Settings() {
             type="info"
             label="Email"
             value={currentUser?.email}
+          />
+
+          <SettingsItem
+            type="button"
+            label="View Profile Card"
+            onPress={() => router.push(`/view-profile-card/${currentUser?.uid}`)}
+            helperText="Open your public profile card"
           />
 
           {/* Social Links Subsection */}
