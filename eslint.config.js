@@ -70,9 +70,9 @@ module.exports = [
       // hooks/useContentActions.ts graduated — no firebase/firestore imports
       // hooks/useReporting.tsx graduated — no firebase/firestore imports
       // hooks/useProfileActions.ts graduated — dead Firestore call removed
+      // hooks/useSettingsHandlers.ts graduated — Phase 6 settings repository
       'hooks/usePostsData.tsx',
       'hooks/useProfileData.tsx',
-      'hooks/useSettingsHandlers.ts',
     ],
     rules: {
       'no-restricted-imports': 'off',
