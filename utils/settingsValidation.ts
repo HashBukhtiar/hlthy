@@ -179,5 +179,25 @@ export const sanitizeSettings = (settings: Partial<UserSettings>): Partial<UserS
     sanitized.archetype = sanitized.archetype.toLowerCase();
   }
 
+  // Sanitize social links - trim URLs and ensure proper structure
+  if (sanitized.socialLinks) {
+    const sanitizedLinks: typeof sanitized.socialLinks = {
+      showLinksToFollowersOnly: Boolean(sanitized.socialLinks.showLinksToFollowersOnly),
+    };
+    
+    // Trim all URL fields
+    const urlFields = ['instagram', 'facebook', 'twitter', 'tiktok', 'youtube', 
+                       'linkedin', 'spotify', 'snapchat', 'twitch', 'github', 
+                       'customUrl', 'customLabel'] as const;
+    
+    urlFields.forEach(field => {
+      if (sanitized.socialLinks![field]) {
+        sanitizedLinks[field] = sanitized.socialLinks![field]!.trim();
+      }
+    });
+    
+    sanitized.socialLinks = sanitizedLinks;
+  }
+
   return sanitized;
 };

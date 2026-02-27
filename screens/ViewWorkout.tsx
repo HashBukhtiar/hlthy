@@ -3,6 +3,7 @@ import { ScrollView, View, Text, TouchableOpacity, Image, StyleSheet, ActivityIn
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import ShareModal from '@/components/ShareModal';
+import ReportModal from '@/components/ReportModal';
 import { shareWorkout } from '@/services/ShareService';
 import { Ionicons } from '@expo/vector-icons';
 import { db } from '@/firebaseConfig'; 
@@ -61,6 +62,7 @@ export default function ViewWorkout() {
   const [isFavorited, setIsFavorited] = useState(false);
   const [favoriteLoading, setFavoriteLoading] = useState(false);
   const [shareModalVisible, setShareModalVisible] = useState(false);
+  const [reportModalVisible, setReportModalVisible] = useState(false);
   const [searchText, setSearchText] = useState('');
   const [searchResults, setSearchResults] = useState<{ id: string; username: string; profileImageUrl?: string; profileThumbnailUrl?: string }[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
@@ -383,6 +385,18 @@ export default function ViewWorkout() {
               />
             </View>
           </TouchableOpacity>
+          {/* Report button - only for non-owner */}
+          {currentUser && workoutData.creatorId !== currentUser.uid && (
+            <TouchableOpacity onPress={() => setReportModalVisible(true)}>
+              <View style={styles.menuButton}>
+                <Ionicons
+                  name="flag-outline"
+                  size={20}
+                  color="white"
+                />
+              </View>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
       
@@ -446,6 +460,21 @@ export default function ViewWorkout() {
         onClose={() => setShareModalVisible(false)}
         onShareWith={shareWorkoutWithUser}
       />
+      {/* Report Modal - only for non-owner */}
+      {currentUser && workoutData.creatorId !== currentUser.uid && (
+        <ReportModal
+          visible={reportModalVisible}
+          onClose={() => setReportModalVisible(false)}
+          contentType="workout"
+          contentId={workoutData.id}
+          reportedUserId={workoutData.creatorId}
+          contentSnapshot={{
+            title: workoutData.title,
+            creatorUsername: workoutData.creatorUsername,
+            coverImageUrl: workoutData.coverImageUrl || undefined,
+          }}
+        />
+      )}
     </ScrollView>
     
     {/* Start Workout Button */}

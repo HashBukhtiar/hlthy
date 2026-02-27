@@ -1,26 +1,19 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, Keyboard, Alert, Image, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useAuth } from '@/context/AuthContext';
-import { doc, updateDoc } from 'firebase/firestore';
-import { db, auth, functions } from '@/firebaseConfig';
-import { signOut, sendPasswordResetEmail } from 'firebase/auth';
-import { httpsCallable } from 'firebase/functions';
 import { useRouter } from 'expo-router';
-import * as ImagePicker from 'expo-image-picker';
-import { getOptimalImageUrl, deleteImageFromStorage } from '@/utils/imageUtils';
-import { CustomSelector, SelectorItem } from '@/components/CustomSelector';
-import { SettingsSection } from '@/components/settings/SettingsSection';
-import { SettingsItem } from '@/components/settings/SettingsItem';
+import { Ionicons } from '@expo/vector-icons';
 import { UserSettings, SettingsSection as SettingsSectionType } from '@/types/settings';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { validateSettings, sanitizeSettings } from '@/utils/settingsValidation';
-import { createSettingsBackup, restoreSettingsBackup } from '@/utils/settingsBackup';
-import { exportSettings, importSettings } from '@/utils/settingsExport';
-import { trackSettingsChange, generateSettingsInsights, calculatePrivacyLevel } from '@/utils/settingsAnalytics';
-import { Ionicons } from '@expo/vector-icons';
-import { uploadProfileImage } from '@/services/profileStorage';
 import { getFullVersionString } from '@/utils/appVersion';
-import { NotificationService } from '@/services/NotificationService';
+import { SettingsSection } from '@/components/settings/SettingsSection';
+import { SettingsItem } from '@/components/settings/SettingsItem';
+import { validatePlatformUrl, validateCustomUrl, usernameToUrl, VERIFIED_PLATFORMS, type PlatformKey } from '@/utils/socialLinkValidation';
+import { generateSettingsInsights, calculatePrivacyLevel, trackSettingsChange } from '@/utils/settingsAnalytics';
+import { useSettingsHandlers } from '@/hooks/useSettingsHandlers';
+import { SettingsModals } from '@/components/settings/SettingsModals';
+import { SelectorItem } from '@/components/CustomSelector';
+import { getOptimalImageUrl } from '@/utils/imageUtils';
 
 
 const archetypeData: SelectorItem[] = [
@@ -113,6 +106,21 @@ export default function Settings() {
     },
     twoFactorEnabled: false,
     dateOfBirth: undefined,
+    socialLinks: {
+      instagram: '',
+      facebook: '',
+      twitter: '',
+      tiktok: '',
+      youtube: '',
+      linkedin: '',
+      spotify: '',
+      snapchat: '',
+      twitch: '',
+      github: '',
+      customUrl: '',
+      customLabel: '',
+      showLinksToFollowersOnly: false,
+    },
   });
 
   // UI state
@@ -126,7 +134,16 @@ export default function Settings() {
     { id: 'advanced', title: 'Advanced', icon: 'cog', expanded: false }, // Add this line
   ]);
 
-  const [profileImage, setProfileImage] = useState(userProfile?.profileImageUrl);
+  const [profileImage, setProfileImage] = useState(() => {
+    const initialImage = userProfile?.profileImageUrl;
+    console.log('[Settings Init] Initial profileImage:', initialImage);
+    return initialImage;
+  });
+  const [originalProfileImage, setOriginalProfileImage] = useState(() => {
+    const initialOriginal = userProfile?.profileImageUrl;
+    console.log('[Settings Init] Initial originalProfileImage:', initialOriginal);
+    return initialOriginal;
+  });
   const [dateModalVisible, setDateModalVisible] = useState(false);
   const [loading, setLoading] = useState(false);
   const [insights, setInsights] = useState<string[]>([]);
@@ -144,6 +161,17 @@ export default function Settings() {
 
 
   const MODAL_DEBOUNCE_MS = 300;
+
+  // Track profileImage changes for debugging
+  useEffect(() => {
+    console.log('[Settings] profileImage state changed to:', profileImage);
+    console.log('[Settings] imageManuallyChanged:', imageManuallyChanged);
+  }, [profileImage, imageManuallyChanged]);
+
+  // Track originalProfileImage changes for debugging
+  useEffect(() => {
+    console.log('[Settings] originalProfileImage state changed to:', originalProfileImage);
+  }, [originalProfileImage]);
 
   // Update settings when userProfile changes
   useEffect(() => {
@@ -197,12 +225,48 @@ export default function Settings() {
         },
         twoFactorEnabled: userProfile.twoFactorEnabled || false,
         dateOfBirth: parseDateOfBirth(userProfile.dateOfBirth),
+        socialLinks: {
+          instagram: userProfile.socialLinks?.instagram || '',
+          facebook: userProfile.socialLinks?.facebook || '',
+          twitter: userProfile.socialLinks?.twitter || '',
+          tiktok: userProfile.socialLinks?.tiktok || '',
+          youtube: userProfile.socialLinks?.youtube || '',
+          linkedin: userProfile.socialLinks?.linkedin || '',
+          spotify: userProfile.socialLinks?.spotify || '',
+          snapchat: userProfile.socialLinks?.snapchat || '',
+          twitch: userProfile.socialLinks?.twitch || '',
+          github: userProfile.socialLinks?.github || '',
+          customUrl: userProfile.socialLinks?.customUrl || '',
+          customLabel: userProfile.socialLinks?.customLabel || '',
+          showLinksToFollowersOnly: userProfile.socialLinks?.showLinksToFollowersOnly || false,
+        },
       }));
+      
+      // Debug logging for socialLinks loading
+      console.log('[Settings] Loaded socialLinks from userProfile:', JSON.stringify(userProfile.socialLinks, null, 2));
+      
       if (!imageManuallyChanged) {
-        setProfileImage(userProfile.profileImageUrl);
+        const imageUrl = userProfile.profileImageUrl;
+        console.log('[Settings] === PROFILE IMAGE SYNC START ===');
+        console.log('[Settings] Current profileImage state:', profileImage);
+        console.log('[Settings] Current originalProfileImage state:', originalProfileImage);
+        console.log('[Settings] userProfile.profileImageUrl:', imageUrl);
+        console.log('[Settings] imageManuallyChanged:', imageManuallyChanged);
+        console.log('[Settings] Updating profileImage from userProfile to:', imageUrl);
+        setProfileImage(imageUrl);
+        
+        // Ensure originalProfileImage is kept in sync when not manually changed
+        // This handles the case where user returns to settings after discarding
+        setOriginalProfileImage(imageUrl);
+        console.log('[Settings] Also updated originalProfileImage to:', imageUrl);
+        console.log('[Settings] === PROFILE IMAGE SYNC END ===');
+      } else {
+        console.log('[Settings] Skipping profile image sync - imageManuallyChanged is true');
+        console.log('[Settings] Current profileImage:', profileImage);
+        console.log('[Settings] Current originalProfileImage:', originalProfileImage);
       }
     }
-  }, [userProfile, isSaving]);
+  }, [userProfile, isSaving, imageManuallyChanged]);
 
   useEffect(() => {
     if (userProfile && Object.keys(originalSettings).length === 0) {
@@ -253,9 +317,25 @@ export default function Settings() {
         },
         twoFactorEnabled: userProfile.twoFactorEnabled || false,
         dateOfBirth: parseDateOfBirth(userProfile.dateOfBirth),
+        socialLinks: {
+          instagram: userProfile.socialLinks?.instagram || '',
+          facebook: userProfile.socialLinks?.facebook || '',
+          twitter: userProfile.socialLinks?.twitter || '',
+          tiktok: userProfile.socialLinks?.tiktok || '',
+          youtube: userProfile.socialLinks?.youtube || '',
+          linkedin: userProfile.socialLinks?.linkedin || '',
+          spotify: userProfile.socialLinks?.spotify || '',
+          snapchat: userProfile.socialLinks?.snapchat || '',
+          twitch: userProfile.socialLinks?.twitch || '',
+          github: userProfile.socialLinks?.github || '',
+          customUrl: userProfile.socialLinks?.customUrl || '',
+          customLabel: userProfile.socialLinks?.customLabel || '',
+          showLinksToFollowersOnly: userProfile.socialLinks?.showLinksToFollowersOnly || false,
+        },
       };
 
       setOriginalSettings(originalSettingsData);
+      setOriginalProfileImage(userProfile?.profileImageUrl);
     }
   }, [userProfile, originalSettings]);
 
@@ -371,34 +451,37 @@ export default function Settings() {
     return activeModal === modalId;
   }, [activeModal]);
 
-  const handleBackPress = () => {
-    if (hasUnsavedChanges) {
-      Alert.alert(
-        "Unsaved Changes",
-        "You have unsaved changes. Do you want to save them before leaving?",
-        [
-          { 
-            text: "Discard", 
-            style: "destructive", 
-            onPress: () => {
-              setHasUnsavedChanges(false);
-              router.back();
-            }
-          },
-          { text: "Cancel", style: "cancel" },
-          { 
-            text: "Save", 
-            onPress: async () => {
-              await handleSaveSettings();
-              router.back();
-            }
-          }
-        ]
-      );
-    } else {
-      router.back();
-    }
-  };
+  // Use settings handlers hook
+  const {
+    handleBackPress,
+    pickImage,
+    handleSaveSettings,
+    handleExportSettings,
+    handleImportSettings,
+    handleRestoreBackup,
+    handleResetToDefaults,
+    handleLogout,
+    handleDeleteAccount,
+    clearChatHistory,
+    clearSearchHistory,
+    handleChangePassword,
+  } = useSettingsHandlers({
+    profileImage,
+    originalProfileImage,
+    settings,
+    userProfile,
+    currentUser,
+    hasUnsavedChanges,
+    setProfileImage,
+    setImageManuallyChanged,
+    setHasUnsavedChanges,
+    setLoading,
+    setIsSaving,
+    setSettings,
+    setOriginalSettings,
+    setOriginalProfileImage,
+    refreshUserProfile,
+  });
 
   const toggleSection = (sectionId: string) => {
     setSections(prev => prev.map(section => 
@@ -410,20 +493,53 @@ export default function Settings() {
 
   const updateSetting = (key: string, value: any) => {
     const oldValue = key.includes('.') 
-      ? key.split('.').reduce((obj, k) => obj?.[k], settings)
+      ? (key.split('.').reduce((obj: any, k) => obj?.[k], settings) as any)
       : settings[key as keyof typeof settings];
 
     setSettings(prev => {
       if (key.includes('.')) {
         const keys = key.split('.');
+        // Create a deep copy for nested updates
         const newSettings = { ...prev };
-        let current: any = newSettings;
         
-        for (let i = 0; i < keys.length - 1; i++) {
-          if (!current[keys[i]]) current[keys[i]] = {};
-          current = current[keys[i]];
+        // Handle socialLinks specifically to ensure proper deep copy
+        if (keys[0] === 'socialLinks') {
+          newSettings.socialLinks = {
+            ...prev.socialLinks,
+            [keys[1]]: value,
+          };
+          return newSettings;
         }
         
+        // Handle other nested objects (notifications, units)
+        if (keys[0] === 'notifications') {
+          newSettings.notifications = {
+            newFollowers: prev.notifications?.newFollowers ?? true,
+            likesAndComments: prev.notifications?.likesAndComments ?? true,
+            directMessages: prev.notifications?.directMessages ?? true,
+            followRequestAccepted: prev.notifications?.followRequestAccepted ?? true,
+            taggedInComments: prev.notifications?.taggedInComments ?? true,
+            mentionedInReplies: prev.notifications?.mentionedInReplies ?? true,
+            [keys[1]]: value,
+          };
+          return newSettings;
+        }
+        
+        if (keys[0] === 'units') {
+          newSettings.units = {
+            weight: prev.units?.weight ?? 'metric',
+            distance: prev.units?.distance ?? 'metric',
+            [keys[1]]: value,
+          };
+          return newSettings;
+        }
+        
+        // Fallback for other nested paths
+        let current: any = newSettings;
+        for (let i = 0; i < keys.length - 1; i++) {
+          current[keys[i]] = { ...current[keys[i]] };
+          current = current[keys[i]];
+        }
         current[keys[keys.length - 1]] = value;
         return newSettings;
       } else {
@@ -440,470 +556,22 @@ export default function Settings() {
     }
   };
 
-  const pickImage = async () => {
-    try {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission Denied', 'We need access to your photos …');
-        return;
-      }
-
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.6, // Balanced quality - Cloud Function will create optimized thumbnail
-        base64: true,
-      });
-      if (result.canceled || !result.assets?.length) return;
-
-      setLoading(true);
-      const { uri } = result.assets[0];
-      const response = await fetch(uri);
-      const blob = await response.blob();
-
-      if (blob.size > 5_000_000) {
-        Alert.alert('Image too large', 'Please select a smaller image');
-        setLoading(false);
-        return;
-      }
-
-      try {
-        // Upload original - Cloud Function will generate thumbnail
-        const downloadURL = await uploadProfileImage(currentUser.uid, blob);
-        setProfileImage(downloadURL);
-        setImageManuallyChanged(true);
-        Alert.alert('Success', "Profile photo updated! Don't forget to save.");
-      } catch (e) {
-        console.error('Profile image upload failed:', e);
-        Alert.alert('Upload Failed', 'Could not upload image. Try again later.');
-      }
-    } catch (error) {
-      console.error('Error in image picking process:', error);
-      Alert.alert('Error', 'Failed to update profile picture');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSaveSettings = async () => {
-    if (!currentUser) return;
+  // Handler to convert username to URL when user finishes editing
+  const handleSocialLinkBlur = (platform: PlatformKey) => {
+    const currentValue = settings.socialLinks?.[platform] || '';
+    if (!currentValue) return;
     
-    try {
-      setLoading(true);
-      
-      // Validate settings first
-      const validation = validateSettings(settings);
-      
-      if (!validation.isValid) {
-        Alert.alert(
-          'Invalid Settings',
-          'Please fix the following issues:\n' + validation.errors.join('\n'),
-          [{ text: 'OK' }]
-        );
-        return;
-      }
-
-      // Show warnings if any
-      if (validation.warnings.length > 0) {
-        Alert.alert(
-          'Warning',
-          validation.warnings.join('\n'),
-          [
-            { text: 'Cancel', style: 'cancel', onPress: () => setLoading(false) },
-            { text: 'Continue', onPress: () => saveSettingsAfterValidation() }
-          ]
-        );
-        return;
-      }
-
-      await saveSettingsAfterValidation();
-    } catch (error) {
-      console.error("Error updating settings:", error);
-      
-      // Enhanced error handling
-      const errorMessage = error?.code === 'unavailable' 
-        ? 'Service temporarily unavailable. Please try again.'
-        : error?.code === 'permission-denied'
-        ? 'You don\'t have permission to update these settings.'
-        : 'Failed to update settings: ' + (error?.message || 'Unknown error');
-      
-      Alert.alert("Error", errorMessage);
-      setLoading(false);
-    }
-  };
-
-  const saveSettingsAfterValidation = async () => {
-    try {
-      setIsSaving(true);
-      const sanitizedSettings = sanitizeSettings(settings);
-      
-      // Keep track of the old image URL to delete it after a successful update
-      const oldImageUrl = userProfile?.profileImageUrl;
-      const newImageUrl = profileImage;
-      const imageHasChanged = oldImageUrl && oldImageUrl !== newImageUrl;
-
-      // Create backup before saving
-      await createSettingsBackup(sanitizedSettings);
-      
-      const settingsToSave = {
-        ...sanitizedSettings,
-        dateOfBirth: sanitizedSettings.dateOfBirth ? sanitizedSettings.dateOfBirth.toISOString() : null,
-        profileImageUrl: newImageUrl,
-        profileVisibility: sanitizedSettings.profileVisibility,
-      };
-      
-      // Save using existing logic...
-      if (!functions || !functions.app) {
-        console.warn('Functions not properly initialized, falling back to direct Firestore update');
-        
-        await updateDoc(doc(db, "users", currentUser!.uid), {
-          ...settingsToSave,
-          lastModified: new Date(),
-          version: 1,
-        });
-      } else {
-        try {
-          const updateUserSettings = httpsCallable(functions, 'updateUserSettings');
-          
-          await updateUserSettings({ settings: settingsToSave });
-        } catch (functionError) {
-          console.error('Cloud Function failed, falling back to direct update:', functionError);
-          
-          await updateDoc(doc(db, "users", currentUser!.uid), {
-            ...settingsToSave,
-            lastModified: new Date(),
-            version: 1,
-          });
-        }
-      }
-      
-      if (imageHasChanged) {
-        try {
-          await deleteImageFromStorage(oldImageUrl);
-        } catch (deleteError) {
-          // Log the error but don't block the user flow, as the primary operation (saving settings) was successful.
-          console.error("Non-critical error: Failed to delete old profile image.", deleteError);
-        }
-      }
-      
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      await refreshUserProfile();
-      
-      setOriginalSettings({ ...settings });
-      setHasUnsavedChanges(false);
-      setImageManuallyChanged(false);
-      
-      Alert.alert("Success", "Settings updated successfully");
-    } catch (error) {
-      console.error("Error in saveSettingsAfterValidation:", error);
-      Alert.alert("Error", "Failed to update settings: " + (error?.message || 'Unknown error'));
-    } finally {
-      setLoading(false);
-      setIsSaving(false);
-    }
-  };
-
-  const handleExportSettings = async () => {
-    if (!currentUser || !userProfile) return;
+    // Convert username to full URL
+    const formattedUrl = usernameToUrl(platform, currentValue);
     
-    const success = await exportSettings(settings, currentUser.uid, userProfile.username);
-    if (success) {
-      Alert.alert("Success", "Settings exported successfully!");
+    // Update the setting if the value changed
+    if (formattedUrl !== currentValue) {
+      updateSetting(`socialLinks.${platform}`, formattedUrl);
     }
   };
 
-  const handleImportSettings = async () => {
-    const importedSettings = await importSettings();
-    if (importedSettings) {
-      Alert.alert(
-        "Import Settings",
-        "This will replace your current settings. Are you sure?",
-        [
-          { text: "Cancel", style: "cancel" },
-          {
-            text: "Import",
-            onPress: () => {
-              // Parse the dateOfBirth properly when importing
-              const parseDateOfBirth = (dateValue: any) => {
-                if (!dateValue) return undefined;
-                
-                try {
-                  if (dateValue instanceof Date) {
-                    return isNaN(dateValue.getTime()) ? undefined : dateValue;
-                  }
-                  
-                  if (dateValue.toDate && typeof dateValue.toDate === 'function') {
-                    return dateValue.toDate();
-                  }
-                  
-                  if (typeof dateValue === 'string') {
-                    const parsed = new Date(dateValue);
-                    return isNaN(parsed.getTime()) ? undefined : parsed;
-                  }
-                  
-                  return undefined;
-                } catch (error) {
-                  console.error('Error parsing date of birth from import:', error);
-                  return undefined;
-                }
-              };
-
-              // Process the imported data before setting it
-              const processedImport = {
-                ...importedSettings,
-                dateOfBirth: parseDateOfBirth(importedSettings.dateOfBirth)
-              };
-
-              setSettings(prev => ({ ...prev, ...processedImport }));
-              Alert.alert("Success", "Settings imported successfully!");
-            }
-          }
-        ]
-      );
-    }
-  };
-
-  const handleRestoreBackup = async () => {
-    const backup = await restoreSettingsBackup();
-    if (backup) {
-      Alert.alert(
-        "Restore Backup",
-        "This will restore your settings from the last backup. Continue?",
-        [
-          { text: "Cancel", style: "cancel" },
-          {
-            text: "Restore",
-            onPress: () => {
-              // Parse the dateOfBirth properly when restoring
-              const parseDateOfBirth = (dateValue: any) => {
-                if (!dateValue) return undefined;
-                
-                try {
-                  if (dateValue instanceof Date) {
-                    return isNaN(dateValue.getTime()) ? undefined : dateValue;
-                  }
-                  
-                  // Handle Firestore Timestamp
-                  if (dateValue.toDate && typeof dateValue.toDate === 'function') {
-                    return dateValue.toDate();
-                  }
-                  
-                  // Handle string dates (from backup)
-                  if (typeof dateValue === 'string') {
-                    const parsed = new Date(dateValue);
-                    return isNaN(parsed.getTime()) ? undefined : parsed;
-                  }
-                  
-                  return undefined;
-                } catch (error) {
-                  console.error('Error parsing date of birth from backup:', error);
-                  return undefined;
-                }
-              };
-
-              // Process the backup data before setting it
-              const processedBackup = {
-                ...backup,
-                dateOfBirth: parseDateOfBirth(backup.dateOfBirth)
-              };
-
-              setSettings(prev => ({ ...prev, ...processedBackup }));
-              Alert.alert("Success", "Settings restored from backup!");
-            }
-          }
-        ]
-      );
-    } else {
-      Alert.alert("No Backup", "No backup found to restore from.");
-    }
-  };
-
-  const handleResetToDefaults = () => {
-    Alert.alert(
-      "Reset to Defaults",
-      "This will reset all settings to their default values. This action cannot be undone.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Reset",
-          style: "destructive",
-          onPress: () => {
-            setSettings({
-              displayName: userProfile?.displayName || '',
-              bio: '',
-              archetype: '',
-              profileVisibility: 'public',
-              messagePermission: 'everyone',
-              theme: 'dark',
-              language: 'en',
-              units: {
-                weight: 'metric',
-                distance: 'metric',
-              },
-              notifications: {
-                newFollowers: true,
-                likesAndComments: true,
-                directMessages: true,
-                followRequestAccepted: true,
-                taggedInComments: true,
-                mentionedInReplies: true,
-              },
-              twoFactorEnabled: false,
-              dateOfBirth: undefined,
-            });
-            Alert.alert("Success", "Settings reset to defaults!");
-          }
-        }
-      ]
-    );
-  };
-
-  const handleLogout = async () => {
-    try {
-      setLoading(true);
-      
-      // Clean up notifications before signing out (while still authenticated)
-      if (currentUser) {
-        try {
-          await NotificationService.removePushToken(currentUser.uid);
-          await NotificationService.clearCachedTokens();
-        } catch (tokenError) {
-          console.error('Error cleaning up tokens (continuing with logout):', tokenError);
-          // Continue with logout even if token cleanup fails
-        }
-      }
-      
-      // Then sign out
-      await signOut(auth);
-      router.replace('/');
-    } catch (error) {
-      console.error('Error signing out:', error);
-      Alert.alert('Error', 'Failed to sign out completely, but you have been logged out.');
-      router.replace('/');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleDeleteAccount = () => {
-    Alert.alert(
-      "Delete Account",
-      "This action cannot be undone. Type 'DELETE' to confirm account deletion.",
-      [
-        { text: "Cancel", style: "cancel" },
-        { 
-          text: "Continue", 
-          style: "destructive",
-          onPress: () => {
-            Alert.prompt(
-              "Confirm Deletion",
-              "Type 'DELETE' to permanently delete your account:",
-              [
-                { text: "Cancel", style: "cancel" },
-                {
-                  text: "Delete Account",
-                  style: "destructive",
-                  onPress: async (text) => {
-                    if (text === 'DELETE') {
-                      try {
-                        setLoading(true);
-                        
-                        if (!functions || !functions.app) {
-                          Alert.alert("Error", "Cloud functions not available. Account deletion requires server-side processing.");
-                          return;
-                        }
-                        
-                        const deleteUserAccount = httpsCallable(functions, 'deleteUserAccount');
-                        await deleteUserAccount({ 
-                          confirmationToken: `DELETE_${currentUser.uid}` 
-                        });
-                        
-                        Alert.alert("Account Deleted", "Your account has been permanently deleted.");
-                        router.replace('/');
-                      } catch (error) {
-                        console.error('Error deleting account:', error);
-                        Alert.alert("Error", "Failed to delete account: " + (error?.message || 'Unknown error'));
-                      } finally {
-                        setLoading(false);
-                      }
-                    } else {
-                      Alert.alert("Invalid Input", "You must type 'DELETE' exactly to confirm.");
-                    }
-                  }
-                }
-              ],
-              "plain-text"
-            );
-          }
-        }
-      ]
-    );
-  };
-
-  const clearChatHistory = async () => {
-    try {
-      setLoading(true);
-      
-      if (!functions || !functions.app) {
-        Alert.alert("Error", "Cloud functions not available. Please try again later.");
-        return;
-      }
-      
-      const clearUserData = httpsCallable(functions, 'clearUserData');
-      await clearUserData({ dataType: 'chatHistory' });
-      Alert.alert("Success", "Chat history cleared successfully");
-    } catch (error) {
-      console.error('Error clearing chat history:', error);
-      Alert.alert("Error", "Failed to clear chat history: " + (error?.message || 'Unknown error'));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const clearSearchHistory = async () => {
-    try {
-      setLoading(true);
-      
-      if (!functions || !functions.app) {
-        Alert.alert("Error", "Cloud functions not available. Please try again later.");
-        return;
-      }
-      
-      const clearUserData = httpsCallable(functions, 'clearUserData');
-      await clearUserData({ dataType: 'searchHistory' });
-      Alert.alert("Success", "Search history cleared successfully");
-    } catch (error) {
-      console.error('Error clearing search history:', error);
-      Alert.alert("Error", "Failed to clear search history: " + (error?.message || 'Unknown error'));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleChangePassword = () => {
-    Alert.alert(
-      "Change Password",
-      "You will receive an email with instructions to reset your password.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Send Email",
-          onPress: async () => {
-            try {
-              const { sendPasswordResetEmail } = await import('firebase/auth');
-              await sendPasswordResetEmail(auth, currentUser?.email || '');
-              Alert.alert("Success", "Password reset email sent! Check your inbox.");
-            } catch (error) {
-              console.error('Password reset error:', error);
-              Alert.alert("Error", "Failed to send password reset email. Please try again.");
-            }
-          }
-        }
-      ]
-    );
-  };
+  // All handler functions have been moved to useSettingsHandlers hook above
+  // This keeps the component clean and focused on rendering
 
   return (
     <>
@@ -1016,6 +684,66 @@ export default function Settings() {
             type="info"
             label="Email"
             value={currentUser?.email}
+          />
+
+          {/* Social Links Subsection */}
+          <View style={{ marginTop: 20, marginBottom: 10 }}>
+            <Text style={{ color: '#999', fontSize: 14, fontWeight: '600', paddingHorizontal: 15 }}>
+              SOCIAL LINKS
+            </Text>
+          </View>
+
+          {Object.entries(VERIFIED_PLATFORMS).map(([key, platform]) => (
+            <SettingsItem
+              key={key}
+              type="input"
+              label={platform.name}
+              value={settings.socialLinks?.[key as PlatformKey] || ''}
+              onValueChange={(value) => updateSetting(`socialLinks.${key}`, value)}
+              onBlur={() => handleSocialLinkBlur(key as PlatformKey)}
+              placeholder={platform.placeholder}
+              helperText={
+                settings.socialLinks?.[key as PlatformKey] && 
+                !validatePlatformUrl(key as PlatformKey, settings.socialLinks[key as PlatformKey]!)
+                  ? `Invalid ${platform.name} URL format`
+                  : 'Enter full URL or just username'
+              }
+              error={!!(settings.socialLinks?.[key as PlatformKey] && !validatePlatformUrl(key as PlatformKey, settings.socialLinks[key as PlatformKey]!))}
+              fullWidth
+            />
+          ))}
+          
+          <SettingsItem
+            type="input"
+            label="Custom Link Label"
+            value={settings.socialLinks?.customLabel || ''}
+            onValueChange={(value) => updateSetting('socialLinks.customLabel', value)}
+            placeholder="My Website"
+            helperText="Label for your custom link (max 30 characters)"
+            fullWidth
+          />
+          
+          <SettingsItem
+            type="input"
+            label="Custom Link URL"
+            value={settings.socialLinks?.customUrl || ''}
+            onValueChange={(value) => updateSetting('socialLinks.customUrl', value)}
+            placeholder="https://example.com"
+            helperText={
+              settings.socialLinks?.customUrl && !validateCustomUrl(settings.socialLinks.customUrl)
+                ? 'Invalid URL format'
+                : 'Users will see a warning before opening this link'
+            }
+            error={!!(settings.socialLinks?.customUrl && !validateCustomUrl(settings.socialLinks.customUrl))}
+            fullWidth
+          />
+
+          <SettingsItem
+            type="toggle"
+            label="Show Links to Followers Only"
+            value={settings.socialLinks?.showLinksToFollowersOnly || false}
+            onValueChange={(value) => updateSetting('socialLinks.showLinksToFollowersOnly', value)}
+            helperText="When enabled, only your followers can see your social links (only applies to private profiles)"
           />
         </SettingsSection>
 
@@ -1420,167 +1148,20 @@ export default function Settings() {
         )}
       </ScrollView>
 
-      {isModalVisible('archetype') && (
-        <CustomSelector
-          items={archetypeData}
-          value={settings.archetype || null}
-          onSelect={(value) => updateSetting('archetype', value)}
-          placeholder="Select archetype"
-          title="Archetype"
-          icon="body"
-          modalVisible={isModalVisible('archetype')}
-          setModalVisible={(visible) => visible ? openModal('archetype') : closeModal('archetype')}
-          variant="fullWidth"
-        />
-      )}
-
-      {isModalVisible('privacy') && (
-        <CustomSelector
-          items={privacyOptions}
-          value={settings.profileVisibility ?? 'public'}
-          onSelect={(value) => updateSetting('profileVisibility', value)}
-          placeholder="Select visibility"
-          title="Profile Visibility"
-          icon="eye"
-          modalVisible={isModalVisible('privacy')}
-          setModalVisible={(visible) => visible ? openModal('privacy') : closeModal('privacy')}
-          variant="fullWidth"
-        />
-      )}
-
-      {isModalVisible('message') && (
-        <CustomSelector
-          items={permissionOptions.map(opt => ({ 
-            label: opt.label, 
-            value: opt.value,
-            icon: opt.icon,
-            description: opt.value === 'everyone' ? 'Anyone can message you' : 'Only followers can message you, unless you allow others'
-          }))}
-          value={settings.messagePermission}
-          onSelect={(value) => updateSetting('messagePermission', value)}
-          placeholder="Select message permission"
-          title="Who Can Message You"
-          icon="mail"
-          modalVisible={isModalVisible('message')}
-          setModalVisible={(visible) => visible ? openModal('message') : closeModal('message')}
-          variant="fullWidth"
-        />
-      )}
-
-      {isModalVisible('theme') && (
-        <CustomSelector
-          items={themeOptions.map(opt => ({ 
-            label: opt.label, 
-            value: opt.value,
-            icon: opt.icon,
-            description: opt.value === 'light' ? 'Light color scheme' :
-                        opt.value === 'dark' ? 'Dark color scheme' :
-                        'Follow device settings'
-          }))}
-          value={settings.theme}
-          onSelect={(value) => updateSetting('theme', value)}
-          placeholder="Select theme"
-          title="App Theme"
-          icon="color-palette"
-          modalVisible={isModalVisible('theme')}
-          setModalVisible={(visible) => visible ? openModal('theme') : closeModal('theme')}
-          variant="fullWidth"
-        />
-      )}
-
-      {isModalVisible('language') && (
-        <CustomSelector
-          items={languageOptions.map(opt => ({ 
-            label: opt.label, 
-            value: opt.value,
-            icon: opt.icon
-          }))}
-          value={settings.language}
-          onSelect={(value) => updateSetting('language', value)}
-          placeholder="Select language"
-          title="App Language"
-          icon="globe"
-          modalVisible={isModalVisible('language')}
-          setModalVisible={(visible) => visible ? openModal('language') : closeModal('language')}
-          variant="fullWidth"
-        />
-      )}
-
-      {isModalVisible('weightUnit') && (
-        <CustomSelector
-          items={[
-            { label: 'Metric (kg)', value: 'metric', icon: 'barbell', description: 'Kilograms for weight measurements' },
-            { label: 'Imperial (lbs)', value: 'imperial', icon: 'barbell', description: 'Pounds for weight measurements' }
-          ]}
-          value={settings.units?.weight}
-          onSelect={(value) => updateSetting('units.weight', value)}
-          placeholder="Select weight unit"
-          title="Weight Unit"
-          icon="barbell"
-          modalVisible={isModalVisible('weightUnit')}
-          setModalVisible={(visible) => visible ? openModal('weightUnit') : closeModal('weightUnit')}
-          variant="fullWidth"
-        />
-      )}
-
-      {isModalVisible('distanceUnit') && (
-        <CustomSelector
-          items={[
-            { label: 'Metric (km)', value: 'metric', icon: 'walk', description: 'Kilometers for distance measurements' },
-            { label: 'Imperial (mi)', value: 'imperial', icon: 'walk', description: 'Miles for distance measurements' }
-          ]}
-          value={settings.units?.distance}
-          onSelect={(value) => updateSetting('units.distance', value)}
-          placeholder="Select distance unit"
-          title="Distance Unit"
-          icon="walk"
-          modalVisible={isModalVisible('distanceUnit')}
-          setModalVisible={(visible) => visible ? openModal('distanceUnit') : closeModal('distanceUnit')}
-          variant="fullWidth"
-        />
-      )}
-
-      {isModalVisible('insights') && (
-        <View style={styles.modalOverlay}>
-          <View style={styles.insightsModal}>
-            <View style={styles.insightsHeader}>
-              <Text style={styles.insightsTitle}>Privacy Insights</Text>
-              <TouchableOpacity onPress={() => closeModal('insights')}>
-                <Text style={styles.closeButton}>✕</Text>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.privacyLevelSection}>
-              <Text style={styles.privacyLevelLabel}>Current Level:</Text>
-              <View style={[
-                styles.privacyLevelBadge,
-                { backgroundColor: 
-                  privacyLevel === 'strict' ? '#34C759' : 
-                  privacyLevel === 'moderate' ? '#FF9500' : '#FF3B30' 
-                }
-              ]}>
-                <Text style={styles.privacyLevelText}>
-                  {privacyLevel.charAt(0).toUpperCase() + privacyLevel.slice(1)}
-                </Text>
-              </View>
-            </View>
-
-            <ScrollView style={styles.insightsList} showsVerticalScrollIndicator={false}>
-              {insights.length === 0 ? (
-                <Text style={styles.noInsightsText}>
-                  No insights available. Your settings look good! 👍
-                </Text>
-              ) : (
-                insights.map((insight, index) => (
-                  <View key={index} style={styles.insightItem}>
-                    <Text style={styles.insightText}>{insight}</Text>
-                  </View>
-                ))
-              )}
-            </ScrollView>
-          </View>
-        </View>
-      )}
+      <SettingsModals
+        archetypeData={archetypeData}
+        privacyOptions={privacyOptions}
+        permissionOptions={permissionOptions}
+        themeOptions={themeOptions}
+        languageOptions={languageOptions}
+        isModalVisible={isModalVisible}
+        openModal={openModal}
+        closeModal={closeModal}
+        settings={settings}
+        updateSetting={updateSetting}
+        insights={insights}
+        privacyLevel={privacyLevel}
+      />
     </>
   );
 }

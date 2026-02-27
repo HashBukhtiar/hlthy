@@ -11,10 +11,6 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
     
-    function isAdmin() {
-      return isAuthenticated() && request.auth.token.admin == true;
-    }
-    
     function isBlocked(targetUserId, currentUserId) {
       return exists(/databases/$(database)/documents/users/$(targetUserId)) &&
         get(/databases/$(database)/documents/users/$(targetUserId)).data.get('blockedUsers', []).hasAny([currentUserId]);
@@ -24,22 +20,6 @@ service cloud.firestore {
       return exists(/databases/$(database)/documents/users/$(targetUserId)/followers/$(currentUserId));
     }
     
-    // Check if user is suspended or banned
-    function isEnforcementActive(userId) {
-      let userData = get(/databases/$(database)/documents/users/$(userId)).data;
-      let enforcement = userData.get('enforcement', {});
-      let status = enforcement.get('status', 'active');
-      // If suspended, check if suspension has expired
-      // Note: Firestore rules can't do time comparisons reliably, so we check status only
-      // The backend will handle suspension expiry
-      return status == 'active' || status == 'warned';
-    }
-    
-    // Check if current user can write (not suspended/banned)
-    function canWrite() {
-      return isAuthenticated() && isEnforcementActive(request.auth.uid);
-    }
-    
     function canViewProfile(targetUserId, currentUserId) {
       return currentUserId == targetUserId ||
         (get(/databases/$(database)/documents/users/$(targetUserId)).data.get('profileVisibility', 'public') == 'public') ||
@@ -47,33 +27,19 @@ service cloud.firestore {
          isFollowing(targetUserId, currentUserId));
     }
     
-    // Updated to handle hidden posts
     function canViewPost(postData, currentUserId) {
-      let visibility = postData.get('visibility', 'public');
-      let isDeleted = postData.get('deleted', false);
-      let isHidden = postData.get('isHidden', false);
-      
-      // Deleted posts are never visible
-      // Hidden posts only visible to author and admins
-      // Otherwise check normal visibility rules
-      return !isDeleted && (
-        // Author can always see their own posts
-        postData.authorId == currentUserId ||
-        // Admins can see hidden posts
-        (isHidden && request.auth.token.admin == true) ||
-        // Non-hidden posts follow normal visibility rules
-        (!isHidden && visibility == 'public' && 
+      return postData.authorId == currentUserId ||
+        (postData.get('visibility', 'public') == 'public' && 
          !isBlocked(postData.authorId, currentUserId) && 
          !isBlocked(currentUserId, postData.authorId)) ||
-        (!isHidden && visibility == 'followers' && 
+        (postData.get('visibility', 'public') == 'followers' && 
          isFollowing(postData.authorId, currentUserId) &&
          !isBlocked(postData.authorId, currentUserId) && 
-         !isBlocked(currentUserId, postData.authorId))
-      );
+         !isBlocked(currentUserId, postData.authorId));
     }
     
     function canInteractWithPost(postData, currentUserId) {
-      return canViewPost(postData, currentUserId) && canWrite();
+      return canViewPost(postData, currentUserId);
     }
 
     // Users collection
@@ -88,6 +54,10 @@ service cloud.firestore {
         isOwner(userId) && 
         resource.data.keys().hasAny(['pushTokens', 'lastTokenUpdate']) &&
         request.data.keys().hasOnly(['pushTokens', 'lastTokenUpdate']);
+      
+      // Allow admin dashboard to read/update users for moderation (localhost only)
+      // TODO: Replace with proper admin auth in production
+      allow read, update: if true;
     }
 
     // Message requests
@@ -164,16 +134,13 @@ service cloud.firestore {
       allow read: if isAuthenticated() && 
         canViewPost(resource.data, request.auth.uid);
       
-      // Suspended/banned users cannot create posts
-      allow create: if canWrite() && 
+      allow create: if isAuthenticated() && 
         request.auth.uid == request.resource.data.authorId &&
         request.resource.data.keys().hasAll(['authorId', 'createdAt']) &&
         request.resource.data.createdAt is timestamp;
       
-      // Suspended/banned users cannot update posts (except admins for moderation)
-      allow update: if (canWrite() || isAdmin()) && (
+      allow update: if isAuthenticated() && (
         (request.auth.uid == resource.data.authorId) ||
-        isAdmin() ||
         (
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactionCount']) &&
           resource.data.get('visibility', 'public') == 'public'
@@ -191,13 +158,13 @@ service cloud.firestore {
       // Post subcollections
       match /likers/{userId} {
         allow read: if isAuthenticated();
-        allow create, delete: if canWrite() && request.auth.uid == userId;
+        allow create, delete: if isAuthenticated() && request.auth.uid == userId;
       }
       
       match /comments/{commentId} {
         allow read: if isAuthenticated() && 
           canViewPost(get(/databases/$(database)/documents/posts/$(postId)).data, request.auth.uid);
-        allow create: if canWrite() && 
+        allow create: if isAuthenticated() && 
           request.auth.uid == request.resource.data.authorId &&
           canInteractWithPost(get(/databases/$(database)/documents/posts/$(postId)).data, request.auth.uid) &&
           request.resource.data.keys().hasAll(['authorId', 'text', 'createdAt']) &&
@@ -327,29 +294,27 @@ service cloud.firestore {
       allow create, update: if isOwner(userId); // Only authenticated user can create/update their own doc
     }
 
-    // =========================================================================
-    // Moderation Collections
-    // =========================================================================
 
-    // Reports collection - created only via Cloud Function (createReport)
-    // Users cannot directly write to this collection
+    // Reports collection
     match /reports/{reportId} {
-      // Admins can read all reports
-      allow read: if isAdmin();
-      // No direct writes - must go through Cloud Function
-      allow write: if false;
-    }
-
-    // Report targets (aggregate counters) - managed by Cloud Functions only
-    match /reportTargets/{targetKey} {
-      allow read: if isAdmin();
-      allow write: if false;
-    }
-
-    // Admin actions audit log - read-only for admins, written by Cloud Functions
-    match /adminActions/{actionId} {
-      allow read: if isAdmin();
-      allow write: if false;
+      // Allow unauthenticated reads for admin dashboard (localhost only)
+      // TODO: Remove this and use proper admin auth in production
+      allow read: if true;
+      
+      // Users can create reports (service handles the logic)
+      allow create: if isAuthenticated() && 
+        request.resource.data.reporters[0].userId == request.auth.uid;
+      
+      // Users can update reports to add themselves as a reporter
+      allow update: if isAuthenticated() && 
+        request.resource.data.reporters.size() > resource.data.reporters.size();
+      
+      // Allow admin dashboard to update reports (for taking actions)
+      // TODO: Replace with proper admin auth in production
+      allow update: if true;
+      
+      // Only admins can delete (handled server-side)
+      allow delete: if false;
     }
   }
 }

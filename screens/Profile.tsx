@@ -13,6 +13,9 @@ import { useUnits } from '@/hooks/useUnits';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/firebaseConfig';
 import { OptimizedImageLight } from '@/components/OptimizedImage';
+import { getOptimalImageUrl, getCoverImageSource, DEFAULT_PROFILE_IMAGE } from '@/utils/imageUtils';
+import { SocialLinksDisplay } from '@/components/SocialLinksDisplay';
+import ReportModal from '@/components/ReportModal';
 
 const archetypeIcons = {
   'athlete': require('@/assets/images/athlete.png'),
@@ -30,8 +33,6 @@ const archetypeDescriptions = {
   'generalist': 'Well-rounded fitness approach with balanced strength, cardio, and flexibility goals.',
   'powerlifter': 'Specialized in maximizing strength in the squat, bench press, and deadlift.',
 };
-import { getOptimalImageUrl, getCoverImageSource, DEFAULT_PROFILE_IMAGE } from '@/utils/imageUtils';
-import { MilestoneDetails } from '@/types/milestone';
 
 interface ProfileScreenProps {
   userId?: string;
@@ -92,9 +93,29 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
   const tabWidth = screenWidth / 3;
   const [tooltipVisible, setTooltipVisible] = useState(false);
   const [tooltipText, setTooltipText] = useState('');
+  const [reportModalVisible, setReportModalVisible] = useState(false);
 
   const isOwnProfile = !routeUserId || routeUserId === currentUser?.uid;
-  const displayProfileData = isOwnProfile ? (profileData || currentUserProfile) : profileData;
+  
+  // For own profile, merge profileData with currentUserProfile to get latest socialLinks
+  // currentUserProfile is updated immediately after settings save via refreshUserProfile()
+  const displayProfileData = useMemo(() => {
+    if (isOwnProfile) {
+      // Use profileData as base but overlay with currentUserProfile for fields that are updated in Settings
+      const baseData = profileData || currentUserProfile;
+      if (baseData && currentUserProfile) {
+        return {
+          ...baseData,
+          // Use currentUserProfile's values as they're updated immediately after save/discard
+          socialLinks: currentUserProfile.socialLinks,
+          profileImageUrl: currentUserProfile.profileImageUrl,
+          profileThumbnailUrl: currentUserProfile.profileThumbnailUrl,
+        };
+      }
+      return baseData;
+    }
+    return profileData;
+  }, [isOwnProfile, profileData, currentUserProfile]);
 
   useEffect(() => {
     if (displayProfileData?.blockedUsers && currentUser) {
@@ -578,19 +599,20 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
     if (!displayProfileData?.id) return;
     
     const isBlocked = isUserBlocked(displayProfileData.id);
-    const actionText = isBlocked ? 'Unblock User' : 'Block User';
-    const actionHandler = isBlocked ? handleUnblockUser : handleBlockUser;
+    const blockActionText = isBlocked ? 'Unblock User' : 'Block User';
+    const blockActionHandler = isBlocked ? handleUnblockUser : handleBlockUser;
     
     if (Platform.OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
         {
-          options: ['Cancel', actionText],
-          destructiveButtonIndex: isBlocked ? -1 : 1,
+          options: ['Cancel', 'Report User', blockActionText],
+          destructiveButtonIndex: isBlocked ? -1 : 2,
           cancelButtonIndex: 0,
           userInterfaceStyle: 'dark',
         },
         (buttonIndex) => {
-          if (buttonIndex === 1) actionHandler();
+          if (buttonIndex === 1) setReportModalVisible(true);
+          if (buttonIndex === 2) blockActionHandler();
         }
       );
     } else {
@@ -601,9 +623,13 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
         [
           { text: 'Cancel', style: 'cancel' },
           { 
-            text: actionText, 
+            text: 'Report User', 
+            onPress: () => setReportModalVisible(true)
+          },
+          { 
+            text: blockActionText, 
             style: isBlocked ? 'default' : 'destructive', 
-            onPress: actionHandler 
+            onPress: blockActionHandler 
           }
         ]
       );
@@ -651,12 +677,10 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
   };
 
   const handleSettingsPress = () => {
-    console.log(`Settings clicked`);
     router.push('/settings');
   };
 
   const handleImagePress = useCallback((post: any) => {
-    console.log(`Image clicked - Post ID: ${post.id}`);
     router.push({
       pathname: '/view-post/[id]',
       params: { id: post.id }
@@ -664,7 +688,6 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
   }, [router]);
 
   const handleMilestonePress = useCallback((postId: string) => {
-    console.log(`Milestone clicked, navigating to Post ID=${postId}`);
      router.push({
        pathname: '/view-milestone/[id]', 
        params: { id: postId }
@@ -672,7 +695,6 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
   }, [router]);
 
   const handleWorkoutPress = useCallback((workoutId: number) => {
-    console.log(`Workout clicked, navigating to Workout ID=${workoutId}`);
     router.push({
       pathname: '/view-workout/[id]',
       params: { id: workoutId.toString() }
@@ -1129,9 +1151,11 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
             uri: getOptimalImageUrl(
               processedProfileData?.profileThumbnailUrl,
               processedProfileData?.profileImageUrl
-            )
+            ),
+            cache: 'reload'
           }}
           style={styles.profileImage}
+          key={processedProfileData?.profileImageUrl || 'default-profile'}
         />
         <Text style={styles.profileName}>{processedProfileData?.displayName || 'User'}</Text>
         <View style={styles.profileNameRow}>
@@ -1160,6 +1184,13 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
           )}
         </View>
         <Text style={styles.profileBio}>{processedProfileData?.bio || 'No bio yet'}</Text>
+
+        {/* Social Links */}
+        <SocialLinksDisplay 
+          socialLinks={processedProfileData?.socialLinks} 
+          profileUserId={viewedProfileId}
+          isFollowing={isFollowingStatus}
+        />
 
         <View style={styles.statsContainer}>
           <TouchableOpacity
@@ -1281,6 +1312,22 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
               : "This account is private"}
           </Text>
         </View>
+      )}
+
+      {/* Report Modal */}
+      {displayProfileData && !isOwnProfile && (
+        <ReportModal
+          visible={reportModalVisible}
+          onClose={() => setReportModalVisible(false)}
+          contentType="user"
+          contentId={displayProfileData.id || displayProfileData.uid}
+          reportedUserId={displayProfileData.id || displayProfileData.uid}
+          contentSnapshot={{
+            username: displayProfileData.username,
+            profileImageUrl: displayProfileData.profileImageUrl,
+          }}
+          onBlockUser={isUserBlocked(displayProfileData.id || displayProfileData.uid) ? undefined : handleBlockUser}
+        />
       )}
     </SafeAreaView>
   );

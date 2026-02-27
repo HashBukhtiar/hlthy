@@ -113,3 +113,6 @@ expo-env.d.ts
 # Builds
 android/
 ios/
+
+# Admin Dashboard (separate app, will be moved out of repo)
+admin-dashboard/

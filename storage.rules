@@ -17,6 +17,13 @@ service firebase.storage {
       allow write: if request.auth != null && request.auth.uid == userId;
       allow read: if true; // Public read access for post images
     }
+    // Allow conversation participants to upload/read photos in their conversations
+    match /conversations/{conversationId}/photos/{photoId}/{filename} {
+      allow write: if request.auth != null && 
+        firestore.get(/databases/(default)/documents/conversations/$(conversationId)).data.participants.hasAny([request.auth.uid]);
+      allow read: if request.auth != null && 
+        firestore.get(/databases/(default)/documents/conversations/$(conversationId)).data.participants.hasAny([request.auth.uid]);
+    }
     // Default: deny everything else
     match /{allPaths=**} {
       allow read, write: if false;

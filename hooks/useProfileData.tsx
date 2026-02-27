@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { collection, query, orderBy, getDocs, doc, getDoc, where, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db, app } from '@/firebaseConfig';
 import { useAuth } from '@/context/AuthContext';
@@ -33,7 +33,16 @@ export function useProfileData(userId = null, contextUserProfile: UserProfile | 
   const functions = getFunctions(app, 'northamerica-northeast2');
   const followUserFn   = httpsCallable(functions, 'followUser');
   const unfollowUserFn = httpsCallable(functions, 'unfollowUser');
-  const isOwnProfile = !userId || userId === currentUser?.uid;
+  
+  // Memoize isOwnProfile to prevent unnecessary recalculations
+  const isOwnProfile = useMemo(() => !userId || userId === currentUser?.uid, [userId, currentUser?.uid]);
+  
+  // Track state to prevent redundant operations
+  const hasCleared = useRef(false);
+  const lastUserId = useRef<string | null | undefined>(undefined);
+  const isFetching = useRef(false);
+  const lastFetchedUserId = useRef<string | null>(null);
+  
   const [loading, setLoading] = useState(true);
   const [profileData, setProfileData] = useState<UserProfile | null>(null);
   const [posts, setPosts] = useState<any[]>([]);
@@ -194,14 +203,47 @@ export function useProfileData(userId = null, contextUserProfile: UserProfile | 
 
   // Memoize fetchProfileData to prevent infinite loops
   const fetchProfileData = useCallback(async () => {
+    // Prevent duplicate fetches
+    if (isFetching.current) {
+      return;
+    }
+
     if (!profileIdToFetch) {
       setLoading(false);
       setError(new Error("No profile ID available to fetch data."));
-      console.log("No profileIdToFetch, returning early from fetchProfileData");
       return;
     }
     
-    console.log(`Fetching profile data for ID (fetchProfileData): ${profileIdToFetch}`);
+    // Add authentication check BEFORE starting any operations
+    if (!currentUser?.uid) {
+      // Only clear once to avoid redundant state updates
+      if (!hasCleared.current) {
+        setLoading(false);
+        setLoadingWorkouts(false);
+        setProfileData(null);
+        setPosts([]);
+        setGroupedMilestones({});
+        setWorkouts([]);
+        setSavedWorkouts([]);
+        setFollowers([]);
+        setFollowing([]);
+        setError(null);
+        hasCleared.current = true;
+        lastFetchedUserId.current = null;
+      }
+      return;
+    }
+    
+    // Skip if we just fetched this user
+    if (lastFetchedUserId.current === profileIdToFetch) {
+      return;
+    }
+    
+    // Reset cleared flag and set fetching state
+    hasCleared.current = false;
+    isFetching.current = true;
+    lastFetchedUserId.current = profileIdToFetch;
+    
     setLoading(true);
     setLoadingWorkouts(true);
     setError(null);
@@ -218,6 +260,14 @@ export function useProfileData(userId = null, contextUserProfile: UserProfile | 
       // 1. Fetch user profile
       try {
         const userDoc = await getDoc(doc(db, "users", profileIdToFetch));
+        
+        // Check if user still exists after async operation
+        if (!currentUser?.uid) {
+          setLoading(false);
+          setLoadingWorkouts(false);
+          return;
+        }
+        
         if (userDoc.exists()) {
           const rawUserData = { 
             id: userDoc.id, 
@@ -225,12 +275,16 @@ export function useProfileData(userId = null, contextUserProfile: UserProfile | 
           }; 
           // Process the raw user data through our migration function
           userData = processUserProfile(rawUserData);
-          console.log("User profile data retrieved and processed for:", profileIdToFetch);
         } else {
-          console.log("User profile not found for:", profileIdToFetch);
           throw new Error("User profile not found.");
         }
       } catch (profileError) {
+        // Don't log errors if user logged out
+        if (!currentUser?.uid) {
+          setLoading(false);
+          setLoadingWorkouts(false);
+          return;
+        }
         console.error("Error fetching user profile:", profileError);
         setError(profileError as Error);
         setLoading(false);
@@ -255,7 +309,6 @@ export function useProfileData(userId = null, contextUserProfile: UserProfile | 
             authorProfileThumbnailUrl: userData.profileThumbnailUrl,
           };
         });
-        console.log(`Retrieved ${userPosts.length} user posts for:`, profileIdToFetch);
       } catch (postsError) {
         console.error("Error fetching posts:", postsError);
       }
@@ -295,7 +348,6 @@ export function useProfileData(userId = null, contextUserProfile: UserProfile | 
             }
             return milestone;
           });
-        console.log(`Extracted ${userMilestonesRaw.length} raw milestones from posts for:`, profileIdToFetch);
       } catch (milestoneError) {
         console.error("Error processing milestones:", milestoneError);
       }
@@ -308,7 +360,6 @@ export function useProfileData(userId = null, contextUserProfile: UserProfile | 
         );
         const workoutsSnapshot = await getDocs(workoutsQuery);
         userWorkouts = workoutsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        console.log(`Retrieved ${userWorkouts.length} workouts for:`, profileIdToFetch);
       } catch (workoutsError) {
         console.error("Error fetching workouts:", workoutsError);
       }
@@ -337,7 +388,6 @@ export function useProfileData(userId = null, contextUserProfile: UserProfile | 
             userSavedWorkouts = savedWorkoutResults.filter(workout => workout !== null);
           }
           
-          console.log(`Retrieved ${userSavedWorkouts.length} saved workouts for:`, profileIdToFetch);
         } catch (savedWorkoutsError) {
           console.error("Error fetching saved workouts:", savedWorkoutsError);
         }
@@ -348,7 +398,6 @@ export function useProfileData(userId = null, contextUserProfile: UserProfile | 
         const followersQuery = query(collection(db, "users", profileIdToFetch, "followers"));
         const followersSnap = await getDocs(followersQuery);
         userFollowers = followersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        console.log(`Retrieved ${userFollowers.length} followers for:`, profileIdToFetch);
       } catch (followersError) {
         console.error("Error fetching followers:", followersError);
       }
@@ -358,7 +407,6 @@ export function useProfileData(userId = null, contextUserProfile: UserProfile | 
         const followingQuery = query(collection(db, "users", profileIdToFetch, "following"));
         const followingSnap = await getDocs(followingQuery);
         userFollowingData = followingSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        console.log(`Retrieved ${userFollowingData.length} following for:`, profileIdToFetch);
       } catch (followingError) {
         console.error("Error fetching following:", followingError);
       }
@@ -374,7 +422,6 @@ export function useProfileData(userId = null, contextUserProfile: UserProfile | 
           } else {
             setIsRequestPending(false);
           }
-          console.log(`Follow status for ${profileIdToFetch} by ${currentUser.uid}: following=${followDoc.exists()}, pending=${!followDoc.exists() && isRequestPending}`);
         } catch (followStatusError) {
           console.error("Error checking follow/pending status:", followStatusError);
         }
@@ -393,15 +440,19 @@ export function useProfileData(userId = null, contextUserProfile: UserProfile | 
       setSavedWorkouts(userSavedWorkouts);
       setFollowers(userFollowers);
       setFollowing(userFollowingData);
-
-      console.log("Profile data refresh complete for:", profileIdToFetch);
     } catch (err) {
+      // Don't log errors if user logged out
+      if (!currentUser?.uid) {
+        return;
+      }
       console.error("Error in fetchProfileData:", err);
       setError(err as Error);
     } finally {
-      setLoading(false);
-      setLoadingWorkouts(false);
-      console.log("Loading set to false for:", profileIdToFetch);
+      if (currentUser?.uid) {
+        setLoading(false);
+        setLoadingWorkouts(false);
+      }
+      isFetching.current = false;
     }
   }, [profileIdToFetch, currentUser?.uid, isOwnProfile]);
 
@@ -430,16 +481,14 @@ export function useProfileData(userId = null, contextUserProfile: UserProfile | 
 
       // Always use the Cloud Function for follow logic
       const result = await followUserFn({ targetUserId });
-      const message = result?.data?.message || "";
+      const message = (result?.data as { message?: string })?.message || "";
 
       if (message.includes("pending approval")) {
         setIsRequestPending(true);
         setIsFollowingStatus(false);
-        console.log("Follow request sent to private account:", targetUserId);
       } else {
         setIsFollowingStatus(true);
         setIsRequestPending(false);
-        console.log("Successfully followed public account:", targetUserId);
       }
     } catch (error) {
       console.error("Error in follow operation:", error);
@@ -471,16 +520,13 @@ export function useProfileData(userId = null, contextUserProfile: UserProfile | 
       const pendingRequestSnap = await getDoc(pendingFollowerRef);
       if (pendingRequestSnap.exists()) {
         // This means the current user had sent a request to targetUserId, and is now cancelling it.
-        console.log("Cancelling sent follow request to user:", targetUserId);
         const cancelRequestFunction = httpsCallable(functions, 'cancelSentFollowRequest');
         await cancelRequestFunction({ targetUserId: targetUserId });
         setIsRequestPending(false);
-        console.log("Cancelled follow request to user:", targetUserId);
       } else {
         // Public unfollow → call Cloud Function
         await unfollowUserFn({ targetUserId });
         setIsFollowingStatus(false);
-        console.log("Successfully unfollowed user:", targetUserId);
       }
     } catch (error) {
       console.error("Error in unfollow/cancel request operation:", error);
@@ -491,19 +537,53 @@ export function useProfileData(userId = null, contextUserProfile: UserProfile | 
 
   // Memoize refreshProfileData as well
   const refreshProfileData = useCallback(async () => {
-    console.log("Manual refresh triggered for profile ID:", profileIdToFetch);
     await fetchProfileData();
   }, [fetchProfileData]);
 
   useEffect(() => {
-    console.log("useEffect in useProfileData triggered. profileIdToFetch:", profileIdToFetch);
+    const currentUserId = currentUser?.uid;
+    
+    // Skip if user hasn't changed and we've already handled this state
+    if (lastUserId.current === currentUserId && hasCleared.current) {
+      return;
+    }
+    
+    // Track user ID change
+    if (lastUserId.current !== currentUserId) {
+      lastUserId.current = currentUserId;
+      hasCleared.current = false; // Reset clear flag on user change
+      isFetching.current = false; // Reset fetching flag
+      lastFetchedUserId.current = null; // Reset last fetched user
+    }
+    
+    // Don't fetch if user is logged out
+    if (!currentUserId) {
+      // Only clear once per logout
+      if (!hasCleared.current) {
+        setLoading(false);
+        setLoadingWorkouts(false);
+        setProfileData(null);
+        setPosts([]);
+        setGroupedMilestones({});
+        setWorkouts([]);
+        setSavedWorkouts([]);
+        setFollowers([]);
+        setFollowing([]);
+        hasCleared.current = true;
+        lastFetchedUserId.current = null;
+      }
+      return;
+    }
+    
+    // Reset cleared flag when user is authenticated
+    hasCleared.current = false;
+    
     if (profileIdToFetch) {
       fetchProfileData();
     } else {
-      setLoading(false); 
-      console.log("profileIdToFetch is null/undefined in useEffect, not fetching.");
+      setLoading(false);
     }
-  }, [fetchProfileData]);
+  }, [fetchProfileData, profileIdToFetch, currentUser?.uid]);
 
   // Note: Removed the profileImage sync effect that was causing infinite loops.
   // The profile data is now fetched once and stays in sync through the main useEffect.
