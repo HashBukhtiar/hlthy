@@ -66,7 +66,7 @@ module.exports = [
     // Existing hooks have Firestore imports; suppress until each hook is migrated.
     // Remove each entry from this list as its domain moves to features/.
     files: [
-      'hooks/useFeedData.tsx',
+      // hooks/useFeedData.tsx graduated — Phase 3 complete
       'hooks/usePostsData.tsx',
       'hooks/useProfileData.tsx',
       'hooks/useProfileActions.ts',
