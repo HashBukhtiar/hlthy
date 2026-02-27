@@ -7,9 +7,14 @@ import {
   limit,
   doc,
   getDoc,
+  addDoc,
+  updateDoc,
+  serverTimestamp,
+  increment,
 } from 'firebase/firestore';
 import { db } from '@/firebaseConfig';
 import { WorkoutListItem } from '@/features/workouts/domain/WorkoutListItem';
+import { WorkoutDraft } from '@/features/workouts/domain/WorkoutDraft';
 import { logger } from '@/shared/utils/logger';
 
 const DOMAIN = 'WorkoutRepository';
@@ -88,5 +93,49 @@ export const WorkoutRepository = {
     );
     const snap = await getDocs(q);
     return snap.docs.map(d => mapDocToWorkoutListItem(d.id, d.data() as Record<string, unknown>));
+  },
+
+  /**
+   * Creates a new workout document and increments the creator's workout count.
+   * Returns the new workout's Firestore ID.
+   * coverImageUrl defaults to null; call updateCoverImageUrl after uploading the image.
+   */
+  async createDocument(
+    uid: string,
+    username: string,
+    draft: WorkoutDraft,
+    coverImageUrl: string | null = null
+  ): Promise<string> {
+    const workoutData = {
+      creatorId: uid,
+      creatorUsername: username,
+      title: draft.title,
+      description: draft.description,
+      coverImageUrl,
+      segments: draft.segments
+        .map(seg => ({
+          id: seg.id,
+          name: seg.name.trim(),
+          length: seg.length.trim(),
+          exercises: seg.exercises
+            .map(ex => ({ id: ex.id, name: ex.name.trim(), sets: ex.sets.trim(), reps: ex.reps.trim() }))
+            .filter(ex => ex.name !== ''),
+        }))
+        .filter(seg => seg.exercises.length > 0 || seg.name !== ''),
+      createdAt: serverTimestamp(),
+      visibility: draft.visibility,
+      isPublic: draft.visibility === 'public',
+      savedCount: 0,
+      tags: [],
+    };
+
+    const docRef = await addDoc(collection(db, 'workouts'), workoutData);
+    await updateDoc(doc(db, 'users', uid), { 'stats.workoutCount': increment(1) });
+    return docRef.id;
+  },
+
+  /** Updates the coverImageUrl field after a Storage upload completes. */
+  async updateCoverImageUrl(workoutId: string, url: string): Promise<void> {
+    await updateDoc(doc(db, 'workouts', workoutId), { coverImageUrl: url });
   },
 };
