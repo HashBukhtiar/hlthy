@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { 
+import React, { useState, useEffect } from 'react';
+import {
     StyleSheet,
     View,
     Text,
@@ -17,24 +17,14 @@ import globalStyles from '@/styles/globalStyles';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { useAuth } from '@/context/AuthContext';
-import { db } from '@/firebaseConfig';
-import { collection, query, where, getDocs, orderBy, limit, doc, getDoc as getFirestoreDoc } from 'firebase/firestore';
 import { getCoverImageSource } from '@/utils/imageUtils';
 import { icon } from '@/assets/images';
 import { ACCENT_COLOR } from '@/constants/Colors';
+import { useWorkoutList } from '@/features/workouts/ui/useWorkoutList';
+import { WorkoutListItem } from '@/features/workouts/domain/WorkoutListItem';
 
-interface WorkoutItemData {
-    id: string;
-    title: string;
-    creatorId: string;
-    creatorUsername: string;
-    coverImageUrl?: string | null;
-    thumbnailUrl?: string | null;
-    savedCount?: number;
-}
-
-const chunkArray = (array: WorkoutItemData[], size: number): WorkoutItemData[][] => {
-  const chunkedArr: WorkoutItemData[][] = [];
+const chunkArray = (array: WorkoutListItem[], size: number): WorkoutListItem[][] => {
+  const chunkedArr: WorkoutListItem[][] = [];
   let index = 0;
   while (index < array.length) {
     chunkedArr.push(array.slice(index, size + index));
@@ -48,173 +38,23 @@ export default function Workouts() {
     const router = useRouter();
     const { currentUser } = useAuth();
 
-    const [myWorkouts, setMyWorkouts] = useState<WorkoutItemData[]>([]);
-    const [favoriteWorkouts, setFavoriteWorkouts] = useState<WorkoutItemData[]>([]);
-    const [followingWorkouts, setFollowingWorkouts] = useState<WorkoutItemData[]>([]);
-    const [trendingWorkouts, setTrendingWorkouts] = useState<WorkoutItemData[]>([]);
-    
-    const [searchResults, setSearchResults] = useState<WorkoutItemData[]>([]);
-    
-    const [loadingMyWorkouts, setLoadingMyWorkouts] = useState(false);
-    const [loadingFavorites, setLoadingFavorites] = useState(false);
-    const [loadingFollowingWorkouts, setLoadingFollowingWorkouts] = useState(false);
-    const [loadingTrending, setLoadingTrending] = useState(false);
-    const [refreshing, setRefreshing] = useState(false);
+    const {
+        myWorkouts,
+        favoriteWorkouts,
+        followingWorkouts,
+        trendingWorkouts,
+        loadingMyWorkouts,
+        loadingFavorites,
+        loadingFollowingWorkouts,
+        loadingTrending,
+        refreshing,
+        refresh,
+    } = useWorkoutList();
+
+    const [searchResults, setSearchResults] = useState<WorkoutListItem[]>([]);
     const [isSearching, setIsSearching] = useState(false);
 
-    const fetchMyWorkouts = useCallback(async () => {
-        if (!currentUser) return;
-        setLoadingMyWorkouts(true);
-        try {
-            const q = query(
-                collection(db, 'workouts'), 
-                where('creatorId', '==', currentUser.uid),
-                orderBy('createdAt', 'desc')
-            );
-            const querySnapshot = await getDocs(q);
-            const workoutsData = querySnapshot.docs.map(docSnap => {
-                const d = docSnap.data() as any;
-                return {
-                    id:              docSnap.id,
-                    title:           d.title,
-                    creatorId:       d.creatorId,
-                    creatorUsername: d.creatorUsername,
-                    coverImageUrl:   d.coverImageUrl ?? null,
-                    thumbnailUrl:    d.thumbnailUrl  ?? null,
-                    savedCount:      d.savedCount   ?? 0,
-                };
-            });
-            setMyWorkouts(workoutsData);
-        } catch (error) {
-            console.error("Error fetching my workouts: ", error);
-            setMyWorkouts([]); 
-        } finally {
-            setLoadingMyWorkouts(false);
-        }
-    }, [currentUser]);
-
-    const fetchFavoriteWorkouts = useCallback(async () => {
-        if (!currentUser) return;
-        setLoadingFavorites(true);
-        try {
-            const savedWorkoutsRef = collection(db, `users/${currentUser.uid}/savedWorkouts`);
-            const savedSnapshot = await getDocs(savedWorkoutsRef);
-            const workoutIds = savedSnapshot.docs.map(doc => doc.id);
-
-            if (workoutIds.length === 0) {
-                setFavoriteWorkouts([]);
-                setLoadingFavorites(false);
-                return;
-            }
-            
-            const favWorkoutsData: WorkoutItemData[] = [];
-                for (const id of workoutIds.slice(0, 30)) {
-                  const snap = await getFirestoreDoc(doc(db, 'workouts', id));
-                  if (!snap.exists()) continue;
-                  const d = snap.data() as any;
-                  favWorkoutsData.push({
-                    id:               snap.id,
-                    title:            d.title,
-                    creatorId:        d.creatorId,
-                    creatorUsername:  d.creatorUsername,
-                    coverImageUrl:    d.coverImageUrl ?? null,
-                    thumbnailUrl:     d.thumbnailUrl  ?? null,
-                    savedCount:       d.savedCount   ?? 0,
-                  });
-                }
-                setFavoriteWorkouts(favWorkoutsData);
-        } catch (error) {
-            console.error("Error fetching favorite workouts: ", error);
-            setFavoriteWorkouts([]);
-        } finally {
-            setLoadingFavorites(false);
-        }
-    }, [currentUser]);
-
-    const fetchFollowingWorkouts = useCallback(async () => {
-        if (!currentUser) return;
-        setLoadingFollowingWorkouts(true);
-        try {
-            
-            const followingRef = collection(db, `users/${currentUser.uid}/following`);
-            const followingSnapshot = await getDocs(followingRef);
-            const followingIds = followingSnapshot.docs.map(doc => doc.id);
-
-            if (followingIds.length === 0) {
-                setFollowingWorkouts([]);
-                setLoadingFollowingWorkouts(false);
-                return;
-            }
-
-            
-            const q = query(
-                collection(db, 'workouts'),
-                where('creatorId', 'in', followingIds),
-                orderBy('createdAt', 'desc')
-            );
-            const querySnapshot = await getDocs(q);
-            const workoutsData: WorkoutItemData[] = querySnapshot.docs.map(docSnap => {
-                const d = docSnap.data() as any;
-                return {
-                    id:              docSnap.id,
-                    title:           d.title,
-                    creatorId:       d.creatorId,
-                    creatorUsername: d.creatorUsername,
-                    coverImageUrl:   d.coverImageUrl ?? null,
-                    thumbnailUrl:    d.thumbnailUrl  ?? null,
-                    savedCount:      d.savedCount   ?? 0,
-                };
-            });
-            setFollowingWorkouts(workoutsData);
-        } catch (error) {
-            console.error("Error fetching workouts from people you follow: ", error);
-            setFollowingWorkouts([]);
-        } finally {
-            setLoadingFollowingWorkouts(false);
-        }
-    }, [currentUser]);
-
-    const fetchTrendingWorkouts = useCallback(async () => {
-        if (!currentUser) return; // Don't fetch if user is not authenticated
-        setLoadingTrending(true);
-        try {
-            const q = query(
-                collection(db, 'workouts'),
-                where('isPublic', '==', true), 
-                orderBy('savedCount', 'desc'), 
-                limit(50) 
-            );
-            const querySnapshot = await getDocs(q);
-            const workoutsData: WorkoutItemData[] = querySnapshot.docs.map(docSnap => {
-                const d = docSnap.data() as any;
-                return {
-                    id:              docSnap.id,
-                    title:           d.title,
-                    creatorId:       d.creatorId,
-                    creatorUsername: d.creatorUsername,
-                    coverImageUrl:   d.coverImageUrl ?? null,
-                    thumbnailUrl:    d.thumbnailUrl  ?? null,
-                    savedCount:      d.savedCount   ?? 0,
-                };
-        });
-            setTrendingWorkouts(workoutsData); 
-        } catch (error) {
-            console.error("Error fetching trending workouts: ", error);
-            setTrendingWorkouts([]); 
-        } finally {
-            setLoadingTrending(false);
-        }
-    }, [currentUser]);
-
-    useEffect(() => {
-        if (currentUser) {
-            fetchMyWorkouts();
-            fetchFavoriteWorkouts();
-            fetchFollowingWorkouts();
-            fetchTrendingWorkouts();
-        }
-    }, [currentUser, fetchMyWorkouts, fetchFavoriteWorkouts, fetchTrendingWorkouts, fetchFollowingWorkouts]);
-
+    // Client-side search filter over the in-memory data — no Firestore queries.
     useEffect(() => {
         const lowerCaseQuery = searchQuery.toLowerCase().trim();
 
@@ -226,32 +66,23 @@ export default function Workouts() {
 
         setIsSearching(true);
 
-        // Combine all workouts and deduplicate
-        const allWorkoutsMap = new Map<string, WorkoutItemData>();
-        myWorkouts.forEach(workout => allWorkoutsMap.set(workout.id, workout));
-        favoriteWorkouts.forEach(workout => allWorkoutsMap.set(workout.id, workout));
-        trendingWorkouts.forEach(workout => allWorkoutsMap.set(workout.id, workout));
-        
-        const uniqueWorkouts = Array.from(allWorkoutsMap.values());
+        const allWorkoutsMap = new Map<string, WorkoutListItem>();
+        myWorkouts.forEach(w => allWorkoutsMap.set(w.id, w));
+        favoriteWorkouts.forEach(w => allWorkoutsMap.set(w.id, w));
+        trendingWorkouts.forEach(w => allWorkoutsMap.set(w.id, w));
 
-        const filtered = uniqueWorkouts.filter(
-            (workout) =>
-                workout.title.toLowerCase().includes(lowerCaseQuery) ||
-                workout.creatorUsername.toLowerCase().includes(lowerCaseQuery)
+        const filtered = Array.from(allWorkoutsMap.values()).filter(
+            w =>
+                w.title.toLowerCase().includes(lowerCaseQuery) ||
+                w.creatorUsername.toLowerCase().includes(lowerCaseQuery)
         );
         setSearchResults(filtered);
     }, [searchQuery, myWorkouts, favoriteWorkouts, trendingWorkouts]);
 
-
-    const onRefresh = useCallback(() => {
-        setRefreshing(true);
+    const onRefresh = () => {
         setSearchQuery('');
-        Promise.all([
-            currentUser ? fetchMyWorkouts() : Promise.resolve(),
-            currentUser ? fetchFavoriteWorkouts() : Promise.resolve(),
-            fetchTrendingWorkouts()
-        ]).finally(() => setRefreshing(false));
-    }, [currentUser, fetchMyWorkouts, fetchFavoriteWorkouts, fetchTrendingWorkouts]);
+        refresh();
+    };
 
     function renderSearchBar() {
         return (
@@ -259,12 +90,10 @@ export default function Workouts() {
                 <Ionicons name="search" size={24} color="grey" />
                 <TextInput
                     style={styles.searchBar}
-                    onChangeText={(text) => setSearchQuery(text)}
+                    onChangeText={setSearchQuery}
                     value={searchQuery}
                     placeholder="Search Workouts by Title or Creator..."
                     placeholderTextColor="grey"
-                    // onFocus={() => setIsSearching(true)} // Can be used if you want overlay on focus
-                    // onBlur={() => !searchQuery && setIsSearching(false)} // Hide if query is empty on blur
                 />
                 {searchQuery ? (
                     <TouchableOpacity onPress={() => setSearchQuery('')}>
@@ -275,58 +104,52 @@ export default function Workouts() {
         );
     }
 
-    const renderWorkoutCarouselItem = (item: WorkoutItemData, itemStyle: any, blurStyle: any) => {
-        const hasCover = Boolean(
-            item.thumbnailUrl?.trim() ||
-            item.coverImageUrl?.trim()
-            );
+    const renderWorkoutCarouselItem = (item: WorkoutListItem, itemStyle: any, blurStyle: any) => {
+        const hasCover = Boolean(item.thumbnailUrl?.trim() || item.coverImageUrl?.trim());
 
         return (
             <TouchableOpacity
                 key={item.id}
                 style={itemStyle}
                 onPress={() => {
-                router.push(`/view-workout/${item.id}`);
-                setSearchQuery('');
+                    router.push(`/view-workout/${item.id}`);
+                    setSearchQuery('');
                 }}
             >
                 {hasCover ? (
-                <>
-                    <Image
-                    source={getCoverImageSource(item.thumbnailUrl, item.coverImageUrl)}
-                    style={[StyleSheet.absoluteFill, { backgroundColor: '#333', resizeMode: 'cover' }]}
-                    />
-                    <BlurView intensity={25} tint="dark" style={blurStyle}>
-                    <Text style={styles.workoutNameText} numberOfLines={1}>{item.title}</Text>
-                    <Text style={styles.workoutAuthorText} numberOfLines={1}>by {item.creatorUsername}</Text>
-                    </BlurView>
-                </>
+                    <>
+                        <Image
+                            source={getCoverImageSource(item.thumbnailUrl, item.coverImageUrl)}
+                            style={[StyleSheet.absoluteFill, { backgroundColor: '#333', resizeMode: 'cover' }]}
+                        />
+                        <BlurView intensity={25} tint="dark" style={blurStyle}>
+                            <Text style={styles.workoutNameText} numberOfLines={1}>{item.title}</Text>
+                            <Text style={styles.workoutAuthorText} numberOfLines={1}>by {item.creatorUsername}</Text>
+                        </BlurView>
+                    </>
                 ) : (
-                <>
-                    {/* placeholder icon, no blur */}
-                    <View style={[StyleSheet.absoluteFill, {
-                    backgroundColor: '#222',
-                    justifyContent: 'center',
-                    alignItems: 'center'
-                    }]}>
-                    <Image
-                        source={icon}
-                        style={{ width: '60%', height: '60%', resizeMode: 'contain' }}
-                    />
-                    </View>
-                    {/* text container without blur */}
-                    <View style={blurStyle}>
-                    <Text style={styles.workoutNameText} numberOfLines={1}>{item.title}</Text>
-                    <Text style={styles.workoutAuthorText} numberOfLines={1}>by {item.creatorUsername}</Text>
-                    </View>
-                </>
+                    <>
+                        <View style={[StyleSheet.absoluteFill, {
+                            backgroundColor: '#222',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                        }]}>
+                            <Image
+                                source={icon}
+                                style={{ width: '60%', height: '60%', resizeMode: 'contain' }}
+                            />
+                        </View>
+                        <View style={blurStyle}>
+                            <Text style={styles.workoutNameText} numberOfLines={1}>{item.title}</Text>
+                            <Text style={styles.workoutAuthorText} numberOfLines={1}>by {item.creatorUsername}</Text>
+                        </View>
+                    </>
                 )}
             </TouchableOpacity>
         );
     };
 
-    // New item renderer for search results list
-    const renderSearchResultItem = ({ item }: { item: WorkoutItemData }) => (
+    const renderSearchResultItem = ({ item }: { item: WorkoutListItem }) => (
         <TouchableOpacity
             style={styles.searchResultItem}
             onPress={() => {
@@ -334,7 +157,7 @@ export default function Workouts() {
                 setSearchQuery('');
             }}
         >
-            <Image 
+            <Image
                 source={getCoverImageSource(item.thumbnailUrl, item.coverImageUrl)}
                 style={styles.searchResultImage}
             />
@@ -346,7 +169,6 @@ export default function Workouts() {
     );
 
     function renderMyWorkouts() {
-        // This section is now only rendered if not searching
         if (!currentUser) {
             return <Text style={styles.placeholderText}>Login to see your workouts.</Text>;
         }
@@ -354,7 +176,7 @@ export default function Workouts() {
             <View>
                 <View style={styles.myWorkoutsHeaderView}>
                     <Text style={styles.workoutsHeaders}>My Workouts</Text>
-                    <TouchableOpacity 
+                    <TouchableOpacity
                         style={styles.createWorkoutButton}
                         onPress={() => router.push('/create-workout')}
                     >
@@ -366,7 +188,7 @@ export default function Workouts() {
                 ) : myWorkouts.length === 0 ? (
                     <Text style={styles.placeholderText}>You haven't created any workouts yet.</Text>
                 ) : (
-                    <ScrollView horizontal={true} style={styles.myWorkoutsList} showsHorizontalScrollIndicator={false}>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.myWorkoutsList}>
                         {myWorkouts.map(item => renderWorkoutCarouselItem(item, styles.myWorkoutsButton, styles.myWorkoutPreview))}
                     </ScrollView>
                 )}
@@ -385,19 +207,19 @@ export default function Workouts() {
                     <Ionicons name="chevron-forward-outline" size={24} color="grey" />
                 </TouchableOpacity>
                 {loadingFavorites && favoriteWorkouts.length === 0 ? (
-                     <ActivityIndicator style={styles.listLoadingIndicator} size="small" color="white" />
+                    <ActivityIndicator style={styles.listLoadingIndicator} size="small" color="white" />
                 ) : favoriteWorkouts.length === 0 ? (
                     <Text style={styles.placeholderText}>No favorite workouts yet.</Text>
                 ) : (
-                    <ScrollView horizontal={true} style={styles.followingWorkoutsList} showsHorizontalScrollIndicator={false}>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.followingWorkoutsList}>
                         {favoriteWorkouts.map(item => renderWorkoutCarouselItem(item, styles.followingWorkoutsButton, styles.workoutPreview))}
                     </ScrollView>
                 )}
             </View>
         );
     }
-    
-    function renderFollowingWorkouts() { 
+
+    function renderFollowingWorkouts() {
         if (!currentUser) {
             return <Text style={styles.placeholderText}>Login to see workouts from people you follow.</Text>;
         }
@@ -412,7 +234,7 @@ export default function Workouts() {
                 ) : followingWorkouts.length === 0 ? (
                     <Text style={styles.placeholderText}>No workouts from people you follow yet.</Text>
                 ) : (
-                    <ScrollView horizontal={true} style={styles.followingWorkoutsList} showsHorizontalScrollIndicator={false}>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.followingWorkoutsList}>
                         {followingWorkouts.map(item => renderWorkoutCarouselItem(item, styles.followingWorkoutsButton, styles.workoutPreview))}
                     </ScrollView>
                 )}
@@ -422,7 +244,7 @@ export default function Workouts() {
 
     function renderTrendingWorkouts() {
         const topTwelveWorkouts = trendingWorkouts.slice(0, 12);
-        const columnsOfFour = chunkArray(topTwelveWorkouts, 4); 
+        const columnsOfFour = chunkArray(topTwelveWorkouts, 4);
 
         return (
             <View>
@@ -434,15 +256,15 @@ export default function Workouts() {
                 ) : topTwelveWorkouts.length === 0 ? (
                     <Text style={styles.placeholderText}>No trending workouts available.</Text>
                 ) : (
-                    <ScrollView 
-                        horizontal={true} 
+                    <ScrollView
+                        horizontal
                         showsHorizontalScrollIndicator={false}
                         style={styles.trendingHorizontalScrollView}
                         contentContainerStyle={styles.trendingHorizontalScrollContent}
                     >
                         {columnsOfFour.map((columnItems, columnIndex) => (
                             <View key={`column-${columnIndex}`} style={styles.trendingColumn}>
-                                {columnItems.map((item) => (
+                                {columnItems.map(item => (
                                     <TouchableOpacity
                                         key={item.id}
                                         style={styles.trendingColumnItemCard}
@@ -451,7 +273,7 @@ export default function Workouts() {
                                             setSearchQuery('');
                                         }}
                                     >
-                                        <Image 
+                                        <Image
                                             source={getCoverImageSource(item.thumbnailUrl, item.coverImageUrl)}
                                             style={styles.trendingColumnItemImage}
                                         />
@@ -469,12 +291,12 @@ export default function Workouts() {
             </View>
         );
     }
+
     return (
         <View style={globalStyles.container}>
             <View style={styles.searchBarView}>
                 {renderSearchBar()}
             </View>
-
             {isSearching ? (
                 <View style={styles.searchResultsContainer}>
                     {searchResults.length > 0 ? (
@@ -489,19 +311,19 @@ export default function Workouts() {
                     )}
                 </View>
             ) : (
-                <ScrollView 
-                    style={styles.workoutsContainer} 
+                <ScrollView
+                    style={styles.workoutsContainer}
                     contentContainerStyle={globalStyles.contentContainer}
                     showsVerticalScrollIndicator={false}
                     refreshControl={
-                        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="white"/>
+                        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="white" />
                     }
                 >
                     {renderMyWorkouts()}
                     {renderFavoriteWorkouts()}
                     {renderFollowingWorkouts()}
                     {renderTrendingWorkouts()}
-                    <View style={{height: 30}} />
+                    <View style={{ height: 30 }} />
                 </ScrollView>
             )}
         </View>
@@ -530,8 +352,8 @@ const styles = StyleSheet.create({
         marginLeft: 10,
     },
     searchResultsContainer: {
-        flex: 1, 
-        backgroundColor: 'black', 
+        flex: 1,
+        backgroundColor: 'black',
     },
     searchResultsList: {
         paddingHorizontal: 10,
@@ -550,7 +372,7 @@ const styles = StyleSheet.create({
         height: 50,
         borderRadius: 8,
         marginRight: 12,
-        backgroundColor: '#333', 
+        backgroundColor: '#333',
     },
     searchResultTextContainer: {
         flex: 1,
@@ -562,18 +384,18 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
     },
     searchResultCreator: {
-        color: '#AEAEB2', 
+        color: '#AEAEB2',
         fontSize: 13,
         marginTop: 2,
     },
-    placeholderText: { 
+    placeholderText: {
         color: 'grey',
         textAlign: 'center',
         marginVertical: 20,
         marginHorizontal: 10,
         fontSize: 14,
-        flex: 1, 
-        justifyContent: 'center', 
+        flex: 1,
+        justifyContent: 'center',
         alignItems: 'center',
     },
     listLoadingIndicator: {
@@ -584,151 +406,103 @@ const styles = StyleSheet.create({
     },
     workoutsHeaders: {
         color: 'white',
-        fontSize: 24, 
+        fontSize: 24,
         fontWeight: 'bold',
     },
     myWorkoutsHeaderView: {
         flexDirection: 'row',
-        paddingHorizontal: 15, 
+        paddingHorizontal: 15,
         paddingVertical: 10,
         justifyContent: 'space-between',
         alignItems: 'center',
     },
     createWorkoutButton: {
-        backgroundColor: ACCENT_COLOR, 
-        borderRadius: 5, 
+        backgroundColor: ACCENT_COLOR,
+        borderRadius: 5,
         width: 140,
         height: 30,
         alignItems: 'center',
         justifyContent: 'center',
     },
-    myWorkoutsList: { 
-        paddingLeft: 15, 
-        paddingRight: 5, 
-        height: 210, 
+    myWorkoutsList: {
+        paddingLeft: 15,
+        paddingRight: 5,
+        height: 210,
     },
-    myWorkoutsButton: { 
-        overflow: 'hidden', 
-        width: 180, 
-        height: 180, 
-        borderRadius: 20, 
-        backgroundColor: '#333', 
+    myWorkoutsButton: {
+        overflow: 'hidden',
+        width: 180,
+        height: 180,
+        borderRadius: 20,
+        backgroundColor: '#333',
         marginRight: 10,
-        justifyContent: 'flex-end', 
+        justifyContent: 'flex-end',
     },
-    myWorkoutPreview: { 
-        width: '100%', 
+    myWorkoutPreview: {
+        width: '100%',
         justifyContent: 'center',
-        alignItems: 'flex-start', 
-        padding: 12, 
+        alignItems: 'flex-start',
+        padding: 12,
     },
     workoutNameText: {
         fontWeight: 'bold',
         color: 'white',
-        fontSize: 15, 
+        fontSize: 15,
         marginBottom: 2,
     },
     workoutAuthorText: {
-        color: '#E0E0E0', 
+        color: '#E0E0E0',
         fontSize: 11,
     },
-    followingWorkoutsList: { 
+    followingWorkoutsList: {
         paddingLeft: 15,
         paddingRight: 5,
-        height: 170, 
+        height: 170,
     },
-    followingWorkoutsButton: { 
+    followingWorkoutsButton: {
         overflow: 'hidden',
-        width: 150, 
+        width: 150,
         height: 150,
         borderRadius: 15,
-        backgroundColor: '#333', 
+        backgroundColor: '#333',
         marginRight: 10,
         justifyContent: 'flex-end',
     },
-    workoutPreview: { 
+    workoutPreview: {
         width: '100%',
         justifyContent: 'center',
         alignItems: 'flex-start',
         padding: 10,
     },
-    trendingWorkoutsList: { 
-        flexDirection: 'row',
-        padding: 5,
-        height: 220,
-    },
-    trendingWorkoutsButton: { 
-        flexDirection: 'row',
-        width: '100%', 
-        paddingVertical: 10,
-        paddingHorizontal: 5,
-        borderBottomWidth: 1,
-        borderBottomColor: '#2a2a2a',
-        alignItems: 'center',
-    },
-    trendingWorkoutsTextView: {
-        justifyContent: 'center',
-        alignItems: 'flex-start',
-        flex: 1, 
-    },
-    trendingWorkoutsText: {
-        color: 'white',
-    },
-    trendingWorkouts4Group: {
-        flexDirection: 'column',
-        width: Dimensions.get('window').width * 0.95,
-        marginTop: 10,
-        marginBottom: 10,
-        alignItems: 'center'
-    },  
-    trendingWorkoutsIcon: { 
-        width: 50,
-        height: 50,
-        borderRadius: 8,
-        backgroundColor: '#333',
-        marginRight: 10,
-    },
-    trendingWorkoutsMoreButton: {
-        justifyContent: 'center',
-        paddingLeft: 10,
-    },
-    trendingWorkoutsVerticalList: { 
-        paddingHorizontal: 10,
-    },
-    trendingSavedCount: {
-        color: '#aaa',
-        fontSize: 12,
-        marginLeft: 10,
-    }, 
     trendingHorizontalScrollView: {
-        paddingVertical: 10, 
+        paddingVertical: 10,
     },
     trendingHorizontalScrollContent: {
-        paddingHorizontal: 15, 
+        paddingHorizontal: 15,
     },
     trendingColumn: {
-        width: Dimensions.get('window').width * 0.9, 
-        marginRight: 15, 
+        width: Dimensions.get('window').width * 0.9,
+        marginRight: 15,
         borderRadius: 10,
     },
     trendingColumnItemCard: {
-        backgroundColor: '#2C2C2E', 
+        backgroundColor: '#2C2C2E',
         borderRadius: 12,
-        marginBottom: 12, 
-        overflow: 'hidden', 
+        marginBottom: 12,
+        overflow: 'hidden',
         flexDirection: 'row',
         alignItems: 'center',
         padding: 5,
     },
     trendingColumnItemImage: {
-        width: 60, 
+        width: 60,
         height: 60,
         borderRadius: 8,
         marginRight: 10,
         backgroundColor: '#3A3A3C',
     },
     trendingColumnItemTextContainer: {
-        flex: 1, 
+        flex: 1,
         justifyContent: 'center',
     },
     trendingColumnItemTitle: {
@@ -746,4 +520,4 @@ const styles = StyleSheet.create({
         color: '#888888',
         fontSize: 10,
     },
-})
+});

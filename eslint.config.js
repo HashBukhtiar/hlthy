@@ -47,10 +47,12 @@ module.exports = [
     },
   },
   {
-    // Repositories and existing services are the ONLY files allowed to import Firebase directly.
+    // Repositories, services, feature module files (domain types + ui hooks), and
+    // infra files are all allowed to import Firebase directly.
+    // The boundary rule targets screens/, app/, and top-level hooks/ only.
     files: [
-      'features/*/infra/**/*.ts',
-      'features/*/infra/**/*.tsx',
+      'features/**/*.ts',
+      'features/**/*.tsx',
       'services/**/*.ts',
       'services/**/*.tsx',
       'firebaseConfig.ts',
