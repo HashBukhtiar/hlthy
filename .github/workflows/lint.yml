@@ -25,4 +25,4 @@ jobs:
         run: npm install --include=dev
 
       - name: Run ESLint
-        run: npm run lint
+        run: node ./node_modules/eslint/bin/eslint.js .
