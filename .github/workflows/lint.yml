@@ -22,7 +22,7 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm install
+        run: npm install --include=dev
 
       - name: Run ESLint
-        run: ./node_modules/.bin/eslint .
+        run: npm exec eslint -- .
