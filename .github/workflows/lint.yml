@@ -23,11 +23,6 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
-        env:
-          NODE_ENV: development
-
-      - name: Debug
-        run: ls node_modules/.bin/eslint && echo "eslint binary found" || echo "eslint binary MISSING"
 
       - name: Run ESLint
         run: npm run lint
