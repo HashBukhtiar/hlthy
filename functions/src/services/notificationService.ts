@@ -1,4 +1,4 @@
-import {getDb} from "./firebaseAdmin";
+import {getDb} from "../admin/firebaseAdmin";
 import {onCall, HttpsError} from "firebase-functions/v2/https";
 import {onDocumentWritten} from "firebase-functions/v2/firestore";
 import {logger} from "firebase-functions";

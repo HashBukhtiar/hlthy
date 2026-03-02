@@ -3,8 +3,8 @@ import { Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { httpsCallable } from 'firebase/functions';
 import { signOut } from 'firebase/auth';
-import { auth, functions, db } from '@/firebaseConfig';
-import { doc, updateDoc } from 'firebase/firestore';
+import { auth, functions } from '@/firebaseConfig';
+import { SettingsRepository } from '@/features/settings/infra/settingsRepository';
 import { deleteImageFromStorage } from '@/utils/imageUtils';
 import { UserSettings } from '@/types/settings';
 import { validateSettings, sanitizeSettings } from '@/utils/settingsValidation';
@@ -84,8 +84,7 @@ export function useSettingsHandlers(props: UseSettingsHandlersProps) {
             // Restore Firebase document to original image URL
             try {
               if (currentUser?.uid) {
-                const userDocRef = doc(db, 'users', currentUser.uid);
-                await updateDoc(userDocRef, {
+                await SettingsRepository.updateUser(currentUser.uid, {
                   profileImageUrl: originalProfileImage || null,
                   profileThumbnailUrl: null,
                 });
@@ -203,7 +202,7 @@ export function useSettingsHandlers(props: UseSettingsHandlersProps) {
         version: 1,
       };
 
-      await updateDoc(doc(db, 'users', currentUser!.uid), firestoreUpdateData);
+      await SettingsRepository.updateUser(currentUser!.uid, firestoreUpdateData);
 
       if (imageHasChanged) {
         try {

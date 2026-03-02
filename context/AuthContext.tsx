@@ -1,9 +1,11 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { auth, db } from '@/firebaseConfig';
-import { onAuthStateChanged, reload, User, signOut } from 'firebase/auth';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
-import { UserProfile, AuthContextType } from '@/types/user';
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { auth } from '@/firebaseConfig';
+import { onAuthStateChanged, User, signOut } from 'firebase/auth';
+import { AuthContextType } from '@/types/user';
 import { NotificationService } from '@/services/NotificationService';
+import { NotificationBootstrap } from '@/features/notifications/ui/NotificationBootstrap';
+import { useProfile } from '@/features/auth/ui/useProfile';
+import { logger } from '@/shared/utils/logger';
 
 export const AuthContext = createContext<AuthContextType | null>(null);
 
@@ -14,168 +16,36 @@ interface AuthProviderProps {
 export function AuthProvider({ children }: AuthProviderProps) {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [isFromSignup, setIsFromSignup] = useState<boolean>(false);
 
-  
-    const refreshUserProfile = async () => {
-      if (currentUser) {
-        try {
-          // Reload user to get latest email verification status
-          await reload(currentUser);
+  const { userProfile, loadingProfile, fetchProfile, clearProfile } = useProfile();
 
-          const userDoc = await getDoc(doc(db, "users", currentUser.uid));
-
-          if (userDoc.exists()) {
-            const userData = userDoc.data();
-            
-            // Debug logging for socialLinks
-            console.log('[AuthContext] refreshUserProfile - userData.socialLinks:', JSON.stringify(userData.socialLinks, null, 2));
-
-            // Only update Firestore when Auth is verified (true) and Firestore is not yet
-            if (currentUser.emailVerified && !userData.emailVerified) {
-              await updateDoc(doc(db, "users", currentUser.uid), {
-                emailVerified: true,
-                lastModified: new Date().toISOString(),
-              });
-              userData.emailVerified = true;
-            }
-
-            // Use the Firestore value for emailVerified (don't overwrite with Auth false)
-            const finalEmailVerified = userData.emailVerified || currentUser.emailVerified;
-
-            setUserProfile({
-              uid: userDoc.id,
-              ...userData,
-              profileImageUrl: userData.profileImageUrl,
-              profileThumbnailUrl: userData.profileThumbnailUrl,
-              emailVerified: finalEmailVerified,
-            } as UserProfile);
-
-            // Initialize notifications if they weren't initialized yet
-            await initializeNotifications(currentUser, true);
-          } else {
-            setUserProfile(null);
-          }
-        } catch (error) {
-          console.error("Error refreshing user profile:", error);
-          setUserProfile(null);
-        }
-      }
-    };
-
-  // Initialize notifications for authenticated user
-  const initializeNotifications = async (user: User, userDocExists: boolean) => {
-    if (!user?.uid) return;
-
-    // Only initialize notifications if the user document exists in Firestore
-    // This prevents race conditions during signup where the auth user exists
-    // but the Firestore document hasn't been created yet
-    if (!userDocExists) {
-      return;
+  const refreshUserProfile = useCallback(async () => {
+    if (currentUser) {
+      await fetchProfile(currentUser);
     }
-
-    try {
-      // Set up notification channels first (Android)
-      await NotificationService.setupNotificationChannels();
-      
-      // Register for push notifications
-      const success = await NotificationService.registerForPushNotifications(user.uid);
-      if (success) {
-        // push notifications registered
-      }
-
-      // Set up notification listeners
-      const listeners = NotificationService.setupNotificationListeners();
-      
-    } catch (error) {
-      console.error('Error initializing notifications:', error);
-    }
-  };
+  }, [currentUser, fetchProfile]);
 
   useEffect(() => {
-    console.log('[AuthContext] Setting up onAuthStateChanged listener');
+    logger.debug('AuthContext', 'Setting up onAuthStateChanged listener');
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      console.log('[AuthContext] onAuthStateChanged fired, user:', user?.uid || 'null');
-      
+      logger.debug('AuthContext', 'onAuthStateChanged fired', { uid: user?.uid ?? 'null' });
       setCurrentUser(user);
-      if (user) {
-        console.log('[AuthContext] User exists, reloading user data...');
-        // Reload user to get latest email verification status
-        try {
-          await reload(user);
-          console.log('[AuthContext] User reloaded successfully');
-        } catch (reloadError) {
-          console.error('[AuthContext] Error reloading user:', reloadError);
-          // Continue anyway - don't block on reload failure
-        }
-        
-        // Fetch user profile data
-        try {
-          console.log('[AuthContext] Fetching user profile from Firestore...');
-          const userDoc = await getDoc(doc(db, "users", user.uid));
-          console.log('[AuthContext] User doc exists:', userDoc.exists());
-          
-          
-          if (userDoc.exists()) {
-            const userData = userDoc.data();
-            
-            // For email verification status:
-            // - If Firebase Auth says verified (true), update Firestore to match
-            // - If Firebase Auth says not verified (false) but Firestore says verified (true),
-            //   trust Firestore (this handles dev bypass and other edge cases)
-            // - Only update Firestore when Auth is verified and Firestore isn't yet
-            if (user.emailVerified && !userData.emailVerified) {
-              await updateDoc(doc(db, "users", user.uid), {
-                emailVerified: true,
-                lastModified: new Date().toISOString(),
-              });
-              userData.emailVerified = true;
-            }
-            
-            // Use the Firestore value for emailVerified (don't overwrite with Auth)
-            const finalEmailVerified = userData.emailVerified || user.emailVerified;
-            
-            
-            
-            setUserProfile({
-              uid: userDoc.id, // Use 'uid' instead of 'id' to match UserProfile type
-              ...userData,
-              profileImageUrl: userData.profileImageUrl,
-              profileThumbnailUrl: userData.profileThumbnailUrl,
-              emailVerified: finalEmailVerified,
-            } as UserProfile);
-          } else {
-            // User exists in Auth but not in Firestore yet (e.g., during signup flow)
-            
-            setUserProfile(null);
-          }
 
-          // Initialize notifications after user data is loaded
-          // Only if the user document exists (userDoc.exists() was true)
-          console.log('[AuthContext] Initializing notifications...');
-          await initializeNotifications(user, userDoc.exists());
-          console.log('[AuthContext] Notifications initialized');
-          
-        } catch (error) {
-          console.error("[AuthContext] Error fetching user profile:", error);
-          // Don't set user profile on error, keep it null
-          setUserProfile(null);
-        }
+      if (user) {
+        await fetchProfile(user);
       } else {
-        // User signed out - clean up
-        console.log('[AuthContext] No user, clearing state');
-        setCurrentUser(null);
-        setUserProfile(null);
-        setIsFromSignup(false); // Clear signup flag on sign out
-        // Note: Don't try to clean tokens here as user is already signed out
+        logger.debug('AuthContext', 'No user, clearing state');
+        clearProfile();
+        setIsFromSignup(false);
       }
-      console.log('[AuthContext] Setting loading to false');
+
+      logger.debug('AuthContext', 'Setting loading to false');
       setLoading(false);
     });
-    
+
     return unsubscribe;
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const logout = async () => {
     try {
@@ -184,11 +54,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
         await NotificationService.removePushToken(currentUser.uid);
         await NotificationService.clearCachedTokens();
       }
-      
+
       // Then sign out
       await signOut(auth);
     } catch (error) {
-      console.error('Error during logout:', error);
+      logger.error('AuthContext', 'Error during logout', error);
       // Force sign out even if token cleanup fails
       await signOut(auth);
     }
@@ -197,13 +67,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const value: AuthContextType = {
     currentUser,
     userProfile,
-    loading,
+    loading: loading || loadingProfile,
     refreshUserProfile,
     isFromSignup,
-    setIsFromSignup
+    setIsFromSignup,
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>
+      <NotificationBootstrap />
+      {children}
+    </AuthContext.Provider>
+  );
 }
 
 export function useAuth(): AuthContextType {

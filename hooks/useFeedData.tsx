@@ -1,26 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
-import {
-  collection,
-  query,
-  orderBy,
-  limit,
-  getDocs,
-  doc,
-  getDoc,
-  startAfter,
-  QueryDocumentSnapshot,
-  DocumentData,
-  onSnapshot,
-  where,
-} from 'firebase/firestore';
-import { db } from '@/firebaseConfig';
 import { useAuth } from '@/context/AuthContext';
-import { Post } from '@/hooks/usePostsData';
-import { UserProfile } from '@/types';
-
-interface FeedPost extends Post {
-  authorBlockedUsers?: string[];
-}
+import { FeedRepository, FeedCursor } from '@/features/feed/infra/feedRepository';
+import { FeedPost } from '@/features/feed/domain/FeedPost';
+import { logger } from '@/shared/utils/logger';
 
 export function useFeedData() {
   const [posts, setPosts] = useState<FeedPost[]>([]);
@@ -30,300 +12,88 @@ export function useFeedData() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [error, setError] = useState<Error | null>(null);
-  const [lastVisible, setLastVisible] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
+  const [lastVisible, setLastVisible] = useState<FeedCursor | null>(null);
 
   const { currentUser } = useAuth();
-  const BATCH_SIZE = 10;
 
-  const removeDuplicatePosts = useCallback((posts: FeedPost[]): FeedPost[] => {
-    const seenIds = new Set<string>();
-    return posts.filter(post => {
-      if (seenIds.has(post.id)) {
-        console.warn(`Duplicate post prevented in feed data: ${post.id}`);
+  const removeDuplicatePosts = useCallback((items: FeedPost[]): FeedPost[] => {
+    const seen = new Set<string>();
+    return items.filter(p => {
+      if (seen.has(p.id)) {
+        logger.warn('useFeedData', `Duplicate post prevented in feed: ${p.id}`);
         return false;
       }
-      seenIds.add(post.id);
+      seen.add(p.id);
       return true;
     });
   }, []);
 
-  const processPostsWithAuthorProfiles = useCallback(async (postDocs: (Post & { id: string })[]): Promise<FeedPost[]> => {
-    if (postDocs.length === 0) return [];
-    if (!currentUser?.uid) return [];
+  // ── Manual fetch (refresh / load-more) ────────────────────────────────────
 
-    // 1. Collect unique author IDs from the posts
-    const authorIds = [...new Set(postDocs.map(post => post.authorId).filter(id => id))];
-
-    // 2. Fetch all author profiles in a single batched query
-    const authorProfiles: Record<string, UserProfile> = {};
-    if (authorIds.length > 0) {
-      // Firestore 'in' queries are limited to 30 items. For larger batches, you would need to chunk this.
-      const usersQuery = query(collection(db, 'users'), where('__name__', 'in', authorIds));
-      const usersSnapshot = await getDocs(usersQuery);
-      usersSnapshot.forEach(doc => {
-        authorProfiles[doc.id] = doc.data() as UserProfile;
-      });
-    }
-
-    // 3. Fetch like status for all posts in parallel
-    const likeStatusPromises = postDocs.map(async (post) => {
-      try {
-        const likerDoc = await getDoc(doc(db, 'posts', post.id, 'likers', currentUser.uid));
-        return { postId: post.id, isLiked: likerDoc.exists() };
-      } catch (error) {
-        console.error(`Error fetching like status for post ${post.id}:`, error);
-        return { postId: post.id, isLiked: false };
-      }
-    });
-
-    const likeStatuses = await Promise.all(likeStatusPromises);
-    const likeStatusMap = likeStatuses.reduce((acc, { postId, isLiked }) => {
-      acc[postId] = isLiked;
-      return acc;
-    }, {} as Record<string, boolean>);
-
-    // 4. Fetch following status for all authors in parallel
-    const followingStatusPromises = authorIds.map(async (authorId) => {
-      if (authorId === currentUser.uid) {
-        return { authorId, isFollowing: false }; // Don't follow yourself
-      }
-      try {
-        const followerDoc = await getDoc(doc(db, 'users', authorId, 'followers', currentUser.uid));
-        return { authorId, isFollowing: followerDoc.exists() };
-      } catch (error) {
-        console.error(`Error fetching following status for author ${authorId}:`, error);
-        return { authorId, isFollowing: false };
-      }
-    });
-
-    const followingStatuses = await Promise.all(followingStatusPromises);
-    const followingStatusMap = followingStatuses.reduce((acc, { authorId, isFollowing }) => {
-      acc[authorId] = isFollowing;
-      return acc;
-    }, {} as Record<string, boolean>);
-
-    // 5. Enhance posts with author profile data, like status, and following status
-    const enrichedPosts: FeedPost[] = postDocs.map(post => {
-      const authorProfile = authorProfiles[post.authorId];
-      return {
-        ...post,
-        authorProfileImageUrl: authorProfile?.profileImageUrl || '',
-        authorProfileThumbnailUrl: authorProfile?.profileThumbnailUrl || '',
-        authorBlockedUsers: authorProfile?.blockedUsers || [],
-        // Set the actual like status for the current user
-        isLiked: likeStatusMap[post.id] || false,
-        // Set the actual following status for the post author
-        isFollowing: followingStatusMap[post.authorId] || false,
-      };
-    });
-
-    // 6. Filter out posts from private accounts unless the user is following them or it's their own post
-    const filteredPosts = enrichedPosts.filter(post => {
-      const authorProfile = authorProfiles[post.authorId];
-      
-      // Always show user's own posts
-      if (post.authorId === currentUser.uid) {
-        return true;
-      }
-      
-      // Show posts from public accounts
-      if (!authorProfile || authorProfile.profileVisibility !== 'private') {
-        return true;
-      }
-      
-      // Only show posts from private accounts if the user is following them
-      return followingStatusMap[post.authorId] || false;
-    });
-
-    return filteredPosts;
-  }, [currentUser?.uid]);
-
-  const fetchFeedData = useCallback(async (isRefresh = false, isLoadMore = false) => {
-    // Early return if no user - prevent Firestore permission errors
-    if (!currentUser?.uid) {
-      setPosts([]);
-      setMilestones([]);
-      setLoading(false);
-      setRefreshing(false);
-      setLoadingMore(false);
-      return;
-    }
-
-    try {
-      if (isRefresh) {
-        setRefreshing(true);
-        setLastVisible(null);
-        setHasMore(true);
-      } else if (isLoadMore) {
-        setLoadingMore(true);
-      } else {
-        setLoading(true);
-      }
-
-      // Query user's personalized feed
-      const feedRef = collection(db, 'feeds', currentUser.uid, 'userFeed');
-      let feedQuery = query(
-        feedRef,
-        orderBy('createdAt', 'desc'),
-        limit(BATCH_SIZE)
-      );
-
-      // Add pagination for load more
-      if (isLoadMore && lastVisible) {
-        feedQuery = query(
-          feedRef,
-          orderBy('createdAt', 'desc'),
-          startAfter(lastVisible),
-          limit(BATCH_SIZE)
-        );
-      }
-
-      const feedSnapshot = await getDocs(feedQuery);
-      
-      if (feedSnapshot.empty) {
-        if (isLoadMore) {
-          setHasMore(false);
-        } else {
-          // No feed data, fetch some public posts as fallback
-          await fetchPublicPostsFallback(isRefresh);
-        }
+  const fetchFeedData = useCallback(
+    async (isRefresh = false, isLoadMore = false) => {
+      if (!currentUser?.uid) {
+        setPosts([]);
+        setMilestones([]);
+        setLoading(false);
+        setRefreshing(false);
+        setLoadingMore(false);
         return;
       }
 
-      // Get the actual post data for each feed item
-      const postPromises = feedSnapshot.docs.map(feedDoc => getDoc(doc(db, 'posts', feedDoc.id)));
-      const postSnapshots = await Promise.all(postPromises);
-
-      const postsData = postSnapshots
-        .filter(doc => doc.exists())
-        .map(doc => ({ id: doc.id, ...doc.data() } as Post & { id: string }));
-
-      const feedPosts = await processPostsWithAuthorProfiles(postsData);
-
-      // Set last visible for pagination
-      if (feedSnapshot.docs.length > 0) {
-        setLastVisible(feedSnapshot.docs[feedSnapshot.docs.length - 1]);
-      }
-
-      // Remove duplicates before updating state
-      const uniqueFeedPosts = removeDuplicatePosts(feedPosts);
-
-      // Update state
-      if (isRefresh || !isLoadMore) {
-        setPosts(uniqueFeedPosts);
-        setMilestones(uniqueFeedPosts.filter(post => post.isMilestone));
-      } else {
-        // For load more, ensure we don't add duplicates to existing posts
-        setPosts(prevPosts => {
-          const combinedPosts = [...prevPosts, ...uniqueFeedPosts];
-          return removeDuplicatePosts(combinedPosts);
-        });
-        setMilestones(prevMilestones => {
-          const newMilestones = uniqueFeedPosts.filter(post => post.isMilestone);
-          const combinedMilestones = [...prevMilestones, ...newMilestones];
-          return removeDuplicatePosts(combinedMilestones);
-        });
-      }
-
-      // Check if we have more data
-      setHasMore(feedSnapshot.docs.length === BATCH_SIZE);
-      setError(null);
-
-    } catch (err) {
-      console.error('Error fetching feed data:', err);
-      setError(err as Error);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-      setLoadingMore(false);
-    }
-  }, [currentUser?.uid, lastVisible, removeDuplicatePosts, processPostsWithAuthorProfiles]);
-
-  const fetchPublicPostsFallback = async (isRefresh = false) => {
-    // Early return if no user (prevents errors during logout)
-    if (!currentUser?.uid) {
-      setPosts([]);
-      setMilestones([]);
-      setLoading(false);
-      return;
-    }
-    
-    try {
-      // Fallback to public posts if user has no personalized feed
-      const postsRef = collection(db, 'posts');
-      const publicQuery = query(
-        postsRef,
-        where('authorId', '!=', currentUser.uid),
-        where('visibility', '==', 'public'),
-        orderBy('authorId'), 
-        orderBy('createdAt', 'desc'),
-        limit(BATCH_SIZE)
-      );
-
-      const publicSnapshot = await getDocs(publicQuery);
-      
-      // Check if user still exists after async operation
-      if (!currentUser?.uid) return;
-      
-      // Efficiently process all fetched public posts
-      const postsData = publicSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Post & { id: string }));
-      const publicPosts = await processPostsWithAuthorProfiles(postsData);
-
-      // Check if user still exists after async operation
-      if (!currentUser?.uid) return;
-
-      // Remove duplicates before setting state
-      const uniquePublicPosts = removeDuplicatePosts(publicPosts);
-      setPosts(uniquePublicPosts);
-      setMilestones(uniquePublicPosts.filter(post => post.isMilestone));
-      setHasMore(publicSnapshot.docs.length === BATCH_SIZE);
-
-    } catch (err) {
-      console.error('Error fetching public posts fallback:', err);
-      
-      // Don't continue if user logged out
-      if (!currentUser?.uid) return;
-      
-      // If the compound query fails, try a simpler approach
       try {
-        const postsRef = collection(db, 'posts');
-        const simpleQuery = query(
-          postsRef,
-          where('visibility', '==', 'public'),
-          orderBy('createdAt', 'desc'),
-          limit(BATCH_SIZE * 2) // Get more to filter out user's posts
-        );
-
-        const simpleSnapshot = await getDocs(simpleQuery);
-        
-        // Check if user still exists after async operation
-        if (!currentUser?.uid) return;
-        
-        // Filter out user's own posts client-side
-        const filteredPostDocs = simpleSnapshot.docs
-          .filter(doc => doc.data().authorId !== currentUser.uid)
-          .slice(0, BATCH_SIZE);
-
-        // Efficiently process the filtered posts
-        const postsData = filteredPostDocs.map(doc => ({ id: doc.id, ...doc.data() } as Post & { id: string }));
-        const filteredPosts = await processPostsWithAuthorProfiles(postsData);
-
-        // Check if user still exists after async operation
-        if (!currentUser?.uid) return;
-
-        const uniqueFilteredPosts = removeDuplicatePosts(filteredPosts);
-        setPosts(uniqueFilteredPosts);
-        setMilestones(uniqueFilteredPosts.filter(post => post.isMilestone));
-        setHasMore(filteredPosts.length === BATCH_SIZE);
-        
-      } catch (fallbackErr) {
-        console.error('Error in simple fallback query:', fallbackErr);
-        if (currentUser?.uid) {
-          setError(fallbackErr as Error);
+        if (isRefresh) {
+          setRefreshing(true);
+          setLastVisible(null);
+          setHasMore(true);
+        } else if (isLoadMore) {
+          setLoadingMore(true);
+        } else {
+          setLoading(true);
         }
+
+        const cursor = isLoadMore ? lastVisible : null;
+        const page = await FeedRepository.loadPage(currentUser.uid, cursor);
+
+        if (page.posts.length === 0) {
+          if (isLoadMore) {
+            setHasMore(false);
+          } else {
+            // No personalized feed — use public posts fallback.
+            const fallback = await FeedRepository.loadPublicFallback(currentUser.uid);
+            const unique = removeDuplicatePosts(fallback);
+            setPosts(unique);
+            setMilestones(unique.filter(p => p.isMilestone));
+          }
+          return;
+        }
+
+        const unique = removeDuplicatePosts(page.posts);
+
+        if (isRefresh || !isLoadMore) {
+          setPosts(unique);
+          setMilestones(unique.filter(p => p.isMilestone));
+        } else {
+          setPosts(prev => removeDuplicatePosts([...prev, ...unique]));
+          setMilestones(prev =>
+            removeDuplicatePosts([...prev, ...unique.filter(p => p.isMilestone)])
+          );
+        }
+
+        if (page.cursor) setLastVisible(page.cursor);
+        setHasMore(page.hasMore);
+        setError(null);
+      } catch (err) {
+        logger.error('useFeedData', 'fetchFeedData failed', err);
+        setError(err as Error);
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+        setLoadingMore(false);
       }
-    }
-  };
+    },
+    [currentUser?.uid, lastVisible, removeDuplicatePosts]
+  );
 
   const refreshFeed = useCallback(() => {
     fetchFeedData(true, false);
@@ -335,9 +105,9 @@ export function useFeedData() {
     }
   }, [fetchFeedData, loadingMore, hasMore, lastVisible]);
 
-  // Initial load with real-time listener
+  // ── Real-time listener (initial load + live updates) ──────────────────────
+
   useEffect(() => {
-    // Clear data immediately if no user
     if (!currentUser?.uid) {
       setPosts([]);
       setMilestones([]);
@@ -348,75 +118,46 @@ export function useFeedData() {
       return;
     }
 
-    let cancelled = false;
+    const uid = currentUser.uid;
+    let active = true;
 
-    const feedRef = collection(db, 'feeds', currentUser.uid, 'userFeed');
-    const feedQuery = query(
-      feedRef,
-      orderBy('createdAt', 'desc'),
-      limit(BATCH_SIZE)
-    );
+    const unsubscribe = FeedRepository.subscribe(
+      uid,
+      async result => {
+        if (!active) return;
 
-    const unsubscribe = onSnapshot(feedQuery, 
-      async (snapshot) => {
-        // Don't process if cancelled (user logged out)
-        if (cancelled) return;
-        
-        if (snapshot.empty) {
-          // No personalized feed data, use fallback
-          if (!cancelled) {
-            await fetchPublicPostsFallback();
-          }
-          if (!cancelled) {
-            setLoading(false);
-          }
+        if (result === 'empty') {
+          // No personalized feed — load public posts as a one-time fallback.
+          const fallback = await FeedRepository.loadPublicFallback(uid);
+          if (!active) return;
+          const unique = removeDuplicatePosts(fallback);
+          setPosts(unique);
+          setMilestones(unique.filter(p => p.isMilestone));
+          setLoading(false);
           return;
         }
 
-        // Get post documents from the feed references
-        const postPromises = snapshot.docs.map(feedDoc => getDoc(doc(db, 'posts', feedDoc.id)));
-        const postSnapshots = await Promise.all(postPromises);
-        
-        // Check cancelled again after async operations
-        if (cancelled) return;
-        
-        const postsData = postSnapshots
-          .filter(doc => doc.exists())
-          .map(doc => ({ id: doc.id, ...doc.data() } as Post & { id: string }));
-
-        // Process posts to get author profiles and like status
-        const feedPosts = await processPostsWithAuthorProfiles(postsData);
-
-        // Check cancelled again after async operations
-        if (cancelled) return;
-
-        // Remove duplicates before setting state
-        const uniqueFeedPosts = removeDuplicatePosts(feedPosts);
-        setPosts(uniqueFeedPosts);
-        setMilestones(uniqueFeedPosts.filter(post => post.isMilestone));
+        const unique = removeDuplicatePosts(result.posts);
+        setPosts(unique);
+        setMilestones(unique.filter(p => p.isMilestone));
         setLoading(false);
         setError(null);
-
-        if (snapshot.docs.length > 0) {
-          setLastVisible(snapshot.docs[snapshot.docs.length - 1]);
-          setHasMore(snapshot.docs.length === BATCH_SIZE);
-        }
+        if (result.cursor) setLastVisible(result.cursor);
+        setHasMore(result.hasMore);
       },
-      (error) => {
-        // Don't report errors if cancelled
-        if (cancelled) return;
-        console.error('Feed listener error:', error);
-        setError(error as Error);
+      err => {
+        if (!active) return;
+        logger.error('useFeedData', 'Feed listener error', err);
+        setError(err);
         setLoading(false);
       }
     );
-    
-    // Cleanup function
+
     return () => {
-      cancelled = true;
+      active = false;
       unsubscribe();
     };
-  }, [currentUser?.uid, removeDuplicatePosts, processPostsWithAuthorProfiles]);
+  }, [currentUser?.uid, removeDuplicatePosts]);
 
   return {
     posts,

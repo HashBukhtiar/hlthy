@@ -4,8 +4,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Post from '@/screens/Post';
 
 export default function PostTabScreen() {
-  console.log('[PostTabScreen] Rendering tabs/post.tsx');
-  
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <Post />

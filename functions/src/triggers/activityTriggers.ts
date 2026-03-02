@@ -1,4 +1,4 @@
-import {admin, getDb} from "./firebaseAdmin";
+import {admin, getDb} from "../admin/firebaseAdmin";
 import {onDocumentCreated, onDocumentWritten} from "firebase-functions/v2/firestore";
 
 export const createactivityonfollowrequest = onDocumentCreated(
