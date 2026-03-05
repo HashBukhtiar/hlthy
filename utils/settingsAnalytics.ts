@@ -1,5 +1,5 @@
 import { UserSettings } from '@/types/settings';
-import { getFirestore, doc, updateDoc, increment } from 'firebase/firestore';
+import { getFirestore, doc, updateDoc, increment } from '@/features/infra/firestore';
 
 const db = getFirestore();
 
