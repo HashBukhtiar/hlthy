@@ -19,7 +19,7 @@ import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
 import { db } from '@/firebaseConfig';
-import { collection, doc, getDoc, getDocs, query, where, orderBy } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, query, where, orderBy } from '@/features/infra/firestore';
 import { getCoverImageSource } from '@/utils/imageUtils';
 import { useUnits } from '@/hooks/useUnits';
 import { ACCENT_COLOR } from '@/constants/Colors';

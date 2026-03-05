@@ -14,7 +14,7 @@ import {
 import { useRouter } from 'expo-router';
 import { usePostsData } from '@/hooks/usePostsData';
 import { useAuth } from '@/context/AuthContext';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc } from '@/features/infra/firestore';
 import { db } from '@/firebaseConfig';
 import { Ionicons } from '@expo/vector-icons';
 import {

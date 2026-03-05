@@ -12,7 +12,7 @@ import ReportModal from '@/components/ReportModal';
 import { sharePost } from '@/services/ShareService';
 import { usePostsData, Post, Comment, Reply } from '@/hooks/usePostsData';
 import { useAuth } from '@/context/AuthContext';
-import { collection, query, where, limit, getDocs, getDoc, doc } from 'firebase/firestore';
+import { collection, query, where, limit, getDocs, getDoc, doc } from '@/features/infra/firestore';
 import { db } from '@/firebaseConfig';
 import { getOptimalImageUrl, deleteImageFromStorage, deleteMilestoneFromFirestore } from '@/utils/imageUtils';
 import { useBlockEnforcement } from '@/utils/blockUtils';

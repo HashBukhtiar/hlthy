@@ -18,7 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { useAuth } from '@/context/AuthContext';
 import { db } from '@/firebaseConfig';
-import { collection, query, where, getDocs, orderBy, limit, doc, getDoc as getFirestoreDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, orderBy, limit, doc, getDoc as getFirestoreDoc } from '@/features/infra/firestore';
 import { getCoverImageSource } from '@/utils/imageUtils';
 import { icon } from '@/assets/images';
 import { ACCENT_COLOR } from '@/constants/Colors';

@@ -18,7 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '@/context/AuthContext';
 import { db, storage } from '@/firebaseConfig';
-import { addDoc, collection, serverTimestamp, doc, updateDoc, increment } from 'firebase/firestore';
+import { addDoc, collection, serverTimestamp, doc, updateDoc, increment } from '@/features/infra/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import SelectExercise from './SelectExercise';
 import { Exercise } from '@/data/exercises';
