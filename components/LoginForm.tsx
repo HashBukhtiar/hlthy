@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { TextInput } from 'react-native-paper';
-import { signInWithEmailAndPassword } from "firebase/auth";
+import { signInWithEmailAndPassword } from '@/features/auth/ui/useSession';
 import { auth } from '@/firebaseConfig';
 import LoadingOverlay from '@/components/LoadingOverlay';
 import { useAuth } from '@/context/AuthContext';
