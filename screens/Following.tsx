@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { db } from '@/firebaseConfig';
-import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
+import { collection, query, getDocs, where, orderBy } from '@/features/infra/firestore';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { OptimizedImageLight } from '@/components/OptimizedImage';
