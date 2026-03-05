@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { useRouter } from 'expo-router';
 import { Alert } from 'react-native';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc } from '@/features/infra/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { db, app } from '@/firebaseConfig';
 import { useBlockEnforcement } from '@/utils/blockUtils';

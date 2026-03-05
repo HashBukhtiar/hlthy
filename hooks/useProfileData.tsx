@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { collection, query, orderBy, getDocs, doc, getDoc, where, setDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, orderBy, getDocs, doc, getDoc, where, setDoc, serverTimestamp } from '@/features/infra/firestore';
 import { db, app } from '@/firebaseConfig';
 import { useAuth } from '@/context/AuthContext';
 import { getFunctions, httpsCallable } from 'firebase/functions';

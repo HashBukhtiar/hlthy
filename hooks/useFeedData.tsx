@@ -12,7 +12,7 @@ import {
   DocumentData,
   onSnapshot,
   where,
-} from 'firebase/firestore';
+} from '@/features/infra/firestore';
 import { db } from '@/firebaseConfig';
 import { useAuth } from '@/context/AuthContext';
 import { Post } from '@/hooks/usePostsData';
