@@ -9,7 +9,8 @@ import { getFullVersionString } from '@/utils/appVersion';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingsItem } from '@/components/settings/SettingsItem';
 import { validatePlatformUrl, validateCustomUrl, usernameToUrl, VERIFIED_PLATFORMS, type PlatformKey } from '@/utils/socialLinkValidation';
-import { generateSettingsInsights, calculatePrivacyLevel, trackSettingsChange } from '@/utils/settingsAnalytics';
+import { generateSettingsInsights, calculatePrivacyLevel } from '@/utils/settingsAnalytics';
+import { SettingsRepository } from '@/features/settings/infra/settingsRepository';
 import { useSettingsHandlers } from '@/hooks/useSettingsHandlers';
 import { SettingsModals } from '@/components/settings/SettingsModals';
 import { SelectorItem } from '@/components/CustomSelector';
@@ -549,10 +550,7 @@ export default function Settings() {
 
     // Track the change for analytics - make it safer
     if (currentUser) {
-      trackSettingsChange(currentUser.uid, key, oldValue, value).catch(error => {
-        console.log('Analytics tracking failed (non-critical):', error.message);
-        // Don't show error to user - analytics failure is not critical
-      });
+      SettingsRepository.trackSettingsChange(currentUser.uid, key);
     }
   };
 
