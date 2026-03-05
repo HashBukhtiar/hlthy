@@ -35,7 +35,7 @@ where('username', '<=', query.toLowerCase() + '\uf8ff')
 limit(20)
 ```
 
-This gives a case-sensitive prefix search. Results are filtered client-side to:
+This gives a case-insensitive prefix search (assuming usernames are stored in lowercase). Results are filtered client-side to:
 - Remove the current user
 - Remove blocked users (using `canInteractWithUser` from `useBlockEnforcement`)
 
