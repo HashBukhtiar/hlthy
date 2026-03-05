@@ -20,7 +20,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc } from '@/features/infra/firestore';
 import { db } from '@/firebaseConfig';
 import { useAuth } from '@/context/AuthContext';
 import { WorkoutCompletionSummary, WorkoutMood, PRSummary } from '@/types/workoutLog';

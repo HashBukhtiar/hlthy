@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { db } from '@/firebaseConfig';
-import { collection, query, orderBy, getDocs, doc, getDoc, where } from 'firebase/firestore';
+import { collection, query, orderBy, getDocs, doc, getDoc, where } from '@/features/infra/firestore';
 import { Ionicons } from '@expo/vector-icons';
 // Make sure profileIcon is a valid image source, e.g., require('./path/to/image.png')
 // If it's just a string path, it needs to be wrapped in require() here or in the assets/images file.
