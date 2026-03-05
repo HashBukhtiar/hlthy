@@ -310,10 +310,10 @@ These fire automatically in response to Firestore document events.
 - `updateFeedsOnFollowUnfollow` — When a user follows someone, backfill their historical posts into the new follower's feed; remove posts when unfollowed
 
 **`activityTriggers.ts`**
-- `createactivityonpostlike` — Post like → activity entry for the post author
-- `createactivityonpostcomment` — Comment → activity entry
-- `createactivityoncommentlike` — Comment like → activity entry
-- `createactivityonworkoutsave` — Workout save → activity entry
+- `createActivityOnPostLike` — Post like → activity entry for the post author
+- `createActivityOnPostComment` — Comment → activity entry
+- `createActivityOnCommentLike` — Comment like → activity entry
+- `createActivityOnWorkoutSave` — Workout save → activity entry
 - `onActivityCreated` — Sends push notification when any activity item is created
 
 **`milestoneTriggers.ts`**
