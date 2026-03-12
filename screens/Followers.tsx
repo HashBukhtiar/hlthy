@@ -22,17 +22,6 @@ export default function Followers() {
     router.push(`/profile/${pressedUserId}`);
   };
 
-  if (loading) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <Header onBack={() => router.back()} />
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="white" />
-        </View>
-      </SafeAreaView>
-    );
-  }
-
   if (error) {
     return (
       <SafeAreaView style={styles.container}>
@@ -118,3 +107,4 @@ const styles = StyleSheet.create({
   emptyContainer: { padding: 30, alignItems: 'center', justifyContent: 'center' },
   emptyText: { color: '#999', fontSize: 16, textAlign: 'center' },
 });
+
