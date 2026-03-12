@@ -615,6 +615,7 @@ export default function Settings() {
             placeholder="Enter display name"
             maxLength={30}
             helperText={`${settings.displayName?.length || 0}/30 characters`}
+            fullWidth
           />
 
           <SettingsItem
@@ -625,6 +626,7 @@ export default function Settings() {
             placeholder="Tell us about yourself"
             maxLength={300}
             helperText={`${settings.bio?.length || 0}/300 characters`}
+            fullWidth
           />
 
           <SettingsItem
@@ -636,6 +638,7 @@ export default function Settings() {
             }}
             placeholder="Select your birth date"
             helperText="Used for age-based recommendations"
+            fullWidth
             displayValue={
               settings.dateOfBirth
                 ? (() => {
@@ -669,6 +672,7 @@ export default function Settings() {
             value={settings.archetype}
             onPress={() => openModal('archetype')}
             options={archetypeData.map(item => ({ label: item.label, value: item.value }))}
+            fullWidth
           />
 
           <SettingsItem

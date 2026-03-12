@@ -154,8 +154,8 @@ export default function EmailVerificationGuard({ children }: EmailVerificationGu
     );
   };
 
-  // Show loading while checking auth state
-  if (authLoading) {
+  // Show loading while checking auth state (initial load only — not during refreshes)
+  if (authLoading && !currentUser) {
     console.log('[EmailVerificationGuard] Showing loading screen - authLoading is true');
     return (
       <AuthBackground>

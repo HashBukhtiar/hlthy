@@ -6,14 +6,16 @@ import { View, StyleSheet, Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { AuthProvider } from '@/context/AuthContext';
 import { GlobalNetworkMonitor } from '@/components/GlobalNetworkMonitor';
+import EmailVerificationGuard from '@/components/EmailVerificationGuard';
 
 export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <AuthProvider>
         <SafeAreaProvider>
-          <View style={styles.container}>
-            <GlobalNetworkMonitor />
+          <EmailVerificationGuard>
+            <View style={styles.container}>
+              <GlobalNetworkMonitor />
             <Stack
               screenOptions={{
                 headerShown: false,
@@ -43,9 +45,10 @@ export default function RootLayout() {
             <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
             
           </Stack>
-        </View>
-      </SafeAreaProvider>
-    </AuthProvider>
+            </View>
+          </EmailVerificationGuard>
+        </SafeAreaProvider>
+      </AuthProvider>
     </GestureHandlerRootView>
   );
 }

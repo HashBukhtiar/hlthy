@@ -2,7 +2,6 @@ import React from 'react';
 import { Platform, StyleSheet } from 'react-native';
 import { NativeTabs, Icon, Label, VectorIcon } from 'expo-router/unstable-native-tabs';
 import { Ionicons } from '@expo/vector-icons';
-import EmailVerificationGuard from '@/components/EmailVerificationGuard';
 import { ACCENT_COLOR } from '@/constants/Colors';
 
 console.log('[TabLayout] Module loaded');
@@ -11,8 +10,7 @@ export default function TabLayout() {
   console.log('[TabLayout] Component rendering with NativeTabs');
 
   return (
-    <EmailVerificationGuard>
-      <NativeTabs
+    <NativeTabs
         // iOS 26+ Liquid Glass styling
         minimizeBehavior="onScrollDown"
         disableTransparentOnScrollEdge={false}
@@ -63,8 +61,7 @@ export default function TabLayout() {
             android: <Icon src={<VectorIcon family={Ionicons} name="add-circle" />} />,
           })}
         </NativeTabs.Trigger>
-      </NativeTabs>
-    </EmailVerificationGuard>
+    </NativeTabs>
   );
 }
 
