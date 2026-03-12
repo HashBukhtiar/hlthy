@@ -18,9 +18,9 @@ import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { OptimizedImageLight } from '@/components/OptimizedImage';
 import { ACCENT_COLOR } from '@/constants/Colors';
-import { db } from '@/firebaseConfig';
+import { db, functions } from '@/firebaseConfig';
 import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
-import { httpsCallable, getFunctions } from 'firebase/functions';
+import { httpsCallable } from 'firebase/functions';
 import { useAuth } from '@/context/AuthContext';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -42,6 +42,7 @@ interface FollowersModalProps {
   userId: string;
   type: 'followers' | 'following';
   onUserPress: (userId: string) => void;
+  viewingOwnFollowers?: boolean;
 }
 
 export const FollowersModal: React.FC<FollowersModalProps> = ({
@@ -50,6 +51,7 @@ export const FollowersModal: React.FC<FollowersModalProps> = ({
   userId,
   type,
   onUserPress,
+  viewingOwnFollowers = false,
 }) => {
   const { currentUser } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
@@ -58,6 +60,9 @@ export const FollowersModal: React.FC<FollowersModalProps> = ({
   const [slideAnim] = useState(new Animated.Value(SCREEN_HEIGHT));
   const [followingStates, setFollowingStates] = useState<Record<string, boolean>>({});
   const [followLoadingStates, setFollowLoadingStates] = useState<Record<string, boolean>>({});
+  const [pendingRemoveUserId, setPendingRemoveUserId] = useState<string | null>(null);
+  const [removingStates, setRemovingStates] = useState<Record<string, boolean>>({});
+  const [unfollowSuggestionUserId, setUnfollowSuggestionUserId] = useState<string | null>(null);
 
   const panResponder = useMemo(
     () =>
@@ -166,7 +171,23 @@ export const FollowersModal: React.FC<FollowersModalProps> = ({
 
   const handleClose = () => {
     setSearchQuery('');
+    setPendingRemoveUserId(null);
+    setUnfollowSuggestionUserId(null);
     onClose();
+  };
+
+  const handleRemoveFollower = async (followerUserId: string) => {
+    setRemovingStates(prev => ({ ...prev, [followerUserId]: true }));
+    setPendingRemoveUserId(null);
+    try {
+      const removeFollowerFn = httpsCallable(functions, 'removeFollower');
+      await removeFollowerFn({ followerUserId });
+      setUsers(prev => prev.filter(u => u.id !== followerUserId));
+    } catch (error) {
+      console.error('Error removing follower:', error);
+    } finally {
+      setRemovingStates(prev => ({ ...prev, [followerUserId]: false }));
+    }
   };
 
   const handleUserPress = (pressedUserId: string) => {
@@ -182,7 +203,6 @@ export const FollowersModal: React.FC<FollowersModalProps> = ({
     try {
       const isCurrentlyFollowing = followingStates[targetUserId];
       const functionName = isCurrentlyFollowing ? 'unfollowUser' : 'followUser';
-      const functions = getFunctions();
       const followFunction = httpsCallable(functions, functionName);
 
       await followFunction({ targetUserId });
@@ -191,6 +211,14 @@ export const FollowersModal: React.FC<FollowersModalProps> = ({
         ...prev,
         [targetUserId]: !isCurrentlyFollowing,
       }));
+
+      // After unfollow, check if they follow us back and suggest removal
+      if (isCurrentlyFollowing && currentUser) {
+        const followerDoc = await getDoc(doc(db, 'users', currentUser.uid, 'followers', targetUserId));
+        if (followerDoc.exists()) {
+          setUnfollowSuggestionUserId(targetUserId);
+        }
+      }
     } catch (error) {
       console.error('Error toggling follow:', error);
     } finally {
@@ -202,6 +230,7 @@ export const FollowersModal: React.FC<FollowersModalProps> = ({
     const isOwnProfile = currentUser?.uid === item.id;
     const isFollowing = followingStates[item.id];
     const isFollowLoading = followLoadingStates[item.id];
+    const isRemoving = removingStates[item.id];
 
     return (
       <View style={styles.userItem}>
@@ -234,30 +263,46 @@ export const FollowersModal: React.FC<FollowersModalProps> = ({
             </Text>
           </View>
         </TouchableOpacity>
-        {!isOwnProfile && (
-          <TouchableOpacity
-            style={[
-              styles.followButton,
-              isFollowing && styles.followingButton,
-            ]}
-            onPress={() => handleFollowToggle(item.id)}
-            disabled={isFollowLoading}
-            activeOpacity={0.7}
-          >
-            {isFollowLoading ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <View style={styles.followButtonContent}>
-                {!isFollowing && (
-                  <Ionicons name="person-add" size={14} color="#fff" style={styles.followIcon} />
-                )}
-                <Text style={[styles.followButtonText, isFollowing && styles.followingButtonText]}>
-                  {isFollowing ? 'Following' : 'Follow'}
-                </Text>
-              </View>
-            )}
-          </TouchableOpacity>
-        )}
+        <View style={styles.rowActions}>
+          {viewingOwnFollowers && type === 'followers' && (
+            <TouchableOpacity
+              style={[styles.removeButton, isRemoving && styles.removeButtonDisabled]}
+              onPress={() => setPendingRemoveUserId(item.id)}
+              disabled={isRemoving}
+              activeOpacity={0.7}
+            >
+              {isRemoving ? (
+                <ActivityIndicator size="small" color="#FF453A" />
+              ) : (
+                <Text style={styles.removeButtonText}>Remove</Text>
+              )}
+            </TouchableOpacity>
+          )}
+          {!isOwnProfile && (
+            <TouchableOpacity
+              style={[
+                styles.followButton,
+                isFollowing && styles.followingButton,
+              ]}
+              onPress={() => handleFollowToggle(item.id)}
+              disabled={isFollowLoading}
+              activeOpacity={0.7}
+            >
+              {isFollowLoading ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <View style={styles.followButtonContent}>
+                  {!isFollowing && (
+                    <Ionicons name="person-add" size={14} color="#fff" style={styles.followIcon} />
+                  )}
+                  <Text style={[styles.followButtonText, isFollowing && styles.followingButtonText]}>
+                    {isFollowing ? 'Following' : 'Follow'}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
     );
   };
@@ -281,7 +326,6 @@ export const FollowersModal: React.FC<FollowersModalProps> = ({
           ]}
         >
           <BlurView intensity={95} tint="dark" style={styles.blurContainer}>
-            {/* Header - Swipeable */}
             <View style={styles.header} {...panResponder.panHandlers}>
               <View style={styles.handleBar} />
               <View style={styles.headerContent}>
@@ -350,7 +394,37 @@ export const FollowersModal: React.FC<FollowersModalProps> = ({
               </View>
             )}
 
-            {/* Content */}
+            {/* Unfollow Suggestion Banner */}
+            {unfollowSuggestionUserId && (
+              <View style={styles.suggestionBanner}>
+                <View style={styles.suggestionTextContainer}>
+                  <Text style={styles.suggestionTitle} numberOfLines={1}>
+                    @{users.find(u => u.id === unfollowSuggestionUserId)?.username} still follows you
+                  </Text>
+                  <Text style={styles.suggestionSubtitle}>Remove them as a follower?</Text>
+                </View>
+                <View style={styles.suggestionActions}>
+                  <TouchableOpacity
+                    style={styles.suggestionIgnoreBtn}
+                    onPress={() => setUnfollowSuggestionUserId(null)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Ionicons name="close" size={16} color="#888" />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.suggestionRemoveBtn}
+                    onPress={() => {
+                      setPendingRemoveUserId(unfollowSuggestionUserId);
+                      setUnfollowSuggestionUserId(null);
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.suggestionRemoveTxt}>Remove</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+
             {loading ? (
               <View style={styles.centerContainer}>
                 <ActivityIndicator size="large" color={ACCENT_COLOR} />
@@ -387,6 +461,34 @@ export const FollowersModal: React.FC<FollowersModalProps> = ({
               />
             )}
           </BlurView>
+
+          {/* Remove Follower Confirmation Dialog */}
+          {pendingRemoveUserId && (
+            <View style={styles.confirmOverlay}>
+              <View style={styles.confirmCard}>
+                <Text style={styles.confirmTitle}>Remove Follower?</Text>
+                <Text style={styles.confirmSubtitle} numberOfLines={1}>
+                  @{users.find(u => u.id === pendingRemoveUserId)?.username} won't be notified.
+                </Text>
+                <View style={styles.confirmButtons}>
+                  <TouchableOpacity
+                    style={[styles.confirmBtn, styles.confirmCancelBtn]}
+                    onPress={() => setPendingRemoveUserId(null)}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="close" size={26} color="#fff" />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.confirmBtn, styles.confirmConfirmBtn]}
+                    onPress={() => handleRemoveFollower(pendingRemoveUserId)}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="checkmark" size={26} color="#fff" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          )}
         </Animated.View>
       </View>
     </Modal>
@@ -570,6 +672,127 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  rowActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  removeButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 69, 58, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 69, 58, 0.4)',
+    height: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 70,
+  },
+  removeButtonDisabled: {
+    opacity: 0.5,
+  },
+  removeButtonText: {
+    color: '#FF453A',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  suggestionBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(255, 159, 10, 0.12)',
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: 'rgba(255, 159, 10, 0.25)',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    marginBottom: 4,
+  },
+  suggestionTextContainer: {
+    flex: 1,
+    marginRight: 12,
+  },
+  suggestionTitle: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  suggestionSubtitle: {
+    color: '#888',
+    fontSize: 12,
+    marginTop: 1,
+  },
+  suggestionActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  suggestionIgnoreBtn: {
+    padding: 4,
+  },
+  suggestionRemoveBtn: {
+    backgroundColor: 'rgba(255, 69, 58, 0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 69, 58, 0.4)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 14,
+  },
+  suggestionRemoveTxt: {
+    color: '#FF453A',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  confirmOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    zIndex: 10,
+  },
+  confirmCard: {
+    backgroundColor: '#1C1C1E',
+    borderRadius: 20,
+    padding: 28,
+    width: '75%',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  confirmTitle: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 8,
+  },
+  confirmSubtitle: {
+    color: '#888',
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  confirmButtons: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  confirmBtn: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  confirmCancelBtn: {
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  confirmConfirmBtn: {
+    backgroundColor: '#FF453A',
   },
   avatar: {
     width: 48,

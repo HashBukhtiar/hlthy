@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { View, ScrollView, Text, Image, StyleSheet, Dimensions, TouchableOpacity, Animated, ActivityIndicator, Modal, StatusBar, RefreshControl, PanResponder } from 'react-native';
+import { View, ScrollView, Text, Image, StyleSheet, Dimensions, TouchableOpacity, Animated, ActivityIndicator, Modal, StatusBar, RefreshControl, PanResponder, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useProfileData } from '@/hooks/useProfileData';
 import { useAuth } from '@/context/AuthContext';
@@ -15,6 +15,9 @@ import { formatTimeAgo, archetypeDescriptions } from '@/utils/profileUtils';
 import { getOptimalImageUrl } from '@/utils/imageUtils';
 import { formatCount } from '@/logic/formattingFunctions';
 import BottomActionMenu, { BottomActionMenuItem } from '@/components/BottomActionMenu';
+import { db, app } from '@/firebaseConfig';
+import { getDoc, doc } from 'firebase/firestore';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 
 const archetypeIcons = {
   'athlete': require('@/assets/images/athlete.png'),
@@ -260,6 +263,49 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
     router.push('/settings');
   };
 
+  const showRemoveFollowerSuggestion = useCallback(async (targetId: string, username: string) => {
+    if (!currentUser) return;
+    try {
+      const followerDoc = await getDoc(doc(db, 'users', currentUser.uid, 'followers', targetId));
+      if (followerDoc.exists()) {
+        Alert.alert(
+          'Remove follower?',
+          `@${username} still follows you. Would you like to remove them?`,
+          [
+            { text: 'Keep', style: 'cancel' },
+            {
+              text: 'Remove',
+              style: 'destructive',
+              onPress: async () => {
+                try {
+                  const functions = getFunctions(app, 'northamerica-northeast2');
+                  const removeFollowerFn = httpsCallable(functions, 'removeFollower');
+                  await removeFollowerFn({ followerUserId: targetId });
+                } catch {
+                  Alert.alert('Error', 'Failed to remove follower. Please try again.');
+                }
+              },
+            },
+          ]
+        );
+      }
+    } catch {
+      // silently fail — this is just a suggestion
+    }
+  }, [currentUser]);
+
+  const handleFollowActionWithSuggestion = useCallback(() => {
+    const wasFollowing = isFollowingStatus || isRequestPending;
+    const targetId = viewedProfileId;
+    const username = processedProfileData?.username || 'this user';
+
+    profileActions.handleFollowAction();
+
+    if (wasFollowing && targetId) {
+      setTimeout(() => showRemoveFollowerSuggestion(targetId, username), 600);
+    }
+  }, [isFollowingStatus, isRequestPending, profileActions, viewedProfileId, processedProfileData, showRemoveFollowerSuggestion]);
+
   const handleImagePress = useCallback((post: any) => {
     router.push({
       pathname: '/view-post/[id]',
@@ -498,7 +544,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
           onSettings={handleSettingsPress}
           onMoreOptions={profileActions.showMoreOptions}
           onDirectMessage={profileActions.handleDirectMessage}
-          onFollowAction={profileActions.handleFollowAction}
+          onFollowAction={handleFollowActionWithSuggestion}
           onArchetypeBadgePress={handleArchetypeBadgePress}
           onFollowersPress={handleFollowersPress}
           onFollowingPress={handleFollowingPress}
@@ -622,7 +668,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
             sublabel: isFollowingStatus ? "Stop seeing posts from this user" : "See more from this user",
             color: isFollowingStatus ? "#FF453A" : "#30D158",
             backgroundColor: isFollowingStatus ? "rgba(255, 69, 58, 0.22)" : "rgba(48, 209, 88, 0.22)",
-            onPress: profileActions.handleFollowAction,
+            onPress: handleFollowActionWithSuggestion,
           },
           {
             icon: "ban-outline",
@@ -650,6 +696,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
         userId={viewedProfileId}
         type="followers"
         onUserPress={(userId) => router.push(`/profile/${userId}`)}
+        viewingOwnFollowers={isOwnProfile}
       />
 
       {/* Following Modal */}
