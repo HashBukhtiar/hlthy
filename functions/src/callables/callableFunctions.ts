@@ -561,3 +561,45 @@ export const unfollowUser = onCall(
     return {success: true, message: "Successfully unfollowed user."};
   }
 );
+
+export const removeFollower = onCall(
+  {region: "northamerica-northeast2"},
+  async (req) => {
+    const uid = req.auth?.uid;
+    const {followerUserId} = req.data;
+    if (!uid || !followerUserId || uid === followerUserId) {
+      throw new HttpsError("invalid-argument", "Invalid remove follower request");
+    }
+    const db = getDb();
+
+    // Verify the follower relationship exists
+    const followerDoc = await db.collection("users").doc(uid)
+      .collection("followers").doc(followerUserId).get();
+    if (!followerDoc.exists) {
+      throw new HttpsError("not-found", "This user is not following you");
+    }
+
+    const batch = db.batch();
+
+    // 1) Remove followerUserId from uid's followers subcollection
+    batch.delete(
+      db.collection("users").doc(uid).collection("followers").doc(followerUserId)
+    );
+    // 2) Remove uid from followerUserId's following subcollection
+    batch.delete(
+      db.collection("users").doc(followerUserId).collection("following").doc(uid)
+    );
+    // 3) Decrement counts on both sides
+    batch.update(db.collection("users").doc(uid), {
+      "followerCount": FieldValue.increment(-1),
+      "stats.followerCount": FieldValue.increment(-1),
+    });
+    batch.update(db.collection("users").doc(followerUserId), {
+      "followingCount": FieldValue.increment(-1),
+      "stats.followingCount": FieldValue.increment(-1),
+    });
+
+    await batch.commit();
+    return {success: true, message: "Follower removed successfully."};
+  }
+);
