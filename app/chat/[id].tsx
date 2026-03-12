@@ -47,7 +47,7 @@ import { sendMessage, sendMessageWithIntent, IntentClassificationResult, AIRespo
 import { SmartChatInput } from '@/components/SmartChatInput';
 import { IntentMessageWrapper } from '@/components/IntentBadge';
 import { MessageRenderer } from '@/components/ai/MessageRenderer';
-import { calculateImprovementPercentage } from '@/logic/milesonteUtils';
+import { calculateImprovementPercentage } from '@/logic/milestoneUtils';
 import { uploadPhotoToChat, deletePhotoFromChat, formatFileSize } from '@/utils/photoSharingUtils';
 import { useUnits } from '@/hooks/useUnits';
 import { getOptimalImageUrl } from '@/utils/thumbnailUtils';

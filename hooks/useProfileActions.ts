@@ -1,9 +1,8 @@
 import { useCallback, useState } from 'react';
 import { useRouter } from 'expo-router';
 import { Alert } from 'react-native';
-import { doc, getDoc } from '@/features/infra/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
-import { db, app } from '@/firebaseConfig';
+import { app } from '@/firebaseConfig';
 import { useBlockEnforcement } from '@/utils/blockUtils';
 
 interface UseProfileActionsProps {
@@ -33,20 +32,10 @@ export const useProfileActions = ({
   const { isUserBlocked } = useBlockEnforcement();
   const [showActionMenu, setShowActionMenu] = useState(false);
 
-  const handleDirectMessage = useCallback(async () => {
+  const handleDirectMessage = useCallback(() => {
     if (!currentUser || !displayProfileData?.id) return;
-    
     const conversationId = generateConversationId(currentUser.uid, displayProfileData.id);
-    
-    try {
-      const conversationRef = doc(db, 'conversations', conversationId);
-      const conversationSnap = await getDoc(conversationRef);
-      
-      router.push(`/chat/${conversationId}`);
-    } catch (error) {
-      console.error('Error navigating to chat:', error);
-      Alert.alert('Error', 'Failed to open chat. Please try again.');
-    }
+    router.push(`/chat/${conversationId}`);
   }, [currentUser, displayProfileData, router]);
 
   const handleBlockUser = useCallback(async () => {

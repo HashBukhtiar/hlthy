@@ -1,5 +1,5 @@
 import {onDocumentCreated} from "firebase-functions/v2/firestore";
-import {admin, getDb} from "./firebaseAdmin";
+import {admin, getDb} from "../admin/firebaseAdmin";
 
 export const updateUserMilestoneSummaryOnCreateV2 = onDocumentCreated(
   {

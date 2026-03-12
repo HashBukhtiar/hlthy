@@ -42,11 +42,6 @@ export default function RootLayout() {
             <Stack.Screen name="diet-plan" />
             <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
             
-            {/* Legacy standalone screens - kept for deep linking compatibility */}
-            <Stack.Screen name="ai-chat" options={{ gestureEnabled: false }} />
-            <Stack.Screen name="workouts" options={{ gestureEnabled: false }} />
-            <Stack.Screen name="profile" options={{ gestureEnabled: false }} />
-            <Stack.Screen name="post" options={{ gestureEnabled: false }} />
           </Stack>
         </View>
       </SafeAreaProvider>

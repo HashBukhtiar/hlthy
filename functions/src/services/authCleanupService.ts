@@ -1,4 +1,4 @@
-import {admin, getDb} from "./firebaseAdmin";
+import {admin, getDb} from "../admin/firebaseAdmin";
 import {onCall, HttpsError, onRequest} from "firebase-functions/v2/https";
 
 /**

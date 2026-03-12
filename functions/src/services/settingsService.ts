@@ -1,5 +1,5 @@
 import {onCall, HttpsError} from "firebase-functions/v2/https";
-import {admin, getDb, getAuth} from "./firebaseAdmin";
+import {admin, getDb, getAuth} from "../admin/firebaseAdmin";
 
 // Update user settings
 export const updateUserSettings = onCall(

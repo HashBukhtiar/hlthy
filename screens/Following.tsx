@@ -1,72 +1,23 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  FlatList, 
-  TouchableOpacity, 
-  ActivityIndicator 
+import React from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  TouchableOpacity,
+  ActivityIndicator,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { db } from '@/firebaseConfig';
-import { collection, query, getDocs, where, orderBy } from '@/features/infra/firestore';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { OptimizedImageLight } from '@/components/OptimizedImage';
+import { useSocialGraph } from '@/features/social/ui/useSocialGraph';
 
 export default function Following() {
-  const { userId } = useLocalSearchParams();
+  const { userId } = useLocalSearchParams<{ userId: string }>();
   const router = useRouter();
-  const [following, setFollowing] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [username, setUsername] = useState('');
+  const { entries, username, loading, error } = useSocialGraph(userId, 'following');
 
-  useEffect(() => {
-    async function fetchFollowing() {
-      if (!userId) return;
-      
-      try {
-        setLoading(true);
-        
-        // Get username of the profile being viewed
-        const userDoc = await getDoc(doc(db, "users", userId.toString()));
-        if (userDoc.exists()) {
-          setUsername(userDoc.data().username || 'User');
-        }
-        
-        // Get all following
-        const followingSnapshot = await getDocs(collection(db, "users", userId.toString(), "following"));
-        
-        const followingPromises = followingSnapshot.docs.map(async (followingDoc) => {
-          // Get the full user data for each followed user
-          const userSnapshot = await getDoc(doc(db, "users", followingDoc.id));
-          if (userSnapshot.exists()) {
-            return {
-              id: followingDoc.id,
-              ...userSnapshot.data()
-            };
-          }
-          return null;
-        });
-        
-        const followingData = (await Promise.all(followingPromises)).filter(Boolean);
-        setFollowing(followingData);
-      } catch (err) {
-        console.error("Error fetching following:", err);
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    }
-    
-    fetchFollowing();
-  }, [userId]);
-
-  const handleGoBack = () => {
-    router.back();
-  };
-  
   const handleUserPress = (pressedUserId: string) => {
     router.push(`/profile/${pressedUserId}`);
   };
@@ -74,13 +25,7 @@ export default function Following() {
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={handleGoBack} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color="white" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Following</Text>
-          <View style={{ width: 24 }} />
-        </View>
+        <Header onBack={() => router.back()} />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="white" />
         </View>
@@ -91,13 +36,7 @@ export default function Following() {
   if (error) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={handleGoBack} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color="white" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Following</Text>
-          <View style={{ width: 24 }} />
-        </View>
+        <Header onBack={() => router.back()} />
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>Error loading following: {error}</Text>
         </View>
@@ -107,28 +46,17 @@ export default function Following() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={handleGoBack} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="white" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Following</Text>
-        <View style={{ width: 24 }} />
-      </View>
-      
-      <Text style={styles.subTitle}>Users {username} follows ({following.length})</Text>
-      
+      <Header onBack={() => router.back()} />
+      <Text style={styles.subTitle}>Users {username} follows ({entries.length})</Text>
       <FlatList
-        data={following}
-        keyExtractor={(item) => item.id}
+        data={entries}
+        keyExtractor={item => item.id}
         renderItem={({ item }) => (
-          <TouchableOpacity 
-            style={styles.userItem}
-            onPress={() => handleUserPress(item.id)}
-          >
-            <OptimizedImageLight 
+          <TouchableOpacity style={styles.userItem} onPress={() => handleUserPress(item.id)}>
+            <OptimizedImageLight
               thumbnailUrl={item.profileThumbnailUrl}
               originalUrl={item.profileImageUrl}
-              style={styles.avatar} 
+              style={styles.avatar}
             />
             <View style={styles.userInfo}>
               <Text style={styles.username}>{item.username}</Text>
@@ -147,11 +75,20 @@ export default function Following() {
   );
 }
 
+function Header({ onBack }: { onBack: () => void }) {
+  return (
+    <View style={styles.header}>
+      <TouchableOpacity onPress={onBack} style={styles.backButton}>
+        <Ionicons name="arrow-back" size={24} color="white" />
+      </TouchableOpacity>
+      <Text style={styles.headerTitle}>Following</Text>
+      <View style={{ width: 24 }} />
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: 'black',
-  },
+  container: { flex: 1, backgroundColor: 'black' },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -161,20 +98,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#222',
   },
-  headerTitle: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  backButton: {
-    padding: 5,
-  },
-  subTitle: {
-    color: '#AAA',
-    fontSize: 14,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-  },
+  headerTitle: { color: 'white', fontSize: 18, fontWeight: 'bold' },
+  backButton: { padding: 5 },
+  subTitle: { color: '#AAA', fontSize: 14, paddingHorizontal: 16, paddingVertical: 10 },
   userItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -182,47 +108,13 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#222',
   },
-  avatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    marginRight: 16,
-  },
-  userInfo: {
-    flex: 1,
-  },
-  username: {
-    color: 'white',
-    fontSize: 16,
-    marginBottom: 3,
-  },
-  name: {
-    color: '#999',
-    fontSize: 14,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  errorText: {
-    color: '#FF5555',
-    textAlign: 'center',
-  },
-  emptyContainer: {
-    padding: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  emptyText: {
-    color: '#999',
-    fontSize: 16,
-    textAlign: 'center',
-  },
+  avatar: { width: 50, height: 50, borderRadius: 25, marginRight: 16 },
+  userInfo: { flex: 1 },
+  username: { color: 'white', fontSize: 16, marginBottom: 3 },
+  name: { color: '#999', fontSize: 14 },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  errorContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
+  errorText: { color: '#FF5555', textAlign: 'center' },
+  emptyContainer: { padding: 30, alignItems: 'center', justifyContent: 'center' },
+  emptyText: { color: '#999', fontSize: 16, textAlign: 'center' },
 });

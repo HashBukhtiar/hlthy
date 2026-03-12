@@ -17,9 +17,9 @@ import globalStyles from '@/styles/globalStyles';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '@/context/AuthContext';
-import { db, storage } from '@/firebaseConfig';
-import { addDoc, collection, serverTimestamp, doc, updateDoc, increment } from '@/features/infra/firestore';
+import { storage } from '@/firebaseConfig';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { WorkoutRepository } from '@/features/workouts/infra/workoutRepository';
 import SelectExercise from './SelectExercise';
 import { Exercise } from '@/data/exercises';
 import { CustomSelector, SelectorItem } from '@/components/CustomSelector';
@@ -50,19 +50,10 @@ const visibilityItems: SelectorItem[] = [
 
 
 
-interface WorkoutExercise {
-  id: string;
-  name: string;
-  sets: string;
-  reps: string;
-}
-
-interface WorkoutSegment {
-  id: string;
-  name: string;
-  length: string;
-  exercises: WorkoutExercise[];
-}
+import {
+  WorkoutDraftExercise as WorkoutExercise,
+  WorkoutDraftSegment as WorkoutSegment,
+} from '@/features/workouts/domain/WorkoutDraft';
 
 export default function CreateWorkout() {
   const router = useRouter();
@@ -304,101 +295,36 @@ export default function CreateWorkout() {
     }
 
     setIsSaving(true);
-    let coverImageUrl = '';
 
     try {
-      // 1. Upload cover image if selected
+      const draft = {
+        title: title.trim(),
+        description: description.trim(),
+        visibility: visibility as 'public' | 'followers' | 'private',
+        segments,
+      };
+      const username = (currentUser as any).username || currentUser.displayName || 'Anonymous';
+
       if (coverImage) {
+        // Create the workout first to obtain the workoutId for Storage metadata.
+        const workoutId = await WorkoutRepository.createDocument(currentUser.uid, username, draft);
+
         const response = await fetch(coverImage);
         const blob = await response.blob();
         const imageName = `workoutCovers/${currentUser.uid}/${generateUniqueFilename(title.replace(/\s+/g, '_'), 'jpg')}`;
         const storageRef = ref(storage, imageName);
-        
-        // First save the workout to get the workoutId
-        const workoutData = {
-          creatorId: currentUser.uid,
-          creatorUsername: currentUser.username || currentUser.displayName || 'Anonymous',
-          title: title.trim(),
-          description: description.trim(),
-          coverImageUrl: null, // Will be updated after upload
-          segments: segments.map(segment => ({
-            id: segment.id,
-            name: segment.name.trim(),
-            length: segment.length.trim(),
-            exercises: segment.exercises.map(ex => ({
-              id: ex.id,
-              name: ex.name.trim(),
-              sets: ex.sets.trim(),
-              reps: ex.reps.trim(),
-            })).filter(ex => ex.name.trim() !== '')
-          })).filter(seg => seg.exercises.length > 0 || seg.name.trim() !== ''),
-          createdAt: serverTimestamp(),
-          visibility: visibility, // Use the visibility selector value
-          isPublic: visibility === 'public', // Derive isPublic from visibility
-          savedCount: 0,
-          tags: [],
-        };
-        
-        const workoutDocRef = await addDoc(collection(db, 'workouts'), workoutData);
-        const workoutId = workoutDocRef.id;
-        
-        // Upload image with workoutId metadata
-        await uploadBytes(storageRef, blob, {
-          customMetadata: {
-            workoutId: workoutId
-          }
-        });
-        
-        coverImageUrl = await getDownloadURL(storageRef);
-        
-        // Update the workout with the cover image URL
-        await updateDoc(workoutDocRef, {
-          coverImageUrl: coverImageUrl
-        });
-        
-        console.log('Workout saved with ID: ', workoutId);
+        await uploadBytes(storageRef, blob, { customMetadata: { workoutId } });
+        const coverImageUrl = await getDownloadURL(storageRef);
+        await WorkoutRepository.updateCoverImageUrl(workoutId, coverImageUrl);
       } else {
-        // No cover image, just save the workout normally
-        const workoutData = {
-          creatorId: currentUser.uid,
-          creatorUsername: currentUser.username || currentUser.displayName || 'Anonymous',
-          title: title.trim(),
-          description: description.trim(),
-          coverImageUrl: null,
-          segments: segments.map(segment => ({
-            id: segment.id,
-            name: segment.name.trim(),
-            length: segment.length.trim(),
-            exercises: segment.exercises.map(ex => ({
-              id: ex.id,
-              name: ex.name.trim(),
-              sets: ex.sets.trim(),
-              reps: ex.reps.trim(),
-            })).filter(ex => ex.name.trim() !== '')
-          })).filter(seg => seg.exercises.length > 0 || seg.name.trim() !== ''),
-          createdAt: serverTimestamp(),
-          visibility: visibility, // Use the visibility selector value
-          isPublic: visibility === 'public', // Derive isPublic from visibility
-          savedCount: 0,
-          tags: [],
-        };
-        
-        const workoutDocRef = await addDoc(collection(db, 'workouts'), workoutData);
-        console.log('Workout saved with ID: ', workoutDocRef.id);
+        await WorkoutRepository.createDocument(currentUser.uid, username, draft);
       }
-
-      // 4. Update user's workout count (denormalization)
-      const userDocRef = doc(db, 'users', currentUser.uid);
-      await updateDoc(userDocRef, {
-        'stats.workoutCount': increment(1)
-      });
 
       Alert.alert(
         'Workout Created',
         'Your workout has been created successfully!',
         [{ text: 'OK', onPress: () => router.back() }]
       );
-
     } catch (error) {
       console.error('Error saving workout: ', error);
       Alert.alert('Error', 'Could not save workout. Please try again.');
