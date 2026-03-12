@@ -276,6 +276,17 @@ service cloud.firestore {
       }
     }
 
+    // Milestones collection
+    match /milestones/{milestoneId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() &&
+        request.auth.uid == request.resource.data.authorId;
+      allow update: if isAuthenticated() &&
+        request.auth.uid == resource.data.authorId;
+      allow delete: if isAuthenticated() &&
+        request.auth.uid == resource.data.authorId;
+    }
+
     // Temporary fallback rule for debugging
     match /{document=**} {
       allow read: if isAuthenticated();
