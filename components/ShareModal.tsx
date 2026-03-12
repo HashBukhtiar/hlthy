@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Modal, 
   KeyboardAvoidingView, 
@@ -8,7 +8,10 @@ import {
   TextInput,
   FlatList,
   Platform,
-  ActivityIndicator
+  ActivityIndicator,
+  Animated,
+  Dimensions,
+  Pressable,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { shareModalStyles } from '@/styles/shareModalStyles';
@@ -18,6 +21,8 @@ import { db } from '@/firebaseConfig';
 import { debounce } from 'lodash';
 import { useBlockEnforcement } from '@/utils/blockUtils';
 import { useAuth } from '@/context/AuthContext';
+
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 interface ShareModalProps {
   visible: boolean;
@@ -31,6 +36,9 @@ export default function ShareModal({ visible, onClose, onShareWith }: ShareModal
   const [searchLoading, setSearchLoading] = useState(false);
   const { canInteractWithUser } = useBlockEnforcement();
   const { currentUser } = useAuth();
+
+  const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
+  const opacity = useRef(new Animated.Value(0)).current;
 
   const handleSearchUsers = debounce(async (text: string) => {
     if (!text.trim()) {
@@ -80,29 +88,61 @@ export default function ShareModal({ visible, onClose, onShareWith }: ShareModal
   }, 500);
 
   useEffect(() => {
-    // Reset search when modal opens or closes
-    if (!visible) {
+    if (visible) {
+      Animated.parallel([
+        Animated.spring(translateY, {
+          toValue: 0,
+          useNativeDriver: true,
+          tension: 65,
+          friction: 11,
+        }),
+        Animated.timing(opacity, {
+          toValue: 1,
+          duration: 250,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } else {
+      translateY.setValue(SCREEN_HEIGHT);
+      opacity.setValue(0);
       setSearchText('');
       setSearchResults([]);
     }
   }, [visible]);
 
+  const handleClose = () => {
+    Animated.parallel([
+      Animated.timing(translateY, {
+        toValue: SCREEN_HEIGHT,
+        duration: 250,
+        useNativeDriver: true,
+      }),
+      Animated.timing(opacity, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+    ]).start(() => onClose());
+  };
+
   return (
     <Modal
       transparent={true}
       visible={visible}
-      animationType="slide"
-      onRequestClose={onClose}
+      animationType="none"
+      onRequestClose={handleClose}
+      statusBarTranslucent
     >
-      <KeyboardAvoidingView
-        style={shareModalStyles.shareModalContainer}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 100}
-      >
-        <View style={shareModalStyles.shareModalContent}>
-          <View style={shareModalStyles.shareModalHeader}>
+      <Animated.View style={[shareModalStyles.shareModalContainer, { opacity }]}>
+        <Pressable style={{ flex: 1 }} onPress={handleClose} />
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 100}
+        >
+          <Animated.View style={[shareModalStyles.shareModalContent, { transform: [{ translateY }] }]}>
+            <View style={shareModalStyles.shareModalHeader}>
             <Text style={shareModalStyles.shareModalTitle}>Share to</Text>
-            <TouchableOpacity onPress={onClose}>
+            <TouchableOpacity onPress={handleClose}>
               <Ionicons name="close" size={24} color="#FFF" />
             </TouchableOpacity>
           </View>
@@ -149,8 +189,9 @@ export default function ShareModal({ visible, onClose, onShareWith }: ShareModal
               }
             />
           )}
-        </View>
-      </KeyboardAvoidingView>
+          </Animated.View>
+        </KeyboardAvoidingView>
+      </Animated.View>
     </Modal>
   );
 }
