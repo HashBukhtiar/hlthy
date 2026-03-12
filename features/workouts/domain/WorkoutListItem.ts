@@ -7,4 +7,5 @@ export interface WorkoutListItem {
   coverImageUrl: string | null;
   thumbnailUrl: string | null;
   savedCount: number;
+  isPublic: boolean;
 }
