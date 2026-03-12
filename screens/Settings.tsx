@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, Keyboard, Alert, Image, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Keyboard, Alert, Image, TouchableOpacity, ActivityIndicator, Modal, Pressable } from 'react-native';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -628,7 +628,7 @@ export default function Settings() {
           />
 
           <SettingsItem
-            type="select"
+            type="date"
             label="Date of Birth"
             value={settings.dateOfBirth}
             onPress={() => {
@@ -1102,56 +1102,62 @@ export default function Settings() {
             <Text style={styles.logoutButtonText}>Logout</Text>
           </TouchableOpacity>
         </View>
+      </ScrollView>
 
-        {/* Date Picker */}
-        {dateModalVisible && (
-          <View style={styles.modalOverlay}>
-            <View style={styles.dateModal}>
-              <View style={styles.dateModalHeader}>
-                <Text style={styles.dateModalTitle}>Select Date of Birth</Text>
-                <TouchableOpacity onPress={() => setDateModalVisible(false)}>
-                  <Text style={styles.closeButton}>✕</Text>
-                </TouchableOpacity>
-              </View>
-              
-              <DateTimePicker
-                value={settings.dateOfBirth || new Date(2000, 0, 1)}
-                mode="date"
-                display="spinner"
-                onChange={(event, selectedDate) => {
-                  if (selectedDate && event.type !== 'dismissed') {
-                    const now = new Date();
-                    const minDate = new Date(1900, 0, 1);
-                    
-                    if (selectedDate > now) {
-                      Alert.alert("Invalid Date", "Date of birth cannot be in the future");
-                      return;
-                    }
-                    
-                    if (selectedDate < minDate) {
-                      Alert.alert("Invalid Date", "Please enter a valid date of birth");
-                      return;
-                    }
-                    
-                    // Use selectedDate directly - no need to "clean" it
-                    updateSetting('dateOfBirth', selectedDate);
-                  }
-                }}
-                maximumDate={new Date()}
-                minimumDate={new Date(1900, 0, 1)}
-                style={{ backgroundColor: '#1C1C1E' }}
-              />
-              
-              <TouchableOpacity 
-                style={styles.dateModalDoneButton}
-                onPress={() => setDateModalVisible(false)}
-              >
-                <Text style={styles.dateModalDoneText}>Done</Text>
+      {/* Date Picker Modal */}
+      <Modal
+        transparent={true}
+        visible={dateModalVisible}
+        animationType="fade"
+        onRequestClose={() => setDateModalVisible(false)}
+        statusBarTranslucent
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setDateModalVisible(false)}>
+          <Pressable style={styles.dateModal} onPress={() => {}}>
+            <View style={styles.dateModalHeader}>
+              <Text style={styles.dateModalTitle}>Select Date of Birth</Text>
+              <TouchableOpacity onPress={() => setDateModalVisible(false)}>
+                <Text style={styles.closeButton}>✕</Text>
               </TouchableOpacity>
             </View>
-          </View>
-        )}
-      </ScrollView>
+            
+            <DateTimePicker
+              value={settings.dateOfBirth || new Date(2000, 0, 1)}
+              mode="date"
+              display="spinner"
+              onChange={(event, selectedDate) => {
+                if (selectedDate && event.type !== 'dismissed') {
+                  const now = new Date();
+                  const minDate = new Date(1900, 0, 1);
+                  
+                  if (selectedDate > now) {
+                    Alert.alert("Invalid Date", "Date of birth cannot be in the future");
+                    return;
+                  }
+                  
+                  if (selectedDate < minDate) {
+                    Alert.alert("Invalid Date", "Please enter a valid date of birth");
+                    return;
+                  }
+                  
+                  updateSetting('dateOfBirth', selectedDate);
+                }
+              }}
+              maximumDate={new Date()}
+              minimumDate={new Date(1900, 0, 1)}
+              themeVariant="dark"
+              style={styles.datePicker}
+            />
+            
+            <TouchableOpacity 
+              style={styles.dateModalDoneButton}
+              onPress={() => setDateModalVisible(false)}
+            >
+              <Text style={styles.dateModalDoneText}>Done</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       <SettingsModals
         archetypeData={archetypeData}
@@ -1264,15 +1270,10 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   modalOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 1000,
   },
   insightsModal: {
     backgroundColor: '#1C1C1E',
@@ -1386,8 +1387,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#1C1C1E',
     borderRadius: 16,
     padding: 20,
-    margin: 20,
-    width: '90%',
+    width: '85%',
+    maxWidth: 340,
+    overflow: 'hidden',
   },
   dateModalHeader: {
     flexDirection: 'row',
@@ -1411,6 +1413,11 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '500',
+  },
+  datePicker: {
+    backgroundColor: '#1C1C1E',
+    width: '100%',
+    alignSelf: 'center',
   },
   headerRow: {
     flexDirection: 'row',
