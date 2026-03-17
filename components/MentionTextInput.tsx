@@ -2,7 +2,7 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import {
   View,
   TextInput,
-  FlatList,
+  ScrollView,
   StyleSheet,
   Keyboard,
   TextInputProps,
@@ -203,18 +203,15 @@ export default function MentionTextInput({
             animatedDropdownStyle,
           ]}
         >
-          <FlatList
-            data={suggestions}
-            keyExtractor={(item) => item.userId}
-            renderItem={({ item }) => (
+          <ScrollView keyboardShouldPersistTaps="handled" nestedScrollEnabled>
+            {suggestions.map((item) => (
               <MentionSuggestionRow
+                key={item.userId}
                 suggestion={item}
                 onPress={handleSelectSuggestion}
               />
-            )}
-            keyboardShouldPersistTaps="handled"
-            nestedScrollEnabled
-          />
+            ))}
+          </ScrollView>
         </Animated.View>
       )}
 
