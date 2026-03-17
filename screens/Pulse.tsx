@@ -23,6 +23,7 @@ import { getOptimalImageUrl } from '@/utils/imageUtils';
 import { usePulse } from '@/features/notifications/ui/usePulse';
 import { OptimizedImageLight } from '@/components/OptimizedImage';
 import { ACCENT_COLOR } from '@/constants/Colors';
+import { useBlockEnforcement } from '@/utils/blockUtils';
 
 // Helper function to display shortened string
 const displayShortenedString = (str: string, maxLength: number): string => {
@@ -38,7 +39,7 @@ export default function Pulse() {
     const authData = useAuth() as any;
     const currentUser = authData?.currentUser;
     const functions = getFunctions(app, 'northamerica-northeast2');
-    const { canInteractWithUser } = useBlockEnforcement();
+    const { canInteractWithUser, isUserBlocked } = useBlockEnforcement();
 
     const { followRequests, otherActivities, loadingRequests, loadingActivities } = usePulse();
 

@@ -50,7 +50,7 @@ import { MessageRenderer } from '@/components/ai/MessageRenderer';
 import { calculateImprovementPercentage } from '@/logic/milestoneUtils';
 import { uploadPhotoToChat, deletePhotoFromChat, formatFileSize } from '@/utils/photoSharingUtils';
 import { useUnits } from '@/hooks/useUnits';
-import { getOptimalImageUrl } from '@/utils/thumbnailUtils';
+import { getOptimalImageUrl } from '@/utils/imageUtils';
 
 interface FirestoreMessageData {
   senderId: string;
