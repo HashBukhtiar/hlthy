@@ -36,6 +36,8 @@ enum TabType {
   WORKOUTS = 'WORKOUTS'
 }
 
+type InteractionLock = 'none' | 'vertical' | 'horizontal';
+
 const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
   const { currentUser, userProfile: currentUserProfile, refreshUserProfile } = useAuth();
   const router = useRouter();
@@ -81,6 +83,8 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
   const [tooltipText, setTooltipText] = useState('');
   const [followersModalVisible, setFollowersModalVisible] = useState(false);
   const [followingModalVisible, setFollowingModalVisible] = useState(false);
+  const [interactionLock, setInteractionLock] = useState<InteractionLock>('none');
+  const interactionLockRef = useRef<InteractionLock>('none');
 
   const indicatorWidth = screenWidth * 0.2;
   const tabCenterOffset = (screenWidth / 3 - indicatorWidth) / 2;
@@ -214,16 +218,42 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
   const snapToTabRef = useRef(snapToTab);
   useEffect(() => { snapToTabRef.current = snapToTab; }, [snapToTab]);
 
+  const updateInteractionLock = useCallback((nextLock: InteractionLock) => {
+    if (interactionLockRef.current !== nextLock) {
+      interactionLockRef.current = nextLock;
+      setInteractionLock(nextLock);
+    }
+  }, []);
+
+  const handleVerticalScrollBegin = useCallback(() => {
+    if (interactionLockRef.current !== 'horizontal') {
+      updateInteractionLock('vertical');
+    }
+  }, [updateInteractionLock]);
+
+  const handleVerticalScrollEnd = useCallback(() => {
+    if (interactionLockRef.current === 'vertical') {
+      updateInteractionLock('none');
+    }
+  }, [updateInteractionLock]);
+
   const panResponder = useMemo(
     () => PanResponder.create({
       onMoveShouldSetPanResponder: (_evt, gestureState) => {
+        if (interactionLockRef.current === 'vertical') {
+          return false;
+        }
         // Only capture horizontal gestures; let vertical pass to outer ScrollView
         return Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 1.5 && Math.abs(gestureState.dx) > 8;
       },
       onMoveShouldSetPanResponderCapture: (_evt, gestureState) => {
+        if (interactionLockRef.current === 'vertical') {
+          return false;
+        }
         return Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 2 && Math.abs(gestureState.dx) > 12;
       },
       onPanResponderGrant: () => {
+        updateInteractionLock('horizontal');
         horizontalOffset.stopAnimation();
       },
       onPanResponderMove: (_evt, gestureState) => {
@@ -245,15 +275,17 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
         }
         
         snapToTabRef.current(newIndex);
+        updateInteractionLock('none');
       },
       // Prevent the parent ScrollView from stealing the gesture mid-swipe
       onPanResponderTerminationRequest: () => false,
       onPanResponderTerminate: () => {
         // If gesture is interrupted, snap back to current tab
         snapToTabRef.current(currentTabIndex.current);
+        updateInteractionLock('none');
       },
     }),
-    [horizontalOffset, screenWidth]
+    [horizontalOffset, screenWidth, updateInteractionLock]
   );
 
   const handleSettingsPress = () => {
@@ -466,9 +498,14 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
       
       <ScrollView 
         style={styles.scrollView}
+        scrollEnabled={interactionLock !== 'horizontal'}
         showsVerticalScrollIndicator={false}
         stickyHeaderIndices={[1]}
         overScrollMode="never"
+        onScrollBeginDrag={handleVerticalScrollBegin}
+        onMomentumScrollBegin={handleVerticalScrollBegin}
+        onScrollEndDrag={handleVerticalScrollEnd}
+        onMomentumScrollEnd={handleVerticalScrollEnd}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
