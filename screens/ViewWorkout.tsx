@@ -7,7 +7,7 @@ import ReportModal from '@/components/ReportModal';
 import { shareWorkout } from '@/services/ShareService';
 import { Ionicons } from '@expo/vector-icons';
 import { db } from '@/firebaseConfig'; 
-import { doc, getDoc, Timestamp, updateDoc, increment, setDoc, deleteDoc, collection, query, where, orderBy, getDocs, limit } from 'firebase/firestore';
+import { doc, getDoc, Timestamp, updateDoc, increment, setDoc, deleteDoc, collection, query, where, orderBy, getDocs, limit } from '@/features/infra/firestore';
 import { useAuth } from '@/context/AuthContext'; 
 import { getCoverImageSource, deleteImageFromStorage } from '@/utils/imageUtils';
 import { useBlockEnforcement } from '@/utils/blockUtils';

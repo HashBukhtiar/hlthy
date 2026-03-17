@@ -19,7 +19,7 @@ import {
   where,
   orderBy,
   doc,
-} from 'firebase/firestore';
+} from '@/features/infra/firestore';
 import { Ionicons } from '@expo/vector-icons';
 import { getCoverImageSource } from '@/utils/imageUtils';
 

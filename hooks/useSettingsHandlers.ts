@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import { Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { httpsCallable } from 'firebase/functions';
-import { signOut } from 'firebase/auth';
+import { signOut } from '@/features/auth/ui/useSession';
 import { auth, functions } from '@/firebaseConfig';
 import { SettingsRepository } from '@/features/settings/infra/settingsRepository';
 import { deleteImageFromStorage } from '@/utils/imageUtils';

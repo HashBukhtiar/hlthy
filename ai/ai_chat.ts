@@ -1,6 +1,6 @@
 import { API_BASE_URL } from '@/config/api';
 import { db } from '@/firebaseConfig';
-import { doc, updateDoc, deleteDoc, collection, query, writeBatch } from 'firebase/firestore';
+import { doc, updateDoc, deleteDoc, collection, query, writeBatch } from '@/features/infra/firestore';
 
 export interface IntentClassificationResult {
   intent: string;

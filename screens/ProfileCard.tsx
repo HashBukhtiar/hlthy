@@ -14,7 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc } from '@/features/infra/firestore';
 import { db } from '@/firebaseConfig';
 import { useAuth } from '@/context/AuthContext';
 import { ACCENT_COLOR } from '@/constants/Colors';

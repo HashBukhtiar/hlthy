@@ -64,6 +64,6 @@ module.exports = [
   },
   {
     // Ignore generated/vendor directories.
-    ignores: ['node_modules/**', '.expo/**', 'dist/**', 'build/**'],
+    ignores: ['node_modules/**', '.expo/**', 'dist/**', 'build/**', '**/__tests__/**', '**/*.test.*'],
   },
 ];

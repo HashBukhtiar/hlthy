@@ -45,7 +45,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     });
 
     return unsubscribe;
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   const logout = async () => {
     try {

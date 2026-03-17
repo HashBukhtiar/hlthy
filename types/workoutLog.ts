@@ -6,7 +6,7 @@
  * - users/{userId}/exercise_history/{exerciseId} - Per-exercise stats & PRs
  */
 
-import { Timestamp } from 'firebase/firestore';
+import { Timestamp } from '@/features/infra/firestore';
 
 // ============================================
 // SET & EXERCISE LOGGING
