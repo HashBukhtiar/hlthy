@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Dimensions } from 'react-native';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { OptimizedImageLight } from '@/components/OptimizedImage';
 import { MilestoneCard } from './MilestoneCard';
@@ -126,27 +126,6 @@ export const MilestonesTab: React.FC<MilestonesTabProps> = ({
 
   return (
     <View style={styles.milestonesContainer}>
-      {/* Stats header */}
-      <View style={styles.milestonesHeader}>
-        <LinearGradient
-          colors={['rgba(255,94,105,0.12)', 'rgba(255,94,105,0.03)', 'transparent']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.headerGradient}
-        />
-        <View style={styles.headerContent}>
-          <View style={styles.headerIconContainer}>
-            <MaterialCommunityIcons name="trophy" size={24} color="#FF5E69" />
-          </View>
-          <View style={styles.headerTextContainer}>
-            <Text style={styles.headerTitle}>Personal Records</Text>
-            <Text style={styles.headerSubtitle}>
-              {totalMilestones} milestone{totalMilestones !== 1 ? 's' : ''} achieved
-            </Text>
-          </View>
-        </View>
-      </View>
-
       <View style={styles.milestonesListContent}>
         {flattenedData.map((item, index) => {
           if (item.type === 'header') {
@@ -249,30 +228,8 @@ export const WorkoutsTab: React.FC<WorkoutsTabProps> = ({
     );
   }
 
-  const totalSaves = visibleWorkouts.reduce((acc, workout) => acc + (workout.savedCount || 0), 0);
-
   return (
     <View style={styles.workoutsListSingleColumn}>
-      <View style={styles.workoutsHeaderCard}>
-        <LinearGradient
-          colors={['rgba(255,94,105,0.12)', 'rgba(255,94,105,0.03)', 'transparent']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.workoutsHeaderGradient}
-        />
-        <View style={styles.workoutsHeaderContent}>
-          <View style={styles.workoutsHeaderIconContainer}>
-            <Ionicons name="barbell-outline" size={22} color="#FF5E69" />
-          </View>
-          <View style={styles.workoutsHeaderTextContainer}>
-            <Text style={styles.workoutsHeaderTitle}>Workout Library</Text>
-            <Text style={styles.workoutsHeaderSubtitle}>
-              {visibleWorkouts.length} workout{visibleWorkouts.length !== 1 ? 's' : ''} • {totalSaves} save{totalSaves !== 1 ? 's' : ''}
-            </Text>
-          </View>
-        </View>
-      </View>
-
       {visibleWorkouts.map((item) => (
         <WorkoutListItem 
           key={item.id.toString()}
@@ -333,52 +290,6 @@ const styles = StyleSheet.create({
   milestonesContainer: {
     flex: 1,
     backgroundColor: '#000',
-  },
-  milestonesHeader: {
-    marginHorizontal: 16,
-    marginTop: 16,
-    marginBottom: 8,
-    borderRadius: 16,
-    overflow: 'hidden',
-    backgroundColor: 'rgba(255,255,255,0.03)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
-  },
-  headerGradient: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  headerContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-  },
-  headerIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255,94,105,0.15)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 14,
-  },
-  headerTextContainer: {
-    flex: 1,
-  },
-  headerTitle: {
-    color: '#FFF',
-    fontSize: 18,
-    fontWeight: '700',
-    letterSpacing: -0.3,
-    marginBottom: 2,
-  },
-  headerSubtitle: {
-    color: 'rgba(255,255,255,0.5)',
-    fontSize: 14,
-    fontWeight: '500',
   },
   milestonesListContent: {
     paddingBottom: 24,
@@ -441,48 +352,5 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 14,
     gap: 12,
-  },
-  workoutsHeaderCard: {
-    borderRadius: 16,
-    overflow: 'hidden',
-    backgroundColor: 'rgba(255,255,255,0.03)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
-  },
-  workoutsHeaderGradient: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  workoutsHeaderContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-  },
-  workoutsHeaderIconContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255,94,105,0.15)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  workoutsHeaderTextContainer: {
-    flex: 1,
-  },
-  workoutsHeaderTitle: {
-    color: '#FFF',
-    fontSize: 18,
-    fontWeight: '700',
-    letterSpacing: -0.3,
-    marginBottom: 2,
-  },
-  workoutsHeaderSubtitle: {
-    color: 'rgba(255,255,255,0.55)',
-    fontSize: 14,
-    fontWeight: '500',
   },
 });
