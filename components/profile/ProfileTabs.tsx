@@ -235,22 +235,52 @@ export const WorkoutsTab: React.FC<WorkoutsTabProps> = ({
     } catch (error) { return 0; }
   });
 
+  const visibleWorkouts = sortedWorkoutsData.filter((item) => isOwnProfile || item.isPublic);
+
+  if (visibleWorkouts.length === 0) {
+    return (
+      <View style={styles.emptyContainer}>
+        <Text style={{ color: 'gray', textAlign: 'center' }}>
+          {isOwnProfile
+            ? 'No workouts yet. Create or save a workout to see it here.'
+            : 'No public workouts available yet.'}
+        </Text>
+      </View>
+    );
+  }
+
+  const totalSaves = visibleWorkouts.reduce((acc, workout) => acc + (workout.savedCount || 0), 0);
+
   return (
     <View style={styles.workoutsListSingleColumn}>
-      {sortedWorkoutsData.map((item) => {
-        if (!item.isPublic && !isOwnProfile) {
-          return null;
-        }
+      <View style={styles.workoutsHeaderCard}>
+        <LinearGradient
+          colors={['rgba(255,94,105,0.12)', 'rgba(255,94,105,0.03)', 'transparent']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.workoutsHeaderGradient}
+        />
+        <View style={styles.workoutsHeaderContent}>
+          <View style={styles.workoutsHeaderIconContainer}>
+            <Ionicons name="barbell-outline" size={22} color="#FF5E69" />
+          </View>
+          <View style={styles.workoutsHeaderTextContainer}>
+            <Text style={styles.workoutsHeaderTitle}>Workout Library</Text>
+            <Text style={styles.workoutsHeaderSubtitle}>
+              {visibleWorkouts.length} workout{visibleWorkouts.length !== 1 ? 's' : ''} • {totalSaves} save{totalSaves !== 1 ? 's' : ''}
+            </Text>
+          </View>
+        </View>
+      </View>
 
-        return (
-          <WorkoutListItem 
-            key={item.id.toString()}
-            workout={item}
-            onPress={onWorkoutPress}
-            isOwnProfile={isOwnProfile}
-          />
-        );
-      })}
+      {visibleWorkouts.map((item) => (
+        <WorkoutListItem 
+          key={item.id.toString()}
+          workout={item}
+          onPress={onWorkoutPress}
+          isOwnProfile={isOwnProfile}
+        />
+      ))}
     </View>
   );
 };
@@ -408,7 +438,51 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   workoutsListSingleColumn: {
-    paddingVertical: 12,
-    paddingHorizontal: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    gap: 12,
+  },
+  workoutsHeaderCard: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
+  },
+  workoutsHeaderGradient: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  workoutsHeaderContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+  },
+  workoutsHeaderIconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,94,105,0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  workoutsHeaderTextContainer: {
+    flex: 1,
+  },
+  workoutsHeaderTitle: {
+    color: '#FFF',
+    fontSize: 18,
+    fontWeight: '700',
+    letterSpacing: -0.3,
+    marginBottom: 2,
+  },
+  workoutsHeaderSubtitle: {
+    color: 'rgba(255,255,255,0.55)',
+    fontSize: 14,
+    fontWeight: '500',
   },
 });
