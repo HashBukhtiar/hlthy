@@ -1,7 +1,4 @@
 import { UserSettings } from '@/types/settings';
-import { getFirestore, doc, updateDoc, increment } from 'firebase/firestore';
-
-const db = getFirestore();
 
 // Helper function to calculate accurate age from date of birth
 const calculateAge = (dateOfBirth: Date | string): number | null => {
@@ -34,28 +31,6 @@ export interface SettingsUsageStats {
   averageSessionLength: number;
   privacyLevel: 'open' | 'moderate' | 'strict';
 }
-
-export const trackSettingsChange = async (
-  userId: string, 
-  settingKey: string, 
-  oldValue: any, 
-  newValue: any
-): Promise<void> => {
-  try {
-    // Make analytics safer - use user document instead of shared analytics
-    const userRef = doc(db, 'users', userId);
-    
-    await updateDoc(userRef, {
-      'analytics.settingsUpdateCount': increment(1),
-      'analytics.lastSettingsUpdate': new Date(),
-      [`analytics.changedSettings.${settingKey}`]: increment(1)
-    });
-  } catch (error) {
-    // Silently fail - analytics is not critical
-    console.log('Analytics tracking failed (non-critical):', error.message);
-    // Don't re-throw - this prevents analytics from breaking the settings flow
-  }
-};
 
 export const calculatePrivacyLevel = (settings: Partial<UserSettings>): 'open' | 'moderate' | 'strict' => {
   let score = 0;

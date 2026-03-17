@@ -49,21 +49,3 @@ export const restoreSettingsBackup = async (): Promise<Partial<UserSettings> | n
   }
 };
 
-export const getSettingsHistory = async (): Promise<SettingsBackup[]> => {
-  try {
-    const historyStr = await AsyncStorage.getItem(BACKUP_HISTORY_KEY);
-    return historyStr ? JSON.parse(historyStr) : [];
-  } catch (error) {
-    console.error('Failed to get settings history:', error);
-    return [];
-  }
-};
-
-export const clearSettingsBackups = async (): Promise<void> => {
-  try {
-    await AsyncStorage.removeItem(BACKUP_KEY);
-    await AsyncStorage.removeItem(BACKUP_HISTORY_KEY);
-  } catch (error) {
-    console.error('Failed to clear settings backups:', error);
-  }
-};

@@ -245,7 +245,14 @@ service cloud.firestore {
         request.resource.data.keys().hasAll(['creatorId', 'title', 'createdAt']) &&
         request.resource.data.createdAt is timestamp;
       
-      allow update, delete: if isAuthenticated() && 
+      allow update: if isAuthenticated() && 
+        request.auth.uid == resource.data.creatorId;
+      
+      // Allow any authenticated user to update savedCount (for save/unsave)
+      allow update: if isAuthenticated() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['savedCount']);
+      
+      allow delete: if isAuthenticated() && 
         request.auth.uid == resource.data.creatorId;
     }
 
@@ -274,6 +281,17 @@ service cloud.firestore {
         allow update, delete: if isAuthenticated() && 
           request.auth.uid == resource.data.senderId;
       }
+    }
+
+    // Milestones collection
+    match /milestones/{milestoneId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() &&
+        request.auth.uid == request.resource.data.authorId;
+      allow update: if isAuthenticated() &&
+        request.auth.uid == resource.data.authorId;
+      allow delete: if isAuthenticated() &&
+        request.auth.uid == resource.data.authorId;
     }
 
     // Temporary fallback rule for debugging

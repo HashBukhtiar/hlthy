@@ -133,7 +133,6 @@ export function useProfileData(userId = null, contextUserProfile: UserProfile | 
   const [isRequestPending, setIsRequestPending] = useState(false);
   const [isFollowingStatus, setIsFollowingStatus] = useState(false);
   const [followActionLoading, setFollowActionLoading] = useState(false);
-  const [activePostCount, setActivePostCount] = useState<number | null>(null);
   const [savedWorkouts, setSavedWorkouts] = useState<any[]>([]);
   const [loadingWorkouts, setLoadingWorkouts] = useState(false);
 
