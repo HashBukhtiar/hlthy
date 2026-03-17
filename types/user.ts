@@ -46,6 +46,7 @@ export interface UserProfile {
     followRequestAccepted?: boolean;
     taggedInComments?: boolean;
     mentionedInReplies?: boolean;
+    mentions?: boolean;
   };
   
   // Units for measurements

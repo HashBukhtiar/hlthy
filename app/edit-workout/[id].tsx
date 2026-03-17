@@ -23,6 +23,9 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { generateId, generateUniqueFilename } from '@/logic/idGenerator';
 import { deleteImageFromStorage } from '@/utils/imageUtils';
 import { ACCENT_COLOR } from '@/constants/Colors';
+import MentionTextInput from '@/components/MentionTextInput';
+import MentionText from '@/components/MentionText';
+import { MentionData } from '@/features/mentions/domain/Mention';
 
 interface WorkoutExercise {
   id: string;
@@ -50,6 +53,7 @@ export default function EditWorkout() {
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [descriptionMentions, setDescriptionMentions] = useState<MentionData[]>([]);
   const [coverImage, setCoverImage] = useState<string | null>(null);
   const [originalCoverImageUrl, setOriginalCoverImageUrl] = useState<string | null>(null);
   const [segments, setSegments] = useState<WorkoutSegment[]>([]);
@@ -74,6 +78,7 @@ export default function EditWorkout() {
             setOriginalCoverImageUrl(workoutData.coverImageUrl || null);
             setSegments(workoutData.segments || []);
             setIsPublic(workoutData.isPublic || true);
+            setDescriptionMentions(workoutData.mentions || []);
           } else {
             console.log("No such document!");
           }
@@ -283,7 +288,7 @@ export default function EditWorkout() {
         isPublic: isPublic,
         savedCount: 0,
         tags: [], // Placeholder for future tag functionality
-        // Add any other fields as per your DBDESIGN.md for workouts
+        mentions: descriptionMentions.length > 0 ? descriptionMentions : [],
       };
 
       // 3. Save workout to Firestore
@@ -366,10 +371,12 @@ export default function EditWorkout() {
         {/* Description Input */}
         <View style={styles.inputContainer}>
           <Text style={styles.inputLabel}>Description</Text>
-          <TextInput
+          <MentionTextInput
             style={[styles.textInput, styles.textAreaInput]}
             value={description}
             onChangeText={setDescription}
+            mentions={descriptionMentions}
+            onMentionsChange={setDescriptionMentions}
             placeholder="Describe your workout..."
             placeholderTextColor="#666"
             multiline

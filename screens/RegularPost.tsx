@@ -17,6 +17,7 @@ import { useAuth } from '@/context/AuthContext';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/firebaseConfig';
 import { Ionicons } from '@expo/vector-icons';
+import { MentionData } from '@/features/mentions/domain/Mention';
 import {
     SECONDARY_COLOR,
     useImagePicker,
@@ -52,6 +53,9 @@ export default function RegularPost({ onBack }: RegularPostProps) {
         setImageMenuVisible(false); // Close modal on selection
     });
     
+    // Mentions
+    const [captionMentions, setCaptionMentions] = useState<MentionData[]>([]);
+
     // Workout attachment
     const [selectedWorkout, setSelectedWorkout] = useState<any>(null);
     const [workoutModalVisible, setWorkoutModalVisible] = useState(false);
@@ -97,7 +101,8 @@ export default function RegularPost({ onBack }: RegularPostProps) {
                 milestoneDetails: null,
                 visibility: userVisibility,
                 workoutId: selectedWorkout?.id,
-                authorArchetype: authorArchetype
+                authorArchetype: authorArchetype,
+                mentions: captionMentions.length > 0 ? captionMentions : undefined,
             };
             
             const postId = await addPost(postData);
@@ -165,6 +170,8 @@ export default function RegularPost({ onBack }: RegularPostProps) {
                          <CaptionInput
                             caption={caption}
                             setCaption={setCaption}
+                            mentions={captionMentions}
+                            onMentionsChange={setCaptionMentions}
                         />
 
                         {/* Workout attachment section */}

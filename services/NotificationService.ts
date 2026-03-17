@@ -646,6 +646,16 @@ export class NotificationService {
             router.push(`/view-workout/${postId}`);
           }
           break;
+        case 'mention':
+          // Navigate to the content where mention occurred
+          if (data.workoutId) {
+            router.push(`/view-workout/${data.workoutId}`);
+          } else if (postId) {
+            router.push(`/view-post/${postId}`);
+          } else {
+            router.push('/pulse');
+          }
+          break;
         default:
           // Navigate to activity feed for any other notifications
           router.push('/pulse');

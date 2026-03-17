@@ -106,12 +106,13 @@ export const WorkoutRepository = {
     draft: WorkoutDraft,
     coverImageUrl: string | null = null
   ): Promise<string> {
-    const workoutData = {
+    const workoutData: Record<string, unknown> = {
       creatorId: uid,
       creatorUsername: username,
       title: draft.title,
       description: draft.description,
       coverImageUrl,
+      ...(draft.mentions && draft.mentions.length > 0 ? { mentions: draft.mentions } : {}),
       segments: draft.segments
         .map(seg => ({
           id: seg.id,

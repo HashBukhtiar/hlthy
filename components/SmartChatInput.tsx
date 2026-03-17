@@ -15,11 +15,13 @@ import { useAuth } from '@/context/AuthContext';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@/firebaseConfig';
 import { classifyIntent, IntentClassificationResult } from '@/ai/ai_chat';
+import MentionTextInput from '@/components/MentionTextInput';
+import { MentionData } from '@/features/mentions/domain/Mention';
 
 interface SmartChatInputProps {
   value: string;
   onChangeText: (text: string) => void;
-  onSend: (message: string, intent?: IntentClassificationResult) => void;
+  onSend: (message: string, intent?: IntentClassificationResult, mentions?: MentionData[]) => void;
   placeholder?: string;
   disabled?: boolean;
   conversationId?: string;
@@ -75,6 +77,7 @@ export const SmartChatInput: React.FC<SmartChatInputProps> = ({
   const [currentIntent, setCurrentIntent] = useState<IntentClassificationResult | null>(null);
   const [isClassifying, setIsClassifying] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [mentions, setMentions] = useState<MentionData[]>([]);
   const [intentOpacity] = useState(new Animated.Value(0));
   const [inputBorderColor] = useState(new Animated.Value(0));
 
@@ -146,6 +149,7 @@ export const SmartChatInput: React.FC<SmartChatInputProps> = ({
         // Handle AI conversation with intent
         const intentToPass = currentIntent?.intent ? currentIntent : undefined;
         onSend(messageText, intentToPass);
+        setMentions([]);
       } else if (otherParticipantId && currentUser && conversationId) {
         // Handle user-to-user conversation with permission check
         const sendMessageRequest = httpsCallable(functions, 'sendMessageRequest');
@@ -167,8 +171,9 @@ export const SmartChatInput: React.FC<SmartChatInputProps> = ({
             );
             onChangeText(''); // Clear input
           } else {
-            // Normal message send
-            onSend(messageText);
+            // Normal message send — pass mentions for DM highlight/tap support
+            onSend(messageText, undefined, mentions);
+            setMentions([]);
           }
         } catch (error: any) {
           // Only log errors that aren't expected fallback scenarios
@@ -188,12 +193,14 @@ export const SmartChatInput: React.FC<SmartChatInputProps> = ({
             );
           } else {
             // Fallback to normal send if cloud function fails or isn't available
-            onSend(messageText);
+            onSend(messageText, undefined, mentions);
+            setMentions([]);
           }
         }
       } else {
         // Fallback to normal send
-        onSend(messageText);
+        onSend(messageText, undefined, mentions);
+        setMentions([]);
       }
     } catch (error) {
       console.error('Error in handleSend:', error);
@@ -260,10 +267,13 @@ export const SmartChatInput: React.FC<SmartChatInputProps> = ({
           { borderColor: isAiConversation ? borderColor : '#333' }
         ]}
       >
-        <TextInput
+        <MentionTextInput
+          containerStyle={{ flex: 1 }}
           style={styles.textInput}
           value={value}
           onChangeText={onChangeText}
+          mentions={mentions}
+          onMentionsChange={setMentions}
           placeholder={getPlaceholder()}
           placeholderTextColor="#888"
           multiline

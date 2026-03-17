@@ -104,6 +104,7 @@ export default function Settings() {
       followRequestAccepted: true,
       taggedInComments: true,
       mentionedInReplies: true,
+      mentions: true,
     },
     twoFactorEnabled: false,
     dateOfBirth: undefined,
@@ -223,6 +224,7 @@ export default function Settings() {
           followRequestAccepted: userProfile.notifications?.followRequestAccepted ?? true,
           taggedInComments: userProfile.notifications?.taggedInComments ?? true,
           mentionedInReplies: userProfile.notifications?.mentionedInReplies ?? true,
+          mentions: userProfile.notifications?.mentions ?? true,
         },
         twoFactorEnabled: userProfile.twoFactorEnabled || false,
         dateOfBirth: parseDateOfBirth(userProfile.dateOfBirth),
@@ -315,6 +317,7 @@ export default function Settings() {
           followRequestAccepted: userProfile.notifications?.followRequestAccepted ?? true,
           taggedInComments: userProfile.notifications?.taggedInComments ?? true,
           mentionedInReplies: userProfile.notifications?.mentionedInReplies ?? true,
+          mentions: userProfile.notifications?.mentions ?? true,
         },
         twoFactorEnabled: userProfile.twoFactorEnabled || false,
         dateOfBirth: parseDateOfBirth(userProfile.dateOfBirth),
@@ -521,6 +524,7 @@ export default function Settings() {
             followRequestAccepted: prev.notifications?.followRequestAccepted ?? true,
             taggedInComments: prev.notifications?.taggedInComments ?? true,
             mentionedInReplies: prev.notifications?.mentionedInReplies ?? true,
+            mentions: prev.notifications?.mentions ?? true,
             [keys[1]]: value,
           };
           return newSettings;
@@ -862,6 +866,13 @@ export default function Settings() {
             label="Mentioned in Replies"
             value={settings.notifications?.mentionedInReplies}
             onValueChange={(value) => updateSetting('notifications.mentionedInReplies', value)}
+          />
+
+          <SettingsItem
+            type="toggle"
+            label="Mentions"
+            value={settings.notifications?.mentions}
+            onValueChange={(value) => updateSetting('notifications.mentions', value)}
           />
         </SettingsSection>
 

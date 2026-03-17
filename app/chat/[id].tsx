@@ -45,6 +45,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { sendMessage, sendMessageWithIntent, IntentClassificationResult, AIResponse } from '@/ai/ai_chat';
 import { SmartChatInput } from '@/components/SmartChatInput';
+import MentionText from '@/components/MentionText';
+import { MentionData } from '@/features/mentions/domain/Mention';
 import { IntentMessageWrapper } from '@/components/IntentBadge';
 import { MessageRenderer } from '@/components/ai/MessageRenderer';
 import { calculateImprovementPercentage } from '@/logic/milestoneUtils';
@@ -550,15 +552,15 @@ const MessageItem = React.memo<{
             delayLongPress={500}
             activeOpacity={0.7}
           >
-            <Text
+            <MentionText
+              text={item.text}
+              mentions={(item as any).mentions}
               style={
                 item.user === 'user'
                   ? styles.currentUserText
                   : styles.otherUserText
               }
-            >
-              {item.text}
-            </Text>
+            />
           </TouchableOpacity>
         )}
       </IntentMessageWrapper>
@@ -1009,7 +1011,7 @@ export default function ChatScreen() {
     }
   };
 
-  const handleSend = async (textToSend: string, preferencesOverride?: any, intentResult?: IntentClassificationResult) => {
+  const handleSend = async (textToSend: string, preferencesOverride?: any, mentionsOrIntent?: MentionData[] | IntentClassificationResult) => {
     Keyboard.dismiss();
     
     if (!textToSend.trim() || !currentUser || !conversationId) {
@@ -1055,8 +1057,13 @@ export default function ChatScreen() {
         senderUsername: userProfile?.username || currentUser.displayName || currentUser.email?.split('@')[0] || 'User',
       };
       
-      if (intentResult?.intent) {
-        messageData.intent = intentResult.intent;
+      // Add intent for AI messages (preferencesOverride holds the intent classification)
+      if (preferencesOverride?.intent) {
+        messageData.intent = preferencesOverride.intent;
+      }
+      // Add mentions for user-to-user messages (mentionsOrIntent is MentionData[] in that case)
+      if (Array.isArray(mentionsOrIntent) && mentionsOrIntent.length > 0) {
+        messageData.mentions = mentionsOrIntent;
       }
       
       await addDoc(messagesRef, messageData);
@@ -1128,9 +1135,9 @@ export default function ChatScreen() {
           type: aiResponse.type
         });
         
-        // Only add intent field if intentResult exists and has intent property
-        if (intentResult?.intent) {
-          aiMessageData.intent = intentResult.intent;
+        // Only add intent field if preferencesOverride has intent (passed from SmartChatInput classification)
+        if (preferencesOverride?.intent) {
+          aiMessageData.intent = preferencesOverride.intent;
         }
         
         await addDoc(messagesRef, aiMessageData);

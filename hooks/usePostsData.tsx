@@ -6,6 +6,7 @@ import { getFunctions, httpsCallable } from 'firebase/functions';
 import { generateUniqueFilename } from '@/logic/idGenerator';
 import { PostRepository } from '@/features/posts/infra/postRepository';
 import type { PostAuthorProfile, NewPostData } from '@/features/posts/domain/Post';
+import type { MentionData } from '@/features/mentions/domain/Mention';
 
 // Re-export canonical types so callers importing from here continue to work.
 export type { Post, Comment, Reply } from '@/features/posts/domain/Post';
@@ -110,6 +111,7 @@ export function usePostsData() {
           visibility: postData.visibility ?? 'public',
           workoutId: postData.workoutId,
           authorArchetype: postData.authorArchetype,
+          mentions: postData.mentions,
         });
 
         if (postData.imageUri) {
@@ -159,7 +161,7 @@ export function usePostsData() {
     await PostRepository.unlikePost(postId, currentUser.uid);
   };
 
-  const addComment = async (postId: string, text: string): Promise<Comment> => {
+  const addComment = async (postId: string, text: string, mentions?: MentionData[]): Promise<Comment> => {
     if (!currentUser || !userProfile) throw new Error("User not authenticated");
     if (!text.trim()) throw new Error("Comment text cannot be empty");
     return PostRepository.addComment(
@@ -167,7 +169,8 @@ export function usePostsData() {
       currentUser.uid,
       userProfile.username || "Anonymous",
       text,
-      userProfile.profileImageUrl || ''
+      userProfile.profileImageUrl || '',
+      mentions
     );
   };
 
@@ -184,7 +187,8 @@ export function usePostsData() {
   const addReplyToComment = async (
     postId: string,
     parentCommentId: string,
-    text: string
+    text: string,
+    mentions?: MentionData[]
   ): Promise<Reply> => {
     if (!currentUser || !userProfile) throw new Error("User not authenticated");
     if (!text.trim()) throw new Error("Reply text cannot be empty");
@@ -196,7 +200,7 @@ export function usePostsData() {
       profileThumbnailUrl: userProfile.profileThumbnailUrl,
     };
 
-    return PostRepository.addReply(postId, parentCommentId, author, text);
+    return PostRepository.addReply(postId, parentCommentId, author, text, mentions);
   };
 
   const getCommentReplies = async (postId: string, commentId: string): Promise<Reply[]> => {

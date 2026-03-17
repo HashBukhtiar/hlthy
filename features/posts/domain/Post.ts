@@ -1,4 +1,5 @@
 import { Timestamp } from 'firebase/firestore';
+import { MentionData } from '../../mentions/domain/Mention';
 
 export interface Post {
   id: string;
@@ -34,6 +35,7 @@ export interface Post {
   reactionCount: number;
   commentCount: number;
   visibility: 'public' | 'followers';
+  mentions?: MentionData[];
   isLiked?: boolean;
   isBookmarked?: boolean;
   isFollowing?: boolean;
@@ -52,6 +54,7 @@ export interface Comment {
   likes: number;
   likedBy: string[];
   replyCount: number;
+  mentions?: MentionData[];
   isLiked?: boolean;
   replies?: Reply[];
 }
@@ -69,6 +72,7 @@ export interface Reply {
   likes: number;
   likedBy: string[];
   replyToUserId: string;
+  mentions?: MentionData[];
   isLiked?: boolean;
 }
 
@@ -94,6 +98,7 @@ export interface NewPostData {
   visibility: 'public' | 'followers';
   workoutId?: string | null;
   authorArchetype?: string | null;
+  mentions?: MentionData[];
 }
 
 /** Minimal author fields needed for writes. */

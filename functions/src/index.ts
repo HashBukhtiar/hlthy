@@ -19,4 +19,6 @@ export * from "./services/messageService";
 export * from "./services/notificationService";
 export * from "./services/authCleanupService";
 export * from "./callables/checkEmailExists";
+export * from "./callables/mentionSearch";
+export * from "./triggers/mentionTriggers";
 export * from "./triggers/countTriggers";

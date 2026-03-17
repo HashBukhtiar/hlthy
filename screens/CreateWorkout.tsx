@@ -25,6 +25,8 @@ import { Exercise } from '@/data/exercises';
 import { CustomSelector, SelectorItem } from '@/components/CustomSelector';
 import { generateId, generateUniqueFilename } from '@/logic/idGenerator';
 import { ACCENT_COLOR } from '@/constants/Colors';
+import MentionTextInput from '@/components/MentionTextInput';
+import { MentionData } from '@/features/mentions/domain/Mention';
 
 // Visibility options for workouts
 const visibilityItems: SelectorItem[] = [
@@ -60,6 +62,7 @@ export default function CreateWorkout() {
   const { currentUser } = useAuth();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [descriptionMentions, setDescriptionMentions] = useState<MentionData[]>([]);
   const [coverImage, setCoverImage] = useState<string | null>(null);
   const [segments, setSegments] = useState<WorkoutSegment[]>([
     {
@@ -302,6 +305,7 @@ export default function CreateWorkout() {
         description: description.trim(),
         visibility: visibility as 'public' | 'followers' | 'private',
         segments,
+        mentions: descriptionMentions.length > 0 ? descriptionMentions : undefined,
       };
       const username = (currentUser as any).username || currentUser.displayName || 'Anonymous';
 
@@ -415,11 +419,13 @@ export default function CreateWorkout() {
                 <Text style={styles.descriptionLabel}>Description</Text>
                 <Text style={styles.descriptionOptional}>Optional</Text>
               </View>
-              <TextInput
-                ref={descriptionInputRef}
+              <MentionTextInput
+                inputRef={descriptionInputRef}
                 style={styles.descriptionInput}
                 value={description}
                 onChangeText={setDescription}
+                mentions={descriptionMentions}
+                onMentionsChange={setDescriptionMentions}
                 placeholder="Tell others what makes this workout special..."
                 placeholderTextColor="rgba(255, 255, 255, 0.4)"
                 multiline

@@ -13,6 +13,7 @@ import { getCoverImageSource, deleteImageFromStorage } from '@/utils/imageUtils'
 import { useBlockEnforcement } from '@/utils/blockUtils';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
+import MentionText from '@/components/MentionText';
 import { ACCENT_COLOR } from '@/constants/Colors';
 
 // Interface for individual exercise within a segment
@@ -420,7 +421,7 @@ export default function ViewWorkout() {
         <View style={styles.descriptionContainer}>
           <Text style={styles.descriptionTitle}>Description</Text>
           <View style={styles.descriptionCard}>
-            <Text style={styles.descriptionText}>{workoutData.description}</Text>
+            <MentionText text={workoutData.description} mentions={(workoutData as any).mentions} style={styles.descriptionText} />
           </View>
         </View>
       )}

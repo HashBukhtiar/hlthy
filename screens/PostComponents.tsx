@@ -23,6 +23,8 @@ import { collection, doc, getDoc, getDocs, query, where, orderBy } from 'firebas
 import { getCoverImageSource } from '@/utils/imageUtils';
 import { useUnits } from '@/hooks/useUnits';
 import { ACCENT_COLOR } from '@/constants/Colors';
+import MentionTextInput from '@/components/MentionTextInput';
+import { MentionData } from '@/features/mentions/domain/Mention';
 
 // Secondary color and its variations - use centralized ACCENT_COLOR
 export const SECONDARY_COLOR = ACCENT_COLOR;
@@ -234,20 +236,26 @@ export const ImageSection = ({
 );
 
 // Caption input component
-export const CaptionInput = ({ 
-    caption, 
-    setCaption 
-}: { 
+export const CaptionInput = ({
+    caption,
+    setCaption,
+    mentions,
+    onMentionsChange,
+}: {
     caption: string;
     setCaption: (text: string) => void;
+    mentions: MentionData[];
+    onMentionsChange: (mentions: MentionData[]) => void;
 }) => (
     <View style={postComponentStyles.captionContainer}>
-        <TextInput
+        <MentionTextInput
             style={postComponentStyles.captionInput}
             placeholder="Write a caption..."
             placeholderTextColor="#999"
             value={caption}
             onChangeText={setCaption}
+            mentions={mentions}
+            onMentionsChange={onMentionsChange}
             multiline={true}
             maxLength={2200}
             textAlignVertical="top"
