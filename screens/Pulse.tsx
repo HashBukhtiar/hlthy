@@ -25,6 +25,14 @@ import { OptimizedImageLight } from '@/components/OptimizedImage';
 import { ACCENT_COLOR } from '@/constants/Colors';
 import { useBlockEnforcement } from '@/utils/blockUtils';
 
+const PULSE_MAX_AGE_DAYS = 60;
+
+const isOlderThanMaxAge = (timestamp: Timestamp | undefined): boolean => {
+    if (!timestamp) return false;
+    const diffMs = new Date().getTime() - timestamp.toDate().getTime();
+    return diffMs > PULSE_MAX_AGE_DAYS * 24 * 60 * 60 * 1000;
+};
+
 // Helper function to display shortened string
 const displayShortenedString = (str: string, maxLength: number): string => {
     if (str.length <= maxLength) return str;
@@ -101,7 +109,12 @@ export default function Pulse() {
                     <View style={activityStyles.activityView}>
                         {followRequests.map((request, index) => {
                             const maxUsernameLength = 12;
-                            
+
+                            // Skip items older than 60 days
+                            if (isOlderThanMaxAge(request.createdAt)) {
+                                return null;
+                            }
+
                             // Additional check for blocked users (defensive programming)
                             if (isUserBlocked(request.fromUserId)) {
                                 return null;
@@ -305,6 +318,11 @@ export default function Pulse() {
                 </View>
                 <View style={activityStyles.activityView}>
                     {otherActivities.map((activity, index) => {
+                        // Skip items older than 60 days
+                        if (isOlderThanMaxAge(activity.createdAt)) {
+                            return null;
+                        }
+
                         // Additional check for blocked users (defensive programming)
                         if (isUserBlocked(activity.fromUserId)) {
                             return null;
