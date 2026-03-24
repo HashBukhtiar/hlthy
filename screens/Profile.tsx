@@ -483,7 +483,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
           {/* Back Button (Other's Profile) */}
           {!isOwnProfile && router.canGoBack() && (
             <TouchableOpacity
-              style={styles.backButton}
+              style={styles.miniHeaderSideBtn}
               onPress={() => router.back()}
               activeOpacity={0.85}
             >
@@ -741,47 +741,32 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
           },
         ]}
       >
-        <View style={styles.miniHeaderInner}>
-          {/* Left: back button or spacer */}
-          {!isOwnProfile && router.canGoBack() ? (
-            <TouchableOpacity
-              style={styles.miniHeaderSideBtn}
-              onPress={() => router.back()}
-              activeOpacity={0.85}
-            >
-              <Ionicons name="chevron-back" size={22} color="white" />
-            </TouchableOpacity>
-          ) : (
-            <View style={styles.miniHeaderSideBtn} />
-          )}
-
-          {/* Center: avatar + name */}
-          <View style={styles.miniHeaderCenter}>
-            {processedProfileData?.profileImageUrl ? (
-              <Image
-                source={{
-                  uri: getOptimalImageUrl(
-                    processedProfileData.profileThumbnailUrl,
-                    processedProfileData.profileImageUrl,
-                  ),
-                }}
-                style={styles.miniHeaderAvatar}
-              />
-            ) : null}
-            <View>
-              <Text style={styles.miniHeaderName} numberOfLines={1}>
-                {processedProfileData?.displayName || 'User'}
-              </Text>
-              {processedProfileData?.username ? (
-                <Text style={styles.miniHeaderUsername} numberOfLines={1}>
-                  @{processedProfileData.username}
-                </Text>
+        {isOwnProfile ? (
+          /* Own profile: avatar + name left-aligned, settings on right */
+          <View style={styles.miniHeaderInner}>
+            <View style={styles.miniHeaderOwnLeft}>
+              {processedProfileData?.profileImageUrl ? (
+                <Image
+                  source={{
+                    uri: getOptimalImageUrl(
+                      processedProfileData.profileThumbnailUrl,
+                      processedProfileData.profileImageUrl,
+                    ),
+                  }}
+                  style={styles.miniHeaderAvatar}
+                />
               ) : null}
+              <View style={styles.miniHeaderOwnNameBlock}>
+                <Text style={styles.miniHeaderName} numberOfLines={1}>
+                  {processedProfileData?.displayName || 'User'}
+                </Text>
+                {processedProfileData?.username ? (
+                  <Text style={styles.miniHeaderUsername} numberOfLines={1}>
+                    @{processedProfileData.username}
+                  </Text>
+                ) : null}
+              </View>
             </View>
-          </View>
-
-          {/* Right: settings (own) or follow/more (other) */}
-          {isOwnProfile ? (
             <TouchableOpacity
               style={styles.miniHeaderSideBtn}
               onPress={handleSettingsPress}
@@ -789,18 +774,57 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
             >
               <Ionicons name="settings-outline" size={20} color="white" />
             </TouchableOpacity>
-          ) : !isBlockedByUser ? (
-            <TouchableOpacity
-              style={styles.miniHeaderSideBtn}
-              onPress={profileActions.showMoreOptions}
-              activeOpacity={0.85}
-            >
-              <Ionicons name="ellipsis-horizontal" size={20} color="white" />
-            </TouchableOpacity>
-          ) : (
-            <View style={styles.miniHeaderSideBtn} />
-          )}
-        </View>
+          </View>
+        ) : (
+          /* Other profile: back left, avatar + name centered, more options right */
+          <View style={styles.miniHeaderInner}>
+            {router.canGoBack() ? (
+              <TouchableOpacity
+                style={styles.miniHeaderSideBtn}
+                onPress={() => router.back()}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="chevron-back" size={22} color="white" />
+              </TouchableOpacity>
+            ) : (
+              <View style={styles.miniHeaderSideBtn} />
+            )}
+            <View style={styles.miniHeaderCenter}>
+              {processedProfileData?.profileImageUrl ? (
+                <Image
+                  source={{
+                    uri: getOptimalImageUrl(
+                      processedProfileData.profileThumbnailUrl,
+                      processedProfileData.profileImageUrl,
+                    ),
+                  }}
+                  style={styles.miniHeaderAvatar}
+                />
+              ) : null}
+              <View>
+                <Text style={styles.miniHeaderName} numberOfLines={1}>
+                  {processedProfileData?.displayName || 'User'}
+                </Text>
+                {processedProfileData?.username ? (
+                  <Text style={styles.miniHeaderUsername} numberOfLines={1}>
+                    @{processedProfileData.username}
+                  </Text>
+                ) : null}
+              </View>
+            </View>
+            {!isBlockedByUser ? (
+              <TouchableOpacity
+                style={styles.miniHeaderSideBtn}
+                onPress={profileActions.showMoreOptions}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="ellipsis-horizontal" size={20} color="white" />
+              </TouchableOpacity>
+            ) : (
+              <View style={styles.miniHeaderSideBtn} />
+            )}
+          </View>
+        )}
       </Animated.View>
 
       {/* Sticky Tab Bar (below mini header) */}
@@ -1642,6 +1666,16 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: 'rgba(255,255,255,0.5)',
     marginTop: 1,
+  },
+  miniHeaderOwnLeft: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingLeft: 4,
+  },
+  miniHeaderOwnNameBlock: {
+    flexShrink: 1,
   },
 
   // Sticky Tab Bar
