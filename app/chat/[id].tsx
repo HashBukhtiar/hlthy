@@ -640,46 +640,11 @@ export default function ChatScreen() {
   const [photoUploadProgress, setPhotoUploadProgress] = useState(false);
   const [viewingPhoto, setViewingPhoto] = useState<{ imageUrl: string; fileSize?: number } | null>(null);
   const [showPhotoOptions, setShowPhotoOptions] = useState(false);
-  const thinkingDotAnimations = useRef([
-    new Animated.Value(0.4),
-    new Animated.Value(0.4),
-    new Animated.Value(0.4),
-  ]).current;
-  
   const BATCH_SIZE = 20; // number of messages to fetch at a time
   const [lastVisible, setLastVisible] = useState<any>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMoreMessages, setHasMoreMessages] = useState(true);
 
-  // Animate thinking dots when AI is thinking
-  useEffect(() => {
-    if (isAiThinking) {
-      const animations = thinkingDotAnimations.map((anim, index) =>
-        Animated.loop(
-          Animated.sequence([
-            Animated.delay(index * 150),
-            Animated.timing(anim, {
-              toValue: 1,
-              duration: 500,
-              useNativeDriver: false,
-            }),
-            Animated.timing(anim, {
-              toValue: 0.4,
-              duration: 500,
-              useNativeDriver: false,
-            }),
-          ])
-        )
-      );
-      
-      animations.forEach(anim => anim.start());
-      
-      return () => {
-        animations.forEach(anim => anim.stop());
-        thinkingDotAnimations.forEach(anim => anim.setValue(0.4));
-      };
-    }
-  }, [isAiThinking]);
 
   useEffect(() => {
     if (!currentUser || !conversationId) {
