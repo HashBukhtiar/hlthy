@@ -831,7 +831,11 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
                     </Text>
                     <Text style={styles.miniHeaderDot}> · </Text>
                     <View style={styles.miniHeaderCountWrap}>
-                      <Animated.Text numberOfLines={1} style={[styles.miniHeaderCountText, { opacity: postsLabelOpacity }]}>
+                      {/* Invisible spacer sized to widest possible label */}
+                      <Text style={[styles.miniHeaderCountText, { opacity: 0 }]} numberOfLines={1}>
+                        {formatCount(milestonesCount)} milestones
+                      </Text>
+                      <Animated.Text numberOfLines={1} style={[styles.miniHeaderCountText, styles.miniHeaderCountAbsolute, { opacity: postsLabelOpacity }]}>
                         {formatCount(displayablePosts.length)} posts
                       </Animated.Text>
                       <Animated.Text numberOfLines={1} style={[styles.miniHeaderCountText, styles.miniHeaderCountAbsolute, { opacity: milestonesLabelOpacity }]}>
@@ -899,7 +903,11 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
                     </Text>
                     <Text style={styles.miniHeaderDot}> · </Text>
                     <View style={styles.miniHeaderCountWrap}>
-                      <Animated.Text numberOfLines={1} style={[styles.miniHeaderCountText, { opacity: postsLabelOpacity }]}>
+                      {/* Invisible spacer sized to widest possible label */}
+                      <Text style={[styles.miniHeaderCountText, { opacity: 0 }]} numberOfLines={1}>
+                        {formatCount(milestonesCount)} milestones
+                      </Text>
+                      <Animated.Text numberOfLines={1} style={[styles.miniHeaderCountText, styles.miniHeaderCountAbsolute, { opacity: postsLabelOpacity }]}>
                         {formatCount(displayablePosts.length)} posts
                       </Animated.Text>
                       <Animated.Text numberOfLines={1} style={[styles.miniHeaderCountText, styles.miniHeaderCountAbsolute, { opacity: milestonesLabelOpacity }]}>
