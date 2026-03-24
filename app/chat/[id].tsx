@@ -781,13 +781,6 @@ export default function ChatScreen() {
   }, [loading]);
 
   useEffect(() => {
-    const isAiChat = conversationId.endsWith('_ai_conversation');
-    if (isAiChat) {
-      setChatTitle('AI Assistant');
-      setProfileImageUrl(null); // Or a specific AI avatar if you have one
-      return;
-    }
-
     if (!currentUser || !conversationId) return;
     
     const fetchHeaderData = async () => {
@@ -1040,99 +1033,8 @@ export default function ChatScreen() {
       }
       
       await addDoc(messagesRef, messageData);
-      console.log("User message added successfully");
 
-      if (isAiChat) {
-        setIsAiThinking(true); // Show thinking indicator
-        try {
-          // The `messages` state is ordered descending. We need ascending for the API.
-          const historyForAPI = [...messages]
-            .reverse() // Create a reversed copy
-            .map(m => ({ text: m.text, role: m.role }));
-
-          // Add the new user message to the history for the API call
-          historyForAPI.push({ text: textToSend, role: 'user' });
-
-          // Build options object with workout preferences and editing context
-          const messageOptions: any = {};
-          
-          // Use preferencesOverride if provided (for immediate profile confirmation)
-          // Otherwise use state value (for subsequent messages)
-          const currentPreferences = preferencesOverride || workoutPreferences;
-          
-          if (currentPreferences) {
-            messageOptions.workoutPreferences = currentPreferences;
-          }
-          
-          if (editingWorkout) {
-            messageOptions.editingWorkout = editingWorkout;
-          }
-
-          // Use the enhanced sendMessage function
-          const aiResponse = await sendMessage(
-            historyForAPI, 
-            textToSend, 
-            currentUser.uid,
-            Object.keys(messageOptions).length > 0 ? messageOptions : undefined
-          );
-
-        // Save AI's response to Firestore using current user's ID with isAiResponse flag
-        const aiMessageData: any = {
-          text: aiResponse.text,
-          createdAt: serverTimestamp(),
-          senderId: currentUser.uid, // Use current user's ID to avoid permission issues
-          isAiResponse: true, // Flag to identify this as an AI response
-        };
-        
-        // Add workout plan data if present
-        if (aiResponse.workoutPlan) {
-          aiMessageData.workoutPlan = aiResponse.workoutPlan;
-          aiMessageData.responseType = aiResponse.type;
-        }
-        
-        // Add profile data for workout confirmation
-        if (aiResponse.profile && aiResponse.type === 'workout_confirmation') {
-          console.log('🎯 Detected workout_confirmation with profile data:', aiResponse.profile);
-          aiMessageData.profileData = aiResponse.profile;
-          aiMessageData.responseType = aiResponse.type;
-        }
-        
-        // Add responseType if present (for other response types)
-        if (aiResponse.type && !aiMessageData.responseType) {
-          aiMessageData.responseType = aiResponse.type;
-        }
-        
-        console.log('💾 Saving message to Firebase:', {
-          hasProfileData: !!aiMessageData.profileData,
-          responseType: aiMessageData.responseType,
-          type: aiResponse.type
-        });
-        
-        // Only add intent field if intentResult exists and has intent property
-        if (intentResult?.intent) {
-          aiMessageData.intent = intentResult.intent;
-        }
-        
-        await addDoc(messagesRef, aiMessageData);
-        
-        // Clear editing state after successful response
-        if (editingWorkout) {
-          setEditingWorkout(null);
-        }
-      } catch (error) {
-        console.error('Error sending message to AI:', error);
-        // Add an error message to the chat
-        await addDoc(messagesRef, {
-          text: "Sorry, I'm having trouble connecting. Please try again later.",
-          createdAt: serverTimestamp(),
-          senderId: currentUser.uid,
-          isAiResponse: true,
-        });
-      } finally {
-        setIsAiThinking(false); // Hide thinking indicator
-      }
-    } else {
-      // Handle user-to-user chat with message permissions from main branch
+      // Handle user-to-user DM with message permissions
       try {
         // --- Message Permission Logic from main branch ---
         if (otherParticipantId && currentUser.uid !== otherParticipantId) {
