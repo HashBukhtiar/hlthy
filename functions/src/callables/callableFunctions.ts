@@ -398,6 +398,7 @@ export const createMilestonePost = onCall(
       visibility: data.visibility || "public",
       workoutId: data.workoutId || null,
       authorArchetype: data.authorArchetype || null,
+      ...(data.tags && data.tags.length > 0 ? { tags: data.tags } : {}),
     };
 
     console.log("Final postPayload being saved: ", JSON.stringify(postPayload, null, 2));

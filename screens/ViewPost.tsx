@@ -21,6 +21,8 @@ import { ACCENT_COLOR } from '@/constants/Colors';
 import MentionTextInput from '@/components/MentionTextInput';
 import MentionText from '@/components/MentionText';
 import { MentionData } from '@/features/mentions/domain/Mention';
+import { TagChip } from '@/components/TagChip';
+import { navigateToTagFeed } from '@/features/explore/ui/useExplore';
 
 export default function ViewPost() {
   const [menuVisible, setMenuVisible] = useState(false);
@@ -1213,6 +1215,18 @@ export default function ViewPost() {
             <MentionText text={post.caption} mentions={post.mentions} style={styles.caption} />
           </View>
 
+          {post.tags && post.tags.length > 0 && (
+            <View style={styles.tagsContainer}>
+              {post.tags.map((tag) => (
+                <TagChip
+                  key={tag}
+                  tag={tag}
+                  onPress={() => navigateToTagFeed(tag)}
+                />
+              ))}
+            </View>
+          )}
+
           <Text style={styles.timestamp}>{formatDate(post.createdAt)}</Text>
 
           {post.workoutId && (
@@ -1608,6 +1622,12 @@ const styles = StyleSheet.create({
     flex: 1,
     color: '#FFF',
     marginBottom: 5,
+  },
+  tagsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: 15,
+    paddingVertical: 8,
   },
   timestamp: {
     fontSize: 12,

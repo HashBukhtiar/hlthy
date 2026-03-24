@@ -93,6 +93,7 @@ export function usePostsData() {
           visibility: postData.visibility || "public",
           workoutId: postData.workoutId || null,
           authorArchetype: postData.authorArchetype || null,
+          tags: postData.tags,
         };
 
         const result = await createMilestonePost(payload);
@@ -112,6 +113,7 @@ export function usePostsData() {
           workoutId: postData.workoutId,
           authorArchetype: postData.authorArchetype,
           mentions: postData.mentions,
+          tags: postData.tags,
         });
 
         if (postData.imageUri) {

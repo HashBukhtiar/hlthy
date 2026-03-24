@@ -120,6 +120,7 @@ export const PostRepository = {
       workoutId?: string | null;
       authorArchetype?: string | null;
       mentions?: MentionData[];
+      tags?: string[];
     }
   ): Promise<string> {
     const postRef = doc(collection(db, 'posts'));
@@ -138,6 +139,7 @@ export const PostRepository = {
       workoutId: data.workoutId ?? null,
       authorArchetype: data.authorArchetype ?? null,
       ...(data.mentions && data.mentions.length > 0 ? { mentions: data.mentions } : {}),
+      ...(data.tags && data.tags.length > 0 ? { tags: data.tags } : {}),
     });
     return postRef.id;
   },
