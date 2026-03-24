@@ -1275,12 +1275,6 @@ export default function ChatScreen() {
                 <Text style={styles.headerText} numberOfLines={1} ellipsizeMode="tail">
                   {chatTitle}
                 </Text>
-                {conversationId.endsWith('_ai_conversation') && (
-                  <View style={styles.aiStatusRow}>
-                    <View style={styles.onlineDot} />
-                    <Text style={styles.onlineText}>AI Assistant • Online</Text>
-                  </View>
-                )}
               </View>
             </TouchableOpacity>
           </View>
