@@ -1090,7 +1090,7 @@ export default function ChatScreen() {
   };
 
   const handleDeleteMessage = async () => {
-    if (!selectedMessage || !currentUser || !conversationId || conversationId === 'ai_conversation' || selectedMessage.user !== 'user') {
+    if (!selectedMessage || !currentUser || !conversationId || selectedMessage.user !== 'user') {
       setDeleteModalVisible(false);
       setSelectedMessage(null);
       return;
@@ -1198,22 +1198,8 @@ export default function ChatScreen() {
     }
   }, []);
 
-  const handleReprompt = useCallback(async (repromptMessage: string) => {
-    if (!conversationId.endsWith('_ai_conversation')) return;
-    
-    // Get the last user message from the conversation
-    const lastUserMessage = messages.find(msg => msg.user === 'user');
-    if (!lastUserMessage) return;
-    
-    // Create a reprompt based on the last user question
-    const reprompt = `${lastUserMessage.text}\n\nPlease provide a different or more detailed response.`;
-    
-    // Send the reprompt message using the existing handleSend function
-    await handleSend(reprompt);
-  }, [conversationId, messages, handleSend]);
-
   const navigateToUserProfile = () => {
-    if (conversationId !== 'ai_conversation' && otherParticipantId) {
+    if (otherParticipantId) {
       router.push(`/profile/${otherParticipantId}`);
     }
   };
@@ -1309,49 +1295,6 @@ export default function ChatScreen() {
 
             contentContainerStyle={styles.messagesContainer}
           />
-        )}
-
-        {/* AI Thinking Indicator */}
-        {isAiThinking && (
-          <View style={styles.thinkingIndicator}>
-            <View style={styles.aiHeader}>
-              <View style={[styles.aiIconContainer, { backgroundColor: '#d466ff15' }]}>
-                <Image 
-                  source={require('@/assets/images/logo-dark.png')} 
-                  style={styles.aiLogo}
-                  resizeMode="contain"
-                />
-              </View>
-              <View style={styles.aiHeaderInfo}>
-                <Text style={styles.aiTitle}>HLTHY Coach</Text>
-                <Text style={[styles.aiSubtitle, { color: '#d466ff' }]}>
-                  PROCESSING...
-                </Text>
-              </View>
-              <View style={styles.aiStatus}>
-                <View style={[styles.aiStatusDot, { backgroundColor: '#d466ff' }]} />
-                <Text style={styles.aiStatusText}>THINKING</Text>
-              </View>
-            </View>
-            <View style={styles.aiContentContainer}>
-              <View style={styles.thinkingBubble}>
-                <View style={styles.thinkingDots}>
-                  {thinkingDotAnimations.map((anim, index) => (
-                    <Animated.View
-                      key={index}
-                      style={[
-                        styles.thinkingDot,
-                        {
-                          opacity: anim,
-                        }
-                      ]}
-                    />
-                  ))}
-                </View>
-                <Text style={styles.thinkingText}>Analyzing your request...</Text>
-              </View>
-            </View>
-          </View>
         )}
 
         {/* Delete Message Modal */}
