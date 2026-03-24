@@ -151,33 +151,6 @@ export async function sendMessage(
 }
 
 /**
- * @deprecated Use sendMessage() directly instead. Intent classification has been removed.
- * This function now just calls sendMessage() for backward compatibility.
- */
-/**
- * @deprecated Use sendMessage() directly instead. Intent classification has been removed.
- * This function now just calls sendMessage() for backward compatibility.
- */
-export async function sendMessageWithIntent(history: ChatMessage[], currentMessage: string, userId?: string): Promise<AIResponse> {
-  console.log('⚠️ sendMessageWithIntent is deprecated. Use sendMessage() instead.');
-  return sendMessage(history, currentMessage, userId);
-}
-
-/**
- * @deprecated Intent classification has been removed. This function always returns a default result.
- * The AI now handles all intent detection internally.
- */
-export async function classifyIntent(message: string): Promise<IntentClassificationResult> {
-  console.log('⚠️ classifyIntent is deprecated and no longer used.');
-  return {
-    intent: 'chit_chat',
-    confidence: 1.0,
-    status: 'success',
-    message: 'Intent classification is now handled by the AI directly'
-  };
-}
-
-/**
  * Check if the AI service is healthy and available
  * @returns Promise<boolean> - True if service is healthy
  */

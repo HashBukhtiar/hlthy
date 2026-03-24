@@ -14,7 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/context/AuthContext';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@/firebaseConfig';
-import { classifyIntent, IntentClassificationResult } from '@/ai/ai_chat';
+import { IntentClassificationResult } from '@/ai/ai_chat';
 
 interface SmartChatInputProps {
   value: string;
@@ -78,32 +78,8 @@ export const SmartChatInput: React.FC<SmartChatInputProps> = ({
   const [intentOpacity] = useState(new Animated.Value(0));
   const [inputBorderColor] = useState(new Animated.Value(0));
 
-  // Only run intent classification for AI conversations
-  useEffect(() => {
-    if (!isAiConversation || !value.trim() || value.length < 3) {
-      setCurrentIntent(null);
-      hideIntentIndicator();
-      return;
-    }
-
-    const timeoutId = setTimeout(async () => {
-      setIsClassifying(true);
-      try {
-        const result = await classifyIntent(value);
-        setCurrentIntent(result);
-        showIntentIndicator();
-        animateBorderColor(result.intent);
-      } catch (error) {
-        console.error('Intent classification failed:', error);
-        setCurrentIntent(null);
-        hideIntentIndicator();
-      } finally {
-        setIsClassifying(false);
-      }
-    }, 800);
-
-    return () => clearTimeout(timeoutId);
-  }, [value, isAiConversation]);
+  // Intent classification was removed — the AI handles intent detection internally.
+  // Keeping the state variables for UI compatibility but no longer classifying.
 
   const showIntentIndicator = () => {
     Animated.timing(intentOpacity, {

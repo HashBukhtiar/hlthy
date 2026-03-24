@@ -43,7 +43,7 @@ import {
 import { useAuth } from '@/context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { sendMessage, sendMessageWithIntent, IntentClassificationResult, AIResponse } from '@/ai/ai_chat';
+import { sendMessage, IntentClassificationResult, AIResponse } from '@/ai/ai_chat';
 import { SmartChatInput } from '@/components/SmartChatInput';
 import { IntentMessageWrapper } from '@/components/IntentBadge';
 import { MessageRenderer } from '@/components/ai/MessageRenderer';
