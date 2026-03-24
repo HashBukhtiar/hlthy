@@ -364,6 +364,7 @@ const styles = StyleSheet.create({
     paddingRight: 15,
     paddingVertical: 8,
     gap: 10,
+    overflow: 'visible',
   },
   textInput: {
     flex: 1,

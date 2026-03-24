@@ -4,6 +4,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  Pressable,
   FlatList,
   StyleSheet,
   KeyboardAvoidingView,
@@ -58,6 +59,7 @@ interface FirestoreMessageData {
   senderId: string;
   text: string;
   createdAt: Timestamp;
+  mentions?: MentionData[];
   isAiResponse?: boolean; // Flag to identify AI responses
   intent?: string; // Add intent field
   workoutPlan?: any; // Add workout plan data
@@ -111,8 +113,9 @@ interface Message {
   user: 'user' | 'other' | 'ai';
   role: 'user' | 'model';
   createdAt?: Date;
+  mentions?: MentionData[];
   profileData?: any; // Profile confirmation data
-  responseType?: string; // Type of AI response  
+  responseType?: string; // Type of AI response
   intent?: string; // Add intent field
   workoutPlan?: any; // Add workout plan data
   sharedPost?: {
@@ -247,10 +250,11 @@ async function convertFirestoreDoc(
     workoutPlan: data.workoutPlan, // Include workout plan data
     responseType: data.responseType, // Include response type
     profileData: data.profileData, // Include profile data for workout_confirmation
+    mentions: data.mentions,
     sharedPost: resolvedSharedPost,
     sharedMilestone: resolvedSharedMilestone,
     sharedWorkout: resolvedSharedWorkout,
-    sharedPhoto: data.sharedPhoto, // Include photo data
+    sharedPhoto: data.sharedPhoto,
     type: "message",
   };
 }
@@ -541,27 +545,25 @@ const MessageItem = React.memo<{
             onSwipeActiveChange={onSwipeActiveChange}
           />
         ) : (
-          <TouchableOpacity
+          <View
             style={[
               styles.messageBubble,
               item.user === 'user'
                 ? styles.currentUserMessage
                 : styles.otherUserMessage,
             ]}
-            onLongPress={() => onLongPress(item)}
-            delayLongPress={500}
-            activeOpacity={0.7}
           >
             <MentionText
               text={item.text}
-              mentions={(item as any).mentions}
+              mentions={item.mentions}
               style={
                 item.user === 'user'
                   ? styles.currentUserText
                   : styles.otherUserText
               }
+              onLongPress={() => onLongPress(item)}
             />
-          </TouchableOpacity>
+          </View>
         )}
       </IntentMessageWrapper>
     );
@@ -1809,6 +1811,7 @@ const styles = StyleSheet.create({
     paddingTop: 10,
     paddingBottom: 20,
     backgroundColor: '#1E1E1E',
+    overflow: 'visible',
   },
   unifiedInputPill: {
     flexDirection: 'row',
@@ -1817,7 +1820,7 @@ const styles = StyleSheet.create({
     borderRadius: 30,
     borderWidth: 2,
     borderColor: '#333',
-    overflow: 'hidden',
+    overflow: 'visible',
     paddingLeft: 8,
   },
   input: {

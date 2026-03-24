@@ -10,6 +10,7 @@ interface MentionTextProps {
   style?: StyleProp<TextStyle>;
   mentionStyle?: StyleProp<TextStyle>;
   numberOfLines?: number;
+  onLongPress?: () => void;
 }
 
 interface TextSegment {
@@ -75,6 +76,7 @@ export default function MentionText({
   style,
   mentionStyle,
   numberOfLines,
+  onLongPress,
 }: MentionTextProps) {
   const router = useRouter();
 
@@ -89,7 +91,7 @@ export default function MentionText({
 
   if (!mentions || mentions.length === 0) {
     return (
-      <Text style={style} numberOfLines={numberOfLines}>
+      <Text style={style} numberOfLines={numberOfLines} onLongPress={onLongPress} delayLongPress={500} suppressHighlighting>
         {text}
       </Text>
     );
@@ -104,12 +106,24 @@ export default function MentionText({
               key={`mention-${index}`}
               style={[styles.mention, mentionStyle]}
               onPress={() => handleMentionPress(segment.mention!)}
+              onLongPress={onLongPress}
+              delayLongPress={500}
+              suppressHighlighting
             >
               {segment.value}
             </Text>
           );
         }
-        return <Text key={`text-${index}`}>{segment.value}</Text>;
+        return (
+          <Text
+            key={`text-${index}`}
+            onLongPress={onLongPress}
+            delayLongPress={500}
+            suppressHighlighting
+          >
+            {segment.value}
+          </Text>
+        );
       })}
     </Text>
   );
