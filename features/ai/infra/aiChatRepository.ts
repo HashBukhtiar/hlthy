@@ -58,17 +58,23 @@ export function streamCoachMessage(
         signal: controller.signal,
       });
 
+      logger.debug('aiChatRepository', `Fetch response: ${response.status}, body type: ${typeof response.body}, body: ${!!response.body}`);
+
       if (!response.ok) {
         const errorText = await response.text().catch(() => 'Unknown error');
+        logger.error('aiChatRepository', `Server error: ${response.status} ${errorText}`);
         onEvent({ type: 'error', message: `Server error: ${response.status}` });
         return;
       }
 
       // Read the SSE stream
       const reader = response.body?.getReader();
+      logger.debug('aiChatRepository', `Reader obtained: ${!!reader}, getReader available: ${typeof response.body?.getReader}`);
       if (!reader) {
         // Fallback: read as text (non-streaming environments)
+        logger.debug('aiChatRepository', 'Using text fallback (no ReadableStream)');
         const text = await response.text();
+        logger.debug('aiChatRepository', `Fallback text length: ${text.length}`);
         _parseFallbackResponse(text, onEvent);
         return;
       }
@@ -153,11 +159,24 @@ async function _ensureConversationExists(
   const snap = await getDoc(convRef);
 
   if (!snap.exists()) {
+    logger.debug('aiChatRepository', `Creating conversation doc: ${conversationId} for uid: ${uid}`);
     await setDoc(convRef, {
       participants: [uid],
       createdAt: serverTimestamp(),
       isAiConversation: true,
     });
+  } else {
+    // Repair old conversation docs: ensure participants is just [uid] and isAiConversation is set
+    const data = snap.data();
+    const participants: string[] = data?.participants ?? [];
+    if (!data?.isAiConversation || participants.length !== 1 || participants[0] !== uid) {
+      logger.debug('aiChatRepository', `Repairing conversation doc. Old participants: ${JSON.stringify(participants)}`);
+      await setDoc(convRef, {
+        participants: [uid],
+        isAiConversation: true,
+        createdAt: data?.createdAt ?? serverTimestamp(),
+      });
+    }
   }
 
   _verifiedConversations.add(conversationId);

@@ -28,7 +28,7 @@ const getApiUrl = () => {
   }
   
   // Production mode: use Cloud Run
-  const prodUrl = 'https://hlthy-ai-service-s4rm2uw5oa-pd.a.run.app';
+  const prodUrl = 'https://hlthy-ai-coach-375457000023.northamerica-northeast2.run.app';
   console.log('🚀 PRODUCTION MODE: Using Cloud Run API:', prodUrl);
   return prodUrl;
 };
