@@ -1,0 +1,14 @@
+# FastAPI + async server
+fastapi==0.115.0
+uvicorn[standard]==0.30.0
+sse-starlette==2.0.0
+
+# Google Cloud
+google-cloud-aiplatform==1.71.1
+google-cloud-firestore==2.19.0
+firebase-admin==6.6.0
+google-auth==2.37.0
+
+# Utilities
+pydantic==2.10.4
+python-dotenv==1.0.1
