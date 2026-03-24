@@ -1077,17 +1077,6 @@ export default function ChatScreen() {
   }
 };
 
-  const handleConfirmProfile = async (preferences: any) => {
-    console.log('User confirmed profile with preferences:', preferences);
-    setWorkoutPreferences(preferences);
-    // Pass preferences directly since state update is async
-    await handleSend('yes', preferences);
-  };
-
-  const handleEditWorkout = (workout: any) => {
-    console.log('User wants to edit workout:', workout.name || 'Workout');
-    setEditingWorkout(workout);
-  };
 
   const handleDeleteMessage = async () => {
     if (!selectedMessage || !currentUser || !conversationId || selectedMessage.user !== 'user') {
@@ -1214,19 +1203,16 @@ export default function ChatScreen() {
 
   const renderMessage = useCallback<ListRenderItem<Message>>(
     ({ item }) => (
-      <MessageItem 
-        item={item} 
-        onLongPress={handleLongPress} 
-        conversationId={conversationId} 
-        onReprompt={handleReprompt} 
+      <MessageItem
+        item={item}
+        onLongPress={handleLongPress}
+        conversationId={conversationId}
         onSendMessage={handleSend}
-        onConfirmProfile={handleConfirmProfile}
-        onEditWorkout={handleEditWorkout}
         onSwipeActiveChange={handleSwipeActiveChange}
         onViewPhoto={handleViewPhoto}
       />
     ),
-    [handleLongPress, conversationId, handleReprompt, handleSend, handleConfirmProfile, handleEditWorkout, handleSwipeActiveChange, handleViewPhoto]
+    [handleLongPress, conversationId, handleSend, handleSwipeActiveChange, handleViewPhoto]
   );
 
   return (
@@ -1244,15 +1230,9 @@ export default function ChatScreen() {
             <TouchableOpacity
               style={styles.headerUserInfoContainer}
               onPress={navigateToUserProfile}
-              disabled={conversationId === 'ai_conversation' || !otherParticipantId}
+              disabled={!otherParticipantId}
             >
-              {conversationId.endsWith('_ai_conversation') ? (
-                <Image 
-                  source={require('@/assets/images/logo-dark.png')} 
-                  style={styles.headerLogo} 
-                  resizeMode="contain"
-                />
-              ) : profileImageUrl ? (
+              {profileImageUrl ? (
                 <Image source={{ uri: profileImageUrl }} style={styles.profilePic} />
               ) : (
                 <Image source={require('@/assets/images/profile-icon.png')} style={styles.profilePic} />
@@ -1377,25 +1357,6 @@ export default function ChatScreen() {
         </Modal>
         
         {/* Editing Workout Banner */}
-        {editingWorkout && (
-          <View style={styles.editingBanner}>
-            <View style={styles.editingBannerContent}>
-              <Ionicons name="create-outline" size={16} color="#8B7DFF" />
-              <View style={styles.editingBannerText}>
-                <Text style={styles.editingBannerTitle}>
-                  Editing: {editingWorkout.name || 'Workout'}
-                </Text>
-                <Text style={styles.editingBannerSubtitle}>
-                  Tell me what to change!
-                </Text>
-              </View>
-            </View>
-            <TouchableOpacity onPress={() => setEditingWorkout(null)}>
-              <Ionicons name="close" size={20} color="#888" />
-            </TouchableOpacity>
-          </View>
-        )}
-        
         {/* Photo Upload Progress */}
         {photoUploadProgress && (
           <View style={styles.photoUploadContainer}>
@@ -1459,10 +1420,10 @@ export default function ChatScreen() {
               value={input}
               onChangeText={setInput}
               onSend={handleSend}
-              disabled={isAiThinking || photoUploadProgress}
+              disabled={photoUploadProgress}
               conversationId={conversationId}
               otherParticipantId={otherParticipantId}
-              isAiConversation={conversationId.endsWith('_ai_conversation')}
+              isAiConversation={false}
             />
           </View>
         </View>
