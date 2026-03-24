@@ -831,13 +831,13 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
                     </Text>
                     <Text style={styles.miniHeaderDot}> · </Text>
                     <View style={styles.miniHeaderCountWrap}>
-                      <Animated.Text style={[styles.miniHeaderCountText, { opacity: postsLabelOpacity }]}>
+                      <Animated.Text numberOfLines={1} style={[styles.miniHeaderCountText, { opacity: postsLabelOpacity }]}>
                         {formatCount(displayablePosts.length)} posts
                       </Animated.Text>
-                      <Animated.Text style={[styles.miniHeaderCountText, styles.miniHeaderCountAbsolute, { opacity: milestonesLabelOpacity }]}>
+                      <Animated.Text numberOfLines={1} style={[styles.miniHeaderCountText, styles.miniHeaderCountAbsolute, { opacity: milestonesLabelOpacity }]}>
                         {formatCount(milestonesCount)} milestones
                       </Animated.Text>
-                      <Animated.Text style={[styles.miniHeaderCountText, styles.miniHeaderCountAbsolute, { opacity: workoutsLabelOpacity }]}>
+                      <Animated.Text numberOfLines={1} style={[styles.miniHeaderCountText, styles.miniHeaderCountAbsolute, { opacity: workoutsLabelOpacity }]}>
                         {formatCount(workouts?.length || 0)} workouts
                       </Animated.Text>
                     </View>
@@ -899,13 +899,13 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
                     </Text>
                     <Text style={styles.miniHeaderDot}> · </Text>
                     <View style={styles.miniHeaderCountWrap}>
-                      <Animated.Text style={[styles.miniHeaderCountText, { opacity: postsLabelOpacity }]}>
+                      <Animated.Text numberOfLines={1} style={[styles.miniHeaderCountText, { opacity: postsLabelOpacity }]}>
                         {formatCount(displayablePosts.length)} posts
                       </Animated.Text>
-                      <Animated.Text style={[styles.miniHeaderCountText, styles.miniHeaderCountAbsolute, { opacity: milestonesLabelOpacity }]}>
+                      <Animated.Text numberOfLines={1} style={[styles.miniHeaderCountText, styles.miniHeaderCountAbsolute, { opacity: milestonesLabelOpacity }]}>
                         {formatCount(milestonesCount)} milestones
                       </Animated.Text>
-                      <Animated.Text style={[styles.miniHeaderCountText, styles.miniHeaderCountAbsolute, { opacity: workoutsLabelOpacity }]}>
+                      <Animated.Text numberOfLines={1} style={[styles.miniHeaderCountText, styles.miniHeaderCountAbsolute, { opacity: workoutsLabelOpacity }]}>
                         {formatCount(workouts?.length || 0)} workouts
                       </Animated.Text>
                     </View>
@@ -1792,6 +1792,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: 1,
+    flexShrink: 0,
   },
   miniHeaderDot: {
     fontSize: 12,
@@ -1799,15 +1800,18 @@ const styles = StyleSheet.create({
   },
   miniHeaderCountWrap: {
     position: 'relative',
+    flexShrink: 0,
   },
   miniHeaderCountText: {
     fontSize: 12,
     color: 'rgba(255,255,255,0.5)',
+    flexShrink: 0,
   },
   miniHeaderCountAbsolute: {
     position: 'absolute',
     left: 0,
     top: 0,
+    flexShrink: 0,
   },
 
   // Sticky Tab Bar
