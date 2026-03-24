@@ -3,7 +3,7 @@
  * This function has no dependencies (no Firebase, no React) so it is
  * tested directly with no mocking required.
  */
-import { parseSSEEvent } from '../StreamEvent';
+import { parseSSEEvent } from '../../infra/sseParser';
 import type {
   StreamTokenEvent,
   StreamStructuredEvent,
