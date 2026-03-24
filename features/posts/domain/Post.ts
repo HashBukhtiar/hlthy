@@ -12,7 +12,7 @@ export interface Post {
   imageUrl: string;
   thumbnailUrl?: string | null;
   createdAt: Timestamp;
-  exerciseTags?: string[];
+  tags?: string[];
   isMilestone: boolean;
   milestoneDetails?: {
     type: string;
@@ -99,6 +99,7 @@ export interface NewPostData {
   workoutId?: string | null;
   authorArchetype?: string | null;
   mentions?: MentionData[];
+  tags?: string[];
 }
 
 /** Minimal author fields needed for writes. */

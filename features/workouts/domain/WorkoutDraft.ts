@@ -20,4 +20,5 @@ export interface WorkoutDraft {
   visibility: 'public' | 'followers' | 'private';
   segments: WorkoutDraftSegment[];
   mentions?: MentionData[];
+  tags?: string[];
 }

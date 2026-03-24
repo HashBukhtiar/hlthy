@@ -16,3 +16,9 @@ export interface UserSearchResult {
   profilePictureUrl?: string;
   profileThumbnailUrl?: string;
 }
+
+/** Tag search result shown in the explore search bar. */
+export interface TagSearchResult {
+  name: string;
+  postCount: number;
+}

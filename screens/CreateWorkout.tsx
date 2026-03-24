@@ -27,6 +27,7 @@ import { generateId, generateUniqueFilename } from '@/logic/idGenerator';
 import { ACCENT_COLOR } from '@/constants/Colors';
 import MentionTextInput from '@/components/MentionTextInput';
 import { MentionData } from '@/features/mentions/domain/Mention';
+import { TagInput } from '@/components/TagInput';
 
 // Visibility options for workouts
 const visibilityItems: SelectorItem[] = [
@@ -63,6 +64,7 @@ export default function CreateWorkout() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [descriptionMentions, setDescriptionMentions] = useState<MentionData[]>([]);
+  const [tags, setTags] = useState<string[]>([]);
   const [coverImage, setCoverImage] = useState<string | null>(null);
   const [segments, setSegments] = useState<WorkoutSegment[]>([
     {
@@ -306,6 +308,7 @@ export default function CreateWorkout() {
         visibility: visibility as 'public' | 'followers' | 'private',
         segments,
         mentions: descriptionMentions.length > 0 ? descriptionMentions : undefined,
+        tags: tags.length > 0 ? tags : undefined,
       };
       const username = (currentUser as any).username || currentUser.displayName || 'Anonymous';
 
@@ -441,7 +444,12 @@ export default function CreateWorkout() {
               </View>
             </Animated.View>
           </View>
-          
+
+          {/* Tags Section */}
+          <View style={styles.tagsSection}>
+            <TagInput tags={tags} onTagsChange={setTags} />
+          </View>
+
           {/* Visibility Setting */}
           <View style={styles.visibilityContainer}>
             <CustomSelector
@@ -889,6 +897,11 @@ const styles = StyleSheet.create({
   },
   disabledButton: {
     opacity: 0.5,
+  },
+  // Tags section styles
+  tagsSection: {
+    marginHorizontal: 20,
+    marginBottom: 15,
   },
   // Visibility section styles
   visibilityContainer: {

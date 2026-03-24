@@ -33,6 +33,8 @@ import { sharePost } from '@/services/ShareService';
 import PostActionMenu from '@/components/PostActionMenu';
 import { useContentActions } from '@/hooks/useContentActions';
 import { ACCENT_COLOR } from '@/constants/Colors';
+import { TagChip } from '@/components/TagChip';
+import { navigateToTagFeed } from '@/features/explore/ui/useExplore';
 
 console.log('[PostsFeed] Module loaded');
 
@@ -450,6 +452,19 @@ export default function PostsFeed() {
           </View>
         )}
 
+        {/* Tags */}
+        {item.tags && item.tags.length > 0 && (
+          <View style={styles.tagsContainer}>
+            {item.tags.map((tag) => (
+              <TagChip
+                key={tag}
+                tag={tag}
+                onPress={() => canInteract && navigateToTagFeed(tag)}
+              />
+            ))}
+          </View>
+        )}
+
         {/* Post Image */}
         {item.imageUrl && (
           <View style={styles.imageWrapper}>
@@ -848,6 +863,12 @@ const styles = StyleSheet.create({
     color: '#E5E5EA',
     lineHeight: 20,
     fontSize: 14,
+  },
+  tagsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: 15,
+    paddingVertical: 8,
   },
   commentInputContainer: {
     flexDirection: 'row',

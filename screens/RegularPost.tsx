@@ -18,6 +18,7 @@ import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/firebaseConfig';
 import { Ionicons } from '@expo/vector-icons';
 import { MentionData } from '@/features/mentions/domain/Mention';
+import { TagInput } from '@/components/TagInput';
 import {
     SECONDARY_COLOR,
     useImagePicker,
@@ -55,6 +56,9 @@ export default function RegularPost({ onBack }: RegularPostProps) {
     
     // Mentions
     const [captionMentions, setCaptionMentions] = useState<MentionData[]>([]);
+
+    // Tags
+    const [tags, setTags] = useState<string[]>([]);
 
     // Workout attachment
     const [selectedWorkout, setSelectedWorkout] = useState<any>(null);
@@ -103,6 +107,7 @@ export default function RegularPost({ onBack }: RegularPostProps) {
                 workoutId: selectedWorkout?.id,
                 authorArchetype: authorArchetype,
                 mentions: captionMentions.length > 0 ? captionMentions : undefined,
+                tags: tags.length > 0 ? tags : undefined,
             };
             
             const postId = await addPost(postData);
@@ -173,6 +178,11 @@ export default function RegularPost({ onBack }: RegularPostProps) {
                             mentions={captionMentions}
                             onMentionsChange={setCaptionMentions}
                         />
+
+                        {/* Tags section */}
+                        <View style={styles.tagsSection}>
+                            <TagInput tags={tags} onTagsChange={setTags} />
+                        </View>
 
                         {/* Workout attachment section */}
                         <WorkoutAttachment
@@ -366,5 +376,24 @@ const styles = StyleSheet.create({
         backgroundColor: '#222',
         color: '#FFF',
         fontWeight: '500',
+    },
+    tagsSection: {
+        paddingHorizontal: 16,
+        marginBottom: 16,
+    },
+    visibilityNote: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        backgroundColor: '#1a1a1a',
+        borderRadius: 8,
+        marginHorizontal: 16,
+    },
+    visibilityNoteText: {
+        color: '#999',
+        fontSize: 12,
+        marginLeft: 8,
+        flex: 1,
     },
 });

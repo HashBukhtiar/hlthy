@@ -198,3 +198,12 @@ export function useExplore(): UseExploreResult {
     loadMore,
   };
 }
+
+/**
+ * Navigate to the tag feed for the given tag name.
+ * TODO: Implement tag feed screen and replace this stub.
+ */
+export function navigateToTagFeed(tagName: string): void {
+  // router.push(`/explore/tags/${tagName}`);  ← uncomment when ready
+  // For now: no-op (tapping a tag does nothing visually)
+}
