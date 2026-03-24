@@ -1068,9 +1068,7 @@ export default function ChatScreen() {
         }
       } catch (error) {
         console.error('Error updating conversation metadata:', error);
-        // Don't show alert for metadata updates - the message was already sent successfully
       }
-    }
   } catch (error) {
     console.error('Error in handleSend:', error);
     Alert.alert("Error", "Failed to send message. Please try again.");
