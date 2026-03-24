@@ -24,11 +24,11 @@ export interface AIMessage {
   isStreaming?: boolean;
 }
 
-/** Minimal message data for sending to Firestore. */
+/** Minimal message data for sending to Firestore.
+ *  createdAt is set automatically by the repository via serverTimestamp(). */
 export interface AIMessageWrite {
   senderId: string;
   text: string;
-  createdAt: unknown; // Firestore Timestamp or serverTimestamp
   isAiResponse: boolean;
   responseType?: string;
   workoutPlan?: Record<string, unknown>;
