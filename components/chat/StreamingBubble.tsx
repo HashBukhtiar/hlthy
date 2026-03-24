@@ -23,7 +23,7 @@ export function StreamingBubble({ text }: StreamingBubbleProps) {
       -1,
       true,
     );
-  }, []);
+  }, [cursorOpacity]);
 
   const cursorStyle = useAnimatedStyle(() => ({
     opacity: cursorOpacity.value,

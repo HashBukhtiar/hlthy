@@ -17,6 +17,7 @@ import {
   Timestamp,
 } from '@/features/infra/firestore';
 import { db } from '@/firebaseConfig';
+import { logger } from '@/shared/utils/logger';
 import { API_BASE_URL } from '@/config/api';
 import { parseSSEEvent } from '@/features/ai/infra/sseParser';
 import type { StreamEvent } from '@/features/ai/domain/StreamEvent';
@@ -162,15 +163,21 @@ export function subscribeToMessages(
     limit(messageLimit),
   );
 
-  return onSnapshot(q, (snapshot) => {
-    const messages: AIMessage[] = [];
-    snapshot.forEach((docSnap) => {
-      const data = docSnap.data();
-      messages.push(_normalizeMessage(docSnap.id, data));
-    });
-    // Reverse to chronological order (query is desc for limit)
-    onMessages(messages.reverse());
-  });
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const messages: AIMessage[] = [];
+      snapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        messages.push(_normalizeMessage(docSnap.id, data));
+      });
+      // Reverse to chronological order (query is desc for limit)
+      onMessages(messages.reverse());
+    },
+    (error) => {
+      logger.error('aiChatRepository', 'Message listener error', error);
+    },
+  );
 }
 
 /**
@@ -208,17 +215,20 @@ export async function clearConversationHistory(
     const messagesRef = collection(db, 'conversations', conversationId, 'messages');
     const snapshot = await getDocs(messagesRef);
 
-    // Batch delete all messages
-    const batch = writeBatch(db);
-    snapshot.forEach((docSnap) => {
-      batch.delete(docSnap.ref);
-    });
-    await batch.commit();
+    // Batch delete in chunks of 400 (Firestore limit is 500)
+    const docs = snapshot.docs;
+    for (let i = 0; i < docs.length; i += 400) {
+      const chunk = docs.slice(i, i + 400);
+      const batch = writeBatch(db);
+      chunk.forEach((docSnap) => batch.delete(docSnap.ref));
+      await batch.commit();
+    }
 
     // Delete the conversation document
     await deleteDoc(doc(db, 'conversations', conversationId));
     return true;
-  } catch {
+  } catch (err) {
+    logger.error('aiChatRepository', 'Failed to clear conversation', err);
     return false;
   }
 }
