@@ -10,7 +10,7 @@ interface WorkoutListItemProps {
   isOwnProfile: boolean;
 }
 
-export const WorkoutListItem: React.FC<WorkoutListItemProps> = ({ workout, onPress, isOwnProfile }) => {
+export const WorkoutListItem: React.FC<WorkoutListItemProps> = ({ workout, onPress }) => {
   let formattedDate = "Date N/A";
   try {
     if (workout.createdAt) {
@@ -25,7 +25,6 @@ export const WorkoutListItem: React.FC<WorkoutListItemProps> = ({ workout, onPre
     formattedDate = "Invalid Date"; 
   }
 
-  const segmentsCount = Array.isArray(workout.segments) ? workout.segments.length : 0;
   const exercisesCount = Array.isArray(workout.segments)
     ? workout.segments.reduce((count: number, segment: any) => count + (Array.isArray(segment?.exercises) ? segment.exercises.length : 0), 0)
     : 0;
@@ -50,13 +49,14 @@ export const WorkoutListItem: React.FC<WorkoutListItemProps> = ({ workout, onPre
       : 'lock-closed-outline';
 
   return (
-    <TouchableOpacity 
-      onPress={() => onPress(workout.id)} 
+    <TouchableOpacity
+      onPress={() => onPress(workout.id)}
       style={styles.workoutListItemRowStyle}
-      activeOpacity={0.85}
+      activeOpacity={0.82}
     >
+      <View style={styles.accentBar} />
       <LinearGradient
-        colors={['rgba(255,255,255,0.05)', 'rgba(255,255,255,0.015)', 'rgba(255,255,255,0.02)']}
+        colors={['rgba(255,255,255,0.06)', 'rgba(255,255,255,0.02)']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.cardGradient}
@@ -76,22 +76,16 @@ export const WorkoutListItem: React.FC<WorkoutListItemProps> = ({ workout, onPre
           <Text style={styles.workoutListItemTitleStyle} numberOfLines={2}>
             {workout.title || 'Unnamed Workout'}
           </Text>
-          <Text style={styles.workoutListItemDescriptionStyle} numberOfLines={2}>
-            {workout.description || 'Tap to view details and start this workout.'}
-          </Text>
+          {!!workout.description && (
+            <Text style={styles.workoutListItemDescriptionStyle} numberOfLines={2}>
+              {workout.description}
+            </Text>
+          )}
 
           <View style={styles.metaChipsRow}>
             <View style={styles.metaChip}>
               <Ionicons name="barbell-outline" size={12} color="rgba(255,255,255,0.72)" style={styles.metaChipIcon} />
               <Text style={styles.metaChipText}>{exercisesCount} exercises</Text>
-            </View>
-            <View style={styles.metaChip}>
-              <Ionicons name="albums-outline" size={12} color="rgba(255,255,255,0.72)" style={styles.metaChipIcon} />
-              <Text style={styles.metaChipText}>{segmentsCount} segments</Text>
-            </View>
-            <View style={styles.metaChip}>
-              <Ionicons name="bookmark-outline" size={12} color="rgba(255,255,255,0.72)" style={styles.metaChipIcon} />
-              <Text style={styles.metaChipText}>{workout.savedCount || 0} saves</Text>
             </View>
             {estimatedMinutes > 0 && (
               <View style={styles.metaChip}>
@@ -99,23 +93,18 @@ export const WorkoutListItem: React.FC<WorkoutListItemProps> = ({ workout, onPre
                 <Text style={styles.metaChipText}>{estimatedMinutes} min</Text>
               </View>
             )}
+            <View style={styles.metaChip}>
+              <Ionicons name="bookmark-outline" size={12} color="rgba(255,255,255,0.72)" style={styles.metaChipIcon} />
+              <Text style={styles.metaChipText}>{workout.savedCount || 0} saves</Text>
+            </View>
           </View>
 
           <View style={styles.footerRow}>
             <Text style={styles.workoutListItemMetaStyle}>{formattedDate}</Text>
-            <View style={styles.footerAction}>
-              <Text style={styles.footerActionText}>Open</Text>
-              <Ionicons name="chevron-forward" size={14} color="rgba(255,255,255,0.65)" style={styles.footerActionIcon} />
-            </View>
+            <Ionicons name="chevron-forward" size={15} color="rgba(255,255,255,0.3)" />
           </View>
         </View>
       </LinearGradient>
-
-      {workout.isPublic !== true && isOwnProfile && (
-        <View style={styles.privateCornerBadge}>
-          <Ionicons name="lock-closed" size={14} color="rgba(255,255,255,0.88)" />
-        </View>
-      )}
     </TouchableOpacity>
   );
 };
@@ -130,7 +119,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.08)',
     backgroundColor: '#141416',
-    position: 'relative',
+  },
+  accentBar: {
+    width: 3,
+    backgroundColor: '#FF2D55',
+    borderTopLeftRadius: 18,
+    borderBottomLeftRadius: 18,
   },
   cardGradient: {
     flexDirection: 'row',
@@ -219,28 +213,5 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.48)',
     fontSize: 12,
     fontWeight: '500',
-  },
-  footerAction: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  footerActionIcon: {
-    marginLeft: 2,
-  },
-  footerActionText: {
-    color: 'rgba(255,255,255,0.65)',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  privateCornerBadge: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(0,0,0,0.5)',
   },
 });
