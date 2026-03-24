@@ -177,6 +177,12 @@ export default function RegularPost({ onBack }: RegularPostProps) {
                             setCaption={setCaption}
                             mentions={captionMentions}
                             onMentionsChange={setCaptionMentions}
+                            onHashtagDetected={(hashtag) => {
+                                // Add hashtag to tags if not already present
+                                if (!tags.includes(hashtag) && tags.length < 10) {
+                                    setTags([...tags, hashtag]);
+                                }
+                            }}
                         />
 
                         {/* Tags section */}

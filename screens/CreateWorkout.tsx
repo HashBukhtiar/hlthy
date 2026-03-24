@@ -88,6 +88,37 @@ export default function CreateWorkout() {
   const borderAnimation = useRef(new Animated.Value(0)).current;
   const descriptionAnimation = useRef(new Animated.Value(0)).current;
 
+  // Handle hashtag detection in description
+  const handleDescriptionChange = (text: string) => {
+    // Only check for hashtags if text ends with a delimiter (space, comma, enter, punctuation)
+    const lastChar = text[text.length - 1];
+    const isDelimiter = /[\s,\n.!?;:]/.test(lastChar);
+
+    if (isDelimiter) {
+      // Look for hashtags followed by the delimiter
+      const hashtagRegex = /#([a-z0-9_-]+)(?=[\s,\n.!?;:])/gi;
+      const matches = [...text.matchAll(hashtagRegex)];
+
+      if (matches.length > 0) {
+        // Extract the last hashtag
+        const lastMatch = matches[matches.length - 1];
+        const hashtag = lastMatch[1];
+
+        // Add tag if not already present and under limit
+        if (!tags.includes(hashtag) && tags.length < 10) {
+          setTags([...tags, hashtag]);
+          // Remove the hashtag and the following delimiter from the description
+          const startIdx = lastMatch.index;
+          const endIdx = lastMatch.index! + lastMatch[0].length + 1; // +1 for delimiter
+          const updatedText = text.slice(0, startIdx) + text.slice(endIdx);
+          setDescription(updatedText.trim());
+          return;
+        }
+      }
+    }
+    setDescription(text);
+  };
+
   const animateBorderIn = () => {
     setTitleFocused(true);
     Animated.timing(borderAnimation, {
@@ -426,7 +457,7 @@ export default function CreateWorkout() {
                 inputRef={descriptionInputRef}
                 style={styles.descriptionInput}
                 value={description}
-                onChangeText={setDescription}
+                onChangeText={handleDescriptionChange}
                 mentions={descriptionMentions}
                 onMentionsChange={setDescriptionMentions}
                 placeholder="Tell others what makes this workout special..."
