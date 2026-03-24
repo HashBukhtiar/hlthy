@@ -39,7 +39,7 @@ import {
   getDocs,
   limit,
   QueryDocumentSnapshot,
-} from 'firebase/firestore';
+} from '@/features/infra/firestore';
 import { useAuth } from '@/context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';

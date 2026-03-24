@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { auth } from '@/firebaseConfig';
-import { reload } from 'firebase/auth';
+import { reload } from '@/features/auth/ui/useSession';
 import CustomSpinner from '@/components/CustomSpinner';
 import LoadingOverlay from '@/components/LoadingOverlay';
 import { SignupService } from '@/services/signupService';

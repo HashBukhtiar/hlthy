@@ -19,7 +19,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { OptimizedImageLight } from '@/components/OptimizedImage';
 import { ACCENT_COLOR } from '@/constants/Colors';
 import { db } from '@/firebaseConfig';
-import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc } from '@/features/infra/firestore';
 import { httpsCallable, getFunctions } from 'firebase/functions';
 import { useAuth } from '@/context/AuthContext';
 
