@@ -620,6 +620,13 @@ export default function ChatScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const conversationId = id as string;
   const { currentUser, userProfile } = useAuth();
+
+  // Redirect AI conversations to the dedicated AI coach screen
+  useEffect(() => {
+    if (conversationId?.endsWith('_ai_conversation')) {
+      router.replace('/ai-chat');
+    }
+  }, [conversationId, router]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState<string>('');
   const [loading, setLoading] = useState(true);
@@ -1017,34 +1024,7 @@ export default function ChatScreen() {
     }
 
     setInput('');
-    const isAiChat = conversationId.endsWith('_ai_conversation');
-    
     try {
-      // Ensure conversation document exists for AI chats
-      if (isAiChat) {
-        const conversationRef = doc(db, "conversations", conversationId);
-        const conversationSnap = await getDoc(conversationRef);
-        
-        if (!conversationSnap.exists()) {
-          const conversationData = {
-            participants: [currentUser.uid, 'ai_conversation'],
-            participantUsernames: {
-              [currentUser.uid]: currentUser.displayName || currentUser.email,
-              'ai_conversation': 'AI Assistant'
-            },
-            participantProfileImages: {
-              [currentUser.uid]: currentUser.photoURL || null,
-              'ai_conversation': null
-            },
-            createdAt: serverTimestamp(),
-            lastMessageAt: serverTimestamp(),
-            lastMessageText: textToSend,
-            lastMessageSenderId: currentUser.uid,
-          };
-          await setDoc(conversationRef, conversationData);
-        }
-      }
-
       const messagesRef = collection(db, "conversations", conversationId, "messages");
 
       // Add user's message to Firestore
