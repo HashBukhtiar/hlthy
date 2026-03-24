@@ -636,9 +636,6 @@ export default function ChatScreen() {
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [otherParticipantId, setOtherParticipantId] = useState<string | null>(null);
-  const [isAiThinking, setIsAiThinking] = useState(false);
-  const [editingWorkout, setEditingWorkout] = useState<any>(null);
-  const [workoutPreferences, setWorkoutPreferences] = useState<any>(null);
   const [scrollEnabled, setScrollEnabled] = useState(true); // Control scroll locking
   const [photoUploadProgress, setPhotoUploadProgress] = useState(false);
   const [viewingPhoto, setViewingPhoto] = useState<{ imageUrl: string; fileSize?: number } | null>(null);
