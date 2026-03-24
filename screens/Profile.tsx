@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { View, ScrollView, Text, Image, StyleSheet, Dimensions, TouchableOpacity, Animated, ActivityIndicator, Modal, StatusBar, RefreshControl, PanResponder } from 'react-native';
+import { View, ScrollView, Text, Image, StyleSheet, Dimensions, TouchableOpacity, Animated, ActivityIndicator, Modal, StatusBar, RefreshControl, PanResponder, Share } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useProfileData } from '@/hooks/useProfileData';
@@ -107,6 +107,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
   const [tooltipText, setTooltipText] = useState('');
   const [followersModalVisible, setFollowersModalVisible] = useState(false);
   const [followingModalVisible, setFollowingModalVisible] = useState(false);
+  const [showOwnActionMenu, setShowOwnActionMenu] = useState(false);
   const [interactionLock, setInteractionLock] = useState<InteractionLock>('none');
   const interactionLockRef = useRef<InteractionLock>('none');
 
@@ -316,6 +317,20 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
   const handleSettingsPress = () => {
     router.push('/settings');
   };
+
+  const handleOwnMoreOptions = useCallback(() => {
+    setShowOwnActionMenu(true);
+  }, []);
+
+  const handleShareProfile = useCallback(async () => {
+    const username = processedProfileData?.username;
+    setShowOwnActionMenu(false);
+    await Share.share({
+      message: username
+        ? `Check out my hlthy profile! @${username}`
+        : 'Check out my hlthy profile!',
+    });
+  }, [processedProfileData]);
 
   const handleImagePress = useCallback((post: any) => {
     router.push({
@@ -564,6 +579,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
           onBack={() => router.back()}
           onSettings={handleSettingsPress}
           onMoreOptions={profileActions.showMoreOptions}
+          onOwnMoreOptions={handleOwnMoreOptions}
           onDirectMessage={profileActions.handleDirectMessage}
           onFollowAction={profileActions.handleFollowAction}
           onArchetypeBadgePress={handleArchetypeBadgePress}
@@ -711,6 +727,33 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
         ]}
       />
 
+      {/* Own Profile Action Menu */}
+      <BottomActionMenu
+        visible={showOwnActionMenu}
+        onClose={() => setShowOwnActionMenu(false)}
+        items={[
+          {
+            icon: "id-card-outline",
+            label: "View Profile Card",
+            sublabel: "See your hlthy profile card",
+            color: "#AF52DE",
+            backgroundColor: "rgba(175, 82, 222, 0.22)",
+            onPress: () => {
+              setShowOwnActionMenu(false);
+              router.push(`/view-profile-card/${viewedProfileId}`);
+            },
+          },
+          {
+            icon: "share-outline",
+            label: "Share Profile",
+            sublabel: "Share your profile with others",
+            color: "#0A84FF",
+            backgroundColor: "rgba(10, 132, 255, 0.22)",
+            onPress: handleShareProfile,
+          },
+        ]}
+      />
+
       {/* Followers Modal */}
       <FollowersModal
         visible={followersModalVisible}
@@ -767,13 +810,22 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
                 ) : null}
               </View>
             </View>
-            <TouchableOpacity
-              style={styles.miniHeaderSideBtn}
-              onPress={handleSettingsPress}
-              activeOpacity={0.85}
-            >
-              <Ionicons name="settings-outline" size={20} color="white" />
-            </TouchableOpacity>
+            <View style={styles.miniHeaderRightButtons}>
+              <TouchableOpacity
+                style={styles.miniHeaderIconBtn}
+                onPress={handleOwnMoreOptions}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="ellipsis-horizontal" size={20} color="white" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.miniHeaderIconBtn}
+                onPress={handleSettingsPress}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="settings-outline" size={20} color="white" />
+              </TouchableOpacity>
+            </View>
           </View>
         ) : (
           /* Other profile: back left, avatar + name centered, more options right */
@@ -1638,6 +1690,16 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   miniHeaderSideBtn: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  miniHeaderRightButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  miniHeaderIconBtn: {
     width: 40,
     height: 40,
     justifyContent: 'center',
