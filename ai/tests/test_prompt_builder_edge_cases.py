@@ -229,7 +229,8 @@ class TestBuildSystemPromptStructure:
         prompt = build_system_prompt(ctx)
         assert "CLIENT FILE" in prompt
         assert "COACH MEMORIES" in prompt
-        assert "CONVERSATION HISTORY" in prompt
+        # Conversation history is passed as multi-turn content, not in system prompt
+        assert "CONVERSATION HISTORY" not in prompt
         assert "RESPONSE INSTRUCTIONS" in prompt
 
     def test_no_memories_section_omitted(self):

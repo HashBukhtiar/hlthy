@@ -28,12 +28,12 @@ def _check_rate_limit(uid: str) -> None:
     now = time.time()
     # Remove timestamps older than the window
     _rate_limits[uid] = [t for t in _rate_limits[uid] if now - t < RATE_WINDOW]
-    if len(_rate_limits[uid]) >= RATE_LIMIT:
-        raise HTTPException(status_code=429, detail="Rate limit exceeded. Please wait a moment.")
-    _rate_limits[uid].append(now)
     # Prune empty entries to prevent memory leak
     if not _rate_limits[uid]:
         del _rate_limits[uid]
+    if len(_rate_limits.get(uid, [])) >= RATE_LIMIT:
+        raise HTTPException(status_code=429, detail="Rate limit exceeded. Please wait a moment.")
+    _rate_limits[uid].append(now)
 
 
 # ── Coach singleton ─────────────────────────────────────────────────────────

@@ -6,15 +6,17 @@ from models.schemas import UserContext
 
 def build_system_prompt(ctx: UserContext) -> str:
     """Build the full system prompt with coach identity and user context."""
-    return f"""{_IDENTITY}
+    # Note: conversation history is NOT included here — it's passed as proper
+    # multi-turn content in coach.py's _build_conversation_contents().
+    parts = [_IDENTITY, _format_client_file(ctx)]
 
-{_format_client_file(ctx)}
+    memories = _format_coach_memories(ctx)
+    if memories:
+        parts.append(memories)
 
-{_format_coach_memories(ctx)}
+    parts.append(_RESPONSE_INSTRUCTIONS)
 
-{_format_conversation_history(ctx)}
-
-{_RESPONSE_INSTRUCTIONS}"""
+    return "\n\n".join(parts)
 
 
 # ── Coach Identity (fixed) ──────────────────────────────────────────────────

@@ -125,7 +125,8 @@ class TestBuildSystemPrompt:
         assert "Bad left knee" in prompt
         assert "COACH MEMORIES" in prompt
 
-    def test_contains_conversation_history(self):
+    def test_conversation_history_not_in_system_prompt(self):
+        """Conversation history is passed as multi-turn content, not in the system prompt."""
         ctx = _make_context(
             conversation_history=[
                 {"role": "user", "text": "I want to build muscle"},
@@ -133,13 +134,8 @@ class TestBuildSystemPrompt:
             ],
         )
         prompt = build_system_prompt(ctx)
-        assert "build muscle" in prompt
-        assert "CONVERSATION HISTORY" in prompt
-
-    def test_empty_conversation_shows_new(self):
-        ctx = _make_context(conversation_history=[])
-        prompt = build_system_prompt(ctx)
-        assert "New conversation" in prompt
+        assert "CONVERSATION HISTORY" not in prompt
+        assert "build muscle" not in prompt
 
 
 class TestResponseParser:
