@@ -78,14 +78,25 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
   const MINI_HEADER_THRESHOLD = 200;
   const MINI_HEADER_FULL = 240;
   const [showMiniHeader, setShowMiniHeader] = useState(false);
+  const [showStickyTabBar, setShowStickyTabBar] = useState(false);
+  const profileHeaderHeight = useRef(310);
+  const stickyTabOpacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     const id = scrollY.addListener(({ value }) => {
       const shouldShow = value > MINI_HEADER_THRESHOLD;
       setShowMiniHeader(prev => (prev !== shouldShow ? shouldShow : prev));
+
+      const tabThreshold = profileHeaderHeight.current;
+      const tabOpacity = Math.max(0, Math.min(1, (value - (tabThreshold - 30)) / 30));
+      stickyTabOpacity.setValue(tabOpacity);
+      setShowStickyTabBar(prev => {
+        const next = tabOpacity > 0;
+        return prev !== next ? next : prev;
+      });
     });
     return () => scrollY.removeListener(id);
-  }, [scrollY]);
+  }, [scrollY, stickyTabOpacity]);
 
   const miniHeaderOpacity = scrollY.interpolate({
     inputRange: [MINI_HEADER_THRESHOLD, MINI_HEADER_FULL],
@@ -527,7 +538,6 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
         style={styles.scrollView}
         scrollEnabled={interactionLock !== 'horizontal'}
         showsVerticalScrollIndicator={false}
-        stickyHeaderIndices={[1]}
         overScrollMode="never"
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
@@ -549,6 +559,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
         }
       >
         {/* Profile Header */}
+        <View onLayout={(e) => { profileHeaderHeight.current = e.nativeEvent.layout.height; }}>
         <ProfileHeader
           profileData={processedProfileData}
           isOwnProfile={isOwnProfile}
@@ -573,6 +584,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
           onFollowingPress={handleFollowingPress}
           onViewProfileCard={() => router.push(`/view-profile-card/${viewedProfileId}`)}
         />
+        </View>
 
         {/* Tab Bar */}
         <View style={{ width: '100%' }}>
@@ -802,6 +814,20 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
             <View style={styles.miniHeaderSideBtn} />
           )}
         </View>
+      </Animated.View>
+
+      {/* Sticky Tab Bar (below mini header) */}
+      <Animated.View
+        pointerEvents={showStickyTabBar ? 'box-none' : 'none'}
+        style={[
+          styles.stickyTabBar,
+          {
+            top: insets.top + 56,
+            opacity: stickyTabOpacity,
+          },
+        ]}
+      >
+        {renderCustomTabBar()}
       </Animated.View>
     </View>
   );
@@ -1628,6 +1654,15 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: 'rgba(255,255,255,0.5)',
     marginTop: 1,
+  },
+
+  // Sticky Tab Bar
+  stickyTabBar: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    zIndex: 99,
+    backgroundColor: '#000',
   },
 });
 
