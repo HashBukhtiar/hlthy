@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { View, ScrollView, Text, Image, StyleSheet, Dimensions, TouchableOpacity, Animated, ActivityIndicator, Modal, StatusBar, RefreshControl, PanResponder } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useProfileData } from '@/hooks/useProfileData';
 import { useAuth } from '@/context/AuthContext';
@@ -73,6 +74,31 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
     return posts.filter(post => !!post.imageUrl);
   }, [posts]);
 
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const MINI_HEADER_THRESHOLD = 200;
+  const MINI_HEADER_FULL = 240;
+  const [showMiniHeader, setShowMiniHeader] = useState(false);
+
+  useEffect(() => {
+    const id = scrollY.addListener(({ value }) => {
+      const shouldShow = value > MINI_HEADER_THRESHOLD;
+      setShowMiniHeader(prev => (prev !== shouldShow ? shouldShow : prev));
+    });
+    return () => scrollY.removeListener(id);
+  }, [scrollY]);
+
+  const miniHeaderOpacity = scrollY.interpolate({
+    inputRange: [MINI_HEADER_THRESHOLD, MINI_HEADER_FULL],
+    outputRange: [0, 1],
+    extrapolate: 'clamp',
+  });
+
+  const miniHeaderTranslateY = scrollY.interpolate({
+    inputRange: [MINI_HEADER_THRESHOLD, MINI_HEADER_FULL],
+    outputRange: [-12, 0],
+    extrapolate: 'clamp',
+  });
+
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>(TabType.POSTS);
   const currentTabIndex = useRef(0);
@@ -89,6 +115,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
   const indicatorWidth = screenWidth * 0.2;
   const tabCenterOffset = (screenWidth / 3 - indicatorWidth) / 2;
 
+  const insets = useSafeAreaInsets();
   const isOwnProfile = !routeUserId || routeUserId === currentUser?.uid;
   
   // For own profile, merge profileData with currentUserProfile to get latest socialLinks
@@ -496,12 +523,17 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
       
-      <ScrollView 
+      <ScrollView
         style={styles.scrollView}
         scrollEnabled={interactionLock !== 'horizontal'}
         showsVerticalScrollIndicator={false}
         stickyHeaderIndices={[1]}
         overScrollMode="never"
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: false }
+        )}
+        scrollEventThrottle={16}
         onScrollBeginDrag={handleVerticalScrollBegin}
         onMomentumScrollBegin={handleVerticalScrollBegin}
         onScrollEndDrag={handleVerticalScrollEnd}
@@ -697,6 +729,80 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
         type="following"
         onUserPress={(userId) => router.push(`/profile/${userId}`)}
       />
+
+      {/* Mini Sticky Header */}
+      <Animated.View
+        pointerEvents={showMiniHeader ? 'box-none' : 'none'}
+        style={[
+          styles.miniHeader,
+          {
+            paddingTop: insets.top,
+            opacity: miniHeaderOpacity,
+            transform: [{ translateY: miniHeaderTranslateY }],
+          },
+        ]}
+      >
+        <View style={styles.miniHeaderInner}>
+          {/* Left: back button or spacer */}
+          {!isOwnProfile && router.canGoBack() ? (
+            <TouchableOpacity
+              style={styles.miniHeaderSideBtn}
+              onPress={() => router.back()}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="chevron-back" size={22} color="white" />
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.miniHeaderSideBtn} />
+          )}
+
+          {/* Center: avatar + name */}
+          <View style={styles.miniHeaderCenter}>
+            {processedProfileData?.profileImageUrl ? (
+              <Image
+                source={{
+                  uri: getOptimalImageUrl(
+                    processedProfileData.profileThumbnailUrl,
+                    processedProfileData.profileImageUrl,
+                  ),
+                }}
+                style={styles.miniHeaderAvatar}
+              />
+            ) : null}
+            <View>
+              <Text style={styles.miniHeaderName} numberOfLines={1}>
+                {processedProfileData?.displayName || 'User'}
+              </Text>
+              {processedProfileData?.username ? (
+                <Text style={styles.miniHeaderUsername} numberOfLines={1}>
+                  @{processedProfileData.username}
+                </Text>
+              ) : null}
+            </View>
+          </View>
+
+          {/* Right: settings (own) or follow/more (other) */}
+          {isOwnProfile ? (
+            <TouchableOpacity
+              style={styles.miniHeaderSideBtn}
+              onPress={handleSettingsPress}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="settings-outline" size={20} color="white" />
+            </TouchableOpacity>
+          ) : !isBlockedByUser ? (
+            <TouchableOpacity
+              style={styles.miniHeaderSideBtn}
+              onPress={profileActions.showMoreOptions}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="ellipsis-horizontal" size={20} color="white" />
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.miniHeaderSideBtn} />
+          )}
+        </View>
+      </Animated.View>
     </View>
   );
 };
@@ -1473,6 +1579,55 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: 'rgba(0, 0, 0, 0.85)',
+  },
+
+  // Mini Sticky Header
+  miniHeader: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#000',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(255,255,255,0.1)',
+    zIndex: 100,
+  },
+  miniHeaderInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+  },
+  miniHeaderSideBtn: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  miniHeaderCenter: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+  },
+  miniHeaderAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#1C1C1E',
+  },
+  miniHeaderName: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFF',
+    letterSpacing: -0.2,
+  },
+  miniHeaderUsername: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.5)',
+    marginTop: 1,
   },
 });
 
