@@ -4,7 +4,7 @@
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { serverTimestamp } from '@/features/infra/firestore';
+import { logger } from '@/shared/utils/logger';
 import {
   streamCoachMessage,
   saveMessage,
@@ -76,12 +76,24 @@ export function useAIChat(): UseAIChatReturn {
     await saveMessage(conversationId, {
       senderId: uid,
       text: text.trim(),
-      createdAt: serverTimestamp(),
       isAiResponse: false,
     });
 
-    // 2. Start streaming
+    // 2. Get ID token for auth
+    let idToken: string;
+    try {
+      idToken = await currentUser.getIdToken();
+    } catch {
+      setError('Authentication failed. Please log in again.');
+      return;
+    }
+
+    // 3. Start streaming
     setIsStreaming(true);
+
+    // Local variables to avoid stale closure over React state
+    let localStructuredType: string | null = null;
+    let localStructuredData: Record<string, unknown> | null = null;
 
     const handleEvent = (event: StreamEvent) => {
       switch (event.type) {
@@ -91,30 +103,36 @@ export function useAIChat(): UseAIChatReturn {
           break;
 
         case 'structured':
+          localStructuredData = event.data;
+          localStructuredType = event.responseType;
           setStructuredData(event.data);
           setStructuredType(event.responseType);
           break;
 
-        case 'done':
+        case 'done': {
           // Save the complete AI message to Firestore
           const fullText = streamTextRef.current;
           if (fullText) {
             saveMessage(conversationId, {
               senderId: 'ai_coach',
               text: fullText,
-              createdAt: serverTimestamp(),
               isAiResponse: true,
-              responseType: structuredType ?? undefined,
-              workoutPlan: structuredType === 'workout_plan' ? structuredData ?? undefined : undefined,
-              profileData: structuredType === 'workout_confirmation' ? structuredData ?? undefined : undefined,
+              responseType: localStructuredType ?? undefined,
+              workoutPlan: localStructuredType === 'workout_plan' ? localStructuredData ?? undefined : undefined,
+              profileData: localStructuredType === 'workout_confirmation' ? localStructuredData ?? undefined : undefined,
+            }).catch((err) => {
+              logger.error('useAIChat', 'Failed to save AI message', err);
+              setError('Failed to save response. Please try again.');
             });
           }
           setIsStreaming(false);
           setStreamingText('');
           streamTextRef.current = '';
           break;
+        }
 
         case 'error':
+          logger.error('useAIChat', 'Stream error', event.message);
           setError(event.message);
           setIsStreaming(false);
           setStreamingText('');
@@ -123,8 +141,8 @@ export function useAIChat(): UseAIChatReturn {
       }
     };
 
-    abortRef.current = streamCoachMessage(text.trim(), conversationId, handleEvent);
-  }, [uid, conversationId, isStreaming, structuredType, structuredData]);
+    abortRef.current = streamCoachMessage(text.trim(), conversationId, idToken, handleEvent);
+  }, [uid, currentUser, conversationId, isStreaming]);
 
   const clearConversation = useCallback(async () => {
     if (!conversationId) return;

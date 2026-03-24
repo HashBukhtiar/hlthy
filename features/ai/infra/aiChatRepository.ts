@@ -16,9 +16,9 @@ import {
   onSnapshot,
   Timestamp,
 } from '@/features/infra/firestore';
-import { db, auth } from '@/firebaseConfig';
+import { db } from '@/firebaseConfig';
 import { API_BASE_URL } from '@/config/api';
-import { parseSSEEvent } from '@/features/ai/domain/StreamEvent';
+import { parseSSEEvent } from '@/features/ai/infra/sseParser';
 import type { StreamEvent } from '@/features/ai/domain/StreamEvent';
 import type { AIMessage, AIMessageWrite } from '@/features/ai/domain/AIMessage';
 
@@ -30,23 +30,19 @@ export type StreamCallback = (event: StreamEvent) => void;
  * Send a message to the AI coach and stream the response via SSE.
  * Calls the callback for each event (token, structured, done, error).
  * Returns an abort function to cancel the stream.
+ *
+ * @param idToken - Firebase ID token (obtained by the caller via auth.currentUser.getIdToken())
  */
 export function streamCoachMessage(
   message: string,
   conversationId: string,
+  idToken: string,
   onEvent: StreamCallback,
 ): () => void {
   const controller = new AbortController();
 
   (async () => {
     try {
-      // Get Firebase ID token for auth
-      const user = auth.currentUser;
-      if (!user) {
-        onEvent({ type: 'error', message: 'Not authenticated' });
-        return;
-      }
-      const idToken = await user.getIdToken();
 
       const response = await fetch(`${API_BASE_URL}/api/chat/stream`, {
         method: 'POST',
@@ -142,11 +138,11 @@ function _parseFallbackResponse(text: string, onEvent: StreamCallback): void {
  */
 export async function saveMessage(
   conversationId: string,
-  message: AIMessageWrite,
+  message: Omit<AIMessageWrite, 'createdAt'>,
 ): Promise<string> {
   const ref = await addDoc(
     collection(db, 'conversations', conversationId, 'messages'),
-    message,
+    { ...message, createdAt: serverTimestamp() },
   );
   return ref.id;
 }
