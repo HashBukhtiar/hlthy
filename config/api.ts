@@ -19,7 +19,7 @@ const getApiUrl = () => {
     const devIP = process.env.EXPO_PUBLIC_DEV_API_IP || 'localhost';
     const localUrl = `http://${devIP}:8080`;
     console.log('🔥 DEV MODE: Using local API server:', localUrl);
-    console.log('💡 Make sure to run: cd ai && python api_server.py');
+    console.log('💡 Make sure to run: cd ai && uvicorn server:app --port 8080');
     if (devIP === 'localhost') {
       console.warn('⚠️  Using localhost - may not work on physical device!');
       console.warn('💡 Set EXPO_PUBLIC_DEV_API_IP=<your-ip> in .env');

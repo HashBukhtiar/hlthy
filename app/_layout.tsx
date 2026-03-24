@@ -30,6 +30,9 @@ export default function RootLayout() {
             <Stack.Screen name="explore" options={{ gestureEnabled: true, animation: 'slide_from_right' }} />
             <Stack.Screen name="settings" options={{ gestureEnabled: true, animation: 'slide_from_right' }} />
             
+            {/* AI Coach */}
+            <Stack.Screen name="ai-chat" options={{ gestureEnabled: true, animation: 'slide_from_right' }} />
+
             {/* Other screens */}
             <Stack.Screen name="signup" />
             <Stack.Screen name="select-archetype" />

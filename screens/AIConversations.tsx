@@ -30,14 +30,14 @@ export default function AIConversations() {
         // For now, just navigate to the default AI chat
         if (currentUser) {
             const aiConversationId = `${currentUser.uid}_ai_conversation`;
-            router.push(`/chat/${aiConversationId}`);
+            router.push('/ai-chat');
         }
     };
 
     const renderItem = ({ item }: { item: AIConversation }) => (
         <TouchableOpacity 
             style={styles.itemContainer} 
-            onPress={() => router.push(`/chat/${item.id}`)}
+            onPress={() => router.push('/ai-chat')}
         >
             <View style={styles.iconContainer}>
                 <Ionicons name="sparkles" size={28} color="#d466ff" />
