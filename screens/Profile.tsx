@@ -75,40 +75,27 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
   }, [posts]);
 
   const scrollY = useRef(new Animated.Value(0)).current;
-  const MINI_HEADER_THRESHOLD = 200;
-  const MINI_HEADER_FULL = 240;
   const [showMiniHeader, setShowMiniHeader] = useState(false);
   const [showStickyTabBar, setShowStickyTabBar] = useState(false);
   const profileHeaderHeight = useRef(310);
   const stickyTabOpacity = useRef(new Animated.Value(0)).current;
+  const miniHeaderOpacity = useRef(new Animated.Value(0)).current;
+  const miniHeaderTranslateY = useRef(new Animated.Value(-12)).current;
 
   useEffect(() => {
+    const FADE_RANGE = 40;
     const id = scrollY.addListener(({ value }) => {
-      const shouldShow = value > MINI_HEADER_THRESHOLD;
+      const threshold = profileHeaderHeight.current;
+      const opacity = Math.max(0, Math.min(1, (value - (threshold - FADE_RANGE)) / FADE_RANGE));
+      stickyTabOpacity.setValue(opacity);
+      miniHeaderOpacity.setValue(opacity);
+      miniHeaderTranslateY.setValue(-12 * (1 - opacity));
+      const shouldShow = opacity > 0;
       setShowMiniHeader(prev => (prev !== shouldShow ? shouldShow : prev));
-
-      const tabThreshold = profileHeaderHeight.current;
-      const tabOpacity = Math.max(0, Math.min(1, (value - (tabThreshold - 30)) / 30));
-      stickyTabOpacity.setValue(tabOpacity);
-      setShowStickyTabBar(prev => {
-        const next = tabOpacity > 0;
-        return prev !== next ? next : prev;
-      });
+      setShowStickyTabBar(prev => (prev !== shouldShow ? shouldShow : prev));
     });
     return () => scrollY.removeListener(id);
-  }, [scrollY, stickyTabOpacity]);
-
-  const miniHeaderOpacity = scrollY.interpolate({
-    inputRange: [MINI_HEADER_THRESHOLD, MINI_HEADER_FULL],
-    outputRange: [0, 1],
-    extrapolate: 'clamp',
-  });
-
-  const miniHeaderTranslateY = scrollY.interpolate({
-    inputRange: [MINI_HEADER_THRESHOLD, MINI_HEADER_FULL],
-    outputRange: [-12, 0],
-    extrapolate: 'clamp',
-  });
+  }, [scrollY, stickyTabOpacity, miniHeaderOpacity, miniHeaderTranslateY]);
 
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>(TabType.POSTS);
