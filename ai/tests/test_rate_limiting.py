@@ -1,33 +1,66 @@
 """
 Tests for the in-memory per-user rate limiter in routers/chat.py.
 Tests _check_rate_limit directly without requiring FastAPI or Firebase.
+
+The rate-limiting logic lives in routers/chat.py alongside the SSE endpoint.
+To import it without triggering firebase_admin initialization or vertexai,
+we stub the heavy dependencies at the sys.modules level before import.
+These stubs are scoped to this module only — we use unique module keys so
+they don't pollute the auth middleware module's import path.
 """
 import sys
 import os
+
+# Add ai/ to path before any other imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import time
 import pytest
-from unittest.mock import patch, MagicMock
-
-# Patch heavy dependencies before importing the chat module
-import sys
-sys.modules.setdefault("sse_starlette", MagicMock())
-sys.modules.setdefault("sse_starlette.sse", MagicMock())
-sys.modules.setdefault("middleware", MagicMock())
-sys.modules.setdefault("middleware.auth", MagicMock())
-sys.modules.setdefault("core", MagicMock())
-sys.modules.setdefault("core.coach", MagicMock())
-
-# Now import the private rate-limit state and function
-# We import the module directly to get access to _rate_limits and _check_rate_limit
-import importlib
-import types
-
-# Manually load only the rate limiting logic by importing the relevant names
-# after stubbing out the heavy deps
-from routers.chat import _check_rate_limit, _rate_limits, RATE_LIMIT, RATE_WINDOW
+from unittest.mock import MagicMock
 from fastapi import HTTPException
+
+# ------------------------------------------------------------------
+# Stub heavy deps BEFORE importing routers.chat.
+# We only stub what chat.py actually imports at module level so that
+# other test files importing middleware.auth still get the real module.
+# ------------------------------------------------------------------
+
+# sse_starlette is not installed — stub it
+if "sse_starlette" not in sys.modules:
+    sys.modules["sse_starlette"] = MagicMock()
+if "sse_starlette.sse" not in sys.modules:
+    sys.modules["sse_starlette.sse"] = MagicMock()
+
+# middleware.auth — stub ONLY the symbol chat.py needs at import time.
+# We cannot use setdefault for middleware itself because that would break
+# test_auth_middleware.py which imports the real middleware.auth.
+# Instead we import the real middleware.auth, patch nothing, and let
+# chat.py import it normally. The only problem is firebase_admin init
+# which runs at import time. We prevent that by ensuring firebase_admin
+# is already stubbed before middleware.auth is imported.
+if "firebase_admin" not in sys.modules:
+    _firebase_admin_mock = MagicMock()
+    _firebase_admin_mock._apps = {}  # empty dict so the "if not firebase_admin._apps" guard passes
+    sys.modules["firebase_admin"] = _firebase_admin_mock
+    sys.modules["firebase_admin.auth"] = MagicMock()
+    sys.modules["firebase_admin.credentials"] = MagicMock()
+
+# vertexai — stub so coach.py import doesn't fail
+if "vertexai" not in sys.modules:
+    sys.modules["vertexai"] = MagicMock()
+if "vertexai.generative_models" not in sys.modules:
+    sys.modules["vertexai.generative_models"] = MagicMock()
+
+# google.cloud.firestore — stub so context imports don't fail
+if "google" not in sys.modules:
+    sys.modules["google"] = MagicMock()
+if "google.cloud" not in sys.modules:
+    sys.modules["google.cloud"] = MagicMock()
+if "google.cloud.firestore" not in sys.modules:
+    sys.modules["google.cloud.firestore"] = MagicMock()
+
+# Now import the rate-limiting state and function from chat
+from routers.chat import _check_rate_limit, _rate_limits, RATE_LIMIT, RATE_WINDOW
 
 
 def _clear_limits():
