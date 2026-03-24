@@ -86,18 +86,21 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
   const stickyTabOpacity = useRef(new Animated.Value(0)).current;
   const miniHeaderOpacity = useRef(new Animated.Value(0)).current;
   const miniHeaderTranslateY = useRef(new Animated.Value(-12)).current;
+  const headerVisible = useRef(false);
 
   useEffect(() => {
-    const FADE_RANGE = 40;
     const id = scrollY.addListener(({ value }) => {
-      const threshold = profileHeaderHeight.current;
-      const opacity = Math.max(0, Math.min(1, (value - (threshold - FADE_RANGE)) / FADE_RANGE));
-      stickyTabOpacity.setValue(opacity);
-      miniHeaderOpacity.setValue(opacity);
-      miniHeaderTranslateY.setValue(-12 * (1 - opacity));
-      const shouldShow = opacity > 0;
-      setShowMiniHeader(prev => (prev !== shouldShow ? shouldShow : prev));
-      setShowStickyTabBar(prev => (prev !== shouldShow ? shouldShow : prev));
+      const shouldShow = value > profileHeaderHeight.current - 20;
+      if (shouldShow === headerVisible.current) return;
+      headerVisible.current = shouldShow;
+      const duration = shouldShow ? 220 : 180;
+      Animated.parallel([
+        Animated.timing(miniHeaderOpacity, { toValue: shouldShow ? 1 : 0, duration, useNativeDriver: true }),
+        Animated.timing(miniHeaderTranslateY, { toValue: shouldShow ? 0 : -12, duration, useNativeDriver: true }),
+        Animated.timing(stickyTabOpacity, { toValue: shouldShow ? 1 : 0, duration, useNativeDriver: true }),
+      ]).start();
+      setShowMiniHeader(shouldShow);
+      setShowStickyTabBar(shouldShow);
     });
     return () => scrollY.removeListener(id);
   }, [scrollY, stickyTabOpacity, miniHeaderOpacity, miniHeaderTranslateY]);
