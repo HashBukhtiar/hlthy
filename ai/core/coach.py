@@ -1,9 +1,10 @@
 """
 Coach — the AI orchestrator that connects context → prompt → Gemini → streaming response.
 """
+import asyncio
 import json
-import os
-from typing import AsyncGenerator, Dict, Any
+import logging
+from typing import AsyncGenerator, Dict, Any, List
 
 from vertexai.generative_models import GenerativeModel, GenerationConfig
 
@@ -11,8 +12,9 @@ from core.prompt_builder import build_system_prompt
 from core.response_parser import parse_streamed_text
 from context.user_context import load_user_context
 from context.conversation_memory import save_coach_memory
+from core.config import MODEL_ID
 
-MODEL_ID = os.environ.get("AI_MODEL_ID", "gemini-2.5-flash-preview-05-20")
+logger = logging.getLogger(__name__)
 
 
 class Coach:
@@ -23,7 +25,8 @@ class Coach:
     """
 
     def __init__(self):
-        self.model = GenerativeModel(MODEL_ID)
+        # Model is created per-request with dynamic system_instruction
+        self._base_model_id = MODEL_ID
 
     async def stream_response(
         self,
@@ -42,19 +45,22 @@ class Coach:
         # 1. Load full user context from Firestore
         ctx = await load_user_context(uid, conversation_id)
 
-        # 2. Build system prompt with context
+        # 2. Build system prompt and create model with system_instruction
         system_prompt = build_system_prompt(ctx)
+        model = GenerativeModel(
+            self._base_model_id,
+            system_instruction=system_prompt,
+        )
 
-        # 3. Stream from Gemini
+        # 3. Build multi-turn conversation content
+        contents = _build_conversation_contents(ctx.conversation_history, message)
+
+        # 4. Stream from Gemini
         full_text = ""
 
         try:
-            response = await self.model.generate_content_async(
-                [
-                    {"role": "user", "parts": [{"text": system_prompt}]},
-                    {"role": "model", "parts": [{"text": "Understood. I'm Coach, ready to help."}]},
-                    {"role": "user", "parts": [{"text": message}]},
-                ],
+            response = await model.generate_content_async(
+                contents,
                 generation_config=GenerationConfig(
                     temperature=0.8,
                     top_p=0.95,
@@ -72,33 +78,32 @@ class Coach:
                     }
 
         except Exception as e:
+            logger.error(f"Gemini streaming failed for user {uid[:8]}: {e}")
             yield {
                 "event": "error",
-                "data": json.dumps({"message": f"AI generation failed: {str(e)}"}),
+                "data": json.dumps({"message": "Coach is temporarily unavailable. Please try again."}),
             }
             return
 
-        # 4. Parse completed text for structured data
+        # 5. Parse completed text for structured data
         clean_text, structured = parse_streamed_text(full_text)
 
-        # If structured data was embedded in the text, send it
         if structured:
             yield {
                 "event": "structured",
                 "data": json.dumps(structured),
             }
 
-        # 5. Extract and save coach memories (fire-and-forget)
-        try:
-            await self._extract_and_save_memories(uid, message, full_text)
-        except Exception:
-            pass  # Non-critical — don't fail the response
-
-        # 6. Done
+        # 6. Done — yield immediately, extract memories in background
         yield {
             "event": "done",
             "data": json.dumps({}),
         }
+
+        # 7. Fire-and-forget memory extraction (non-blocking)
+        asyncio.create_task(
+            self._extract_and_save_memories(uid, message, full_text)
+        )
 
     async def _extract_and_save_memories(
         self,
@@ -108,7 +113,7 @@ class Coach:
     ) -> None:
         """
         Use a lightweight Gemini call to extract profile info from the conversation.
-        Saves any extracted memories to Firestore.
+        Saves any extracted memories to Firestore (with dedup).
         """
         extraction_prompt = f"""Analyze this conversation exchange and extract any fitness profile information the user shared.
 
@@ -132,7 +137,8 @@ Examples:
 []"""
 
         try:
-            result = await self.model.generate_content_async(
+            model = GenerativeModel(self._base_model_id)
+            result = await model.generate_content_async(
                 extraction_prompt,
                 generation_config=GenerationConfig(
                     temperature=0.1,
@@ -157,5 +163,34 @@ Examples:
                             memory_type=mem.get("type", "observation"),
                             content=mem["content"],
                         )
-        except Exception:
-            pass  # Extraction is best-effort
+        except Exception as e:
+            logger.debug(f"Memory extraction failed for {uid[:8]}: {e}")
+
+
+def _build_conversation_contents(
+    history: List[Dict[str, str]],
+    current_message: str,
+) -> list:
+    """
+    Build multi-turn conversation content for Gemini.
+    Passes history as proper alternating user/model entries.
+    """
+    contents = []
+
+    for msg in history:
+        role = msg.get("role", "user")
+        text = msg.get("text", "")
+        if not text:
+            continue
+        contents.append({
+            "role": role,
+            "parts": [{"text": text}],
+        })
+
+    # Add the current user message
+    contents.append({
+        "role": "user",
+        "parts": [{"text": current_message}],
+    })
+
+    return contents

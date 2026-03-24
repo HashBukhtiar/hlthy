@@ -31,6 +31,9 @@ def _check_rate_limit(uid: str) -> None:
     if len(_rate_limits[uid]) >= RATE_LIMIT:
         raise HTTPException(status_code=429, detail="Rate limit exceeded. Please wait a moment.")
     _rate_limits[uid].append(now)
+    # Prune empty entries to prevent memory leak
+    if not _rate_limits[uid]:
+        del _rate_limits[uid]
 
 
 # ── Coach singleton ─────────────────────────────────────────────────────────
@@ -74,10 +77,10 @@ async def chat_stream(
                 conversation_id=body.conversation_id,
             ):
                 yield event
-        except Exception as e:
+        except Exception:
             yield {
                 "event": "error",
-                "data": json.dumps({"message": str(e)}),
+                "data": json.dumps({"message": "Coach is temporarily unavailable. Please try again."}),
             }
 
     return EventSourceResponse(event_generator())

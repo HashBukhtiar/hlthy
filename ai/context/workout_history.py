@@ -1,24 +1,16 @@
 """
 Reads workout logs and exercise history from Firestore.
 """
-from typing import Optional, Dict, List
+from typing import Dict, List
 from google.cloud import firestore
 
 from models.schemas import RecentWorkout, ExerciseStats
-
-_db: Optional[firestore.AsyncClient] = None
-
-
-def _get_db() -> firestore.AsyncClient:
-    global _db
-    if _db is None:
-        _db = firestore.AsyncClient()
-    return _db
+from context.firestore_client import get_db
 
 
 async def load_workout_history(uid: str, limit: int = 10) -> List[RecentWorkout]:
     """Load the user's most recent workout logs."""
-    db = _get_db()
+    db = get_db()
 
     docs = await (
         db.collection("users").document(uid).collection("workout_logs")
@@ -30,7 +22,6 @@ async def load_workout_history(uid: str, limit: int = 10) -> List[RecentWorkout]
     workouts = []
     for doc in docs:
         data = doc.to_dict() or {}
-        # Extract exercise names from the log
         exercises = []
         for ex in data.get("exercises", []):
             name = ex.get("exerciseName") or ex.get("name", "")
@@ -60,7 +51,7 @@ async def load_workout_history(uid: str, limit: int = 10) -> List[RecentWorkout]
 
 async def load_exercise_stats(uid: str, limit: int = 15) -> Dict[str, ExerciseStats]:
     """Load exercise-specific performance history."""
-    db = _get_db()
+    db = get_db()
 
     docs = await (
         db.collection("users").document(uid).collection("exercise_history")
@@ -76,7 +67,6 @@ async def load_exercise_stats(uid: str, limit: int = 15) -> Dict[str, ExerciseSt
 
         max_weight_data = data.get("maxWeight", {})
         max_reps_data = data.get("maxReps", {})
-        max_volume_data = data.get("maxVolume", {})
 
         stats[exercise_name] = ExerciseStats(
             pr_weight=max_weight_data.get("weight", 0) if isinstance(max_weight_data, dict) else 0,

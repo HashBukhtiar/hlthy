@@ -2,6 +2,7 @@
 Firebase ID token verification middleware.
 Extracts the authenticated user's UID from the Authorization header.
 """
+import asyncio
 import os
 from typing import Optional
 
@@ -33,7 +34,8 @@ async def get_authenticated_uid(request: Request) -> str:
     token = auth_header.split("Bearer ", 1)[1]
 
     try:
-        decoded = firebase_auth.verify_id_token(token)
+        # Run blocking verify_id_token in a thread to avoid blocking the event loop
+        decoded = await asyncio.to_thread(firebase_auth.verify_id_token, token)
         return decoded["uid"]
     except firebase_auth.InvalidIdTokenError:
         raise HTTPException(status_code=401, detail="Invalid ID token")
@@ -43,7 +45,7 @@ async def get_authenticated_uid(request: Request) -> str:
         raise HTTPException(status_code=401, detail="Token verification failed")
 
 
-def get_optional_uid(request: Request) -> Optional[str]:
+async def get_optional_uid(request: Request) -> Optional[str]:
     """
     Try to extract UID from Authorization header, return None if not present.
     Useful for endpoints that work with or without auth (e.g., health check).
@@ -54,7 +56,7 @@ def get_optional_uid(request: Request) -> Optional[str]:
 
     token = auth_header.split("Bearer ", 1)[1]
     try:
-        decoded = firebase_auth.verify_id_token(token)
+        decoded = await asyncio.to_thread(firebase_auth.verify_id_token, token)
         return decoded["uid"]
     except Exception:
         return None

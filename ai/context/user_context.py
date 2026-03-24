@@ -1,19 +1,12 @@
 """
 Reads user profile and coach memory from Firestore.
 """
-from typing import Optional
+import asyncio
+
 from google.cloud import firestore
 
 from models.schemas import AIProfile, CoachMemory, UserContext
-
-_db: Optional[firestore.AsyncClient] = None
-
-
-def _get_db() -> firestore.AsyncClient:
-    global _db
-    if _db is None:
-        _db = firestore.AsyncClient()
-    return _db
+from context.firestore_client import get_db
 
 
 async def load_user_context(uid: str, conversation_id: str) -> UserContext:
@@ -24,10 +17,9 @@ async def load_user_context(uid: str, conversation_id: str) -> UserContext:
     from context.workout_history import load_workout_history, load_exercise_stats
     from context.conversation_memory import load_conversation_history
 
-    db = _get_db()
+    db = get_db()
 
     # Read all sources in parallel
-    import asyncio
     (
         user_doc,
         ai_profile_doc,
@@ -44,7 +36,7 @@ async def load_user_context(uid: str, conversation_id: str) -> UserContext:
             .get(),
         load_workout_history(uid),
         load_exercise_stats(uid),
-        load_conversation_history(conversation_id),
+        load_conversation_history(uid, conversation_id),
     )
 
     # Parse user profile
@@ -58,7 +50,6 @@ async def load_user_context(uid: str, conversation_id: str) -> UserContext:
         display_name = user_data.get("username") or user_data.get("displayName")
         workout_streak = user_data.get("currentStreak", 0)
 
-        # Extract profile data from main user doc as fallback
         profile = AIProfile(
             experience_level=user_data.get("experienceLevel"),
             goals=user_data.get("fitnessGoals", []),
@@ -66,7 +57,6 @@ async def load_user_context(uid: str, conversation_id: str) -> UserContext:
             archetype=user_data.get("archetype"),
         )
 
-        # Extract recent PRs
         latest_prs = user_data.get("latestPRs", {})
         for exercise_id, pr_data in latest_prs.items():
             if isinstance(pr_data, dict):
