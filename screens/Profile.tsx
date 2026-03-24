@@ -811,6 +811,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
           {
             top: insets.top + 56,
             opacity: stickyTabOpacity,
+            transform: [{ translateY: miniHeaderTranslateY }],
           },
         ]}
       >
