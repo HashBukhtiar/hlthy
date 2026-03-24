@@ -74,6 +74,11 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
     return posts.filter(post => !!post.imageUrl);
   }, [posts]);
 
+  const milestonesCount = useMemo(
+    () => Object.values(groupedMilestones || {}).reduce((acc: number, ms: any[]) => acc + ms.length, 0),
+    [groupedMilestones]
+  );
+
   const scrollY = useRef(new Animated.Value(0)).current;
   const [showMiniHeader, setShowMiniHeader] = useState(false);
   const [showStickyTabBar, setShowStickyTabBar] = useState(false);
@@ -113,6 +118,22 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
 
   const indicatorWidth = screenWidth * 0.2;
   const tabCenterOffset = (screenWidth / 3 - indicatorWidth) / 2;
+
+  const postsLabelOpacity = horizontalOffset.interpolate({
+    inputRange: [-screenWidth, 0],
+    outputRange: [0, 1],
+    extrapolate: 'clamp',
+  });
+  const milestonesLabelOpacity = horizontalOffset.interpolate({
+    inputRange: [-screenWidth * 2, -screenWidth, 0],
+    outputRange: [0, 1, 0],
+    extrapolate: 'clamp',
+  });
+  const workoutsLabelOpacity = horizontalOffset.interpolate({
+    inputRange: [-screenWidth * 2, -screenWidth],
+    outputRange: [1, 0],
+    extrapolate: 'clamp',
+  });
 
   const insets = useSafeAreaInsets();
   const isOwnProfile = !routeUserId || routeUserId === currentUser?.uid;
@@ -804,9 +825,23 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
                   {processedProfileData?.displayName || 'User'}
                 </Text>
                 {processedProfileData?.username ? (
-                  <Text style={styles.miniHeaderUsername} numberOfLines={1}>
-                    @{processedProfileData.username}
-                  </Text>
+                  <View style={styles.miniHeaderUsernameRow}>
+                    <Text style={styles.miniHeaderUsername}>
+                      @{processedProfileData.username}
+                    </Text>
+                    <Text style={styles.miniHeaderDot}> · </Text>
+                    <View style={styles.miniHeaderCountWrap}>
+                      <Animated.Text style={[styles.miniHeaderCountText, { opacity: postsLabelOpacity }]}>
+                        {formatCount(displayablePosts.length)} posts
+                      </Animated.Text>
+                      <Animated.Text style={[styles.miniHeaderCountText, styles.miniHeaderCountAbsolute, { opacity: milestonesLabelOpacity }]}>
+                        {formatCount(milestonesCount)} milestones
+                      </Animated.Text>
+                      <Animated.Text style={[styles.miniHeaderCountText, styles.miniHeaderCountAbsolute, { opacity: workoutsLabelOpacity }]}>
+                        {formatCount(workouts?.length || 0)} workouts
+                      </Animated.Text>
+                    </View>
+                  </View>
                 ) : null}
               </View>
             </View>
@@ -858,9 +893,23 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
                   {processedProfileData?.displayName || 'User'}
                 </Text>
                 {processedProfileData?.username ? (
-                  <Text style={styles.miniHeaderUsername} numberOfLines={1}>
-                    @{processedProfileData.username}
-                  </Text>
+                  <View style={styles.miniHeaderUsernameRow}>
+                    <Text style={styles.miniHeaderUsername}>
+                      @{processedProfileData.username}
+                    </Text>
+                    <Text style={styles.miniHeaderDot}> · </Text>
+                    <View style={styles.miniHeaderCountWrap}>
+                      <Animated.Text style={[styles.miniHeaderCountText, { opacity: postsLabelOpacity }]}>
+                        {formatCount(displayablePosts.length)} posts
+                      </Animated.Text>
+                      <Animated.Text style={[styles.miniHeaderCountText, styles.miniHeaderCountAbsolute, { opacity: milestonesLabelOpacity }]}>
+                        {formatCount(milestonesCount)} milestones
+                      </Animated.Text>
+                      <Animated.Text style={[styles.miniHeaderCountText, styles.miniHeaderCountAbsolute, { opacity: workoutsLabelOpacity }]}>
+                        {formatCount(workouts?.length || 0)} workouts
+                      </Animated.Text>
+                    </View>
+                  </View>
                 ) : null}
               </View>
             </View>
@@ -1738,6 +1787,27 @@ const styles = StyleSheet.create({
   },
   miniHeaderOwnNameBlock: {
     flexShrink: 1,
+  },
+  miniHeaderUsernameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 1,
+  },
+  miniHeaderDot: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.5)',
+  },
+  miniHeaderCountWrap: {
+    position: 'relative',
+  },
+  miniHeaderCountText: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.5)',
+  },
+  miniHeaderCountAbsolute: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
   },
 
   // Sticky Tab Bar
