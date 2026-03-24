@@ -261,9 +261,10 @@ service cloud.firestore {
       allow read: if isAuthenticated() && 
         request.auth.uid in resource.data.participants;
       
-      allow create: if isAuthenticated() && 
+      allow create: if isAuthenticated() &&
         request.auth.uid in request.resource.data.participants &&
-        request.resource.data.participants.size() == 2;
+        (request.resource.data.participants.size() == 2 ||
+         (request.resource.data.participants.size() == 1 && request.resource.data.isAiConversation == true));
       
       allow update: if isAuthenticated() && 
         request.auth.uid in resource.data.participants;

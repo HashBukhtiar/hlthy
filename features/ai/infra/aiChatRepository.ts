@@ -8,6 +8,8 @@ import {
   addDoc,
   deleteDoc,
   getDocs,
+  getDoc,
+  setDoc,
   query,
   orderBy,
   limit,
@@ -134,13 +136,44 @@ function _parseFallbackResponse(text: string, onEvent: StreamCallback): void {
 
 // ── Firestore Message Storage ──────────────────────────────────────────────
 
+/** Track which conversations we've already verified exist in this session. */
+const _verifiedConversations = new Set<string>();
+
+/**
+ * Ensure the AI conversation document exists with the user in participants.
+ * Only checks Firestore once per session per conversation.
+ */
+async function _ensureConversationExists(
+  conversationId: string,
+  uid: string,
+): Promise<void> {
+  if (_verifiedConversations.has(conversationId)) return;
+
+  const convRef = doc(db, 'conversations', conversationId);
+  const snap = await getDoc(convRef);
+
+  if (!snap.exists()) {
+    await setDoc(convRef, {
+      participants: [uid],
+      createdAt: serverTimestamp(),
+      isAiConversation: true,
+    });
+  }
+
+  _verifiedConversations.add(conversationId);
+}
+
 /**
  * Save a message (user or AI) to the Firestore conversation.
+ * Ensures the conversation document exists before saving.
  */
 export async function saveMessage(
   conversationId: string,
   message: Omit<AIMessageWrite, 'createdAt'>,
 ): Promise<string> {
+  // Ensure conversation doc exists (uses sender's uid for participants)
+  await _ensureConversationExists(conversationId, message.senderId);
+
   const ref = await addDoc(
     collection(db, 'conversations', conversationId, 'messages'),
     { ...message, createdAt: serverTimestamp() },
@@ -226,6 +259,7 @@ export async function clearConversationHistory(
 
     // Delete the conversation document
     await deleteDoc(doc(db, 'conversations', conversationId));
+    _verifiedConversations.delete(conversationId);
     return true;
   } catch (err) {
     logger.error('aiChatRepository', 'Failed to clear conversation', err);

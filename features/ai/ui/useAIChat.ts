@@ -113,14 +113,15 @@ export function useAIChat(): UseAIChatReturn {
           // Save the complete AI message to Firestore
           const fullText = streamTextRef.current;
           if (fullText) {
-            saveMessage(conversationId, {
-              senderId: 'ai_coach',
+            const messageData: Parameters<typeof saveMessage>[1] = {
+              senderId: uid,
               text: fullText,
               isAiResponse: true,
-              responseType: localStructuredType ?? undefined,
-              workoutPlan: localStructuredType === 'workout_plan' ? localStructuredData ?? undefined : undefined,
-              profileData: localStructuredType === 'workout_confirmation' ? localStructuredData ?? undefined : undefined,
-            }).catch((err) => {
+            };
+            if (localStructuredType) messageData.responseType = localStructuredType;
+            if (localStructuredType === 'workout_plan' && localStructuredData) messageData.workoutPlan = localStructuredData;
+            if (localStructuredType === 'workout_confirmation' && localStructuredData) messageData.profileData = localStructuredData;
+            saveMessage(conversationId, messageData).catch((err) => {
               logger.error('useAIChat', 'Failed to save AI message', err);
               setError('Failed to save response. Please try again.');
             });

@@ -20,7 +20,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { ACCENT_COLOR } from '@/constants/Colors';
 import { useAIChat } from '@/features/ai/ui/useAIChat';
 import { StreamingBubble } from '@/components/chat/StreamingBubble';
-import MessageRenderer from '@/components/ai/MessageRenderer';
+import { MessageRenderer } from '@/components/ai/MessageRenderer';
 import type { AIMessage } from '@/features/ai/domain/AIMessage';
 
 export default function AIChatScreen() {

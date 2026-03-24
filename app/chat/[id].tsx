@@ -43,7 +43,6 @@ import {
 import { useAuth } from '@/context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import type { IntentClassificationResult } from '@/ai/ai_chat';
 import { SmartChatInput } from '@/components/SmartChatInput';
 import { IntentMessageWrapper } from '@/components/IntentBadge';
 import { calculateImprovementPercentage } from '@/logic/milestoneUtils';
@@ -970,9 +969,9 @@ export default function ChatScreen() {
     }
   };
 
-  const handleSend = async (textToSend: string, preferencesOverride?: any, intentResult?: IntentClassificationResult) => {
+  const handleSend = async (textToSend: string) => {
     Keyboard.dismiss();
-    
+
     if (!textToSend.trim() || !currentUser || !conversationId) {
       return;
     }
@@ -988,11 +987,7 @@ export default function ChatScreen() {
         senderId: currentUser.uid,
         senderUsername: userProfile?.username || currentUser.displayName || currentUser.email?.split('@')[0] || 'User',
       };
-      
-      if (intentResult?.intent) {
-        messageData.intent = intentResult.intent;
-      }
-      
+
       await addDoc(messagesRef, messageData);
 
       // Handle user-to-user DM with message permissions
@@ -1421,7 +1416,6 @@ export default function ChatScreen() {
               disabled={photoUploadProgress}
               conversationId={conversationId}
               otherParticipantId={otherParticipantId}
-              isAiConversation={false}
             />
           </View>
         </View>
