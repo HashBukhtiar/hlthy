@@ -195,18 +195,8 @@ export const WorkoutsTab: React.FC<WorkoutsTabProps> = ({
     );
   }
 
-  if (!workouts || workouts.length === 0) {
-    return (
-      <View style={styles.emptyContainer}>
-        <Text style={{ color: 'gray', textAlign: 'center' }}>
-          No workouts yet. Create or save a workout to see it here.
-        </Text>
-      </View>
-    );
-  }
-
   // Sort workouts by creation date, newest first
-  const sortedWorkoutsData = [...workouts].sort((a, b) => {
+  const sortedWorkoutsData = [...(workouts || [])].sort((a, b) => {
     try {
       const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0);
       const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0);
@@ -219,25 +209,42 @@ export const WorkoutsTab: React.FC<WorkoutsTabProps> = ({
   if (visibleWorkouts.length === 0) {
     return (
       <View style={styles.emptyContainer}>
-        <Text style={{ color: 'gray', textAlign: 'center' }}>
+        <View style={styles.emptyIconContainer}>
+          <LinearGradient
+            colors={['rgba(255,45,85,0.2)', 'rgba(255,45,85,0.05)']}
+            style={styles.emptyIconGradient}
+          >
+            <MaterialCommunityIcons name="dumbbell" size={38} color="#FF2D55" />
+          </LinearGradient>
+        </View>
+        <Text style={styles.emptyTitle}>
+          {isOwnProfile ? 'No Workouts Yet' : 'No Public Workouts'}
+        </Text>
+        <Text style={styles.emptySubtitle}>
           {isOwnProfile
-            ? 'No workouts yet. Create or save a workout to see it here.'
-            : 'No public workouts available yet.'}
+            ? 'Create a workout to share it\nwith your followers'
+            : 'This user hasn\'t shared any\nworkouts publicly yet'}
         </Text>
       </View>
     );
   }
 
   return (
-    <View style={styles.workoutsListSingleColumn}>
-      {visibleWorkouts.map((item) => (
-        <WorkoutListItem 
-          key={item.id.toString()}
-          workout={item}
-          onPress={onWorkoutPress}
-          isOwnProfile={isOwnProfile}
-        />
-      ))}
+    <View style={styles.workoutsContainer}>
+      <View style={styles.workoutsHeader}>
+        <Text style={styles.workoutsHeaderCount}>{visibleWorkouts.length} {visibleWorkouts.length === 1 ? 'Workout' : 'Workouts'}</Text>
+        <View style={styles.workoutsHeaderDivider} />
+      </View>
+      <View style={styles.workoutsListSingleColumn}>
+        {visibleWorkouts.map((item) => (
+          <WorkoutListItem
+            key={item.id.toString()}
+            workout={item}
+            onPress={onWorkoutPress}
+            isOwnProfile={isOwnProfile}
+          />
+        ))}
+      </View>
     </View>
   );
 };
@@ -348,8 +355,30 @@ const styles = StyleSheet.create({
     backgroundColor: '#000',
     marginTop: 8,
   },
+  workoutsContainer: {
+    flex: 1,
+    backgroundColor: '#000',
+  },
+  workoutsHeader: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 12,
+  },
+  workoutsHeaderCount: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+    marginBottom: 10,
+  },
+  workoutsHeaderDivider: {
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    width: '100%',
+  },
   workoutsListSingleColumn: {
-    paddingVertical: 14,
+    paddingVertical: 8,
     paddingHorizontal: 14,
     gap: 12,
   },
