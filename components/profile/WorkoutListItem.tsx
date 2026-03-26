@@ -36,6 +36,12 @@ export const WorkoutListItem: React.FC<WorkoutListItemProps> = ({ workout, onPre
       }, 0)
     : 0;
 
+  const formattedDuration = estimatedMinutes >= 60
+    ? `${Math.floor(estimatedMinutes / 60)}h${estimatedMinutes % 60 > 0 ? ` ${estimatedMinutes % 60}m` : ''}`
+    : estimatedMinutes > 0
+      ? `${estimatedMinutes}m`
+      : null;
+
   const visibilityText = workout.visibility === 'followers'
     ? 'Followers'
     : workout.isPublic
@@ -78,20 +84,16 @@ export const WorkoutListItem: React.FC<WorkoutListItemProps> = ({ workout, onPre
           </Text>
 
           <View style={styles.metaRow}>
+            <Ionicons name="bookmark-outline" size={11} color="rgba(255,255,255,0.48)" />
+            <Text style={styles.metaText}>{workout.savedCount || 0} saves</Text>
+            <Text style={styles.metaDot}>·</Text>
             <Ionicons name="barbell-outline" size={11} color="rgba(255,255,255,0.48)" />
-            <Text style={styles.metaText}>{exercisesCount}</Text>
-            {estimatedMinutes > 0 && (
+            <Text style={styles.metaText}>{exercisesCount} exercises</Text>
+            {formattedDuration && (
               <>
                 <Text style={styles.metaDot}>·</Text>
                 <Ionicons name="time-outline" size={11} color="rgba(255,255,255,0.48)" />
-                <Text style={styles.metaText}>{estimatedMinutes} min</Text>
-              </>
-            )}
-            {(workout.savedCount || 0) > 0 && (
-              <>
-                <Text style={styles.metaDot}>·</Text>
-                <Ionicons name="bookmark-outline" size={11} color="rgba(255,255,255,0.48)" />
-                <Text style={styles.metaText}>{workout.savedCount} saves</Text>
+                <Text style={styles.metaText}>{formattedDuration}</Text>
               </>
             )}
           </View>
