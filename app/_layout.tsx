@@ -38,6 +38,7 @@ export default function RootLayout() {
             <Stack.Screen name="view-post/[id]" options={{ animation: 'fade_from_bottom', gestureEnabled: true }} />
             <Stack.Screen name="view-milestone/[id]" options={{ animation: 'fade_from_bottom', gestureEnabled: true }} />
             <Stack.Screen name="view-profile-card/[userId]" options={{ animation: 'fade_from_bottom', gestureEnabled: true }} />
+            <Stack.Screen name="view-links/[userId]" options={{ animation: 'slide_from_right', gestureEnabled: true }} />
             <Stack.Screen name="workout-plan" />
             <Stack.Screen name="diet-plan" />
             <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
