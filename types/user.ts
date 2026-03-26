@@ -14,6 +14,7 @@ export interface UserProfile {
   // Core Identity
   uid: string;
   username: string;
+  usernameLower?: string; // Normalized lowercase for case-insensitive search
   displayName: string;
   email: string;
   bio: string;

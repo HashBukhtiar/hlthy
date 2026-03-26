@@ -128,7 +128,7 @@ export const WorkoutRepository = {
       visibility: draft.visibility,
       isPublic: draft.visibility === 'public',
       savedCount: 0,
-      tags: [],
+      ...(draft.tags && draft.tags.length > 0 ? { tags: draft.tags } : { tags: [] }),
     };
 
     const docRef = await addDoc(collection(db, 'workouts'), workoutData);

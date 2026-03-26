@@ -44,11 +44,11 @@ export const searchUsersForMention = onCall(
         callerDoc.data()?.blockedUsers || []
       );
 
-      // Prefix query on username field
+      // Prefix query on normalized lowercase username field (case-insensitive search)
       const usersSnap = await db
         .collection("users")
-        .where("username", ">=", lower)
-        .where("username", "<=", lower + "\uf8ff")
+        .where("usernameLower", ">=", lower)
+        .where("usernameLower", "<=", lower + "\uf8ff")
         .limit(30)
         .get();
 
