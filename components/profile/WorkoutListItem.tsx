@@ -29,18 +29,16 @@ export const WorkoutListItem: React.FC<WorkoutListItemProps> = ({ workout, onPre
     ? workout.segments.reduce((count: number, segment: any) => count + (Array.isArray(segment?.exercises) ? segment.exercises.length : 0), 0)
     : 0;
 
-  const estimatedMinutes = Array.isArray(workout.segments)
+  const estimatedMinutes = Array.isArray(workout.segments) && workout.segments.length > 0
     ? workout.segments.reduce((total: number, segment: any) => {
         const value = Number.parseInt(segment?.length, 10);
-        return Number.isFinite(value) ? total + value : total;
+        return total + (Number.isFinite(value) ? value : 45);
       }, 0)
-    : 0;
+    : 45;
 
   const formattedDuration = estimatedMinutes >= 60
     ? `${Math.floor(estimatedMinutes / 60)}h${estimatedMinutes % 60 > 0 ? ` ${estimatedMinutes % 60}m` : ''}`
-    : estimatedMinutes > 0
-      ? `${estimatedMinutes}m`
-      : null;
+    : `${estimatedMinutes}m`;
 
   const visibilityText = workout.visibility === 'followers'
     ? 'Followers'
@@ -89,13 +87,9 @@ export const WorkoutListItem: React.FC<WorkoutListItemProps> = ({ workout, onPre
             <Text style={styles.metaDot}>·</Text>
             <Ionicons name="barbell-outline" size={11} color="rgba(255,255,255,0.48)" />
             <Text style={styles.metaText}>{exercisesCount} exercises</Text>
-            {formattedDuration && (
-              <>
-                <Text style={styles.metaDot}>·</Text>
-                <Ionicons name="time-outline" size={11} color="rgba(255,255,255,0.48)" />
-                <Text style={styles.metaText}>{formattedDuration}</Text>
-              </>
-            )}
+            <Text style={styles.metaDot}>·</Text>
+            <Ionicons name="time-outline" size={11} color="rgba(255,255,255,0.48)" />
+            <Text style={styles.metaText}>{formattedDuration}</Text>
           </View>
 
           <View style={styles.footerRow}>
