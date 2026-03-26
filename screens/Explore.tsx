@@ -133,6 +133,13 @@ export default function Explore() {
 
   const isSearching = searchQuery.trim().length > 0;
 
+  // Reset to Users tab whenever search is cleared
+  useEffect(() => {
+    if (searchQuery.trim().length === 0) {
+      setTabIndex(0);
+    }
+  }, [searchQuery]);
+
   const renderUserResultItem = useCallback(
     (user: UserSearchResult) => (
       <TouchableOpacity
@@ -305,7 +312,10 @@ export default function Explore() {
       </View>
 
       <View style={{ flex: 1 }}>
-        {isSearching ? (
+        <View style={[{ flex: 1, display: isSearching ? 'none' : 'flex' }]}>
+          {renderPostsGrid()}
+        </View>
+        <View style={[{ flex: 1, display: isSearching ? 'flex' : 'none' }]}>
           <TabView
             navigationState={{ index: tabIndex, routes: TABS }}
             renderScene={renderScene}
@@ -313,9 +323,7 @@ export default function Explore() {
             onIndexChange={setTabIndex}
             lazy
           />
-        ) : (
-          renderPostsGrid()
-        )}
+        </View>
       </View>
     </View>
   );
