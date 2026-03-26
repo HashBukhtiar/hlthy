@@ -18,9 +18,9 @@ import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { OptimizedImageLight } from '@/components/OptimizedImage';
 import { ACCENT_COLOR } from '@/constants/Colors';
-import { db, functions } from '@/firebaseConfig';
-import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
-import { httpsCallable } from 'firebase/functions';
+import { db } from '@/firebaseConfig';
+import { collection, getDocs, doc, getDoc } from '@/features/infra/firestore';
+import { httpsCallable, getFunctions } from 'firebase/functions';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'expo-router';
 
@@ -199,7 +199,7 @@ export const FollowersModal: React.FC<FollowersModalProps> = ({
     setRemovingStates(prev => ({ ...prev, [followerUserId]: true }));
     setPendingRemoveUserId(null);
     try {
-      const removeFollowerFn = httpsCallable(functions, 'removeFollower');
+      const removeFollowerFn = httpsCallable(getFunctions(), 'removeFollower');
       await removeFollowerFn({ followerUserId });
       setUsers(prev => prev.filter(u => u.id !== followerUserId));
     } catch (error) {
@@ -222,7 +222,7 @@ export const FollowersModal: React.FC<FollowersModalProps> = ({
     try {
       const isCurrentlyFollowing = followingStates[targetUserId];
       const functionName = isCurrentlyFollowing ? 'unfollowUser' : 'followUser';
-      const followFunction = httpsCallable(functions, functionName);
+      const followFunction = httpsCallable(getFunctions(), functionName);
 
       await followFunction({ targetUserId });
 
