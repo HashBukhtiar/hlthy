@@ -15,6 +15,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import MentionText from '@/components/MentionText';
 import { ACCENT_COLOR } from '@/constants/Colors';
+import type { MentionData } from '@/features/mentions/domain/Mention';
 
 // Interface for individual exercise within a segment
 interface WorkoutExercise {
@@ -34,19 +35,20 @@ interface WorkoutSegment {
 
 // Interface for the full workout data fetched from Firestore
 interface WorkoutData {
-  id: string; 
+  id: string;
   title: string;
   creatorId: string;
   creatorUsername: string;
   coverImageUrl?: string | null;
   thumbnailUrl?: string | null;
-  workoutLength?: string; 
+  workoutLength?: string;
   segments: WorkoutSegment[];
   description: string;
   isPublic: boolean;
   savedCount: number;
   createdAt: Timestamp;
   tags?: string[];
+  mentions?: MentionData[];
 }
 
 export default function ViewWorkout() {
@@ -421,7 +423,7 @@ export default function ViewWorkout() {
         <View style={styles.descriptionContainer}>
           <Text style={styles.descriptionTitle}>Description</Text>
           <View style={styles.descriptionCard}>
-            <MentionText text={workoutData.description} mentions={(workoutData as any).mentions} style={styles.descriptionText} />
+            <MentionText text={workoutData.description} mentions={workoutData.mentions} style={styles.descriptionText} />
           </View>
         </View>
       )}
