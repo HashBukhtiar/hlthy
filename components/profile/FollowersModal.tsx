@@ -501,9 +501,10 @@ export const FollowersModal: React.FC<FollowersModalProps> = ({
                         keyExtractor={(item) => item.id}
                         renderItem={renderUser}
                         contentContainerStyle={styles.listContent}
-                        scrollEnabled={false}
-                        showsVerticalScrollIndicator={false}
+                        scrollEnabled={true}
+                        showsVerticalScrollIndicator={true}
                         ItemSeparatorComponent={() => <View style={styles.separator} />}
+                        nestedScrollEnabled={true}
                       />
                     )}
                   </>
@@ -544,9 +545,10 @@ export const FollowersModal: React.FC<FollowersModalProps> = ({
                         keyExtractor={(item) => item}
                         renderItem={renderTag}
                         contentContainerStyle={styles.listContent}
-                        scrollEnabled={false}
-                        showsVerticalScrollIndicator={false}
+                        scrollEnabled={true}
+                        showsVerticalScrollIndicator={true}
                         ItemSeparatorComponent={() => <View style={styles.separator} />}
+                        nestedScrollEnabled={true}
                       />
                     )}
                   </>
@@ -625,7 +627,9 @@ export const FollowersModal: React.FC<FollowersModalProps> = ({
                     keyExtractor={(item) => item.id}
                     renderItem={renderUser}
                     contentContainerStyle={styles.listContent}
-                    showsVerticalScrollIndicator={false}
+                    showsVerticalScrollIndicator={true}
+                    scrollEnabled={true}
+                    nestedScrollEnabled={true}
                     ItemSeparatorComponent={() => <View style={styles.separator} />}
                   />
                 )}
