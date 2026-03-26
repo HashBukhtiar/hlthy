@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,16 +11,68 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { OptimizedImageLight } from '@/components/OptimizedImage';
-import { useSocialGraph } from '@/features/social/ui/useSocialGraph';
+import { useSocialGraph, SocialGraphItem } from '@/features/social/ui/useSocialGraph';
+import { ACCENT_COLOR } from '@/constants/Colors';
 
 export default function Following() {
   const { userId } = useLocalSearchParams<{ userId: string }>();
   const router = useRouter();
   const { entries, username, loading, error } = useSocialGraph(userId, 'following');
 
-  const handleUserPress = (pressedUserId: string) => {
-    router.push(`/profile/${pressedUserId}`);
-  };
+  const handleUserPress = useCallback(
+    (pressedUserId: string) => {
+      router.push(`/profile/${pressedUserId}`);
+    },
+    [router]
+  );
+
+  const handleTagPress = useCallback(
+    (tagName: string) => {
+      router.push(`/explore/tags/${tagName}`);
+    },
+    [router]
+  );
+
+  const renderItem = useCallback(
+    ({ item }: { item: SocialGraphItem }) => {
+      if (item.type === 'tag') {
+        return (
+          <TouchableOpacity
+            style={styles.tagItem}
+            onPress={() => handleTagPress(item.name)}
+          >
+            <View style={styles.tagIconContainer}>
+              <Text style={styles.tagIcon}>#</Text>
+            </View>
+            <View style={styles.tagInfo}>
+              <Text style={styles.tagName}>#{item.name}</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#666" />
+          </TouchableOpacity>
+        );
+      }
+
+      // User item
+      return (
+        <TouchableOpacity
+          style={styles.userItem}
+          onPress={() => handleUserPress(item.id)}
+        >
+          <OptimizedImageLight
+            thumbnailUrl={item.profileThumbnailUrl}
+            originalUrl={item.profileImageUrl}
+            style={styles.avatar}
+          />
+          <View style={styles.userInfo}>
+            <Text style={styles.username}>{item.username}</Text>
+            <Text style={styles.name}>{item.displayName}</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color="#666" />
+        </TouchableOpacity>
+      );
+    },
+    [handleUserPress, handleTagPress]
+  );
 
   if (loading) {
     return (
@@ -50,24 +102,11 @@ export default function Following() {
       <Text style={styles.subTitle}>Users {username} follows ({entries.length})</Text>
       <FlatList
         data={entries}
-        keyExtractor={item => item.id}
-        renderItem={({ item }) => (
-          <TouchableOpacity style={styles.userItem} onPress={() => handleUserPress(item.id)}>
-            <OptimizedImageLight
-              thumbnailUrl={item.profileThumbnailUrl}
-              originalUrl={item.profileImageUrl}
-              style={styles.avatar}
-            />
-            <View style={styles.userInfo}>
-              <Text style={styles.username}>{item.username}</Text>
-              <Text style={styles.name}>{item.displayName}</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color="#666" />
-          </TouchableOpacity>
-        )}
+        keyExtractor={item => `${item.type}-${item.id}`}
+        renderItem={renderItem}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>Not following anyone yet</Text>
+            <Text style={styles.emptyText}>Not following anyone or any tags yet</Text>
           </View>
         }
       />
@@ -108,6 +147,29 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#222',
   },
+  tagItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#222',
+  },
+  tagIconContainer: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#2e2e2e',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 16,
+  },
+  tagIcon: {
+    color: ACCENT_COLOR,
+    fontSize: 24,
+    fontWeight: '700',
+  },
+  tagInfo: { flex: 1 },
+  tagName: { color: 'white', fontSize: 16 },
   avatar: { width: 50, height: 50, borderRadius: 25, marginRight: 16 },
   userInfo: { flex: 1 },
   username: { color: 'white', fontSize: 16, marginBottom: 3 },
