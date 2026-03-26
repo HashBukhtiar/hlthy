@@ -31,7 +31,8 @@ export function useTagFollow(tagName: string) {
       } else {
         await TagRepository.followTag(currentUser.uid, tagName);
       }
-    } catch {
+    } catch (err) {
+      console.error('Error toggling tag follow:', err);
       setIsFollowing(prev); // revert on error
     }
   }, [currentUser?.uid, tagName, isFollowing, loading]);
