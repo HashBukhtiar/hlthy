@@ -356,8 +356,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#000',
   },
   workoutsListSingleColumn: {
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    gap: 12,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    gap: 8,
   },
 });

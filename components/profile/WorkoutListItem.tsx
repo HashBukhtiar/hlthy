@@ -67,41 +67,38 @@ export const WorkoutListItem: React.FC<WorkoutListItemProps> = ({ workout, onPre
             style={styles.workoutListItemImageStyle}
           />
           <View style={styles.visibilityBadge}>
-            <Ionicons name={visibilityIcon} size={11} color="rgba(255,255,255,0.92)" style={styles.visibilityBadgeIcon} />
+            <Ionicons name={visibilityIcon} size={10} color="rgba(255,255,255,0.92)" style={styles.visibilityBadgeIcon} />
             <Text style={styles.visibilityBadgeText}>{visibilityText}</Text>
           </View>
         </View>
 
         <View style={styles.workoutListItemTextContainerStyle}>
-          <Text style={styles.workoutListItemTitleStyle} numberOfLines={2}>
+          <Text style={styles.workoutListItemTitleStyle} numberOfLines={1}>
             {workout.title || 'Unnamed Workout'}
           </Text>
-          {!!workout.description && (
-            <Text style={styles.workoutListItemDescriptionStyle} numberOfLines={2}>
-              {workout.description}
-            </Text>
-          )}
 
-          <View style={styles.metaChipsRow}>
-            <View style={styles.metaChip}>
-              <Ionicons name="barbell-outline" size={12} color="rgba(255,255,255,0.72)" style={styles.metaChipIcon} />
-              <Text style={styles.metaChipText}>{exercisesCount} exercises</Text>
-            </View>
+          <View style={styles.metaRow}>
+            <Ionicons name="barbell-outline" size={11} color="rgba(255,255,255,0.48)" />
+            <Text style={styles.metaText}>{exercisesCount}</Text>
             {estimatedMinutes > 0 && (
-              <View style={styles.metaChip}>
-                <Ionicons name="time-outline" size={12} color="rgba(255,255,255,0.72)" style={styles.metaChipIcon} />
-                <Text style={styles.metaChipText}>{estimatedMinutes} min</Text>
-              </View>
+              <>
+                <Text style={styles.metaDot}>·</Text>
+                <Ionicons name="time-outline" size={11} color="rgba(255,255,255,0.48)" />
+                <Text style={styles.metaText}>{estimatedMinutes} min</Text>
+              </>
             )}
-            <View style={styles.metaChip}>
-              <Ionicons name="bookmark-outline" size={12} color="rgba(255,255,255,0.72)" style={styles.metaChipIcon} />
-              <Text style={styles.metaChipText}>{workout.savedCount || 0} saves</Text>
-            </View>
+            {(workout.savedCount || 0) > 0 && (
+              <>
+                <Text style={styles.metaDot}>·</Text>
+                <Ionicons name="bookmark-outline" size={11} color="rgba(255,255,255,0.48)" />
+                <Text style={styles.metaText}>{workout.savedCount} saves</Text>
+              </>
+            )}
           </View>
 
           <View style={styles.footerRow}>
             <Text style={styles.workoutListItemMetaStyle}>{formattedDate}</Text>
-            <Ionicons name="chevron-forward" size={15} color="rgba(255,255,255,0.3)" />
+            <Ionicons name="chevron-forward" size={14} color="rgba(255,255,255,0.25)" />
           </View>
         </View>
       </LinearGradient>
@@ -112,8 +109,7 @@ export const WorkoutListItem: React.FC<WorkoutListItemProps> = ({ workout, onPre
 const styles = StyleSheet.create({
   workoutListItemRowStyle: {
     flexDirection: 'row',
-    borderRadius: 18,
-    marginBottom: 12,
+    borderRadius: 14,
     alignItems: 'stretch',
     overflow: 'hidden',
     borderWidth: 1,
@@ -123,86 +119,70 @@ const styles = StyleSheet.create({
   accentBar: {
     width: 3,
     backgroundColor: '#FF2D55',
-    borderTopLeftRadius: 18,
-    borderBottomLeftRadius: 18,
+    borderTopLeftRadius: 14,
+    borderBottomLeftRadius: 14,
   },
   cardGradient: {
     flexDirection: 'row',
-    alignItems: 'stretch',
-    padding: 12,
+    alignItems: 'center',
+    padding: 10,
     flex: 1,
     width: '100%',
   },
   workoutListItemImageWrap: {
     position: 'relative',
-    marginRight: 12,
+    marginRight: 11,
   },
   workoutListItemImageStyle: {
-    width: 92,
-    height: 92,
-    borderRadius: 14,
+    width: 68,
+    height: 68,
+    borderRadius: 10,
     backgroundColor: '#2C2C2E',
   },
   visibilityBadge: {
     position: 'absolute',
-    left: 6,
-    bottom: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    backgroundColor: 'rgba(0,0,0,0.58)',
+    left: 4,
+    bottom: 4,
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderRadius: 8,
+    backgroundColor: 'rgba(0,0,0,0.65)',
     flexDirection: 'row',
     alignItems: 'center',
   },
   visibilityBadgeIcon: {
-    marginRight: 4,
+    marginRight: 3,
   },
   visibilityBadgeText: {
-    color: 'rgba(255,255,255,0.92)',
-    fontSize: 10,
+    color: 'rgba(255,255,255,0.9)',
+    fontSize: 9,
     fontWeight: '600',
   },
   workoutListItemTextContainerStyle: {
     flex: 1,
-    justifyContent: 'space-between',
-    paddingVertical: 2,
+    justifyContent: 'center',
+    gap: 5,
     minWidth: 0,
   },
   workoutListItemTitleStyle: {
     color: '#FFF',
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '700',
-    marginBottom: 4,
+    letterSpacing: -0.2,
   },
-  workoutListItemDescriptionStyle: {
-    color: 'rgba(255,255,255,0.58)',
-    fontSize: 13,
-    lineHeight: 18,
-    marginBottom: 8,
-  },
-  metaChipsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginBottom: 8,
-    marginHorizontal: -3,
-  },
-  metaChip: {
+  metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.07)',
-    borderRadius: 999,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    marginHorizontal: 3,
-    marginBottom: 6,
+    gap: 4,
   },
-  metaChipIcon: {
-    marginRight: 4,
+  metaText: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 12,
+    fontWeight: '500',
   },
-  metaChipText: {
-    color: 'rgba(255,255,255,0.76)',
-    fontSize: 11,
-    fontWeight: '600',
+  metaDot: {
+    color: 'rgba(255,255,255,0.25)',
+    fontSize: 12,
   },
   footerRow: {
     flexDirection: 'row',
@@ -210,8 +190,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   workoutListItemMetaStyle: {
-    color: 'rgba(255,255,255,0.48)',
-    fontSize: 12,
+    color: 'rgba(255,255,255,0.32)',
+    fontSize: 11,
     fontWeight: '500',
   },
 });
