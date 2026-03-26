@@ -292,10 +292,6 @@ export default function Explore() {
 
   return (
     <View style={globalStyles.container}>
-      <View style={styles.headerContainer}>
-        <Text style={globalStyles.title}>Explore</Text>
-      </View>
-
       {/* Search bar */}
       <View style={styles.searchBarView}>
         <TextInput
@@ -334,14 +330,10 @@ export default function Explore() {
 }
 
 const styles = StyleSheet.create({
-  headerContainer: {
-    paddingTop: 10,
-    paddingHorizontal: 15,
-    paddingBottom: 5,
-  },
   searchBarView: {
+    paddingTop: 4,
     paddingHorizontal: 15,
-    marginBottom: 10,
+    paddingBottom: 8,
     flexDirection: 'row',
     alignItems: 'center',
   },
