@@ -231,10 +231,6 @@ export const WorkoutsTab: React.FC<WorkoutsTabProps> = ({
 
   return (
     <View style={styles.workoutsContainer}>
-      <View style={styles.workoutsHeader}>
-        <Text style={styles.workoutsHeaderCount}>{visibleWorkouts.length} {visibleWorkouts.length === 1 ? 'Workout' : 'Workouts'}</Text>
-        <View style={styles.workoutsHeaderDivider} />
-      </View>
       <View style={styles.workoutsListSingleColumn}>
         {visibleWorkouts.map((item) => (
           <WorkoutListItem
