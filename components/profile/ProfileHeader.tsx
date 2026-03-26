@@ -33,6 +33,7 @@ interface ProfileHeaderProps {
   canGoBack: boolean;
   onBack: () => void;
   onSettings: () => void;
+  onEditProfile: () => void;
   onMoreOptions: () => void;
   onOwnMoreOptions: () => void;
   onDirectMessage: () => void;
@@ -59,6 +60,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
   canGoBack,
   onBack,
   onSettings,
+  onEditProfile,
   onMoreOptions,
   onOwnMoreOptions,
   onDirectMessage,
@@ -248,7 +250,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.editProfileButton}
-                  onPress={onSettings}
+                  onPress={onEditProfile}
                   activeOpacity={0.85}
                 >
                   <Text style={styles.editProfileButtonText}>Edit Profile</Text>

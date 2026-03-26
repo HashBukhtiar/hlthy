@@ -29,6 +29,8 @@ export default function RootLayout() {
             <Stack.Screen name="dms" options={{ gestureEnabled: true, animation: 'slide_from_right' }} />
             <Stack.Screen name="explore" options={{ gestureEnabled: true, animation: 'slide_from_right' }} />
             <Stack.Screen name="settings" options={{ gestureEnabled: true, animation: 'slide_from_right' }} />
+            <Stack.Screen name="edit-profile" options={{ gestureEnabled: true, animation: 'slide_from_right' }} />
+            <Stack.Screen name="settings-notifications" options={{ gestureEnabled: true, animation: 'slide_from_right' }} />
             
             {/* Other screens */}
             <Stack.Screen name="signup" />

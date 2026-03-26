@@ -342,6 +342,10 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
     router.push('/settings');
   };
 
+  const handleEditProfilePress = () => {
+    router.push('/edit-profile');
+  };
+
   const handleOwnMoreOptions = useCallback(() => {
     setShowOwnActionMenu(true);
   }, []);
@@ -602,6 +606,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
           canGoBack={router.canGoBack()}
           onBack={() => router.back()}
           onSettings={handleSettingsPress}
+          onEditProfile={handleEditProfilePress}
           onMoreOptions={profileActions.showMoreOptions}
           onOwnMoreOptions={handleOwnMoreOptions}
           onDirectMessage={profileActions.handleDirectMessage}
