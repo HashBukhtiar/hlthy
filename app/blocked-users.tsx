@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/context/AuthContext';
-import { doc, updateDoc, arrayRemove, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, updateDoc, arrayRemove, collection, query, where, getDocs } from '@/features/infra/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { db, app } from '@/firebaseConfig';
 import { getOptimalImageUrl } from '@/utils/imageUtils';

@@ -1,7 +1,7 @@
 import { ImageSourcePropType } from 'react-native';
 import { ref, deleteObject } from 'firebase/storage';
 import { storage, db } from '@/firebaseConfig';
-import { doc, deleteDoc } from 'firebase/firestore';
+import { doc, deleteDoc } from '@/features/infra/firestore';
 import hlthyLogo from '@/assets/images/icon.png';
 
 export const DEFAULT_PROFILE_IMAGE = 'https://thumbs.dreamstime.com/b/creative-illustration-default-avatar-profile-placeholder-isolated-background-art-design-grey-photo-blank-template-mockup-144855718.jpg';

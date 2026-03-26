@@ -2,7 +2,7 @@ import { Redirect } from 'expo-router';
 import { useState, useEffect } from 'react';
 import { View, ActivityIndicator, Platform, Text } from 'react-native';
 import { auth } from '@/firebaseConfig';
-import { onAuthStateChanged, signInWithEmailAndPassword, setPersistence, browserSessionPersistence } from 'firebase/auth';
+import { onAuthStateChanged, signInWithEmailAndPassword, setPersistence, browserSessionPersistence } from '@/features/auth/ui/useSession';
 import { devFlags } from '@/config/devFlags';
 
 const { bypassAuth: BYPASS_AUTH, devEmail: DEV_EMAIL, devPassword: DEV_PASSWORD } = devFlags;

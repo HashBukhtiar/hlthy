@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { useRouter, useSegments } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { auth } from '@/firebaseConfig';
-import { reload, signOut } from 'firebase/auth';
+import { reload, signOut } from '@/features/auth/ui/useSession';
 import { useAuth } from '@/context/AuthContext';
 import CustomSpinner from '@/components/CustomSpinner';
 import AuthBackground from '@/components/AuthBackground';

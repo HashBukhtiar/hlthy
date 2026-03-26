@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, FlatList, TouchableOpacity, Image, StyleSheet, ActivityIndicator } from 'react-native';
 import { useAuth } from '@/context/AuthContext';
 import { db } from '@/firebaseConfig';
-import { collection, getDocs, doc, getDoc, Timestamp } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, Timestamp } from '@/features/infra/firestore';
 import { useRouter } from 'expo-router';
 
 interface UserConversationData {

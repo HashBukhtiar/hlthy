@@ -16,7 +16,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { shareModalStyles } from '@/styles/shareModalStyles';
 import { OptimizedImageLight } from '@/components/OptimizedImage';
-import { collection, query, where, getDocs, limit, orderBy } from 'firebase/firestore';
+import { collection, query, where, getDocs, limit, orderBy } from '@/features/infra/firestore';
 import { db } from '@/firebaseConfig';
 import { debounce } from 'lodash';
 import { useBlockEnforcement } from '@/utils/blockUtils';

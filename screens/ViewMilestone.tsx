@@ -8,7 +8,7 @@ import ShareModal from '@/components/ShareModal';
 import { shareMilestone } from '@/services/ShareService';
 import { useAuth } from '@/context/AuthContext';
 import { usePostsData } from '@/hooks/usePostsData';
-import { doc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, deleteDoc } from '@/features/infra/firestore';
 import { db } from '@/firebaseConfig';
 import { calculateImprovementPercentage } from '@/logic/milestoneUtils';
 import { getOptimalImageUrl } from '@/utils/imageUtils';

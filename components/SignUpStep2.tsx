@@ -16,7 +16,7 @@ import {
 import { TextInput } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { getFirestore, collection, query, where, getDocs } from 'firebase/firestore';
+import { getFirestore, collection, query, where, getDocs } from '@/features/infra/firestore';
 import LoadingOverlay from '@/components/LoadingOverlay';
 
 interface SignUpStep2Props {

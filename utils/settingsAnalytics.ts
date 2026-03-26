@@ -1,4 +1,7 @@
 import { UserSettings } from '@/types/settings';
+import { getFirestore, doc, updateDoc, increment } from '@/features/infra/firestore';
+
+const db = getFirestore();
 
 // Helper function to calculate accurate age from date of birth
 const calculateAge = (dateOfBirth: Date | string): number | null => {
