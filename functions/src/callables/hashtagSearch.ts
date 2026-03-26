@@ -40,13 +40,13 @@ export const searchHashtags = onCall(
 
     try {
       // Prefix query: name >= normalized && name <= normalized + "\uf8ff"
+      // Results ordered alphabetically for search/autocomplete UX
       const snapshot = await db
         .collection('hashtags')
         .where('name', '>=', normalized)
         .where('name', '<=', normalized + '\uf8ff')
         .where('isBanned', '==', false)
         .orderBy('name')
-        .orderBy('postCount', 'desc')
         .limit(20)
         .get();
 
