@@ -355,24 +355,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#000',
   },
-  workoutsHeader: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 12,
-  },
-  workoutsHeaderCount: {
-    color: '#FFF',
-    fontSize: 16,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
-    marginBottom: 10,
-  },
-  workoutsHeaderDivider: {
-    height: 1,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    width: '100%',
-  },
   workoutsListSingleColumn: {
     paddingVertical: 8,
     paddingHorizontal: 14,
