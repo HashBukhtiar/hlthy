@@ -241,14 +241,18 @@ export default function Explore() {
 
   const renderTabBar = useCallback(
     (props: any) => (
-      <TabBar
-        {...props}
-        style={styles.tabBar}
-        indicatorStyle={styles.tabIndicator}
-        labelStyle={styles.tabLabel}
-        activeColor="#FFF"
-        inactiveColor="#8E8E93"
-      />
+      <View style={{ paddingHorizontal: 15, backgroundColor: '#000' }}>
+        <TabBar
+          {...props}
+          style={[styles.tabBar, { height: 48 }]}
+          indicatorStyle={styles.tabIndicator}
+          labelStyle={styles.tabLabel}
+          activeColor="#FFF"
+          inactiveColor="#666"
+          pressColor="transparent"
+          scrollEnabled={false}
+        />
+      </View>
     ),
     []
   );
@@ -356,18 +360,20 @@ const styles = StyleSheet.create({
     right: 26,
   },
   tabBar: {
-    backgroundColor: '#1C1C1E',
-    borderBottomWidth: 1,
-    borderBottomColor: '#2C2C2E',
+    backgroundColor: 'transparent',
+    borderBottomWidth: 0,
   },
   tabIndicator: {
     backgroundColor: ACCENT_COLOR,
-    height: 2,
+    height: 3,
+    borderRadius: 1.5,
+    bottom: 0,
   },
   tabLabel: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '700',
     textTransform: 'none',
+    letterSpacing: 0.5,
   },
   resultItem: {
     flexDirection: 'row',
