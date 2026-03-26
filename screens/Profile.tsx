@@ -716,14 +716,14 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
               router.push(`/view-profile-card/${viewedProfileId}`);
             },
           },
-          ...(processedProfileData?.socialLinks && Object.entries(processedProfileData.socialLinks).some(([k, v]) => k !== 'showLinksToFollowersOnly' && k !== 'customLabel' && typeof v === 'string' && v) ? [{
-            icon: "link-outline" as const,
+          {
+            icon: "link-outline",
             label: "View Links",
             sublabel: "See their social profiles",
             color: "#30D158",
             backgroundColor: "rgba(48, 209, 88, 0.22)",
             onPress: () => router.push(`/view-links/${viewedProfileId}`),
-          }] : []),
+          },
           {
             icon: "chatbubble-outline",
             label: "Message",
@@ -775,14 +775,14 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
               router.push(`/view-profile-card/${viewedProfileId}`);
             },
           },
-          ...(processedProfileData?.socialLinks && Object.entries(processedProfileData.socialLinks).some(([k, v]) => k !== 'showLinksToFollowersOnly' && k !== 'customLabel' && typeof v === 'string' && v) ? [{
-            icon: "link-outline" as const,
+          {
+            icon: "link-outline",
             label: "View Links",
             sublabel: "See your social profiles",
             color: "#30D158",
             backgroundColor: "rgba(48, 209, 88, 0.22)",
             onPress: () => router.push(`/view-links/${viewedProfileId}`),
-          }] : []),
+          },
           {
             icon: "share-outline",
             label: "Share Profile",
