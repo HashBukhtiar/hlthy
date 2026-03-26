@@ -100,10 +100,8 @@ export const TagInput: React.FC<TagInputProps> = ({ tags, onTagsChange }) => {
   const handleInputSubmit = useCallback(
     (text: string) => {
       if (dropdownOptions.length > 0) {
-        // If there's exactly one option, use it
-        if (dropdownOptions.length === 1) {
-          addTag(dropdownOptions[0].name);
-        }
+        // Use the top suggestion (first option)
+        addTag(dropdownOptions[0].name);
       } else if (text.trim()) {
         // Fallback: try to add raw text
         addTag(text);

@@ -28,6 +28,7 @@ function mapDocToWorkoutListItem(id: string, data: Record<string, unknown>): Wor
     coverImageUrl: (data.coverImageUrl as string | undefined) ?? null,
     thumbnailUrl: (data.thumbnailUrl as string | undefined) ?? null,
     savedCount: (data.savedCount as number | undefined) ?? 0,
+    isPublic: (data.isPublic as boolean | undefined) ?? false,
   };
 }
 
