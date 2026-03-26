@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -22,6 +22,7 @@ import { db, functions } from '@/firebaseConfig';
 import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { useAuth } from '@/context/AuthContext';
+import { useRouter } from 'expo-router';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -45,6 +46,8 @@ interface FollowersModalProps {
   viewingOwnFollowers?: boolean;
 }
 
+type ExpandedSection = 'people' | 'hashtags';
+
 export const FollowersModal: React.FC<FollowersModalProps> = ({
   visible,
   onClose,
@@ -54,7 +57,9 @@ export const FollowersModal: React.FC<FollowersModalProps> = ({
   viewingOwnFollowers = false,
 }) => {
   const { currentUser } = useAuth();
+  const router = useRouter();
   const [users, setUsers] = useState<User[]>([]);
+  const [tags, setTags] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [slideAnim] = useState(new Animated.Value(SCREEN_HEIGHT));
@@ -63,6 +68,7 @@ export const FollowersModal: React.FC<FollowersModalProps> = ({
   const [pendingRemoveUserId, setPendingRemoveUserId] = useState<string | null>(null);
   const [removingStates, setRemovingStates] = useState<Record<string, boolean>>({});
   const [unfollowSuggestionUserId, setUnfollowSuggestionUserId] = useState<string | null>(null);
+  const [expandedSection, setExpandedSection] = useState<ExpandedSection>('people');
 
   const panResponder = useMemo(
     () =>
@@ -137,6 +143,17 @@ export const FollowersModal: React.FC<FollowersModalProps> = ({
       );
       setUsers(usersData);
 
+      // Fetch followed tags if this is the following modal and we're viewing current user's profile
+      if (type === 'following' && userId === currentUser?.uid) {
+        try {
+          const tagsSnapshot = await getDocs(collection(db, 'users', userId, 'followedTags'));
+          const tagNames = tagsSnapshot.docs.map(doc => doc.id);
+          setTags(tagNames);
+        } catch (err) {
+          console.error('Error fetching followed tags:', err);
+        }
+      }
+
       // Check following status for each user
       if (currentUser) {
         const followingStatusMap: Record<string, boolean> = {};
@@ -173,6 +190,8 @@ export const FollowersModal: React.FC<FollowersModalProps> = ({
     setSearchQuery('');
     setPendingRemoveUserId(null);
     setUnfollowSuggestionUserId(null);
+    setExpandedSection('people');
+    setTags([]);
     onClose();
   };
 
@@ -307,6 +326,32 @@ export const FollowersModal: React.FC<FollowersModalProps> = ({
     );
   };
 
+  const renderTag = useCallback(
+    ({ item: tagName }: { item: string }) => {
+      return (
+        <TouchableOpacity
+          style={styles.tagItem}
+          onPress={() => {
+            handleClose();
+            router.push(`/explore/tags/${tagName}`);
+          }}
+          activeOpacity={0.7}
+        >
+          <View style={styles.tagIconContainer}>
+            <Text style={styles.tagIconText}>#</Text>
+          </View>
+          <View style={styles.tagInfo}>
+            <Text style={styles.tagName} numberOfLines={1}>
+              {tagName}
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color="#666" />
+        </TouchableOpacity>
+      );
+    },
+    []
+  );
+
   return (
     <Modal
       visible={visible}
@@ -384,81 +429,207 @@ export const FollowersModal: React.FC<FollowersModalProps> = ({
               </View>
             </View>
 
-            {/* Divider and People Count */}
+            {/* Divider */}
             <View style={styles.divider} />
-            {!loading && filteredUsers.length > 0 && (
-              <View style={styles.peopleCountContainer}>
-                <Text style={styles.peopleCountText}>
-                  {filteredUsers.length} {filteredUsers.length === 1 ? 'PERSON' : 'PEOPLE'}
-                </Text>
-              </View>
-            )}
 
-            {/* Unfollow Suggestion Banner */}
-            {unfollowSuggestionUserId && (
-              <View style={styles.suggestionBanner}>
-                <View style={styles.suggestionTextContainer}>
-                  <Text style={styles.suggestionTitle} numberOfLines={1}>
-                    @{users.find(u => u.id === unfollowSuggestionUserId)?.username} still follows you
-                  </Text>
-                  <Text style={styles.suggestionSubtitle}>Remove them as a follower?</Text>
-                </View>
-                <View style={styles.suggestionActions}>
-                  <TouchableOpacity
-                    style={styles.suggestionIgnoreBtn}
-                    onPress={() => setUnfollowSuggestionUserId(null)}
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  >
-                    <Ionicons name="close" size={16} color="#888" />
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.suggestionRemoveBtn}
-                    onPress={() => {
-                      setPendingRemoveUserId(unfollowSuggestionUserId);
-                      setUnfollowSuggestionUserId(null);
-                    }}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.suggestionRemoveTxt}>Remove</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            )}
+            {/* For "following" type with tags, show collapsable sections */}
+            {type === 'following' && tags.length > 0 ? (
+              <>
+                {/* People Section */}
+                <TouchableOpacity
+                  style={styles.sectionHeader}
+                  onPress={() => setExpandedSection(expandedSection === 'people' ? 'hashtags' : 'people')}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.sectionHeaderContent}>
+                    <Ionicons
+                      name={expandedSection === 'people' ? 'chevron-up' : 'chevron-down'}
+                      size={20}
+                      color="white"
+                    />
+                    <Text style={styles.sectionTitle}>
+                      {users.length} {users.length === 1 ? 'PERSON' : 'PEOPLE'}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
 
-            {loading ? (
-              <View style={styles.centerContainer}>
-                <ActivityIndicator size="large" color={ACCENT_COLOR} />
-                <Text style={styles.loadingText}>Loading {type}...</Text>
-              </View>
-            ) : filteredUsers.length === 0 ? (
-              <View style={styles.centerContainer}>
-                <View style={styles.emptyIconContainer}>
-                  <Ionicons
-                    name={searchQuery ? 'search-outline' : 'people-outline'}
-                    size={48}
-                    color="#444"
-                  />
-                </View>
-                <Text style={styles.emptyTitle}>
-                  {searchQuery ? 'No results found' : `No ${type} yet`}
-                </Text>
-                <Text style={styles.emptySubtitle}>
-                  {searchQuery
-                    ? 'Try adjusting your search'
-                    : type === 'followers'
-                    ? 'People who follow this profile will appear here'
-                    : 'Accounts this profile follows will appear here'}
-                </Text>
-              </View>
+                {expandedSection === 'people' && (
+                  <>
+                    {/* Unfollow Suggestion Banner */}
+                    {unfollowSuggestionUserId && (
+                      <View style={styles.suggestionBanner}>
+                        <View style={styles.suggestionTextContainer}>
+                          <Text style={styles.suggestionTitle} numberOfLines={1}>
+                            @{users.find(u => u.id === unfollowSuggestionUserId)?.username} still follows you
+                          </Text>
+                          <Text style={styles.suggestionSubtitle}>Remove them as a follower?</Text>
+                        </View>
+                        <View style={styles.suggestionActions}>
+                          <TouchableOpacity
+                            style={styles.suggestionIgnoreBtn}
+                            onPress={() => setUnfollowSuggestionUserId(null)}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          >
+                            <Ionicons name="close" size={16} color="#888" />
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={styles.suggestionRemoveBtn}
+                            onPress={() => {
+                              setPendingRemoveUserId(unfollowSuggestionUserId);
+                              setUnfollowSuggestionUserId(null);
+                            }}
+                            activeOpacity={0.7}
+                          >
+                            <Text style={styles.suggestionRemoveTxt}>Remove</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    )}
+
+                    {loading ? (
+                      <View style={styles.centerContainer}>
+                        <ActivityIndicator size="large" color={ACCENT_COLOR} />
+                        <Text style={styles.loadingText}>Loading people...</Text>
+                      </View>
+                    ) : filteredUsers.length === 0 ? (
+                      <View style={styles.emptyContainer}>
+                        <Text style={styles.emptySubtitle}>Not following anyone yet</Text>
+                      </View>
+                    ) : (
+                      <FlatList
+                        data={filteredUsers}
+                        keyExtractor={(item) => item.id}
+                        renderItem={renderUser}
+                        contentContainerStyle={styles.listContent}
+                        scrollEnabled={false}
+                        showsVerticalScrollIndicator={false}
+                        ItemSeparatorComponent={() => <View style={styles.separator} />}
+                      />
+                    )}
+                  </>
+                )}
+
+                {/* Hashtags Section */}
+                <TouchableOpacity
+                  style={styles.sectionHeader}
+                  onPress={() => setExpandedSection(expandedSection === 'hashtags' ? 'people' : 'hashtags')}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.sectionHeaderContent}>
+                    <Ionicons
+                      name={expandedSection === 'hashtags' ? 'chevron-up' : 'chevron-down'}
+                      size={20}
+                      color="white"
+                    />
+                    <Text style={styles.sectionTitle}>
+                      {tags.length} {tags.length === 1 ? 'HASHTAG' : 'HASHTAGS'}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+
+                {expandedSection === 'hashtags' && (
+                  <>
+                    {loading ? (
+                      <View style={styles.centerContainer}>
+                        <ActivityIndicator size="large" color={ACCENT_COLOR} />
+                        <Text style={styles.loadingText}>Loading hashtags...</Text>
+                      </View>
+                    ) : tags.length === 0 ? (
+                      <View style={styles.emptyContainer}>
+                        <Text style={styles.emptySubtitle}>Not following any hashtags yet</Text>
+                      </View>
+                    ) : (
+                      <FlatList
+                        data={tags}
+                        keyExtractor={(item) => item}
+                        renderItem={renderTag}
+                        contentContainerStyle={styles.listContent}
+                        scrollEnabled={false}
+                        showsVerticalScrollIndicator={false}
+                        ItemSeparatorComponent={() => <View style={styles.separator} />}
+                      />
+                    )}
+                  </>
+                )}
+              </>
             ) : (
-              <FlatList
-                data={filteredUsers}
-                keyExtractor={(item) => item.id}
-                renderItem={renderUser}
-                contentContainerStyle={styles.listContent}
-                showsVerticalScrollIndicator={false}
-                ItemSeparatorComponent={() => <View style={styles.separator} />}
-              />
+              <>
+                {/* Default view for followers or following without tags */}
+                {!loading && filteredUsers.length > 0 && (
+                  <View style={styles.peopleCountContainer}>
+                    <Text style={styles.peopleCountText}>
+                      {filteredUsers.length} {filteredUsers.length === 1 ? 'PERSON' : 'PEOPLE'}
+                    </Text>
+                  </View>
+                )}
+
+                {/* Unfollow Suggestion Banner */}
+                {unfollowSuggestionUserId && (
+                  <View style={styles.suggestionBanner}>
+                    <View style={styles.suggestionTextContainer}>
+                      <Text style={styles.suggestionTitle} numberOfLines={1}>
+                        @{users.find(u => u.id === unfollowSuggestionUserId)?.username} still follows you
+                      </Text>
+                      <Text style={styles.suggestionSubtitle}>Remove them as a follower?</Text>
+                    </View>
+                    <View style={styles.suggestionActions}>
+                      <TouchableOpacity
+                        style={styles.suggestionIgnoreBtn}
+                        onPress={() => setUnfollowSuggestionUserId(null)}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      >
+                        <Ionicons name="close" size={16} color="#888" />
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.suggestionRemoveBtn}
+                        onPress={() => {
+                          setPendingRemoveUserId(unfollowSuggestionUserId);
+                          setUnfollowSuggestionUserId(null);
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={styles.suggestionRemoveTxt}>Remove</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                )}
+
+                {loading ? (
+                  <View style={styles.centerContainer}>
+                    <ActivityIndicator size="large" color={ACCENT_COLOR} />
+                    <Text style={styles.loadingText}>Loading {type}...</Text>
+                  </View>
+                ) : filteredUsers.length === 0 ? (
+                  <View style={styles.centerContainer}>
+                    <View style={styles.emptyIconContainer}>
+                      <Ionicons
+                        name={searchQuery ? 'search-outline' : 'people-outline'}
+                        size={48}
+                        color="#444"
+                      />
+                    </View>
+                    <Text style={styles.emptyTitle}>
+                      {searchQuery ? 'No results found' : `No ${type} yet`}
+                    </Text>
+                    <Text style={styles.emptySubtitle}>
+                      {searchQuery
+                        ? 'Try adjusting your search'
+                        : type === 'followers'
+                        ? 'People who follow this profile will appear here'
+                        : 'Accounts this profile follows will appear here'}
+                    </Text>
+                  </View>
+                ) : (
+                  <FlatList
+                    data={filteredUsers}
+                    keyExtractor={(item) => item.id}
+                    renderItem={renderUser}
+                    contentContainerStyle={styles.listContent}
+                    showsVerticalScrollIndicator={false}
+                    ItemSeparatorComponent={() => <View style={styles.separator} />}
+                  />
+                )}
+              </>
             )}
           </BlurView>
 
@@ -508,7 +679,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    height: SCREEN_HEIGHT * 0.85,
+    height: SCREEN_HEIGHT * 0.9,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     overflow: 'hidden',
@@ -865,5 +1036,56 @@ const styles = StyleSheet.create({
   },
   followIcon: {
     marginRight: -1,
+  },
+  sectionHeader: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+  },
+  sectionHeaderContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  sectionTitle: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+  },
+  tagItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+  },
+  tagIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  tagIconText: {
+    color: ACCENT_COLOR,
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  tagInfo: {
+    flex: 1,
+  },
+  tagName: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  emptyContainer: {
+    paddingVertical: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
