@@ -9,8 +9,10 @@ import {
   Image,
   FlatList,
   Animated,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { TabView, TabBar } from 'react-native-tab-view';
 import globalStyles from '@/styles/globalStyles';
@@ -116,6 +118,7 @@ const TABS = [
 
 export default function Explore() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const {
     searchQuery,
     searchResults,
@@ -293,7 +296,7 @@ export default function Explore() {
   return (
     <View style={globalStyles.container}>
       {/* Search bar */}
-      <View style={styles.searchBarView}>
+      <View style={[styles.searchBarView, { paddingTop: insets.top }]}>
         <TextInput
           placeholder="Search users and tags..."
           style={[styles.searchBar, { color: 'white' }]}
@@ -331,7 +334,7 @@ export default function Explore() {
 
 const styles = StyleSheet.create({
   searchBarView: {
-    paddingTop: 4,
+    paddingTop: Platform.OS === 'android' ? 24 : 4,
     paddingHorizontal: 15,
     paddingBottom: 8,
     flexDirection: 'row',
