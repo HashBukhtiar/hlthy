@@ -11,6 +11,7 @@ import {
   DocumentData,
   onSnapshot,
   where,
+  Timestamp,
 } from 'firebase/firestore';
 import { db } from '@/firebaseConfig';
 import { Post } from '@/hooks/usePostsData';
@@ -236,5 +237,70 @@ export const FeedRepository = {
       cancelled = true;
       unsubscribe();
     };
+  },
+
+  /**
+   * Fetches and enriches posts from multiple tags for feed injection.
+   * For each tag, fetches recent posts within the lookback window, then sorts
+   * all results client-side by reactionCount desc before enrichment.
+   * Returns a flat, deduplicated array of enriched posts tagged with
+   * `injectedFromTag` indicating which tag sourced each post.
+   */
+  async fetchTagPostsForFeed(
+    uid: string,
+    tagNames: string[],
+    postsPerTag: number,
+    daysBack: number
+  ): Promise<Array<FeedPost & { injectedFromTag: string }>> {
+    if (tagNames.length === 0) return [];
+
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - daysBack);
+    const cutoffTimestamp = Timestamp.fromDate(cutoff);
+
+    // Fetch posts for each tag in parallel. Over-fetch so we can sort by
+    // reactionCount client-side without needing a complex composite index.
+    const perTagLimit = Math.max(postsPerTag, 20);
+    const tagResults = await Promise.allSettled(
+      tagNames.map(tagName =>
+        getDocs(
+          query(
+            collection(db, 'posts'),
+            where('tags', 'array-contains', tagName),
+            where('visibility', '==', 'public'),
+            where('createdAt', '>=', cutoffTimestamp),
+            orderBy('createdAt', 'desc'),
+            limit(perTagLimit)
+          )
+        ).then(snap =>
+          snap.docs.map(d => ({ id: d.id, ...(d.data() as object), _srcTag: tagName }))
+        )
+      )
+    );
+
+    // Flatten, deduplicate by postId, exclude the current user's own posts.
+    const seen = new Set<string>();
+    const tagByPostId = new Map<string, string>();
+    const combined: Array<Post & { id: string }> = [];
+
+    for (const result of tagResults) {
+      if (result.status !== 'fulfilled') continue;
+      for (const post of result.value as Array<Post & { id: string; _srcTag: string }>) {
+        if (seen.has(post.id) || post.authorId === uid) continue;
+        seen.add(post.id);
+        tagByPostId.set(post.id, post._srcTag);
+        combined.push(post);
+      }
+    }
+
+    // Sort by reactionCount descending, then enrich.
+    combined.sort((a, b) => ((b as any).reactionCount ?? 0) - ((a as any).reactionCount ?? 0));
+
+    const enriched = await enrichPosts(combined, uid);
+
+    return enriched.map(p => ({
+      ...p,
+      injectedFromTag: tagByPostId.get(p.id) ?? '',
+    }));
   },
 };

@@ -352,3 +352,185 @@ docs/features/feed.md                       — update Post type
 - Tag-based notifications
 - Tags in comments or replies
 - In-app admin UI for banning tags (managed via Firestore console)
+
+---
+---
+
+# Tag Following & Explore Tag Search (Phase 2)
+
+> **What this section covers:** Two new features built on top of the tag foundation above.
+> 1. Users can follow tags. Followed tags inject popular posts into the home feed (PostsFeed).
+> 2. The Explore search bar gains a swipeable Users/Tags tab UI, and a dedicated tag feed screen is built.
+
+---
+
+## Feature 1: Tag Following
+
+### Data Model
+
+**New Firestore subcollection:** `users/{uid}/followedTags/{tagName}`
+
+```
+followedAt: Timestamp   — when the user followed this tag
+tagName:    string      — normalized tag name (same as doc ID, no #)
+```
+
+Mirrors the existing `users/{uid}/following` pattern. Point reads are cheap; listing followed tags is a single collection fetch.
+
+### Repository: `TagRepository` additions
+
+**File:** `features/tags/infra/tagRepository.ts`
+
+```typescript
+followTag(uid: string, tagName: string): Promise<void>
+unfollowTag(uid: string, tagName: string): Promise<void>
+isFollowingTag(uid: string, tagName: string): Promise<boolean>
+fetchFollowedTags(uid: string): Promise<string[]>   // returns array of tagNames
+```
+
+Also add to `FeedRepository` (or `tagRepository.ts` — wherever tag-feed queries live):
+
+```typescript
+// Fetch popular posts for a tag within a lookback window, sorted by reactions
+fetchTagFeedPosts(
+  tagName: string,
+  limit: number,
+  daysBack: number,
+  cursor?: QueryDocumentSnapshot
+): Promise<{ posts: Post[]; cursor: QueryDocumentSnapshot | null }>
+```
+
+Firestore query: `posts` where `tags` array-contains `tagName`, `createdAt >= now - daysBack days`, ordered by `reactionCount` desc.
+
+### New Hooks
+
+**`features/tags/ui/useFollowedTags.ts`**
+- Fetches `fetchFollowedTags(uid)` once on mount
+- Returns `{ followedTags: string[], loading: boolean }`
+
+**`features/tags/ui/useTagFollow.ts`**
+- Props: `tagName: string`
+- Returns `{ isFollowing: boolean, toggle: () => void, loading: boolean }`
+- Optimistic update: flip `isFollowing` immediately, revert on error
+
+### Feed Injection (PostsFeed)
+
+**Configuration constants** — add to `features/tags/domain/Tag.ts`, easy to adjust:
+
+```typescript
+export const TAG_INJECTION_MIN = 4;   // inject a tag post after at least this many regular posts
+export const TAG_INJECTION_MAX = 7;   // inject a tag post after at most this many regular posts
+export const TAG_FEED_LOOKBACK_DAYS = 30;   // how far back to look for popular tag posts
+export const TAG_FEED_POSTS_PER_TAG = 15;   // how many posts to prefetch per followed tag
+```
+
+**Strategy (simple / upfront fetch):**
+
+1. When the feed loads, `useFollowedTags` fetches the user's followed tags.
+2. For each followed tag, call `fetchTagFeedPosts(tagName, TAG_FEED_POSTS_PER_TAG, TAG_FEED_LOOKBACK_DAYS)` once upfront. Results are pooled into a single `tagPostPool: TagInjectedPost[]` array.
+3. Posts already present in the regular feed (matched by `postId`) are removed from the pool — **no post appears twice**.
+4. A `nextInjectionOffset` counter is initialized to `randomBetween(TAG_INJECTION_MIN, TAG_INJECTION_MAX)`.
+5. As the regular feed renders, when post index equals `nextInjectionOffset`, one post is shifted off the pool and inserted. `nextInjectionOffset` increments by another random value in range.
+6. If the pool is exhausted, injection stops silently — no loading state, no gap in the feed.
+7. The pool is **not** refreshed on scroll — it is fetched once per feed session (simple, avoids mid-scroll loading).
+
+**In-memory wrapper type** (not stored in Firestore):
+
+```typescript
+interface TagInjectedPost extends Post {
+  injectedFromTag: string;   // tagName, used to render the attribution label
+}
+```
+
+**Attribution label:** Rendered subtly below the post author row (or above the caption) — e.g. `"because you follow #legday"` — in a muted/secondary text style, similar to how Twitter/Instagram surfaces these signals.
+
+**Where to change:**
+- `screens/PostsFeed.tsx` — consume `tagPostPool`, inject at render time, render attribution label
+- `features/posts/ui/useFeedData.ts` (or equivalent feed hook) — coordinate `useFollowedTags` + `fetchTagFeedPosts` calls, build and expose `tagPostPool`
+
+---
+
+## Feature 2: Explore Tag Search + Tag Feed Screen
+
+### Explore UI Changes (`screens/Explore.tsx`)
+
+**Search bar:**
+- Add a clear (×) button on the right of the input — visible whenever the input has text.
+- Clears the text and returns to the posts grid view.
+
+**Two states:**
+- **No input / cleared:** existing posts grid (unchanged)
+- **Input present (typing or after submit):** hide the grid, show the swipeable Users/Tags tab UI
+
+**Swipeable tab layout:**
+- Use a `PagerView` (or equivalent) with a tab header row showing `Users` | `Tags`.
+- Default tab: **Users** (left).
+- Tab header underline/indicator animates with the swipe.
+- This replaces the current `FlatList` search results view entirely.
+
+**Users tab:** existing user search results — no change to logic, just moved into the tab.
+
+**Tags tab:**
+- Calls `useTagSearch` (already implemented) with the current query.
+- Renders a `FlatList` of tag results, each row showing:
+  - `#tagname` (bold)
+  - post count (muted, e.g. `"12.4k posts"`)
+  - Follow / Following button on the right (uses `useTagFollow`)
+- Tapping a row navigates to `/explore/tags/[tagName]`.
+
+**`useExplore.ts` changes:**
+- Expose `tagSearchResults: TagSearchResult[]` and `tagSearchLoading: boolean` (sourced from `useTagSearch` internally, keyed off the same `searchQuery`).
+- Implement `navigateToTagFeed(tagName, router)` — was a stub, now calls `router.push(`/explore/tags/${tagName}`)`.
+
+### Tag Feed Screen
+
+**File:** `app/explore/tags/[tag].tsx`
+
+**Layout:**
+- Header: `#tagname` as title, post count subtitle, Follow/Following button top-right.
+- Body: 3-column image grid (same as Explore posts grid), paginated.
+- Tapping a post navigates to `/view-post/[postId]`.
+
+**Hook:** `features/tags/ui/useTagFeed.ts`
+
+```typescript
+interface UseTagFeedResult {
+  posts: ExplorePost[];
+  loading: boolean;
+  allLoaded: boolean;
+  loadMore: () => void;
+  tagName: string;
+  postCount: number;
+}
+```
+
+Internally calls `fetchTagFeedPosts` with cursor pagination. Uses the same `TAG_FEED_LOOKBACK_DAYS` constant for consistency, but for the feed screen this could be extended or removed later since the user is intentionally browsing a tag.
+
+---
+
+## File Summary (Phase 2)
+
+```
+// New files
+app/explore/tags/[tag].tsx                  — tag feed screen
+features/tags/ui/useTagFeed.ts              — tag feed hook (screen)
+features/tags/ui/useTagFollow.ts            — follow/unfollow toggle hook
+features/tags/ui/useFollowedTags.ts         — fetch user's followed tags
+
+// Modified files
+features/tags/domain/Tag.ts                 — add TAG_INJECTION_MIN/MAX, TAG_FEED_LOOKBACK_DAYS, TAG_FEED_POSTS_PER_TAG
+features/tags/infra/tagRepository.ts        — add followTag, unfollowTag, isFollowingTag, fetchFollowedTags, fetchTagFeedPosts
+features/explore/ui/useExplore.ts           — expose tag search results, implement navigateToTagFeed
+screens/Explore.tsx                         — swipeable tabs, clear button, tag results tab
+screens/PostsFeed.tsx                       — tag post injection + attribution label
+// Feed hook (useFeedData or equivalent)    — coordinate followed tags + pool prefetch
+```
+
+---
+
+## Out of Scope (Phase 2)
+
+- Trending tags
+- Tag-based notifications
+- Tags in comments or replies
+- In-app admin UI for banning tags

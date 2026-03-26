@@ -2,7 +2,14 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { FeedRepository, FeedCursor } from '@/features/feed/infra/feedRepository';
 import { FeedPost } from '@/features/feed/domain/FeedPost';
+import { TagRepository } from '@/features/tags/infra/tagRepository';
+import {
+  TAG_FEED_LOOKBACK_DAYS,
+  TAG_FEED_POSTS_PER_TAG,
+} from '@/features/tags/domain/Tag';
 import { logger } from '@/shared/utils/logger';
+
+export type TagInjectedPost = FeedPost & { injectedFromTag: string };
 
 export function useFeedData() {
   const [posts, setPosts] = useState<FeedPost[]>([]);
@@ -13,6 +20,7 @@ export function useFeedData() {
   const [hasMore, setHasMore] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const [lastVisible, setLastVisible] = useState<FeedCursor | null>(null);
+  const [tagPostPool, setTagPostPool] = useState<TagInjectedPost[]>([]);
 
   const { currentUser } = useAuth();
 
@@ -26,6 +34,27 @@ export function useFeedData() {
       seen.add(p.id);
       return true;
     });
+  }, []);
+
+  // ── Tag post pool ──────────────────────────────────────────────────────────
+  // Fetched once when the feed first loads. Silently fails — tag injection is
+  // best-effort and should never block or break the regular feed.
+
+  const buildTagPool = useCallback(async (uid: string) => {
+    try {
+      const followedTags = await TagRepository.fetchFollowedTags(uid);
+      if (followedTags.length === 0) return;
+
+      const pool = await FeedRepository.fetchTagPostsForFeed(
+        uid,
+        followedTags,
+        TAG_FEED_POSTS_PER_TAG,
+        TAG_FEED_LOOKBACK_DAYS
+      );
+      setTagPostPool(pool);
+    } catch (err) {
+      logger.warn('useFeedData', 'Failed to build tag post pool', err);
+    }
   }, []);
 
   // ── Manual fetch (refresh / load-more) ────────────────────────────────────
@@ -46,6 +75,8 @@ export function useFeedData() {
           setRefreshing(true);
           setLastVisible(null);
           setHasMore(true);
+          // Rebuild tag pool on manual refresh.
+          buildTagPool(currentUser.uid);
         } else if (isLoadMore) {
           setLoadingMore(true);
         } else {
@@ -92,7 +123,7 @@ export function useFeedData() {
         setLoadingMore(false);
       }
     },
-    [currentUser?.uid, lastVisible, removeDuplicatePosts]
+    [currentUser?.uid, lastVisible, removeDuplicatePosts, buildTagPool]
   );
 
   const refreshFeed = useCallback(() => {
@@ -111,6 +142,7 @@ export function useFeedData() {
     if (!currentUser?.uid) {
       setPosts([]);
       setMilestones([]);
+      setTagPostPool([]);
       setLoading(false);
       setError(null);
       setLastVisible(null);
@@ -120,6 +152,9 @@ export function useFeedData() {
 
     const uid = currentUser.uid;
     let active = true;
+
+    // Build the tag pool in parallel with the feed subscription.
+    buildTagPool(uid);
 
     const unsubscribe = FeedRepository.subscribe(
       uid,
@@ -157,11 +192,12 @@ export function useFeedData() {
       active = false;
       unsubscribe();
     };
-  }, [currentUser?.uid, removeDuplicatePosts]);
+  }, [currentUser?.uid, removeDuplicatePosts, buildTagPool]);
 
   return {
     posts,
     milestones,
+    tagPostPool,
     loading,
     refreshing,
     loadingMore,

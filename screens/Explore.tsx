@@ -1,12 +1,26 @@
-import React, { useEffect, useRef } from 'react';
-import { View, TouchableOpacity, Text, TextInput, StyleSheet, ActivityIndicator, Image, FlatList, Animated } from 'react-native';
+import React, { useEffect, useRef, useCallback } from 'react';
+import {
+  View,
+  TouchableOpacity,
+  Text,
+  TextInput,
+  StyleSheet,
+  ActivityIndicator,
+  Image,
+  FlatList,
+  Animated,
+} from 'react-native';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import { TabView, TabBar } from 'react-native-tab-view';
 import globalStyles from '@/styles/globalStyles';
 import { LinearGradient } from 'expo-linear-gradient';
 import { getOptimalImageUrl } from '@/utils/imageUtils';
 import { OptimizedImageLight } from '@/components/OptimizedImage';
 import { useExplore } from '@/features/explore/ui/useExplore';
-import type { ExplorePost, UserSearchResult } from '@/features/explore/domain/ExploreTypes';
+import { useTagFollow } from '@/features/tags/ui/useTagFollow';
+import { ACCENT_COLOR } from '@/constants/Colors';
+import type { ExplorePost, UserSearchResult, TagSearchResult } from '@/features/explore/domain/ExploreTypes';
 
 // ── Sub-components ───────────────────────────────────────────────────────────
 
@@ -73,7 +87,32 @@ const PostGridItem = ({ item, onPress }: { item: ExplorePost; onPress: () => voi
   );
 };
 
+const TagFollowButton = ({ tagName }: { tagName: string }) => {
+  const { isFollowing, toggle, loading } = useTagFollow(tagName);
+
+  if (loading) {
+    return <ActivityIndicator size="small" color="#8E8E93" style={styles.followLoading} />;
+  }
+
+  return (
+    <TouchableOpacity
+      style={[styles.followButton, isFollowing && styles.followButtonActive]}
+      onPress={toggle}
+      activeOpacity={0.8}
+    >
+      <Text style={[styles.followButtonText, isFollowing && styles.followButtonTextActive]}>
+        {isFollowing ? 'Following' : 'Follow'}
+      </Text>
+    </TouchableOpacity>
+  );
+};
+
 // ── Screen ───────────────────────────────────────────────────────────────────
+
+const TABS = [
+  { key: 'users', title: 'Users' },
+  { key: 'tags', title: 'Tags' },
+];
 
 export default function Explore() {
   const router = useRouter();
@@ -81,52 +120,74 @@ export default function Explore() {
     searchQuery,
     searchResults,
     searchLoading,
-    searchPerformed,
+    tagSearchResults,
+    tagSearchLoading,
     handleSearch,
+    clearSearch,
     posts,
     loadingPosts,
     loadMore,
   } = useExplore();
 
-  const renderSearchBar = () => (
-    <View style={styles.searchBarView}>
-      <TextInput
-        placeholder="Search users..."
-        style={[styles.searchBar, { color: 'white' }]}
-        onChangeText={handleSearch}
-        value={searchQuery}
-        placeholderTextColor="grey"
-        autoCapitalize="none"
-        autoCorrect={false}
-        spellCheck={false}
-      />
-    </View>
+  const [tabIndex, setTabIndex] = React.useState(0);
+
+  const isSearching = searchQuery.trim().length > 0;
+
+  const renderUserResultItem = useCallback(
+    (user: UserSearchResult) => (
+      <TouchableOpacity
+        key={user.id}
+        style={styles.resultItem}
+        onPress={() => router.push(`/profile/${user.id}`)}
+      >
+        <Image
+          source={{ uri: getOptimalImageUrl(user.profileThumbnailUrl || user.profilePictureUrl) }}
+          style={styles.profilePic}
+        />
+        <View style={styles.resultTextContainer}>
+          <Text style={styles.displayName}>{user.displayName || user.username}</Text>
+          {user.displayName && <Text style={styles.username}>@{user.username}</Text>}
+        </View>
+      </TouchableOpacity>
+    ),
+    [router]
   );
 
-  const renderUserResultItem = (user: UserSearchResult) => (
-    <TouchableOpacity
-      key={user.id}
-      style={styles.userResultItem}
-      onPress={() => router.push(`/profile/${user.id}`)}
-    >
-      <Image
-        source={{ uri: getOptimalImageUrl(user.profileThumbnailUrl || user.profilePictureUrl) }}
-        style={styles.profilePic}
-      />
-      <View>
-        <Text style={styles.displayName}>{user.displayName || user.username}</Text>
-        {user.displayName && <Text style={styles.username}>@{user.username}</Text>}
-      </View>
-    </TouchableOpacity>
+  const renderTagResultItem = useCallback(
+    ({ item }: { item: TagSearchResult }) => (
+      <TouchableOpacity
+        style={styles.resultItem}
+        onPress={() => router.push(`/explore/tags/${item.name}`)}
+      >
+        <View style={styles.tagIconContainer}>
+          <Text style={styles.tagIconText}>#</Text>
+        </View>
+        <View style={styles.resultTextContainer}>
+          <Text style={styles.displayName}>#{item.name}</Text>
+          <Text style={styles.username}>
+            {item.postCount > 0
+              ? `${item.postCount >= 1000 ? `${(item.postCount / 1000).toFixed(1)}k` : item.postCount} posts`
+              : 'No posts yet'}
+          </Text>
+        </View>
+        <TagFollowButton tagName={item.name} />
+      </TouchableOpacity>
+    ),
+    [router]
   );
 
-  const renderSearchResultsView = () => {
+  // ── Tab scenes ────────────────────────────────────────────────────────────
+
+  const UsersScene = useCallback(() => {
     if (searchLoading) {
       return <ActivityIndicator size="large" color="#fff" style={{ marginTop: 20 }} />;
     }
-    if (!searchPerformed) return null;
-    if (searchResults.length === 0 && searchQuery.trim().length >= 2) {
-      return <Text style={styles.noResultsText}>No users found for "{searchQuery}"</Text>;
+    if (searchResults.length === 0) {
+      return (
+        <Text style={styles.noResultsText}>
+          {searchQuery.trim().length >= 2 ? `No users found for "${searchQuery}"` : ''}
+        </Text>
+      );
     }
     return (
       <FlatList
@@ -135,7 +196,57 @@ export default function Explore() {
         renderItem={({ item }) => renderUserResultItem(item)}
       />
     );
-  };
+  }, [searchLoading, searchResults, searchQuery, renderUserResultItem]);
+
+  const TagsScene = useCallback(() => {
+    if (tagSearchLoading) {
+      return <ActivityIndicator size="large" color="#fff" style={{ marginTop: 20 }} />;
+    }
+    if (tagSearchResults.length === 0) {
+      return (
+        <Text style={styles.noResultsText}>
+          {searchQuery.trim().length >= 2 ? `No tags found for "${searchQuery}"` : ''}
+        </Text>
+      );
+    }
+    return (
+      <FlatList
+        data={tagSearchResults}
+        keyExtractor={item => item.name}
+        renderItem={renderTagResultItem}
+      />
+    );
+  }, [tagSearchLoading, tagSearchResults, searchQuery, renderTagResultItem]);
+
+  const renderScene = useCallback(
+    ({ route }: { route: { key: string } }) => {
+      switch (route.key) {
+        case 'users':
+          return <UsersScene />;
+        case 'tags':
+          return <TagsScene />;
+        default:
+          return null;
+      }
+    },
+    [UsersScene, TagsScene]
+  );
+
+  const renderTabBar = useCallback(
+    (props: any) => (
+      <TabBar
+        {...props}
+        style={styles.tabBar}
+        indicatorStyle={styles.tabIndicator}
+        labelStyle={styles.tabLabel}
+        activeColor="#FFF"
+        inactiveColor="#8E8E93"
+      />
+    ),
+    []
+  );
+
+  // ── Posts grid ────────────────────────────────────────────────────────────
 
   const renderPostsGrid = () => {
     if (loadingPosts && posts.length === 0) {
@@ -173,11 +284,38 @@ export default function Explore() {
       <View style={styles.headerContainer}>
         <Text style={globalStyles.title}>Explore</Text>
       </View>
-      {renderSearchBar()}
+
+      {/* Search bar */}
+      <View style={styles.searchBarView}>
+        <TextInput
+          placeholder="Search users and tags..."
+          style={[styles.searchBar, { color: 'white' }]}
+          onChangeText={handleSearch}
+          value={searchQuery}
+          placeholderTextColor="grey"
+          autoCapitalize="none"
+          autoCorrect={false}
+          spellCheck={false}
+        />
+        {isSearching && (
+          <TouchableOpacity style={styles.clearButton} onPress={clearSearch} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Ionicons name="close-circle" size={18} color="#8E8E93" />
+          </TouchableOpacity>
+        )}
+      </View>
+
       <View style={{ flex: 1 }}>
-        {searchQuery.trim().length > 0 || searchPerformed
-          ? renderSearchResultsView()
-          : renderPostsGrid()}
+        {isSearching ? (
+          <TabView
+            navigationState={{ index: tabIndex, routes: TABS }}
+            renderScene={renderScene}
+            renderTabBar={renderTabBar}
+            onIndexChange={setTabIndex}
+            lazy
+          />
+        ) : (
+          renderPostsGrid()
+        )}
       </View>
     </View>
   );
@@ -192,44 +330,107 @@ const styles = StyleSheet.create({
   searchBarView: {
     paddingHorizontal: 15,
     marginBottom: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   searchBar: {
+    flex: 1,
     backgroundColor: '#2e2e2e',
     height: 40,
     borderRadius: 20,
     paddingHorizontal: 15,
+    paddingRight: 36,
     fontSize: 16,
     color: 'white',
   },
-  userResultItem: {
+  clearButton: {
+    position: 'absolute',
+    right: 26,
+  },
+  tabBar: {
+    backgroundColor: '#1C1C1E',
+    borderBottomWidth: 1,
+    borderBottomColor: '#2C2C2E',
+  },
+  tabIndicator: {
+    backgroundColor: ACCENT_COLOR,
+    height: 2,
+  },
+  tabLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    textTransform: 'none',
+  },
+  resultItem: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 10,
     paddingHorizontal: 15,
     borderBottomWidth: 1,
-    borderBottomColor: '#333',
+    borderBottomColor: '#1C1C1E',
   },
   profilePic: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    marginRight: 10,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    marginRight: 12,
     backgroundColor: '#555',
+  },
+  tagIconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#2e2e2e',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  tagIconText: {
+    color: '#FFF',
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  resultTextContainer: {
+    flex: 1,
   },
   displayName: {
     color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontSize: 15,
+    fontWeight: '600',
   },
   username: {
-    color: 'grey',
-    fontSize: 14,
+    color: '#8E8E93',
+    fontSize: 13,
+    marginTop: 1,
+  },
+  followButton: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#8E8E93',
+  },
+  followButtonActive: {
+    backgroundColor: '#2C2C2E',
+    borderColor: '#3A3A3C',
+  },
+  followButtonText: {
+    color: '#FFF',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  followButtonTextActive: {
+    color: '#8E8E93',
+  },
+  followLoading: {
+    width: 70,
+    alignSelf: 'center',
   },
   noResultsText: {
-    color: 'grey',
+    color: '#8E8E93',
     textAlign: 'center',
     marginTop: 20,
-    fontSize: 16,
+    fontSize: 15,
   },
   postPreview: {
     flex: 1 / 3,
