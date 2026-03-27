@@ -2,6 +2,7 @@
  * Coach triggers — proactive AI coaching actions.
  * - analyzeWorkoutOnCreate: post-workout analysis on workout log creation
  * - weeklyCoachSummary: scheduled weekly training summary (Sunday 6pm ET)
+ * - dailyCoachNudge: scheduled daily inactivity nudges (10am ET)
  */
 import {getDb} from "../admin/firebaseAdmin";
 import {onDocumentCreated} from "firebase-functions/v2/firestore";
@@ -367,6 +368,197 @@ async function callWeeklySummary(uid: string): Promise<WorkoutAnalysis> {
   } finally {
     clearTimeout(timeout);
   }
+}
+
+// ── Nudge messages ────────────────────────────────────────────────────────
+
+const NUDGE_MESSAGES = [
+  {title: "Missing you at the gym!", body: "A quick session is better than no session. Let's get moving!"},
+  {title: "Your muscles are waiting", body: "Even 20 minutes counts. What do you say?"},
+  {title: "Time to get back on track", body: "Consistency beats intensity. Let's keep that streak alive!"},
+  {title: "Coach check-in", body: "Haven't seen you in a while. Ready to crush a workout?"},
+  {title: "Rest day or skip day?", body: "Rest is important, but don't let one day become a week. Let's go!"},
+  {title: "Your goals miss you", body: "Every workout gets you closer. Let's make today count!"},
+];
+
+/**
+ * Scheduled daily coach nudge.
+ * Runs every day at 10am Eastern Time.
+ * Checks each user's last workout date against their training frequency
+ * and sends a motivational nudge if they're overdue.
+ *
+ * No AI backend call needed — purely data-driven.
+ */
+export const dailyCoachNudge = onSchedule(
+  {
+    schedule: "0 10 * * *", // 10am daily
+    timeZone: "America/New_York",
+    region: "northamerica-northeast2",
+    timeoutSeconds: 300,
+    memory: "256MiB",
+    retryCount: 0, // Don't retry nudges — they're not critical
+  },
+  async () => {
+    const db = getDb();
+    if (!db) {
+      logger.error("Database not initialized");
+      return;
+    }
+
+    // Query users who have push tokens (no point nudging users without tokens).
+    // Note: "!=" on arrays requires a single-field index on pushTokens (auto-created).
+    const MAX_NUDGE_USERS = 500;
+    const usersSnapshot = await db.collection("users")
+      .where("pushTokens", "!=", [])
+      .select("pushTokens", "workoutFrequency")
+      .limit(MAX_NUDGE_USERS)
+      .get();
+
+    if (usersSnapshot.empty) {
+      logger.info("No users with push tokens found for nudges");
+      return;
+    }
+
+    if (usersSnapshot.size >= MAX_NUDGE_USERS) {
+      logger.warn(`Nudge query hit ${MAX_NUDGE_USERS} user cap — some users may be skipped`);
+    }
+
+    logger.info(`Checking ${usersSnapshot.size} users for nudge eligibility`);
+
+    let nudgesSent = 0;
+    const BATCH_SIZE = 10;
+    const users = usersSnapshot.docs;
+
+    for (let i = 0; i < users.length; i += BATCH_SIZE) {
+      const batch = users.slice(i, i + BATCH_SIZE);
+      const results = await Promise.allSettled(
+        batch.map((userDoc) => processNudge(db, userDoc)),
+      );
+
+      for (const result of results) {
+        if (result.status === "fulfilled" && result.value) {
+          nudgesSent++;
+        }
+      }
+    }
+
+    logger.info(`Daily nudges complete: ${nudgesSent} sent`);
+  }
+);
+
+/**
+ * Check if a user should receive a nudge and send it if so.
+ * Returns true if a nudge was sent.
+ */
+async function processNudge(
+  db: FirebaseFirestore.Firestore,
+  userDoc: FirebaseFirestore.QueryDocumentSnapshot,
+): Promise<boolean> {
+  const userId = userDoc.id;
+  const userData = userDoc.data();
+
+  // Determine expected training frequency (days between workouts)
+  const maxGapDays = getMaxGapDays(userData.workoutFrequency);
+  if (maxGapDays === null) {
+    return false; // No frequency set, don't nudge
+  }
+
+  // Check last workout date
+  const lastWorkout = await db.collection("users").doc(userId)
+    .collection("workout_logs")
+    .orderBy("completedAt", "desc")
+    .limit(1)
+    .select("completedAt")
+    .get();
+
+  if (lastWorkout.empty) {
+    return false; // Never worked out, don't nudge (they may be new)
+  }
+
+  const lastWorkoutDate = lastWorkout.docs[0].data().completedAt?.toDate();
+  if (!lastWorkoutDate) {
+    return false;
+  }
+
+  const daysSinceLastWorkout = Math.floor(
+    (Date.now() - lastWorkoutDate.getTime()) / (1000 * 60 * 60 * 24)
+  );
+
+  // Only nudge if they're overdue by at least 1 day
+  if (daysSinceLastWorkout <= maxGapDays) {
+    return false;
+  }
+
+  // Don't nudge if we already sent one today
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const existingNudge = await db.collection("users").doc(userId)
+    .collection("coach_insights")
+    .where("type", "==", "nudge")
+    .where("createdAt", ">=", today)
+    .limit(1)
+    .get();
+
+  if (!existingNudge.empty) {
+    return false;
+  }
+
+  // Pick a nudge message (vary by day + user so not everyone gets the same one)
+  const dayOfYear = Math.floor(
+    (Date.now() - new Date(today.getFullYear(), 0, 0).getTime()) / (1000 * 60 * 60 * 24)
+  );
+  const userHash = userId.split("").reduce((sum, ch) => sum + ch.charCodeAt(0), 0);
+  const nudge = NUDGE_MESSAGES[(dayOfYear + userHash) % NUDGE_MESSAGES.length];
+
+  // Save nudge as a coach insight
+  await db.collection("users").doc(userId)
+    .collection("coach_insights").add({
+      type: "nudge",
+      insight: nudge.body,
+      highlights: [`${daysSinceLastWorkout} days since last workout`],
+      recommendations: [],
+      sentiment: "needs_attention",
+      createdAt: new Date(),
+      read: false,
+    });
+
+  // Send push notification
+  await sendPushNotificationHelper(
+    userId,
+    nudge.title,
+    nudge.body,
+    "coach_nudge",
+    {type: "coach_nudge"},
+  );
+
+  return true;
+}
+
+/**
+ * Convert a workoutFrequency value to the maximum acceptable gap in days.
+ * Returns null if frequency is not set or not recognized.
+ */
+function getMaxGapDays(frequency: unknown): number | null {
+  if (typeof frequency === "number") {
+    // Firestore may store as number (AI profile writes numeric training_frequency)
+    if (frequency >= 6) return 1;
+    if (frequency >= 4) return 2;
+    if (frequency >= 3) return 3;
+    if (frequency >= 2) return 4;
+    return 5;
+  }
+
+  if (typeof frequency === "string") {
+    switch (frequency) {
+    case "daily": return 2;
+    case "weekly": return 4;
+    case "occasional": return 7;
+    default: return null;
+    }
+  }
+
+  return null;
 }
 
 /**

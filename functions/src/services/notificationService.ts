@@ -51,6 +51,7 @@ async function getUserNotificationPreferences(userId: string) {
       taggedInComments: true,
       mentionedInReplies: true,
       coachInsights: true,
+      coachNudges: true,
     };
   } catch (error) {
     logger.error("Error fetching user notification preferences:", error);
@@ -133,6 +134,7 @@ export async function sendPushNotificationHelper(
       "tagged_comment": "taggedInComments",
       "mentioned_reply": "mentionedInReplies",
       "coach_insight": "coachInsights",
+      "coach_nudge": "coachNudges",
     };
 
     const preferenceKey = typeMapping[notificationType];

@@ -132,9 +132,9 @@ The dedup check for weekly summaries is not atomic (race condition on retry). Us
 
 The `INTERNAL_API_SECRET` shared secret for Cloud Functions → Cloud Run auth should be replaced with Google Cloud IAM-based OIDC token authentication. This eliminates secret management and supports automatic rotation.
 
-### 13. Coach Insights — Settings UI Toggle Missing
+### 13. Coach Notifications — Settings UI Toggles Missing
 
-The `coachInsights` notification preference is added to backend defaults but no toggle exists in the Settings screen UI for users to opt out. Add a toggle under notification preferences.
+The `coachInsights` and `coachNudges` notification preferences are added to backend defaults but no toggles exist in the Settings screen UI for users to opt out. Add toggles under notification preferences. Apple App Store guidelines require users to have a meaningful way to opt out of non-essential push notifications.
 
 ### 9. Stale Documentation (Low Priority)
 
