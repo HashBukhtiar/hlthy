@@ -59,13 +59,24 @@ function extractMentionQuery(text: string, cursorPos: number): string | null {
 }
 
 /**
+ * Escapes a string so it can be safely used inside a RegExp pattern.
+ */
+function escapeRegExp(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
  * Reconciles the mentions array with the current text.
  * Removes mentions whose @username no longer appears in the text.
+ * Uses word boundary checking to avoid false positives (e.g., @ann vs @anna).
  */
 function reconcileMentions(text: string, mentions: MentionData[]): MentionData[] {
   return mentions.filter((m) => {
-    const pattern = `@${m.username}`;
-    return text.includes(pattern);
+    const escapedUsername = escapeRegExp(m.username);
+    // Match "@username" at start of text or after whitespace, and ensure it is
+    // not immediately followed by another "username" character (letter/digit/_).
+    const mentionRegex = new RegExp(`(^|\\s)@${escapedUsername}(?![A-Za-z0-9_])`);
+    return mentionRegex.test(text);
   });
 }
 
