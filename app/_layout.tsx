@@ -19,26 +19,26 @@ export default function RootLayout() {
               screenOptions={{
                 headerShown: false,
                 contentStyle: { backgroundColor: 'black' },
-                animation: Platform.OS === 'android' ? 'fade' : 'none',
+                animation: 'none',
               }}
             >
             {/* Main tab screens - NativeTabs handles the tab bar */}
             <Stack.Screen name="(tabs)" options={{ gestureEnabled: false }} />
 
             {/* Screens with swipe back enabled */}
-            <Stack.Screen name="pulse" options={{ gestureEnabled: true, animation: 'slide_from_right' }} />
-            <Stack.Screen name="dms" options={{ gestureEnabled: true, animation: 'slide_from_right' }} />
-            <Stack.Screen name="explore" options={{ gestureEnabled: true, animation: 'slide_from_right' }} />
-            <Stack.Screen name="settings" options={{ gestureEnabled: true, animation: 'slide_from_right' }} />
+            <Stack.Screen name="pulse" options={{ gestureEnabled: true, animation: Platform.OS === 'android' ? 'none' : 'slide_from_right' }} />
+            <Stack.Screen name="dms" options={{ gestureEnabled: true, animation: Platform.OS === 'android' ? 'none' : 'slide_from_right' }} />
+            <Stack.Screen name="explore" options={{ gestureEnabled: true, animation: Platform.OS === 'android' ? 'none' : 'slide_from_right' }} />
+            <Stack.Screen name="settings" options={{ gestureEnabled: true, animation: Platform.OS === 'android' ? 'none' : 'slide_from_right' }} />
 
             {/* Other screens */}
             <Stack.Screen name="signup" />
             <Stack.Screen name="select-archetype" />
-            <Stack.Screen name="create-workout" options={{ animation: 'slide_from_bottom', gestureEnabled: true }} />
-            <Stack.Screen name="view-workout/[id]" options={{ animation: 'fade_from_bottom', gestureEnabled: true }} />
-            <Stack.Screen name="view-post/[id]" options={{ animation: 'fade_from_bottom', gestureEnabled: true }} />
-            <Stack.Screen name="view-milestone/[id]" options={{ animation: 'fade_from_bottom', gestureEnabled: true }} />
-            <Stack.Screen name="view-profile-card/[userId]" options={{ animation: 'fade_from_bottom', gestureEnabled: true }} />
+            <Stack.Screen name="create-workout" options={{ animation: Platform.OS === 'android' ? 'none' : 'slide_from_bottom', gestureEnabled: true }} />
+            <Stack.Screen name="view-workout/[id]" options={{ animation: Platform.OS === 'android' ? 'none' : 'fade_from_bottom', gestureEnabled: true }} />
+            <Stack.Screen name="view-post/[id]" options={{ animation: Platform.OS === 'android' ? 'none' : 'fade_from_bottom', gestureEnabled: true }} />
+            <Stack.Screen name="view-milestone/[id]" options={{ animation: Platform.OS === 'android' ? 'none' : 'fade_from_bottom', gestureEnabled: true }} />
+            <Stack.Screen name="view-profile-card/[userId]" options={{ animation: Platform.OS === 'android' ? 'none' : 'fade_from_bottom', gestureEnabled: true }} />
             <Stack.Screen name="workout-plan" />
             <Stack.Screen name="diet-plan" />
             <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
