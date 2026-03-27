@@ -2,6 +2,19 @@ import { admin, getDb } from '../admin/firebaseAdmin';
 import { onDocumentCreated, onDocumentDeleted, onDocumentWritten } from 'firebase-functions/v2/firestore';
 import { logger } from 'firebase-functions';
 
+const DOMAIN = 'TagTriggers';
+
+// Valid tag format: lowercase alphanumeric, underscore, hyphen. 1-32 characters.
+const TAG_PATTERN = /^[a-z0-9_-]{1,32}$/;
+
+/**
+ * Validate that a tag is safe to use as a Firestore document ID.
+ * Returns true if the tag matches the allowed pattern.
+ */
+function isValidTag(tag: unknown): tag is string {
+  return typeof tag === 'string' && TAG_PATTERN.test(tag);
+}
+
 /**
  * Update tag post counts when a post is created.
  * Increments postCount for each tag and creates tag documents if they don't exist.
@@ -16,13 +29,19 @@ export const updateTagCountOnPostCreate = onDocumentCreated(
     const postData = event.data?.data();
     if (!postData) return;
 
-    const tags: string[] = postData.tags || [];
+    const tags: unknown[] = postData.tags || [];
     if (tags.length === 0) return;
 
     const batch = db.batch();
 
     try {
       for (const tag of tags) {
+        // Skip invalid tags to prevent Firestore document ID issues
+        if (!isValidTag(tag)) {
+          logger.warn(DOMAIN, `Skipping invalid tag: ${tag}`);
+          continue;
+        }
+
         const tagRef = db.collection('hashtags').doc(tag);
         const tagSnapshot = await tagRef.get();
 
@@ -64,13 +83,19 @@ export const updateTagCountOnPostDelete = onDocumentDeleted(
     const postData = event.data?.data();
     if (!postData) return;
 
-    const tags: string[] = postData.tags || [];
+    const tags: unknown[] = postData.tags || [];
     if (tags.length === 0) return;
 
     const batch = db.batch();
 
     try {
       for (const tag of tags) {
+        // Skip invalid tags to prevent Firestore document ID issues
+        if (!isValidTag(tag)) {
+          logger.warn(DOMAIN, `Skipping invalid tag: ${tag}`);
+          continue;
+        }
+
         const tagRef = db.collection('hashtags').doc(tag);
         batch.update(tagRef, {
           postCount: admin.firestore.FieldValue.increment(-1),
@@ -146,6 +171,12 @@ export const updateTagCountOnPostEdit = onDocumentWritten(
       }
 
       for (const tag of removed) {
+        // Skip invalid tags to prevent Firestore document ID issues
+        if (!isValidTag(tag)) {
+          logger.warn(DOMAIN, `Skipping invalid tag: ${tag}`);
+          continue;
+        }
+
         const tagRef = db.collection('hashtags').doc(tag);
         batch.update(tagRef, {
           postCount: admin.firestore.FieldValue.increment(-1),
@@ -190,13 +221,19 @@ export const updateTagCountOnWorkoutCreate = onDocumentCreated(
     const workoutData = event.data?.data();
     if (!workoutData) return;
 
-    const tags: string[] = workoutData.tags || [];
+    const tags: unknown[] = workoutData.tags || [];
     if (tags.length === 0) return;
 
     const batch = db.batch();
 
     try {
       for (const tag of tags) {
+        // Skip invalid tags to prevent Firestore document ID issues
+        if (!isValidTag(tag)) {
+          logger.warn(DOMAIN, `Skipping invalid tag: ${tag}`);
+          continue;
+        }
+
         const tagRef = db.collection('hashtags').doc(tag);
         const tagSnapshot = await tagRef.get();
 
@@ -235,13 +272,19 @@ export const updateTagCountOnWorkoutDelete = onDocumentDeleted(
     const workoutData = event.data?.data();
     if (!workoutData) return;
 
-    const tags: string[] = workoutData.tags || [];
+    const tags: unknown[] = workoutData.tags || [];
     if (tags.length === 0) return;
 
     const batch = db.batch();
 
     try {
       for (const tag of tags) {
+        // Skip invalid tags to prevent Firestore document ID issues
+        if (!isValidTag(tag)) {
+          logger.warn(DOMAIN, `Skipping invalid tag: ${tag}`);
+          continue;
+        }
+
         const tagRef = db.collection('hashtags').doc(tag);
         batch.update(tagRef, {
           postCount: admin.firestore.FieldValue.increment(-1),
@@ -312,6 +355,12 @@ export const updateTagCountOnWorkoutEdit = onDocumentWritten(
       }
 
       for (const tag of removed) {
+        // Skip invalid tags to prevent Firestore document ID issues
+        if (!isValidTag(tag)) {
+          logger.warn(DOMAIN, `Skipping invalid tag: ${tag}`);
+          continue;
+        }
+
         const tagRef = db.collection('hashtags').doc(tag);
         batch.update(tagRef, {
           postCount: admin.firestore.FieldValue.increment(-1),
