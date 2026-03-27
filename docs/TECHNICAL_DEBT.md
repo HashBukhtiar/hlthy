@@ -138,7 +138,11 @@ Protect Firestore/Storage from non-app clients. The `usernames` and `usersPublic
 
 `firestore.rules` allows any authenticated owner to update any field on their user doc, including `followersCount`, `pushTokens`, etc. Consider `affectedKeys().hasOnly(...)` whitelist.
 
-### 19. Stale Documentation (Low Priority)
+### 19. Profile Workouts Tab — Not Loading Other Users' Workouts (Pre-existing)
+
+The workouts tab on another user's profile shows empty, even though their workouts appear on the main Workouts page. No Firestore permission error — likely a UI/query bug in the profile workouts tab component. Not caused by rules changes.
+
+### 20. Stale Documentation (Low Priority)
 
 | File | Issue |
 |------|-------|
