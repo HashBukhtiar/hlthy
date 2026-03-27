@@ -2,7 +2,7 @@ import 'react-native-get-random-values';
 import React from 'react';
 import { Stack } from 'expo-router';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { View, StyleSheet, Platform } from 'react-native';
+import { Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { AuthProvider } from '@/context/AuthContext';
 import { GlobalNetworkMonitor } from '@/components/GlobalNetworkMonitor';
@@ -13,9 +13,8 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <AuthProvider>
         <SafeAreaProvider>
+          <GlobalNetworkMonitor />
           <EmailVerificationGuard>
-            <View style={styles.container}>
-              <GlobalNetworkMonitor />
             <Stack
               screenOptions={{
                 headerShown: false,
@@ -25,13 +24,13 @@ export default function RootLayout() {
             >
             {/* Main tab screens - NativeTabs handles the tab bar */}
             <Stack.Screen name="(tabs)" options={{ gestureEnabled: false }} />
-            
+
             {/* Screens with swipe back enabled */}
             <Stack.Screen name="pulse" options={{ gestureEnabled: true, animation: 'slide_from_right' }} />
             <Stack.Screen name="dms" options={{ gestureEnabled: true, animation: 'slide_from_right' }} />
             <Stack.Screen name="explore" options={{ gestureEnabled: true, animation: 'slide_from_right' }} />
             <Stack.Screen name="settings" options={{ gestureEnabled: true, animation: 'slide_from_right' }} />
-            
+
             {/* Other screens */}
             <Stack.Screen name="signup" />
             <Stack.Screen name="select-archetype" />
@@ -43,9 +42,8 @@ export default function RootLayout() {
             <Stack.Screen name="workout-plan" />
             <Stack.Screen name="diet-plan" />
             <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
-            
-          </Stack>
-            </View>
+
+            </Stack>
           </EmailVerificationGuard>
         </SafeAreaProvider>
       </AuthProvider>
@@ -53,9 +51,3 @@ export default function RootLayout() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    position: 'relative',
-  },
-});
