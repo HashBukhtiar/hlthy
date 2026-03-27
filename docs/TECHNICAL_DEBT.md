@@ -78,11 +78,41 @@ The app has a structured logger at `shared/utils/logger.ts` but most files still
 
 `types/milestone.ts` and `features/profile/domain/Milestone.ts` both define `Milestone` — the types/ version is UI-oriented, the domain/ version is clean domain type. Naming is confusing.
 
-### 4. Misplaced File
+### 4. ~~Misplaced File~~ (RESOLVED)
 
-`ai/ai_chat.ts` is a TypeScript file in the Python `ai/` directory. Will be replaced by `features/ai/infra/aiChatRepository.ts` during frontend migration (Phase 1, Steps 18-31).
+~~`ai/ai_chat.ts`~~ — deleted in Phase 1 cleanup. Replaced by `features/ai/infra/aiChatRepository.ts`.
 
-### 5. Stale Documentation (Low Priority)
+### 5. CRITICAL: Firestore Rules — Open Admin Access (Pre-existing)
+
+**Severity: CRITICAL** — Flagged by security audit 2026-03-26.
+
+| File | Line | Rule | Impact |
+|------|------|------|--------|
+| `firestore.rules` | 60 | `allow read, update: if true;` on `/users/{userId}` | Any unauthenticated user can read/update ANY user document (profile, push tokens, settings, blocked users) |
+| `firestore.rules` | 332 | `allow read: if true;` on `/reports/{reportId}` | Anyone can read all reports (reporter IDs, reported content) |
+| `firestore.rules` | 344 | `allow update: if true;` on `/reports/{reportId}` | Anyone can update any report (mark resolved, change action) |
+
+**Root cause**: These rules exist as TODOs for admin dashboard access from localhost.
+
+**Fix**: Remove all `if true` rules. Move admin operations to Cloud Functions using Admin SDK (which bypasses Firestore rules). Build admin dashboard as authenticated Cloud Functions callables or a separate admin API.
+
+### 6. CORS Wildcard on AI Backend
+
+**Severity: HIGH** — `ai/server.py` uses `allow_origins=["*"]` which applies to all routes, including internal service-to-service endpoints (`/api/internal/*`). Internal routes don't need CORS.
+
+**Fix**: Either restrict CORS to app domains, or apply CORS middleware only to client-facing routes (`/api/chat/*`, `/api/health`).
+
+### 7. `sendPushNotification` Callable Missing Auth Check (Pre-existing)
+
+**Severity: MEDIUM** — `functions/src/services/notificationService.ts` `sendPushNotification` callable does not check `request.auth`. Any authenticated user can send arbitrary push notifications to any other user.
+
+**Fix**: Add `if (!request.auth) throw new HttpsError("unauthenticated", ...)` and validate the caller is authorized for the notification type.
+
+### 8. Coach Insights — Settings UI Toggle Missing
+
+The `coachInsights` notification preference is added to backend defaults but no toggle exists in the Settings screen UI for users to opt out. Add a toggle under notification preferences.
+
+### 9. Stale Documentation (Low Priority)
 
 | File | Issue |
 |------|-------|

@@ -1,8 +1,8 @@
 """
 Pydantic models for API request/response validation.
 """
-from typing import Optional, List, Dict, Any
-from pydantic import BaseModel, Field
+from typing import Optional, List, Dict, Any, Literal
+from pydantic import BaseModel, Field, field_validator
 
 
 # ── Request Models ──────────────────────────────────────────────────────────
@@ -12,6 +12,44 @@ class ChatRequest(BaseModel):
     """Request body for POST /api/chat/stream"""
     message: str = Field(..., min_length=1, max_length=5000)
     conversation_id: str = Field(..., min_length=1)
+
+
+class WorkoutExercisePayload(BaseModel):
+    """A single exercise within a workout log payload for analysis."""
+    exerciseName: str = Field(default="", max_length=100)
+    skipped: bool = False
+    sets: List[Dict[str, Any]] = Field(default_factory=list)
+
+    @field_validator("sets")
+    @classmethod
+    def limit_sets(cls, v: list) -> list:
+        return v[:20]
+
+
+class WorkoutLogPayload(BaseModel):
+    """Validated workout log data for the analysis endpoint."""
+    workoutName: str = Field(default="Workout", max_length=100)
+    durationMinutes: int = Field(default=0, ge=0, le=600)
+    totalVolume: float = Field(default=0, ge=0)
+    totalSets: int = Field(default=0, ge=0, le=500)
+    totalReps: int = Field(default=0, ge=0, le=5000)
+    exercisesCompleted: int = Field(default=0, ge=0, le=50)
+    exercisesSkipped: int = Field(default=0, ge=0, le=50)
+    prsHit: int = Field(default=0, ge=0, le=50)
+    mood: Optional[str] = Field(default=None, max_length=20)
+    perceivedDifficulty: Optional[int] = Field(default=None, ge=1, le=10)
+    exercises: List[WorkoutExercisePayload] = Field(default_factory=list)
+
+    @field_validator("exercises")
+    @classmethod
+    def limit_exercises(cls, v: list) -> list:
+        return v[:20]
+
+
+class AnalyzeWorkoutRequest(BaseModel):
+    """Request body for POST /api/internal/analyze-workout"""
+    uid: str = Field(..., min_length=1, max_length=128)
+    workout_log: WorkoutLogPayload = Field(...)
 
 
 # ── Response Models ─────────────────────────────────────────────────────────
@@ -44,6 +82,14 @@ class SSEDoneEvent(BaseModel):
 class SSEErrorEvent(BaseModel):
     """SSE event: error"""
     message: str
+
+
+class WorkoutAnalysis(BaseModel):
+    """Response for POST /api/internal/analyze-workout"""
+    insight: str
+    highlights: List[str] = Field(default_factory=list)
+    recommendations: List[str] = Field(default_factory=list)
+    sentiment: Literal["positive", "neutral", "needs_attention"] = "positive"
 
 
 # ── Domain Models (used by context modules) ─────────────────────────────────

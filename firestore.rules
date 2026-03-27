@@ -80,7 +80,11 @@ service cloud.firestore {
       allow read: if isOwner(userId);
       allow write: if isOwner(userId);
     }
-    
+
+    match /users/{userId}/followedTags/{tagName} {
+      allow read, write: if isOwner(userId);
+    }
+
     match /users/{userId}/pendingFollowers/{requesterId} {
       allow read: if isOwner(userId);
       allow create: if isAuthenticated() && request.auth.uid == requesterId;
@@ -112,6 +116,13 @@ service cloud.firestore {
       allow delete: if isOwner(userId);
     }
     
+    // Coach Insights - AI-generated post-workout analysis (written by Cloud Functions)
+    match /users/{userId}/coach_insights/{insightId} {
+      allow read: if isOwner(userId);
+      allow create, update: if false;  // Only Cloud Functions (admin SDK) can write
+      allow delete: if isOwner(userId);
+    }
+
     match /users/{userId}/conversations/{conversationId} {
       allow read: if isOwner(userId);
       allow write: if isAuthenticated() &&

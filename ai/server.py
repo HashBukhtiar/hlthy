@@ -33,7 +33,7 @@ else:
     vertexai.init(project=PROJECT_ID, location=VERTEX_REGION)
 
 # Import routers after Vertex AI init
-from routers import health, chat  # noqa: E402
+from routers import health, chat, internal  # noqa: E402
 
 app = FastAPI(title="HLTHY AI Coach", version="3.0")
 
@@ -46,3 +46,4 @@ app.add_middleware(
 
 app.include_router(health.router, prefix="/api")
 app.include_router(chat.router, prefix="/api")
+app.include_router(internal.router, prefix="/api")

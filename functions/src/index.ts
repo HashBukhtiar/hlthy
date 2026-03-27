@@ -20,3 +20,4 @@ export * from "./services/notificationService";
 export * from "./services/authCleanupService";
 export * from "./callables/checkEmailExists";
 export * from "./triggers/countTriggers";
+export * from "./triggers/coachTriggers";

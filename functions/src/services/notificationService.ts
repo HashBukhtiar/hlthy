@@ -50,6 +50,7 @@ async function getUserNotificationPreferences(userId: string) {
       followRequestAccepted: true,
       taggedInComments: true,
       mentionedInReplies: true,
+      coachInsights: true,
     };
   } catch (error) {
     logger.error("Error fetching user notification preferences:", error);
@@ -106,8 +107,8 @@ async function sendExpoNotification(messages: ExpoMessage[]): Promise<boolean> {
   }
 }
 
-// Helper function to send notification (used by triggers)
-async function sendPushNotificationHelper(
+// Helper function to send notification (used by triggers and coach)
+export async function sendPushNotificationHelper(
   recipientId: string,
   title: string,
   body: string,
@@ -131,6 +132,7 @@ async function sendPushNotificationHelper(
       "direct_message": "directMessages",
       "tagged_comment": "taggedInComments",
       "mentioned_reply": "mentionedInReplies",
+      "coach_insight": "coachInsights",
     };
 
     const preferenceKey = typeMapping[notificationType];
