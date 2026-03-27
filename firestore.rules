@@ -88,7 +88,8 @@ service cloud.firestore {
     }
 
     match /users/{userId}/pendingFollowers/{requesterId} {
-      allow read: if isOwner(userId);
+      // Owner can read all pending, requester can check their own pending status
+      allow read: if isOwner(userId) || isOwner(requesterId);
       allow create: if isAuthenticated() && request.auth.uid == requesterId;
       allow delete: if isOwner(userId) || isOwner(requesterId);
     }
