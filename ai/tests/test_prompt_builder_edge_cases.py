@@ -79,10 +79,9 @@ class TestFormatConversationHistory:
             conversation_history=[{"role": "user", "text": long_text}]
         )
         result = _format_conversation_history(ctx)
-        # Truncated text should end with "..."
-        assert "..." in result
-        # The original 400-char text should not appear in full
+        # The original 400-char text should not appear in full (sanitize truncates to 300)
         assert "A" * 400 not in result
+        assert "A" * 300 in result
 
     def test_short_message_not_truncated(self):
         text = "Short message under 300 chars."

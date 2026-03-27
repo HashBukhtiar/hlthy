@@ -165,18 +165,6 @@ async function _ensureConversationExists(
       createdAt: serverTimestamp(),
       isAiConversation: true,
     });
-  } else {
-    // Repair old conversation docs: ensure participants is just [uid] and isAiConversation is set
-    const data = snap.data();
-    const participants: string[] = data?.participants ?? [];
-    if (!data?.isAiConversation || participants.length !== 1 || participants[0] !== uid) {
-      logger.debug('aiChatRepository', `Repairing conversation doc. Old participants: ${JSON.stringify(participants)}`);
-      await setDoc(convRef, {
-        participants: [uid],
-        isAiConversation: true,
-        createdAt: data?.createdAt ?? serverTimestamp(),
-      });
-    }
   }
 
   _verifiedConversations.add(conversationId);

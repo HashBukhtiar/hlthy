@@ -55,9 +55,6 @@ service cloud.firestore {
         resource.data.keys().hasAny(['pushTokens', 'lastTokenUpdate']) &&
         request.data.keys().hasOnly(['pushTokens', 'lastTokenUpdate']);
       
-      // Allow admin dashboard to read/update users for moderation (localhost only)
-      // TODO: Replace with proper admin auth in production
-      allow read, update: if true;
     }
 
     // Message requests
@@ -141,7 +138,7 @@ service cloud.firestore {
         get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants.hasAny([request.auth.uid]);
     }
 
-    // Usernames collection
+    // Usernames collection — intentionally public for username availability checks during signup
     match /usernames/{username} {
       allow read: if true;
       allow create: if isAuthenticated() && 
@@ -152,9 +149,7 @@ service cloud.firestore {
 
     // Posts collection
     match /posts/{postId} {
-      // Allow thumbnail optimization reads
-      allow get: if request.resource.data.keys().hasAny(['thumbnailUrl']);
-      allow read: if isAuthenticated() && 
+      allow read: if isAuthenticated() &&
         canViewPost(resource.data, request.auth.uid);
       
       allow create: if isAuthenticated() && 
@@ -257,9 +252,7 @@ service cloud.firestore {
 
     // Workouts collection
     match /workouts/{workoutId} {
-      // Allow thumbnail optimization reads
-      allow get: if request.resource.data.keys().hasAny(['thumbnailUrl']);
-      allow read: if isAuthenticated() && 
+      allow read: if isAuthenticated() &&
         (resource.data.get('isPublic', false) == true || 
          resource.data.creatorId == request.auth.uid);
       
@@ -289,8 +282,10 @@ service cloud.firestore {
         (request.resource.data.participants.size() == 2 ||
          (request.resource.data.participants.size() == 1 && request.resource.data.isAiConversation == true));
       
-      allow update: if isAuthenticated() && 
-        request.auth.uid in resource.data.participants;
+      // Participants can update conversation metadata but NOT participants list or isAiConversation
+      allow update: if isAuthenticated() &&
+        request.auth.uid in resource.data.participants &&
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['participants', 'isAiConversation']);
       
       match /messages/{messageId} {
         allow read: if isAuthenticated() && 
@@ -307,9 +302,12 @@ service cloud.firestore {
       }
     }
 
-    // Milestones collection
+    // Milestones collection — readable by authenticated users (public achievements)
+    // Block check prevents blocked users from viewing milestones
     match /milestones/{milestoneId} {
-      allow read: if isAuthenticated();
+      allow read: if isAuthenticated() &&
+        !isBlocked(resource.data.authorId, request.auth.uid) &&
+        !isBlocked(request.auth.uid, resource.data.authorId);
       allow create: if isAuthenticated() &&
         request.auth.uid == request.resource.data.authorId;
       allow update: if isAuthenticated() &&
@@ -318,16 +316,16 @@ service cloud.firestore {
         request.auth.uid == resource.data.authorId;
     }
 
-    // Temporary fallback rule for debugging
-    match /{document=**} {
-      allow read: if isAuthenticated();
-      allow write: if false;
+    // Notification logs — server-side only (rate limiting). Admin SDK bypasses rules.
+    match /notificationLogs/{logId} {
+      allow read, write: if false;
     }
 
-    // Analytics collection
+    // Analytics collection — append-only, no reads from client
     match /analytics/{document} {
       allow read: if false;
-      allow write: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update, delete: if false;
     }
 
     // usersPublic collection: readable by unauthenticated users for username existence check
@@ -339,23 +337,22 @@ service cloud.firestore {
 
     // Reports collection
     match /reports/{reportId} {
-      // Allow unauthenticated reads for admin dashboard (localhost only)
-      // TODO: Remove this and use proper admin auth in production
-      allow read: if true;
-      
-      // Users can create reports (service handles the logic)
-      allow create: if isAuthenticated() && 
+      // Users can only read reports they filed
+      allow read: if isAuthenticated() &&
+        resource.data.reporters[0].userId == request.auth.uid;
+
+      // Users can create reports (first reporter must be the caller)
+      allow create: if isAuthenticated() &&
         request.resource.data.reporters[0].userId == request.auth.uid;
-      
+
       // Users can update reports to add themselves as a reporter
-      allow update: if isAuthenticated() && 
-        request.resource.data.reporters.size() > resource.data.reporters.size();
-      
-      // Allow admin dashboard to update reports (for taking actions)
-      // TODO: Replace with proper admin auth in production
-      allow update: if true;
-      
-      // Only admins can delete (handled server-side)
+      // Only the reporters array can change, new entry must belong to caller
+      allow update: if isAuthenticated() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reporters']) &&
+        request.resource.data.reporters.size() > resource.data.reporters.size() &&
+        request.resource.data.reporters[request.resource.data.reporters.size() - 1].userId == request.auth.uid;
+
+      // Admin operations (read all, update status) use Cloud Functions with Admin SDK
       allow delete: if false;
     }
   }

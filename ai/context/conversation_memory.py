@@ -21,19 +21,19 @@ async def load_conversation_history(
     """
     db = get_db()
 
-    # Verify authorization: user must be a participant in the conversation
+    # Verify authorization: user must be a participant or owner of AI conversation
     conv_doc = await db.collection("conversations").document(conversation_id).get()
     if conv_doc.exists:
         conv_data = conv_doc.to_dict() or {}
         participants = conv_data.get("participants", [])
-        # For AI conversations, the conversation ID contains the user's UID
-        # For human DMs, check the participants array
-        if participants and uid not in participants:
-            if uid not in conversation_id:
-                raise HTTPException(
-                    status_code=403,
-                    detail="Not authorized to access this conversation",
-                )
+        # Check participants array first, then exact AI conversation ID match
+        is_participant = uid in participants
+        is_ai_owner = conversation_id == f"{uid}_ai_conversation"
+        if not is_participant and not is_ai_owner:
+            raise HTTPException(
+                status_code=403,
+                detail="Not authorized to access this conversation",
+            )
 
     docs = await (
         db.collection("conversations").document(conversation_id)
@@ -104,6 +104,20 @@ async def save_coach_memory(
                     })
                     return
             return  # Duplicate and not expired — don't save
+
+    # Per-user memory cap: prevent unbounded growth
+    MAX_MEMORIES = 150
+    all_memories = await (
+        db.collection("users").document(uid)
+        .collection("coach_memory")
+        .order_by("extracted_at", direction=firestore.Query.ASCENDING)
+        .get()
+    )
+    if len(all_memories) >= MAX_MEMORIES:
+        # Evict oldest memories to make room
+        to_delete = len(all_memories) - MAX_MEMORIES + 1
+        for mem_doc in all_memories[:to_delete]:
+            await mem_doc.reference.delete()
 
     memory_data: dict = {
         "type": memory_type,

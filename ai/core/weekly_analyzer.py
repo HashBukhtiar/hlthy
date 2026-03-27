@@ -58,8 +58,8 @@ async def analyze_week(
     Generate a weekly training summary using Gemini.
     Filters recent_workouts to only include the last 7 days.
     """
-    from datetime import datetime, timedelta
-    seven_days_ago = (datetime.utcnow() - timedelta(days=7)).strftime("%Y-%m-%d")
+    from datetime import datetime, timedelta, timezone
+    seven_days_ago = (datetime.now(timezone.utc) - timedelta(days=7)).strftime("%Y-%m-%d")
     workouts = [w for w in user_context.recent_workouts if w.date >= seven_days_ago]
 
     # Compute weekly aggregates

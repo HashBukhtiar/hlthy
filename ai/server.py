@@ -37,11 +37,22 @@ from routers import health, chat, internal  # noqa: E402
 
 app = FastAPI(title="HLTHY AI Coach", version="3.0")
 
+# CORS: Allow Expo Web (localhost dev) and production web if needed.
+# Native mobile clients (iOS/Android) are unaffected by CORS.
+# Internal endpoints (Cloud Functions → Cloud Run) are server-to-server, unaffected by CORS.
+_cors_origins = [
+    "http://localhost:8081",   # Expo Web dev server
+    "http://localhost:19006",  # Expo Web alt port
+]
+_prod_web_origin = os.environ.get("WEB_ORIGIN")
+if _prod_web_origin:
+    _cors_origins.append(_prod_web_origin)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=_cors_origins,
+    allow_methods=["POST", "GET"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 
 app.include_router(health.router, prefix="/api")

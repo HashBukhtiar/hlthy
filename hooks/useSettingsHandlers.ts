@@ -365,6 +365,8 @@ export function useSettingsHandlers(props: UseSettingsHandlersProps) {
                 followRequestAccepted: true,
                 taggedInComments: true,
                 mentionedInReplies: true,
+                coachInsights: true,
+                coachNudges: true,
               },
               twoFactorEnabled: false,
               dateOfBirth: undefined,

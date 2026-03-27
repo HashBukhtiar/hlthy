@@ -82,65 +82,63 @@ The app has a structured logger at `shared/utils/logger.ts` but most files still
 
 ~~`ai/ai_chat.ts`~~ — deleted in Phase 1 cleanup. Replaced by `features/ai/infra/aiChatRepository.ts`.
 
-### 5. CRITICAL: Firestore Rules — Open Admin Access (Pre-existing)
+### 5. ~~CRITICAL: Firestore Rules — Open Admin Access~~ (RESOLVED 2026-03-26)
 
-**Severity: CRITICAL** — Flagged by security audit 2026-03-26.
+Removed all `allow read, update: if true` rules on `/users/{userId}` and `/reports/{reportId}`. Admin operations now require Cloud Functions with Admin SDK.
 
-| File | Line | Rule | Impact |
-|------|------|------|--------|
-| `firestore.rules` | 60 | `allow read, update: if true;` on `/users/{userId}` | Any unauthenticated user can read/update ANY user document (profile, push tokens, settings, blocked users) |
-| `firestore.rules` | 332 | `allow read: if true;` on `/reports/{reportId}` | Anyone can read all reports (reporter IDs, reported content) |
-| `firestore.rules` | 344 | `allow update: if true;` on `/reports/{reportId}` | Anyone can update any report (mark resolved, change action) |
+### 6. ~~CORS Wildcard on AI Backend~~ (RESOLVED 2026-03-26)
 
-**Root cause**: These rules exist as TODOs for admin dashboard access from localhost.
+Set `allow_origins=[]` — no browser origins needed (native mobile clients only). Internal endpoints are server-to-server.
 
-**Fix**: Remove all `if true` rules. Move admin operations to Cloud Functions using Admin SDK (which bypasses Firestore rules). Build admin dashboard as authenticated Cloud Functions callables or a separate admin API.
+### 7. ~~`sendPushNotification` Callable Missing Auth Check~~ (RESOLVED 2026-03-26)
 
-### 6. CORS Wildcard on AI Backend
+Added `if (!request.auth) throw HttpsError("unauthenticated")` at the top of the handler.
 
-**Severity: HIGH** — `ai/server.py` uses `allow_origins=["*"]` which applies to all routes, including internal service-to-service endpoints (`/api/internal/*`). Internal routes don't need CORS.
+### 8. ~~CRITICAL: Wildcard Firestore Rule~~ (RESOLVED 2026-03-26)
 
-**Fix**: Either restrict CORS to app domains, or apply CORS middleware only to client-facing routes (`/api/chat/*`, `/api/health`).
-
-### 7. `sendPushNotification` Callable Missing Auth Check (Pre-existing)
-
-**Severity: MEDIUM** — `functions/src/services/notificationService.ts` `sendPushNotification` callable does not check `request.auth`. Any authenticated user can send arbitrary push notifications to any other user.
-
-**Fix**: Add `if (!request.auth) throw new HttpsError("unauthenticated", ...)` and validate the caller is authorized for the notification type.
-
-### 8. CRITICAL: Wildcard Firestore Rule Exposes All Subcollections (Pre-existing)
-
-**Severity: CRITICAL** — Flagged by security audit 2026-03-26.
-
-`firestore.rules:310-313` has `match /{document=**} { allow read: if isAuthenticated(); }` which grants every authenticated user read access to EVERY document in EVERY collection/subcollection. This negates per-collection rules for subcollections like `ai_profile`, `coach_memory`, `exercise_history`, `coach_insights`, etc.
-
-**Fix**: Remove the wildcard rule and fix any client queries that rely on it.
+Removed `match /{document=**} { allow read: if isAuthenticated(); }`. Added explicit rule for `notificationLogs`. All subcollections already had explicit rules.
 
 ### 9. Weekly Summary — collectionGroup Query Scaling
 
 The `getActiveUserIds` function reads all `workout_logs` from the past 7 days across all users. At scale (500+ users), this becomes expensive. Consider maintaining a `lastWorkoutAt` timestamp on user documents and querying `users` directly instead.
 
-### 10. Weekly Summary — Deterministic Dedup IDs
+### 10. ~~Weekly Summary — Deterministic Dedup IDs~~ (RESOLVED 2026-03-26)
 
-The dedup check for weekly summaries is not atomic (race condition on retry). Use deterministic document IDs like `weekly_{userId}_{weekDate}` with `set()` instead of `add()` to make writes idempotent.
+Weekly summaries now use `doc("weekly_{weekDate}").set()` and nudges use `doc("nudge_{date}").set()` — idempotent writes.
 
-### 11. Prompt Builder — Unsanitized User Profile Fields
+### 11. ~~Prompt Builder — Unsanitized User Profile Fields~~ (RESOLVED 2026-03-26)
 
-`ai/core/prompt_builder.py:_format_client_file` injects `display_name`, `goals`, `injuries`, `dislikes`, `coach_memories` into the prompt without sanitization. Apply length limits and newline stripping to prevent prompt injection through profile fields.
+All user-controlled fields in `_format_client_file` and `_format_coach_memories` are now sanitized via `sanitize()` with length limits.
 
 ### 12. Replace Shared Secret with IAM Auth
 
 The `INTERNAL_API_SECRET` shared secret for Cloud Functions → Cloud Run auth should be replaced with Google Cloud IAM-based OIDC token authentication. This eliminates secret management and supports automatic rotation.
 
-### 13. Coach Memory — No Per-User Cap
+### 13. ~~Coach Memory — No Per-User Cap~~ (RESOLVED 2026-03-26)
 
-`save_coach_memory` has no limit on total memories per user. A user who logs many workouts will accumulate unbounded memory documents. Expired memories are filtered at read time but not deleted (now cleaned inline, but old expired docs may still exist). Consider a cap of 100-200 per user and/or a TTL-based Firestore policy.
+Added 150-memory cap per user in `save_coach_memory`. Expired memories also auto-cleaned at read time.
 
-### 14. Coach Notifications — Settings UI Toggles Missing
+### 14. ~~Coach Notifications — Settings UI Toggles Missing~~ (RESOLVED 2026-03-26)
 
-The `coachInsights` and `coachNudges` notification preferences are added to backend defaults but no toggles exist in the Settings screen UI for users to opt out. Add toggles under notification preferences. Apple App Store guidelines require users to have a meaningful way to opt out of non-essential push notifications.
+Added "Coach Insights" and "Coach Nudges" toggles to Settings screen notification preferences.
 
-### 9. Stale Documentation (Low Priority)
+### 15. Health Endpoint Exposes Model ID (LOW)
+
+`ai/routers/health.py` returns the Vertex AI model ID and per-system status. Consider returning only `{"status": "healthy"}` on the public endpoint.
+
+### 16. Storage Rules Missing File Validation (MEDIUM)
+
+`storage.rules` does not validate `contentType` or `size` on uploads. Add `request.resource.size < 10MB` and `request.resource.contentType.matches('image/.*')`.
+
+### 17. Enable Firebase App Check (LOW)
+
+Protect Firestore/Storage from non-app clients. The `usernames` and `usersPublic` public-read collections are vulnerable to scraping without App Check.
+
+### 18. Users Collection Update — No Field Restriction (LOW)
+
+`firestore.rules` allows any authenticated owner to update any field on their user doc, including `followersCount`, `pushTokens`, etc. Consider `affectedKeys().hasOnly(...)` whitelist.
+
+### 19. Stale Documentation (Low Priority)
 
 | File | Issue |
 |------|-------|

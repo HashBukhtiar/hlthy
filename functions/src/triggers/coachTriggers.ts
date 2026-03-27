@@ -277,8 +277,10 @@ async function processWeeklySummary(
 
   const analysis = await callWeeklySummary(userId);
 
+  // Deterministic ID makes writes idempotent (safe on retry)
+  const weekISO = weekStart.toISOString().slice(0, 10);
   await db.collection("users").doc(userId)
-    .collection("coach_insights").add({
+    .collection("coach_insights").doc(`weekly_${weekISO}`).set({
       type: "weekly_summary",
       insight: analysis.insight,
       highlights: analysis.highlights,
@@ -511,9 +513,10 @@ async function processNudge(
   const userHash = userId.split("").reduce((sum, ch) => sum + ch.charCodeAt(0), 0);
   const nudge = NUDGE_MESSAGES[(dayOfYear + userHash) % NUDGE_MESSAGES.length];
 
-  // Save nudge as a coach insight
+  // Deterministic ID makes writes idempotent (safe on retry)
+  const dateISO = today.toISOString().slice(0, 10);
   await db.collection("users").doc(userId)
-    .collection("coach_insights").add({
+    .collection("coach_insights").doc(`nudge_${dateISO}`).set({
       type: "nudge",
       insight: nudge.body,
       highlights: [`${daysSinceLastWorkout} days since last workout`],

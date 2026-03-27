@@ -23,6 +23,9 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+# Track background tasks to prevent GC before completion
+_background_tasks: set[asyncio.Task] = set()
+
 
 @router.post(
     "/internal/analyze-workout",
@@ -40,10 +43,11 @@ async def analyze_workout_endpoint(body: AnalyzeWorkoutRequest):
     analysis = await analyze_workout(uid, body.workout_log, ctx)
 
     # Fire-and-forget: extract workout memories (non-blocking)
-    # Store reference to prevent GC before completion
-    _bg_task = asyncio.create_task(
+    task = asyncio.create_task(
         extract_workout_memories(uid, body.workout_log, analysis.sentiment)
     )
+    _background_tasks.add(task)
+    task.add_done_callback(_background_tasks.discard)
 
     logger.info(f"Workout analysis generated for {uid[:8]}: {analysis.sentiment}")
     return analysis

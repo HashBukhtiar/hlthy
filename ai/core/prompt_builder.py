@@ -1,6 +1,7 @@
 """
 Builds the system prompt for the AI coach with injected user context.
 """
+from core.text_utils import sanitize
 from models.schemas import UserContext
 
 
@@ -58,59 +59,59 @@ call the generate_workout function with the structured workout data
 
 
 def _format_client_file(ctx: UserContext) -> str:
-    name = ctx.display_name or "New Client"
+    name = sanitize(ctx.display_name or "New Client", 50)
     profile = ctx.profile
 
-    # Format basic profile
+    # Format basic profile (sanitize all user-controlled fields)
     lines = [f"CLIENT FILE: {name}"]
 
     if profile.experience_level:
-        lines.append(f"Experience: {profile.experience_level}")
+        lines.append(f"Experience: {sanitize(profile.experience_level, 30)}")
     if profile.archetype:
-        lines.append(f"Archetype: {profile.archetype}")
+        lines.append(f"Archetype: {sanitize(profile.archetype, 30)}")
     if profile.goals:
-        lines.append(f"Goals: {', '.join(profile.goals)}")
+        lines.append(f"Goals: {', '.join(sanitize(g, 100) for g in profile.goals)}")
     if profile.training_frequency:
         lines.append(f"Training frequency: {profile.training_frequency} days/week")
     if profile.injuries:
-        lines.append(f"Injuries/limitations: {', '.join(profile.injuries)}")
+        lines.append(f"Injuries/limitations: {', '.join(sanitize(i, 100) for i in profile.injuries)}")
     if profile.equipment:
-        lines.append(f"Equipment access: {', '.join(profile.equipment)}")
+        lines.append(f"Equipment access: {', '.join(sanitize(e, 100) for e in profile.equipment)}")
     if profile.dislikes:
-        lines.append(f"Dislikes: {', '.join(profile.dislikes)}")
+        lines.append(f"Dislikes: {', '.join(sanitize(d, 100) for d in profile.dislikes)}")
 
     # Format streak
     if ctx.workout_streak > 0:
         lines.append(f"Current streak: {ctx.workout_streak} workouts")
 
-    # Format recent PRs
+    # Format recent PRs (sanitize — built from user-controlled exercise names)
     if ctx.recent_prs:
         lines.append(f"\nRecent PRs:")
         for pr in ctx.recent_prs[:5]:
-            lines.append(f"  - {pr}")
+            lines.append(f"  - {sanitize(pr, 150)}")
 
-    # Format recent workouts
+    # Format recent workouts (sanitize all user-controlled fields)
     if ctx.recent_workouts:
         lines.append(f"\nRecent workouts:")
         for w in ctx.recent_workouts[:5]:
-            exercises_str = ", ".join(w.exercises[:4])
+            exercises_str = ", ".join(sanitize(e, 50) for e in w.exercises[:4])
             if len(w.exercises) > 4:
                 exercises_str += f" +{len(w.exercises) - 4} more"
             pr_str = f", {w.prs_hit} PRs" if w.prs_hit > 0 else ""
-            mood_str = f", felt {w.mood}" if w.mood else ""
+            mood_str = f", felt {sanitize(w.mood, 20)}" if w.mood else ""
             lines.append(
-                f"  - {w.date}: {w.name} ({w.duration_minutes}min, "
+                f"  - {sanitize(w.date, 10)}: {sanitize(w.name, 50)} ({w.duration_minutes}min, "
                 f"{w.total_volume:,.0f}lbs volume{pr_str}{mood_str}) — {exercises_str}"
             )
 
-    # Format exercise stats (top performers)
+    # Format exercise stats (sanitize exercise names used as dict keys)
     if ctx.exercise_stats:
         lines.append(f"\nExercise performance:")
         trend_emoji = {"improving": "↑", "declining": "↓", "stable": "→", "new": "★"}
-        for name, stats in list(ctx.exercise_stats.items())[:8]:
+        for ex_name, stats in list(ctx.exercise_stats.items())[:8]:
             trend = trend_emoji.get(stats.trend, "→")
             lines.append(
-                f"  - {name}: PR {stats.pr_weight}lbs x {stats.pr_reps}, "
+                f"  - {sanitize(ex_name, 50)}: PR {stats.pr_weight}lbs x {stats.pr_reps}, "
                 f"last {stats.last_weight}lbs x {stats.last_reps}, "
                 f"{stats.total_sessions} sessions {trend}"
             )
@@ -127,7 +128,7 @@ def _format_coach_memories(ctx: UserContext) -> str:
 
     lines = ["COACH MEMORIES (things you've learned about this client):"]
     for mem in ctx.coach_memories:
-        lines.append(f"  - [{mem.type}] {mem.content}")
+        lines.append(f"  - [{sanitize(mem.type, 30)}] {sanitize(mem.content, 200)}")
     return "\n".join(lines)
 
 
@@ -138,9 +139,6 @@ def _format_conversation_history(ctx: UserContext) -> str:
     lines = ["CONVERSATION HISTORY (most recent messages):"]
     for msg in ctx.conversation_history:
         role = "Client" if msg.get("role") == "user" else "Coach"
-        text = msg.get("text", "")
-        # Truncate long messages in history
-        if len(text) > 300:
-            text = text[:300] + "..."
+        text = sanitize(msg.get("text", ""), 300)
         lines.append(f"  {role}: {text}")
     return "\n".join(lines)

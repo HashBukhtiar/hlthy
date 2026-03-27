@@ -104,6 +104,8 @@ export default function Settings() {
       followRequestAccepted: true,
       taggedInComments: true,
       mentionedInReplies: true,
+      coachInsights: true,
+      coachNudges: true,
     },
     twoFactorEnabled: false,
     dateOfBirth: undefined,
@@ -223,6 +225,8 @@ export default function Settings() {
           followRequestAccepted: userProfile.notifications?.followRequestAccepted ?? true,
           taggedInComments: userProfile.notifications?.taggedInComments ?? true,
           mentionedInReplies: userProfile.notifications?.mentionedInReplies ?? true,
+          coachInsights: userProfile.notifications?.coachInsights ?? true,
+          coachNudges: userProfile.notifications?.coachNudges ?? true,
         },
         twoFactorEnabled: userProfile.twoFactorEnabled || false,
         dateOfBirth: parseDateOfBirth(userProfile.dateOfBirth),
@@ -315,6 +319,8 @@ export default function Settings() {
           followRequestAccepted: userProfile.notifications?.followRequestAccepted ?? true,
           taggedInComments: userProfile.notifications?.taggedInComments ?? true,
           mentionedInReplies: userProfile.notifications?.mentionedInReplies ?? true,
+          coachInsights: userProfile.notifications?.coachInsights ?? true,
+          coachNudges: userProfile.notifications?.coachNudges ?? true,
         },
         twoFactorEnabled: userProfile.twoFactorEnabled || false,
         dateOfBirth: parseDateOfBirth(userProfile.dateOfBirth),
@@ -521,6 +527,8 @@ export default function Settings() {
             followRequestAccepted: prev.notifications?.followRequestAccepted ?? true,
             taggedInComments: prev.notifications?.taggedInComments ?? true,
             mentionedInReplies: prev.notifications?.mentionedInReplies ?? true,
+            coachInsights: prev.notifications?.coachInsights ?? true,
+            coachNudges: prev.notifications?.coachNudges ?? true,
             [keys[1]]: value,
           };
           return newSettings;
@@ -858,6 +866,20 @@ export default function Settings() {
             label="Mentioned in Replies"
             value={settings.notifications?.mentionedInReplies}
             onValueChange={(value) => updateSetting('notifications.mentionedInReplies', value)}
+          />
+
+          <SettingsItem
+            type="toggle"
+            label="Coach Insights"
+            value={settings.notifications?.coachInsights}
+            onValueChange={(value) => updateSetting('notifications.coachInsights', value)}
+          />
+
+          <SettingsItem
+            type="toggle"
+            label="Coach Nudges"
+            value={settings.notifications?.coachNudges}
+            onValueChange={(value) => updateSetting('notifications.coachNudges', value)}
           />
         </SettingsSection>
 

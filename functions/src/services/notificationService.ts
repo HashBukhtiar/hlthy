@@ -43,7 +43,9 @@ async function getUserNotificationPreferences(userId: string) {
     }
 
     const userData = userDoc.data();
-    return userData?.settings?.notifications || {
+    // Settings writes notifications to userData.notifications (flat on user doc)
+    // Legacy path was userData.settings.notifications — check both
+    return userData?.notifications || userData?.settings?.notifications || {
       newFollowers: true,
       likesAndComments: true,
       directMessages: true,
@@ -184,7 +186,11 @@ export async function sendPushNotificationHelper(
 export const sendPushNotification = onCall(
   {region: "northamerica-northeast2"},
   async (request) => {
-    logger.info("sendPushNotification triggered:", JSON.stringify(request.data));
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Authentication required");
+    }
+
+    logger.info("sendPushNotification triggered by:", request.auth.uid);
 
     const {
       recipientId,
@@ -216,14 +222,16 @@ export const sendPushNotification = onCall(
       }
 
       const userData = userDoc.data();
-      // Check user's notification preferences
-      const preferences = userData?.settings?.notifications || {
+      // Check user's notification preferences (same logic as sendPushNotificationHelper)
+      const preferences = userData?.notifications || userData?.settings?.notifications || {
         newFollowers: true,
         likesAndComments: true,
         directMessages: true,
         followRequestAccepted: true,
         taggedInComments: true,
         mentionedInReplies: true,
+        coachInsights: true,
+        coachNudges: true,
       };
 
       // Check if this notification type is enabled
@@ -236,6 +244,8 @@ export const sendPushNotification = onCall(
         "direct_message": "directMessages",
         "tagged_comment": "taggedInComments",
         "mentioned_reply": "mentionedInReplies",
+        "coach_insight": "coachInsights",
+        "coach_nudge": "coachNudges",
       };
 
       const preferenceKey = typeMapping[notificationType];
@@ -281,7 +291,7 @@ export const sendPushNotification = onCall(
       );
 
       if (validTokens.length === 0) {
-        logger.info(`No valid push tokens found for user ${recipientId}. Available tokens: ${JSON.stringify(pushTokens)}`);
+        logger.info(`No valid push tokens found for user ${recipientId}. Token count: ${pushTokens.length}`);
         return {success: false, reason: "No valid push tokens found"};
       }
 
@@ -557,6 +567,10 @@ export const onMessageCreated = onDocumentWritten(
 export const cleanupPushToken = onCall(
   {region: "northamerica-northeast2"},
   async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Authentication required");
+    }
+
     const {token} = request.data;
     if (!token) {
       throw new HttpsError("invalid-argument", "Token is required");
