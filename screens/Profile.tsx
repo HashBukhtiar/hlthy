@@ -17,7 +17,7 @@ import { getOptimalImageUrl } from '@/utils/imageUtils';
 import { formatCount } from '@/logic/formattingFunctions';
 import BottomActionMenu, { BottomActionMenuItem } from '@/components/BottomActionMenu';
 import { db, app } from '@/firebaseConfig';
-import { getDoc, doc } from 'firebase/firestore';
+import { getDoc, doc } from '@/features/infra/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 
 const archetypeIcons = {
