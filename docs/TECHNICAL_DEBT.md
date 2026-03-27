@@ -108,7 +108,31 @@ The app has a structured logger at `shared/utils/logger.ts` but most files still
 
 **Fix**: Add `if (!request.auth) throw new HttpsError("unauthenticated", ...)` and validate the caller is authorized for the notification type.
 
-### 8. Coach Insights — Settings UI Toggle Missing
+### 8. CRITICAL: Wildcard Firestore Rule Exposes All Subcollections (Pre-existing)
+
+**Severity: CRITICAL** — Flagged by security audit 2026-03-26.
+
+`firestore.rules:310-313` has `match /{document=**} { allow read: if isAuthenticated(); }` which grants every authenticated user read access to EVERY document in EVERY collection/subcollection. This negates per-collection rules for subcollections like `ai_profile`, `coach_memory`, `exercise_history`, `coach_insights`, etc.
+
+**Fix**: Remove the wildcard rule and fix any client queries that rely on it.
+
+### 9. Weekly Summary — collectionGroup Query Scaling
+
+The `getActiveUserIds` function reads all `workout_logs` from the past 7 days across all users. At scale (500+ users), this becomes expensive. Consider maintaining a `lastWorkoutAt` timestamp on user documents and querying `users` directly instead.
+
+### 10. Weekly Summary — Deterministic Dedup IDs
+
+The dedup check for weekly summaries is not atomic (race condition on retry). Use deterministic document IDs like `weekly_{userId}_{weekDate}` with `set()` instead of `add()` to make writes idempotent.
+
+### 11. Prompt Builder — Unsanitized User Profile Fields
+
+`ai/core/prompt_builder.py:_format_client_file` injects `display_name`, `goals`, `injuries`, `dislikes`, `coach_memories` into the prompt without sanitization. Apply length limits and newline stripping to prevent prompt injection through profile fields.
+
+### 12. Replace Shared Secret with IAM Auth
+
+The `INTERNAL_API_SECRET` shared secret for Cloud Functions → Cloud Run auth should be replaced with Google Cloud IAM-based OIDC token authentication. This eliminates secret management and supports automatic rotation.
+
+### 13. Coach Insights — Settings UI Toggle Missing
 
 The `coachInsights` notification preference is added to backend defaults but no toggle exists in the Settings screen UI for users to opt out. Add a toggle under notification preferences.
 

@@ -3,14 +3,13 @@ Post-workout analysis using Gemini.
 Generates a concise insight from a completed workout log and user context.
 """
 import asyncio
-import json
 import logging
-import re
 
 from vertexai.generative_models import GenerativeModel, GenerationConfig
 
 from core.config import MODEL_ID
 from core.prompt_builder import _format_client_file
+from core.text_utils import sanitize, parse_gemini_json
 from models.schemas import UserContext, WorkoutAnalysis, WorkoutLogPayload
 
 logger = logging.getLogger(__name__)
@@ -52,11 +51,6 @@ Rules:
 - Do NOT give generic advice — make it specific to THIS workout and THIS client"""
 
 
-def _sanitize(text: str, max_len: int = 100) -> str:
-    """Strip newlines and limit length to prevent prompt injection."""
-    return re.sub(r"[\n\r]+", " ", text)[:max_len]
-
-
 async def analyze_workout(
     uid: str,
     workout_data: WorkoutLogPayload,
@@ -69,7 +63,7 @@ async def analyze_workout(
     # Build exercise detail lines with sanitized names
     exercise_lines = []
     for ex in workout_data.exercises:
-        name = _sanitize(ex.exerciseName)
+        name = sanitize(ex.exerciseName)
         if ex.skipped:
             exercise_lines.append(f"  - {name} (skipped)")
             continue
@@ -82,12 +76,12 @@ async def analyze_workout(
                 f"{len(completed_sets)} sets, best set {best.get('weight', 0)}lbs x {best.get('reps', 0)}{pr_flag}"
             )
 
-    mood = _sanitize(workout_data.mood or "", 20) if workout_data.mood else None
+    mood = sanitize(workout_data.mood or "", 20) if workout_data.mood else None
     difficulty = workout_data.perceivedDifficulty
 
     prompt = _ANALYSIS_PROMPT_TEMPLATE.format(
         client_file=_format_client_file(user_context),
-        workout_name=_sanitize(workout_data.workoutName),
+        workout_name=sanitize(workout_data.workoutName),
         duration_minutes=workout_data.durationMinutes,
         total_volume=workout_data.totalVolume,
         total_sets=workout_data.totalSets,
@@ -114,15 +108,7 @@ async def analyze_workout(
             timeout=GEMINI_TIMEOUT_SECONDS,
         )
 
-        text = result.text.strip()
-        # Clean markdown fences if present
-        if text.startswith("```"):
-            text = text.split("\n", 1)[-1]
-        if text.endswith("```"):
-            text = text.rsplit("```", 1)[0]
-        text = text.strip()
-
-        data = json.loads(text)
+        data = parse_gemini_json(result.text)
 
         # Validate sentiment against allowed values
         sentiment = data.get("sentiment", "positive")
@@ -143,7 +129,7 @@ async def analyze_workout(
         volume = workout_data.totalVolume
         pr_text = f" and hit {prs} PR{'s' if prs > 1 else ''}" if prs > 0 else ""
         return WorkoutAnalysis(
-            insight=f"Nice work finishing {_sanitize(workout_data.workoutName)}! "
+            insight=f"Nice work finishing {sanitize(workout_data.workoutName)}! "
                     f"You moved {volume:,.0f} lbs total{pr_text}.",
             highlights=["Workout completed"],
             recommendations=[],

@@ -52,6 +52,11 @@ class AnalyzeWorkoutRequest(BaseModel):
     workout_log: WorkoutLogPayload = Field(...)
 
 
+class WeeklySummaryRequest(BaseModel):
+    """Request body for POST /api/internal/weekly-summary"""
+    uid: str = Field(..., min_length=1, max_length=128)
+
+
 # ── Response Models ─────────────────────────────────────────────────────────
 
 
@@ -85,7 +90,7 @@ class SSEErrorEvent(BaseModel):
 
 
 class WorkoutAnalysis(BaseModel):
-    """Response for POST /api/internal/analyze-workout"""
+    """Shared response type for coach insight endpoints (workout analysis + weekly summary)."""
     insight: str
     highlights: List[str] = Field(default_factory=list)
     recommendations: List[str] = Field(default_factory=list)
