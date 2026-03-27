@@ -62,39 +62,60 @@ async def save_coach_memory(
     memory_type: str,
     content: str,
     source: str = "ai_extracted",
+    expires_at: "datetime | None" = None,
 ) -> None:
     """
-    Save a coach memory extracted from conversation.
+    Save a coach memory extracted from conversation or workout data.
     Checks for duplicates before saving.
+    Optionally sets an expiration date — expired memories are filtered at read time.
     """
+    from datetime import datetime, timezone
+
     db = get_db()
 
-    # Check for duplicate memories (same type + similar content)
+    # Check for duplicate memories (same type + similar content, most recent first)
     existing = await (
         db.collection("users").document(uid)
         .collection("coach_memory")
         .where("type", "==", memory_type)
-        .limit(50)
+        .order_by("extracted_at", direction=firestore.Query.DESCENDING)
+        .limit(20)
         .get()
     )
 
     content_lower = content.lower()
     for doc in existing:
-        existing_content = (doc.to_dict() or {}).get("content", "").lower()
+        doc_data = doc.to_dict() or {}
+        existing_content = doc_data.get("content", "").lower()
         # Skip if substantially similar content already exists
         if existing_content and (
             content_lower in existing_content
             or existing_content in content_lower
         ):
-            return  # Duplicate — don't save
+            # If the existing memory has expired, update it instead of skipping
+            existing_expires = doc_data.get("expires_at")
+            if existing_expires and hasattr(existing_expires, "timestamp"):
+                if datetime.fromtimestamp(existing_expires.timestamp(), tz=timezone.utc) < datetime.now(timezone.utc):
+                    await doc.reference.update({
+                        "content": content,
+                        "source": source,
+                        "extracted_at": firestore.SERVER_TIMESTAMP,
+                        "expires_at": expires_at,
+                    })
+                    return
+            return  # Duplicate and not expired — don't save
+
+    memory_data: dict = {
+        "type": memory_type,
+        "content": content,
+        "source": source,
+        "extracted_at": firestore.SERVER_TIMESTAMP,
+    }
+    if expires_at is not None:
+        memory_data["expires_at"] = expires_at
 
     await (
         db.collection("users").document(uid)
         .collection("coach_memory")
-        .add({
-            "type": memory_type,
-            "content": content,
-            "source": source,
-            "extracted_at": firestore.SERVER_TIMESTAMP,
-        })
+        .add(memory_data)
     )

@@ -132,7 +132,11 @@ The dedup check for weekly summaries is not atomic (race condition on retry). Us
 
 The `INTERNAL_API_SECRET` shared secret for Cloud Functions → Cloud Run auth should be replaced with Google Cloud IAM-based OIDC token authentication. This eliminates secret management and supports automatic rotation.
 
-### 13. Coach Notifications — Settings UI Toggles Missing
+### 13. Coach Memory — No Per-User Cap
+
+`save_coach_memory` has no limit on total memories per user. A user who logs many workouts will accumulate unbounded memory documents. Expired memories are filtered at read time but not deleted (now cleaned inline, but old expired docs may still exist). Consider a cap of 100-200 per user and/or a TTL-based Firestore policy.
+
+### 14. Coach Notifications — Settings UI Toggles Missing
 
 The `coachInsights` and `coachNudges` notification preferences are added to backend defaults but no toggles exist in the Settings screen UI for users to opt out. Add toggles under notification preferences. Apple App Store guidelines require users to have a meaningful way to opt out of non-essential push notifications.
 

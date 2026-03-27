@@ -123,6 +123,18 @@ service cloud.firestore {
       allow delete: if isOwner(userId);
     }
 
+    // Coach Memory - AI-extracted observations about user (written by Cloud Run)
+    match /users/{userId}/coach_memory/{memoryId} {
+      allow read: if isOwner(userId);
+      allow create, update, delete: if false;  // Only admin SDK (Cloud Run) writes
+    }
+
+    // AI Profile - dedicated AI coaching profile (written by Cloud Run)
+    match /users/{userId}/ai_profile/{docId} {
+      allow read: if isOwner(userId);
+      allow write: if false;  // Only admin SDK writes
+    }
+
     match /users/{userId}/conversations/{conversationId} {
       allow read: if isOwner(userId);
       allow write: if isAuthenticated() &&
