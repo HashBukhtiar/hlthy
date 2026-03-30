@@ -23,15 +23,15 @@ export const searchUsersForMention = onCall(
     }
 
     const {query} = request.data;
-    if (!query || typeof query !== "string") {
-      throw new HttpsError("invalid-argument", "query is required");
+    if (typeof query !== "string") {
+      throw new HttpsError("invalid-argument", "query must be a string");
     }
 
     const callerUid = request.auth.uid;
-    const lower = query.toLowerCase();
+    const lower = query.toLowerCase().trim();
 
     try {
-      // Fetch caller's followers and following IDs in parallel
+      // Fetch caller's followers, following, and blocked list in parallel
       const [followersSnap, followingSnap, callerDoc] = await Promise.all([
         db.collection("users").doc(callerUid).collection("followers").get(),
         db.collection("users").doc(callerUid).collection("following").get(),
@@ -44,40 +44,87 @@ export const searchUsersForMention = onCall(
         callerDoc.data()?.blockedUsers || []
       );
 
-      // Prefix query on normalized lowercase username field (case-insensitive search)
-      const usersSnap = await db
-        .collection("users")
-        .where("usernameLower", ">=", lower)
-        .where("usernameLower", "<=", lower + "\uf8ff")
-        .limit(30)
-        .get();
-
       const followers: MentionSuggestion[] = [];
       const following: MentionSuggestion[] = [];
       const others: MentionSuggestion[] = [];
 
-      for (const doc of usersSnap.docs) {
-        const uid = doc.id;
-        // Skip the caller and blocked users
-        if (uid === callerUid || blockedUsers.has(uid)) continue;
+      if (lower === "") {
+        // No query: return followers and following by fetching their user docs
+        const priorityIds = [
+          ...followersSnap.docs.map((d) => d.id),
+          ...followingSnap.docs.map((d) => d.id).filter((id) => !followerIds.has(id)),
+        ].filter((id) => id !== callerUid && !blockedUsers.has(id)).slice(0, 20);
 
-        const data = doc.data();
-        const suggestion: MentionSuggestion = {
-          userId: uid,
-          username: data.username || "",
-          displayName: data.displayName || "",
-          profileThumbnailUrl: data.profileThumbnailUrl || data.profileImageUrl || "",
-          bucket: "other",
-        };
+        if (priorityIds.length > 0) {
+          // Firestore 'in' supports up to 30 items
+          const chunks: string[][] = [];
+          for (let i = 0; i < priorityIds.length; i += 30) {
+            chunks.push(priorityIds.slice(i, i + 30));
+          }
+          for (const chunk of chunks) {
+            const snap = await db
+              .collection("users")
+              .where("__name__", "in", chunk)
+              .get();
+            for (const doc of snap.docs) {
+              const uid = doc.id;
+              const data = doc.data();
+              const suggestion: MentionSuggestion = {
+                userId: uid,
+                username: data.username || "",
+                displayName: data.displayName || "",
+                profileThumbnailUrl: data.profileThumbnailUrl || data.profileImageUrl || "",
+                bucket: followerIds.has(uid) ? "follower" : "following",
+              };
+              if (followerIds.has(uid)) {
+                followers.push(suggestion);
+              } else {
+                following.push(suggestion);
+              }
+            }
+          }
+        }
+      } else {
+        // Run both queries in parallel:
+        // 1. usernameLower — for users created after the field was added
+        // 2. username — for existing users without usernameLower (case-sensitive fallback)
+        const [byLower, byUsername] = await Promise.all([
+          db.collection("users")
+            .where("usernameLower", ">=", lower)
+            .where("usernameLower", "<=", lower + "\uf8ff")
+            .limit(30)
+            .get(),
+          db.collection("users")
+            .where("username", ">=", lower)
+            .where("username", "<=", lower + "\uf8ff")
+            .limit(30)
+            .get(),
+        ]);
 
-        if (followerIds.has(uid)) {
-          suggestion.bucket = "follower";
-          followers.push(suggestion);
-        } else if (followingIds.has(uid)) {
-          suggestion.bucket = "following";
-          following.push(suggestion);
-        } else {
-          others.push(suggestion);
+        const seen = new Set<string>();
+        for (const doc of [...byLower.docs, ...byUsername.docs]) {
+          const uid = doc.id;
+          if (uid === callerUid || blockedUsers.has(uid) || seen.has(uid)) continue;
+          seen.add(uid);
+
+          const data = doc.data();
+          const suggestion: MentionSuggestion = {
+            userId: uid,
+            username: data.username || "",
+            displayName: data.displayName || "",
+            profileThumbnailUrl: data.profileThumbnailUrl || data.profileImageUrl || "",
+            bucket: "other",
+          };
+
+          if (followerIds.has(uid)) {
+            suggestion.bucket = "follower";
+            followers.push(suggestion);
+          } else if (followingIds.has(uid)) {
+            suggestion.bucket = "following";
+            following.push(suggestion);
+          } else {
+            others.push(suggestion);
+          }
         }
       }
 

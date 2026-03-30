@@ -102,7 +102,7 @@ export default function MentionTextInput({
   const dropdownOpacity = useSharedValue(0);
   const dropdownTranslateY = useSharedValue(8);
 
-  const showDropdown = triggerQuery !== null && triggerQuery.length > 0 && mentions.length < MAX_MENTIONS;
+  const showDropdown = triggerQuery !== null && mentions.length < MAX_MENTIONS;
 
   useEffect(() => {
     if (showDropdown) {
@@ -145,7 +145,7 @@ export default function MentionTextInput({
     const query = extractMentionQuery(value, cursorPosition);
     setTriggerQuery(query);
 
-    if (query && query.length > 0 && mentions.length < MAX_MENTIONS) {
+    if (query !== null && mentions.length < MAX_MENTIONS) {
       search(query);
     } else {
       clear();

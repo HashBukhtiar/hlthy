@@ -15,12 +15,6 @@ export function useMentionSearch() {
       clearTimeout(debounceRef.current);
     }
 
-    if (!query.trim()) {
-      setSuggestions([]);
-      setLoading(false);
-      return;
-    }
-
     setLoading(true);
 
     debounceRef.current = setTimeout(async () => {
