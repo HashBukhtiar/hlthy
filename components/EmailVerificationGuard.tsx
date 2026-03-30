@@ -128,7 +128,7 @@ export default function EmailVerificationGuard({ children }: EmailVerificationGu
     console.log('[EmailVerificationGuard] Showing loading screen - authLoading is true');
     return (
       <AuthBackground>
-        <View style={styles.loadingContainer}>
+        <View style={styles.loadingContainer} collapsable={false}>
           <CustomSpinner size={48} />
           <Text style={styles.loadingText}>Loading...</Text>
         </View>

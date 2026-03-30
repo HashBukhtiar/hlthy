@@ -1,14 +1,16 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { 
-  View, 
-  StyleSheet, 
-  Text, 
+import {
+  View,
+  StyleSheet,
+  Text,
   TouchableOpacity,
   Dimensions,
   Animated,
   TouchableWithoutFeedback,
   Keyboard,
-  ScrollView
+  ScrollView,
+  InteractionManager,
+  Platform
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { TextInput } from 'react-native-paper';
@@ -120,8 +122,17 @@ export default function LoginForm({ visible, onBackPress, onForgotPasswordPress,
       console.log('[Login] Success for', emailAddress);
       // Clear the signup flag since this is a login
       setIsFromSignup(false);
-      // Log the user in regardless of email verification status
-      router.replace({ pathname: '/' });
+      // Navigate directly to tabs, deferring to avoid Fabric view flattening
+      // race condition during screen teardown on Android production builds
+      if (Platform.OS === 'android') {
+        InteractionManager.runAfterInteractions(() => {
+          requestAnimationFrame(() => {
+            router.replace('/(tabs)');
+          });
+        });
+      } else {
+        router.replace('/(tabs)');
+      }
     } catch (error: any) {
       console.log('[Login] Failed for', emailAddress, error);
       
@@ -217,7 +228,7 @@ export default function LoginForm({ visible, onBackPress, onForgotPasswordPress,
   if (!visible) return null;
 
   return (
-    <View style={styles.slideView}>
+    <View style={styles.slideView} collapsable={false}>
       {/* Loading overlay */}
       <LoadingOverlay visible={loading} message="Signing in..." size={48} />
       {/* Back button */}
@@ -238,12 +249,12 @@ export default function LoginForm({ visible, onBackPress, onForgotPasswordPress,
         <TouchableWithoutFeedback onPress={Keyboard.dismiss} disabled={loading}>
           <Animated.View style={[styles.loginFullContainer, { transform: [{ translateY: contentTranslateY }] }]}> 
             {/* Centered login content */}
-            <View style={styles.loginCenteredContent}>
+            <View style={styles.loginCenteredContent} collapsable={false}>
               <View style={styles.loginHeader}>
                 <Text style={styles.loginTitle}>Welcome Back</Text>
                 <Text style={styles.loginSubtitle}>Sign in to continue your fitness journey</Text>
               </View>
-              <View style={styles.formContainer}>
+              <View style={styles.formContainer} collapsable={false}>
                 <TextInput
                   ref={emailInputRef}
                   label="Email Address"
@@ -352,7 +363,7 @@ export default function LoginForm({ visible, onBackPress, onForgotPasswordPress,
         </TouchableWithoutFeedback>
       </ScrollView>
       {/* Footer buttons - locked at bottom */}
-      <View style={styles.loginFooterFixed} pointerEvents={loading ? "none" : "auto"}>
+      <View style={styles.loginFooterFixed} pointerEvents={loading ? "none" : "auto"} collapsable={false}>
         <TouchableOpacity onPress={onShowSignUp || (() => router.push('/landing'))} activeOpacity={0.7} disabled={loading}>
           <Text style={styles.linkText}>Don't have an account? <Text style={styles.linkTextBold}>Sign Up</Text></Text>
         </TouchableOpacity>

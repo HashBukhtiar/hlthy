@@ -4,7 +4,7 @@ import Landing from '@/screens/Landing';
 
 export default function LandingScreen() {
   return (
-    <View style={styles.container}>
+    <View style={styles.container} collapsable={false}>
       <Landing />
     </View>
   );

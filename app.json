@@ -34,15 +34,7 @@
     },
     "plugins": [
       "expo-router",
-      "expo-web-browser",
-      [
-        "expo-build-properties",
-        {
-          "android": {
-            "newArchEnabled": false
-          }
-        }
-      ]
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true
