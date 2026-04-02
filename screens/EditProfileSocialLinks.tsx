@@ -8,8 +8,8 @@ import {
   ActivityIndicator,
   Alert,
   TextInput,
-  Switch,
 } from 'react-native';
+import { CustomSelector } from '@/components/CustomSelector';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/context/AuthContext';
@@ -135,6 +135,7 @@ export default function EditProfileSocialLinks() {
   const [links, setLinks] = useState<SocialLinksState>(EMPTY_LINKS);
   const [initialLinks, setInitialLinks] = useState<SocialLinksState>(EMPTY_LINKS);
   const [isSaving, setIsSaving] = useState(false);
+  const [privacyModalVisible, setPrivacyModalVisible] = useState(false);
 
   useEffect(() => {
     if (userProfile) {
@@ -292,19 +293,37 @@ export default function EditProfileSocialLinks() {
       {/* Privacy */}
       <Text style={styles.sectionHeader}>PRIVACY</Text>
       <View style={styles.card}>
-        <View style={styles.toggleRow}>
+        <TouchableOpacity
+          style={styles.toggleRow}
+          onPress={() => setPrivacyModalVisible(true)}
+          activeOpacity={0.7}
+        >
           <View style={styles.toggleLeft}>
-            <Text style={styles.toggleLabel}>Followers Only</Text>
+            <Text style={styles.toggleLabel}>Link Visibility</Text>
             <Text style={styles.toggleHelper}>Only your followers can see your social links</Text>
           </View>
-          <Switch
-            value={links.showLinksToFollowersOnly}
-            onValueChange={(v) => updateLink('showLinksToFollowersOnly', v)}
-            trackColor={{ false: '#3A3A3C', true: '#FF2D55' }}
-            thumbColor="#fff"
-          />
-        </View>
+          <View style={styles.dropdownRight}>
+            <Text style={styles.dropdownValue}>
+              {links.showLinksToFollowersOnly ? 'Followers Only' : 'Public'}
+            </Text>
+            <Ionicons name="chevron-forward" size={16} color="#8E8E93" />
+          </View>
+        </TouchableOpacity>
       </View>
+
+      <CustomSelector
+        items={[
+          { label: 'Public', value: 'public', icon: 'globe-outline', description: 'Anyone can see your social links' },
+          { label: 'Followers Only', value: 'followers', icon: 'people-outline', description: 'Only your followers can see your social links' },
+        ]}
+        value={links.showLinksToFollowersOnly ? 'followers' : 'public'}
+        onSelect={(value) => updateLink('showLinksToFollowersOnly', value === 'followers')}
+        title="Link Visibility"
+        icon="eye-outline"
+        modalVisible={privacyModalVisible}
+        setModalVisible={setPrivacyModalVisible}
+        variant="fullWidth"
+      />
 
       <View style={styles.footer} />
     </ScrollView>
@@ -458,6 +477,15 @@ const styles = StyleSheet.create({
     color: '#8E8E93',
     fontSize: 13,
     lineHeight: 17,
+  },
+  dropdownRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  dropdownValue: {
+    color: '#8E8E93',
+    fontSize: 15,
   },
   footer: {
     height: 48,
