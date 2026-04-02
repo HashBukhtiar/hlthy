@@ -298,10 +298,10 @@ export default function EditProfileSocialLinks() {
           onPress={() => setPrivacyModalVisible(true)}
           activeOpacity={0.7}
         >
-          <View style={styles.toggleLeft}>
-            <Text style={styles.toggleLabel}>Link Visibility</Text>
-            <Text style={styles.toggleHelper}>Control who can see your social links</Text>
+          <View style={styles.toggleIconBadge}>
+            <Ionicons name="eye-outline" size={17} color="#8E8E93" />
           </View>
+          <Text style={styles.toggleLabel}>Link Visibility</Text>
           <View style={styles.dropdownRight}>
             <Text style={styles.dropdownValue}>
               {links.showLinksToFollowersOnly ? 'Followers Only' : 'Public'}
@@ -462,23 +462,23 @@ const styles = StyleSheet.create({
   toggleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
   },
-  toggleLeft: {
-    flex: 1,
-    marginRight: 16,
+  toggleIconBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
   },
   toggleLabel: {
+    flex: 1,
     color: '#FFFFFF',
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '500',
-    marginBottom: 3,
-  },
-  toggleHelper: {
-    color: '#8E8E93',
-    fontSize: 13,
-    lineHeight: 17,
   },
   dropdownRight: {
     flexDirection: 'row',
