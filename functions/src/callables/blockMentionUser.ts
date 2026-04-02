@@ -30,11 +30,19 @@ export const blockMentionUser = onCall(
     }
 
     try {
-      const mentionBlockRef = db.collection('users').doc(callerUid).collection('mentionBlocks').doc(targetUid);
+      const now = admin.firestore.Timestamp.now();
+      const batch = db.batch();
 
-      await mentionBlockRef.set({
-        blockedAt: admin.firestore.Timestamp.now(),
-      });
+      // users/{callerUid}/mentionBlocks/{targetUid} — "I have blocked targetUid from mentioning me"
+      const mentionBlockRef = db.collection('users').doc(callerUid).collection('mentionBlocks').doc(targetUid);
+      batch.set(mentionBlockRef, { blockedAt: now });
+
+      // users/{targetUid}/mentionBlockedBy/{callerUid} — "targetUid is blocked from mentioning me (callerUid)"
+      // This reverse index lets the mention search exclude users who have blocked the caller.
+      const mentionBlockedByRef = db.collection('users').doc(targetUid).collection('mentionBlockedBy').doc(callerUid);
+      batch.set(mentionBlockedByRef, { blockedAt: now });
+
+      await batch.commit();
 
       logger.info(`blockMentionUser: User ${callerUid} blocked mentions from ${targetUid}`);
       return { success: true, message: 'Mention block created successfully' };

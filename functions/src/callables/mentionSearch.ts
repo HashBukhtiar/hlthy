@@ -31,12 +31,13 @@ export const searchUsersForMention = onCall(
     const lower = query.toLowerCase().trim();
 
     try {
-      // Fetch caller's followers, following, blocked list, and mention blocks in parallel
-      const [followersSnap, followingSnap, callerDoc, mentionBlocksSnap] = await Promise.all([
+      // Fetch caller's followers, following, blocked list, and mention-blocked-by list in parallel
+      const [followersSnap, followingSnap, callerDoc, mentionBlockedBySnap] = await Promise.all([
         db.collection("users").doc(callerUid).collection("followers").get(),
         db.collection("users").doc(callerUid).collection("following").get(),
         db.collection("users").doc(callerUid).get(),
-        db.collection("users").doc(callerUid).collection("mentionBlocks").get(),
+        // Users who have blocked the caller from mentioning them
+        db.collection("users").doc(callerUid).collection("mentionBlockedBy").get(),
       ]);
 
       const followerIds = new Set(followersSnap.docs.map((d) => d.id));
@@ -44,8 +45,9 @@ export const searchUsersForMention = onCall(
       const blockedUsers = new Set<string>(
         callerDoc.data()?.blockedUsers || []
       );
+      // Exclude users who have blocked the caller from mentioning them
       const mentionBlockedByMe = new Set<string>(
-        mentionBlocksSnap.docs.map((d) => d.id)
+        mentionBlockedBySnap.docs.map((d) => d.id)
       );
 
       const followers: MentionSuggestion[] = [];
