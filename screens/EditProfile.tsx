@@ -327,11 +327,11 @@ export default function EditProfile() {
           </TouchableOpacity>
         </View>
 
-        {/* Social Links */}
+        {/* Social + Profile Card */}
         <Text style={styles.sectionHeader}>SOCIAL</Text>
         <View style={styles.card}>
           <TouchableOpacity
-            style={styles.selectRow}
+            style={[styles.selectRow, styles.rowBorder]}
             onPress={() => router.push('/edit-profile-social-links')}
             activeOpacity={0.7}
           >
@@ -354,10 +354,6 @@ export default function EditProfile() {
               <Ionicons name="chevron-forward" size={16} color="#3A3A3C" />
             </View>
           </TouchableOpacity>
-        </View>
-
-        {/* View Profile Card */}
-        <View style={styles.card}>
           <TouchableOpacity
             style={styles.selectRow}
             onPress={() => router.push(`/view-profile-card/${currentUser?.uid}`)}
