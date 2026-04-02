@@ -172,7 +172,7 @@ export default function Settings() {
 
   return (
     <>
-      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      <View style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity style={styles.backButton} onPress={() => router.back()} activeOpacity={0.7}>
@@ -183,6 +183,8 @@ export default function Settings() {
             {saving && <ActivityIndicator size="small" color="#FF2D55" />}
           </View>
         </View>
+
+        <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
 
         {/* User Card */}
         <View style={styles.userCard}>
@@ -365,7 +367,8 @@ export default function Settings() {
         </TouchableOpacity>
 
         <View style={styles.footer} />
-      </ScrollView>
+        </ScrollView>
+      </View>
 
       <SettingsModals
         archetypeData={archetypeData}
@@ -389,6 +392,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#000',
+  },
+  scroll: {
+    flex: 1,
   },
   header: {
     flexDirection: 'row',
