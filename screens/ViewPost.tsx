@@ -21,6 +21,7 @@ import { ACCENT_COLOR } from '@/constants/Colors';
 import MentionTextInput from '@/components/MentionTextInput';
 import MentionText from '@/components/MentionText';
 import { MentionData } from '@/features/mentions/domain/Mention';
+import { useSelfUnmention } from '@/features/mentions/ui/useSelfUnmention';
 import { TagChip } from '@/components/TagChip';
 import { navigateToTagFeed } from '@/features/explore/ui/useExplore';
 
@@ -32,6 +33,7 @@ export default function ViewPost() {
   const insets = useSafeAreaInsets();
   const { currentUser, userProfile } = useAuth();
   const { canInteractWithUser, isUserBlocked } = useBlockEnforcement();
+  const { promptSelfUnmention } = useSelfUnmention();
   const {
     getPostById, 
     getPostComments, 
@@ -71,6 +73,8 @@ export default function ViewPost() {
 
   const [selectedCommentForAction, setSelectedCommentForAction] = useState<Comment | null>(null);
   const [commentActionModalVisible, setCommentActionModalVisible] = useState(false);
+  const [selectedReplyForAction, setSelectedReplyForAction] = useState<{ reply: Reply; commentId: string } | null>(null);
+  const [replyActionModalVisible, setReplyActionModalVisible] = useState(false);
 
   const filteredComments = useMemo(() => {
     return comments.filter(comment => {
@@ -913,6 +917,11 @@ export default function ViewPost() {
     setCommentActionModalVisible(true);
   };
 
+  const handleLongPressReply = (reply: Reply, commentId: string) => {
+    setSelectedReplyForAction({ reply, commentId });
+    setReplyActionModalVisible(true);
+  };
+
   const handleEditComment = () => {
     if (!selectedCommentForAction) return;
     // Placeholder for edit functionality
@@ -954,6 +963,104 @@ export default function ViewPost() {
     Alert.alert("Report Comment", `Reporting comment by ${selectedCommentForAction.authorUsername}.`);
     setCommentActionModalVisible(false);
     setSelectedCommentForAction(null);
+  };
+
+  const handleRemovePostMention = async () => {
+    if (!post || !currentUser) return;
+    const authorMention = post.mentions?.find(m => m.userId === post.authorId);
+    if (!authorMention) return;
+
+    setMenuVisible(false);
+    await promptSelfUnmention(
+      {
+        context: 'post_caption',
+        postId: post.id,
+      },
+      post.authorUsername,
+      post.authorId,
+      () => {
+        // Remove mention from local state
+        setPost(prev =>
+          prev
+            ? {
+                ...prev,
+                mentions: prev.mentions?.filter(m => m.userId !== currentUser.uid) || [],
+              }
+            : null
+        );
+      }
+    );
+  };
+
+  const handleRemoveCommentMention = async () => {
+    if (!selectedCommentForAction || !post || !currentUser) return;
+    const authorMention = selectedCommentForAction.mentions?.find(m => m.userId === selectedCommentForAction.authorId);
+    if (!authorMention) return;
+
+    setCommentActionModalVisible(false);
+    await promptSelfUnmention(
+      {
+        context: 'comment',
+        postId: post.id,
+        commentId: selectedCommentForAction.id,
+      },
+      selectedCommentForAction.authorUsername,
+      selectedCommentForAction.authorId,
+      () => {
+        // Remove mention from local state
+        setComments(prev =>
+          prev.map(c =>
+            c.id === selectedCommentForAction.id
+              ? {
+                  ...c,
+                  mentions: c.mentions?.filter(m => m.userId !== currentUser.uid) || [],
+                }
+              : c
+          )
+        );
+        setSelectedCommentForAction(null);
+      }
+    );
+  };
+
+  const handleRemoveReplyMention = async () => {
+    if (!selectedReplyForAction || !post || !currentUser) return;
+    const { reply, commentId } = selectedReplyForAction;
+    const authorMention = reply.mentions?.find(m => m.userId === reply.authorId);
+    if (!authorMention) return;
+
+    setReplyActionModalVisible(false);
+    await promptSelfUnmention(
+      {
+        context: 'reply',
+        postId: post.id,
+        commentId,
+        replyId: reply.id,
+      },
+      reply.authorUsername,
+      reply.authorId,
+      () => {
+        // Remove mention from local state
+        setComments(prev =>
+          prev.map(c =>
+            c.id === commentId
+              ? {
+                  ...c,
+                  replies: c.replies?.map(r =>
+                    r.id === reply.id
+                      ? {
+                          ...r,
+                          mentions: r.mentions?.filter(m => m.userId !== currentUser.uid) || [],
+                        }
+                      : r
+                  ) || [],
+                }
+              : c
+          )
+        );
+        setSelectedReplyForAction(null);
+      }
+    );
   };
 
   const handleSort = (type: string) => {
@@ -1091,6 +1198,7 @@ export default function ViewPost() {
       <TouchableOpacity
         key={reply.id}
         onPress={canInteractWithReply ? createDoubleTapHandler(() => handleReplyDoubleTap(commentId, reply.id), `${commentId}-${reply.id}`, 'reply') : undefined}
+        onLongPress={canInteractWithReply ? () => handleLongPressReply(reply, commentId) : undefined}
         activeOpacity={0.7}
         style={styles.replyItem}
       >
@@ -1412,15 +1520,15 @@ export default function ViewPost() {
                 <>
                   {post?.isMilestone && post.milestoneDetails ? (
                     <>
-                      <TouchableOpacity 
+                      <TouchableOpacity
                         style={styles.menuItem}
                         onPress={() => performPostDeletion(false)}
                       >
                         <Ionicons name="document-outline" size={20} color="#FF9500" />
                         <Text style={[styles.menuItemText, { color: '#FF9500' }]}>Delete Post Only</Text>
                       </TouchableOpacity>
-                      
-                      <TouchableOpacity 
+
+                      <TouchableOpacity
                         style={styles.menuItem}
                         onPress={() => performPostDeletion(true)}
                       >
@@ -1429,7 +1537,7 @@ export default function ViewPost() {
                       </TouchableOpacity>
                     </>
                   ) : (
-                    <TouchableOpacity 
+                    <TouchableOpacity
                       style={styles.menuItem}
                       onPress={() => performPostDeletion(false)}
                     >
@@ -1440,7 +1548,7 @@ export default function ViewPost() {
                 </>
               ) : (
                 /* Non-owner options - Report */
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.menuItem}
                   onPress={() => {
                     setMenuVisible(false);
@@ -1451,8 +1559,19 @@ export default function ViewPost() {
                   <Text style={[styles.menuItemText, { color: '#FF9500' }]}>Report Post</Text>
                 </TouchableOpacity>
               )}
-              
-              <TouchableOpacity 
+
+              {/* Remove my mention option - for non-authors who are mentioned */}
+              {post?.authorId !== currentUser?.uid && post?.mentions?.some(m => m.userId === currentUser?.uid) && (
+                <TouchableOpacity
+                  style={styles.menuItem}
+                  onPress={handleRemovePostMention}
+                >
+                  <Ionicons name="close-circle-outline" size={20} color="#999" />
+                  <Text style={[styles.menuItemText, { color: '#999' }]}>Remove my mention</Text>
+                </TouchableOpacity>
+              )}
+
+              <TouchableOpacity
                 style={styles.menuItem}
                 onPress={() => setMenuVisible(false)}
               >
@@ -1522,19 +1641,114 @@ export default function ViewPost() {
                     </TouchableOpacity>
                   </>
                 ) : (
-                  <TouchableOpacity
-                    style={styles.commentActionItem}
-                    onPress={handleReportComment}
-                  >
-                    <Ionicons name="flag-outline" size={22} color="#FF9500" style={styles.commentActionIcon} />
-                    <Text style={[styles.commentActionText, { color: '#FF9500' }]}>Report Comment</Text>
-                  </TouchableOpacity>
+                  <>
+                    <TouchableOpacity
+                      style={styles.commentActionItem}
+                      onPress={handleReportComment}
+                    >
+                      <Ionicons name="flag-outline" size={22} color="#FF9500" style={styles.commentActionIcon} />
+                      <Text style={[styles.commentActionText, { color: '#FF9500' }]}>Report Comment</Text>
+                    </TouchableOpacity>
+                    {selectedCommentForAction.mentions?.some(m => m.userId === currentUser?.uid) && (
+                      <TouchableOpacity
+                        style={styles.commentActionItem}
+                        onPress={handleRemoveCommentMention}
+                      >
+                        <Ionicons name="close-circle-outline" size={22} color="#999" style={styles.commentActionIcon} />
+                        <Text style={[styles.commentActionText, { color: '#999' }]}>Remove my mention</Text>
+                      </TouchableOpacity>
+                    )}
+                  </>
                 )}
                 <TouchableOpacity
                   style={[styles.commentActionItem, { borderBottomWidth: 0 }]}
                   onPress={() => {
                     setCommentActionModalVisible(false);
                     setSelectedCommentForAction(null);
+                  }}
+                >
+                  <Ionicons name="close-circle-outline" size={22} color="#999" style={styles.commentActionIcon} />
+                  <Text style={[styles.commentActionText, { color: '#999' }]}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
+            </TouchableOpacity>
+          </Modal>
+        )}
+
+        {/* Reply Action Modal */}
+        {selectedReplyForAction && (
+          <Modal
+            animationType="slide"
+            transparent={true}
+            visible={replyActionModalVisible}
+            onRequestClose={() => {
+              setReplyActionModalVisible(false);
+              setSelectedReplyForAction(null);
+            }}
+          >
+            <TouchableOpacity
+              style={styles.modalOverlay}
+              activeOpacity={1}
+              onPress={() => {
+                setReplyActionModalVisible(false);
+                setSelectedReplyForAction(null);
+              }}
+            >
+              <View style={styles.commentActionModalView}>
+                {selectedReplyForAction.reply.authorId === currentUser?.uid ? (
+                  <>
+                    <TouchableOpacity
+                      style={styles.commentActionItem}
+                      onPress={() => {
+                        Alert.alert("Edit Reply", "Edit functionality not yet implemented.");
+                        setReplyActionModalVisible(false);
+                        setSelectedReplyForAction(null);
+                      }}
+                    >
+                      <Ionicons name="create-outline" size={22} color="#FFF" style={styles.commentActionIcon} />
+                      <Text style={styles.commentActionText}>Edit Reply</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.commentActionItem}
+                      onPress={() => {
+                        Alert.alert("Delete Reply", "Delete functionality not yet implemented.");
+                        setReplyActionModalVisible(false);
+                        setSelectedReplyForAction(null);
+                      }}
+                    >
+                      <Ionicons name="trash-outline" size={22} color="#FF3B30" style={styles.commentActionIcon} />
+                      <Text style={[styles.commentActionText, { color: '#FF3B30' }]}>Delete Reply</Text>
+                    </TouchableOpacity>
+                  </>
+                ) : (
+                  <>
+                    <TouchableOpacity
+                      style={styles.commentActionItem}
+                      onPress={() => {
+                        Alert.alert("Report Reply", "Report functionality not yet implemented.");
+                        setReplyActionModalVisible(false);
+                        setSelectedReplyForAction(null);
+                      }}
+                    >
+                      <Ionicons name="flag-outline" size={22} color="#FF9500" style={styles.commentActionIcon} />
+                      <Text style={[styles.commentActionText, { color: '#FF9500' }]}>Report Reply</Text>
+                    </TouchableOpacity>
+                    {selectedReplyForAction.reply.mentions?.some(m => m.userId === currentUser?.uid) && (
+                      <TouchableOpacity
+                        style={styles.commentActionItem}
+                        onPress={handleRemoveReplyMention}
+                      >
+                        <Ionicons name="close-circle-outline" size={22} color="#999" style={styles.commentActionIcon} />
+                        <Text style={[styles.commentActionText, { color: '#999' }]}>Remove my mention</Text>
+                      </TouchableOpacity>
+                    )}
+                  </>
+                )}
+                <TouchableOpacity
+                  style={[styles.commentActionItem, { borderBottomWidth: 0 }]}
+                  onPress={() => {
+                    setReplyActionModalVisible(false);
+                    setSelectedReplyForAction(null);
                   }}
                 >
                   <Ionicons name="close-circle-outline" size={22} color="#999" style={styles.commentActionIcon} />
