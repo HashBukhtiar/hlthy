@@ -13,75 +13,65 @@ export function useSelfUnmention() {
       authorUid: string,
       onSuccess?: () => void
     ) => {
-      return new Promise<{ blockMention: boolean }>((resolve) => {
-        let blockMention = false;
+      setLoading(true);
 
-        Alert.alert(
-          'Remove your mention?',
-          "Your @username will no longer link to your profile. This cannot be undone.",
-          [
-            {
-              text: 'Cancel',
-              onPress: () => resolve({ blockMention: false }),
-              style: 'cancel',
+      Alert.alert(
+        'Remove your mention?',
+        "Your @username will no longer link to your profile. This cannot be undone.",
+        [
+          {
+            text: 'Cancel',
+            onPress: () => {
+              setLoading(false);
             },
-            {
-              text: 'Remove Mention',
-              onPress: async () => {
-                setLoading(true);
-                try {
-                  // Show checkbox option before confirming removal
-                  Alert.alert(
-                    'Additional option',
-                    `Also prevent @${authorUsername} from mentioning you in the future?`,
-                    [
-                      {
-                        text: 'No',
-                        onPress: async () => {
-                          try {
-                            await MentionRepository.selfUnmention(params);
-                            onSuccess?.();
-                            resolve({ blockMention: false });
-                          } catch (error) {
-                            console.error('Error removing mention:', error);
-                            Alert.alert('Error', 'Failed to remove mention. Please try again.');
-                            resolve({ blockMention: false });
-                          } finally {
-                            setLoading(false);
-                          }
-                        },
-                      },
-                      {
-                        text: 'Yes, block them',
-                        onPress: async () => {
-                          try {
-                            await MentionRepository.selfUnmention(params);
-                            await MentionRepository.blockMentionUser(authorUid);
-                            onSuccess?.();
-                            resolve({ blockMention: true });
-                          } catch (error) {
-                            console.error('Error removing mention or blocking user:', error);
-                            Alert.alert('Error', 'Failed to complete action. Please try again.');
-                            resolve({ blockMention: false });
-                          } finally {
-                            setLoading(false);
-                          }
-                        },
-                      },
-                    ]
-                  );
-                } catch (error) {
-                  console.error('Error in promptSelfUnmention:', error);
-                  Alert.alert('Error', 'An unexpected error occurred.');
-                  setLoading(false);
-                  resolve({ blockMention: false });
-                }
-              },
-              style: 'destructive',
+            style: 'cancel',
+          },
+          {
+            text: 'Remove Mention',
+            onPress: () => {
+              // Show option to also block future mentions
+              Alert.alert(
+                'Additional option',
+                `Also prevent @${authorUsername} from mentioning you in the future?`,
+                [
+                  {
+                    text: 'No',
+                    onPress: async () => {
+                      try {
+                        await MentionRepository.selfUnmention(params);
+                        onSuccess?.();
+                        Alert.alert('Success', 'Your mention has been removed.');
+                      } catch (error) {
+                        console.error('Error removing mention:', error);
+                        Alert.alert('Error', 'Failed to remove mention. Please try again.');
+                      } finally {
+                        setLoading(false);
+                      }
+                    },
+                  },
+                  {
+                    text: 'Yes, block them',
+                    onPress: async () => {
+                      try {
+                        await MentionRepository.selfUnmention(params);
+                        await MentionRepository.blockMentionUser(authorUid);
+                        onSuccess?.();
+                        Alert.alert('Success', 'Your mention has been removed and they are blocked from mentioning you.');
+                      } catch (error) {
+                        console.error('Error removing mention or blocking user:', error);
+                        Alert.alert('Error', 'Failed to complete action. Please try again.');
+                      } finally {
+                        setLoading(false);
+                      }
+                    },
+                  },
+                ]
+              );
             },
-          ]
-        );
-      });
+            style: 'destructive',
+          },
+        ]
+      );
     },
     []
   );

@@ -967,7 +967,7 @@ export default function ViewPost() {
 
   const handleRemovePostMention = async () => {
     if (!post || !currentUser) return;
-    const authorMention = post.mentions?.find(m => m.userId === post.authorId);
+    const authorMention = post.mentions?.find(m => m.userId === currentUser.uid);
     if (!authorMention) return;
 
     setMenuVisible(false);
@@ -994,7 +994,7 @@ export default function ViewPost() {
 
   const handleRemoveCommentMention = async () => {
     if (!selectedCommentForAction || !post || !currentUser) return;
-    const authorMention = selectedCommentForAction.mentions?.find(m => m.userId === selectedCommentForAction.authorId);
+    const authorMention = selectedCommentForAction.mentions?.find(m => m.userId === currentUser.uid);
     if (!authorMention) return;
 
     setCommentActionModalVisible(false);
@@ -1026,7 +1026,7 @@ export default function ViewPost() {
   const handleRemoveReplyMention = async () => {
     if (!selectedReplyForAction || !post || !currentUser) return;
     const { reply, commentId } = selectedReplyForAction;
-    const authorMention = reply.mentions?.find(m => m.userId === reply.authorId);
+    const authorMention = reply.mentions?.find(m => m.userId === currentUser.uid);
     if (!authorMention) return;
 
     setReplyActionModalVisible(false);
