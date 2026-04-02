@@ -20,6 +20,19 @@ import { SettingsModals } from '@/components/settings/SettingsModals';
 import { SelectorItem } from '@/components/CustomSelector';
 import { getOptimalImageUrl } from '@/utils/imageUtils';
 
+const SOCIAL_PLATFORM_DISPLAY: Record<string, { icon: string; color: string; bg: string }> = {
+  instagram: { icon: 'logo-instagram', color: '#E1306C', bg: 'rgba(225,48,108,0.18)' },
+  facebook:  { icon: 'logo-facebook',  color: '#1877F2', bg: 'rgba(24,119,242,0.18)' },
+  twitter:   { icon: 'logo-twitter',   color: '#1DA1F2', bg: 'rgba(29,161,242,0.18)' },
+  tiktok:    { icon: 'logo-tiktok',    color: '#FE2C55', bg: 'rgba(254,44,85,0.18)' },
+  youtube:   { icon: 'logo-youtube',   color: '#FF0000', bg: 'rgba(255,0,0,0.18)' },
+  linkedin:  { icon: 'logo-linkedin',  color: '#0A66C2', bg: 'rgba(10,102,194,0.18)' },
+  spotify:   { icon: 'musical-notes',  color: '#1DB954', bg: 'rgba(29,185,84,0.18)' },
+  snapchat:  { icon: 'logo-snapchat',  color: '#FFFC00', bg: 'rgba(255,252,0,0.18)' },
+  twitch:    { icon: 'logo-twitch',    color: '#9146FF', bg: 'rgba(145,70,255,0.18)' },
+  github:    { icon: 'logo-github',    color: '#E6EDF3', bg: 'rgba(230,237,243,0.12)' },
+};
+
 const archetypeData: SelectorItem[] = [
   { label: 'Athlete', value: 'athlete', image: require('@/assets/images/athlete.png'), description: 'Focused on athletic performance' },
   { label: 'Bodybuilder', value: 'bodybuilder', image: require('@/assets/images/bodybuilder.png'), description: 'Building muscle mass and definition' },
@@ -188,9 +201,14 @@ export default function EditProfile() {
     });
   };
 
+  const filledPlatforms = Object.entries(SOCIAL_PLATFORM_DISPLAY).filter(
+    ([key]) => !!(settings.socialLinks as any)?.[key]
+  );
   const filledLinkCount = Object.entries(settings.socialLinks || {}).filter(
     ([key, value]) => key !== 'showLinksToFollowersOnly' && key !== 'customLabel' && !!value
   ).length;
+  const previewIcons = filledPlatforms.slice(0, 4);
+  const extraCount = filledLinkCount - previewIcons.length;
 
   const formatDateOfBirth = (dob: any): string => {
     if (!dob) return 'Not set';
@@ -316,12 +334,22 @@ export default function EditProfile() {
             onPress={() => router.push('/edit-profile-social-links')}
             activeOpacity={0.7}
           >
-            <View style={styles.rowLeft}>
-              <Ionicons name="link" size={18} color="#fff" style={styles.rowIcon} />
-              <Text style={styles.rowLabel}>Social Links</Text>
-            </View>
+            <Text style={styles.rowLabel}>Social Links</Text>
             <View style={styles.rowRight}>
-              <Text style={styles.rowValue}>{filledLinkCount > 0 ? `${filledLinkCount} linked` : ''}</Text>
+              {previewIcons.length > 0 ? (
+                <View style={styles.socialIconRow}>
+                  {previewIcons.map(([key, cfg]) => (
+                    <View key={key} style={[styles.socialIconBadge, { backgroundColor: cfg.bg }]}>
+                      <Ionicons name={cfg.icon as any} size={11} color={cfg.color} />
+                    </View>
+                  ))}
+                  {extraCount > 0 && (
+                    <Text style={styles.rowValue}>+{extraCount}</Text>
+                  )}
+                </View>
+              ) : (
+                <Text style={styles.rowValue}>Add links</Text>
+              )}
               <Ionicons name="chevron-forward" size={16} color="#3A3A3C" />
             </View>
           </TouchableOpacity>
@@ -558,6 +586,18 @@ const styles = StyleSheet.create({
   },
   rowIcon: {
     marginRight: 10,
+  },
+  socialIconRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  socialIconBadge: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   rowRight: {
     flexDirection: 'row',
