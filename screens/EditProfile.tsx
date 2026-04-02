@@ -546,8 +546,10 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   inputLabel: {
-    color: '#FFFFFF',
-    fontSize: 16,
+    color: '#8E8E93',
+    fontSize: 13,
+    fontWeight: '500',
+    letterSpacing: 0.1,
     width: 120,
     flexShrink: 0,
   },
@@ -570,7 +572,7 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   bioLabel: {
-    marginBottom: 8,
+    marginBottom: 6,
     width: undefined,
   },
   bioInput: {
@@ -581,7 +583,7 @@ const styles = StyleSheet.create({
     paddingTop: 0,
   },
   charCount: {
-    color: '#3A3A3C',
+    color: '#48484A',
     fontSize: 12,
     textAlign: 'right',
     marginTop: 4,
