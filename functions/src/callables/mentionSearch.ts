@@ -31,17 +31,21 @@ export const searchUsersForMention = onCall(
     const lower = query.toLowerCase().trim();
 
     try {
-      // Fetch caller's followers, following, and blocked list in parallel
-      const [followersSnap, followingSnap, callerDoc] = await Promise.all([
+      // Fetch caller's followers, following, blocked list, and mention blocks in parallel
+      const [followersSnap, followingSnap, callerDoc, mentionBlocksSnap] = await Promise.all([
         db.collection("users").doc(callerUid).collection("followers").get(),
         db.collection("users").doc(callerUid).collection("following").get(),
         db.collection("users").doc(callerUid).get(),
+        db.collection("users").doc(callerUid).collection("mentionBlocks").get(),
       ]);
 
       const followerIds = new Set(followersSnap.docs.map((d) => d.id));
       const followingIds = new Set(followingSnap.docs.map((d) => d.id));
       const blockedUsers = new Set<string>(
         callerDoc.data()?.blockedUsers || []
+      );
+      const mentionBlockedByMe = new Set<string>(
+        mentionBlocksSnap.docs.map((d) => d.id)
       );
 
       const followers: MentionSuggestion[] = [];
@@ -53,7 +57,7 @@ export const searchUsersForMention = onCall(
         const priorityIds = [
           ...followersSnap.docs.map((d) => d.id),
           ...followingSnap.docs.map((d) => d.id).filter((id) => !followerIds.has(id)),
-        ].filter((id) => id !== callerUid && !blockedUsers.has(id)).slice(0, 20);
+        ].filter((id) => id !== callerUid && !blockedUsers.has(id) && !mentionBlockedByMe.has(id)).slice(0, 20);
 
         if (priorityIds.length > 0) {
           // Firestore 'in' supports up to 30 items
@@ -104,7 +108,7 @@ export const searchUsersForMention = onCall(
         const seen = new Set<string>();
         for (const doc of [...byLower.docs, ...byUsername.docs]) {
           const uid = doc.id;
-          if (uid === callerUid || blockedUsers.has(uid) || seen.has(uid)) continue;
+          if (uid === callerUid || blockedUsers.has(uid) || mentionBlockedByMe.has(uid) || seen.has(uid)) continue;
           seen.add(uid);
 
           const data = doc.data();

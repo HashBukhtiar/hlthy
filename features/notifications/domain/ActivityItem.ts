@@ -30,4 +30,5 @@ export interface ActivityItem {
   createdAt: Timestamp;
   isRead: boolean;
   status?: 'pending' | 'accepted' | 'ignored';
+  dismissed?: boolean;
 }
