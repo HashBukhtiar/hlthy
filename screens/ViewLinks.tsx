@@ -282,7 +282,17 @@ export default function ViewLinks({ userId }: ViewLinksProps) {
           </View>
         </View>
 
-        <View style={styles.headerRight} />
+        {isOwnProfile ? (
+          <TouchableOpacity
+            style={styles.editButton}
+            onPress={() => router.push('/edit-profile-social-links')}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="pencil" size={16} color="#FFFFFF" />
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.headerRight} />
+        )}
       </Animated.View>
     );
   };
@@ -469,6 +479,14 @@ const styles = StyleSheet.create({
   },
   headerRight: {
     width: 36,
+  },
+  editButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   // Content
