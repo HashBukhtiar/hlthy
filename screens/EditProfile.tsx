@@ -328,6 +328,7 @@ export default function EditProfile() {
         </View>
 
         {/* Social Links */}
+        <Text style={styles.sectionHeader}>SOCIAL</Text>
         <View style={styles.card}>
           <TouchableOpacity
             style={styles.selectRow}
