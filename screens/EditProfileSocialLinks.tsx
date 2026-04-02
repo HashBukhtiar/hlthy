@@ -300,7 +300,7 @@ export default function EditProfileSocialLinks() {
         >
           <View style={styles.toggleLeft}>
             <Text style={styles.toggleLabel}>Link Visibility</Text>
-            <Text style={styles.toggleHelper}>Only your followers can see your social links</Text>
+            <Text style={styles.toggleHelper}>Control who can see your social links</Text>
           </View>
           <View style={styles.dropdownRight}>
             <Text style={styles.dropdownValue}>
@@ -311,19 +311,21 @@ export default function EditProfileSocialLinks() {
         </TouchableOpacity>
       </View>
 
-      <CustomSelector
-        items={[
-          { label: 'Public', value: 'public', icon: 'globe-outline', description: 'Anyone can see your social links' },
-          { label: 'Followers Only', value: 'followers', icon: 'people-outline', description: 'Only your followers can see your social links' },
-        ]}
-        value={links.showLinksToFollowersOnly ? 'followers' : 'public'}
-        onSelect={(value) => updateLink('showLinksToFollowersOnly', value === 'followers')}
-        title="Link Visibility"
-        icon="eye-outline"
-        modalVisible={privacyModalVisible}
-        setModalVisible={setPrivacyModalVisible}
-        variant="fullWidth"
-      />
+      {privacyModalVisible && (
+        <CustomSelector
+          items={[
+            { label: 'Public', value: 'public', icon: 'globe-outline', description: 'Anyone can see your social links' },
+            { label: 'Followers Only', value: 'followers', icon: 'people-outline', description: 'Only your followers can see your social links' },
+          ]}
+          value={links.showLinksToFollowersOnly ? 'followers' : 'public'}
+          onSelect={(value) => updateLink('showLinksToFollowersOnly', value === 'followers')}
+          title="Link Visibility"
+          icon="eye-outline"
+          modalVisible={privacyModalVisible}
+          setModalVisible={setPrivacyModalVisible}
+          variant="fullWidth"
+        />
+      )}
 
       <View style={styles.footer} />
     </ScrollView>
