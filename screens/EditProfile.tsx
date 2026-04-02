@@ -9,7 +9,6 @@ import {
   ActivityIndicator,
   Alert,
   TextInput,
-  Switch,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,10 +17,7 @@ import { useAuth } from '@/context/AuthContext';
 import { UserSettings } from '@/types/settings';
 import { useSettingsHandlers } from '@/hooks/useSettingsHandlers';
 import { SettingsModals } from '@/components/settings/SettingsModals';
-import { SettingsSection } from '@/components/settings/SettingsSection';
-import { SettingsItem } from '@/components/settings/SettingsItem';
 import { SelectorItem } from '@/components/CustomSelector';
-import { validatePlatformUrl, validateCustomUrl, usernameToUrl, VERIFIED_PLATFORMS, type PlatformKey } from '@/utils/socialLinkValidation';
 import { getOptimalImageUrl } from '@/utils/imageUtils';
 
 const archetypeData: SelectorItem[] = [
@@ -74,7 +70,6 @@ export default function EditProfile() {
   const [imageManuallyChanged, setImageManuallyChanged] = useState(false);
   const [dateModalVisible, setDateModalVisible] = useState(false);
   const [activeModal, setActiveModal] = useState<string | null>(null);
-  const [socialLinksExpanded, setSocialLinksExpanded] = useState(false);
 
   const MODAL_DEBOUNCE_MS = 300;
   const [lastModalAction, setLastModalAction] = useState(0);
@@ -193,12 +188,9 @@ export default function EditProfile() {
     });
   };
 
-  const handleSocialLinkBlur = (platform: PlatformKey) => {
-    const currentValue = settings.socialLinks?.[platform] || '';
-    if (!currentValue) return;
-    const formatted = usernameToUrl(platform, currentValue);
-    if (formatted !== currentValue) updateSetting(`socialLinks.${platform}`, formatted);
-  };
+  const filledLinkCount = Object.entries(settings.socialLinks || {}).filter(
+    ([key, value]) => key !== 'showLinksToFollowersOnly' && key !== 'customLabel' && !!value
+  ).length;
 
   const formatDateOfBirth = (dob: any): string => {
     if (!dob) return 'Not set';
@@ -318,62 +310,22 @@ export default function EditProfile() {
         </View>
 
         {/* Social Links */}
-        <SettingsSection
-          title="Social Links"
-          icon="link"
-          expanded={socialLinksExpanded}
-          onToggle={() => setSocialLinksExpanded(v => !v)}
-        >
-          {Object.entries(VERIFIED_PLATFORMS).map(([key, platform]) => (
-            <SettingsItem
-              key={key}
-              type="input"
-              label={platform.name}
-              value={settings.socialLinks?.[key as PlatformKey] || ''}
-              onValueChange={(value) => updateSetting(`socialLinks.${key}`, value)}
-              onBlur={() => handleSocialLinkBlur(key as PlatformKey)}
-              placeholder={platform.placeholder}
-              helperText={
-                settings.socialLinks?.[key as PlatformKey] &&
-                !validatePlatformUrl(key as PlatformKey, settings.socialLinks[key as PlatformKey]!)
-                  ? `Invalid ${platform.name} URL format`
-                  : 'Enter full URL or just username'
-              }
-              error={!!(settings.socialLinks?.[key as PlatformKey] && !validatePlatformUrl(key as PlatformKey, settings.socialLinks[key as PlatformKey]!))}
-              fullWidth
-            />
-          ))}
-          <SettingsItem
-            type="input"
-            label="Custom Link Label"
-            value={settings.socialLinks?.customLabel || ''}
-            onValueChange={(v) => updateSetting('socialLinks.customLabel', v)}
-            placeholder="My Website"
-            helperText="Label for your custom link (max 30 characters)"
-            fullWidth
-          />
-          <SettingsItem
-            type="input"
-            label="Custom Link URL"
-            value={settings.socialLinks?.customUrl || ''}
-            onValueChange={(v) => updateSetting('socialLinks.customUrl', v)}
-            placeholder="https://example.com"
-            helperText={
-              settings.socialLinks?.customUrl && !validateCustomUrl(settings.socialLinks.customUrl)
-                ? 'Invalid URL format'
-                : 'Users will see a warning before opening this link'
-            }
-            error={!!(settings.socialLinks?.customUrl && !validateCustomUrl(settings.socialLinks.customUrl))}
-            fullWidth
-          />
-          <SettingsItem
-            type="toggle"
-            label="Show Links to Followers Only"
-            value={settings.socialLinks?.showLinksToFollowersOnly || false}
-            onValueChange={(v) => updateSetting('socialLinks.showLinksToFollowersOnly', v)}
-            helperText="Only your followers can see your social links"
-          />
-        </SettingsSection>
+        <View style={styles.card}>
+          <TouchableOpacity
+            style={styles.selectRow}
+            onPress={() => router.push('/edit-profile-social-links')}
+            activeOpacity={0.7}
+          >
+            <View style={styles.rowLeft}>
+              <Ionicons name="link" size={18} color="#fff" style={styles.rowIcon} />
+              <Text style={styles.rowLabel}>Social Links</Text>
+            </View>
+            <View style={styles.rowRight}>
+              <Text style={styles.rowValue}>{filledLinkCount > 0 ? `${filledLinkCount} linked` : ''}</Text>
+              <Ionicons name="chevron-forward" size={16} color="#3A3A3C" />
+            </View>
+          </TouchableOpacity>
+        </View>
 
         {/* View Profile Card */}
         <View style={styles.card}>
@@ -599,6 +551,13 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     flex: 1,
+  },
+  rowLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  rowIcon: {
+    marginRight: 10,
   },
   rowRight: {
     flexDirection: 'row',
