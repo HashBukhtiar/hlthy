@@ -225,7 +225,7 @@ export default function EditProfile() {
 
   return (
     <>
-      <ScrollView style={styles.container} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+      <View style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity style={styles.headerButton} onPress={handleBackPress} activeOpacity={0.7}>
@@ -247,6 +247,8 @@ export default function EditProfile() {
             )}
           </TouchableOpacity>
         </View>
+
+        <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
 
         {/* Profile Photo */}
         <View style={styles.photoSection}>
@@ -368,7 +370,8 @@ export default function EditProfile() {
         </View>
 
         <View style={styles.footer} />
-      </ScrollView>
+        </ScrollView>
+      </View>
 
       {/* Date Picker Modal */}
       {dateModalVisible && (
@@ -427,6 +430,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#000',
+  },
+  scroll: {
+    flex: 1,
   },
   header: {
     flexDirection: 'row',

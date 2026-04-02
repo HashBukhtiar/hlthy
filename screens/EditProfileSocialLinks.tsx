@@ -176,11 +176,7 @@ export default function EditProfileSocialLinks() {
   const platformEntries = Object.entries(VERIFIED_PLATFORMS) as [PlatformKey, typeof VERIFIED_PLATFORMS[PlatformKey]][];
 
   return (
-    <ScrollView
-      style={styles.container}
-      showsVerticalScrollIndicator={false}
-      keyboardShouldPersistTaps="handled"
-    >
+    <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.headerButton} onPress={() => router.back()} activeOpacity={0.7}>
@@ -200,6 +196,12 @@ export default function EditProfileSocialLinks() {
           )}
         </TouchableOpacity>
       </View>
+
+      <ScrollView
+        style={styles.scroll}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
 
       {/* Subtitle */}
       <Text style={styles.subtitle}>
@@ -328,7 +330,8 @@ export default function EditProfileSocialLinks() {
       )}
 
       <View style={styles.footer} />
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -336,6 +339,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#000',
+  },
+  scroll: {
+    flex: 1,
   },
   header: {
     flexDirection: 'row',
