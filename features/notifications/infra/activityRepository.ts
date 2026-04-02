@@ -44,7 +44,6 @@ export const ActivityRepository = {
     const q = query(
       collection(db, 'activity', uid, 'userActivity'),
       where('type', '!=', 'follow_request'),
-      where('dismissed', '!=', true),
       orderBy('createdAt', 'desc')
     );
 
@@ -54,6 +53,7 @@ export const ActivityRepository = {
         const items: ActivityItem[] = [];
         snapshot.forEach(doc => {
           const data = doc.data();
+          // Filter out follow_request and dismissed items client-side
           if (data.type !== 'follow_request' && data.dismissed !== true) {
             items.push({ ...(data as ActivityItem), id: doc.id });
           }
