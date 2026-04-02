@@ -32,6 +32,7 @@ import {
     WorkoutSelectionModal,
     ImagePickerModal,
 } from './PostComponents';
+import { MentionData } from '@/features/mentions/domain/Mention';
 import { useUnits } from '@/hooks/useUnits';
 
 interface MilestoneWithPostProps {
@@ -48,6 +49,7 @@ export default function MilestoneWithPost({ onBack }: MilestoneWithPostProps) {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [formError, setFormError] = useState<string | null>(null);
     const [caption, setCaption] = useState('');
+    const [captionMentions, setCaptionMentions] = useState<MentionData[]>([]);
     const { getWeightUnit, getDistanceUnit } = useUnits();
     
     // Previous PR data
@@ -631,7 +633,8 @@ export default function MilestoneWithPost({ onBack }: MilestoneWithPostProps) {
                 milestoneDetails: milestoneDetails,
                 visibility: userVisibility, // Use user's profile visibility preference
                 workoutId: selectedWorkout?.id || null,
-                authorArchetype: authorArchetype
+                authorArchetype: authorArchetype,
+                mentions: captionMentions.length > 0 ? captionMentions : undefined,
             };
             
             // Create the post first
@@ -949,6 +952,8 @@ export default function MilestoneWithPost({ onBack }: MilestoneWithPostProps) {
                         <CaptionInput
                             caption={caption}
                             setCaption={setCaption}
+                            mentions={captionMentions}
+                            onMentionsChange={setCaptionMentions}
                         />
 
                         {/* Achievement Section */}

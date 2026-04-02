@@ -18,6 +18,11 @@ import { getOptimalImageUrl, deleteImageFromStorage, deleteMilestoneFromFirestor
 import { useBlockEnforcement } from '@/utils/blockUtils';
 import { useUnits } from '@/hooks/useUnits';
 import { ACCENT_COLOR } from '@/constants/Colors';
+import MentionTextInput from '@/components/MentionTextInput';
+import MentionText from '@/components/MentionText';
+import { MentionData } from '@/features/mentions/domain/Mention';
+import { TagChip } from '@/components/TagChip';
+import { navigateToTagFeed } from '@/features/explore/ui/useExplore';
 
 export default function ViewPost() {
   const [menuVisible, setMenuVisible] = useState(false);
@@ -60,6 +65,7 @@ export default function ViewPost() {
 
   const [replyingToCommentId, setReplyingToCommentId] = useState<string | null>(null);
   const [replyingToUsername, setReplyingToUsername] = useState<string | null>(null);
+  const [commentMentions, setCommentMentions] = useState<MentionData[]>([]);
   const [loadingReplies, setLoadingReplies] = useState<Record<string, boolean>>({});
   const [expandedComments, setExpandedComments] = useState<Record<string, boolean>>({});
 
@@ -469,7 +475,7 @@ export default function ViewPost() {
         
         if (!replyTextWithoutPrefix) return;
         
-        const newReply = await addReplyToComment(post.id, replyingToCommentId, replyTextWithoutPrefix);
+        const newReply = await addReplyToComment(post.id, replyingToCommentId, replyTextWithoutPrefix, commentMentions);
         
         // Update the comment with the new reply
         setComments(prevComments => 
@@ -492,12 +498,13 @@ export default function ViewPost() {
         setReplyingToUsername(null);
       } else {
         // Handle regular comment
-        const newComment = await addComment(post.id, commentText.trim());
+        const newComment = await addComment(post.id, commentText.trim(), commentMentions);
         setComments([{ ...newComment, replies: [] }, ...comments]);
         setPost(prevPost => prevPost ? {...prevPost, commentCount: (prevPost.commentCount || 0) + 1} : null);
       }
       
       setCommentText('');
+      setCommentMentions([]);
     } catch (error) {
       console.error("Error adding comment:", error);
       Alert.alert("Error", "Could not add comment. Please try again.");
@@ -691,6 +698,7 @@ export default function ViewPost() {
       setReplyingToCommentId(null);
       setReplyingToUsername(null);
       setCommentText('');
+      setCommentMentions([]);
     } else {
       // Enter reply mode
       setReplyingToCommentId(commentId);
@@ -834,7 +842,7 @@ export default function ViewPost() {
                   <Text style={styles.commentUsername}>{comment.authorUsername}</Text>
                   <Text style={styles.commentTimestamp}>{formatDate(comment.createdAt)}</Text>
                 </View>
-                <Text style={styles.commentText}>{comment.text}</Text>
+                <MentionText text={comment.text} mentions={comment.mentions} style={styles.commentText} />
                 {canInteractWithComment && (
                   <View style={styles.commentActions}>
                     <TouchableOpacity onPress={() => handleToggleReplyInput(comment.id, comment.authorUsername)} style={styles.replyButton}>
@@ -1099,7 +1107,7 @@ export default function ViewPost() {
               <Text style={styles.commentUsername}>{reply.authorUsername}</Text>
               <Text style={styles.commentTimestamp}>{formatDate(reply.createdAt)}</Text>
             </View>
-            <Text style={styles.commentText}>{reply.text}</Text>
+            <MentionText text={reply.text} mentions={reply.mentions} style={styles.commentText} />
             {/* Reply Actions (e.g., like for reply) can go here */}
           </View>
         </View>
@@ -1204,8 +1212,20 @@ export default function ViewPost() {
           </TouchableOpacity>
 
           <View style={styles.captionContainer}>
-            <Text style={styles.caption}>{post.caption}</Text>
+            <MentionText text={post.caption} mentions={post.mentions} style={styles.caption} />
           </View>
+
+          {post.tags && post.tags.length > 0 && (
+            <View style={styles.tagsContainer}>
+              {post.tags.map((tag) => (
+                <TagChip
+                  key={tag}
+                  tag={tag}
+                  onPress={() => navigateToTagFeed(tag)}
+                />
+              ))}
+            </View>
+          )}
 
           <Text style={styles.timestamp}>{formatDate(post.createdAt)}</Text>
 
@@ -1290,6 +1310,7 @@ export default function ViewPost() {
                   setReplyingToCommentId(null);
                   setReplyingToUsername(null);
                   setCommentText('');
+                  setCommentMentions([]);
                 }}>
                   <Ionicons name="close" size={16} color="#999" />
                 </TouchableOpacity>
@@ -1300,12 +1321,15 @@ export default function ViewPost() {
                 source={{ uri: getOptimalImageUrl(userProfile?.profileThumbnailUrl, userProfile?.profileImageUrl) || 'https://via.placeholder.com/150' }}
                 style={styles.commentInputProfilePic}
               />
-              <TextInput
+              <MentionTextInput
+                containerStyle={{ flex: 1 }}
                 style={styles.commentInput}
                 placeholder={replyingToCommentId ? `Reply to @${replyingToUsername}...` : "Add a comment..."}
                 placeholderTextColor="#666"
                 value={commentText}
                 onChangeText={handleCommentTextChange}
+                mentions={commentMentions}
+                onMentionsChange={setCommentMentions}
                 autoCorrect={true}
                 spellCheck={true}
                 multiline={true}
@@ -1598,6 +1622,12 @@ const styles = StyleSheet.create({
     flex: 1,
     color: '#FFF',
     marginBottom: 5,
+  },
+  tagsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: 15,
+    paddingVertical: 8,
   },
   timestamp: {
     fontSize: 12,

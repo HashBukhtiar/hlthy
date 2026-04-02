@@ -132,8 +132,8 @@ export const validateSettings = (settings: Partial<UserSettings>): ValidationRes
   // Notifications validation
   if (settings.notifications) {
     const requiredNotificationKeys = [
-      'newFollowers', 'likesAndComments', 'directMessages', 
-      'followRequestAccepted', 'taggedInComments', 'mentionedInReplies'
+      'newFollowers', 'likesAndComments', 'directMessages',
+      'followRequestAccepted', 'taggedInComments', 'mentionedInReplies', 'mentions'
     ];
     
     for (const key of requiredNotificationKeys) {

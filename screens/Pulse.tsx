@@ -25,6 +25,14 @@ import { OptimizedImageLight } from '@/components/OptimizedImage';
 import { ACCENT_COLOR } from '@/constants/Colors';
 import { useBlockEnforcement } from '@/utils/blockUtils';
 
+const PULSE_MAX_AGE_DAYS = 60;
+
+const isOlderThanMaxAge = (timestamp: Timestamp | undefined): boolean => {
+    if (!timestamp) return false;
+    const diffMs = new Date().getTime() - timestamp.toDate().getTime();
+    return diffMs > PULSE_MAX_AGE_DAYS * 24 * 60 * 60 * 1000;
+};
+
 // Helper function to display shortened string
 const displayShortenedString = (str: string, maxLength: number): string => {
     if (str.length <= maxLength) return str;
@@ -101,7 +109,12 @@ export default function Pulse() {
                     <View style={activityStyles.activityView}>
                         {followRequests.map((request, index) => {
                             const maxUsernameLength = 12;
-                            
+
+                            // Skip items older than 60 days
+                            if (isOlderThanMaxAge(request.createdAt)) {
+                                return null;
+                            }
+
                             // Additional check for blocked users (defensive programming)
                             if (isUserBlocked(request.fromUserId)) {
                                 return null;
@@ -290,6 +303,8 @@ export default function Pulse() {
                 return <MaterialIcons name="person-add" size={16} color={ACCENT_COLOR} />;
                 case 'follow_accepted':
                 return <MaterialIcons name="check-circle" size={16} color={ACCENT_COLOR} />;
+                case 'mention':
+                return <MaterialIcons name="alternate-email" size={16} color={ACCENT_COLOR} />;
                 default:
                 return <MaterialIcons name="notifications" size={16} color={ACCENT_COLOR} />;
             }
@@ -305,6 +320,11 @@ export default function Pulse() {
                 </View>
                 <View style={activityStyles.activityView}>
                     {otherActivities.map((activity, index) => {
+                        // Skip items older than 60 days
+                        if (isOlderThanMaxAge(activity.createdAt)) {
+                            return null;
+                        }
+
                         // Additional check for blocked users (defensive programming)
                         if (isUserBlocked(activity.fromUserId)) {
                             return null;
@@ -333,6 +353,12 @@ export default function Pulse() {
                                             if (activity.workoutId) router.push({ pathname: "/view-workout/[id]", params: { id: activity.workoutId } });
                                         } else if (activity.type === 'new_follower' || activity.type === 'follow_accepted') {
                                             if (activity.fromUserId) router.push({ pathname: "/profile/[userId]", params: { userId: activity.fromUserId } });
+                                        } else if (activity.type === 'mention') {
+                                            if (activity.workoutId) {
+                                                router.push({ pathname: "/view-workout/[id]", params: { id: activity.workoutId } });
+                                            } else if (activity.postId) {
+                                                router.push({ pathname: "/view-post/[id]", params: { id: activity.postId } });
+                                            }
                                         }
                                         console.log("Activity element pressed:", activity.type, activity.id);
                                     }}
@@ -381,6 +407,13 @@ export default function Pulse() {
                                                 {activity.type === 'workout_save' && ` saved your workout: ${displayShortenedString(activity.workoutTitle || 'Workout', maxWorkoutTitleLength)}`}
                                                 {activity.type === 'new_follower' && ' started following you'}
                                                 {activity.type === 'follow_accepted' && ' accepted your follow request'}
+                                                {activity.type === 'mention' && (
+                                                    activity.mentionContext === 'post_caption' ? ' mentioned you in a post' :
+                                                    activity.mentionContext === 'comment' ? ' mentioned you in a comment' :
+                                                    activity.mentionContext === 'reply' ? ' mentioned you in a reply' :
+                                                    activity.mentionContext === 'workout_description' ? ` mentioned you in a workout: ${displayShortenedString(activity.workoutTitle || 'Workout', maxWorkoutTitleLength)}` :
+                                                    ' mentioned you'
+                                                )}
                                             </Text>
                                         </Text>
                                         <Text style={activityStyles.timeText}>{formatTimeAgo(activity.createdAt)}</Text>
@@ -388,7 +421,7 @@ export default function Pulse() {
                                 </TouchableOpacity>
 
                                 {/* Content preview images with block checking */}
-                                {(activity.type === 'post_like' || activity.type === 'post_comment' || activity.type === 'comment_like' || activity.type === 'reply_like') && (activity.postThumbnailUrl || activity.postImageUrl) && (
+                                {(activity.type === 'post_like' || activity.type === 'post_comment' || activity.type === 'comment_like' || activity.type === 'reply_like' || (activity.type === 'mention' && activity.mentionContext !== 'workout_description')) && (activity.postThumbnailUrl || activity.postImageUrl) && (
                                     <TouchableOpacity
                                         onPress={() => {
                                             // Check if we can interact before navigating to post
@@ -406,7 +439,7 @@ export default function Pulse() {
                                     </TouchableOpacity>
                                 )}
 
-                                {activity.type === 'workout_save' && activity.workoutThumbnailUrl && (
+                                {(activity.type === 'workout_save' || (activity.type === 'mention' && activity.mentionContext === 'workout_description')) && activity.workoutThumbnailUrl && (
                                     <TouchableOpacity
                                         onPress={() => {
                                             // Check if we can interact before navigating to workout

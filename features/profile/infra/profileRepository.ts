@@ -63,6 +63,7 @@ export const ProfileRepository = {
         coverImageUrl: (data.coverImageUrl as string | undefined) ?? null,
         thumbnailUrl: (data.thumbnailUrl as string | undefined) ?? null,
         savedCount: (data.savedCount as number | undefined) ?? 0,
+        isPublic: (data.isPublic as boolean | undefined) ?? false,
       } satisfies WorkoutListItem;
     });
   },
@@ -93,6 +94,7 @@ export const ProfileRepository = {
           coverImageUrl: (data.coverImageUrl as string | undefined) ?? null,
           thumbnailUrl: (data.thumbnailUrl as string | undefined) ?? null,
           savedCount: (data.savedCount as number | undefined) ?? 0,
+          isPublic: (data.isPublic as boolean | undefined) ?? false,
         } satisfies WorkoutListItem;
       })
     );

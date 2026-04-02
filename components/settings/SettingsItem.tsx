@@ -119,17 +119,33 @@ export const SettingsItem: React.FC<SettingsItemProps> = ({
   if (type === 'date') {
     return (
       <View style={styles.container}>
-        <View style={styles.row}>
-          <View style={styles.labelContainer}>
-            <Text style={[styles.label, destructive && styles.destructiveText, disabled && styles.disabledText]}>
-              {label}
-            </Text>
-            {helperText && (
-              <Text style={[styles.helperText, error && styles.errorText]}>{helperText}</Text>
-            )}
+        {fullWidth ? (
+          <View>
+            <View style={styles.labelContainer}>
+              <Text style={[styles.label, destructive && styles.destructiveText, disabled && styles.disabledText]}>
+                {label}
+              </Text>
+              {helperText && (
+                <Text style={[styles.helperText, error && styles.errorText]}>{helperText}</Text>
+              )}
+            </View>
+            <View style={styles.fullWidthContent}>
+              {renderContent()}
+            </View>
           </View>
-          {renderContent()}
-        </View>
+        ) : (
+          <View style={styles.row}>
+            <View style={styles.labelContainer}>
+              <Text style={[styles.label, destructive && styles.destructiveText, disabled && styles.disabledText]}>
+                {label}
+              </Text>
+              {helperText && (
+                <Text style={[styles.helperText, error && styles.errorText]}>{helperText}</Text>
+              )}
+            </View>
+            {renderContent()}
+          </View>
+        )}
       </View>
     );
   }

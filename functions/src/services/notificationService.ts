@@ -50,6 +50,7 @@ async function getUserNotificationPreferences(userId: string) {
       followRequestAccepted: true,
       taggedInComments: true,
       mentionedInReplies: true,
+      mentions: true,
     };
   } catch (error) {
     logger.error("Error fetching user notification preferences:", error);
@@ -131,6 +132,7 @@ async function sendPushNotificationHelper(
       "direct_message": "directMessages",
       "tagged_comment": "taggedInComments",
       "mentioned_reply": "mentionedInReplies",
+      "mention": "mentions",
     };
 
     const preferenceKey = typeMapping[notificationType];
@@ -220,6 +222,7 @@ export const sendPushNotification = onCall(
         followRequestAccepted: true,
         taggedInComments: true,
         mentionedInReplies: true,
+        mentions: true,
       };
 
       // Check if this notification type is enabled
@@ -232,6 +235,7 @@ export const sendPushNotification = onCall(
         "direct_message": "directMessages",
         "tagged_comment": "taggedInComments",
         "mentioned_reply": "mentionedInReplies",
+        "mention": "mentions",
       };
 
       const preferenceKey = typeMapping[notificationType];
@@ -418,6 +422,12 @@ export const onActivityCreated = onDocumentWritten(
       title = "Workout Saved";
       body = `${fromUsername} saved your workout`;
       notificationType = "workout_saved";
+      break;
+
+    case "mention":
+      title = "New Mention";
+      body = `${fromUsername} mentioned you`;
+      notificationType = "mention";
       break;
 
     default:

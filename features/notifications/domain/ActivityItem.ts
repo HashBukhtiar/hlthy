@@ -11,7 +11,9 @@ export interface ActivityItem {
     | 'reply_like'
     | 'comment_reply'
     | 'workout_save'
+    | 'mention'
     | string;
+  mentionContext?: 'post_caption' | 'comment' | 'reply' | 'workout_description';
   fromUserId: string;
   fromUsername: string;
   fromProfileImageUrl?: string;

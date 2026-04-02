@@ -39,6 +39,7 @@ export interface UserSettings {
     followRequestAccepted: boolean;
     taggedInComments: boolean;
     mentionedInReplies: boolean;
+    mentions: boolean;
   };
   
   // UI/UX Preferences

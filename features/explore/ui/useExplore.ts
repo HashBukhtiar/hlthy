@@ -1,8 +1,10 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
+import { router } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
 import { useBlockEnforcement } from '@/utils/blockUtils';
 import { ExploreRepository, ExploreCursor } from '@/features/explore/infra/exploreRepository';
-import type { ExplorePost, UserSearchResult } from '@/features/explore/domain/ExploreTypes';
+import { useTagSearch } from '@/features/tags/ui/useTagSearch';
+import type { ExplorePost, UserSearchResult, TagSearchResult } from '@/features/explore/domain/ExploreTypes';
 
 // Fisher-Yates shuffle (pure function, no Firestore dependency).
 function shuffleArray<T>(array: T[]): T[] {
@@ -21,6 +23,10 @@ export interface UseExploreResult {
   searchLoading: boolean;
   searchPerformed: boolean;
   handleSearch: (text: string) => void;
+  clearSearch: () => void;
+  // Tag search
+  tagSearchResults: TagSearchResult[];
+  tagSearchLoading: boolean;
   // Posts grid
   posts: ExplorePost[];
   loadingPosts: boolean;
@@ -31,6 +37,12 @@ export interface UseExploreResult {
 export function useExplore(): UseExploreResult {
   const { currentUser, userProfile } = useAuth();
   const { canInteractWithUser } = useBlockEnforcement();
+  const {
+    suggestions: tagSearchResults,
+    loading: tagSearchLoading,
+    search: searchTags,
+    clear: clearTagSearch,
+  } = useTagSearch();
 
   // ── Search state ────────────────────────────────────────────────────────
   const [searchQuery, setSearchQuery] = useState('');
@@ -80,17 +92,35 @@ export function useExplore(): UseExploreResult {
     (text: string) => {
       setSearchQuery(text);
       if (debounceTimer.current) clearTimeout(debounceTimer.current);
+
       if (text.trim().length === 0) {
         setSearchResults([]);
         setSearchPerformed(false);
         setSearchLoading(false);
+        clearTagSearch();
         return;
       }
+
       if (text.trim().length >= 2) setSearchLoading(true);
-      debounceTimer.current = setTimeout(() => performSearch(text), 300);
+
+      // Debounce both user search and tag search.
+      debounceTimer.current = setTimeout(() => {
+        performSearch(text);
+        // Strip leading # so "#legday" searches the same as "legday".
+        searchTags(text.replace(/^#/, '').trim());
+      }, 300);
     },
-    [performSearch]
+    [performSearch, searchTags, clearTagSearch]
   );
+
+  const clearSearch = useCallback(() => {
+    if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    setSearchQuery('');
+    setSearchResults([]);
+    setSearchPerformed(false);
+    setSearchLoading(false);
+    clearTagSearch();
+  }, [clearTagSearch]);
 
   useEffect(() => {
     return () => {
@@ -192,9 +222,19 @@ export function useExplore(): UseExploreResult {
     searchLoading,
     searchPerformed,
     handleSearch,
+    clearSearch,
+    tagSearchResults,
+    tagSearchLoading,
     posts,
     loadingPosts,
     allPostsLoaded,
     loadMore,
   };
+}
+
+/**
+ * Navigate to the tag feed screen for the given tag name.
+ */
+export function navigateToTagFeed(tagName: string): void {
+  router.push(`/explore/tags/${tagName}`);
 }

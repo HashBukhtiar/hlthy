@@ -1,12 +1,12 @@
 import React from 'react';
-import { StyleSheet, SafeAreaView } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import Explore from '@/screens/Explore';
 
 export default function ExploreScreen() {
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <Explore />
-    </SafeAreaView>
+    </View>
   );
 }
 

@@ -12,9 +12,13 @@ export interface WorkoutDraftSegment {
   exercises: WorkoutDraftExercise[];
 }
 
+import { MentionData } from '@/features/mentions/domain/Mention';
+
 export interface WorkoutDraft {
   title: string;
   description: string;
   visibility: 'public' | 'followers' | 'private';
   segments: WorkoutDraftSegment[];
+  mentions?: MentionData[];
+  tags?: string[];
 }

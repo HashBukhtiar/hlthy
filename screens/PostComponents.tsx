@@ -23,6 +23,8 @@ import { collection, doc, getDoc, getDocs, query, where, orderBy } from '@/featu
 import { getCoverImageSource } from '@/utils/imageUtils';
 import { useUnits } from '@/hooks/useUnits';
 import { ACCENT_COLOR } from '@/constants/Colors';
+import MentionTextInput from '@/components/MentionTextInput';
+import { MentionData } from '@/features/mentions/domain/Mention';
 
 // Secondary color and its variations - use centralized ACCENT_COLOR
 export const SECONDARY_COLOR = ACCENT_COLOR;
@@ -234,26 +236,66 @@ export const ImageSection = ({
 );
 
 // Caption input component
-export const CaptionInput = ({ 
-    caption, 
-    setCaption 
-}: { 
+export const CaptionInput = ({
+    caption,
+    setCaption,
+    mentions,
+    onMentionsChange,
+    onHashtagDetected,
+}: {
     caption: string;
     setCaption: (text: string) => void;
-}) => (
-    <View style={postComponentStyles.captionContainer}>
-        <TextInput
-            style={postComponentStyles.captionInput}
-            placeholder="Write a caption..."
-            placeholderTextColor="#999"
-            value={caption}
-            onChangeText={setCaption}
-            multiline={true}
-            maxLength={2200}
-            textAlignVertical="top"
-        />
-    </View>
-);
+    mentions: MentionData[];
+    onMentionsChange: (mentions: MentionData[]) => void;
+    onHashtagDetected?: (tag: string) => void;
+}) => {
+    const handleCaptionChange = (text: string) => {
+        // Only check for hashtags if text ends with a delimiter (space, comma, enter, punctuation)
+        const lastChar = text[text.length - 1];
+        const isDelimiter = /[\s,\n.!?;:]/.test(lastChar);
+
+        if (isDelimiter) {
+            // Look for hashtags followed by the delimiter
+            const hashtagRegex = /#([a-z0-9_-]+)(?=[\s,\n.!?;:])/gi;
+            const matches = [...text.matchAll(hashtagRegex)];
+
+            if (matches.length > 0) {
+                // Extract the last hashtag
+                const lastMatch = matches[matches.length - 1];
+                const hashtag = lastMatch[1];
+
+                if (onHashtagDetected) {
+                    onHashtagDetected(hashtag);
+                    // Remove the hashtag and the following delimiter from the caption
+                    const startIdx = lastMatch.index;
+                    const endIdx = lastMatch.index! + lastMatch[0].length + 1; // +1 for delimiter
+                    const updatedText = text.slice(0, startIdx) + text.slice(endIdx);
+                    setCaption(updatedText.trim());
+                    return;
+                }
+            }
+        }
+
+        setCaption(text);
+    };
+
+    return (
+        <View style={postComponentStyles.captionContainer}>
+            <MentionTextInput
+                style={postComponentStyles.captionInput}
+                placeholder="Write a caption..."
+                placeholderTextColor="#999"
+                value={caption}
+                onChangeText={handleCaptionChange}
+                mentions={mentions}
+                onMentionsChange={onMentionsChange}
+                multiline={true}
+                maxLength={2200}
+                textAlignVertical="top"
+            />
+        </View>
+    );
+};
 
 // Workout attachment component
 export const WorkoutAttachment = ({

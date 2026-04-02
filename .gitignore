@@ -95,6 +95,7 @@
 # .pnp.js
 
 # Debugging / Development
+.claude/
 .vscode/
 .expo/
 .DS_Store
