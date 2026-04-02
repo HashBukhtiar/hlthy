@@ -66,6 +66,7 @@ export default function NotificationsSettings() {
           trackColor={{ false: '#3A3A3C', true: '#FF2D55' }}
           thumbColor="#FFFFFF"
           ios_backgroundColor="#3A3A3C"
+          style={{ alignSelf: 'center' }}
         />
       )}
     </View>
