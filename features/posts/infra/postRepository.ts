@@ -21,6 +21,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/firebaseConfig';
 import { Post, Comment, Reply, PostAuthorProfile } from '@/features/posts/domain/Post';
+import { MentionData } from '@/features/mentions/domain/Mention';
 
 // ── Private helpers ─────────────────────────────────────────────────────────
 
@@ -96,6 +97,7 @@ export const PostRepository = {
         likes: data.likes ?? 0,
         likedBy: data.likedBy ?? [],
         replyCount: data.replyCount ?? 0,
+        mentions: data.mentions,
         isLiked: data.likedBy?.includes(uid) ?? false,
         replies: [],
       };
@@ -117,6 +119,8 @@ export const PostRepository = {
       visibility: 'public' | 'followers';
       workoutId?: string | null;
       authorArchetype?: string | null;
+      mentions?: MentionData[];
+      tags?: string[];
     }
   ): Promise<string> {
     const postRef = doc(collection(db, 'posts'));
@@ -134,6 +138,8 @@ export const PostRepository = {
       visibility: data.visibility ?? 'public',
       workoutId: data.workoutId ?? null,
       authorArchetype: data.authorArchetype ?? null,
+      ...(data.mentions && data.mentions.length > 0 ? { mentions: data.mentions } : {}),
+      ...(data.tags && data.tags.length > 0 ? { tags: data.tags } : {}),
     });
     return postRef.id;
   },
@@ -232,7 +238,8 @@ export const PostRepository = {
     uid: string,
     username: string,
     text: string,
-    profileImageUrl: string = ''
+    profileImageUrl: string = '',
+    mentions?: MentionData[]
   ): Promise<Comment> {
     const ref = await addDoc(collection(db, 'posts', postId, 'comments'), {
       text,
@@ -242,6 +249,7 @@ export const PostRepository = {
       likes: 0,
       likedBy: [],
       replyCount: 0,
+      ...(mentions && mentions.length > 0 ? { mentions } : {}),
     });
     return {
       id: ref.id,
@@ -253,6 +261,7 @@ export const PostRepository = {
       likes: 0,
       likedBy: [],
       replyCount: 0,
+      mentions,
       isLiked: false,
       replies: [],
     };
@@ -305,7 +314,8 @@ export const PostRepository = {
     postId: string,
     parentCommentId: string,
     author: PostAuthorProfile,
-    text: string
+    text: string,
+    mentions?: MentionData[]
   ): Promise<Reply> {
     const parentRef = doc(db, 'posts', postId, 'comments', parentCommentId);
     const parentSnap = await getDoc(parentRef);
@@ -327,6 +337,7 @@ export const PostRepository = {
       likes: 0,
       likedBy: [],
       replyToUserId: parentData.authorId,
+      ...(mentions && mentions.length > 0 ? { mentions } : {}),
     };
 
     await runTransaction(db, async tx => {
@@ -364,6 +375,7 @@ export const PostRepository = {
         likes: data.likes ?? 0,
         likedBy: data.likedBy ?? [],
         replyToUserId: data.replyToUserId,
+        mentions: data.mentions,
         isLiked: (data.likedBy ?? []).includes(uid),
       };
       const userSnap = await getDoc(doc(db, 'users', reply.authorId));

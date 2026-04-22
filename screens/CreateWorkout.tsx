@@ -25,6 +25,9 @@ import { Exercise } from '@/data/exercises';
 import { CustomSelector, SelectorItem } from '@/components/CustomSelector';
 import { generateId, generateUniqueFilename } from '@/logic/idGenerator';
 import { ACCENT_COLOR } from '@/constants/Colors';
+import MentionTextInput from '@/components/MentionTextInput';
+import { MentionData } from '@/features/mentions/domain/Mention';
+import { TagInput } from '@/components/TagInput';
 
 // Visibility options for workouts
 const visibilityItems: SelectorItem[] = [
@@ -60,6 +63,8 @@ export default function CreateWorkout() {
   const { currentUser } = useAuth();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [descriptionMentions, setDescriptionMentions] = useState<MentionData[]>([]);
+  const [tags, setTags] = useState<string[]>([]);
   const [coverImage, setCoverImage] = useState<string | null>(null);
   const [segments, setSegments] = useState<WorkoutSegment[]>([
     {
@@ -82,6 +87,37 @@ export default function CreateWorkout() {
   const descriptionInputRef = useRef<TextInput>(null);
   const borderAnimation = useRef(new Animated.Value(0)).current;
   const descriptionAnimation = useRef(new Animated.Value(0)).current;
+
+  // Handle hashtag detection in description
+  const handleDescriptionChange = (text: string) => {
+    // Only check for hashtags if text ends with a delimiter (space, comma, enter, punctuation)
+    const lastChar = text[text.length - 1];
+    const isDelimiter = /[\s,\n.!?;:]/.test(lastChar);
+
+    if (isDelimiter) {
+      // Look for hashtags followed by the delimiter
+      const hashtagRegex = /#([a-z0-9_-]+)(?=[\s,\n.!?;:])/gi;
+      const matches = [...text.matchAll(hashtagRegex)];
+
+      if (matches.length > 0) {
+        // Extract the last hashtag
+        const lastMatch = matches[matches.length - 1];
+        const hashtag = lastMatch[1];
+
+        // Add tag if not already present and under limit
+        if (!tags.includes(hashtag) && tags.length < 10) {
+          setTags([...tags, hashtag]);
+          // Remove the hashtag and the following delimiter from the description
+          const startIdx = lastMatch.index;
+          const endIdx = lastMatch.index! + lastMatch[0].length + 1; // +1 for delimiter
+          const updatedText = text.slice(0, startIdx) + text.slice(endIdx);
+          setDescription(updatedText.trim());
+          return;
+        }
+      }
+    }
+    setDescription(text);
+  };
 
   const animateBorderIn = () => {
     setTitleFocused(true);
@@ -302,6 +338,8 @@ export default function CreateWorkout() {
         description: description.trim(),
         visibility: visibility as 'public' | 'followers' | 'private',
         segments,
+        mentions: descriptionMentions.length > 0 ? descriptionMentions : undefined,
+        tags: tags.length > 0 ? tags : undefined,
       };
       const username = (currentUser as any).username || currentUser.displayName || 'Anonymous';
 
@@ -415,11 +453,13 @@ export default function CreateWorkout() {
                 <Text style={styles.descriptionLabel}>Description</Text>
                 <Text style={styles.descriptionOptional}>Optional</Text>
               </View>
-              <TextInput
-                ref={descriptionInputRef}
+              <MentionTextInput
+                inputRef={descriptionInputRef}
                 style={styles.descriptionInput}
                 value={description}
-                onChangeText={setDescription}
+                onChangeText={handleDescriptionChange}
+                mentions={descriptionMentions}
+                onMentionsChange={setDescriptionMentions}
                 placeholder="Tell others what makes this workout special..."
                 placeholderTextColor="rgba(255, 255, 255, 0.4)"
                 multiline
@@ -435,7 +475,12 @@ export default function CreateWorkout() {
               </View>
             </Animated.View>
           </View>
-          
+
+          {/* Tags Section */}
+          <View style={styles.tagsSection}>
+            <TagInput tags={tags} onTagsChange={setTags} />
+          </View>
+
           {/* Visibility Setting */}
           <View style={styles.visibilityContainer}>
             <CustomSelector
@@ -883,6 +928,11 @@ const styles = StyleSheet.create({
   },
   disabledButton: {
     opacity: 0.5,
+  },
+  // Tags section styles
+  tagsSection: {
+    marginHorizontal: 20,
+    marginBottom: 15,
   },
   // Visibility section styles
   visibilityContainer: {

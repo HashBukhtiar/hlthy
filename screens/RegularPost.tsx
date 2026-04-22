@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { 
-    View, 
-    TouchableOpacity, 
+import React, { useState, useEffect } from 'react';
+import {
+    View,
+    TouchableOpacity,
     Text,
     Alert,
     KeyboardAvoidingView,
@@ -9,14 +9,17 @@ import {
     StyleSheet,
     SafeAreaView,
     ActivityIndicator,
-    ScrollView
+    ScrollView,
+    BackHandler
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { usePostsData } from '@/hooks/usePostsData';
 import { useAuth } from '@/context/AuthContext';
 import { doc, getDoc } from '@/features/infra/firestore';
 import { db } from '@/firebaseConfig';
 import { Ionicons } from '@expo/vector-icons';
+import { MentionData } from '@/features/mentions/domain/Mention';
+import { TagInput } from '@/components/TagInput';
 import {
     SECONDARY_COLOR,
     useImagePicker,
@@ -37,21 +40,88 @@ export default function RegularPost({ onBack }: RegularPostProps) {
     const { addPost } = usePostsData();
     const { currentUser } = useAuth();
 
-    // Form state
+    // Form state - MUST be declared before use
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [formError, setFormError] = useState<string | null>(null);
     const [caption, setCaption] = useState('');
-    
+
     // Image picker state
     const [imageUri, setImageUri] = useState<string | null>(null);
     const [imageMenuVisible, setImageMenuVisible] = useState(false);
+
+    // Mentions
+    const [captionMentions, setCaptionMentions] = useState<MentionData[]>([]);
+
+    // Tags
+    const [tags, setTags] = useState<string[]>([]);
 
     // Image picker logic hook
     const { openCamera, openImageLibrary } = useImagePicker((uri) => {
         setImageUri(uri);
         setImageMenuVisible(false); // Close modal on selection
     });
-    
+
+    // Check if there are unsaved changes
+    const hasUnsavedChanges = (
+        (caption && caption.trim() !== '') ||
+        imageUri !== null ||
+        tags.length > 0 ||
+        captionMentions.length > 0 ||
+        selectedWorkout !== null
+    );
+
+    // Handle back navigation with confirmation
+    const handleBack = () => {
+        if (hasUnsavedChanges) {
+            Alert.alert(
+                'Discard changes?',
+                'Your changes will be lost if you leave without posting.',
+                [
+                    {
+                        text: 'Continue editing',
+                        onPress: () => {},
+                        style: 'cancel',
+                    },
+                    {
+                        text: 'Discard',
+                        onPress: () => {
+                            if (onBack) {
+                                onBack();
+                            } else {
+                                router.back();
+                            }
+                        },
+                        style: 'destructive',
+                    },
+                ],
+                { cancelable: false }
+            );
+        } else {
+            if (onBack) {
+                onBack();
+            } else {
+                router.back();
+            }
+        }
+    };
+
+    // Handle Android hardware back button
+    useFocusEffect(
+        React.useCallback(() => {
+            const onBackPress = () => {
+                handleBack();
+                return true;
+            };
+
+            const subscription = BackHandler.addEventListener(
+                'hardwareBackPress',
+                onBackPress
+            );
+
+            return () => subscription.remove();
+        }, [hasUnsavedChanges])
+    );
+
     // Workout attachment
     const [selectedWorkout, setSelectedWorkout] = useState<any>(null);
     const [workoutModalVisible, setWorkoutModalVisible] = useState(false);
@@ -97,7 +167,9 @@ export default function RegularPost({ onBack }: RegularPostProps) {
                 milestoneDetails: null,
                 visibility: userVisibility,
                 workoutId: selectedWorkout?.id,
-                authorArchetype: authorArchetype
+                authorArchetype: authorArchetype,
+                mentions: captionMentions.length > 0 ? captionMentions : undefined,
+                tags: tags.length > 0 ? tags : undefined,
             };
             
             const postId = await addPost(postData);
@@ -125,14 +197,12 @@ export default function RegularPost({ onBack }: RegularPostProps) {
                 <View style={styles.postPage}>
                     {/* Header with back button */}
                     <View style={styles.header}>
-                        {onBack && (
-                            <TouchableOpacity 
-                                style={styles.backButton}
-                                onPress={onBack}
-                            >
-                                <Ionicons name="chevron-back" size={24} color="#FFF" />
-                            </TouchableOpacity>
-                        )}
+                        <TouchableOpacity
+                            style={styles.backButton}
+                            onPress={handleBack}
+                        >
+                            <Ionicons name="chevron-back" size={24} color="#FFF" />
+                        </TouchableOpacity>
                         <Text style={styles.headerTitle}>New Post</Text>
                         <TouchableOpacity 
                             style={[styles.postButton, isSubmitting && styles.disabledButton]} 
@@ -165,7 +235,20 @@ export default function RegularPost({ onBack }: RegularPostProps) {
                          <CaptionInput
                             caption={caption}
                             setCaption={setCaption}
+                            mentions={captionMentions}
+                            onMentionsChange={setCaptionMentions}
+                            onHashtagDetected={(hashtag) => {
+                                // Add hashtag to tags if not already present
+                                if (!tags.includes(hashtag) && tags.length < 10) {
+                                    setTags([...tags, hashtag]);
+                                }
+                            }}
                         />
+
+                        {/* Tags section */}
+                        <View style={styles.tagsSection}>
+                            <TagInput tags={tags} onTagsChange={setTags} />
+                        </View>
 
                         {/* Workout attachment section */}
                         <WorkoutAttachment
@@ -359,5 +442,24 @@ const styles = StyleSheet.create({
         backgroundColor: '#222',
         color: '#FFF',
         fontWeight: '500',
+    },
+    tagsSection: {
+        paddingHorizontal: 16,
+        marginBottom: 16,
+    },
+    visibilityNote: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        backgroundColor: '#1a1a1a',
+        borderRadius: 8,
+        marginHorizontal: 16,
+    },
+    visibilityNoteText: {
+        color: '#999',
+        fontSize: 12,
+        marginLeft: 8,
+        flex: 1,
     },
 });

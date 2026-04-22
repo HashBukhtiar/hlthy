@@ -23,7 +23,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { getOptimalImageUrl, DEFAULT_PROFILE_IMAGE } from '@/utils/imageUtils';
 import * as Haptics from 'expo-haptics';
-import { useFeedData } from '@/hooks/useFeedData';
+import { useFeedData, TagInjectedPost } from '@/hooks/useFeedData';
 import { usePostsData, Post } from '@/hooks/usePostsData';
 import { useAuth } from '@/context/AuthContext';
 import { useBlockEnforcement } from '@/utils/blockUtils';
@@ -33,8 +33,20 @@ import { sharePost } from '@/services/ShareService';
 import PostActionMenu from '@/components/PostActionMenu';
 import { useContentActions } from '@/hooks/useContentActions';
 import { ACCENT_COLOR } from '@/constants/Colors';
+import { TagChip } from '@/components/TagChip';
+import { navigateToTagFeed } from '@/features/explore/ui/useExplore';
+import {
+  TAG_INJECTION_MIN,
+  TAG_INJECTION_MAX,
+} from '@/features/tags/domain/Tag';
 
 console.log('[PostsFeed] Module loaded');
+
+type FeedItem = Post & { injectedFromTag?: string };
+
+function randomBetween(min: number, max: number): number {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
 
 // Helper function to format relative time
 const getRelativeTime = (date: Date): string => {
@@ -83,7 +95,7 @@ export default function PostsFeed() {
   console.log('[PostsFeed] Component rendering');
   const router = useRouter();
   const { currentUser, userProfile } = useAuth();
-  const { posts: feedPosts, loading, refreshing, loadingMore, hasMore, error, refreshFeed, loadMorePosts } = useFeedData();
+  const { posts: feedPosts, tagPostPool, loading, refreshing, loadingMore, hasMore, error, refreshFeed, loadMorePosts } = useFeedData();
   const { likePost, unlikePost, addComment } = usePostsData();
   const { canInteractWithUser, isUserBlocked } = useBlockEnforcement();
   
@@ -380,27 +392,40 @@ export default function PostsFeed() {
     return 'View Achievement';
   }, []);
 
-  const filteredPosts = useMemo(() => {
-    return posts.filter(post => {
-      // Filter out milestone-only posts (milestones without images) - they should only appear in MilestonesFeed
-      if (post.isMilestone && !post.imageUrl) {
-        return false;
-      }
-      
-      // Filter out posts from users we've blocked
+  const mergedFeed = useMemo((): FeedItem[] => {
+    const regularPosts = posts.filter(post => {
+      if (post.isMilestone && !post.imageUrl) return false;
       if (isUserBlocked(post.authorId)) return false;
-      
-      // Filter out posts if we've been blocked by the author
-      if (post.authorBlockedUsers && post.authorBlockedUsers.includes(currentUser?.uid || '')) {
-        return false;
-      }
-      
+      if (post.authorBlockedUsers?.includes(currentUser?.uid || '')) return false;
       return true;
     });
-  }, [posts, isUserBlocked, currentUser?.uid]);
+
+    if (tagPostPool.length === 0) return regularPosts;
+
+    // Deduplicate tag pool against the regular feed.
+    const regularIds = new Set(regularPosts.map(p => p.id));
+    const pool: TagInjectedPost[] = tagPostPool.filter(p => !regularIds.has(p.id));
+
+    if (pool.length === 0) return regularPosts;
+
+    // Weave tag posts in at random intervals [TAG_INJECTION_MIN, TAG_INJECTION_MAX].
+    const merged: FeedItem[] = [];
+    let poolIndex = 0;
+    let nextInjection = randomBetween(TAG_INJECTION_MIN, TAG_INJECTION_MAX);
+
+    for (let i = 0; i < regularPosts.length; i++) {
+      merged.push(regularPosts[i]);
+      if (i + 1 === nextInjection && poolIndex < pool.length) {
+        merged.push(pool[poolIndex++] as FeedItem);
+        nextInjection += randomBetween(TAG_INJECTION_MIN, TAG_INJECTION_MAX);
+      }
+    }
+
+    return merged;
+  }, [posts, tagPostPool, isUserBlocked, currentUser?.uid]);
 
   // Render individual post
-  const renderPost = useCallback(({ item }: { item: Post }) => {
+  const renderPost = useCallback(({ item }: { item: FeedItem }) => {
     const canInteract = !isUserBlocked(item.authorId);
     
     return (
@@ -443,10 +468,28 @@ export default function PostsFeed() {
           )}
         </View>
 
+        {/* Tag injection attribution */}
+        {item.injectedFromTag && (
+          <Text style={styles.injectedTagLabel}>because you follow #{item.injectedFromTag}</Text>
+        )}
+
         {/* Caption */}
         {item.caption && (
           <View style={styles.captionContainer}>
             <Text style={styles.caption} numberOfLines={3}>{item.caption}</Text>
+          </View>
+        )}
+
+        {/* Tags */}
+        {item.tags && item.tags.length > 0 && (
+          <View style={styles.tagsContainer}>
+            {item.tags.map((tag) => (
+              <TagChip
+                key={tag}
+                tag={tag}
+                onPress={() => canInteract && navigateToTagFeed(tag)}
+              />
+            ))}
           </View>
         )}
 
@@ -691,11 +734,11 @@ export default function PostsFeed() {
   return (
     <>
       <FlatList
-        data={filteredPosts}
+        data={mergedFeed}
         renderItem={renderPost}
         keyExtractor={(item, index) => `${item.id}-${index}`}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={posts.length === 0 ? styles.emptyContainer : styles.postsContainer}
+        contentContainerStyle={mergedFeed.length === 0 ? styles.emptyContainer : styles.postsContainer}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -848,6 +891,19 @@ const styles = StyleSheet.create({
     color: '#E5E5EA',
     lineHeight: 20,
     fontSize: 14,
+  },
+  injectedTagLabel: {
+    fontSize: 11,
+    color: '#636366',
+    paddingHorizontal: 15,
+    paddingTop: 6,
+    paddingBottom: 2,
+  },
+  tagsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: 15,
+    paddingVertical: 8,
   },
   commentInputContainer: {
     flexDirection: 'row',

@@ -1,76 +1,113 @@
 import React from 'react';
-import { Platform, StyleSheet } from 'react-native';
-import { NativeTabs, Icon, Label, VectorIcon } from 'expo-router/unstable-native-tabs';
+import { Platform } from 'react-native';
+import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import EmailVerificationGuard from '@/components/EmailVerificationGuard';
 import { ACCENT_COLOR } from '@/constants/Colors';
 
-console.log('[TabLayout] Module loaded');
-
-export default function TabLayout() {
-  console.log('[TabLayout] Component rendering with NativeTabs');
-
-  return (
-    <EmailVerificationGuard>
-      <NativeTabs
-        // iOS 26+ Liquid Glass styling
-        minimizeBehavior="onScrollDown"
-        disableTransparentOnScrollEdge={false}
-        // Tab bar styling - use accent color for selected items
-        tintColor={ACCENT_COLOR}
-      >
-        {/* Home Tab */}
-        <NativeTabs.Trigger name="index">
-          <Label>Home</Label>
-          {Platform.select({
-            ios: <Icon sf={{ default: 'house', selected: 'house.fill' }} />,
-            android: <Icon src={<VectorIcon family={Ionicons} name="home" />} />,
-          })}
-        </NativeTabs.Trigger>
-
-        {/* AI Chat Tab */}
-        <NativeTabs.Trigger name="ai">
-          <Label>AI</Label>
-          {Platform.select({
-            ios: <Icon sf={{ default: 'sparkles', selected: 'sparkles' }} />,
-            android: <Icon src={<VectorIcon family={Ionicons} name="sparkles" />} />,
-          })}
-        </NativeTabs.Trigger>
-
-        {/* Workouts Tab */}
-        <NativeTabs.Trigger name="workouts">
-          <Label>Workouts</Label>
-          {Platform.select({
-            ios: <Icon sf={{ default: 'flame', selected: 'flame.fill' }} />,
-            android: <Icon src={<VectorIcon family={Ionicons} name="flame" />} />,
-          })}
-        </NativeTabs.Trigger>
-
-        {/* Profile Tab */}
-        <NativeTabs.Trigger name="profile">
-          <Label>Profile</Label>
-          {Platform.select({
-            ios: <Icon sf={{ default: 'person', selected: 'person.fill' }} />,
-            android: <Icon src={<VectorIcon family={Ionicons} name="person" />} />,
-          })}
-        </NativeTabs.Trigger>
-
-        {/* Post Tab - Separate action on the right with search role for iOS 26+ separation */}
-        <NativeTabs.Trigger name="post" role="search">
-          <Label>Post</Label>
-          {Platform.select({
-            ios: <Icon sf={{ default: 'plus.circle', selected: 'plus.circle.fill' }} />,
-            android: <Icon src={<VectorIcon family={Ionicons} name="add-circle" />} />,
-          })}
-        </NativeTabs.Trigger>
-      </NativeTabs>
-    </EmailVerificationGuard>
-  );
+// NativeTabs is only used on iOS — on Android it causes a fatal Fabric view hierarchy crash
+// that destroys the entire React Native instance after login navigation.
+let NativeTabs: any, Icon: any, Label: any;
+if (Platform.OS === 'ios') {
+  const nativeTabs = require('expo-router/unstable-native-tabs');
+  NativeTabs = nativeTabs.NativeTabs;
+  Icon = nativeTabs.Icon;
+  Label = nativeTabs.Label;
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: 'black',
-  },
-});
+export default function TabLayout() {
+  if (Platform.OS === 'ios' && NativeTabs) {
+    return (
+      <NativeTabs
+        minimizeBehavior="onScrollDown"
+        disableTransparentOnScrollEdge={false}
+        tintColor={ACCENT_COLOR}
+      >
+        <NativeTabs.Trigger name="index">
+          <Label>Home</Label>
+          <Icon sf={{ default: 'house', selected: 'house.fill' }} />
+        </NativeTabs.Trigger>
+
+        <NativeTabs.Trigger name="ai">
+          <Label>AI</Label>
+          <Icon sf={{ default: 'sparkles', selected: 'sparkles' }} />
+        </NativeTabs.Trigger>
+
+        <NativeTabs.Trigger name="workouts">
+          <Label>Workouts</Label>
+          <Icon sf={{ default: 'flame', selected: 'flame.fill' }} />
+        </NativeTabs.Trigger>
+
+        <NativeTabs.Trigger name="profile">
+          <Label>Profile</Label>
+          <Icon sf={{ default: 'person', selected: 'person.fill' }} />
+        </NativeTabs.Trigger>
+
+        <NativeTabs.Trigger name="post" role="search">
+          <Label>Post</Label>
+          <Icon sf={{ default: 'plus.circle', selected: 'plus.circle.fill' }} />
+        </NativeTabs.Trigger>
+      </NativeTabs>
+    );
+  }
+
+  // Android: use standard Tabs from expo-router (avoids Fabric view hierarchy crash)
+  return (
+    <Tabs
+      screenOptions={{
+        headerShown: false,
+        tabBarActiveTintColor: ACCENT_COLOR,
+        tabBarInactiveTintColor: 'rgba(255,255,255,0.5)',
+        tabBarStyle: {
+          backgroundColor: '#000',
+          borderTopColor: 'rgba(255,255,255,0.1)',
+        },
+      }}
+    >
+      <Tabs.Screen
+        name="index"
+        options={{
+          title: 'Home',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="home" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="ai"
+        options={{
+          title: 'AI',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="sparkles" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="workouts"
+        options={{
+          title: 'Workouts',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="flame" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: 'Profile',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="person" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="post"
+        options={{
+          title: 'Post',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="add-circle" size={size} color={color} />
+          ),
+        }}
+      />
+    </Tabs>
+  );
+}

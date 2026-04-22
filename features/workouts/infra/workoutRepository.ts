@@ -28,6 +28,7 @@ function mapDocToWorkoutListItem(id: string, data: Record<string, unknown>): Wor
     coverImageUrl: (data.coverImageUrl as string | undefined) ?? null,
     thumbnailUrl: (data.thumbnailUrl as string | undefined) ?? null,
     savedCount: (data.savedCount as number | undefined) ?? 0,
+    isPublic: (data.isPublic as boolean | undefined) ?? false,
   };
 }
 
@@ -106,12 +107,13 @@ export const WorkoutRepository = {
     draft: WorkoutDraft,
     coverImageUrl: string | null = null
   ): Promise<string> {
-    const workoutData = {
+    const workoutData: Record<string, unknown> = {
       creatorId: uid,
       creatorUsername: username,
       title: draft.title,
       description: draft.description,
       coverImageUrl,
+      ...(draft.mentions && draft.mentions.length > 0 ? { mentions: draft.mentions } : {}),
       segments: draft.segments
         .map(seg => ({
           id: seg.id,
@@ -126,7 +128,7 @@ export const WorkoutRepository = {
       visibility: draft.visibility,
       isPublic: draft.visibility === 'public',
       savedCount: 0,
-      tags: [],
+      ...(draft.tags && draft.tags.length > 0 ? { tags: draft.tags } : { tags: [] }),
     };
 
     const docRef = await addDoc(collection(db, 'workouts'), workoutData);

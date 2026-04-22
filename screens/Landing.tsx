@@ -230,14 +230,14 @@ export default function Landing() {
   return (
     <AuthBackground>
       <SafeAreaView style={styles.safeArea}>
-        <View style={styles.contentWrapper}>
+        <View style={styles.contentWrapper} collapsable={false}>
           {/* Landing Content */}
           <Animated.View style={[
             styles.slideView, 
             { transform: [{ translateX: landingAnim }] }
           ]}>
-            <View style={styles.content}>
-              <View style={styles.centeredContent}>
+            <View style={styles.content} collapsable={false}>
+              <View style={styles.centeredContent} collapsable={false}>
                 <View style={styles.logoContainer}>
                   <Image
                     style={styles.logo}
@@ -251,7 +251,7 @@ export default function Landing() {
                   <Text style={styles.subtagline}>Stay motivated, track progress, and grow together with AI-powered coaching</Text>
                 </View>
 
-                <View style={styles.buttonContainer}>
+                <View style={styles.buttonContainer} collapsable={false}>
                   <TouchableOpacity
                     style={[styles.button, styles.signUpButton]}
                     onPress={handleShowSignUp}

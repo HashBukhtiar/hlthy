@@ -4,6 +4,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  Pressable,
   FlatList,
   StyleSheet,
   KeyboardAvoidingView,
@@ -45,6 +46,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { sendMessage, sendMessageWithIntent, IntentClassificationResult, AIResponse } from '@/ai/ai_chat';
 import { SmartChatInput } from '@/components/SmartChatInput';
+import MentionText from '@/components/MentionText';
+import { MentionData } from '@/features/mentions/domain/Mention';
 import { IntentMessageWrapper } from '@/components/IntentBadge';
 import { MessageRenderer } from '@/components/ai/MessageRenderer';
 import { calculateImprovementPercentage } from '@/logic/milestoneUtils';
@@ -56,6 +59,7 @@ interface FirestoreMessageData {
   senderId: string;
   text: string;
   createdAt: Timestamp;
+  mentions?: MentionData[];
   isAiResponse?: boolean; // Flag to identify AI responses
   intent?: string; // Add intent field
   workoutPlan?: any; // Add workout plan data
@@ -109,8 +113,9 @@ interface Message {
   user: 'user' | 'other' | 'ai';
   role: 'user' | 'model';
   createdAt?: Date;
+  mentions?: MentionData[];
   profileData?: any; // Profile confirmation data
-  responseType?: string; // Type of AI response  
+  responseType?: string; // Type of AI response
   intent?: string; // Add intent field
   workoutPlan?: any; // Add workout plan data
   sharedPost?: {
@@ -245,10 +250,11 @@ async function convertFirestoreDoc(
     workoutPlan: data.workoutPlan, // Include workout plan data
     responseType: data.responseType, // Include response type
     profileData: data.profileData, // Include profile data for workout_confirmation
+    mentions: data.mentions,
     sharedPost: resolvedSharedPost,
     sharedMilestone: resolvedSharedMilestone,
     sharedWorkout: resolvedSharedWorkout,
-    sharedPhoto: data.sharedPhoto, // Include photo data
+    sharedPhoto: data.sharedPhoto,
     type: "message",
   };
 }
@@ -539,27 +545,25 @@ const MessageItem = React.memo<{
             onSwipeActiveChange={onSwipeActiveChange}
           />
         ) : (
-          <TouchableOpacity
+          <View
             style={[
               styles.messageBubble,
               item.user === 'user'
                 ? styles.currentUserMessage
                 : styles.otherUserMessage,
             ]}
-            onLongPress={() => onLongPress(item)}
-            delayLongPress={500}
-            activeOpacity={0.7}
           >
-            <Text
+            <MentionText
+              text={item.text}
+              mentions={item.mentions}
               style={
                 item.user === 'user'
                   ? styles.currentUserText
                   : styles.otherUserText
               }
-            >
-              {item.text}
-            </Text>
-          </TouchableOpacity>
+              onLongPress={() => onLongPress(item)}
+            />
+          </View>
         )}
       </IntentMessageWrapper>
     );
@@ -1009,7 +1013,7 @@ export default function ChatScreen() {
     }
   };
 
-  const handleSend = async (textToSend: string, preferencesOverride?: any, intentResult?: IntentClassificationResult) => {
+  const handleSend = async (textToSend: string, preferencesOverride?: any, mentionsOrIntent?: MentionData[] | IntentClassificationResult) => {
     Keyboard.dismiss();
     
     if (!textToSend.trim() || !currentUser || !conversationId) {
@@ -1055,8 +1059,13 @@ export default function ChatScreen() {
         senderUsername: userProfile?.username || currentUser.displayName || currentUser.email?.split('@')[0] || 'User',
       };
       
-      if (intentResult?.intent) {
-        messageData.intent = intentResult.intent;
+      // Add intent for AI messages (preferencesOverride holds the intent classification)
+      if (preferencesOverride?.intent) {
+        messageData.intent = preferencesOverride.intent;
+      }
+      // Add mentions for user-to-user messages (mentionsOrIntent is MentionData[] in that case)
+      if (Array.isArray(mentionsOrIntent) && mentionsOrIntent.length > 0) {
+        messageData.mentions = mentionsOrIntent;
       }
       
       await addDoc(messagesRef, messageData);
@@ -1128,9 +1137,9 @@ export default function ChatScreen() {
           type: aiResponse.type
         });
         
-        // Only add intent field if intentResult exists and has intent property
-        if (intentResult?.intent) {
-          aiMessageData.intent = intentResult.intent;
+        // Only add intent field if preferencesOverride has intent (passed from SmartChatInput classification)
+        if (preferencesOverride?.intent) {
+          aiMessageData.intent = preferencesOverride.intent;
         }
         
         await addDoc(messagesRef, aiMessageData);
@@ -1802,6 +1811,7 @@ const styles = StyleSheet.create({
     paddingTop: 10,
     paddingBottom: 20,
     backgroundColor: '#1E1E1E',
+    overflow: 'visible',
   },
   unifiedInputPill: {
     flexDirection: 'row',
@@ -1810,7 +1820,7 @@ const styles = StyleSheet.create({
     borderRadius: 30,
     borderWidth: 2,
     borderColor: '#333',
-    overflow: 'hidden',
+    overflow: 'visible',
     paddingLeft: 8,
   },
   input: {

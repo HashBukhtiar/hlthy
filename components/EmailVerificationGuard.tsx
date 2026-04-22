@@ -1,6 +1,6 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useSegments } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { auth } from '@/firebaseConfig';
 import { reload, signOut } from '@/features/auth/ui/useSession';
@@ -16,51 +16,20 @@ interface EmailVerificationGuardProps {
 export default function EmailVerificationGuard({ children }: EmailVerificationGuardProps) {
   const { currentUser, userProfile, loading: authLoading, isFromSignup, setIsFromSignup } = useAuth();
   const router = useRouter();
+  const segments = useSegments();
+  const inAuthScreen = ['landing', 'login', 'signup', 'email-verification'].includes(segments[0] as string);
   const [isCheckingVerification, setIsCheckingVerification] = useState(false);
   const [isResending, setIsResending] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
-  const hasRedirected = useRef(false);
-  const isRedirecting = useRef(false);
-  const isMounted = useRef(true);
 
   console.log('[EmailVerificationGuard] Render - authLoading:', authLoading, 'currentUser:', currentUser?.uid || 'null', 'isFromSignup:', isFromSignup);
 
-  // Track mount status
-  useEffect(() => {
-    isMounted.current = true;
-    return () => {
-      isMounted.current = false;
-    };
-  }, []);
-
   // Handle navigation when user is not authenticated
   useEffect(() => {
-    // Prevent multiple simultaneous redirects
-    if (isRedirecting.current || !isMounted.current) return;
-    
-    if (!authLoading && !currentUser) {
-      // Only redirect once per session
-      if (!hasRedirected.current) {
-        hasRedirected.current = true;
-        isRedirecting.current = true;
-        
-        console.log('[EmailVerificationGuard] Redirecting to landing...');
-        
-        // Use setTimeout to ensure state is settled
-        setTimeout(() => {
-          if (isMounted.current) {
-            router.replace('/landing');
-          }
-        }, 50);
-      }
-    }
-    
-    // Reset redirect flags when user logs back in
-    if (currentUser) {
-      hasRedirected.current = false;
-      isRedirecting.current = false;
-    }
-  }, [authLoading, currentUser, router]);
+    if (authLoading || currentUser || inAuthScreen) return;
+    console.log('[EmailVerificationGuard] Redirecting to landing...');
+    router.replace('/landing');
+  }, [authLoading, currentUser, inAuthScreen, router]);
 
   // Cooldown timer for resend button
   useEffect(() => {
@@ -160,7 +129,7 @@ export default function EmailVerificationGuard({ children }: EmailVerificationGu
     console.log('[EmailVerificationGuard] Showing loading screen - authLoading is true');
     return (
       <AuthBackground>
-        <View style={styles.loadingContainer}>
+        <View style={styles.loadingContainer} collapsable={false}>
           <CustomSpinner size={48} />
           <Text style={styles.loadingText}>Loading...</Text>
         </View>
@@ -168,9 +137,10 @@ export default function EmailVerificationGuard({ children }: EmailVerificationGu
     );
   }
 
-  // If user is not logged in, return null immediately to prevent render loop
+  // If user is not logged in, render children so the Stack stays mounted
+  // (unmounting Stack causes Expo Router to remount the navigator, which loops)
   if (!currentUser) {
-    return null;
+    return <>{children}</>;
   }
 
   // If email is verified, show the protected content
