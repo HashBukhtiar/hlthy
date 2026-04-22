@@ -97,6 +97,43 @@ class WorkoutAnalysis(BaseModel):
     sentiment: Literal["positive", "neutral", "needs_attention"] = "positive"
 
 
+# ── Progress Chart ──────────────────────────────────────────────────────────
+
+
+class ProgressChartPoint(BaseModel):
+    """A single (x, y) point in a progress chart series."""
+    date: str = Field(..., min_length=1, max_length=20)
+    value: float
+
+
+class ProgressChartSeries(BaseModel):
+    """A named series in a progress chart (e.g., 'Bench Press')."""
+    label: str = Field(..., min_length=1, max_length=80)
+    color: Optional[str] = Field(default=None, max_length=9)  # "#RRGGBB" or "#RRGGBBAA"
+    points: List[ProgressChartPoint] = Field(default_factory=list)
+
+    @field_validator("points")
+    @classmethod
+    def limit_points(cls, v: list) -> list:
+        return v[:60]  # cap to 60 points per series
+
+
+class ProgressChartData(BaseModel):
+    """Structured payload for the progress_chart response type."""
+    title: str = Field(..., min_length=1, max_length=100)
+    metric: Literal["weight", "volume", "reps", "one_rep_max"] = "weight"
+    unit: str = Field(default="lbs", max_length=10)
+    series: List[ProgressChartSeries] = Field(..., min_length=1)
+    x_axis_label: Optional[str] = Field(default=None, max_length=40)
+    y_axis_label: Optional[str] = Field(default=None, max_length=40)
+    summary: Optional[str] = Field(default=None, max_length=280)
+
+    @field_validator("series")
+    @classmethod
+    def limit_series(cls, v: list) -> list:
+        return v[:4]  # at most 4 series on one chart
+
+
 # ── Domain Models (used by context modules) ─────────────────────────────────
 
 

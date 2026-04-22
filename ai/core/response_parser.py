@@ -6,6 +6,15 @@ import json
 import re
 from typing import Dict, Any, Optional, Tuple
 
+from pydantic import ValidationError
+
+from models.schemas import ProgressChartData
+
+# Response types that must pass Pydantic validation before being emitted.
+_VALIDATED_TYPES: Dict[str, Any] = {
+    "progress_chart": ProgressChartData,
+}
+
 
 def parse_streamed_text(full_text: str) -> Tuple[str, Optional[Dict[str, Any]]]:
     """
@@ -23,6 +32,7 @@ def parse_streamed_text(full_text: str) -> Tuple[str, Optional[Dict[str, Any]]]:
         (r"```workout-json\s*\n(.*?)```", "workout_plan"),
         (r"```schedule-json\s*\n(.*?)```", "schedule_plan"),
         (r"```technique-json\s*\n(.*?)```", "technique_advice"),
+        (r"```progress-chart-json\s*\n(.*?)```", "progress_chart"),
         (r"```json\s*\n(.*?)```", None),  # Generic JSON — type from content
     ]
 
