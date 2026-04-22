@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   StyleSheet, Text, View, Image, ScrollView,
   TouchableOpacity, KeyboardAvoidingView, Platform,
-  TextInput, Modal, ActivityIndicator, Alert
+  TextInput, Modal, ActivityIndicator, Alert, Keyboard
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -509,6 +509,7 @@ export default function ViewPost() {
       
       setCommentText('');
       setCommentMentions([]);
+      Keyboard.dismiss();
     } catch (error) {
       console.error("Error adding comment:", error);
       Alert.alert("Error", "Could not add comment. Please try again.");
