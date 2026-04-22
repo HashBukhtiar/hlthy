@@ -39,10 +39,13 @@ import {
   TAG_INJECTION_MIN,
   TAG_INJECTION_MAX,
 } from '@/features/tags/domain/Tag';
+import { useSuggestedUsers } from '@/features/social/ui/useSuggestedUsers';
+import SuggestedUsersCarousel from '@/components/SuggestedUsersCarousel';
 
 console.log('[PostsFeed] Module loaded');
 
-type FeedItem = Post & { injectedFromTag?: string };
+type FeedPost = Post & { injectedFromTag?: string };
+type FeedItem = FeedPost | { type: 'suggested_users'; id: string };
 
 function randomBetween(min: number, max: number): number {
   return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -96,6 +99,7 @@ export default function PostsFeed() {
   const router = useRouter();
   const { currentUser, userProfile } = useAuth();
   const { posts: feedPosts, tagPostPool, loading, refreshing, loadingMore, hasMore, error, refreshFeed, loadMorePosts } = useFeedData();
+  const { suggestions: suggestedUsers } = useSuggestedUsers();
   const { likePost, unlikePost, addComment } = usePostsData();
   const { canInteractWithUser, isUserBlocked } = useBlockEnforcement();
   
@@ -393,74 +397,87 @@ export default function PostsFeed() {
   }, []);
 
   const mergedFeed = useMemo((): FeedItem[] => {
-    const regularPosts = posts.filter(post => {
+    const regularPosts: FeedPost[] = posts.filter(post => {
       if (post.isMilestone && !post.imageUrl) return false;
       if (isUserBlocked(post.authorId)) return false;
       if (post.authorBlockedUsers?.includes(currentUser?.uid || '')) return false;
       return true;
     });
 
-    if (tagPostPool.length === 0) return regularPosts;
-
     // Deduplicate tag pool against the regular feed.
     const regularIds = new Set(regularPosts.map(p => p.id));
     const pool: TagInjectedPost[] = tagPostPool.filter(p => !regularIds.has(p.id));
 
-    if (pool.length === 0) return regularPosts;
-
-    // Weave tag posts in at random intervals [TAG_INJECTION_MIN, TAG_INJECTION_MAX].
+    // Weave tag posts and suggested-users carousels in at random intervals.
     const merged: FeedItem[] = [];
-    let poolIndex = 0;
-    let nextInjection = randomBetween(TAG_INJECTION_MIN, TAG_INJECTION_MAX);
+    let tagPoolIndex = 0;
+    let nextTagInjection = randomBetween(TAG_INJECTION_MIN, TAG_INJECTION_MAX);
+    let nextSuggestInjection = randomBetween(5, 7);
+    let suggestInjected = false; // track per-injection cycle
 
     for (let i = 0; i < regularPosts.length; i++) {
       merged.push(regularPosts[i]);
-      if (i + 1 === nextInjection && poolIndex < pool.length) {
-        merged.push(pool[poolIndex++] as FeedItem);
-        nextInjection += randomBetween(TAG_INJECTION_MIN, TAG_INJECTION_MAX);
+
+      const postsRendered = i + 1;
+
+      // Tag injection
+      if (pool.length > 0 && postsRendered === nextTagInjection && tagPoolIndex < pool.length) {
+        merged.push(pool[tagPoolIndex++] as FeedItem);
+        nextTagInjection += randomBetween(TAG_INJECTION_MIN, TAG_INJECTION_MAX);
+      }
+
+      // Suggested users carousel injection (every 5-7 posts, repeats)
+      if (suggestedUsers.length > 0 && postsRendered === nextSuggestInjection) {
+        merged.push({ type: 'suggested_users', id: `suggested-${postsRendered}` });
+        nextSuggestInjection += randomBetween(5, 7);
       }
     }
 
     return merged;
-  }, [posts, tagPostPool, isUserBlocked, currentUser?.uid]);
+  }, [posts, tagPostPool, suggestedUsers, isUserBlocked, currentUser?.uid]);
 
   // Render individual post
   const renderPost = useCallback(({ item }: { item: FeedItem }) => {
-    const canInteract = !isUserBlocked(item.authorId);
+    if ('type' in item && item.type === 'suggested_users') {
+      return <SuggestedUsersCarousel suggestions={suggestedUsers} />;
+    }
+
+    const post = item as FeedPost;
+    const canInteract = !isUserBlocked(post.authorId);
     
     return (
       <View style={styles.postContainer}>
         {/* Header with user info */}
         <View style={styles.postHeader}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.userInfoContainer}
-            onPress={() => canInteract ? navigateToProfile(item.authorId) : null}
+            onPress={() => canInteract ? navigateToProfile(post.authorId) : null}
             activeOpacity={0.8}
           >
-            <OptimizedImageLight 
-              thumbnailUrl={item.authorProfileThumbnailUrl}
-              originalUrl={item.authorProfileImageUrl}
+            <OptimizedImageLight
+              thumbnailUrl={post.authorProfileThumbnailUrl}
+              originalUrl={post.authorProfileImageUrl}
               style={styles.profilePic}
             />
             <View>
-              <Text style={styles.username}>{item.authorUsername}</Text>
+              <Text style={styles.username}>{post.authorUsername}</Text>
               <View style={styles.timestampContainer}>
                 <Text style={styles.timestamp}>
-                  {item.createdAt ? getRelativeTime(new Date(item.createdAt.toDate())) : 'Unknown'}
+                  {post.createdAt ? getRelativeTime(new Date(post.createdAt.toDate())) : 'Unknown'}
                 </Text>
-                <Ionicons 
-                  name={item.isPublic ? "earth-outline" : "people"} 
-                  size={12} 
-                  color="#8E8E93" 
+                <Ionicons
+                  name={post.isPublic ? "earth-outline" : "people"}
+                  size={12}
+                  color="#8E8E93"
                   style={styles.visibilityIcon}
                 />
               </View>
             </View>
           </TouchableOpacity>
           {canInteract && (
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.moreButton}
-              onPress={() => handleOpenActionMenu(item)}
+              onPress={() => handleOpenActionMenu(post)}
               activeOpacity={0.8}
             >
               <Ionicons name="ellipsis-horizontal" size={20} color="#8E8E93" />
@@ -469,21 +486,21 @@ export default function PostsFeed() {
         </View>
 
         {/* Tag injection attribution */}
-        {item.injectedFromTag && (
-          <Text style={styles.injectedTagLabel}>because you follow #{item.injectedFromTag}</Text>
+        {post.injectedFromTag && (
+          <Text style={styles.injectedTagLabel}>because you follow #{post.injectedFromTag}</Text>
         )}
 
         {/* Caption */}
-        {item.caption && (
+        {post.caption && (
           <View style={styles.captionContainer}>
-            <Text style={styles.caption} numberOfLines={3}>{item.caption}</Text>
+            <Text style={styles.caption} numberOfLines={3}>{post.caption}</Text>
           </View>
         )}
 
         {/* Tags */}
-        {item.tags && item.tags.length > 0 && (
+        {post.tags && post.tags.length > 0 && (
           <View style={styles.tagsContainer}>
-            {item.tags.map((tag) => (
+            {post.tags.map((tag) => (
               <TagChip
                 key={tag}
                 tag={tag}
@@ -494,16 +511,16 @@ export default function PostsFeed() {
         )}
 
         {/* Post Image */}
-        {item.imageUrl && (
+        {post.imageUrl && (
           <View style={styles.imageWrapper}>
-            <TouchableOpacity 
+            <TouchableOpacity
               activeOpacity={0.9}
-              onPress={canInteract ? createDoubleTapHandler(item.id, item.isLiked || false) : undefined}
+              onPress={canInteract ? createDoubleTapHandler(post.id, post.isLiked || false) : undefined}
             >
               <Image
-                source={{ uri: item.imageUrl! }}
+                source={{ uri: post.imageUrl! }}
                 style={styles.postImage}
-                onError={({ nativeEvent }) => console.error('❌ post image failed to load:', item.imageUrl, nativeEvent)}
+                onError={({ nativeEvent }) => console.error('❌ post image failed to load:', post.imageUrl, nativeEvent)}
               />
             </TouchableOpacity>
           </View>
@@ -513,46 +530,46 @@ export default function PostsFeed() {
         {canInteract && (
           <View style={styles.statsContainer}>
             <View style={styles.statsLeft}>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.statItem}
-                onPress={() => handleToggleLike(item.id, item.isLiked || false)}
+                onPress={() => handleToggleLike(post.id, post.isLiked || false)}
                 activeOpacity={0.8}
               >
-                <Ionicons 
-                  name={item.isLiked ? "heart" : "heart-outline"} 
-                  size={20} 
-                  color={item.isLiked ? ACCENT_COLOR : "#FFF"} 
-                  style={styles.statIcon} 
+                <Ionicons
+                  name={post.isLiked ? "heart" : "heart-outline"}
+                  size={20}
+                  color={post.isLiked ? ACCENT_COLOR : "#FFF"}
+                  style={styles.statIcon}
                 />
-                <Text style={styles.statNumber}>{item.reactionCount || 0}</Text>
-                <Text style={styles.statLabel}> {item.reactionCount === 1 ? 'Like' : 'Likes'}</Text>
+                <Text style={styles.statNumber}>{post.reactionCount || 0}</Text>
+                <Text style={styles.statLabel}> {post.reactionCount === 1 ? 'Like' : 'Likes'}</Text>
               </TouchableOpacity>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.statItem}
-                onPress={() => handleViewPost(item.id)}
+                onPress={() => handleViewPost(post.id)}
                 activeOpacity={0.8}
               >
                 <Ionicons name="chatbubble-outline" size={20} color="#FFF" style={styles.statIcon} />
-                <Text style={styles.statNumber}>{item.commentCount || 0}</Text>
-                <Text style={styles.statLabel}> {item.commentCount === 1 ? 'Comment' : 'Comments'}</Text>
+                <Text style={styles.statNumber}>{post.commentCount || 0}</Text>
+                <Text style={styles.statLabel}> {post.commentCount === 1 ? 'Comment' : 'Comments'}</Text>
               </TouchableOpacity>
             </View>
             <View style={styles.statsRight}>
-              <TouchableOpacity 
-                style={styles.iconButtonSmall} 
+              <TouchableOpacity
+                style={styles.iconButtonSmall}
                 activeOpacity={0.8}
-                onPress={() => handleSharePost(item)}
+                onPress={() => handleSharePost(post)}
               >
                 <Ionicons name="paper-plane-outline" size={20} color="#FFF" />
               </TouchableOpacity>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.iconButtonSmall}
-                onPress={() => handleToggleBookmark(item.id, item.isBookmarked || false)}
+                onPress={() => handleToggleBookmark(post.id, post.isBookmarked || false)}
                 activeOpacity={0.8}
               >
-                <Ionicons 
-                  name={item.isBookmarked ? "bookmark" : "bookmark-outline"} 
-                  size={20} 
+                <Ionicons
+                  name={post.isBookmarked ? "bookmark" : "bookmark-outline"}
+                  size={20}
                   color="#FFF"
                 />
               </TouchableOpacity>
@@ -561,13 +578,13 @@ export default function PostsFeed() {
         )}
 
         {/* Comment Input (shown only for active comment) */}
-        {canInteract && activeCommentId === item.id && (
+        {canInteract && activeCommentId === post.id && (
           <View style={styles.commentInputContainer}>
-            <Image 
-              source={{ 
+            <Image
+              source={{
                 uri: getOptimalImageUrl(userProfile?.profileThumbnailUrl, userProfile?.profileImageUrl) || DEFAULT_PROFILE_IMAGE
-              }} 
-              style={styles.commentInputProfilePic} 
+              }}
+              style={styles.commentInputProfilePic}
             />
             <TextInput
               style={styles.commentInput}
@@ -577,9 +594,9 @@ export default function PostsFeed() {
               onChangeText={setNewComment}
               autoFocus
             />
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[styles.postButton, (newComment.trim() === '' || submittingComment) && styles.disabledButton]}
-              onPress={() => handleAddComment(item.id)}
+              onPress={() => handleAddComment(post.id)}
               disabled={newComment.trim() === '' || submittingComment}
             >
               {submittingComment ? (
@@ -594,10 +611,10 @@ export default function PostsFeed() {
         )}
 
         {/* Attached Milestone (if exists) - For Achievement Posts */}
-        {canInteract && item.isMilestone && item.milestoneDetails && (
-          <TouchableOpacity 
+        {canInteract && post.isMilestone && post.milestoneDetails && (
+          <TouchableOpacity
             style={styles.attachedItemContainer}
-            onPress={() => navigateToMilestone(item.id)}
+            onPress={() => navigateToMilestone(post.id)}
           >
             <View style={styles.attachedItemContent}>
               <View style={styles.attachedItemInfo}>
@@ -606,11 +623,11 @@ export default function PostsFeed() {
                 </View>
                 <View>
                   <Text style={styles.attachedItemTitle}>
-                    {item.milestoneDetails.type === 'PR' ? 'Personal Record' : 
-                    item.milestoneDetails.type === 'weightLoss' ? 'Weight Loss' : 'Weight Gain'}
+                    {post.milestoneDetails.type === 'PR' ? 'Personal Record' :
+                    post.milestoneDetails.type === 'weightLoss' ? 'Weight Loss' : 'Weight Gain'}
                   </Text>
                   <Text style={styles.attachedItemDetails}>
-                    {formatMilestonePreview(item.milestoneDetails)}
+                    {formatMilestonePreview(post.milestoneDetails)}
                   </Text>
                 </View>
               </View>
@@ -620,10 +637,10 @@ export default function PostsFeed() {
         )}
 
         {/* Attached Workout (if exists) */}
-        {canInteract && item.workoutId && (
-          <TouchableOpacity 
+        {canInteract && post.workoutId && (
+          <TouchableOpacity
             style={styles.attachedItemContainer}
-            onPress={() => navigateToWorkout(item.workoutId!)}
+            onPress={() => navigateToWorkout(post.workoutId!)}
           >
             <View style={styles.attachedItemContent}>
               <View style={styles.attachedItemInfo}>
@@ -632,12 +649,12 @@ export default function PostsFeed() {
                 </View>
                 <View>
                   <Text style={styles.attachedItemTitle}>
-                    {item.workoutTitle || 'Workout'}
+                    {post.workoutTitle || 'Workout'}
                   </Text>
                   <View style={styles.workoutDetailsContainer}>
                     <Text style={styles.attachedItemDetails}>
-                      {item.workoutAuthor || item.authorUsername} • {item.workoutDuration ? (() => {
-                        const d = item.workoutDuration;
+                      {post.workoutAuthor || post.authorUsername} • {post.workoutDuration ? (() => {
+                        const d = post.workoutDuration;
                         const h = Math.floor(d / 3600);
                         const m = Math.floor((d % 3600) / 60);
                         const s = d % 60;
@@ -671,6 +688,7 @@ export default function PostsFeed() {
     createDoubleTapHandler,
     handleSharePost,
     handleOpenActionMenu,
+    suggestedUsers,
   ]);
 
   // Render footer for load more
@@ -736,7 +754,7 @@ export default function PostsFeed() {
       <FlatList
         data={mergedFeed}
         renderItem={renderPost}
-        keyExtractor={(item, index) => `${item.id}-${index}`}
+        keyExtractor={(item, index) => `${'type' in item && item.type === 'suggested_users' ? item.id : (item as FeedPost).id}-${index}`}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={mergedFeed.length === 0 ? styles.emptyContainer : styles.postsContainer}
         refreshControl={

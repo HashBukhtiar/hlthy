@@ -27,3 +27,4 @@ export * from "./callables/hashtagSearch";
 export * from "./triggers/mentionTriggers";
 export * from "./triggers/tagTriggers";
 export * from "./triggers/countTriggers";
+export * from "./callables/getSuggestedUsers";

@@ -147,6 +147,11 @@ service cloud.firestore {
       allow read, write: if isOwner(userId);
     }
 
+    match /users/{userId}/suggestedUsers/{doc} {
+      allow read: if isOwner(userId);
+      allow write: if false; // only written by Cloud Functions (getSuggestedUsers)
+    }
+
     match /users/{userId}/mentionBlockedBy/{blockerUid} {
       allow read: if isOwner(userId);
       allow write: if false; // only written by Cloud Functions (blockMentionUser)
