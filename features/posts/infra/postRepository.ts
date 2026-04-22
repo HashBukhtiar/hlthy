@@ -417,4 +417,41 @@ export const PostRepository = {
       tx.update(replyRef, { likes: increment(-1), likedBy: arrayRemove(uid) });
     });
   },
+
+  /** Deletes a comment. Reply cascade and commentCount decrement are handled by the onCommentDeleted trigger. */
+  async deleteComment(postId: string, commentId: string, uid: string): Promise<void> {
+    const commentRef = doc(db, 'posts', postId, 'comments', commentId);
+    const commentSnap = await getDoc(commentRef);
+    if (!commentSnap.exists()) throw new Error('Comment not found');
+
+    const postRef = doc(db, 'posts', postId);
+    const postSnap = await getDoc(postRef);
+    if (!postSnap.exists()) throw new Error('Post not found');
+
+    const isCommentAuthor = commentSnap.data().authorId === uid;
+    const isPostAuthor = postSnap.data().authorId === uid;
+    if (!isCommentAuthor && !isPostAuthor) throw new Error('Not authorized to delete this comment');
+
+    await deleteDoc(commentRef);
+  },
+
+  /** Updates the text of a comment. Only the comment author can edit. */
+  async updateComment(
+    postId: string,
+    commentId: string,
+    uid: string,
+    newText: string,
+    mentions?: MentionData[]
+  ): Promise<void> {
+    const commentRef = doc(db, 'posts', postId, 'comments', commentId);
+    const commentSnap = await getDoc(commentRef);
+    if (!commentSnap.exists()) throw new Error('Comment not found');
+    if (commentSnap.data().authorId !== uid) throw new Error('Not authorized to edit this comment');
+
+    await updateDoc(commentRef, {
+      text: newText,
+      editedAt: serverTimestamp(),
+      ...(mentions !== undefined ? { mentions: mentions.length > 0 ? mentions : [] } : {}),
+    });
+  },
 };

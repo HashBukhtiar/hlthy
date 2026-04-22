@@ -35,12 +35,14 @@ export default function ViewPost() {
   const { canInteractWithUser, isUserBlocked } = useBlockEnforcement();
   const { promptSelfUnmention } = useSelfUnmention();
   const {
-    getPostById, 
-    getPostComments, 
-    likePost, 
-    unlikePost, 
-    addComment, 
+    getPostById,
+    getPostComments,
+    likePost,
+    unlikePost,
+    addComment,
     deletePost,
+    deleteComment,
+    updateComment,
     likeComment,
     unlikeComment,
     addReplyToComment,
@@ -73,6 +75,11 @@ export default function ViewPost() {
 
   const [selectedCommentForAction, setSelectedCommentForAction] = useState<Comment | null>(null);
   const [commentActionModalVisible, setCommentActionModalVisible] = useState(false);
+  const [editingComment, setEditingComment] = useState<Comment | null>(null);
+  const [editCommentText, setEditCommentText] = useState('');
+  const [editCommentMentions, setEditCommentMentions] = useState<MentionData[]>([]);
+  const [editCommentModalVisible, setEditCommentModalVisible] = useState(false);
+  const [isSubmittingEdit, setIsSubmittingEdit] = useState(false);
   const [selectedReplyForAction, setSelectedReplyForAction] = useState<{ reply: Reply; commentId: string } | null>(null);
   const [replyActionModalVisible, setReplyActionModalVisible] = useState(false);
 
@@ -845,7 +852,9 @@ export default function ViewPost() {
               <View style={styles.commentContent}>
                 <View style={styles.commentHeader}>
                   <Text style={styles.commentUsername}>{comment.authorUsername}</Text>
-                  <Text style={styles.commentTimestamp}>{formatDate(comment.createdAt)}</Text>
+                  <Text style={styles.commentTimestamp}>
+                    {formatDate(comment.createdAt)}{comment.editedAt ? ' · edited' : ''}
+                  </Text>
                 </View>
                 <MentionText text={comment.text} mentions={comment.mentions} style={styles.commentText} />
                 {canInteractWithComment && (
@@ -925,36 +934,64 @@ export default function ViewPost() {
 
   const handleEditComment = () => {
     if (!selectedCommentForAction) return;
-    // Placeholder for edit functionality
-    console.log("Edit comment:", selectedCommentForAction.id);
-    Alert.alert("Edit Comment", `Editing comment: "${selectedCommentForAction.text.substring(0,30)}..."`);
     setCommentActionModalVisible(false);
+    setEditingComment(selectedCommentForAction);
+    setEditCommentText(selectedCommentForAction.text);
+    setEditCommentMentions(selectedCommentForAction.mentions || []);
     setSelectedCommentForAction(null);
+    setEditCommentModalVisible(true);
+  };
+
+  const handleSubmitEditComment = async () => {
+    if (!editingComment || !post || !editCommentText.trim() || isSubmittingEdit) return;
+    setIsSubmittingEdit(true);
+    try {
+      await updateComment(post.id, editingComment.id, editCommentText.trim(), editCommentMentions);
+      setComments(prev =>
+        prev.map(c =>
+          c.id === editingComment.id
+            ? { ...c, text: editCommentText.trim(), mentions: editCommentMentions, editedAt: undefined }
+            : c
+        )
+      );
+      setEditCommentModalVisible(false);
+      setEditingComment(null);
+    } catch (error) {
+      console.error("Error editing comment:", error);
+      Alert.alert("Error", "Could not edit comment. Please try again.");
+    } finally {
+      setIsSubmittingEdit(false);
+    }
   };
 
   const handleDeleteComment = () => {
-    if (!selectedCommentForAction) return;
-    // Placeholder for delete functionality
-    console.log("Delete comment:", selectedCommentForAction.id);
+    if (!selectedCommentForAction || !post) return;
+    const commentToDelete = selectedCommentForAction;
+    setCommentActionModalVisible(false);
+    setSelectedCommentForAction(null);
     Alert.alert(
       "Delete Comment",
       "Are you sure you want to delete this comment?",
       [
-        { text: "Cancel", style: "cancel", onPress: () => {} },
-        { text: "Delete", style: "destructive", onPress: () => {
-          // Actual deletion logic will go here
-          // For now, just simulate by removing from local state (this is not persistent)
-          setComments(prevComments => prevComments.filter(c => c.id !== selectedCommentForAction.id));
-          // Update post's comment count if post is available
-          if (post) {
-            setPost(prevPost => prevPost ? {...prevPost, commentCount: Math.max(0, (prevPost.commentCount || 0) - 1)} : null);
-          }
-          Alert.alert("Comment Deleted", "The comment has been removed (locally).");
-        }}
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteComment(post.id, commentToDelete.id);
+              setComments(prev => prev.filter(c => c.id !== commentToDelete.id));
+              setPost(prev =>
+                prev ? { ...prev, commentCount: Math.max(0, (prev.commentCount || 0) - 1) } : null
+              );
+            } catch (error) {
+              console.error("Error deleting comment:", error);
+              Alert.alert("Error", "Could not delete comment. Please try again.");
+            }
+          },
+        },
       ]
     );
-    setCommentActionModalVisible(false);
-    setSelectedCommentForAction(null);
   };
 
   const handleReportComment = () => {
@@ -1673,6 +1710,76 @@ export default function ViewPost() {
                 </TouchableOpacity>
               </View>
             </TouchableOpacity>
+          </Modal>
+        )}
+
+        {/* Edit Comment Modal */}
+        {editingComment && (
+          <Modal
+            animationType="slide"
+            transparent={true}
+            visible={editCommentModalVisible}
+            onRequestClose={() => {
+              setEditCommentModalVisible(false);
+              setEditingComment(null);
+            }}
+          >
+            <KeyboardAvoidingView
+              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+              style={{ flex: 1 }}
+            >
+              <TouchableOpacity
+                style={styles.modalOverlay}
+                activeOpacity={1}
+                onPress={() => {
+                  setEditCommentModalVisible(false);
+                  setEditingComment(null);
+                }}
+              >
+                <TouchableOpacity activeOpacity={1} onPress={() => {}}>
+                  <View style={[styles.commentActionModalView, { padding: 16 }]}>
+                    <Text style={{ color: '#fff', fontWeight: '600', fontSize: 16, marginBottom: 12 }}>
+                      Edit Comment
+                    </Text>
+                    <MentionTextInput
+                      value={editCommentText}
+                      onChangeText={setEditCommentText}
+                      mentions={editCommentMentions}
+                      onMentionsChange={setEditCommentMentions}
+                      multiline
+                      placeholder="Edit your comment..."
+                      placeholderTextColor="#666"
+                      style={{ color: '#fff', minHeight: 60, maxHeight: 120, fontSize: 14 }}
+                      containerStyle={{ backgroundColor: '#2a2a2a', borderRadius: 10, padding: 10, marginBottom: 12 }}
+                    />
+                    <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 12 }}>
+                      <TouchableOpacity
+                        onPress={() => { setEditCommentModalVisible(false); setEditingComment(null); }}
+                        style={{ paddingVertical: 8, paddingHorizontal: 16 }}
+                      >
+                        <Text style={{ color: '#999', fontSize: 15 }}>Cancel</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={handleSubmitEditComment}
+                        disabled={!editCommentText.trim() || isSubmittingEdit}
+                        style={{
+                          backgroundColor: ACCENT_COLOR,
+                          paddingVertical: 8,
+                          paddingHorizontal: 16,
+                          borderRadius: 8,
+                          opacity: (!editCommentText.trim() || isSubmittingEdit) ? 0.4 : 1,
+                        }}
+                      >
+                        {isSubmittingEdit
+                          ? <ActivityIndicator size="small" color="#fff" />
+                          : <Text style={{ color: '#fff', fontWeight: '600', fontSize: 15 }}>Save</Text>
+                        }
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              </TouchableOpacity>
+            </KeyboardAvoidingView>
           </Modal>
         )}
 

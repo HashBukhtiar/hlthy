@@ -176,6 +176,22 @@ export function usePostsData() {
     );
   };
 
+  const deleteComment = async (postId: string, commentId: string): Promise<void> => {
+    if (!currentUser) throw new Error("User not authenticated");
+    await PostRepository.deleteComment(postId, commentId, currentUser.uid);
+  };
+
+  const updateComment = async (
+    postId: string,
+    commentId: string,
+    newText: string,
+    mentions?: MentionData[]
+  ): Promise<void> => {
+    if (!currentUser) throw new Error("User not authenticated");
+    if (!newText.trim()) throw new Error("Comment text cannot be empty");
+    await PostRepository.updateComment(postId, commentId, currentUser.uid, newText.trim(), mentions);
+  };
+
   const likeComment = async (postId: string, commentId: string): Promise<void> => {
     if (!currentUser) throw new Error("User not authenticated");
     await PostRepository.likeComment(postId, commentId, currentUser.uid);
@@ -242,6 +258,8 @@ export function usePostsData() {
     unlikePost,
     addComment,
     deletePost,
+    deleteComment,
+    updateComment,
     likeComment,
     unlikeComment,
     addReplyToComment,
