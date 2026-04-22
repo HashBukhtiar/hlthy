@@ -19,6 +19,7 @@ export interface AIMessage {
   /** Structured data from AI (workout plans, technique advice, etc.) */
   workoutPlan?: Record<string, unknown>;
   profileData?: Record<string, unknown>;
+  chartData?: Record<string, unknown>;
 
   /** Streaming state (only during active stream) */
   isStreaming?: boolean;
