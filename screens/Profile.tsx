@@ -629,7 +629,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
 
         {/* Tab Content */}
         {canViewContent ? (
-          <View style={[styles.tabContentInline, { overflow: 'hidden' }, activeTabHeight ? { height: activeTabHeight } : undefined]}>
+          <View style={[styles.tabContentInline, { overflow: 'hidden' }, activeTabHeight !== undefined ? { height: activeTabHeight } : undefined]}>
             <Animated.View
               style={{
                 flexDirection: 'row',

@@ -291,7 +291,6 @@ const styles = StyleSheet.create({
   },
   // Milestones Tab Styles
   milestonesContainer: {
-    flex: 1,
     backgroundColor: '#000',
   },
   milestonesListContent: {
@@ -352,7 +351,6 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   workoutsContainer: {
-    flex: 1,
     backgroundColor: '#000',
   },
   workoutsListSingleColumn: {
