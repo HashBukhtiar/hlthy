@@ -109,7 +109,11 @@ class ProgressChartPoint(BaseModel):
 class ProgressChartSeries(BaseModel):
     """A named series in a progress chart (e.g., 'Bench Press')."""
     label: str = Field(..., min_length=1, max_length=80)
-    color: Optional[str] = Field(default=None, max_length=9)  # "#RRGGBB" or "#RRGGBBAA"
+    color: Optional[str] = Field(
+        default=None,
+        pattern=r"^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$",
+        max_length=9,
+    )
     points: List[ProgressChartPoint] = Field(default_factory=list)
 
     @field_validator("points")

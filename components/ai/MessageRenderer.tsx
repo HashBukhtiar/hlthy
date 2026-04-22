@@ -12,7 +12,8 @@ import { ExplanationCard } from './cards/ExplanationCard';
 import { ProgressChartCard } from './cards/ProgressChartCard';
 import { ProfileConfirmationCard, ProfileConfirmationData, WorkoutPreferences } from './cards/ProfileConfirmationCard';
 import { Colors, Layout, Typography, getIntentConfig } from '@/theme/ai';
-import { safeParseAssistant, WorkoutPlanData, TechniqueAdviceData, SchedulePlanData, ExplanationData, ProgressChartData } from '@/utils/aiMessage';
+import { safeParseAssistant, WorkoutPlanData, TechniqueAdviceData, SchedulePlanData, ExplanationData } from '@/utils/aiMessage';
+import type { ProgressChartData } from '@/features/ai/domain/ProgressChart';
 import { ACCENT_COLOR } from '@/constants/Colors';
 
 interface MessageRendererProps {

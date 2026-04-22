@@ -143,6 +143,15 @@ service cloud.firestore {
       allow write: if isAuthenticated();
     }
 
+    match /users/{userId}/mentionBlocks/{blockedUid} {
+      allow read, write: if isOwner(userId);
+    }
+
+    match /users/{userId}/mentionBlockedBy/{blockerUid} {
+      allow read: if isOwner(userId);
+      allow write: if false; // only written by Cloud Functions (blockMentionUser)
+    }
+
     // Usernames collection — intentionally public for username availability checks during signup
     match /usernames/{username} {
       allow read: if true;

@@ -22,6 +22,7 @@ import { useAIChat } from '@/features/ai/ui/useAIChat';
 import { StreamingBubble } from '@/components/chat/StreamingBubble';
 import { MessageRenderer } from '@/components/ai/MessageRenderer';
 import type { AIMessage } from '@/features/ai/domain/AIMessage';
+import { isProgressChartData } from '@/features/ai/domain/ProgressChart';
 
 export default function AIChatScreen() {
   const router = useRouter();
@@ -56,6 +57,7 @@ export default function AIChatScreen() {
 
     if (!isUser && item.responseType && item.responseType !== 'conversational') {
       // Render structured AI response via MessageRenderer
+      const chartData = isProgressChartData(item.chartData) ? item.chartData : undefined;
       return (
         <View style={styles.aiMessageContainer}>
           <MessageRenderer
@@ -63,7 +65,7 @@ export default function AIChatScreen() {
             responseType={item.responseType}
             workoutPlan={item.workoutPlan}
             profileData={item.profileData as any}
-            chartData={item.chartData as any}
+            chartData={chartData}
           />
         </View>
       );
@@ -137,7 +139,11 @@ export default function AIChatScreen() {
                     responseType={structuredType}
                     workoutPlan={structuredType === 'workout_plan' ? structuredData : undefined}
                     profileData={structuredType === 'workout_confirmation' ? structuredData as any : undefined}
-                    chartData={structuredType === 'progress_chart' ? structuredData as any : undefined}
+                    chartData={
+                      structuredType === 'progress_chart' && isProgressChartData(structuredData)
+                        ? structuredData
+                        : undefined
+                    }
                   />
                 </View>
               )}

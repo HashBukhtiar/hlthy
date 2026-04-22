@@ -47,10 +47,16 @@ def parse_streamed_text(full_text: str) -> Tuple[str, Optional[Dict[str, Any]]]:
 
             response_type = forced_type or data.get("type", "unknown")
 
+            # Validate even when matched via the generic ```json``` fence —
+            # the type field determines which schema to apply.
             validator = _VALIDATED_TYPES.get(response_type)
             if validator is not None:
                 try:
-                    data = validator(**data).model_dump(exclude_none=True)
+                    # Drop the "type" marker before feeding the payload to the
+                    # schema — the generic-fence path carries it at top level,
+                    # but the schema doesn't declare it.
+                    payload = {k: v for k, v in data.items() if k != "type"}
+                    data = validator(**payload).model_dump(exclude_none=True)
                 except ValidationError:
                     # Drop malformed structured payload; keep the surrounding text.
                     continue

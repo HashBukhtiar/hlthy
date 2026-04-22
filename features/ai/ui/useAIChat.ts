@@ -14,6 +14,7 @@ import {
 } from '@/features/ai/infra/aiChatRepository';
 import type { AIMessage } from '@/features/ai/domain/AIMessage';
 import type { StreamEvent } from '@/features/ai/domain/StreamEvent';
+import { isProgressChartData } from '@/features/ai/domain/ProgressChart';
 
 interface UseAIChatReturn {
   messages: AIMessage[];
@@ -121,7 +122,26 @@ export function useAIChat(): UseAIChatReturn {
             if (localStructuredType) messageData.responseType = localStructuredType;
             if (localStructuredType === 'workout_plan' && localStructuredData) messageData.workoutPlan = localStructuredData;
             if (localStructuredType === 'workout_confirmation' && localStructuredData) messageData.profileData = localStructuredData;
-            if (localStructuredType === 'progress_chart' && localStructuredData) messageData.chartData = localStructuredData;
+            if (
+              localStructuredType === 'progress_chart' &&
+              isProgressChartData(localStructuredData)
+            ) {
+              // Project the validated shape so unknown fields never land in Firestore.
+              const c = localStructuredData;
+              messageData.chartData = {
+                title: c.title,
+                metric: c.metric,
+                unit: c.unit,
+                series: c.series.map((s) => ({
+                  label: s.label,
+                  ...(s.color ? { color: s.color } : {}),
+                  points: s.points.map((p) => ({ date: p.date, value: p.value })),
+                })),
+                ...(c.x_axis_label ? { x_axis_label: c.x_axis_label } : {}),
+                ...(c.y_axis_label ? { y_axis_label: c.y_axis_label } : {}),
+                ...(c.summary ? { summary: c.summary } : {}),
+              };
+            }
             saveMessage(conversationId, messageData).catch((err) => {
               logger.error('useAIChat', 'Failed to save AI message', err);
               setError('Failed to save response. Please try again.');

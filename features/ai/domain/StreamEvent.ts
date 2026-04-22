@@ -40,5 +40,6 @@ export type AIResponseType =
   | 'technique_advice'
   | 'schedule_plan'
   | 'explanation'
-  | 'workout_confirmation';
+  | 'workout_confirmation'
+  | 'progress_chart';
 

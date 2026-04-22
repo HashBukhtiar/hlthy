@@ -87,6 +87,7 @@ describe('parseSSEEvent — structured', () => {
       'schedule_plan',
       'explanation',
       'workout_confirmation',
+      'progress_chart',
     ] as const;
 
     for (const responseType of types) {

@@ -149,3 +149,27 @@ The workouts tab on another user's profile shows empty, even though their workou
 | `docs/PHOTO_SHARING_*.md` | 3 files — may be outdated |
 | `docs/FOCUS_PLANNER_IMPLEMENTATION.md` | Feature not in current architecture |
 | `docs/Containerization.md` | References Docker setup not aligned with current stack |
+
+### 21. Response Parser — Soft Byte Cap Missing (LOW)
+
+`ai/core/response_parser.py::parse_streamed_text` runs 5 `re.DOTALL` regex searches over the full Gemini response. `max_output_tokens=4096` caps output, but there's no explicit byte cap before the regex. Add a defensive `full_text = full_text[:32_768]` at function entry. Non-blocking — reviewer flagged during Phase 3A.
+
+### 22. Progress Chart Values Not Cross-Checked Against Client File (MEDIUM)
+
+When the AI emits a `progress-chart-json` block, the backend trusts the model's self-reported values. A future integrity layer should verify that emitted points match the user's `workout_logs` / `exercise_history` in Firestore and drop the structured block otherwise. Biggest integrity gap in Phase 3A; requires a new verification layer in `ai/core/response_parser.py` or `ai/core/coach.py`.
+
+### 23. Chart `unit` and `title` Not Format-Validated (LOW)
+
+`ProgressChartData.unit` and `ProgressChartData.title` in `ai/models/schemas.py` are free-form strings. RN `<Text>` does not interpret HTML/JS so no XSS, but the model could emit misleading values (e.g. `unit: "$$$"`). Add `pattern=r"^[A-Za-z/%\s]{1,10}$"` on `unit` and a whitespace-allowlist on `title` if needed.
+
+### 24. Progress Chart Firestore Write — No Size Cap (LOW)
+
+`features/ai/ui/useAIChat.ts` writes a typed projection of `chartData` (series ≤4, points ≤60/series already enforced server-side), but `firestore.rules` does not cap message document size. If the schema evolves, consider `request.resource.size < 50000` on the conversation message create rule.
+
+### 25. Progress Chart — Migrate to `axisOptions.formatXLabel` (LOW)
+
+`components/ai/cards/ProgressChartCard.tsx` renders a manual `axisRow` with first/last date range instead of victory-native's built-in axis labels. Switching to `axisOptions.formatXLabel` / `formatYLabel` would align tick labels with actual data positions rather than just endpoints. Requires loading a TTF via `useFont` from `@shopify/react-native-skia`.
+
+### 26. MessageRenderer — `console.log` Debug Noise
+
+`components/ai/MessageRenderer.tsx` has ~10 `console.log` debug statements (lines 110-114, 121-128, 187, 199-201, 212-215, 239). Replace with `logger.debug('MessageRenderer', ...)` from `@/shared/utils/logger`. Rolled up into item #1 (Console.log Spam) but called out here because the chart wiring added a new branch next to them.

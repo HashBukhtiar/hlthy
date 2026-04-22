@@ -5,26 +5,16 @@
 
 export type AIMessageType = 'workoutPlan' | 'techniqueAdvice' | 'schedulePlan' | 'explanation' | 'progressChart' | 'text';
 
-export interface ProgressChartPoint {
-  date: string;
-  value: number;
-}
-
-export interface ProgressChartSeries {
-  label: string;
-  color?: string;
-  points: ProgressChartPoint[];
-}
-
-export interface ProgressChartData {
-  title: string;
-  metric: 'weight' | 'volume' | 'reps' | 'one_rep_max';
-  unit: string;
-  series: ProgressChartSeries[];
-  x_axis_label?: string;
-  y_axis_label?: string;
-  summary?: string;
-}
+// Progress-chart types live in the AI domain module; re-exported here for call sites
+// that already import from utils/aiMessage.
+export type {
+  ProgressChartData,
+  ProgressChartPoint,
+  ProgressChartSeries,
+  ProgressChartMetric,
+} from '@/features/ai/domain/ProgressChart';
+export { isProgressChartData } from '@/features/ai/domain/ProgressChart';
+import type { ProgressChartData } from '@/features/ai/domain/ProgressChart';
 
 export interface WorkoutPlanData {
   dayType: string;
