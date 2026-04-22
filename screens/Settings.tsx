@@ -817,6 +817,11 @@ export default function Settings() {
             label="Blocked Users"
             onPress={() => router.push('/blocked-users')}
           />
+          <SettingsItem
+            type="button"
+            label="Blocked Mentions"
+            onPress={() => router.push('/mention-blocked-users')}
+          />
         </SettingsSection>
 
         {/* Notifications Section */}

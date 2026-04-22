@@ -22,6 +22,7 @@ export * from "./callables/checkEmailExists";
 export * from "./callables/mentionSearch";
 export * from "./callables/selfUnmention";
 export * from "./callables/blockMentionUser";
+export * from "./callables/unblockMentionUser";
 export * from "./callables/hashtagSearch";
 export * from "./triggers/mentionTriggers";
 export * from "./triggers/tagTriggers";

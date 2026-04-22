@@ -41,4 +41,12 @@ export class MentionRepository {
     );
     await callable({ targetUid });
   }
+
+  static async unblockMentionUser(targetUid: string): Promise<void> {
+    const callable = httpsCallable<{ targetUid: string }, { success: boolean; message: string }>(
+      functions,
+      'unblockMentionUser'
+    );
+    await callable({ targetUid });
+  }
 }
