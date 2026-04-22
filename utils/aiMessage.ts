@@ -3,7 +3,28 @@
  * Safe parsing and type guards for AI assistant responses
  */
 
-export type AIMessageType = 'workoutPlan' | 'techniqueAdvice' | 'schedulePlan' | 'explanation' | 'text';
+export type AIMessageType = 'workoutPlan' | 'techniqueAdvice' | 'schedulePlan' | 'explanation' | 'progressChart' | 'text';
+
+export interface ProgressChartPoint {
+  date: string;
+  value: number;
+}
+
+export interface ProgressChartSeries {
+  label: string;
+  color?: string;
+  points: ProgressChartPoint[];
+}
+
+export interface ProgressChartData {
+  title: string;
+  metric: 'weight' | 'volume' | 'reps' | 'one_rep_max';
+  unit: string;
+  series: ProgressChartSeries[];
+  x_axis_label?: string;
+  y_axis_label?: string;
+  summary?: string;
+}
 
 export interface WorkoutPlanData {
   dayType: string;
@@ -54,7 +75,7 @@ export interface ExplanationData {
 
 export interface ParsedAIMessage {
   type: AIMessageType;
-  data: WorkoutPlanData | TechniqueAdviceData | SchedulePlanData | ExplanationData | null;
+  data: WorkoutPlanData | TechniqueAdviceData | SchedulePlanData | ExplanationData | ProgressChartData | null;
   text: string;
 }
 
