@@ -138,6 +138,90 @@ class ProgressChartData(BaseModel):
         return v[:4]  # at most 4 series on one chart
 
 
+# ── Volume Breakdown ────────────────────────────────────────────────────────
+
+
+class VolumeBreakdownEntry(BaseModel):
+    """A single muscle group / segment volume bar."""
+    label: str = Field(..., min_length=1, max_length=40)
+    value: float = Field(..., ge=0)
+    color: Optional[str] = Field(
+        default=None,
+        pattern=r"^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$",
+        max_length=9,
+    )
+
+
+class VolumeBreakdownData(BaseModel):
+    """Structured payload for the volume_breakdown response type."""
+    title: str = Field(..., min_length=1, max_length=100)
+    unit: str = Field(default="lbs", max_length=10)
+    total: Optional[float] = Field(default=None, ge=0)
+    prior_total: Optional[float] = Field(default=None, ge=0)
+    period_label: Optional[str] = Field(default=None, max_length=40)
+    entries: List[VolumeBreakdownEntry] = Field(..., min_length=1)
+    summary: Optional[str] = Field(default=None, max_length=280)
+
+    @field_validator("entries")
+    @classmethod
+    def limit_entries(cls, v: list) -> list:
+        return v[:10]
+
+
+# ── Strength Curve ──────────────────────────────────────────────────────────
+
+
+class StrengthCurvePoint(BaseModel):
+    """One session entry in a strength curve."""
+    date: str = Field(..., min_length=1, max_length=20)
+    value: float
+    is_pr: bool = False
+    reps: Optional[int] = Field(default=None, ge=1, le=100)
+
+
+class StrengthCurveData(BaseModel):
+    """Structured payload for the strength_curve response type."""
+    exercise_name: str = Field(..., min_length=1, max_length=80)
+    metric: Literal["weight", "one_rep_max", "volume"] = "weight"
+    unit: str = Field(default="lbs", max_length=10)
+    points: List[StrengthCurvePoint] = Field(..., min_length=2)
+    trend_label: Optional[str] = Field(default=None, max_length=40)
+    projected_next: Optional[float] = Field(default=None, ge=0)
+    summary: Optional[str] = Field(default=None, max_length=280)
+
+    @field_validator("points")
+    @classmethod
+    def limit_points(cls, v: list) -> list:
+        return v[:80]
+
+
+# ── Muscle Balance (Radar) ──────────────────────────────────────────────────
+
+
+class MuscleBalanceAxis(BaseModel):
+    """One axis of the radar: a muscle group or movement pattern."""
+    label: str = Field(..., min_length=1, max_length=40)
+    user_value: float = Field(..., ge=0)
+    target_value: float = Field(..., ge=0)
+    flag: Optional[Literal["under", "over", "balanced"]] = None
+
+
+class MuscleBalanceData(BaseModel):
+    """Structured payload for the muscle_balance response type."""
+    title: str = Field(..., min_length=1, max_length=100)
+    period_label: Optional[str] = Field(default=None, max_length=40)
+    unit: str = Field(default="sets", max_length=10)
+    axes: List[MuscleBalanceAxis] = Field(..., min_length=3)
+    summary: Optional[str] = Field(default=None, max_length=280)
+
+    @field_validator("axes")
+    @classmethod
+    def limit_axes(cls, v: list) -> list:
+        if len(v) < 3:
+            raise ValueError("radar needs at least 3 axes")
+        return v[:8]
+
+
 # ── Domain Models (used by context modules) ─────────────────────────────────
 
 

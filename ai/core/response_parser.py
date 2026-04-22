@@ -8,11 +8,19 @@ from typing import Dict, Any, Optional, Tuple
 
 from pydantic import ValidationError
 
-from models.schemas import ProgressChartData
+from models.schemas import (
+    ProgressChartData,
+    VolumeBreakdownData,
+    StrengthCurveData,
+    MuscleBalanceData,
+)
 
 # Response types that must pass Pydantic validation before being emitted.
 _VALIDATED_TYPES: Dict[str, Any] = {
     "progress_chart": ProgressChartData,
+    "volume_breakdown": VolumeBreakdownData,
+    "strength_curve": StrengthCurveData,
+    "muscle_balance": MuscleBalanceData,
 }
 
 
@@ -33,6 +41,9 @@ def parse_streamed_text(full_text: str) -> Tuple[str, Optional[Dict[str, Any]]]:
         (r"```schedule-json\s*\n(.*?)```", "schedule_plan"),
         (r"```technique-json\s*\n(.*?)```", "technique_advice"),
         (r"```progress-chart-json\s*\n(.*?)```", "progress_chart"),
+        (r"```volume-breakdown-json\s*\n(.*?)```", "volume_breakdown"),
+        (r"```strength-curve-json\s*\n(.*?)```", "strength_curve"),
+        (r"```muscle-balance-json\s*\n(.*?)```", "muscle_balance"),
         (r"```json\s*\n(.*?)```", None),  # Generic JSON — type from content
     ]
 

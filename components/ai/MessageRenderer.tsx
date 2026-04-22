@@ -10,10 +10,16 @@ import { TechniqueAdviceCard } from './cards/TechniqueAdviceCard';
 import { SchedulePlanCard } from './cards/SchedulePlanCard';
 import { ExplanationCard } from './cards/ExplanationCard';
 import { ProgressChartCard } from './cards/ProgressChartCard';
+import { VolumeBreakdownCard } from './cards/VolumeBreakdownCard';
+import { StrengthCurveCard } from './cards/StrengthCurveCard';
+import { MuscleBalanceCard } from './cards/MuscleBalanceCard';
 import { ProfileConfirmationCard, ProfileConfirmationData, WorkoutPreferences } from './cards/ProfileConfirmationCard';
 import { Colors, Layout, Typography, getIntentConfig } from '@/theme/ai';
 import { safeParseAssistant, WorkoutPlanData, TechniqueAdviceData, SchedulePlanData, ExplanationData } from '@/utils/aiMessage';
 import type { ProgressChartData } from '@/features/ai/domain/ProgressChart';
+import type { VolumeBreakdownData } from '@/features/ai/domain/VolumeBreakdown';
+import type { StrengthCurveData } from '@/features/ai/domain/StrengthCurve';
+import type { MuscleBalanceData } from '@/features/ai/domain/MuscleBalance';
 import { ACCENT_COLOR } from '@/constants/Colors';
 
 interface MessageRendererProps {
@@ -21,6 +27,9 @@ interface MessageRendererProps {
   intent?: string;
   workoutPlan?: any;
   chartData?: ProgressChartData;
+  volumeData?: VolumeBreakdownData;
+  strengthCurveData?: StrengthCurveData;
+  balanceData?: MuscleBalanceData;
   responseType?: string;
   profileData?: ProfileConfirmationData;
   onFormatAgain?: () => void;
@@ -41,6 +50,9 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({
   intent,
   workoutPlan,
   chartData,
+  volumeData,
+  strengthCurveData,
+  balanceData,
   responseType,
   profileData,
   onFormatAgain,
@@ -63,6 +75,36 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({
       <View>
         {message ? <FormattedReasoningBubble message={message} /> : null}
         <ProgressChartCard data={chartData} />
+      </View>
+    );
+  }
+
+  // Handle volume_breakdown type
+  if (responseType === 'volume_breakdown' && volumeData) {
+    return (
+      <View>
+        {message ? <FormattedReasoningBubble message={message} /> : null}
+        <VolumeBreakdownCard data={volumeData} />
+      </View>
+    );
+  }
+
+  // Handle strength_curve type
+  if (responseType === 'strength_curve' && strengthCurveData) {
+    return (
+      <View>
+        {message ? <FormattedReasoningBubble message={message} /> : null}
+        <StrengthCurveCard data={strengthCurveData} />
+      </View>
+    );
+  }
+
+  // Handle muscle_balance type
+  if (responseType === 'muscle_balance' && balanceData) {
+    return (
+      <View>
+        {message ? <FormattedReasoningBubble message={message} /> : null}
+        <MuscleBalanceCard data={balanceData} />
       </View>
     );
   }

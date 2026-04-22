@@ -177,6 +177,109 @@ class TestParseStreamedText:
         assert structured is not None
         assert len(structured["data"]["series"][0]["points"]) == 60
 
+    def test_volume_breakdown_valid_payload(self):
+        text = (
+            "Solid week.\n\n"
+            "```volume-breakdown-json\n"
+            '{"title": "This week", "unit": "lbs", "total": 32000, '
+            '"entries": [{"label": "Chest", "value": 8000}, {"label": "Back", "value": 9500}]}\n'
+            "```"
+        )
+        clean, structured = parse_streamed_text(text)
+        assert structured is not None
+        assert structured["type"] == "volume_breakdown"
+        assert len(structured["data"]["entries"]) == 2
+        assert "volume-breakdown-json" not in clean
+        assert "Solid week" in clean
+
+    def test_volume_breakdown_invalid_payload_is_dropped(self):
+        # entries cannot be empty
+        text = (
+            "```volume-breakdown-json\n"
+            '{"title": "Empty", "unit": "lbs", "entries": []}\n'
+            "```"
+        )
+        _, structured = parse_streamed_text(text)
+        assert structured is None
+
+    def test_volume_breakdown_bad_color_is_dropped(self):
+        text = (
+            "```volume-breakdown-json\n"
+            '{"title": "x", "unit": "lbs", '
+            '"entries": [{"label": "Chest", "value": 10, "color": "red"}]}\n'
+            "```"
+        )
+        _, structured = parse_streamed_text(text)
+        assert structured is None
+
+    def test_strength_curve_valid_payload(self):
+        text = (
+            "Squat's climbing.\n\n"
+            "```strength-curve-json\n"
+            '{"exercise_name": "Back Squat", "metric": "weight", "unit": "lbs", '
+            '"points": ['
+            '{"date": "2026-02-10", "value": 315, "reps": 5},'
+            '{"date": "2026-03-21", "value": 340, "reps": 3, "is_pr": true}'
+            ']}\n'
+            "```"
+        )
+        _, structured = parse_streamed_text(text)
+        assert structured is not None
+        assert structured["type"] == "strength_curve"
+        assert len(structured["data"]["points"]) == 2
+        assert structured["data"]["points"][1]["is_pr"] is True
+
+    def test_strength_curve_requires_min_2_points(self):
+        text = (
+            "```strength-curve-json\n"
+            '{"exercise_name": "Press", "metric": "weight", "unit": "lbs", '
+            '"points": [{"date": "2026-02-10", "value": 100}]}\n'
+            "```"
+        )
+        _, structured = parse_streamed_text(text)
+        assert structured is None
+
+    def test_muscle_balance_valid_payload(self):
+        text = (
+            "Pull is lagging.\n\n"
+            "```muscle-balance-json\n"
+            '{"title": "Balance", "unit": "sets", "axes": ['
+            '{"label": "Push", "user_value": 40, "target_value": 40, "flag": "balanced"},'
+            '{"label": "Pull", "user_value": 20, "target_value": 40, "flag": "under"},'
+            '{"label": "Legs", "user_value": 44, "target_value": 40, "flag": "over"}'
+            ']}\n'
+            "```"
+        )
+        _, structured = parse_streamed_text(text)
+        assert structured is not None
+        assert structured["type"] == "muscle_balance"
+        assert len(structured["data"]["axes"]) == 3
+
+    def test_muscle_balance_requires_min_3_axes(self):
+        text = (
+            "```muscle-balance-json\n"
+            '{"title": "x", "unit": "sets", "axes": ['
+            '{"label": "Push", "user_value": 1, "target_value": 1},'
+            '{"label": "Pull", "user_value": 1, "target_value": 1}'
+            ']}\n'
+            "```"
+        )
+        _, structured = parse_streamed_text(text)
+        assert structured is None
+
+    def test_muscle_balance_flag_accepts_only_enum(self):
+        text = (
+            "```muscle-balance-json\n"
+            '{"title": "x", "unit": "sets", "axes": ['
+            '{"label": "Push", "user_value": 1, "target_value": 1, "flag": "fine"},'
+            '{"label": "Pull", "user_value": 1, "target_value": 1},'
+            '{"label": "Legs", "user_value": 1, "target_value": 1}'
+            ']}\n'
+            "```"
+        )
+        _, structured = parse_streamed_text(text)
+        assert structured is None
+
 
 class TestExtractFunctionCallData:
     def _make_part(self, fn_name: str, args: dict):

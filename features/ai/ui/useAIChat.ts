@@ -15,6 +15,15 @@ import {
 import type { AIMessage } from '@/features/ai/domain/AIMessage';
 import type { StreamEvent } from '@/features/ai/domain/StreamEvent';
 import { isProgressChartData } from '@/features/ai/domain/ProgressChart';
+import { isVolumeBreakdownData } from '@/features/ai/domain/VolumeBreakdown';
+import { isStrengthCurveData } from '@/features/ai/domain/StrengthCurve';
+import { isMuscleBalanceData } from '@/features/ai/domain/MuscleBalance';
+import {
+  projectProgressChart,
+  projectVolumeBreakdown,
+  projectStrengthCurve,
+  projectMuscleBalance,
+} from '@/features/ai/ui/chartWriteProjection';
 
 interface UseAIChatReturn {
   messages: AIMessage[];
@@ -126,21 +135,25 @@ export function useAIChat(): UseAIChatReturn {
               localStructuredType === 'progress_chart' &&
               isProgressChartData(localStructuredData)
             ) {
-              // Project the validated shape so unknown fields never land in Firestore.
-              const c = localStructuredData;
-              messageData.chartData = {
-                title: c.title,
-                metric: c.metric,
-                unit: c.unit,
-                series: c.series.map((s) => ({
-                  label: s.label,
-                  ...(s.color ? { color: s.color } : {}),
-                  points: s.points.map((p) => ({ date: p.date, value: p.value })),
-                })),
-                ...(c.x_axis_label ? { x_axis_label: c.x_axis_label } : {}),
-                ...(c.y_axis_label ? { y_axis_label: c.y_axis_label } : {}),
-                ...(c.summary ? { summary: c.summary } : {}),
-              };
+              Object.assign(messageData, projectProgressChart(localStructuredData));
+            }
+            if (
+              localStructuredType === 'volume_breakdown' &&
+              isVolumeBreakdownData(localStructuredData)
+            ) {
+              Object.assign(messageData, projectVolumeBreakdown(localStructuredData));
+            }
+            if (
+              localStructuredType === 'strength_curve' &&
+              isStrengthCurveData(localStructuredData)
+            ) {
+              Object.assign(messageData, projectStrengthCurve(localStructuredData));
+            }
+            if (
+              localStructuredType === 'muscle_balance' &&
+              isMuscleBalanceData(localStructuredData)
+            ) {
+              Object.assign(messageData, projectMuscleBalance(localStructuredData));
             }
             saveMessage(conversationId, messageData).catch((err) => {
               logger.error('useAIChat', 'Failed to save AI message', err);

@@ -30,23 +30,39 @@ jest.mock('firebase/firestore', () => ({
   },
 }));
 
-jest.mock('@/features/infra/firestore', () => ({
-  collection: jest.fn(),
-  doc: jest.fn(),
-  addDoc: jest.fn(),
-  deleteDoc: jest.fn(),
-  getDocs: jest.fn(),
-  query: jest.fn(),
-  orderBy: jest.fn(),
-  limit: jest.fn(),
-  writeBatch: jest.fn(() => ({ delete: jest.fn(), commit: jest.fn() })),
-  serverTimestamp: jest.fn(() => ({ seconds: 0, nanoseconds: 0 })),
-  onSnapshot: jest.fn(),
-  Timestamp: {
-    now: jest.fn(),
-    fromDate: jest.fn(),
-  },
-}));
+jest.mock('@/features/infra/firestore', () => {
+  // Timestamp needs to be a constructor because the repository uses
+  // `value instanceof Timestamp` — an object literal breaks instanceof.
+  class MockTimestamp {
+    seconds: number;
+    nanoseconds: number;
+    constructor(seconds: number, nanoseconds: number) {
+      this.seconds = seconds;
+      this.nanoseconds = nanoseconds;
+    }
+    toDate() {
+      return new Date(this.seconds * 1000 + this.nanoseconds / 1e6);
+    }
+    static now = jest.fn();
+    static fromDate = jest.fn();
+  }
+  return {
+    collection: jest.fn(),
+    doc: jest.fn(),
+    addDoc: jest.fn(),
+    deleteDoc: jest.fn(),
+    getDoc: jest.fn(),
+    setDoc: jest.fn(),
+    getDocs: jest.fn(),
+    query: jest.fn(),
+    orderBy: jest.fn(),
+    limit: jest.fn(),
+    writeBatch: jest.fn(() => ({ delete: jest.fn(), commit: jest.fn() })),
+    serverTimestamp: jest.fn(() => ({ seconds: 0, nanoseconds: 0 })),
+    onSnapshot: jest.fn(),
+    Timestamp: MockTimestamp,
+  };
+});
 
 jest.mock('@/firebaseConfig', () => ({
   db: {},
@@ -61,7 +77,9 @@ jest.mock('@/config/api', () => ({
 
 // ── Imports (after mocks) ─────────────────────────────────────────────────────
 
-import { getAIConversationId } from '../aiChatRepository';
+import { getAIConversationId, subscribeToMessages } from '../aiChatRepository';
+import type { AIMessage } from '@/features/ai/domain/AIMessage';
+import { onSnapshot } from '@/features/infra/firestore';
 
 // ── getAIConversationId ───────────────────────────────────────────────────────
 
@@ -108,5 +126,121 @@ describe('getAIConversationId', () => {
   it('always starts with the supplied uid', () => {
     const uid = 'myUserId42';
     expect(getAIConversationId(uid)).toMatch(new RegExp(`^${uid}`));
+  });
+});
+
+// ── _normalizeMessage (exercised through subscribeToMessages) ───────────────
+
+describe('subscribeToMessages → _normalizeMessage', () => {
+  beforeEach(() => {
+    (onSnapshot as jest.Mock).mockReset();
+  });
+
+  const makeSnapshotDocs = (docs: Array<{ id: string; data: Record<string, unknown> }>) => ({
+    forEach(cb: (doc: { id: string; data: () => Record<string, unknown> }) => void) {
+      // Firestore's desc order + reverse in the subscriber means tests should
+      // pass docs in newest-first order to get chronological out.
+      docs.forEach((d) => cb({ id: d.id, data: () => d.data }));
+    },
+  });
+
+  it('passes volumeData, strengthCurveData, and balanceData through from Firestore', () => {
+    let captured: AIMessage[] = [];
+    (onSnapshot as jest.Mock).mockImplementation((_q, onNext) => {
+      onNext(
+        makeSnapshotDocs([
+          {
+            id: 'msg-1',
+            data: {
+              text: 'coach reply',
+              isAiResponse: true,
+              responseType: 'volume_breakdown',
+              volumeData: {
+                title: 'Week',
+                unit: 'lbs',
+                entries: [{ label: 'Chest', value: 100 }],
+              },
+              strengthCurveData: {
+                exercise_name: 'Squat',
+                metric: 'weight',
+                unit: 'lbs',
+                points: [
+                  { date: '2026-01-01', value: 300 },
+                  { date: '2026-02-01', value: 315 },
+                ],
+              },
+              balanceData: {
+                title: 'Balance',
+                unit: 'sets',
+                axes: [
+                  { label: 'Push', user_value: 10, target_value: 10 },
+                  { label: 'Pull', user_value: 5, target_value: 10 },
+                  { label: 'Legs', user_value: 12, target_value: 10 },
+                ],
+              },
+            },
+          },
+        ]),
+      );
+      return () => {};
+    });
+
+    subscribeToMessages('conv-1', 50, (msgs) => {
+      captured = msgs;
+    });
+
+    expect(captured).toHaveLength(1);
+    const m = captured[0];
+    expect(m.volumeData).toBeDefined();
+    expect((m.volumeData as { title: string }).title).toBe('Week');
+    expect(m.strengthCurveData).toBeDefined();
+    expect((m.strengthCurveData as { exercise_name: string }).exercise_name).toBe('Squat');
+    expect(m.balanceData).toBeDefined();
+    expect((m.balanceData as { title: string }).title).toBe('Balance');
+    expect(m.responseType).toBe('volume_breakdown');
+  });
+
+  it('leaves new chart fields undefined on messages that do not carry them', () => {
+    let captured: AIMessage[] = [];
+    (onSnapshot as jest.Mock).mockImplementation((_q, onNext) => {
+      onNext(
+        makeSnapshotDocs([
+          {
+            id: 'msg-plain',
+            data: { text: 'hi', isAiResponse: false },
+          },
+        ]),
+      );
+      return () => {};
+    });
+
+    subscribeToMessages('conv-1', 50, (msgs) => {
+      captured = msgs;
+    });
+
+    expect(captured).toHaveLength(1);
+    expect(captured[0].volumeData).toBeUndefined();
+    expect(captured[0].strengthCurveData).toBeUndefined();
+    expect(captured[0].balanceData).toBeUndefined();
+    expect(captured[0].chartData).toBeUndefined();
+  });
+
+  it('reverses Firestore desc order into chronological', () => {
+    let captured: AIMessage[] = [];
+    (onSnapshot as jest.Mock).mockImplementation((_q, onNext) => {
+      onNext(
+        makeSnapshotDocs([
+          { id: 'b', data: { text: 'second' } }, // newest first from query
+          { id: 'a', data: { text: 'first' } },
+        ]),
+      );
+      return () => {};
+    });
+
+    subscribeToMessages('conv-1', 50, (msgs) => {
+      captured = msgs;
+    });
+
+    expect(captured.map((m) => m.id)).toEqual(['a', 'b']);
   });
 });

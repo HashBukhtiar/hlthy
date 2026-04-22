@@ -23,6 +23,9 @@ import { StreamingBubble } from '@/components/chat/StreamingBubble';
 import { MessageRenderer } from '@/components/ai/MessageRenderer';
 import type { AIMessage } from '@/features/ai/domain/AIMessage';
 import { isProgressChartData } from '@/features/ai/domain/ProgressChart';
+import { isVolumeBreakdownData } from '@/features/ai/domain/VolumeBreakdown';
+import { isStrengthCurveData } from '@/features/ai/domain/StrengthCurve';
+import { isMuscleBalanceData } from '@/features/ai/domain/MuscleBalance';
 
 export default function AIChatScreen() {
   const router = useRouter();
@@ -58,6 +61,11 @@ export default function AIChatScreen() {
     if (!isUser && item.responseType && item.responseType !== 'conversational') {
       // Render structured AI response via MessageRenderer
       const chartData = isProgressChartData(item.chartData) ? item.chartData : undefined;
+      const volumeData = isVolumeBreakdownData(item.volumeData) ? item.volumeData : undefined;
+      const strengthCurveData = isStrengthCurveData(item.strengthCurveData)
+        ? item.strengthCurveData
+        : undefined;
+      const balanceData = isMuscleBalanceData(item.balanceData) ? item.balanceData : undefined;
       return (
         <View style={styles.aiMessageContainer}>
           <MessageRenderer
@@ -66,6 +74,9 @@ export default function AIChatScreen() {
             workoutPlan={item.workoutPlan}
             profileData={item.profileData as any}
             chartData={chartData}
+            volumeData={volumeData}
+            strengthCurveData={strengthCurveData}
+            balanceData={balanceData}
           />
         </View>
       );
@@ -141,6 +152,21 @@ export default function AIChatScreen() {
                     profileData={structuredType === 'workout_confirmation' ? structuredData as any : undefined}
                     chartData={
                       structuredType === 'progress_chart' && isProgressChartData(structuredData)
+                        ? structuredData
+                        : undefined
+                    }
+                    volumeData={
+                      structuredType === 'volume_breakdown' && isVolumeBreakdownData(structuredData)
+                        ? structuredData
+                        : undefined
+                    }
+                    strengthCurveData={
+                      structuredType === 'strength_curve' && isStrengthCurveData(structuredData)
+                        ? structuredData
+                        : undefined
+                    }
+                    balanceData={
+                      structuredType === 'muscle_balance' && isMuscleBalanceData(structuredData)
                         ? structuredData
                         : undefined
                     }

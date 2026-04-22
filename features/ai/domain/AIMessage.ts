@@ -20,6 +20,9 @@ export interface AIMessage {
   workoutPlan?: Record<string, unknown>;
   profileData?: Record<string, unknown>;
   chartData?: Record<string, unknown>;
+  volumeData?: Record<string, unknown>;
+  strengthCurveData?: Record<string, unknown>;
+  balanceData?: Record<string, unknown>;
 
   /** Streaming state (only during active stream) */
   isStreaming?: boolean;
@@ -35,4 +38,7 @@ export interface AIMessageWrite {
   workoutPlan?: Record<string, unknown>;
   profileData?: Record<string, unknown>;
   chartData?: Record<string, unknown>;
+  volumeData?: Record<string, unknown>;
+  strengthCurveData?: Record<string, unknown>;
+  balanceData?: Record<string, unknown>;
 }

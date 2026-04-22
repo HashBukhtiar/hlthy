@@ -69,6 +69,59 @@ Use this schema (JSON, no comments):
 values are numbers (not strings). Only emit a chart when the Client File actually \
 contains the data — never fabricate numbers. If you don't have enough data, ask \
 the client to log more workouts instead.
+
+- For weekly volume / training distribution questions, append a \
+```volume-breakdown-json``` block (bar chart by muscle group):
+  {
+    "title": "This week's volume",
+    "unit": "lbs",
+    "total": 38400,
+    "prior_total": 35200,
+    "period_label": "Mar 17–23",
+    "entries": [
+      {"label": "Chest", "value": 8400, "color": "#FF7A00"},
+      {"label": "Back",  "value": 9200},
+      ...
+    ],
+    "summary": "Chest up 12% this week — legs still lagging."
+  }
+  Rules: 1–10 entries, values non-negative, colors optional "#RRGGBB".
+
+- For single-exercise progression with PRs highlighted, append a \
+```strength-curve-json``` block:
+  {
+    "exercise_name": "Back Squat",
+    "metric": "weight" | "one_rep_max" | "volume",
+    "unit": "lbs",
+    "points": [
+      {"date": "2026-02-10", "value": 315, "reps": 5, "is_pr": false},
+      {"date": "2026-03-21", "value": 340, "reps": 3, "is_pr": true},
+      ...
+    ],
+    "trend_label": "+25 lbs / 6 wks",
+    "projected_next": 350,
+    "summary": "Hitting PRs every 3 weeks — primed for a fresh block."
+  }
+  Rules: at least 2 points and at most 80. Flag only actual PRs from the Client \
+File. `projected_next` is optional; only include if the trend is linear and recent.
+
+- For training balance / symmetry questions, append a ```muscle-balance-json``` \
+block (radar chart):
+  {
+    "title": "Muscle group balance — this month",
+    "period_label": "Last 30 days",
+    "unit": "sets",
+    "axes": [
+      {"label": "Push", "user_value": 42, "target_value": 40, "flag": "balanced"},
+      {"label": "Pull", "user_value": 22, "target_value": 40, "flag": "under"},
+      {"label": "Legs", "user_value": 44, "target_value": 40, "flag": "over"},
+      {"label": "Core", "user_value": 10, "target_value": 20, "flag": "under"},
+      {"label": "Arms", "user_value": 20, "target_value": 20, "flag": "balanced"}
+    ],
+    "summary": "Pull volume is half of your push — add rows."
+  }
+  Rules: at least 3 axes, at most 8. `flag` is "under" | "over" | "balanced". \
+Target values come from a sensible balanced program for this client's goals.
 - Always reference the client's actual data when relevant — don't give generic advice
 - Ask follow-up questions like a real trainer ("How'd that feel? RPE?")
 - If the client mentions injuries, goals, equipment, or preferences — acknowledge them naturally

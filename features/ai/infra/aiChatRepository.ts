@@ -241,6 +241,9 @@ function _normalizeMessage(id: string, data: Record<string, unknown>): AIMessage
     workoutPlan: data.workoutPlan as Record<string, unknown> | undefined,
     profileData: data.profileData as Record<string, unknown> | undefined,
     chartData: data.chartData as Record<string, unknown> | undefined,
+    volumeData: data.volumeData as Record<string, unknown> | undefined,
+    strengthCurveData: data.strengthCurveData as Record<string, unknown> | undefined,
+    balanceData: data.balanceData as Record<string, unknown> | undefined,
   };
 }
 

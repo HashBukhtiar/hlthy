@@ -88,6 +88,9 @@ describe('parseSSEEvent — structured', () => {
       'explanation',
       'workout_confirmation',
       'progress_chart',
+      'volume_breakdown',
+      'strength_curve',
+      'muscle_balance',
     ] as const;
 
     for (const responseType of types) {
