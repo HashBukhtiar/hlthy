@@ -42,14 +42,24 @@ def parse_streamed_text(full_text: str) -> Tuple[str, Optional[Dict[str, Any]]]:
             json_str = match.group(1).strip()
             try:
                 data = json.loads(json_str)
-                response_type = forced_type or data.get("type", "unknown")
-                structured = {"type": response_type, "data": data}
-                # Remove the JSON block from the display text
-                clean_text = full_text[:match.start()] + full_text[match.end():]
-                clean_text = clean_text.strip()
-                break
             except json.JSONDecodeError:
                 continue
+
+            response_type = forced_type or data.get("type", "unknown")
+
+            validator = _VALIDATED_TYPES.get(response_type)
+            if validator is not None:
+                try:
+                    data = validator(**data).model_dump(exclude_none=True)
+                except ValidationError:
+                    # Drop malformed structured payload; keep the surrounding text.
+                    continue
+
+            structured = {"type": response_type, "data": data}
+            # Remove the JSON block from the display text
+            clean_text = full_text[:match.start()] + full_text[match.end():]
+            clean_text = clean_text.strip()
+            break
 
     return clean_text, structured
 

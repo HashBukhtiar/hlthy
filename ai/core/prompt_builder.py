@@ -47,6 +47,28 @@ _RESPONSE_INSTRUCTIONS = """RESPONSE INSTRUCTIONS:
 call the generate_workout function with the structured workout data
 - For technique advice: respond with text, then call generate_technique_advice
 - For training schedules: respond with text, then call generate_schedule
+- For progress/strength trend questions where the Client File has enough data points, \
+respond with a short coaching takeaway, then append a ```progress-chart-json``` block. \
+Use this schema (JSON, no comments):
+  {
+    "title": "Bench Press — last 8 weeks",
+    "metric": "weight" | "volume" | "reps" | "one_rep_max",
+    "unit": "lbs" | "kg" | "reps",
+    "series": [
+      {
+        "label": "Bench Press",
+        "color": "#FF2D55",
+        "points": [ {"date": "2026-02-10", "value": 185}, ... ]
+      }
+    ],
+    "x_axis_label": "Date",
+    "y_axis_label": "Weight (lbs)",
+    "summary": "Up 15lbs over 8 weeks — steady progression."
+  }
+  Rules: at most 4 series, at most 60 points per series, dates in ISO YYYY-MM-DD, \
+values are numbers (not strings). Only emit a chart when the Client File actually \
+contains the data — never fabricate numbers. If you don't have enough data, ask \
+the client to log more workouts instead.
 - Always reference the client's actual data when relevant — don't give generic advice
 - Ask follow-up questions like a real trainer ("How'd that feel? RPE?")
 - If the client mentions injuries, goals, equipment, or preferences — acknowledge them naturally
