@@ -1,7 +1,7 @@
 /**
- * InsightsScreen — dedicated analytics dashboard for the user's own workout
- * data. Reads workout_logs + exercise_history client-side, derives the same
- * 4 chart shapes the AI coach emits, and renders them as always-on cards.
+ * InsightsScreen — analytics dashboard with per-chart time range controls.
+ * Each card has its own range selector in its header and derives
+ * independently.
  */
 import React, { useCallback } from 'react';
 import {
@@ -22,10 +22,36 @@ import { ProgressChartCard } from '@/components/ai/cards/ProgressChartCard';
 import { VolumeBreakdownCard } from '@/components/ai/cards/VolumeBreakdownCard';
 import { StrengthCurveCard } from '@/components/ai/cards/StrengthCurveCard';
 import { MuscleBalanceCard } from '@/components/ai/cards/MuscleBalanceCard';
+import { MuscleHeatmapCard } from '@/components/insights/MuscleHeatmapCard';
+import { ExerciseSwitcher } from '@/components/insights/ExerciseSwitcher';
 
 export default function InsightsScreen() {
   const router = useRouter();
-  const { data, loading, refreshing, error, refresh, hasAnyData } = useInsights();
+  const {
+    loading,
+    refreshing,
+    error,
+    refresh,
+    hasAnyData,
+    progress,
+    volume,
+    strength,
+    balance,
+    heatmap,
+    progressRange,
+    setProgressRange,
+    volumeRange,
+    setVolumeRange,
+    strengthRange,
+    setStrengthRange,
+    balanceRange,
+    setBalanceRange,
+    heatmapRange,
+    setHeatmapRange,
+    strengthOptions,
+    activeExerciseId,
+    setActiveExerciseId,
+  } = useInsights();
 
   const goToCoach = useCallback(() => {
     router.push('/ai-chat');
@@ -73,12 +99,61 @@ export default function InsightsScreen() {
         ) : (
           <>
             <Text style={styles.sectionHint}>
-              Your training, at a glance. Ask Coach for deeper analysis.
+              Each chart has its own time range. Tap legends, points, and axis labels
+              to drill in.
             </Text>
-            {data.progress ? <ProgressChartCard data={data.progress} /> : null}
-            {data.volume ? <VolumeBreakdownCard data={data.volume} /> : null}
-            {data.strength ? <StrengthCurveCard data={data.strength} /> : null}
-            {data.balance ? <MuscleBalanceCard data={data.balance} /> : null}
+
+            {progress ? (
+              <ProgressChartCard
+                data={progress}
+                interactive
+                range={progressRange}
+                onRangeChange={setProgressRange}
+              />
+            ) : null}
+
+            {volume ? (
+              <VolumeBreakdownCard
+                data={volume}
+                range={volumeRange}
+                onRangeChange={setVolumeRange}
+              />
+            ) : null}
+
+            {strengthOptions.length > 0 ? (
+              <>
+                <ExerciseSwitcher
+                  options={strengthOptions}
+                  activeId={activeExerciseId}
+                  onChange={setActiveExerciseId}
+                />
+                {strength ? (
+                  <StrengthCurveCard
+                    data={strength}
+                    range={strengthRange}
+                    onRangeChange={setStrengthRange}
+                  />
+                ) : null}
+              </>
+            ) : null}
+
+            {heatmap ? (
+              <MuscleHeatmapCard
+                data={heatmap}
+                range={heatmapRange}
+                onRangeChange={setHeatmapRange}
+              />
+            ) : null}
+
+            {balance ? (
+              <MuscleBalanceCard
+                data={balance}
+                interactive
+                range={balanceRange}
+                onRangeChange={setBalanceRange}
+              />
+            ) : null}
+
             <TouchableOpacity onPress={goToCoach} style={styles.ctaCard}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.ctaTitle}>Ask Coach</Text>

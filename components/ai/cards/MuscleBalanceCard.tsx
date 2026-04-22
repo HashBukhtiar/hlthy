@@ -5,7 +5,7 @@
  * in front with aurora gradient, labeled spokes, asymmetry warning chips below.
  */
 import React, { useMemo, useState } from 'react';
-import { View, Text, LayoutChangeEvent } from 'react-native';
+import { View, Text, LayoutChangeEvent, Pressable } from 'react-native';
 import {
   Canvas,
   Circle,
@@ -27,23 +27,45 @@ import {
   type PreparedAxis,
 } from '@/logic/muscleBalanceUtils';
 import type { MuscleBalanceData } from '@/features/ai/domain/MuscleBalance';
+import { ChartRangeControl } from '@/components/insights/ChartRangeControl';
+import type { TimeRangeDays } from '@/components/insights/TimeRangeSelector';
 
 interface MuscleBalanceCardProps {
   data: MuscleBalanceData;
+  /** Enable tap-to-highlight on axis labels + detail row. Default false. */
+  interactive?: boolean;
+  range?: TimeRangeDays;
+  onRangeChange?: (r: TimeRangeDays) => void;
 }
 
 const CARD_MIN_HEIGHT = 320;
 const PADDING_RING = 32; // pixels between canvas edge and outermost ring
 const RING_COUNT = 4;
 
-export const MuscleBalanceCard: React.FC<MuscleBalanceCardProps> = ({ data }) => {
+export const MuscleBalanceCard: React.FC<MuscleBalanceCardProps> = ({
+  data,
+  interactive = false,
+  range,
+  onRangeChange,
+}) => {
   const prepared = useMemo(() => prepareMuscleBalance(data), [data]);
   const [size, setSize] = useState<number | null>(null);
+  const [selectedLabel, setSelectedLabel] = useState<string | null>(null);
+  const showRangeControl = range !== undefined && !!onRangeChange;
 
   const onCanvasLayout = (e: LayoutChangeEvent) => {
     const w = Math.floor(e.nativeEvent.layout.width);
     if (w > 0 && w !== size) setSize(w);
   };
+
+  const toggleSelect = (label: string) => {
+    setSelectedLabel((cur) => (cur === label ? null : label));
+  };
+
+  const selectedAxis =
+    selectedLabel !== null
+      ? prepared.axes.find((a) => a.label === selectedLabel) ?? null
+      : null;
 
   if (prepared.axes.length === 0) {
     return (
@@ -85,13 +107,39 @@ export const MuscleBalanceCard: React.FC<MuscleBalanceCardProps> = ({ data }) =>
             </Text>
           </View>
         </View>
+        {showRangeControl ? (
+          <View style={styles.rangeRow}>
+            <ChartRangeControl value={range!} onChange={onRangeChange!} />
+          </View>
+        ) : null}
 
         {/* Radar canvas */}
         <View style={styles.canvasWrap} onLayout={onCanvasLayout}>
           {size !== null ? (
-            <RadarCanvas size={size} axes={prepared.axes} unit={data.unit} />
+            <RadarCanvas
+              size={size}
+              axes={prepared.axes}
+              unit={data.unit}
+              interactive={interactive}
+              selectedLabel={selectedLabel}
+              onSelect={toggleSelect}
+            />
           ) : null}
         </View>
+
+        {/* Interactive detail row — shown when an axis is selected */}
+        {interactive && selectedAxis ? (
+          <View style={styles.detailRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.detailLabel}>{selectedAxis.label}</Text>
+              <Text style={styles.detailSub}>
+                {selectedAxis.userValue.toFixed(0)} of {selectedAxis.targetValue.toFixed(0)}{' '}
+                {data.unit}
+              </Text>
+            </View>
+            <AxisDeltaChip axis={selectedAxis} unit={data.unit} />
+          </View>
+        ) : null}
 
         {/* Legend */}
         <View style={styles.legendRow}>
@@ -118,11 +166,14 @@ export const MuscleBalanceCard: React.FC<MuscleBalanceCardProps> = ({ data }) =>
 
 // ── Radar canvas ───────────────────────────────────────────────────────────
 
-const RadarCanvas: React.FC<{ size: number; axes: PreparedAxis[]; unit: string }> = ({
-  size,
-  axes,
-  unit,
-}) => {
+const RadarCanvas: React.FC<{
+  size: number;
+  axes: PreparedAxis[];
+  unit: string;
+  interactive: boolean;
+  selectedLabel: string | null;
+  onSelect: (label: string) => void;
+}> = ({ size, axes, unit, interactive, selectedLabel, onSelect }) => {
   const cx = size / 2;
   const cy = size / 2 + 10; // slightly down to leave room for top label
   const radius = size / 2 - PADDING_RING;
@@ -213,16 +264,33 @@ const RadarCanvas: React.FC<{ size: number; axes: PreparedAxis[]; unit: string }
       {axes.map((a, i) => {
         const cosA = Math.cos(a.angle);
         const sinA = Math.sin(a.angle);
-        // Push label further out on the axis, plus a small sin-based vertical
-        // nudge so top/bottom labels don't overlap the polygon.
         const labelPt = polarXY(cx, cy, radius + 18, a.angle, 1);
         const align: 'flex-start' | 'flex-end' | 'center' =
           cosA > 0.15 ? 'flex-start' : cosA < -0.15 ? 'flex-end' : 'center';
         const verticalNudge = sinA < -0.5 ? -4 : sinA > 0.5 ? 4 : 0;
+        const isSelected = selectedLabel === a.label;
+        const Inner = (
+          <View
+            style={[
+              styles.axisLabelInner,
+              interactive && styles.axisLabelInteractive,
+              isSelected && styles.axisLabelSelected,
+            ]}
+          >
+            <Text
+              style={[styles.axisLabel, isSelected && styles.axisLabelSelectedText]}
+            >
+              {a.label}
+            </Text>
+            <Text style={styles.axisSubLabel}>
+              {a.userValue.toFixed(0)}/{a.targetValue.toFixed(0)} {unit}
+            </Text>
+          </View>
+        );
         return (
           <View
             key={`label-${i}`}
-            pointerEvents="none"
+            pointerEvents={interactive ? 'box-none' : 'none'}
             style={{
               position: 'absolute',
               left: labelPt.x - 50,
@@ -231,13 +299,57 @@ const RadarCanvas: React.FC<{ size: number; axes: PreparedAxis[]; unit: string }
               alignItems: align,
             }}
           >
-            <Text style={styles.axisLabel}>{a.label}</Text>
-            <Text style={styles.axisSubLabel}>
-              {a.userValue.toFixed(0)}/{a.targetValue.toFixed(0)} {unit}
-            </Text>
+            {interactive ? (
+              <Pressable onPress={() => onSelect(a.label)} hitSlop={6}>
+                {Inner}
+              </Pressable>
+            ) : (
+              Inner
+            )}
           </View>
         );
       })}
+    </View>
+  );
+};
+
+const AxisDeltaChip: React.FC<{ axis: PreparedAxis; unit: string }> = ({ axis, unit }) => {
+  const delta = axis.userValue - axis.targetValue;
+  const color =
+    axis.flag === 'under'
+      ? Colors.accent
+      : axis.flag === 'over'
+        ? Colors.warn
+        : Colors.success;
+  const icon: React.ComponentProps<typeof Ionicons>['name'] =
+    axis.flag === 'under' ? 'arrow-down' : axis.flag === 'over' ? 'arrow-up' : 'checkmark';
+  return (
+    <View
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        paddingHorizontal: Layout.spacing.sm,
+        paddingVertical: 4,
+        borderRadius: Layout.radius.chip,
+        borderWidth: 1,
+        borderColor: `${color}55`,
+        backgroundColor: `${color}14`,
+      }}
+    >
+      <Ionicons name={icon} size={12} color={color} />
+      <Text
+        style={{
+          color,
+          fontSize: Typography.sizes.xs,
+          fontWeight: Typography.weights.bold,
+          fontVariant: ['tabular-nums'],
+        }}
+      >
+        {axis.flag === 'balanced'
+          ? 'On target'
+          : `${delta > 0 ? '+' : ''}${delta.toFixed(0)} ${unit}`}
+      </Text>
     </View>
   );
 };
@@ -309,6 +421,10 @@ const styles = {
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.1)',
   },
+  rangeRow: {
+    marginTop: Layout.spacing.sm,
+    marginBottom: 2,
+  },
   headerChipText: {
     color: Colors.text,
     fontSize: Typography.sizes.xs,
@@ -327,10 +443,49 @@ const styles = {
     fontWeight: Typography.weights.semibold,
     textAlign: 'center' as const,
   },
+  axisLabelSelectedText: {
+    color: '#fff',
+  },
+  axisLabelInner: {
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 8,
+    alignItems: 'center' as const,
+  },
+  axisLabelInteractive: {
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  axisLabelSelected: {
+    borderColor: ACCENT_COLOR,
+    backgroundColor: 'rgba(255, 45, 85, 0.15)',
+  },
   axisSubLabel: {
     color: Colors.subtext,
     fontSize: 10,
     marginTop: 1,
+    fontVariant: ['tabular-nums' as const],
+  },
+  detailRow: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: Layout.gap.md,
+    marginTop: Layout.spacing.md,
+    padding: Layout.spacing.md,
+    borderRadius: Layout.radius.button,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+  },
+  detailLabel: {
+    color: Colors.text,
+    fontSize: Typography.sizes.md,
+    fontWeight: Typography.weights.bold,
+  },
+  detailSub: {
+    color: Colors.subtext,
+    fontSize: Typography.sizes.sm,
+    marginTop: 2,
     fontVariant: ['tabular-nums' as const],
   },
   legendRow: {

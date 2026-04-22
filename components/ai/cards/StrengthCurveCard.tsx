@@ -11,14 +11,23 @@ import { Colors, Layout, Typography } from '@/theme/ai';
 import { ACCENT_COLOR } from '@/constants/Colors';
 import { prepareStrengthCurve } from '@/logic/strengthCurveUtils';
 import type { StrengthCurveData } from '@/features/ai/domain/StrengthCurve';
+import { ChartRangeControl } from '@/components/insights/ChartRangeControl';
+import type { TimeRangeDays } from '@/components/insights/TimeRangeSelector';
 
 interface StrengthCurveCardProps {
   data: StrengthCurveData;
+  range?: TimeRangeDays;
+  onRangeChange?: (r: TimeRangeDays) => void;
 }
 
 const CHART_HEIGHT = 220;
 
-export const StrengthCurveCard: React.FC<StrengthCurveCardProps> = ({ data }) => {
+export const StrengthCurveCard: React.FC<StrengthCurveCardProps> = ({
+  data,
+  range,
+  onRangeChange,
+}) => {
+  const showRangeControl = range !== undefined && !!onRangeChange;
   const prepared = useMemo(() => prepareStrengthCurve(data), [data]);
   const [chartWidth, setChartWidth] = useState<number | null>(null);
   const onContainerLayout = (e: LayoutChangeEvent) => {
@@ -57,6 +66,11 @@ export const StrengthCurveCard: React.FC<StrengthCurveCardProps> = ({ data }) =>
             <Text style={[styles.chipText, { color: trendColor }]}>{derivedTrend}</Text>
           </View>
         </View>
+        {showRangeControl ? (
+          <View style={styles.rangeRow}>
+            <ChartRangeControl value={range!} onChange={onRangeChange!} />
+          </View>
+        ) : null}
 
         {/* PR summary strip */}
         {prepared.prIndices.length > 0 ? (
@@ -185,6 +199,10 @@ const styles = {
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
     gap: Layout.gap.sm,
+  },
+  rangeRow: {
+    marginTop: Layout.spacing.sm,
+    marginBottom: 2,
   },
   title: {
     color: Colors.text,

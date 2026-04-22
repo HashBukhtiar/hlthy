@@ -111,9 +111,22 @@ function groupForExercise(ex: ExerciseLog, fallbackFocus?: string): MuscleGroup 
   return 'Other';
 }
 
+function filterByRange(logs: WorkoutLog[], rangeDays?: number): WorkoutLog[] {
+  if (!rangeDays || rangeDays <= 0) return logs;
+  const cutoff = daysAgo(rangeDays);
+  return logs.filter((log) => {
+    const d = toDate(log.completedAt) ?? toDate(log.startedAt);
+    return d !== null && d >= cutoff;
+  });
+}
+
 // ── 1. Progress chart: top 3 exercises by session count, top-set weight over time ──
 
-export function deriveProgressChart(logs: WorkoutLog[]): ProgressChartData | null {
+export function deriveProgressChart(
+  logsIn: WorkoutLog[],
+  rangeDays?: number,
+): ProgressChartData | null {
+  const logs = filterByRange(logsIn, rangeDays);
   if (!logs || logs.length < 2) return null;
 
   // Map exerciseId → { name, perSession: [{ date, weight }] }
@@ -198,13 +211,18 @@ export function deriveProgressChart(logs: WorkoutLog[]): ProgressChartData | nul
   };
 }
 
-// ── 2. Volume breakdown: last 7 days, grouped by muscle group ──────────────
+// ── 2. Volume breakdown: by muscle group for the chosen window ─────────────
 
-export function deriveVolumeBreakdown(logs: WorkoutLog[]): VolumeBreakdownData | null {
+// Default range is the "current period" (this period vs prior period).
+export function deriveVolumeBreakdown(
+  logsIn: WorkoutLog[],
+  rangeDays: number = 7,
+): VolumeBreakdownData | null {
+  const logs = logsIn;
   if (!logs || logs.length === 0) return null;
 
-  const weekCutoff = daysAgo(7);
-  const priorCutoff = daysAgo(14);
+  const weekCutoff = daysAgo(rangeDays);
+  const priorCutoff = daysAgo(rangeDays * 2);
 
   const weekByGroup = new Map<MuscleGroup, number>();
   let weekTotal = 0;
@@ -243,11 +261,20 @@ export function deriveVolumeBreakdown(logs: WorkoutLog[]): VolumeBreakdownData |
 
   const end = new Date();
   const start = new Date();
-  start.setDate(start.getDate() - 6);
+  start.setDate(start.getDate() - (rangeDays - 1));
   const periodLabel = `${start.getMonth() + 1}/${start.getDate()} – ${end.getMonth() + 1}/${end.getDate()}`;
 
+  const title =
+    rangeDays <= 7
+      ? 'This week'
+      : rangeDays <= 31
+        ? 'Last 30 days'
+        : rangeDays <= 90
+          ? 'Last 90 days'
+          : 'Last year';
+
   return {
-    title: 'This week',
+    title,
     unit: 'lbs',
     total: Math.round(weekTotal),
     prior_total: priorTotal > 0 ? Math.round(priorTotal) : undefined,
@@ -258,36 +285,22 @@ export function deriveVolumeBreakdown(logs: WorkoutLog[]): VolumeBreakdownData |
 
 // ── 3. Strength curve: single exercise with most sessions, with PR flags ───
 
-export function deriveStrengthCurve(
-  logs: WorkoutLog[],
+/**
+ * Build a StrengthCurveData for a specific exercise (by exerciseId). Returns
+ * null if the exercise has fewer than 2 sessions in the supplied logs.
+ */
+export function deriveStrengthCurveForExercise(
+  logsIn: WorkoutLog[],
+  exerciseId: string,
   history?: Record<string, ExerciseHistory>,
+  rangeDays?: number,
 ): StrengthCurveData | null {
-  if (!logs || logs.length < 2) return null;
+  const logs = filterByRange(logsIn, rangeDays);
+  if (!logs || logs.length < 2 || !exerciseId) return null;
 
-  // Count sessions per exercise; pick the one with most (ties broken by PR presence).
-  const sessionCount = new Map<string, { name: string; count: number }>();
-  for (const log of logs) {
-    for (const ex of log.exercises ?? []) {
-      if (!ex.exerciseId) continue;
-      if (setCount(ex) === 0) continue;
-      const entry = sessionCount.get(ex.exerciseId) ?? {
-        name: ex.exerciseName ?? ex.exerciseId,
-        count: 0,
-      };
-      entry.count += 1;
-      sessionCount.set(ex.exerciseId, entry);
-    }
-  }
-
-  const best = Array.from(sessionCount.entries())
-    .filter(([, v]) => v.count >= 2)
-    .sort((a, b) => b[1].count - a[1].count)[0];
-  if (!best) return null;
-
-  const [exerciseId, meta] = best;
   const points: StrengthCurvePoint[] = [];
+  let exerciseName: string | null = null;
 
-  // Collect one point per workout log containing this exercise.
   for (const log of logs) {
     const d = toDate(log.completedAt) ?? toDate(log.startedAt);
     if (!d) continue;
@@ -295,7 +308,7 @@ export function deriveStrengthCurve(
     if (!ex) continue;
     const sets = workingSets(ex);
     if (sets.length === 0) continue;
-    // Pick the heaviest set of the session.
+    if (!exerciseName) exerciseName = ex.exerciseName ?? ex.exerciseId;
     const top = sets.reduce((m, s) => (s.weight > m.weight ? s : m), sets[0]);
     points.push({
       date: toISODate(d),
@@ -306,8 +319,6 @@ export function deriveStrengthCurve(
   }
 
   if (points.length < 2) return null;
-
-  // Sort ascending by date.
   points.sort((a, b) => a.date.localeCompare(b.date));
 
   const first = points[0].value;
@@ -321,10 +332,8 @@ export function deriveStrengthCurve(
         (7 * 24 * 3600 * 1000),
     ),
   );
-  const trendLabel = delta === 0 ? null : `${delta > 0 ? '+' : ''}${delta} / ${weeks}wk`;
+  const trendLabel = delta === 0 ? undefined : `${delta > 0 ? '+' : ''}${delta} / ${weeks}wk`;
 
-  // Projected next PR: if trending up and history has 1RM, nudge current max +5lbs
-  // as a conservative next-session target.
   let projectedNext: number | undefined;
   const hist = history?.[exerciseId];
   if (delta > 0 && hist?.personalRecords?.maxWeight?.value) {
@@ -332,21 +341,73 @@ export function deriveStrengthCurve(
   }
 
   return {
-    exercise_name: meta.name,
+    exercise_name: exerciseName ?? exerciseId,
     metric: 'weight',
     unit: 'lbs',
     points,
-    trend_label: trendLabel ?? undefined,
-    projected_next: projectedNext,
+    ...(trendLabel ? { trend_label: trendLabel } : {}),
+    ...(projectedNext ? { projected_next: projectedNext } : {}),
   };
 }
 
-// ── 4. Muscle balance: last 30 days, sets per group ────────────────────────
+/**
+ * Return a map of exerciseId → StrengthCurveData for every exercise with
+ * at least 2 eligible sessions. Also returns a ranked list so callers can
+ * default to the exercise with most sessions.
+ */
+export interface StrengthCurveOption {
+  exerciseId: string;
+  exerciseName: string;
+  sessionCount: number;
+  data: StrengthCurveData;
+}
 
-export function deriveMuscleBalance(logs: WorkoutLog[]): MuscleBalanceData | null {
+export function deriveStrengthCurvesByExercise(
+  logsIn: WorkoutLog[],
+  history?: Record<string, ExerciseHistory>,
+  rangeDays?: number,
+): StrengthCurveOption[] {
+  const logs = filterByRange(logsIn, rangeDays);
+  const ids = new Set<string>();
+  for (const log of logs) {
+    for (const ex of log.exercises ?? []) {
+      if (ex.exerciseId && workingSets(ex).length > 0) ids.add(ex.exerciseId);
+    }
+  }
+
+  const options: StrengthCurveOption[] = [];
+  for (const id of ids) {
+    const data = deriveStrengthCurveForExercise(logs, id, history);
+    if (!data) continue;
+    options.push({
+      exerciseId: id,
+      exerciseName: data.exercise_name,
+      sessionCount: data.points.length,
+      data,
+    });
+  }
+  options.sort((a, b) => b.sessionCount - a.sessionCount);
+  return options;
+}
+
+export function deriveStrengthCurve(
+  logsIn: WorkoutLog[],
+  history?: Record<string, ExerciseHistory>,
+  rangeDays?: number,
+): StrengthCurveData | null {
+  const options = deriveStrengthCurvesByExercise(logsIn, history, rangeDays);
+  return options[0]?.data ?? null;
+}
+
+// ── 4. Muscle balance: sets per group in the chosen window ─────────────────
+
+export function deriveMuscleBalance(
+  logs: WorkoutLog[],
+  rangeDays: number = 30,
+): MuscleBalanceData | null {
   if (!logs || logs.length === 0) return null;
 
-  const cutoff = daysAgo(30);
+  const cutoff = daysAgo(rangeDays);
   const setsByGroup = new Map<MuscleGroup, number>();
 
   for (const log of logs) {
@@ -382,9 +443,18 @@ export function deriveMuscleBalance(logs: WorkoutLog[]): MuscleBalanceData | nul
 
   if (axes.length < 3) return null;
 
+  const periodLabel =
+    rangeDays <= 7
+      ? 'Last 7 days'
+      : rangeDays <= 31
+        ? 'Last 30 days'
+        : rangeDays <= 90
+          ? 'Last 90 days'
+          : 'Last year';
+
   return {
-    title: 'Muscle balance — last 30 days',
-    period_label: 'Last 30 days',
+    title: `Muscle balance — ${periodLabel.toLowerCase()}`,
+    period_label: periodLabel,
     unit: 'sets',
     axes,
   };
@@ -397,16 +467,20 @@ export interface DerivedInsights {
   volume: VolumeBreakdownData | null;
   strength: StrengthCurveData | null;
   balance: MuscleBalanceData | null;
+  strengthOptions: StrengthCurveOption[];
 }
 
 export function deriveAllInsights(
   logs: WorkoutLog[],
   history?: Record<string, ExerciseHistory>,
+  rangeDays?: number,
 ): DerivedInsights {
+  const strengthOptions = deriveStrengthCurvesByExercise(logs, history, rangeDays);
   return {
-    progress: deriveProgressChart(logs),
-    volume: deriveVolumeBreakdown(logs),
-    strength: deriveStrengthCurve(logs, history),
-    balance: deriveMuscleBalance(logs),
+    progress: deriveProgressChart(logs, rangeDays),
+    volume: deriveVolumeBreakdown(logs, rangeDays),
+    strength: strengthOptions[0]?.data ?? null,
+    balance: deriveMuscleBalance(logs, rangeDays),
+    strengthOptions,
   };
 }

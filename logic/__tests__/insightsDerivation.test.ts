@@ -2,6 +2,8 @@ import {
   deriveProgressChart,
   deriveVolumeBreakdown,
   deriveStrengthCurve,
+  deriveStrengthCurveForExercise,
+  deriveStrengthCurvesByExercise,
   deriveMuscleBalance,
   deriveAllInsights,
 } from '@/logic/insightsDerivation';
@@ -402,6 +404,7 @@ describe('deriveAllInsights', () => {
     expect(out.volume).toBeNull();
     expect(out.strength).toBeNull();
     expect(out.balance).toBeNull();
+    expect(out.strengthOptions).toEqual([]);
   });
 
   it('returns some populated fields on rich input', () => {
@@ -423,5 +426,117 @@ describe('deriveAllInsights', () => {
     expect(out.volume).not.toBeNull();
     expect(out.strength).not.toBeNull();
     expect(out.balance).not.toBeNull();
+    expect(out.strengthOptions.length).toBeGreaterThanOrEqual(2);
+  });
+});
+
+// ── range filtering ────────────────────────────────────────────────────────
+
+describe('rangeDays filtering', () => {
+  const manyLogs: WorkoutLog[] = [
+    // 3 recent (last 7d)
+    makeLog({ daysAgo: 1, focus: 'push', exercises: [{ id: 'bench', name: 'Bench', sets: [{ weight: 200, reps: 5 }] }] }),
+    makeLog({ daysAgo: 3, focus: 'pull', exercises: [{ id: 'row', name: 'Row', sets: [{ weight: 150, reps: 8 }] }] }),
+    makeLog({ daysAgo: 5, focus: 'legs', exercises: [{ id: 'squat', name: 'Squat', sets: [{ weight: 300, reps: 5 }] }] }),
+    // 3 older (20-50d)
+    makeLog({ daysAgo: 20, focus: 'push', exercises: [{ id: 'bench', name: 'Bench', sets: [{ weight: 180, reps: 5 }] }] }),
+    makeLog({ daysAgo: 35, focus: 'pull', exercises: [{ id: 'row', name: 'Row', sets: [{ weight: 140, reps: 8 }] }] }),
+    makeLog({ daysAgo: 50, focus: 'legs', exercises: [{ id: 'squat', name: 'Squat', sets: [{ weight: 270, reps: 5 }] }] }),
+  ];
+
+  it('deriveProgressChart honors rangeDays=7 (only recent logs feed the chart)', () => {
+    const out = deriveProgressChart(manyLogs, 7);
+    // Only 3 recent logs, each with a different exercise — no exercise has 2+ sessions.
+    expect(out).toBeNull();
+  });
+
+  it('deriveProgressChart rangeDays=90 includes older logs', () => {
+    const out = deriveProgressChart(manyLogs, 90);
+    expect(out).not.toBeNull();
+    // Each exercise has 2 sessions in 90d
+    expect(out!.series.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('deriveVolumeBreakdown rangeDays flows into prior-period bucket', () => {
+    // rangeDays=30 → prior bucket is 30-60d ago
+    const out = deriveVolumeBreakdown(manyLogs, 30);
+    expect(out).not.toBeNull();
+    expect(out!.total).toBeGreaterThan(0);
+    expect(out!.prior_total).toBeGreaterThan(0);
+  });
+
+  it('deriveMuscleBalance rangeDays narrows the window', () => {
+    const out7 = deriveMuscleBalance(manyLogs, 7);
+    const out90 = deriveMuscleBalance(manyLogs, 90);
+    expect(out7).not.toBeNull();
+    expect(out90).not.toBeNull();
+    // 7d bucket has 1 set per group; 90d has 2.
+    const push7 = out7!.axes.find((a) => a.label === 'Push')!;
+    const push90 = out90!.axes.find((a) => a.label === 'Push')!;
+    expect(push90.user_value).toBeGreaterThanOrEqual(push7.user_value);
+  });
+
+  it('deriveAllInsights propagates rangeDays to each sub-derive', () => {
+    const out = deriveAllInsights(manyLogs, undefined, 7);
+    expect(out.progress).toBeNull(); // not enough recent sessions per exercise
+  });
+});
+
+// ── deriveStrengthCurveForExercise ─────────────────────────────────────────
+
+describe('deriveStrengthCurveForExercise', () => {
+  const logs: WorkoutLog[] = [
+    makeLog({ daysAgo: 20, exercises: [{ id: 'bench', name: 'Bench', sets: [{ weight: 180, reps: 5 }] }] }),
+    makeLog({ daysAgo: 10, exercises: [{ id: 'bench', name: 'Bench', sets: [{ weight: 190, reps: 5 }] }] }),
+    makeLog({ daysAgo: 15, exercises: [{ id: 'squat', name: 'Squat', sets: [{ weight: 280, reps: 5 }] }] }),
+    makeLog({ daysAgo: 5, exercises: [{ id: 'squat', name: 'Squat', sets: [{ weight: 300, reps: 5 }] }] }),
+  ];
+
+  it('builds curve for requested exercise', () => {
+    const bench = deriveStrengthCurveForExercise(logs, 'bench');
+    expect(bench).not.toBeNull();
+    expect(bench!.exercise_name).toBe('Bench');
+    expect(bench!.points.length).toBe(2);
+  });
+
+  it('returns null when exercise has fewer than 2 sessions', () => {
+    const logsOne = [logs[0]];
+    expect(deriveStrengthCurveForExercise(logsOne, 'bench')).toBeNull();
+  });
+
+  it('returns null for unknown exerciseId', () => {
+    expect(deriveStrengthCurveForExercise(logs, 'unknown_lift')).toBeNull();
+  });
+});
+
+describe('deriveStrengthCurvesByExercise', () => {
+  const logs: WorkoutLog[] = [
+    makeLog({ daysAgo: 20, exercises: [
+      { id: 'bench', name: 'Bench', sets: [{ weight: 180, reps: 5 }] },
+      { id: 'squat', name: 'Squat', sets: [{ weight: 280, reps: 5 }] },
+    ] }),
+    makeLog({ daysAgo: 10, exercises: [
+      { id: 'bench', name: 'Bench', sets: [{ weight: 190, reps: 5 }] },
+      { id: 'squat', name: 'Squat', sets: [{ weight: 290, reps: 5 }] },
+      { id: 'squat', name: 'Squat', sets: [{ weight: 295, reps: 4 }] },
+    ] }),
+  ];
+
+  it('returns one option per eligible exercise ranked by session count', () => {
+    const opts = deriveStrengthCurvesByExercise(logs);
+    expect(opts.length).toBe(2);
+    const ids = opts.map((o) => o.exerciseId);
+    expect(ids).toContain('bench');
+    expect(ids).toContain('squat');
+  });
+
+  it('excludes exercises with a single session', () => {
+    const onlyOne = [
+      makeLog({ daysAgo: 5, exercises: [{ id: 'bench', name: 'Bench', sets: [{ weight: 180, reps: 5 }] }] }),
+      makeLog({ daysAgo: 3, exercises: [{ id: 'bench', name: 'Bench', sets: [{ weight: 185, reps: 5 }] }] }),
+      makeLog({ daysAgo: 2, exercises: [{ id: 'ohp', name: 'OHP', sets: [{ weight: 120, reps: 5 }] }] }),
+    ];
+    const opts = deriveStrengthCurvesByExercise(onlyOne);
+    expect(opts.map((o) => o.exerciseId)).toEqual(['bench']);
   });
 });

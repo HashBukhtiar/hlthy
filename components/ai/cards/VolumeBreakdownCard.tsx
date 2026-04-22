@@ -23,12 +23,21 @@ import {
   type PreparedEntry,
 } from '@/logic/volumeUtils';
 import type { VolumeBreakdownData } from '@/features/ai/domain/VolumeBreakdown';
+import { ChartRangeControl } from '@/components/insights/ChartRangeControl';
+import type { TimeRangeDays } from '@/components/insights/TimeRangeSelector';
 
 interface VolumeBreakdownCardProps {
   data: VolumeBreakdownData;
+  range?: TimeRangeDays;
+  onRangeChange?: (r: TimeRangeDays) => void;
 }
 
-export const VolumeBreakdownCard: React.FC<VolumeBreakdownCardProps> = ({ data }) => {
+export const VolumeBreakdownCard: React.FC<VolumeBreakdownCardProps> = ({
+  data,
+  range,
+  onRangeChange,
+}) => {
+  const showRangeControl = range !== undefined && !!onRangeChange;
   const prepared = useMemo(() => prepareVolumeBreakdown(data), [data]);
   const [trackWidth, setTrackWidth] = useState(0);
   const [activeIdx, setActiveIdx] = useState<number | null>(null);
@@ -55,6 +64,11 @@ export const VolumeBreakdownCard: React.FC<VolumeBreakdownCardProps> = ({ data }
             <DeltaChip direction={prepared.deltaDirection} percent={prepared.deltaPercent} />
           ) : null}
         </View>
+        {showRangeControl ? (
+          <View style={styles.rangeRow}>
+            <ChartRangeControl value={range!} onChange={onRangeChange!} />
+          </View>
+        ) : null}
 
         {/* Hero total */}
         {prepared.total !== null ? (
@@ -228,6 +242,10 @@ const styles = {
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
     gap: Layout.gap.sm,
+  },
+  rangeRow: {
+    marginTop: Layout.spacing.sm,
+    marginBottom: 2,
   },
   title: {
     color: Colors.text,
