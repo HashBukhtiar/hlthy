@@ -1,12 +1,12 @@
 import React from 'react';
-import { View, ScrollView, Text, StyleSheet, SafeAreaView } from 'react-native';
+import { ScrollView, Text, StyleSheet } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function PrivacyPolicy() {
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['bottom']}>
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
-        <Text style={styles.title}>Privacy Policy</Text>
-        <Text style={styles.lastUpdated}>Last updated: {new Date().toLocaleDateString()}</Text>
+        <Text style={styles.lastUpdated}>Last updated: April 22, 2025</Text>
         
         <Text style={styles.sectionTitle}>1. Information We Collect</Text>
         <Text style={styles.text}>
@@ -65,16 +65,10 @@ const styles = StyleSheet.create({
   content: {
     padding: 20,
   },
-  title: {
-    color: '#FFF',
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 8,
-  },
   lastUpdated: {
-    color: '#999',
-    fontSize: 14,
-    marginBottom: 20,
+    color: '#666',
+    fontSize: 13,
+    marginBottom: 24,
   },
   sectionTitle: {
     color: '#FFF',
