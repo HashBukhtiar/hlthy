@@ -14,7 +14,6 @@ import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
-  withSpring,
   Easing,
 } from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
@@ -95,9 +94,9 @@ export default function EditProfile() {
 
   useEffect(() => {
     if (dateModalVisible) {
-      dateModalProgress.value = withSpring(1, { damping: 22, stiffness: 280 });
+      dateModalProgress.value = withTiming(1, { duration: 280, easing: Easing.out(Easing.cubic) });
     } else {
-      dateModalProgress.value = withTiming(0, { duration: 220, easing: Easing.out(Easing.ease) });
+      dateModalProgress.value = withTiming(0, { duration: 220, easing: Easing.in(Easing.cubic) });
     }
   }, [dateModalVisible]);
 
