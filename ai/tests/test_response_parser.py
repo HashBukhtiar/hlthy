@@ -129,6 +129,54 @@ class TestParseStreamedText:
         assert structured is None
         assert clean == ""
 
+    def test_progress_chart_valid_payload(self):
+        text = (
+            "You're up 15lbs in 4 weeks — solid.\n\n"
+            "```progress-chart-json\n"
+            '{"title": "Bench — 4 weeks", "metric": "weight", "unit": "lbs", '
+            '"series": [{"label": "Bench", "points": ['
+            '{"date": "2026-03-25", "value": 185}, '
+            '{"date": "2026-04-01", "value": 190}, '
+            '{"date": "2026-04-08", "value": 195}, '
+            '{"date": "2026-04-15", "value": 200}]}]}\n'
+            "```"
+        )
+        clean, structured = parse_streamed_text(text)
+        assert structured is not None
+        assert structured["type"] == "progress_chart"
+        assert structured["data"]["title"] == "Bench — 4 weeks"
+        assert len(structured["data"]["series"]) == 1
+        assert len(structured["data"]["series"][0]["points"]) == 4
+        assert "progress-chart-json" not in clean
+        assert "You're up 15lbs" in clean
+
+    def test_progress_chart_invalid_payload_is_dropped(self):
+        # Missing required "series" field — schema should reject it.
+        text = (
+            "Here's your chart:\n\n"
+            "```progress-chart-json\n"
+            '{"title": "Bench", "metric": "weight", "unit": "lbs"}\n'
+            "```"
+        )
+        clean, structured = parse_streamed_text(text)
+        assert structured is None
+        # Surrounding text is preserved when validation drops the block
+        assert "Here's your chart" in clean
+
+    def test_progress_chart_points_over_cap_are_trimmed(self):
+        points = ",".join(
+            f'{{"date": "2026-01-{str(d).zfill(2)}", "value": {d}}}' for d in range(1, 91)
+        )
+        text = (
+            "```progress-chart-json\n"
+            '{"title": "Vol", "metric": "volume", "unit": "lbs", '
+            f'"series": [{{"label": "All", "points": [{points}]}}]}}\n'
+            "```"
+        )
+        clean, structured = parse_streamed_text(text)
+        assert structured is not None
+        assert len(structured["data"]["series"][0]["points"]) == 60
+
 
 class TestExtractFunctionCallData:
     def _make_part(self, fn_name: str, args: dict):
