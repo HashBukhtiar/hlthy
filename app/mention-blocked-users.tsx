@@ -70,7 +70,11 @@ export default function MentionBlockedUsers() {
     }
   }, [currentUser]);
 
-  useFocusEffect(fetchMentionBlockedUsers);
+  useFocusEffect(
+    useCallback(() => {
+      fetchMentionBlockedUsers();
+    }, [fetchMentionBlockedUsers])
+  );
 
   const handleUnblock = (userId: string, username: string) => {
     Alert.alert(
