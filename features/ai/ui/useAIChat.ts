@@ -121,6 +121,7 @@ export function useAIChat(): UseAIChatReturn {
             if (localStructuredType) messageData.responseType = localStructuredType;
             if (localStructuredType === 'workout_plan' && localStructuredData) messageData.workoutPlan = localStructuredData;
             if (localStructuredType === 'workout_confirmation' && localStructuredData) messageData.profileData = localStructuredData;
+            if (localStructuredType === 'progress_chart' && localStructuredData) messageData.chartData = localStructuredData;
             saveMessage(conversationId, messageData).catch((err) => {
               logger.error('useAIChat', 'Failed to save AI message', err);
               setError('Failed to save response. Please try again.');

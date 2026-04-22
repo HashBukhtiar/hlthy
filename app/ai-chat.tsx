@@ -62,7 +62,8 @@ export default function AIChatScreen() {
             message={item.text}
             responseType={item.responseType}
             workoutPlan={item.workoutPlan}
-            profileData={item.profileData}
+            profileData={item.profileData as any}
+            chartData={item.chartData as any}
           />
         </View>
       );
@@ -135,7 +136,8 @@ export default function AIChatScreen() {
                     message=""
                     responseType={structuredType}
                     workoutPlan={structuredType === 'workout_plan' ? structuredData : undefined}
-                    profileData={structuredType === 'workout_confirmation' ? structuredData : undefined}
+                    profileData={structuredType === 'workout_confirmation' ? structuredData as any : undefined}
+                    chartData={structuredType === 'progress_chart' ? structuredData as any : undefined}
                   />
                 </View>
               )}

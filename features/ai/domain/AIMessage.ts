@@ -34,4 +34,5 @@ export interface AIMessageWrite {
   responseType?: string;
   workoutPlan?: Record<string, unknown>;
   profileData?: Record<string, unknown>;
+  chartData?: Record<string, unknown>;
 }

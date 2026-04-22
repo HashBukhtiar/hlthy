@@ -240,6 +240,7 @@ function _normalizeMessage(id: string, data: Record<string, unknown>): AIMessage
     intent: data.intent as string | undefined,
     workoutPlan: data.workoutPlan as Record<string, unknown> | undefined,
     profileData: data.profileData as Record<string, unknown> | undefined,
+    chartData: data.chartData as Record<string, unknown> | undefined,
   };
 }
 

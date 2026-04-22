@@ -9,15 +9,17 @@ import { WorkoutPlanCard } from './cards/WorkoutPlanCard';
 import { TechniqueAdviceCard } from './cards/TechniqueAdviceCard';
 import { SchedulePlanCard } from './cards/SchedulePlanCard';
 import { ExplanationCard } from './cards/ExplanationCard';
+import { ProgressChartCard } from './cards/ProgressChartCard';
 import { ProfileConfirmationCard, ProfileConfirmationData, WorkoutPreferences } from './cards/ProfileConfirmationCard';
 import { Colors, Layout, Typography, getIntentConfig } from '@/theme/ai';
-import { safeParseAssistant, WorkoutPlanData, TechniqueAdviceData, SchedulePlanData, ExplanationData } from '@/utils/aiMessage';
+import { safeParseAssistant, WorkoutPlanData, TechniqueAdviceData, SchedulePlanData, ExplanationData, ProgressChartData } from '@/utils/aiMessage';
 import { ACCENT_COLOR } from '@/constants/Colors';
 
 interface MessageRendererProps {
   message: string;
   intent?: string;
   workoutPlan?: any;
+  chartData?: ProgressChartData;
   responseType?: string;
   profileData?: ProfileConfirmationData;
   onFormatAgain?: () => void;
@@ -37,6 +39,7 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({
   message,
   intent,
   workoutPlan,
+  chartData,
   responseType,
   profileData,
   onFormatAgain,
@@ -52,6 +55,16 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({
   onSwipeActiveChange,
 }) => {
   const intentConfig = getIntentConfig(intent);
+
+  // Handle progress_chart type
+  if (responseType === 'progress_chart' && chartData) {
+    return (
+      <View>
+        {message ? <FormattedReasoningBubble message={message} /> : null}
+        <ProgressChartCard data={chartData} />
+      </View>
+    );
+  }
 
   // Handle workout_confirmation type
   if (responseType === 'workout_confirmation' && profileData) {
