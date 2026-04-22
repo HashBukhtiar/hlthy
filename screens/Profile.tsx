@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { useProfileData } from '@/hooks/useProfileData';
 import { useAuth } from '@/context/AuthContext';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { BOTTOM_BAR_HEIGHT } from '@/styles/globalStyles';
 import { useBlockEnforcement } from '@/utils/blockUtils';
 import { ACCENT_COLOR } from '@/constants/Colors';
@@ -504,6 +505,33 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
           onFollowingPress={handleFollowingPress}
           onViewProfileCard={() => router.push(`/view-profile-card/${viewedProfileId}`)}
         />
+
+        {/* Insights CTA — own profile only */}
+        {isOwnProfile && (
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={() => router.push('/insights')}
+            style={insightsStyles.wrap}
+          >
+            <LinearGradient
+              colors={['rgba(255, 122, 0, 0.18)', 'rgba(255, 45, 85, 0.18)', 'rgba(157, 78, 221, 0.18)']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={insightsStyles.card}
+            >
+              <View style={insightsStyles.iconWrap}>
+                <Ionicons name="stats-chart" size={22} color="#fff" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={insightsStyles.title}>Insights</Text>
+                <Text style={insightsStyles.subtitle}>
+                  Progress, volume, strength curves & balance
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.7)" />
+            </LinearGradient>
+          </TouchableOpacity>
+        )}
 
         {/* Tab Bar */}
         <View style={{ width: '100%' }}>
@@ -1436,6 +1464,45 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: 'rgba(0, 0, 0, 0.85)',
+  },
+});
+
+const insightsStyles = StyleSheet.create({
+  wrap: {
+    marginHorizontal: 12,
+    marginTop: 4,
+    marginBottom: 8,
+    borderRadius: 16,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 45, 85, 0.28)',
+  },
+  card: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  iconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: 'rgba(0, 0, 0, 0.35)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  title: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  subtitle: {
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontSize: 12,
+    marginTop: 2,
   },
 });
 

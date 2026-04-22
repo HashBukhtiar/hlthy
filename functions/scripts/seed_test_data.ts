@@ -397,8 +397,17 @@ function isoDaysAgo(n: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-const chartMessages = [
+const chartMessages: Array<{
+  userPrompt: string;
+  text: string;
+  responseType: string;
+  chartData?: unknown;
+  volumeData?: unknown;
+  strengthCurveData?: unknown;
+  balanceData?: unknown;
+}> = [
   {
+    userPrompt: 'How has my bench progressed over the last 8 weeks?',
     text: "Here's your bench progression — up 20 lbs in 8 weeks. Steady.",
     responseType: 'progress_chart',
     chartData: {
@@ -425,6 +434,7 @@ const chartMessages = [
     },
   },
   {
+    userPrompt: 'What did my training volume by muscle group look like this week?',
     text: 'Volume breakdown for this week. Legs running hot.',
     responseType: 'volume_breakdown',
     volumeData: {
@@ -444,6 +454,7 @@ const chartMessages = [
     },
   },
   {
+    userPrompt: 'Chart my back squat progression and highlight the PRs.',
     text: 'Back squat curve — two PRs in 4 weeks.',
     responseType: 'strength_curve',
     strengthCurveData: {
@@ -463,6 +474,7 @@ const chartMessages = [
     },
   },
   {
+    userPrompt: 'Am I balanced across push / pull / legs this month?',
     text: 'Balance check — pull volume is half your push.',
     responseType: 'muscle_balance',
     balanceData: {
@@ -587,21 +599,30 @@ async function run() {
 
   const msgsRef = convRef.collection('messages');
   for (const msg of chartMessages) {
+    // 1) User question first so the AI reply has context
+    await msgsRef.add({
+      senderId: uid,
+      text: msg.userPrompt,
+      isAiResponse: false,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+    await new Promise((r) => setTimeout(r, 60));
+
+    // 2) AI reply with the chart
     await msgsRef.add({
       senderId: uid,
       text: msg.text,
       isAiResponse: true,
       responseType: msg.responseType,
-      ...(msg as any).chartData && { chartData: (msg as any).chartData },
-      ...(msg as any).volumeData && { volumeData: (msg as any).volumeData },
-      ...(msg as any).strengthCurveData && { strengthCurveData: (msg as any).strengthCurveData },
-      ...(msg as any).balanceData && { balanceData: (msg as any).balanceData },
+      ...(msg.chartData ? { chartData: msg.chartData } : {}),
+      ...(msg.volumeData ? { volumeData: msg.volumeData } : {}),
+      ...(msg.strengthCurveData ? { strengthCurveData: msg.strengthCurveData } : {}),
+      ...(msg.balanceData ? { balanceData: msg.balanceData } : {}),
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
-    // Tiny delay so serverTimestamp ordering is preserved
-    await new Promise((r) => setTimeout(r, 50));
+    await new Promise((r) => setTimeout(r, 60));
   }
-  console.log(`  ✓ ${chartMessages.length} chart messages written`);
+  console.log(`  ✓ ${chartMessages.length * 2} messages written (4 prompts + 4 chart replies)`);
 
   console.log('\nDone. Open the app → AI tab → all 4 charts should render.');
   process.exit(0);
