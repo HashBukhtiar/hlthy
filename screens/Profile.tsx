@@ -107,6 +107,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
 
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>(TabType.POSTS);
+  const [tabHeights, setTabHeights] = useState<number[]>([]);
   const currentTabIndex = useRef(0);
   const horizontalOffset = useRef(new Animated.Value(0)).current;
   const { width: screenWidth } = Dimensions.get('window');
@@ -121,6 +122,8 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
 
   const indicatorWidth = screenWidth * 0.2;
   const tabCenterOffset = (screenWidth / 3 - indicatorWidth) / 2;
+  const activeTabIndex = activeTab === TabType.POSTS ? 0 : activeTab === TabType.MILESTONES ? 1 : 2;
+  const activeTabHeight = tabHeights[activeTabIndex];
 
   const postsLabelOpacity = horizontalOffset.interpolate({
     inputRange: [-screenWidth, 0],
@@ -566,6 +569,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
       
       <ScrollView
         style={styles.scrollView}
+        contentContainerStyle={{ paddingBottom: BOTTOM_BAR_HEIGHT }}
         scrollEnabled={interactionLock !== 'horizontal'}
         showsVerticalScrollIndicator={false}
         overScrollMode="never"
@@ -625,22 +629,41 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
 
         {/* Tab Content */}
         {canViewContent ? (
-          <View style={[styles.tabContentInline, { overflow: 'hidden' }]}>
+          <View style={[styles.tabContentInline, { overflow: 'hidden' }, activeTabHeight ? { height: activeTabHeight } : undefined]}>
             <Animated.View
               style={{
                 flexDirection: 'row',
+                alignItems: 'flex-start',
                 width: screenWidth * 3,
                 transform: [{ translateX: horizontalOffset }],
               }}
               {...panResponder.panHandlers}
             >
-              <View style={[styles.tabContentContainer, { width: screenWidth }]}>
+              <View
+                style={[styles.tabContentContainer, { width: screenWidth }]}
+                onLayout={(e) => {
+                  const h = e.nativeEvent.layout.height;
+                  setTabHeights(prev => { const next = [...prev]; next[0] = h; return next; });
+                }}
+              >
                 {postsTabComponent}
               </View>
-              <View style={[styles.tabContentContainer, { width: screenWidth }]}>
+              <View
+                style={[styles.tabContentContainer, { width: screenWidth }]}
+                onLayout={(e) => {
+                  const h = e.nativeEvent.layout.height;
+                  setTabHeights(prev => { const next = [...prev]; next[1] = h; return next; });
+                }}
+              >
                 {milestonesTabComponent}
               </View>
-              <View style={[styles.tabContentContainer, { width: screenWidth }]}>
+              <View
+                style={[styles.tabContentContainer, { width: screenWidth }]}
+                onLayout={(e) => {
+                  const h = e.nativeEvent.layout.height;
+                  setTabHeights(prev => { const next = [...prev]; next[2] = h; return next; });
+                }}
+              >
                 {workoutsTabComponent}
               </View>
             </Animated.View>
