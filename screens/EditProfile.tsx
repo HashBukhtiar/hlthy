@@ -10,6 +10,13 @@ import {
   Alert,
   TextInput,
 } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  withSpring,
+  Easing,
+} from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -83,6 +90,24 @@ export default function EditProfile() {
   const [imageManuallyChanged, setImageManuallyChanged] = useState(false);
   const [dateModalVisible, setDateModalVisible] = useState(false);
   const [activeModal, setActiveModal] = useState<string | null>(null);
+
+  const dateModalProgress = useSharedValue(0);
+
+  useEffect(() => {
+    if (dateModalVisible) {
+      dateModalProgress.value = withSpring(1, { damping: 22, stiffness: 280 });
+    } else {
+      dateModalProgress.value = withTiming(0, { duration: 220, easing: Easing.out(Easing.ease) });
+    }
+  }, [dateModalVisible]);
+
+  const dateOverlayAnimStyle = useAnimatedStyle(() => ({
+    opacity: dateModalProgress.value,
+  }));
+
+  const dateSheetAnimStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: (1 - dateModalProgress.value) * 360 }],
+  }));
 
   const MODAL_DEBOUNCE_MS = 300;
   const [lastModalAction, setLastModalAction] = useState(0);
@@ -374,9 +399,11 @@ export default function EditProfile() {
       </View>
 
       {/* Date Picker Modal */}
-      {dateModalVisible && (
-        <View style={styles.modalOverlay}>
-          <View style={styles.dateModal}>
+      <Animated.View
+        style={[styles.modalOverlay, dateOverlayAnimStyle]}
+        pointerEvents={dateModalVisible ? 'auto' : 'none'}
+      >
+        <Animated.View style={[styles.dateModal, dateSheetAnimStyle]}>
             <View style={styles.dateModalHeader}>
               <Text style={styles.dateModalTitle}>Date of Birth</Text>
               <TouchableOpacity onPress={() => setDateModalVisible(false)}>
@@ -404,9 +431,8 @@ export default function EditProfile() {
             <TouchableOpacity style={styles.dateModalDone} onPress={() => setDateModalVisible(false)}>
               <Text style={styles.dateModalDoneText}>Done</Text>
             </TouchableOpacity>
-          </View>
-        </View>
-      )}
+          </Animated.View>
+        </Animated.View>
 
       <SettingsModals
         archetypeData={archetypeData}
