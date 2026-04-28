@@ -36,6 +36,9 @@ export default function SuggestedUserCard({ user, onDismiss }: Props) {
       } else if (followState === 'following') {
         await httpsCallable(functions, 'unfollowUser')({ targetUserId: user.userId });
         setFollowState('follow');
+      } else if (followState === 'requested') {
+        await httpsCallable(functions, 'cancelSentFollowRequest')({ targetUserId: user.userId });
+        setFollowState('follow');
       }
     } catch {
       // silently revert — network error
