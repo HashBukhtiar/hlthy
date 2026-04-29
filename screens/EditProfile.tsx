@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Alert,
   TextInput,
+  Platform,
 } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -397,12 +398,33 @@ export default function EditProfile() {
         </ScrollView>
       </View>
 
-      {/* Date Picker Modal */}
-      <Animated.View
-        style={[styles.modalOverlay, dateOverlayAnimStyle]}
-        pointerEvents={dateModalVisible ? 'auto' : 'none'}
-      >
-        <Animated.View style={[styles.dateModal, dateSheetAnimStyle]}>
+      {/* Date Picker — Android: native dialog only, iOS: custom bottom-sheet modal */}
+      {Platform.OS === 'android' && dateModalVisible && (
+        <DateTimePicker
+          value={settings.dateOfBirth instanceof Date && !isNaN(settings.dateOfBirth.getTime()) ? settings.dateOfBirth : new Date(2000, 0, 1)}
+          mode="date"
+          display="spinner"
+          onChange={(event, selectedDate) => {
+            setDateModalVisible(false);
+            if (event.type === 'set' && selectedDate) {
+              const now = new Date();
+              if (selectedDate > now) {
+                Alert.alert('Invalid Date', 'Date of birth cannot be in the future');
+                return;
+              }
+              updateSetting('dateOfBirth', selectedDate);
+            }
+          }}
+          maximumDate={new Date()}
+          minimumDate={new Date(1900, 0, 1)}
+        />
+      )}
+      {Platform.OS === 'ios' && (
+        <Animated.View
+          style={[styles.modalOverlay, dateOverlayAnimStyle]}
+          pointerEvents={dateModalVisible ? 'auto' : 'none'}
+        >
+          <Animated.View style={[styles.dateModal, dateSheetAnimStyle]}>
             <View style={styles.dateModalHeader}>
               <Text style={styles.dateModalTitle}>Date of Birth</Text>
               <TouchableOpacity onPress={() => setDateModalVisible(false)}>
@@ -434,6 +456,7 @@ export default function EditProfile() {
             </TouchableOpacity>
           </Animated.View>
         </Animated.View>
+      )}
 
       <SettingsModals
         archetypeData={archetypeData}
