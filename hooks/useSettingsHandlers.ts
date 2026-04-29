@@ -40,6 +40,7 @@ export function useSettingsHandlers(props: UseSettingsHandlersProps) {
     settings,
     userProfile,
     currentUser,
+    hasUnsavedChanges: hasUnsavedSettingsFromProps,
     setProfileImage,
     setImageManuallyChanged,
     setHasUnsavedChanges,
@@ -53,7 +54,7 @@ export function useSettingsHandlers(props: UseSettingsHandlersProps) {
 
   const handleBackPress = useCallback(async () => {
     const hasUnsavedChanges = originalProfileImage !== profileImage;
-    const hasUnsavedSettings = props.hasUnsavedChanges;
+    const hasUnsavedSettings = hasUnsavedSettingsFromProps;
     
     if (!hasUnsavedChanges && !hasUnsavedSettings) {
       router.back();
@@ -120,7 +121,7 @@ export function useSettingsHandlers(props: UseSettingsHandlersProps) {
         },
       ]
     );
-  }, [profileImage, originalProfileImage, router, userProfile, currentUser, setProfileImage, setImageManuallyChanged, setHasUnsavedChanges, refreshUserProfile]);
+  }, [profileImage, originalProfileImage, hasUnsavedSettingsFromProps, router, userProfile, currentUser, setProfileImage, setImageManuallyChanged, setHasUnsavedChanges, refreshUserProfile]);
 
   const pickImage = useCallback(async () => {
     try {

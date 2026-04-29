@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -85,6 +85,7 @@ export default function EditProfile() {
   const [originalProfileImage, setOriginalProfileImage] = useState<string | undefined>(undefined);
   const [originalSettings, setOriginalSettings] = useState<Partial<UserSettings>>({});
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const initializedRef = useRef(false);
   const [loading, setLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [imageManuallyChanged, setImageManuallyChanged] = useState(false);
@@ -128,72 +129,62 @@ export default function EditProfile() {
 
   const isModalVisible = useCallback((modalId: string) => activeModal === modalId, [activeModal]);
 
-  // Load profile data
-  useEffect(() => {
-    if (userProfile && !isSaving) {
-      const parseDateOfBirth = (dateValue: any): Date | undefined => {
-        if (!dateValue) return undefined;
-        try {
-          if (dateValue instanceof Date) return isNaN(dateValue.getTime()) ? undefined : dateValue;
-          if (dateValue.toDate && typeof dateValue.toDate === 'function') return dateValue.toDate();
-          if (typeof dateValue === 'string') {
-            const parsed = new Date(dateValue);
-            return isNaN(parsed.getTime()) ? undefined : parsed;
-          }
-        } catch {}
-        return undefined;
-      };
-
-      setSettings({
-        displayName: userProfile.displayName || '',
-        bio: userProfile.bio || '',
-        archetype: userProfile.archetype || '',
-        dateOfBirth: parseDateOfBirth(userProfile.dateOfBirth),
-        socialLinks: {
-          instagram: userProfile.socialLinks?.instagram || '',
-          facebook: userProfile.socialLinks?.facebook || '',
-          twitter: userProfile.socialLinks?.twitter || '',
-          tiktok: userProfile.socialLinks?.tiktok || '',
-          youtube: userProfile.socialLinks?.youtube || '',
-          linkedin: userProfile.socialLinks?.linkedin || '',
-          spotify: userProfile.socialLinks?.spotify || '',
-          snapchat: userProfile.socialLinks?.snapchat || '',
-          twitch: userProfile.socialLinks?.twitch || '',
-          github: userProfile.socialLinks?.github || '',
-          customUrl: userProfile.socialLinks?.customUrl || '',
-          customLabel: userProfile.socialLinks?.customLabel || '',
-          showLinksToFollowersOnly: userProfile.socialLinks?.showLinksToFollowersOnly || false,
-        },
-      });
-
-      if (!imageManuallyChanged) {
-        setProfileImage(userProfile.profileImageUrl);
-        setOriginalProfileImage(userProfile.profileImageUrl);
+  const parseDateOfBirth = useCallback((dateValue: any): Date | undefined => {
+    if (!dateValue) return undefined;
+    try {
+      if (dateValue instanceof Date) return isNaN(dateValue.getTime()) ? undefined : dateValue;
+      if (dateValue.toDate && typeof dateValue.toDate === 'function') return dateValue.toDate();
+      if (typeof dateValue === 'string') {
+        const parsed = new Date(dateValue);
+        return isNaN(parsed.getTime()) ? undefined : parsed;
       }
-    }
-  }, [userProfile, isSaving, imageManuallyChanged]);
+    } catch {}
+    return undefined;
+  }, []);
 
-  // Track originalSettings once on mount
+  // Load profile data once on first availability — never overwrite user edits
   useEffect(() => {
-    if (userProfile && Object.keys(originalSettings).length === 0) {
-      setOriginalSettings({
-        displayName: userProfile.displayName || '',
-        bio: userProfile.bio || '',
-        archetype: userProfile.archetype || '',
-        socialLinks: { ...userProfile.socialLinks },
-      });
-    }
-  }, [userProfile]);
+    if (!userProfile || initializedRef.current) return;
+    initializedRef.current = true;
 
-  // Track unsaved changes
+    const loadedSettings: Partial<UserSettings> = {
+      displayName: userProfile.displayName || '',
+      bio: userProfile.bio || '',
+      archetype: userProfile.archetype || '',
+      dateOfBirth: parseDateOfBirth(userProfile.dateOfBirth),
+      socialLinks: {
+        instagram: userProfile.socialLinks?.instagram || '',
+        facebook: userProfile.socialLinks?.facebook || '',
+        twitter: userProfile.socialLinks?.twitter || '',
+        tiktok: userProfile.socialLinks?.tiktok || '',
+        youtube: userProfile.socialLinks?.youtube || '',
+        linkedin: userProfile.socialLinks?.linkedin || '',
+        spotify: userProfile.socialLinks?.spotify || '',
+        snapchat: userProfile.socialLinks?.snapchat || '',
+        twitch: userProfile.socialLinks?.twitch || '',
+        github: userProfile.socialLinks?.github || '',
+        customUrl: userProfile.socialLinks?.customUrl || '',
+        customLabel: userProfile.socialLinks?.customLabel || '',
+        showLinksToFollowersOnly: userProfile.socialLinks?.showLinksToFollowersOnly || false,
+      },
+    };
+
+    setSettings(loadedSettings);
+    setOriginalSettings(loadedSettings);
+    setProfileImage(userProfile.profileImageUrl);
+    setOriginalProfileImage(userProfile.profileImageUrl);
+  }, [userProfile, parseDateOfBirth]);
+
+  // Track unsaved changes against the stable originalSettings baseline
   useEffect(() => {
+    if (!initializedRef.current) return;
     const changed =
-      settings.displayName !== (userProfile?.displayName || '') ||
-      settings.bio !== (userProfile?.bio || '') ||
-      settings.archetype !== (userProfile?.archetype || '') ||
+      settings.displayName !== (originalSettings.displayName ?? '') ||
+      settings.bio !== (originalSettings.bio ?? '') ||
+      settings.archetype !== (originalSettings.archetype ?? '') ||
       profileImage !== originalProfileImage;
     setHasUnsavedChanges(changed);
-  }, [settings, profileImage, originalProfileImage, userProfile]);
+  }, [settings, profileImage, originalProfileImage, originalSettings]);
 
   const { handleBackPress, pickImage, handleSaveSettings } = useSettingsHandlers({
     profileImage,
