@@ -178,10 +178,13 @@ export default function EditProfile() {
   // Track unsaved changes against the stable originalSettings baseline
   useEffect(() => {
     if (!initializedRef.current) return;
+    const dobChanged =
+      (settings.dateOfBirth?.getTime() ?? null) !== (originalSettings.dateOfBirth?.getTime() ?? null);
     const changed =
       settings.displayName !== (originalSettings.displayName ?? '') ||
       settings.bio !== (originalSettings.bio ?? '') ||
       settings.archetype !== (originalSettings.archetype ?? '') ||
+      dobChanged ||
       profileImage !== originalProfileImage;
     setHasUnsavedChanges(changed);
   }, [settings, profileImage, originalProfileImage, originalSettings]);
