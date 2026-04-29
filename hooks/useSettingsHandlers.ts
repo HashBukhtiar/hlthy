@@ -193,14 +193,19 @@ export function useSettingsHandlers(props: UseSettingsHandlersProps) {
           : null,
         profileImageUrl: newImageUrl,
         profileThumbnailUrl: null,
-        profileVisibility: sanitizedSettings.profileVisibility,
+        ...(sanitizedSettings.profileVisibility !== undefined && {
+          profileVisibility: sanitizedSettings.profileVisibility,
+        }),
       };
 
-      const firestoreUpdateData = {
-        ...settingsToSave,
-        lastModified: new Date(),
-        version: 1,
-      };
+      // Strip undefined values — Firestore rejects them
+      const firestoreUpdateData = Object.fromEntries(
+        Object.entries({
+          ...settingsToSave,
+          lastModified: new Date(),
+          version: 1,
+        }).filter(([, v]) => v !== undefined)
+      );
 
       await SettingsRepository.updateUser(currentUser!.uid, firestoreUpdateData);
 
