@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import { Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { httpsCallable } from 'firebase/functions';
@@ -51,6 +51,10 @@ export function useSettingsHandlers(props: UseSettingsHandlersProps) {
     setOriginalProfileImage,
     refreshUserProfile,
   } = props;
+
+  // Ref so handleBackPress always calls the latest handleSaveSettings without
+  // needing it in the dependency array (it's declared later in the same scope).
+  const handleSaveSettingsRef = useRef<() => Promise<void>>(async () => {});
 
   const handleBackPress = useCallback(async () => {
     const hasUnsavedChanges = originalProfileImage !== profileImage;
@@ -115,7 +119,7 @@ export function useSettingsHandlers(props: UseSettingsHandlersProps) {
         {
           text: "Save",
           onPress: async () => {
-            await handleSaveSettings();
+            await handleSaveSettingsRef.current();
             router.back();
           },
         },
@@ -288,6 +292,8 @@ export function useSettingsHandlers(props: UseSettingsHandlersProps) {
       setLoading(false);
     }
   }, [currentUser, settings, setLoading, saveSettingsAfterValidation]);
+
+  handleSaveSettingsRef.current = handleSaveSettings;
 
   const handleExportSettings = useCallback(async () => {
     if (!currentUser || !userProfile) return;
