@@ -409,24 +409,26 @@ export default function EditProfile() {
                 <Ionicons name="close" size={22} color="#8E8E93" />
               </TouchableOpacity>
             </View>
-            <DateTimePicker
-              value={settings.dateOfBirth instanceof Date && !isNaN(settings.dateOfBirth.getTime()) ? settings.dateOfBirth : new Date(2000, 0, 1)}
-              mode="date"
-              display="spinner"
-              onChange={(event, selectedDate) => {
-                if (selectedDate && event.type !== 'dismissed') {
-                  const now = new Date();
-                  if (selectedDate > now) {
-                    Alert.alert('Invalid Date', 'Date of birth cannot be in the future');
-                    return;
+            {dateModalVisible && (
+              <DateTimePicker
+                value={settings.dateOfBirth instanceof Date && !isNaN(settings.dateOfBirth.getTime()) ? settings.dateOfBirth : new Date(2000, 0, 1)}
+                mode="date"
+                display="spinner"
+                onChange={(event, selectedDate) => {
+                  if (selectedDate && event.type !== 'dismissed') {
+                    const now = new Date();
+                    if (selectedDate > now) {
+                      Alert.alert('Invalid Date', 'Date of birth cannot be in the future');
+                      return;
+                    }
+                    updateSetting('dateOfBirth', selectedDate);
                   }
-                  updateSetting('dateOfBirth', selectedDate);
-                }
-              }}
-              maximumDate={new Date()}
-              minimumDate={new Date(1900, 0, 1)}
-              style={{ backgroundColor: '#1C1C1E' }}
-            />
+                }}
+                maximumDate={new Date()}
+                minimumDate={new Date(1900, 0, 1)}
+                style={{ backgroundColor: '#1C1C1E' }}
+              />
+            )}
             <TouchableOpacity style={styles.dateModalDone} onPress={() => setDateModalVisible(false)}>
               <Text style={styles.dateModalDoneText}>Done</Text>
             </TouchableOpacity>
