@@ -16,7 +16,7 @@ import { SettingsModals } from '@/components/settings/SettingsModals';
 import { SelectorItem } from '@/components/CustomSelector';
 import { getOptimalImageUrl } from '@/utils/imageUtils';
 
-// todo: probs should move this stuff to the cloud
+// todo: probably should move this stuff to the cloud
 const archetypeData: SelectorItem[] = [
   { 
     label: 'Athlete', 
