@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Dimensions } from 'react-native';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { OptimizedImageLight } from '@/components/OptimizedImage';
 import { MilestoneCard } from './MilestoneCard';
@@ -126,27 +126,6 @@ export const MilestonesTab: React.FC<MilestonesTabProps> = ({
 
   return (
     <View style={styles.milestonesContainer}>
-      {/* Stats header */}
-      <View style={styles.milestonesHeader}>
-        <LinearGradient
-          colors={['rgba(255,94,105,0.12)', 'rgba(255,94,105,0.03)', 'transparent']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.headerGradient}
-        />
-        <View style={styles.headerContent}>
-          <View style={styles.headerIconContainer}>
-            <MaterialCommunityIcons name="trophy" size={24} color="#FF5E69" />
-          </View>
-          <View style={styles.headerTextContainer}>
-            <Text style={styles.headerTitle}>Personal Records</Text>
-            <Text style={styles.headerSubtitle}>
-              {totalMilestones} milestone{totalMilestones !== 1 ? 's' : ''} achieved
-            </Text>
-          </View>
-        </View>
-      </View>
-
       <View style={styles.milestonesListContent}>
         {flattenedData.map((item, index) => {
           if (item.type === 'header') {
@@ -216,18 +195,8 @@ export const WorkoutsTab: React.FC<WorkoutsTabProps> = ({
     );
   }
 
-  if (!workouts || workouts.length === 0) {
-    return (
-      <View style={styles.emptyContainer}>
-        <Text style={{ color: 'gray', textAlign: 'center' }}>
-          No workouts yet. Create or save a workout to see it here.
-        </Text>
-      </View>
-    );
-  }
-
   // Sort workouts by creation date, newest first
-  const sortedWorkoutsData = [...workouts].sort((a, b) => {
+  const sortedWorkoutsData = [...(workouts || [])].sort((a, b) => {
     try {
       const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0);
       const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0);
@@ -235,22 +204,43 @@ export const WorkoutsTab: React.FC<WorkoutsTabProps> = ({
     } catch (error) { return 0; }
   });
 
-  return (
-    <View style={styles.workoutsListSingleColumn}>
-      {sortedWorkoutsData.map((item) => {
-        if (!item.isPublic && !isOwnProfile) {
-          return null;
-        }
+  const visibleWorkouts = sortedWorkoutsData.filter((item) => isOwnProfile || item.isPublic);
 
-        return (
-          <WorkoutListItem 
+  if (visibleWorkouts.length === 0) {
+    return (
+      <View style={styles.emptyContainer}>
+        <View style={styles.emptyIconContainer}>
+          <LinearGradient
+            colors={['rgba(255,45,85,0.2)', 'rgba(255,45,85,0.05)']}
+            style={styles.emptyIconGradient}
+          >
+            <MaterialCommunityIcons name="dumbbell" size={38} color="#FF2D55" />
+          </LinearGradient>
+        </View>
+        <Text style={styles.emptyTitle}>
+          {isOwnProfile ? 'No Workouts Yet' : 'No Public Workouts'}
+        </Text>
+        <Text style={styles.emptySubtitle}>
+          {isOwnProfile
+            ? 'Create a workout to share it\nwith your followers'
+            : 'This user hasn\'t shared any\nworkouts publicly yet'}
+        </Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.workoutsContainer}>
+      <View style={styles.workoutsListSingleColumn}>
+        {visibleWorkouts.map((item) => (
+          <WorkoutListItem
             key={item.id.toString()}
             workout={item}
             onPress={onWorkoutPress}
             isOwnProfile={isOwnProfile}
           />
-        );
-      })}
+        ))}
+      </View>
     </View>
   );
 };
@@ -301,54 +291,7 @@ const styles = StyleSheet.create({
   },
   // Milestones Tab Styles
   milestonesContainer: {
-    flex: 1,
     backgroundColor: '#000',
-  },
-  milestonesHeader: {
-    marginHorizontal: 16,
-    marginTop: 16,
-    marginBottom: 8,
-    borderRadius: 16,
-    overflow: 'hidden',
-    backgroundColor: 'rgba(255,255,255,0.03)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
-  },
-  headerGradient: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  headerContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-  },
-  headerIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255,94,105,0.15)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 14,
-  },
-  headerTextContainer: {
-    flex: 1,
-  },
-  headerTitle: {
-    color: '#FFF',
-    fontSize: 18,
-    fontWeight: '700',
-    letterSpacing: -0.3,
-    marginBottom: 2,
-  },
-  headerSubtitle: {
-    color: 'rgba(255,255,255,0.5)',
-    fontSize: 14,
-    fontWeight: '500',
   },
   milestonesListContent: {
     paddingBottom: 24,
@@ -407,8 +350,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#000',
     marginTop: 8,
   },
+  workoutsContainer: {
+    backgroundColor: '#000',
+  },
   workoutsListSingleColumn: {
-    paddingVertical: 12,
+    paddingVertical: 6,
     paddingHorizontal: 12,
+    gap: 8,
   },
 });

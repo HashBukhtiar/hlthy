@@ -123,7 +123,8 @@ export default function EmailVerificationGuard({ children }: EmailVerificationGu
     );
   };
 
-  // Show loading while checking auth state (initial load only — not during refreshes)
+  // Show loading only on initial auth check (when we don't know the user yet).
+  // If currentUser is already set, we're just refreshing profile data — don't unmount children.
   if (authLoading && !currentUser) {
     console.log('[EmailVerificationGuard] Showing loading screen - authLoading is true');
     return (

@@ -30,13 +30,21 @@ export default function RootLayout() {
             <Stack.Screen name="dms" options={{ gestureEnabled: true, animation: Platform.OS === 'android' ? 'none' : 'slide_from_right' }} />
             <Stack.Screen name="explore" options={{ gestureEnabled: true, animation: Platform.OS === 'android' ? 'none' : 'slide_from_right' }} />
             <Stack.Screen name="settings" options={{ gestureEnabled: true, animation: Platform.OS === 'android' ? 'none' : 'slide_from_right' }} />
+            <Stack.Screen name="edit-profile" options={{ gestureEnabled: true, animation: Platform.OS === 'android' ? 'none' : 'slide_from_right' }} />
+            <Stack.Screen name="settings-notifications" options={{ gestureEnabled: true, animation: Platform.OS === 'android' ? 'none' : 'slide_from_right' }} />
+            <Stack.Screen name="edit-profile-social-links" options={{ gestureEnabled: true, animation: Platform.OS === 'android' ? 'none' : 'slide_from_right' }} />
 
             {/* Other screens */}
+            <Stack.Screen name="signup" />
+            <Stack.Screen name="select-archetype" />
             <Stack.Screen name="create-workout" options={{ animation: Platform.OS === 'android' ? 'none' : 'slide_from_bottom', gestureEnabled: true }} />
             <Stack.Screen name="view-workout/[id]" options={{ animation: Platform.OS === 'android' ? 'none' : 'fade_from_bottom', gestureEnabled: true }} />
             <Stack.Screen name="view-post/[id]" options={{ animation: Platform.OS === 'android' ? 'none' : 'fade_from_bottom', gestureEnabled: true }} />
             <Stack.Screen name="view-milestone/[id]" options={{ animation: Platform.OS === 'android' ? 'none' : 'fade_from_bottom', gestureEnabled: true }} />
             <Stack.Screen name="view-profile-card/[userId]" options={{ animation: Platform.OS === 'android' ? 'none' : 'fade_from_bottom', gestureEnabled: true }} />
+            <Stack.Screen name="view-links/[userId]" options={{ animation: Platform.OS === 'android' ? 'none' : 'slide_from_right', gestureEnabled: true }} />
+            <Stack.Screen name="privacy-policy" options={{ gestureEnabled: true, animation: Platform.OS === 'android' ? 'none' : 'slide_from_right' }} />
+            <Stack.Screen name="terms-of-service" options={{ gestureEnabled: true, animation: Platform.OS === 'android' ? 'none' : 'slide_from_right' }} />
             <Stack.Screen name="workout-plan" />
             <Stack.Screen name="diet-plan" />
             <Stack.Screen name="modal" options={{ presentation: 'modal' }} />

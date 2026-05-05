@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import { Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { httpsCallable } from 'firebase/functions';
@@ -40,6 +40,7 @@ export function useSettingsHandlers(props: UseSettingsHandlersProps) {
     settings,
     userProfile,
     currentUser,
+    hasUnsavedChanges: hasUnsavedSettingsFromProps,
     setProfileImage,
     setImageManuallyChanged,
     setHasUnsavedChanges,
@@ -51,9 +52,13 @@ export function useSettingsHandlers(props: UseSettingsHandlersProps) {
     refreshUserProfile,
   } = props;
 
+  // Ref so handleBackPress always calls the latest handleSaveSettings without
+  // needing it in the dependency array (it's declared later in the same scope).
+  const handleSaveSettingsRef = useRef<() => Promise<void>>(async () => {});
+
   const handleBackPress = useCallback(async () => {
     const hasUnsavedChanges = originalProfileImage !== profileImage;
-    const hasUnsavedSettings = props.hasUnsavedChanges;
+    const hasUnsavedSettings = hasUnsavedSettingsFromProps;
     
     if (!hasUnsavedChanges && !hasUnsavedSettings) {
       router.back();
@@ -114,13 +119,13 @@ export function useSettingsHandlers(props: UseSettingsHandlersProps) {
         {
           text: "Save",
           onPress: async () => {
-            await handleSaveSettings();
+            await handleSaveSettingsRef.current();
             router.back();
           },
         },
       ]
     );
-  }, [profileImage, originalProfileImage, router, userProfile, currentUser, setProfileImage, setImageManuallyChanged, setHasUnsavedChanges, refreshUserProfile]);
+  }, [profileImage, originalProfileImage, hasUnsavedSettingsFromProps, router, userProfile, currentUser, setProfileImage, setImageManuallyChanged, setHasUnsavedChanges, refreshUserProfile]);
 
   const pickImage = useCallback(async () => {
     try {
@@ -193,14 +198,19 @@ export function useSettingsHandlers(props: UseSettingsHandlersProps) {
           : null,
         profileImageUrl: newImageUrl,
         profileThumbnailUrl: null,
-        profileVisibility: sanitizedSettings.profileVisibility,
+        ...(sanitizedSettings.profileVisibility !== undefined && {
+          profileVisibility: sanitizedSettings.profileVisibility,
+        }),
       };
 
-      const firestoreUpdateData = {
-        ...settingsToSave,
-        lastModified: new Date(),
-        version: 1,
-      };
+      // Strip undefined values — Firestore rejects them
+      const firestoreUpdateData = Object.fromEntries(
+        Object.entries({
+          ...settingsToSave,
+          lastModified: new Date(),
+          version: 1,
+        }).filter(([, v]) => v !== undefined)
+      );
 
       await SettingsRepository.updateUser(currentUser!.uid, firestoreUpdateData);
 
@@ -282,6 +292,8 @@ export function useSettingsHandlers(props: UseSettingsHandlersProps) {
       setLoading(false);
     }
   }, [currentUser, settings, setLoading, saveSettingsAfterValidation]);
+
+  handleSaveSettingsRef.current = handleSaveSettings;
 
   const handleExportSettings = useCallback(async () => {
     if (!currentUser || !userProfile) return;

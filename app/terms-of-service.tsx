@@ -6,20 +6,7 @@ import { Stack } from 'expo-router';
 export default function TermsOfServiceScreen() {
   return (
     <View style={styles.container}>
-      <Stack.Screen 
-        options={{
-          title: 'Terms of Service',
-          headerShadowVisible: false,
-          headerBackTitle: '',
-          headerTintColor: '#FFF',
-          headerStyle: {
-            backgroundColor: '#000',
-          },
-          headerTitleStyle: {
-            color: '#FFF',
-          },
-        }}
-      />
+      <Stack.Screen options={{ headerShown: false }} />
       <TermsOfService />
     </View>
   );
