@@ -33,7 +33,9 @@ interface ProfileHeaderProps {
   canGoBack: boolean;
   onBack: () => void;
   onSettings: () => void;
+  onEditProfile: () => void;
   onMoreOptions: () => void;
+  onOwnMoreOptions: () => void;
   onDirectMessage: () => void;
   onFollowAction: () => void;
   onArchetypeBadgePress: () => void;
@@ -58,7 +60,9 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
   canGoBack,
   onBack,
   onSettings,
+  onEditProfile,
   onMoreOptions,
+  onOwnMoreOptions,
   onDirectMessage,
   onFollowAction,
   onArchetypeBadgePress,
@@ -232,6 +236,13 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
               <>
                 <TouchableOpacity
                   style={styles.settingsButton}
+                  onPress={onOwnMoreOptions}
+                  activeOpacity={0.85}
+                >
+                  <Ionicons name="ellipsis-horizontal" size={16} color="#FFF" />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.settingsButton}
                   onPress={onSettings}
                   activeOpacity={0.85}
                 >
@@ -239,7 +250,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.editProfileButton}
-                  onPress={onSettings}
+                  onPress={onEditProfile}
                   activeOpacity={0.85}
                 >
                   <Text style={styles.editProfileButtonText}>Edit Profile</Text>

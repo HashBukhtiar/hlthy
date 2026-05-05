@@ -19,15 +19,15 @@ export const SettingsSection: React.FC<SettingsSectionProps> = ({
 }) => {
   return (
     <View style={styles.container}>
-      <TouchableOpacity style={styles.header} onPress={onToggle}>
+      <TouchableOpacity style={[styles.header, expanded && styles.headerExpanded]} onPress={onToggle}>
         <View style={styles.headerLeft}>
           <Ionicons name={icon as any} size={24} color="#fff" style={styles.icon} />
           <Text style={styles.title}>{title}</Text>
         </View>
-        <Ionicons 
-          name={expanded ? "chevron-up" : "chevron-down"} 
-          size={20} 
-          color="#999" 
+        <Ionicons
+          name={expanded ? "chevron-up" : "chevron-down"}
+          size={20}
+          color="#999"
         />
       </TouchableOpacity>
       {expanded && (
@@ -43,6 +43,7 @@ const styles = StyleSheet.create({
   container: {
     backgroundColor: '#1C1C1E',
     borderRadius: 12,
+    marginHorizontal: 16,
     marginBottom: 16,
     overflow: 'hidden',
   },
@@ -51,6 +52,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: 16,
+  },
+  headerExpanded: {
     borderBottomWidth: 1,
     borderBottomColor: '#333',
   },
