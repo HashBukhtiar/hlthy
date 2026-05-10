@@ -473,7 +473,7 @@ export const followUser = onCall(
       });
 
       await batch.commit();
-      return {success: true, message: "Follow request sent (pending approval)."};
+      return {success: true, status: "requested", message: "Follow request sent (pending approval)."};
     }
 
     // Public account: proceed with immediate follow
@@ -518,7 +518,7 @@ export const followUser = onCall(
     });
 
     await batch.commit();
-    return {success: true, message: "Now following user."};
+    return {success: true, status: "following", message: "Now following user."};
   }
 );
 

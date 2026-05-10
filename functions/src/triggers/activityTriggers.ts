@@ -1,5 +1,5 @@
 import {admin, getDb} from "../admin/firebaseAdmin";
-import {onDocumentCreated, onDocumentWritten} from "firebase-functions/v2/firestore";
+import {onDocumentCreated, onDocumentDeleted, onDocumentWritten} from "firebase-functions/v2/firestore";
 
 export const createactivityonfollowrequest = onDocumentCreated(
   {
@@ -470,4 +470,30 @@ export const bumpCommentCount = onDocumentCreated({
   await db.collection("posts").doc(postId).update({
     commentCount: admin.firestore.FieldValue.increment(1),
   });
+});
+
+export const onCommentDeleted = onDocumentDeleted({
+  document: "posts/{postId}/comments/{commentId}",
+  region: "northamerica-northeast2",
+}, async (event) => {
+  const db = getDb();
+  const {postId, commentId} = event.params;
+
+  // Cascade-delete all replies
+  const repliesSnap = await db
+    .collection("posts").doc(postId)
+    .collection("comments").doc(commentId)
+    .collection("replies")
+    .get();
+
+  const batch = db.batch();
+  repliesSnap.docs.forEach(r => batch.delete(r.ref));
+
+  // Decrement commentCount on the post
+  batch.update(db.collection("posts").doc(postId), {
+    commentCount: admin.firestore.FieldValue.increment(-1),
+  });
+
+  if (!batch) return;
+  await batch.commit();
 });

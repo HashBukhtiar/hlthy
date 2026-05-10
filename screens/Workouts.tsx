@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
     StyleSheet,
     View,
@@ -36,7 +36,7 @@ const chunkArray = (array: WorkoutListItem[], size: number): WorkoutListItem[][]
 export default function Workouts() {
     const [searchQuery, setSearchQuery] = useState('');
     const router = useRouter();
-    const { currentUser } = useAuth();
+    const { currentUser, userProfile } = useAuth();
 
     const {
         myWorkouts,
@@ -53,6 +53,34 @@ export default function Workouts() {
 
     const [searchResults, setSearchResults] = useState<WorkoutListItem[]>([]);
     const [isSearching, setIsSearching] = useState(false);
+
+    const suggestedWorkouts = useMemo(() => {
+        // Combine following + trending into a deduplicated pool
+        const seen = new Set<string>();
+        const pool: WorkoutListItem[] = [];
+        [...followingWorkouts, ...trendingWorkouts].forEach(w => {
+            if (!seen.has(w.id)) {
+                seen.add(w.id);
+                pool.push(w);
+            }
+        });
+
+        // Exclude workouts the user already owns or has saved
+        const myIds = new Set(myWorkouts.map(w => w.id));
+        const favIds = new Set(favoriteWorkouts.map(w => w.id));
+        const filtered = pool.filter(w => !myIds.has(w.id) && !favIds.has(w.id));
+
+        // Rank: archetype match first, then by save count
+        const userArchetype = userProfile?.archetype?.toLowerCase();
+        return filtered
+            .sort((a, b) => {
+                const aMatch = userArchetype && (a as any).archetype?.toLowerCase() === userArchetype ? 1 : 0;
+                const bMatch = userArchetype && (b as any).archetype?.toLowerCase() === userArchetype ? 1 : 0;
+                if (bMatch !== aMatch) return bMatch - aMatch;
+                return (b.savedCount || 0) - (a.savedCount || 0);
+            })
+            .slice(0, 10);
+    }, [myWorkouts, favoriteWorkouts, trendingWorkouts, followingWorkouts, userProfile?.archetype]);
 
     // Client-side search filter over the in-memory data — no Firestore queries.
     useEffect(() => {
@@ -242,6 +270,20 @@ export default function Workouts() {
         );
     }
 
+    function renderSuggestedWorkouts() {
+        if (!currentUser || suggestedWorkouts.length === 0) return null;
+        return (
+            <View>
+                <View style={styles.myWorkoutsHeaderView}>
+                    <Text style={styles.workoutsHeaders}>Suggested For You</Text>
+                </View>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.followingWorkoutsList}>
+                    {suggestedWorkouts.map(item => renderWorkoutCarouselItem(item, styles.followingWorkoutsButton, styles.workoutPreview))}
+                </ScrollView>
+            </View>
+        );
+    }
+
     function renderTrendingWorkouts() {
         const topTwelveWorkouts = trendingWorkouts.slice(0, 12);
         const columnsOfFour = chunkArray(topTwelveWorkouts, 4);
@@ -322,6 +364,7 @@ export default function Workouts() {
                     {renderMyWorkouts()}
                     {renderFavoriteWorkouts()}
                     {renderFollowingWorkouts()}
+                    {renderSuggestedWorkouts()}
                     {renderTrendingWorkouts()}
                     <View style={{ height: 30 }} />
                 </ScrollView>

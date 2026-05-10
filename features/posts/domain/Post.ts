@@ -57,6 +57,7 @@ export interface Comment {
   mentions?: MentionData[];
   isLiked?: boolean;
   replies?: Reply[];
+  editedAt?: Timestamp;
 }
 
 export interface Reply {

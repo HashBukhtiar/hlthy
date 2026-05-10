@@ -1,20 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { ScrollView, View, Text, TouchableOpacity, Image, StyleSheet, ActivityIndicator, Alert, Platform, SafeAreaView } from 'react-native';
+import { ScrollView, View, Text, TouchableOpacity, Image, StyleSheet, ActivityIndicator, Alert, Platform, SafeAreaView, Modal } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import ShareModal from '@/components/ShareModal';
 import ReportModal from '@/components/ReportModal';
 import { shareWorkout } from '@/services/ShareService';
 import { Ionicons } from '@expo/vector-icons';
-import { db } from '@/firebaseConfig'; 
+import { db } from '@/firebaseConfig';
 import { doc, getDoc, Timestamp, updateDoc, increment, setDoc, deleteDoc, collection, query, where, orderBy, getDocs, limit } from '@/features/infra/firestore';
-import { useAuth } from '@/context/AuthContext'; 
+import { useAuth } from '@/context/AuthContext';
 import { getCoverImageSource, deleteImageFromStorage } from '@/utils/imageUtils';
 import { useBlockEnforcement } from '@/utils/blockUtils';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import MentionText from '@/components/MentionText';
 import { ACCENT_COLOR } from '@/constants/Colors';
+import { useSelfUnmention } from '@/features/mentions/ui/useSelfUnmention';
 import type { MentionData } from '@/features/mentions/domain/Mention';
 
 // Interface for individual exercise within a segment
@@ -58,6 +59,7 @@ export default function ViewWorkout() {
   const { currentUser } = useAuth();
   const { canInteractWithUser } = useBlockEnforcement();
   const insets = useSafeAreaInsets();
+  const { promptSelfUnmention } = useSelfUnmention();
 
   const [workoutData, setWorkoutData] = useState<WorkoutData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -66,6 +68,7 @@ export default function ViewWorkout() {
   const [favoriteLoading, setFavoriteLoading] = useState(false);
   const [shareModalVisible, setShareModalVisible] = useState(false);
   const [reportModalVisible, setReportModalVisible] = useState(false);
+  const [menuModalVisible, setMenuModalVisible] = useState(false);
   const [searchText, setSearchText] = useState('');
   const [searchResults, setSearchResults] = useState<{ id: string; username: string; profileImageUrl?: string; profileThumbnailUrl?: string }[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
@@ -280,8 +283,33 @@ export default function ViewWorkout() {
       Alert.alert("Please log in", "You need to be logged in to share workouts.");
       return;
     }
-    
+
     setShareModalVisible(true);
+  };
+
+  const handleRemoveWorkoutMention = async () => {
+    if (!workoutData || !currentUser) return;
+
+    setMenuModalVisible(false);
+    await promptSelfUnmention(
+      {
+        context: 'workout_description',
+        workoutId: workoutData.id,
+      },
+      workoutData.creatorUsername,
+      workoutData.creatorId,
+      () => {
+        // Remove mention from local state
+        setWorkoutData(prev =>
+          prev
+            ? {
+                ...prev,
+                mentions: prev.mentions?.filter(m => m.userId !== currentUser.uid) || [],
+              }
+            : null
+        );
+      }
+    );
   };
 
   const handleStartWorkout = () => {
@@ -388,12 +416,12 @@ export default function ViewWorkout() {
               />
             </View>
           </TouchableOpacity>
-          {/* Report button - only for non-owner */}
+          {/* 3-dot menu - for report and self-unmention */}
           {currentUser && workoutData.creatorId !== currentUser.uid && (
-            <TouchableOpacity onPress={() => setReportModalVisible(true)}>
+            <TouchableOpacity onPress={() => setMenuModalVisible(true)}>
               <View style={styles.menuButton}>
                 <Ionicons
-                  name="flag-outline"
+                  name="ellipsis-vertical"
                   size={20}
                   color="white"
                 />
@@ -463,6 +491,52 @@ export default function ViewWorkout() {
         onClose={() => setShareModalVisible(false)}
         onShareWith={shareWorkoutWithUser}
       />
+      {/* 3-Dot Menu Modal - for report and self-unmention */}
+      <Modal
+        transparent
+        visible={menuModalVisible}
+        animationType="fade"
+        onRequestClose={() => setMenuModalVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setMenuModalVisible(false)}
+        >
+          <View style={styles.menuModalContent}>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => {
+                setMenuModalVisible(false);
+                setReportModalVisible(true);
+              }}
+            >
+              <Ionicons name="flag-outline" size={20} color="#FF9500" />
+              <Text style={[styles.menuItemText, { color: '#FF9500' }]}>Report Workout</Text>
+            </TouchableOpacity>
+
+            {/* Remove my mention option - only if user is mentioned */}
+            {workoutData?.mentions?.some(m => m.userId === currentUser?.uid) && (
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={handleRemoveWorkoutMention}
+              >
+                <Ionicons name="close-circle-outline" size={20} color="#999" />
+                <Text style={[styles.menuItemText, { color: '#999' }]}>Remove my mention</Text>
+              </TouchableOpacity>
+            )}
+
+            <TouchableOpacity
+              style={[styles.menuItem, { borderBottomWidth: 0 }]}
+              onPress={() => setMenuModalVisible(false)}
+            >
+              <Ionicons name="close-circle-outline" size={20} color="#999" />
+              <Text style={[styles.menuItemText, { color: '#999' }]}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
       {/* Report Modal - only for non-owner */}
       {currentUser && workoutData.creatorId !== currentUser.uid && (
         <ReportModal
@@ -479,7 +553,7 @@ export default function ViewWorkout() {
         />
       )}
     </ScrollView>
-    
+
     {/* Start Workout Button */}
     <View style={[styles.startButtonContainer, { paddingBottom: Math.max(insets.bottom, 20) + 35 }]}>
       <TouchableOpacity 
@@ -808,5 +882,30 @@ const styles = StyleSheet.create({
     color: '#888',
     textAlign: 'center',
     marginTop: 20,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  menuModalContent: {
+    backgroundColor: '#1a1a1a',
+    borderTopLeftRadius: 15,
+    borderTopRightRadius: 15,
+    paddingBottom: 20,
+    paddingTop: 10,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    borderBottomColor: '#333',
+    borderBottomWidth: 1,
+  },
+  menuItemText: {
+    color: '#FFF',
+    fontSize: 16,
+    marginLeft: 15,
   },
 });

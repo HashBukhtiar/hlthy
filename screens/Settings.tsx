@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -19,6 +19,7 @@ import { getFullVersionString } from '@/utils/appVersion';
 import { getOptimalImageUrl } from '@/utils/imageUtils';
 import { useSettingsHandlers } from '@/hooks/useSettingsHandlers';
 import { UserSettings } from '@/types/settings';
+import { generateSettingsInsights, calculatePrivacyLevel } from '@/utils/settingsAnalytics';
 
 const privacyOptions = [
   { label: 'Public', value: 'public', icon: 'earth', description: 'Anyone can see your profile' },
@@ -52,7 +53,7 @@ export default function Settings() {
   const router = useRouter();
   const { userProfile, currentUser, refreshUserProfile } = useAuth();
 
-  // Settings state — only non-profile fields
+  // Immediate-save settings state
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
   const [profileVisibility, setProfileVisibility] = useState<'public' | 'private'>('public');
   const [messagePermission, setMessagePermission] = useState<'everyone' | 'followers'>('everyone');
@@ -64,6 +65,10 @@ export default function Settings() {
   const [lastModalAction, setLastModalAction] = useState(0);
   const MODAL_DEBOUNCE_MS = 300;
 
+  // Privacy analytics state
+  const [insights, setInsights] = useState<string[]>([]);
+  const [privacyLevel, setPrivacyLevel] = useState<'open' | 'moderate' | 'strict'>('moderate');
+
   // Load from profile
   useEffect(() => {
     if (userProfile) {
@@ -74,6 +79,36 @@ export default function Settings() {
       setDistanceUnit(userProfile.units?.distance || 'metric');
     }
   }, [userProfile]);
+
+  // Full settings snapshot — used by export/import/restore/reset handlers
+  const fullSettings = useMemo<Partial<UserSettings>>(() => ({
+    displayName: userProfile?.displayName || '',
+    bio: userProfile?.bio || '',
+    archetype: userProfile?.archetype || '',
+    profileVisibility,
+    messagePermission,
+    theme: (userProfile?.theme as any) || 'dark',
+    language: (userProfile?.language as any) || 'en',
+    units: { weight: weightUnit, distance: distanceUnit },
+    notifications: {
+      newFollowers: userProfile?.notifications?.newFollowers ?? true,
+      likesAndComments: userProfile?.notifications?.likesAndComments ?? true,
+      directMessages: userProfile?.notifications?.directMessages ?? true,
+      followRequestAccepted: userProfile?.notifications?.followRequestAccepted ?? true,
+      taggedInComments: userProfile?.notifications?.taggedInComments ?? true,
+      mentionedInReplies: userProfile?.notifications?.mentionedInReplies ?? true,
+      mentions: userProfile?.notifications?.mentions ?? true,
+    },
+    twoFactorEnabled,
+    dateOfBirth: userProfile?.dateOfBirth as any,
+    socialLinks: userProfile?.socialLinks as any,
+  }), [profileVisibility, messagePermission, weightUnit, distanceUnit, twoFactorEnabled, userProfile]);
+
+  // Update analytics whenever settings change
+  useEffect(() => {
+    setInsights(generateSettingsInsights(fullSettings));
+    setPrivacyLevel(calculatePrivacyLevel(fullSettings));
+  }, [fullSettings]);
 
   const openModal = useCallback((id: string) => {
     const now = Date.now();
@@ -96,6 +131,9 @@ export default function Settings() {
     setSaving(true);
     try {
       await SettingsRepository.updateUser(currentUser.uid, data);
+      Object.keys(data).forEach(key =>
+        SettingsRepository.trackSettingsChange(currentUser.uid, key)
+      );
       await refreshUserProfile();
     } catch (error) {
       console.error('Failed to save setting:', error);
@@ -105,31 +143,67 @@ export default function Settings() {
     }
   }, [currentUser, refreshUserProfile]);
 
-  // Dummy state for useSettingsHandlers (only used for its action handlers)
-  const [_dummySettings] = useState<Partial<UserSettings>>({});
-  const [_dummyLoading, setDummyLoading] = useState(false);
-  const [_dummyIsSaving, setDummyIsSaving] = useState(false);
+  // Applies a full settings object to local state and Firestore — used by import/restore/reset
+  const applySettings = useCallback(async (newSettings: Partial<UserSettings>) => {
+    const updates: Record<string, unknown> = {};
+    if (newSettings.profileVisibility !== undefined) {
+      setProfileVisibility(newSettings.profileVisibility as 'public' | 'private');
+      updates.profileVisibility = newSettings.profileVisibility;
+    }
+    if (newSettings.messagePermission !== undefined) {
+      setMessagePermission(newSettings.messagePermission as 'everyone' | 'followers');
+      updates.messagePermission = newSettings.messagePermission;
+    }
+    if (newSettings.twoFactorEnabled !== undefined) {
+      setTwoFactorEnabled(newSettings.twoFactorEnabled);
+      updates.twoFactorEnabled = newSettings.twoFactorEnabled;
+    }
+    if (newSettings.units?.weight !== undefined) {
+      setWeightUnit(newSettings.units.weight as 'metric' | 'imperial');
+      updates['units.weight'] = newSettings.units.weight;
+    }
+    if (newSettings.units?.distance !== undefined) {
+      setDistanceUnit(newSettings.units.distance as 'metric' | 'imperial');
+      updates['units.distance'] = newSettings.units.distance;
+    }
+    if (Object.keys(updates).length > 0) {
+      await saveField(updates);
+    }
+  }, [saveField]);
 
-  const { handleLogout, handleDeleteAccount, clearChatHistory, clearSearchHistory, handleChangePassword } =
-    useSettingsHandlers({
-      profileImage: undefined,
-      originalProfileImage: undefined,
-      settings: _dummySettings,
-      userProfile,
-      currentUser,
-      hasUnsavedChanges: false,
-      setProfileImage: () => {},
-      setImageManuallyChanged: () => {},
-      setHasUnsavedChanges: () => {},
-      setLoading: setDummyLoading,
-      setIsSaving: setDummyIsSaving,
-      setSettings: () => {},
-      setOriginalSettings: () => {},
-      setOriginalProfileImage: () => {},
-      refreshUserProfile,
-    });
+  const {
+    handleLogout,
+    handleDeleteAccount,
+    clearChatHistory,
+    clearSearchHistory,
+    handleChangePassword,
+    handleExportSettings,
+    handleImportSettings,
+    handleRestoreBackup,
+    handleResetToDefaults,
+  } = useSettingsHandlers({
+    profileImage: undefined,
+    originalProfileImage: undefined,
+    settings: fullSettings,
+    userProfile,
+    currentUser,
+    hasUnsavedChanges: false,
+    setProfileImage: () => {},
+    setImageManuallyChanged: () => {},
+    setHasUnsavedChanges: () => {},
+    setLoading: setSaving,
+    setIsSaving: setSaving,
+    setSettings: (newSettings) => {
+      const resolved = typeof newSettings === 'function'
+        ? newSettings(fullSettings)
+        : newSettings;
+      applySettings(resolved);
+    },
+    setOriginalSettings: () => {},
+    setOriginalProfileImage: () => {},
+    refreshUserProfile,
+  });
 
-  // --- Settings update handlers ---
   const handleToggle2FA = async (value: boolean) => {
     setTwoFactorEnabled(value);
     await saveField({ twoFactorEnabled: value });
@@ -159,7 +233,6 @@ export default function Settings() {
     await saveField({ 'units.distance': value });
   };
 
-  // Adapters for SettingsModals (which expects updateSetting)
   const modalSettings = { profileVisibility, messagePermission, units: { weight: weightUnit, distance: distanceUnit } };
   const updateSetting = (key: string, value: any) => {
     if (key === 'profileVisibility') handleVisibilityChange(value);
@@ -186,187 +259,264 @@ export default function Settings() {
 
         <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
 
-        {/* User Card */}
-        <View style={styles.userCard}>
-          {profileImageUrl ? (
-            <Image source={{ uri: profileImageUrl }} style={styles.userAvatar} />
-          ) : (
-            <View style={[styles.userAvatar, styles.userAvatarPlaceholder]}>
-              <Ionicons name="person" size={28} color="#3A3A3C" />
+          {/* User Card */}
+          <View style={styles.userCard}>
+            {profileImageUrl ? (
+              <Image source={{ uri: profileImageUrl }} style={styles.userAvatar} />
+            ) : (
+              <View style={[styles.userAvatar, styles.userAvatarPlaceholder]}>
+                <Ionicons name="person" size={28} color="#3A3A3C" />
+              </View>
+            )}
+            <View style={styles.userInfo}>
+              <Text style={styles.userName}>{userProfile?.displayName || 'User'}</Text>
+              <Text style={styles.userHandle}>@{userProfile?.username || ''}</Text>
             </View>
-          )}
-          <View style={styles.userInfo}>
-            <Text style={styles.userName}>{userProfile?.displayName || 'User'}</Text>
-            <Text style={styles.userHandle}>@{userProfile?.username || ''}</Text>
-          </View>
-        </View>
-
-        {/* Account Section */}
-        <Text style={styles.sectionHeader}>ACCOUNT</Text>
-        <View style={styles.card}>
-          <TouchableOpacity style={[styles.row, styles.rowBorder]} onPress={handleChangePassword} activeOpacity={0.7}>
-            <View style={styles.rowIconWrap}>
-              <Ionicons name="key-outline" size={18} color="#FFFFFF" />
-            </View>
-            <Text style={styles.rowLabel}>Change Password</Text>
-            <Ionicons name="chevron-forward" size={16} color="#3A3A3C" style={styles.chevron} />
-          </TouchableOpacity>
-
-          <View style={[styles.row, styles.rowBorder]}>
-            <View style={styles.rowIconWrap}>
-              <Ionicons name="lock-closed-outline" size={18} color="#FFFFFF" />
-            </View>
-            <Text style={styles.rowLabel}>Two-Factor Authentication</Text>
-            <Switch
-              value={twoFactorEnabled}
-              onValueChange={handleToggle2FA}
-              trackColor={{ false: '#3A3A3C', true: '#FF2D55' }}
-              thumbColor="#FFFFFF"
-              ios_backgroundColor="#3A3A3C"
-              style={{ alignSelf: 'center' }}
-            />
           </View>
 
-          <TouchableOpacity style={styles.row} onPress={handleDeleteAccount} activeOpacity={0.7}>
-            <View style={styles.rowIconWrap}>
-              <Ionicons name="trash-outline" size={18} color="#FF3B30" />
-            </View>
-            <Text style={[styles.rowLabel, styles.destructiveText]}>Delete Account</Text>
-          </TouchableOpacity>
-        </View>
+          {/* ACCOUNT */}
+          <Text style={styles.sectionHeader}>ACCOUNT</Text>
+          <View style={styles.card}>
+            <TouchableOpacity style={[styles.row, styles.rowBorder]} onPress={handleChangePassword} activeOpacity={0.7}>
+              <View style={styles.rowIconWrap}>
+                <Ionicons name="key-outline" size={18} color="#FFFFFF" />
+              </View>
+              <Text style={styles.rowLabel}>Change Password</Text>
+              <Ionicons name="chevron-forward" size={16} color="#3A3A3C" style={styles.chevron} />
+            </TouchableOpacity>
 
-        {/* Privacy Section */}
-        <Text style={styles.sectionHeader}>PRIVACY</Text>
-        <View style={styles.card}>
-          <TouchableOpacity style={[styles.row, styles.rowBorder]} onPress={() => openModal('privacy')} activeOpacity={0.7}>
-            <View style={styles.rowIconWrap}>
-              <Ionicons name="eye-outline" size={18} color="#FFFFFF" />
+            <View style={[styles.row, styles.rowBorder]}>
+              <View style={styles.rowIconWrap}>
+                <Ionicons name="lock-closed-outline" size={18} color="#FFFFFF" />
+              </View>
+              <Text style={styles.rowLabel}>Two-Factor Authentication</Text>
+              <Switch
+                value={twoFactorEnabled}
+                onValueChange={handleToggle2FA}
+                trackColor={{ false: '#3A3A3C', true: '#FF2D55' }}
+                thumbColor="#FFFFFF"
+                ios_backgroundColor="#3A3A3C"
+                style={{ alignSelf: 'center' }}
+              />
             </View>
-            <Text style={styles.rowLabel}>Profile Visibility</Text>
-            <View style={styles.rowRight}>
-              <Text style={styles.rowValue}>{visibilityLabel[profileVisibility]}</Text>
-              <Ionicons name="chevron-forward" size={16} color="#3A3A3C" />
-            </View>
-          </TouchableOpacity>
 
-          <TouchableOpacity style={[styles.row, styles.rowBorder]} onPress={() => openModal('message')} activeOpacity={0.7}>
-            <View style={styles.rowIconWrap}>
-              <Ionicons name="chatbubble-outline" size={18} color="#FFFFFF" />
-            </View>
-            <Text style={styles.rowLabel}>Who Can Message You</Text>
-            <View style={styles.rowRight}>
-              <Text style={styles.rowValue}>{messageLabel[messagePermission]}</Text>
-              <Ionicons name="chevron-forward" size={16} color="#3A3A3C" />
-            </View>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.row} onPress={() => router.push('/blocked-users')} activeOpacity={0.7}>
-            <View style={styles.rowIconWrap}>
-              <Ionicons name="ban-outline" size={18} color="#FFFFFF" />
-            </View>
-            <Text style={styles.rowLabel}>Blocked Users</Text>
-            <Ionicons name="chevron-forward" size={16} color="#3A3A3C" style={styles.chevron} />
-          </TouchableOpacity>
-        </View>
-
-        {/* Notifications Section */}
-        <Text style={styles.sectionHeader}>NOTIFICATIONS</Text>
-        <View style={styles.card}>
-          <TouchableOpacity style={styles.row} onPress={() => router.push('/settings-notifications')} activeOpacity={0.7}>
-            <View style={styles.rowIconWrap}>
-              <Ionicons name="notifications-outline" size={18} color="#FFFFFF" />
-            </View>
-            <Text style={styles.rowLabel}>Notifications</Text>
-            <Ionicons name="chevron-forward" size={16} color="#3A3A3C" style={styles.chevron} />
-          </TouchableOpacity>
-        </View>
-
-        {/* Preferences Section */}
-        <Text style={styles.sectionHeader}>PREFERENCES</Text>
-        <View style={styles.card}>
-          <TouchableOpacity style={[styles.row, styles.rowBorder]} onPress={() => openModal('weightUnit')} activeOpacity={0.7}>
-            <View style={styles.rowIconWrap}>
-              <Ionicons name="barbell-outline" size={18} color="#FFFFFF" />
-            </View>
-            <Text style={styles.rowLabel}>Weight Unit</Text>
-            <View style={styles.rowRight}>
-              <Text style={styles.rowValue}>{weightLabel[weightUnit]}</Text>
-              <Ionicons name="chevron-forward" size={16} color="#3A3A3C" />
-            </View>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.row} onPress={() => openModal('distanceUnit')} activeOpacity={0.7}>
-            <View style={styles.rowIconWrap}>
-              <Ionicons name="navigate-outline" size={18} color="#FFFFFF" />
-            </View>
-            <Text style={styles.rowLabel}>Distance Unit</Text>
-            <View style={styles.rowRight}>
-              <Text style={styles.rowValue}>{distanceLabel[distanceUnit]}</Text>
-              <Ionicons name="chevron-forward" size={16} color="#3A3A3C" />
-            </View>
-          </TouchableOpacity>
-        </View>
-
-        {/* Support Section */}
-        <Text style={styles.sectionHeader}>SUPPORT</Text>
-        <View style={styles.card}>
-          <TouchableOpacity style={[styles.row, styles.rowBorder]} onPress={() => router.push('/privacy-policy')} activeOpacity={0.7}>
-            <View style={styles.rowIconWrap}>
-              <Ionicons name="document-text-outline" size={18} color="#FFFFFF" />
-            </View>
-            <Text style={styles.rowLabel}>Privacy Policy</Text>
-            <Ionicons name="chevron-forward" size={16} color="#3A3A3C" style={styles.chevron} />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={[styles.row, styles.rowBorder]} onPress={() => router.push('/terms-of-service')} activeOpacity={0.7}>
-            <View style={styles.rowIconWrap}>
-              <Ionicons name="reader-outline" size={18} color="#FFFFFF" />
-            </View>
-            <Text style={styles.rowLabel}>Terms of Service</Text>
-            <Ionicons name="chevron-forward" size={16} color="#3A3A3C" style={styles.chevron} />
-          </TouchableOpacity>
-
-          <View style={styles.row}>
-            <View style={styles.rowIconWrap}>
-              <Ionicons name="information-circle-outline" size={18} color="#FFFFFF" />
-            </View>
-            <Text style={styles.rowLabel}>App Version</Text>
-            <Text style={styles.rowValue}>{getFullVersionString()}</Text>
+            <TouchableOpacity style={styles.row} onPress={handleDeleteAccount} activeOpacity={0.7}>
+              <View style={styles.rowIconWrap}>
+                <Ionicons name="trash-outline" size={18} color="#FF3B30" />
+              </View>
+              <Text style={[styles.rowLabel, styles.destructiveText]}>Delete Account</Text>
+            </TouchableOpacity>
           </View>
-        </View>
 
-        {/* Data Section */}
-        <Text style={styles.sectionHeader}>DATA</Text>
-        <View style={styles.card}>
-          <TouchableOpacity
-            style={[styles.row, styles.rowBorder]}
-            onPress={() => Alert.alert('Clear Chat History', 'This will permanently delete all your chat messages. This action cannot be undone.', [{ text: 'Cancel', style: 'cancel' }, { text: 'Clear', style: 'destructive', onPress: clearChatHistory }])}
-            activeOpacity={0.7}
-          >
-            <View style={styles.rowIconWrap}>
-              <Ionicons name="chatbubbles-outline" size={18} color="#FF3B30" />
+          {/* PRIVACY */}
+          <Text style={styles.sectionHeader}>PRIVACY</Text>
+          <View style={styles.card}>
+            <TouchableOpacity style={[styles.row, styles.rowBorder]} onPress={() => openModal('privacy')} activeOpacity={0.7}>
+              <View style={styles.rowIconWrap}>
+                <Ionicons name="eye-outline" size={18} color="#FFFFFF" />
+              </View>
+              <Text style={styles.rowLabel}>Profile Visibility</Text>
+              <View style={styles.rowRight}>
+                <Text style={styles.rowValue}>{visibilityLabel[profileVisibility]}</Text>
+                <Ionicons name="chevron-forward" size={16} color="#3A3A3C" />
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={[styles.row, styles.rowBorder]} onPress={() => openModal('message')} activeOpacity={0.7}>
+              <View style={styles.rowIconWrap}>
+                <Ionicons name="chatbubble-outline" size={18} color="#FFFFFF" />
+              </View>
+              <Text style={styles.rowLabel}>Who Can Message You</Text>
+              <View style={styles.rowRight}>
+                <Text style={styles.rowValue}>{messageLabel[messagePermission]}</Text>
+                <Ionicons name="chevron-forward" size={16} color="#3A3A3C" />
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={[styles.row, styles.rowBorder]} onPress={() => router.push('/blocked-users')} activeOpacity={0.7}>
+              <View style={styles.rowIconWrap}>
+                <Ionicons name="ban-outline" size={18} color="#FFFFFF" />
+              </View>
+              <Text style={styles.rowLabel}>Blocked Users</Text>
+              <Ionicons name="chevron-forward" size={16} color="#3A3A3C" style={styles.chevron} />
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.row} onPress={() => router.push('/mention-blocked-users')} activeOpacity={0.7}>
+              <View style={styles.rowIconWrap}>
+                <Ionicons name="at-outline" size={18} color="#FFFFFF" />
+              </View>
+              <Text style={styles.rowLabel}>Blocked Mentions</Text>
+              <Ionicons name="chevron-forward" size={16} color="#3A3A3C" style={styles.chevron} />
+            </TouchableOpacity>
+          </View>
+
+          {/* NOTIFICATIONS */}
+          <Text style={styles.sectionHeader}>NOTIFICATIONS</Text>
+          <View style={styles.card}>
+            <TouchableOpacity style={styles.row} onPress={() => router.push('/settings-notifications')} activeOpacity={0.7}>
+              <View style={styles.rowIconWrap}>
+                <Ionicons name="notifications-outline" size={18} color="#FFFFFF" />
+              </View>
+              <Text style={styles.rowLabel}>Notifications</Text>
+              <Ionicons name="chevron-forward" size={16} color="#3A3A3C" style={styles.chevron} />
+            </TouchableOpacity>
+          </View>
+
+          {/* PREFERENCES */}
+          <Text style={styles.sectionHeader}>PREFERENCES</Text>
+          <View style={styles.card}>
+            <TouchableOpacity style={[styles.row, styles.rowBorder]} onPress={() => openModal('weightUnit')} activeOpacity={0.7}>
+              <View style={styles.rowIconWrap}>
+                <Ionicons name="barbell-outline" size={18} color="#FFFFFF" />
+              </View>
+              <Text style={styles.rowLabel}>Weight Unit</Text>
+              <View style={styles.rowRight}>
+                <Text style={styles.rowValue}>{weightLabel[weightUnit]}</Text>
+                <Ionicons name="chevron-forward" size={16} color="#3A3A3C" />
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.row} onPress={() => openModal('distanceUnit')} activeOpacity={0.7}>
+              <View style={styles.rowIconWrap}>
+                <Ionicons name="navigate-outline" size={18} color="#FFFFFF" />
+              </View>
+              <Text style={styles.rowLabel}>Distance Unit</Text>
+              <View style={styles.rowRight}>
+                <Text style={styles.rowValue}>{distanceLabel[distanceUnit]}</Text>
+                <Ionicons name="chevron-forward" size={16} color="#3A3A3C" />
+              </View>
+            </TouchableOpacity>
+          </View>
+
+          {/* SUPPORT */}
+          <Text style={styles.sectionHeader}>SUPPORT</Text>
+          <View style={styles.card}>
+            <TouchableOpacity style={[styles.row, styles.rowBorder]} onPress={() => router.push('/privacy-policy')} activeOpacity={0.7}>
+              <View style={styles.rowIconWrap}>
+                <Ionicons name="document-text-outline" size={18} color="#FFFFFF" />
+              </View>
+              <Text style={styles.rowLabel}>Privacy Policy</Text>
+              <Ionicons name="chevron-forward" size={16} color="#3A3A3C" style={styles.chevron} />
+            </TouchableOpacity>
+
+            <TouchableOpacity style={[styles.row, styles.rowBorder]} onPress={() => router.push('/terms-of-service')} activeOpacity={0.7}>
+              <View style={styles.rowIconWrap}>
+                <Ionicons name="reader-outline" size={18} color="#FFFFFF" />
+              </View>
+              <Text style={styles.rowLabel}>Terms of Service</Text>
+              <Ionicons name="chevron-forward" size={16} color="#3A3A3C" style={styles.chevron} />
+            </TouchableOpacity>
+
+            <View style={styles.row}>
+              <View style={styles.rowIconWrap}>
+                <Ionicons name="information-circle-outline" size={18} color="#FFFFFF" />
+              </View>
+              <Text style={styles.rowLabel}>App Version</Text>
+              <Text style={styles.rowValue}>{getFullVersionString()}</Text>
             </View>
-            <Text style={[styles.rowLabel, styles.destructiveText]}>Clear Chat History</Text>
+          </View>
+
+          {/* DATA */}
+          <Text style={styles.sectionHeader}>DATA</Text>
+          <View style={styles.card}>
+            <TouchableOpacity
+              style={[styles.row, styles.rowBorder]}
+              onPress={() => Alert.alert(
+                'Clear Chat History',
+                'This will permanently delete all your chat messages. This action cannot be undone.',
+                [{ text: 'Cancel', style: 'cancel' }, { text: 'Clear', style: 'destructive', onPress: clearChatHistory }]
+              )}
+              activeOpacity={0.7}
+            >
+              <View style={styles.rowIconWrap}>
+                <Ionicons name="chatbubbles-outline" size={18} color="#FF3B30" />
+              </View>
+              <Text style={[styles.rowLabel, styles.destructiveText]}>Clear Chat History</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.row}
+              onPress={() => Alert.alert(
+                'Clear Search History',
+                'This will remove all your recent searches.',
+                [{ text: 'Cancel', style: 'cancel' }, { text: 'Clear', style: 'destructive', onPress: clearSearchHistory }]
+              )}
+              activeOpacity={0.7}
+            >
+              <View style={styles.rowIconWrap}>
+                <Ionicons name="search-outline" size={18} color="#FF3B30" />
+              </View>
+              <Text style={[styles.rowLabel, styles.destructiveText]}>Clear Search History</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* ADVANCED */}
+          <Text style={styles.sectionHeader}>ADVANCED</Text>
+          <View style={styles.card}>
+            <View style={[styles.row, styles.rowBorder]}>
+              <View style={styles.rowIconWrap}>
+                <Ionicons name="shield-outline" size={18} color="#FFFFFF" />
+              </View>
+              <Text style={styles.rowLabel}>Privacy Level</Text>
+              <View style={[
+                styles.privacyLevelBadge,
+                { backgroundColor: privacyLevel === 'strict' ? '#34C759' : privacyLevel === 'moderate' ? '#FF9500' : '#FF3B30' },
+              ]}>
+                <Text style={styles.privacyLevelText}>
+                  {privacyLevel.charAt(0).toUpperCase() + privacyLevel.slice(1)}
+                </Text>
+              </View>
+            </View>
+
+            <TouchableOpacity style={[styles.row, styles.rowBorder]} onPress={() => openModal('insights')} activeOpacity={0.7}>
+              <View style={styles.rowIconWrap}>
+                <Ionicons name="bulb-outline" size={18} color="#FFFFFF" />
+              </View>
+              <Text style={styles.rowLabel}>Privacy Insights</Text>
+              <View style={styles.rowRight}>
+                <Text style={styles.rowValue}>{insights.length}</Text>
+                <Ionicons name="chevron-forward" size={16} color="#3A3A3C" />
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={[styles.row, styles.rowBorder]} onPress={handleExportSettings} activeOpacity={0.7}>
+              <View style={styles.rowIconWrap}>
+                <Ionicons name="share-outline" size={18} color="#FFFFFF" />
+              </View>
+              <Text style={styles.rowLabel}>Export Settings</Text>
+              <Ionicons name="chevron-forward" size={16} color="#3A3A3C" style={styles.chevron} />
+            </TouchableOpacity>
+
+            <TouchableOpacity style={[styles.row, styles.rowBorder]} onPress={handleImportSettings} activeOpacity={0.7}>
+              <View style={styles.rowIconWrap}>
+                <Ionicons name="download-outline" size={18} color="#FFFFFF" />
+              </View>
+              <Text style={styles.rowLabel}>Import Settings</Text>
+              <Ionicons name="chevron-forward" size={16} color="#3A3A3C" style={styles.chevron} />
+            </TouchableOpacity>
+
+            <TouchableOpacity style={[styles.row, styles.rowBorder]} onPress={handleRestoreBackup} activeOpacity={0.7}>
+              <View style={styles.rowIconWrap}>
+                <Ionicons name="refresh-outline" size={18} color="#FFFFFF" />
+              </View>
+              <Text style={styles.rowLabel}>Restore from Backup</Text>
+              <Ionicons name="chevron-forward" size={16} color="#3A3A3C" style={styles.chevron} />
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.row} onPress={handleResetToDefaults} activeOpacity={0.7}>
+              <View style={styles.rowIconWrap}>
+                <Ionicons name="refresh-circle-outline" size={18} color="#FF3B30" />
+              </View>
+              <Text style={[styles.rowLabel, styles.destructiveText]}>Reset to Defaults</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Log Out */}
+          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout} activeOpacity={0.8}>
+            <Text style={styles.logoutText}>Log Out</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.row}
-            onPress={() => Alert.alert('Clear Search History', 'This will remove all your recent searches.', [{ text: 'Cancel', style: 'cancel' }, { text: 'Clear', style: 'destructive', onPress: clearSearchHistory }])}
-            activeOpacity={0.7}
-          >
-            <View style={styles.rowIconWrap}>
-              <Ionicons name="search-outline" size={18} color="#FF3B30" />
-            </View>
-            <Text style={[styles.rowLabel, styles.destructiveText]}>Clear Search History</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Logout */}
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout} activeOpacity={0.8}>
-          <Text style={styles.logoutText}>Log Out</Text>
-        </TouchableOpacity>
-
-        <View style={styles.footer} />
+          <View style={styles.footer} />
         </ScrollView>
       </View>
 
@@ -381,8 +531,8 @@ export default function Settings() {
         closeModal={closeModal}
         settings={modalSettings}
         updateSetting={updateSetting}
-        insights={[]}
-        privacyLevel="moderate"
+        insights={insights}
+        privacyLevel={privacyLevel}
       />
     </>
   );
@@ -503,6 +653,16 @@ const styles = StyleSheet.create({
   },
   destructiveText: {
     color: '#FF3B30',
+  },
+  privacyLevelBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+  },
+  privacyLevelText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600',
   },
   logoutButton: {
     marginHorizontal: 16,

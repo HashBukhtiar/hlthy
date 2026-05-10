@@ -53,7 +53,8 @@ export const ActivityRepository = {
         const items: ActivityItem[] = [];
         snapshot.forEach(doc => {
           const data = doc.data();
-          if (data.type !== 'follow_request') {
+          // Filter out follow_request and dismissed items client-side
+          if (data.type !== 'follow_request' && data.dismissed !== true) {
             items.push({ ...(data as ActivityItem), id: doc.id });
           }
         });
