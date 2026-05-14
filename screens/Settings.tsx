@@ -1,11 +1,10 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Switch,
   Image,
   ActivityIndicator,
   Alert,
@@ -18,8 +17,6 @@ import { SettingsModals } from '@/components/settings/SettingsModals';
 import { getFullVersionString } from '@/utils/appVersion';
 import { getOptimalImageUrl } from '@/utils/imageUtils';
 import { useSettingsHandlers } from '@/hooks/useSettingsHandlers';
-import { UserSettings } from '@/types/settings';
-import { generateSettingsInsights, calculatePrivacyLevel } from '@/utils/settingsAnalytics';
 
 const privacyOptions = [
   { label: 'Public', value: 'public', icon: 'earth', description: 'Anyone can see your profile' },
@@ -53,8 +50,6 @@ export default function Settings() {
   const router = useRouter();
   const { userProfile, currentUser, refreshUserProfile } = useAuth();
 
-  // Immediate-save settings state
-  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
   const [profileVisibility, setProfileVisibility] = useState<'public' | 'private'>('public');
   const [messagePermission, setMessagePermission] = useState<'everyone' | 'followers'>('everyone');
   const [weightUnit, setWeightUnit] = useState<'metric' | 'imperial'>('metric');
@@ -65,50 +60,16 @@ export default function Settings() {
   const [lastModalAction, setLastModalAction] = useState(0);
   const MODAL_DEBOUNCE_MS = 300;
 
-  // Privacy analytics state
-  const [insights, setInsights] = useState<string[]>([]);
-  const [privacyLevel, setPrivacyLevel] = useState<'open' | 'moderate' | 'strict'>('moderate');
 
   // Load from profile
   useEffect(() => {
     if (userProfile) {
-      setTwoFactorEnabled(userProfile.twoFactorEnabled || false);
       setProfileVisibility(userProfile.profileVisibility || 'public');
       setMessagePermission(userProfile.messagePermission || 'everyone');
       setWeightUnit(userProfile.units?.weight || 'metric');
       setDistanceUnit(userProfile.units?.distance || 'metric');
     }
   }, [userProfile]);
-
-  // Full settings snapshot — used by export/import/restore/reset handlers
-  const fullSettings = useMemo<Partial<UserSettings>>(() => ({
-    displayName: userProfile?.displayName || '',
-    bio: userProfile?.bio || '',
-    archetype: userProfile?.archetype || '',
-    profileVisibility,
-    messagePermission,
-    theme: (userProfile?.theme as any) || 'dark',
-    language: (userProfile?.language as any) || 'en',
-    units: { weight: weightUnit, distance: distanceUnit },
-    notifications: {
-      newFollowers: userProfile?.notifications?.newFollowers ?? true,
-      likesAndComments: userProfile?.notifications?.likesAndComments ?? true,
-      directMessages: userProfile?.notifications?.directMessages ?? true,
-      followRequestAccepted: userProfile?.notifications?.followRequestAccepted ?? true,
-      taggedInComments: userProfile?.notifications?.taggedInComments ?? true,
-      mentionedInReplies: userProfile?.notifications?.mentionedInReplies ?? true,
-      mentions: userProfile?.notifications?.mentions ?? true,
-    },
-    twoFactorEnabled,
-    dateOfBirth: userProfile?.dateOfBirth as any,
-    socialLinks: userProfile?.socialLinks as any,
-  }), [profileVisibility, messagePermission, weightUnit, distanceUnit, twoFactorEnabled, userProfile]);
-
-  // Update analytics whenever settings change
-  useEffect(() => {
-    setInsights(generateSettingsInsights(fullSettings));
-    setPrivacyLevel(calculatePrivacyLevel(fullSettings));
-  }, [fullSettings]);
 
   const openModal = useCallback((id: string) => {
     const now = Date.now();
@@ -143,48 +104,16 @@ export default function Settings() {
     }
   }, [currentUser, refreshUserProfile]);
 
-  // Applies a full settings object to local state and Firestore — used by import/restore/reset
-  const applySettings = useCallback(async (newSettings: Partial<UserSettings>) => {
-    const updates: Record<string, unknown> = {};
-    if (newSettings.profileVisibility !== undefined) {
-      setProfileVisibility(newSettings.profileVisibility as 'public' | 'private');
-      updates.profileVisibility = newSettings.profileVisibility;
-    }
-    if (newSettings.messagePermission !== undefined) {
-      setMessagePermission(newSettings.messagePermission as 'everyone' | 'followers');
-      updates.messagePermission = newSettings.messagePermission;
-    }
-    if (newSettings.twoFactorEnabled !== undefined) {
-      setTwoFactorEnabled(newSettings.twoFactorEnabled);
-      updates.twoFactorEnabled = newSettings.twoFactorEnabled;
-    }
-    if (newSettings.units?.weight !== undefined) {
-      setWeightUnit(newSettings.units.weight as 'metric' | 'imperial');
-      updates['units.weight'] = newSettings.units.weight;
-    }
-    if (newSettings.units?.distance !== undefined) {
-      setDistanceUnit(newSettings.units.distance as 'metric' | 'imperial');
-      updates['units.distance'] = newSettings.units.distance;
-    }
-    if (Object.keys(updates).length > 0) {
-      await saveField(updates);
-    }
-  }, [saveField]);
-
   const {
     handleLogout,
     handleDeleteAccount,
     clearChatHistory,
     clearSearchHistory,
     handleChangePassword,
-    handleExportSettings,
-    handleImportSettings,
-    handleRestoreBackup,
-    handleResetToDefaults,
   } = useSettingsHandlers({
     profileImage: undefined,
     originalProfileImage: undefined,
-    settings: fullSettings,
+    settings: {},
     userProfile,
     currentUser,
     hasUnsavedChanges: false,
@@ -193,21 +122,11 @@ export default function Settings() {
     setHasUnsavedChanges: () => {},
     setLoading: setSaving,
     setIsSaving: setSaving,
-    setSettings: (newSettings) => {
-      const resolved = typeof newSettings === 'function'
-        ? newSettings(fullSettings)
-        : newSettings;
-      applySettings(resolved);
-    },
+    setSettings: () => {},
     setOriginalSettings: () => {},
     setOriginalProfileImage: () => {},
     refreshUserProfile,
   });
-
-  const handleToggle2FA = async (value: boolean) => {
-    setTwoFactorEnabled(value);
-    await saveField({ twoFactorEnabled: value });
-  };
 
   const handleVisibilityChange = async (value: string) => {
     setProfileVisibility(value as 'public' | 'private');
@@ -260,7 +179,7 @@ export default function Settings() {
         <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
 
           {/* User Card */}
-          <View style={styles.userCard}>
+          <TouchableOpacity style={styles.userCard} onPress={() => router.push('/edit-profile')} activeOpacity={0.7}>
             {profileImageUrl ? (
               <Image source={{ uri: profileImageUrl }} style={styles.userAvatar} />
             ) : (
@@ -272,7 +191,8 @@ export default function Settings() {
               <Text style={styles.userName}>{userProfile?.displayName || 'User'}</Text>
               <Text style={styles.userHandle}>@{userProfile?.username || ''}</Text>
             </View>
-          </View>
+            <Ionicons name="chevron-forward" size={16} color="#3A3A3C" />
+          </TouchableOpacity>
 
           {/* ACCOUNT */}
           <Text style={styles.sectionHeader}>ACCOUNT</Text>
@@ -290,14 +210,9 @@ export default function Settings() {
                 <Ionicons name="lock-closed-outline" size={18} color="#FFFFFF" />
               </View>
               <Text style={styles.rowLabel}>Two-Factor Authentication</Text>
-              <Switch
-                value={twoFactorEnabled}
-                onValueChange={handleToggle2FA}
-                trackColor={{ false: '#3A3A3C', true: '#FF2D55' }}
-                thumbColor="#FFFFFF"
-                ios_backgroundColor="#3A3A3C"
-                style={{ alignSelf: 'center' }}
-              />
+              <View style={styles.comingSoonBadge}>
+                <Text style={styles.comingSoonText}>Coming Soon</Text>
+              </View>
             </View>
 
             <TouchableOpacity style={styles.row} onPress={handleDeleteAccount} activeOpacity={0.7}>
@@ -450,67 +365,6 @@ export default function Settings() {
             </TouchableOpacity>
           </View>
 
-          {/* ADVANCED */}
-          <Text style={styles.sectionHeader}>ADVANCED</Text>
-          <View style={styles.card}>
-            <View style={[styles.row, styles.rowBorder]}>
-              <View style={styles.rowIconWrap}>
-                <Ionicons name="shield-outline" size={18} color="#FFFFFF" />
-              </View>
-              <Text style={styles.rowLabel}>Privacy Level</Text>
-              <View style={[
-                styles.privacyLevelBadge,
-                { backgroundColor: privacyLevel === 'strict' ? '#34C759' : privacyLevel === 'moderate' ? '#FF9500' : '#FF3B30' },
-              ]}>
-                <Text style={styles.privacyLevelText}>
-                  {privacyLevel.charAt(0).toUpperCase() + privacyLevel.slice(1)}
-                </Text>
-              </View>
-            </View>
-
-            <TouchableOpacity style={[styles.row, styles.rowBorder]} onPress={() => openModal('insights')} activeOpacity={0.7}>
-              <View style={styles.rowIconWrap}>
-                <Ionicons name="bulb-outline" size={18} color="#FFFFFF" />
-              </View>
-              <Text style={styles.rowLabel}>Privacy Insights</Text>
-              <View style={styles.rowRight}>
-                <Text style={styles.rowValue}>{insights.length}</Text>
-                <Ionicons name="chevron-forward" size={16} color="#3A3A3C" />
-              </View>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={[styles.row, styles.rowBorder]} onPress={handleExportSettings} activeOpacity={0.7}>
-              <View style={styles.rowIconWrap}>
-                <Ionicons name="share-outline" size={18} color="#FFFFFF" />
-              </View>
-              <Text style={styles.rowLabel}>Export Settings</Text>
-              <Ionicons name="chevron-forward" size={16} color="#3A3A3C" style={styles.chevron} />
-            </TouchableOpacity>
-
-            <TouchableOpacity style={[styles.row, styles.rowBorder]} onPress={handleImportSettings} activeOpacity={0.7}>
-              <View style={styles.rowIconWrap}>
-                <Ionicons name="download-outline" size={18} color="#FFFFFF" />
-              </View>
-              <Text style={styles.rowLabel}>Import Settings</Text>
-              <Ionicons name="chevron-forward" size={16} color="#3A3A3C" style={styles.chevron} />
-            </TouchableOpacity>
-
-            <TouchableOpacity style={[styles.row, styles.rowBorder]} onPress={handleRestoreBackup} activeOpacity={0.7}>
-              <View style={styles.rowIconWrap}>
-                <Ionicons name="refresh-outline" size={18} color="#FFFFFF" />
-              </View>
-              <Text style={styles.rowLabel}>Restore from Backup</Text>
-              <Ionicons name="chevron-forward" size={16} color="#3A3A3C" style={styles.chevron} />
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.row} onPress={handleResetToDefaults} activeOpacity={0.7}>
-              <View style={styles.rowIconWrap}>
-                <Ionicons name="refresh-circle-outline" size={18} color="#FF3B30" />
-              </View>
-              <Text style={[styles.rowLabel, styles.destructiveText]}>Reset to Defaults</Text>
-            </TouchableOpacity>
-          </View>
-
           {/* Log Out */}
           <TouchableOpacity style={styles.logoutButton} onPress={handleLogout} activeOpacity={0.8}>
             <Text style={styles.logoutText}>Log Out</Text>
@@ -531,8 +385,8 @@ export default function Settings() {
         closeModal={closeModal}
         settings={modalSettings}
         updateSetting={updateSetting}
-        insights={insights}
-        privacyLevel={privacyLevel}
+        insights={[]}
+        privacyLevel="moderate"
       />
     </>
   );
@@ -654,15 +508,16 @@ const styles = StyleSheet.create({
   destructiveText: {
     color: '#FF3B30',
   },
-  privacyLevelBadge: {
+  comingSoonBadge: {
+    backgroundColor: '#2C2C2E',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 10,
   },
-  privacyLevelText: {
-    color: '#FFFFFF',
+  comingSoonText: {
+    color: '#8E8E93',
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '500',
   },
   logoutButton: {
     marginHorizontal: 16,
