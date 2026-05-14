@@ -150,6 +150,7 @@ export default function Explore() {
   const [searchHistory, setSearchHistory] = useState<SearchHistoryEntry[]>([]);
   const blurTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchInputRef = useRef<TextInput>(null);
+  const cancelAnim = useRef(new Animated.Value(0)).current;
 
   const isSearching = searchQuery.trim().length > 0;
   const showHistory = searchFocused && !isSearching && searchHistory.length > 0;
@@ -162,6 +163,14 @@ export default function Explore() {
       }
     });
   }, []);
+
+  useEffect(() => {
+    Animated.timing(cancelAnim, {
+      toValue: searchFocused ? 1 : 0,
+      duration: 220,
+      useNativeDriver: false,
+    }).start();
+  }, [searchFocused]);
 
   const saveHistory = useCallback(async (entry: SearchHistoryEntry) => {
     setSearchHistory(prev => {
@@ -378,7 +387,11 @@ export default function Explore() {
             </TouchableOpacity>
           )}
         </View>
-        {searchFocused && (
+        <Animated.View style={{
+          opacity: cancelAnim,
+          width: cancelAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 70] }),
+          overflow: 'hidden',
+        }}>
           <TouchableOpacity
             style={styles.cancelButton}
             onPress={() => {
@@ -389,7 +402,7 @@ export default function Explore() {
           >
             <Text style={styles.cancelButtonText}>Cancel</Text>
           </TouchableOpacity>
-        )}
+        </Animated.View>
       </View>
 
       {/* Search history */}
