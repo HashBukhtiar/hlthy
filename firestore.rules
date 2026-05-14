@@ -373,5 +373,11 @@ service cloud.firestore {
       // Admin operations (read all, update status) use Cloud Functions with Admin SDK
       allow delete: if false;
     }
+
+    // Hashtags collection — any authenticated user can read; only Cloud Functions (Admin SDK) write
+    match /hashtags/{tagName} {
+      allow read: if isAuthenticated();
+      allow write: if false;
+    }
   }
 }
