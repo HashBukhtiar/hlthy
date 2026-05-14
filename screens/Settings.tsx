@@ -107,7 +107,6 @@ export default function Settings() {
   const {
     handleLogout,
     handleDeleteAccount,
-    clearSearchHistory,
     handleChangePassword,
   } = useSettingsHandlers({
     profileImage: undefined,
@@ -328,25 +327,6 @@ export default function Settings() {
               <Text style={styles.rowLabel}>App Version</Text>
               <Text style={styles.rowValue}>{getFullVersionString()}</Text>
             </View>
-          </View>
-
-          {/* DATA */}
-          <Text style={styles.sectionHeader}>DATA</Text>
-          <View style={styles.card}>
-            <TouchableOpacity
-              style={styles.row}
-              onPress={() => Alert.alert(
-                'Clear Search History',
-                'This will remove all your recent searches.',
-                [{ text: 'Cancel', style: 'cancel' }, { text: 'Clear', style: 'destructive', onPress: clearSearchHistory }]
-              )}
-              activeOpacity={0.7}
-            >
-              <View style={styles.rowIconWrap}>
-                <Ionicons name="search-outline" size={18} color="#FF3B30" />
-              </View>
-              <Text style={[styles.rowLabel, styles.destructiveText]}>Clear Search History</Text>
-            </TouchableOpacity>
           </View>
 
           {/* Log Out */}
