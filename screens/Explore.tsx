@@ -11,6 +11,7 @@ import {
   Animated,
   Platform,
 } from 'react-native';
+import Reanimated, { FadeIn, FadeOut, LinearTransition } from 'react-native-reanimated';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -150,7 +151,7 @@ export default function Explore() {
   const [searchHistory, setSearchHistory] = useState<SearchHistoryEntry[]>([]);
   const blurTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchInputRef = useRef<TextInput>(null);
-  const cancelAnim = useRef(new Animated.Value(0)).current;
+
 
   const isSearching = searchQuery.trim().length > 0;
   const showHistory = searchFocused && !isSearching && searchHistory.length > 0;
@@ -163,14 +164,6 @@ export default function Explore() {
       }
     });
   }, []);
-
-  useEffect(() => {
-    Animated.timing(cancelAnim, {
-      toValue: searchFocused ? 1 : 0,
-      duration: 220,
-      useNativeDriver: false,
-    }).start();
-  }, [searchFocused]);
 
   const saveHistory = useCallback(async (entry: SearchHistoryEntry) => {
     setSearchHistory(prev => {
@@ -361,7 +354,7 @@ export default function Explore() {
     <View style={globalStyles.container}>
       {/* Search bar */}
       <View style={[styles.searchBarView, { paddingTop: insets.top + (Platform.OS === 'android' ? 20 : 0) }]}>
-        <View style={styles.searchBarContainer}>
+        <Reanimated.View style={styles.searchBarContainer} layout={LinearTransition.duration(220)}>
           <Ionicons name="search" size={16} color="#8E8E93" style={styles.searchIcon} />
           <TextInput
             ref={searchInputRef}
@@ -386,66 +379,24 @@ export default function Explore() {
               <Ionicons name="close-circle" size={18} color="#8E8E93" />
             </TouchableOpacity>
           )}
-        </View>
-        <Animated.View style={{
-          opacity: cancelAnim,
-          width: cancelAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 70] }),
-          overflow: 'hidden',
-        }}>
-          <TouchableOpacity
-            style={styles.cancelButton}
-            onPress={() => {
-              clearSearch();
-              setSearchFocused(false);
-              searchInputRef.current?.blur();
-            }}
-          >
-            <Text style={styles.cancelButtonText}>Cancel</Text>
-          </TouchableOpacity>
-        </Animated.View>
-      </View>
-
-      {/* Search history */}
-      {showHistory && (
-        <View style={styles.historyContainer}>
-          <View style={styles.historyHeader}>
-            <Text style={styles.historyTitle}>Recent</Text>
-            <TouchableOpacity onPress={clearHistory} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Text style={styles.historyClear}>Clear</Text>
-            </TouchableOpacity>
-          </View>
-          {searchHistory.map((entry, idx) => (
+        </Reanimated.View>
+        {searchFocused && (
+          <Reanimated.View entering={FadeIn.duration(220)} exiting={FadeOut.duration(220)}>
             <TouchableOpacity
-              key={idx}
-              style={styles.resultItem}
+              style={styles.cancelButton}
               onPress={() => {
-                if (entry.type === 'user' && entry.id) router.push(`/profile/${entry.id}`);
-                else if (entry.type === 'tag' && entry.tagName) router.push(`/explore/tags/${entry.tagName}`);
+                clearSearch();
+                setSearchFocused(false);
+                searchInputRef.current?.blur();
               }}
             >
-              {entry.type === 'user' ? (
-                entry.profileImageUrl ? (
-                  <Image source={{ uri: entry.profileImageUrl }} style={styles.profilePic} />
-                ) : (
-                  <View style={[styles.profilePic, styles.profilePicPlaceholder]}>
-                    <Ionicons name="person" size={18} color="#8E8E93" />
-                  </View>
-                )
-              ) : (
-                <View style={styles.tagIconContainer}>
-                  <Text style={styles.tagIconText}>#</Text>
-                </View>
-              )}
-              <View style={styles.resultTextContainer}>
-                <Text style={styles.displayName}>{entry.label}</Text>
-              </View>
-              <Ionicons name="time-outline" size={16} color="#3A3A3C" />
+              <Text style={styles.cancelButtonText}>Cancel</Text>
             </TouchableOpacity>
-          ))}
-        </View>
-      )}
+          </Reanimated.View>
+        )}
+      </View>
 
-      <View style={{ flex: 1, display: showHistory ? 'none' : 'flex' }}>
+      <View style={{ flex: 1 }}>
         <View style={[{ flex: 1, display: isSearching ? 'none' : 'flex' }]}>
           {renderPostsGrid()}
         </View>
@@ -458,6 +409,46 @@ export default function Explore() {
             lazy
           />
         </View>
+
+        {/* Search history overlays grid */}
+        {showHistory && (
+          <View style={[styles.historyContainer, StyleSheet.absoluteFill]}>
+            <View style={styles.historyHeader}>
+              <Text style={styles.historyTitle}>Recent</Text>
+              <TouchableOpacity onPress={clearHistory} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Text style={styles.historyClear}>Clear</Text>
+              </TouchableOpacity>
+            </View>
+            {searchHistory.map((entry, idx) => (
+              <TouchableOpacity
+                key={idx}
+                style={styles.resultItem}
+                onPress={() => {
+                  if (entry.type === 'user' && entry.id) router.push(`/profile/${entry.id}`);
+                  else if (entry.type === 'tag' && entry.tagName) router.push(`/explore/tags/${entry.tagName}`);
+                }}
+              >
+                {entry.type === 'user' ? (
+                  entry.profileImageUrl ? (
+                    <Image source={{ uri: entry.profileImageUrl }} style={styles.profilePic} />
+                  ) : (
+                    <View style={[styles.profilePic, styles.profilePicPlaceholder]}>
+                      <Ionicons name="person" size={18} color="#8E8E93" />
+                    </View>
+                  )
+                ) : (
+                  <View style={styles.tagIconContainer}>
+                    <Text style={styles.tagIconText}>#</Text>
+                  </View>
+                )}
+                <View style={styles.resultTextContainer}>
+                  <Text style={styles.displayName}>{entry.label}</Text>
+                </View>
+                <Ionicons name="time-outline" size={16} color="#3A3A3C" />
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
       </View>
     </View>
   );
