@@ -14,15 +14,10 @@ import {
   QueryDocumentSnapshot,
   DocumentData,
 } from 'firebase/firestore';
-import { db, functions } from '@/firebaseConfig';
-import { httpsCallable } from 'firebase/functions';
+import { db } from '@/firebaseConfig';
+import { normalizeTag } from '../domain/Tag';
 import type { TagSearchResult } from '../domain/Tag';
 import type { ExplorePost } from '@/features/explore/domain/ExploreTypes';
-
-const searchHashtagsCallable = httpsCallable<
-  { query: string },
-  { results: TagSearchResult[] }
->(functions, 'searchHashtags');
 
 export type TagFeedCursor = QueryDocumentSnapshot<DocumentData>;
 
@@ -37,13 +32,22 @@ export interface TagInfo {
 }
 
 export const TagRepository = {
-  /**
-   * Search for tags matching the given query (prefix search, banned filtered).
-   */
   async searchTags(queryStr: string): Promise<TagSearchResult[]> {
+    const normalized = normalizeTag(queryStr);
+    if (!normalized) return [];
     try {
-      const result = await searchHashtagsCallable({ query: queryStr });
-      return result.data.results;
+      const snap = await getDocs(
+        query(
+          collection(db, 'hashtags'),
+          where('name', '>=', normalized),
+          where('name', '<=', normalized + ''),
+          orderBy('name'),
+          limit(20)
+        )
+      );
+      return snap.docs
+        .filter(d => d.data().isBanned !== true)
+        .map(d => ({ name: d.data().name as string, postCount: (d.data().postCount as number) || 0 }));
     } catch (error) {
       console.error('Error searching hashtags:', error);
       return [];
