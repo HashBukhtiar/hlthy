@@ -107,7 +107,6 @@ export default function Settings() {
   const {
     handleLogout,
     handleDeleteAccount,
-    clearChatHistory,
     clearSearchHistory,
     handleChangePassword,
   } = useSettingsHandlers({
@@ -334,21 +333,6 @@ export default function Settings() {
           {/* DATA */}
           <Text style={styles.sectionHeader}>DATA</Text>
           <View style={styles.card}>
-            <TouchableOpacity
-              style={[styles.row, styles.rowBorder]}
-              onPress={() => Alert.alert(
-                'Clear Chat History',
-                'This will permanently delete all your chat messages. This action cannot be undone.',
-                [{ text: 'Cancel', style: 'cancel' }, { text: 'Clear', style: 'destructive', onPress: clearChatHistory }]
-              )}
-              activeOpacity={0.7}
-            >
-              <View style={styles.rowIconWrap}>
-                <Ionicons name="chatbubbles-outline" size={18} color="#FF3B30" />
-              </View>
-              <Text style={[styles.rowLabel, styles.destructiveText]}>Clear Chat History</Text>
-            </TouchableOpacity>
-
             <TouchableOpacity
               style={styles.row}
               onPress={() => Alert.alert(
