@@ -149,6 +149,7 @@ export default function Explore() {
   const [searchFocused, setSearchFocused] = useState(false);
   const [searchHistory, setSearchHistory] = useState<SearchHistoryEntry[]>([]);
   const blurTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchInputRef = useRef<TextInput>(null);
 
   const isSearching = searchQuery.trim().length > 0;
   const showHistory = searchFocused && !isSearching && searchHistory.length > 0;
@@ -354,6 +355,7 @@ export default function Explore() {
         <View style={styles.searchBarContainer}>
           <Ionicons name="search" size={16} color="#8E8E93" style={styles.searchIcon} />
           <TextInput
+            ref={searchInputRef}
             placeholder="Search users and tags..."
             style={styles.searchBar}
             onChangeText={handleSearch}
@@ -376,6 +378,18 @@ export default function Explore() {
             </TouchableOpacity>
           )}
         </View>
+        {searchFocused && (
+          <TouchableOpacity
+            style={styles.cancelButton}
+            onPress={() => {
+              clearSearch();
+              setSearchFocused(false);
+              searchInputRef.current?.blur();
+            }}
+          >
+            <Text style={styles.cancelButtonText}>Cancel</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Search history */}
@@ -465,6 +479,14 @@ const styles = StyleSheet.create({
   },
   clearButton: {
     padding: 4,
+  },
+  cancelButton: {
+    paddingLeft: 10,
+    paddingVertical: 8,
+  },
+  cancelButtonText: {
+    color: '#8E8E93',
+    fontSize: 15,
   },
   historyContainer: {
     backgroundColor: '#000',
