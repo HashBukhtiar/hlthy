@@ -57,7 +57,7 @@ export default function RegularPost({ onBack }: RegularPostProps) {
     const [tags, setTags] = useState<string[]>([]);
 
     // Media picker hook
-    const { openCamera, openMediaLibrary } = useMediaPicker((result) => {
+    const { openCamera, openMediaLibrary, isProcessing } = useMediaPicker((result) => {
         setSelectedMedia(result);
         setMediaMenuVisible(false);
     });
@@ -237,6 +237,7 @@ export default function RegularPost({ onBack }: RegularPostProps) {
                                 thumbnailUri: selectedMedia.type === 'video' ? selectedMedia.thumbnailUri : undefined,
                             } : null}
                             setMediaMenuVisible={setMediaMenuVisible}
+                            isProcessing={isProcessing}
                         />
 
                         {/* Caption section */}

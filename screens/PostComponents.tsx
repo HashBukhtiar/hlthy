@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as VideoThumbnails from 'expo-video-thumbnails';
+import { Video as VideoCompressor } from 'react-native-compressor';
 import { Dropdown } from 'react-native-element-dropdown';
 import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -106,7 +107,6 @@ export const ErrorMessage = ({ error }: { error: string | null }) => {
     );
 };
 
-const MAX_VIDEO_SIZE_BYTES = 50 * 1024 * 1024;
 const MAX_VIDEO_DURATION_MS = 60 * 1000;
 const MAX_VIDEO_DIMENSION = 1920;
 const ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/quicktime'];
@@ -116,6 +116,8 @@ export type MediaResult =
   | { type: 'video'; uri: string; thumbnailUri: string; duration: number };
 
 export const useMediaPicker = (onMediaSelected: (result: MediaResult) => void) => {
+    const [isProcessing, setIsProcessing] = useState(false);
+
     const openCamera = async () => {
         const { status } = await ImagePicker.requestCameraPermissionsAsync();
         if (status !== 'granted') {
@@ -155,10 +157,6 @@ export const useMediaPicker = (onMediaSelected: (result: MediaResult) => void) =
                 Alert.alert('Unsupported Format', 'Only MP4 and MOV videos are supported.');
                 return;
             }
-            if (asset.fileSize && asset.fileSize > MAX_VIDEO_SIZE_BYTES) {
-                Alert.alert('File Too Large', 'Videos must be under 50 MB.');
-                return;
-            }
             if (asset.duration && asset.duration > MAX_VIDEO_DURATION_MS) {
                 Alert.alert('Too Long', 'Videos must be 60 seconds or shorter.');
                 return;
@@ -169,26 +167,36 @@ export const useMediaPicker = (onMediaSelected: (result: MediaResult) => void) =
                 Alert.alert('Resolution Too High', 'Videos must be 1080p or lower. Please export at a lower resolution and try again.');
                 return;
             }
+            setIsProcessing(true);
             try {
-                const { uri: thumbnailUri } = await VideoThumbnails.getThumbnailAsync(asset.uri, { time: 0 });
+                const [{ uri: thumbnailUri }, compressedUri] = await Promise.all([
+                    VideoThumbnails.getThumbnailAsync(asset.uri, { time: 0 }),
+                    VideoCompressor.compress(asset.uri, {
+                        compressionMethod: 'manual',
+                        maxSize: 1280,
+                        bitrate: 2000000,
+                    }),
+                ]);
                 onMediaSelected({
                     type: 'video',
-                    uri: asset.uri,
+                    uri: compressedUri,
                     thumbnailUri,
                     duration: Math.round((asset.duration ?? 0) / 1000),
                 });
             } catch {
                 Alert.alert('Error', 'Could not process video. Please try a different file.');
+            } finally {
+                setIsProcessing(false);
             }
         } else {
             onMediaSelected({ type: 'image', uri: asset.uri });
         }
     };
 
-    return { openCamera, openMediaLibrary };
+    return { openCamera, openMediaLibrary, isProcessing };
 };
 
-// Keep legacy alias so MilestoneOnlyPost (which doesn't need video) compiles unchanged
+// Legacy alias for MilestoneOnlyPost
 export const useImagePicker = (onImageSelected: (uri: string) => void) => {
     const { openCamera, openMediaLibrary } = useMediaPicker(result => {
         if (result.type === 'image') onImageSelected(result.uri);
@@ -262,12 +270,19 @@ export interface MediaSectionMedia {
 export const MediaSection = ({
     media,
     setMediaMenuVisible,
+    isProcessing = false,
 }: {
     media: MediaSectionMedia | null;
     setMediaMenuVisible: (visible: boolean) => void;
+    isProcessing?: boolean;
 }) => (
     <View style={postComponentStyles.imageSection}>
-        {media ? (
+        {isProcessing ? (
+            <View style={postComponentStyles.addImageButton}>
+                <ActivityIndicator size="large" color="#FFF" />
+                <Text style={postComponentStyles.addImageText}>Processing video…</Text>
+            </View>
+        ) : media ? (
             <View style={postComponentStyles.selectedImageContainer}>
                 <Image
                     source={{ uri: media.type === 'video' ? media.thumbnailUri ?? media.uri : media.uri }}
