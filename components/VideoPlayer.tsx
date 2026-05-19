@@ -3,6 +3,7 @@ import { View, TouchableOpacity, StyleSheet, StyleProp, ViewStyle, Animated } fr
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { Ionicons } from '@expo/vector-icons';
 import { useVideoMute } from '@/context/VideoMuteContext';
+import { useScreenIsFocused } from '@/hooks/useScreenIsFocused';
 
 interface VideoPlayerProps {
   videoUrl: string;
@@ -14,6 +15,7 @@ export default function VideoPlayer({ videoUrl, style, onPress }: VideoPlayerPro
   const { isMuted, toggleMuted } = useVideoMute();
   const [isPaused, setIsPaused] = useState(false);
   const iconOpacity = useRef(new Animated.Value(0)).current;
+  const isFocused = useScreenIsFocused();
 
   const player = useVideoPlayer(videoUrl, p => {
     p.loop = true;
@@ -24,6 +26,14 @@ export default function VideoPlayer({ videoUrl, style, onPress }: VideoPlayerPro
   useEffect(() => {
     player.muted = isMuted;
   }, [isMuted, player]);
+
+  useEffect(() => {
+    if (isFocused) {
+      if (!isPaused) player.play();
+    } else {
+      player.pause();
+    }
+  }, [isFocused]);
 
   const flashIcon = () => {
     iconOpacity.setValue(1);

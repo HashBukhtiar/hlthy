@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Image, TouchableOpacity, StyleSheet, StyleProp, ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import VideoPlayer from './VideoPlayer';
+import { useScreenIsFocused } from '@/hooks/useScreenIsFocused';
 
 interface FeedVideoPlayerProps {
   videoUrl: string;
@@ -11,6 +12,11 @@ interface FeedVideoPlayerProps {
 
 export default function FeedVideoPlayer({ videoUrl, thumbnailUrl, style }: FeedVideoPlayerProps) {
   const [playing, setPlaying] = useState(false);
+  const isFocused = useScreenIsFocused();
+
+  useEffect(() => {
+    if (!isFocused) setPlaying(false);
+  }, [isFocused]);
 
   if (playing) {
     return <VideoPlayer videoUrl={videoUrl} style={style} onPress={() => setPlaying(false)} />;
