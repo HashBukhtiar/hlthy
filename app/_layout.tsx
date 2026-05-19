@@ -5,12 +5,14 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { AuthProvider } from '@/context/AuthContext';
+import { VideoMuteProvider } from '@/context/VideoMuteContext';
 import { GlobalNetworkMonitor } from '@/components/GlobalNetworkMonitor';
 import EmailVerificationGuard from '@/components/EmailVerificationGuard';
 
 export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
+      <VideoMuteProvider>
       <AuthProvider>
         <SafeAreaProvider>
           <GlobalNetworkMonitor />
@@ -55,6 +57,7 @@ export default function RootLayout() {
           </EmailVerificationGuard>
         </SafeAreaProvider>
       </AuthProvider>
+      </VideoMuteProvider>
     </GestureHandlerRootView>
   );
 }

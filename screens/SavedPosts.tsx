@@ -52,7 +52,14 @@ export default function SavedPosts() {
       onPress={() => router.push({ pathname: '/view-post/[id]', params: { id: item.id } })}
       activeOpacity={0.85}
     >
-      {item.imageUrl ? (
+      {item.videoUrl ? (
+        <View>
+          <Image source={{ uri: item.videoThumbnailUrl ?? item.videoUrl }} style={styles.postImage} />
+          <View style={styles.videoPlayOverlay} pointerEvents="none">
+            <Ionicons name="play-circle" size={28} color="rgba(255,255,255,0.75)" />
+          </View>
+        </View>
+      ) : item.imageUrl ? (
         <Image source={{ uri: item.imageUrl }} style={styles.postImage} />
       ) : (
         <View style={[styles.postImage, styles.textPostPlaceholder]}>
@@ -148,6 +155,11 @@ const styles = StyleSheet.create({
   },
   textPostPlaceholder: {
     backgroundColor: '#1C1C1E',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  videoPlayOverlay: {
+    ...StyleSheet.absoluteFillObject,
     justifyContent: 'center',
     alignItems: 'center',
   },

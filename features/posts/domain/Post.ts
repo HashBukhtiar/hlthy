@@ -36,6 +36,9 @@ export interface Post {
   commentCount: number;
   visibility: 'public' | 'followers';
   mentions?: MentionData[];
+  videoUrl?: string;
+  videoThumbnailUrl?: string;
+  videoDuration?: number;
   isLiked?: boolean;
   isBookmarked?: boolean;
   isFollowing?: boolean;
@@ -95,6 +98,9 @@ export interface ClientMilestoneDetails {
 export interface NewPostData {
   caption?: string;
   imageUri?: string;
+  videoUri?: string;
+  videoThumbnailUri?: string;
+  videoDuration?: number;
   isMilestone: boolean;
   milestoneDetails?: ClientMilestoneDetails;
   visibility: 'public' | 'followers';

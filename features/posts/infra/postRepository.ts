@@ -153,6 +153,10 @@ export const PostRepository = {
     await updateDoc(doc(db, 'posts', postId), { imageUrl });
   },
 
+  async updatePostVideoUrl(postId: string, videoUrl: string, videoThumbnailUrl: string, videoDuration: number): Promise<void> {
+    await updateDoc(doc(db, 'posts', postId), { videoUrl, videoThumbnailUrl, videoDuration });
+  },
+
   /** Deletes a post and all its subcollections (comments, replies, likers). */
   async delete(postId: string, uid: string): Promise<void> {
     const postRef = doc(db, 'posts', postId);

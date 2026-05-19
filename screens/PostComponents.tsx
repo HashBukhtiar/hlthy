@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { 
-    View, 
-    TouchableOpacity, 
+import {
+    View,
+    TouchableOpacity,
     Text,
     TextInput,
     Image,
@@ -14,6 +14,7 @@ import {
     FlatList
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import * as VideoThumbnails from 'expo-video-thumbnails';
 import { Dropdown } from 'react-native-element-dropdown';
 import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -105,51 +106,98 @@ export const ErrorMessage = ({ error }: { error: string | null }) => {
     );
 };
 
-// Image picker hook (LOGIC ONLY)
-export const useImagePicker = (onImageSelected: (uri: string) => void) => {
+const MAX_VIDEO_SIZE_BYTES = 50 * 1024 * 1024;
+const MAX_VIDEO_DURATION_MS = 60 * 1000;
+const MAX_VIDEO_DIMENSION = 1920;
+const ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/quicktime'];
+
+export type MediaResult =
+  | { type: 'image'; uri: string }
+  | { type: 'video'; uri: string; thumbnailUri: string; duration: number };
+
+export const useMediaPicker = (onMediaSelected: (result: MediaResult) => void) => {
     const openCamera = async () => {
         const { status } = await ImagePicker.requestCameraPermissionsAsync();
         if (status !== 'granted') {
             Alert.alert('Permission Denied', 'Camera access is required to take photos.');
             return;
         }
-
         const result = await ImagePicker.launchCameraAsync({
             mediaTypes: ImagePicker.MediaTypeOptions.Images,
             allowsEditing: true,
             aspect: [1, 1],
             quality: 0.8,
         });
-
-        if (!result.canceled && result.assets && result.assets.length > 0) {
-            onImageSelected(result.assets[0].uri);
+        if (!result.canceled && result.assets?.length > 0) {
+            onMediaSelected({ type: 'image', uri: result.assets[0].uri });
         }
     };
 
-    const openImageLibrary = async () => {
+    const openMediaLibrary = async () => {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (status !== 'granted') {
-            Alert.alert('Permission Denied', 'Media library access is required to select photos.');
+            Alert.alert('Permission Denied', 'Media library access is required to select media.');
             return;
         }
-
         const result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ImagePicker.MediaTypeOptions.Images,
-            allowsEditing: true,
-            aspect: [1, 1],
+            mediaTypes: ImagePicker.MediaTypeOptions.All,
+            allowsEditing: false,
             quality: 0.8,
+            videoMaxDuration: 60,
         });
+        if (result.canceled || !result.assets?.length) return;
 
-        if (!result.canceled && result.assets && result.assets.length > 0) {
-            onImageSelected(result.assets[0].uri);
+        const asset = result.assets[0];
+
+        if (asset.type === 'video') {
+            const mimeType = asset.mimeType ?? '';
+            if (!ALLOWED_VIDEO_TYPES.includes(mimeType)) {
+                Alert.alert('Unsupported Format', 'Only MP4 and MOV videos are supported.');
+                return;
+            }
+            if (asset.fileSize && asset.fileSize > MAX_VIDEO_SIZE_BYTES) {
+                Alert.alert('File Too Large', 'Videos must be under 50 MB.');
+                return;
+            }
+            if (asset.duration && asset.duration > MAX_VIDEO_DURATION_MS) {
+                Alert.alert('Too Long', 'Videos must be 60 seconds or shorter.');
+                return;
+            }
+            const w = asset.width ?? 0;
+            const h = asset.height ?? 0;
+            if (Math.max(w, h) > MAX_VIDEO_DIMENSION) {
+                Alert.alert('Resolution Too High', 'Videos must be 1080p or lower. Please export at a lower resolution and try again.');
+                return;
+            }
+            try {
+                const { uri: thumbnailUri } = await VideoThumbnails.getThumbnailAsync(asset.uri, { time: 0 });
+                onMediaSelected({
+                    type: 'video',
+                    uri: asset.uri,
+                    thumbnailUri,
+                    duration: Math.round((asset.duration ?? 0) / 1000),
+                });
+            } catch {
+                Alert.alert('Error', 'Could not process video. Please try a different file.');
+            }
+        } else {
+            onMediaSelected({ type: 'image', uri: asset.uri });
         }
     };
 
-    return { openCamera, openImageLibrary };
+    return { openCamera, openMediaLibrary };
 };
 
-// Image Picker Modal (UI ONLY)
-export const ImagePickerModal = ({
+// Keep legacy alias so MilestoneOnlyPost (which doesn't need video) compiles unchanged
+export const useImagePicker = (onImageSelected: (uri: string) => void) => {
+    const { openCamera, openMediaLibrary } = useMediaPicker(result => {
+        if (result.type === 'image') onImageSelected(result.uri);
+    });
+    return { openCamera, openImageLibrary: openMediaLibrary };
+};
+
+// Media Picker Modal
+export const MediaPickerModal = ({
     visible,
     onClose,
     onTakePhoto,
@@ -166,31 +214,31 @@ export const ImagePickerModal = ({
         visible={visible}
         onRequestClose={onClose}
     >
-        <TouchableOpacity 
+        <TouchableOpacity
             style={postComponentStyles.modalOverlay}
             activeOpacity={1}
             onPress={onClose}
         >
             <View style={postComponentStyles.imageModalContent} onStartShouldSetResponder={() => true}>
-                <Text style={postComponentStyles.imageModalTitle}>Add Photo</Text>
-                
-                <TouchableOpacity 
+                <Text style={postComponentStyles.imageModalTitle}>Add Media</Text>
+
+                <TouchableOpacity
                     style={postComponentStyles.imageModalOption}
                     onPress={onTakePhoto}
                 >
                     <Ionicons name="camera-outline" size={24} color={SECONDARY_COLOR} />
                     <Text style={postComponentStyles.imageModalOptionText}>Take a photo</Text>
                 </TouchableOpacity>
-                
-                <TouchableOpacity 
+
+                <TouchableOpacity
                     style={postComponentStyles.imageModalOption}
                     onPress={onChooseFromLibrary}
                 >
                     <Ionicons name="images-outline" size={24} color={SECONDARY_COLOR} />
                     <Text style={postComponentStyles.imageModalOptionText}>Choose from library</Text>
                 </TouchableOpacity>
-                
-                <TouchableOpacity 
+
+                <TouchableOpacity
                     style={[postComponentStyles.imageModalOption, { borderBottomWidth: 0 }]}
                     onPress={onClose}
                 >
@@ -201,38 +249,66 @@ export const ImagePickerModal = ({
     </Modal>
 );
 
-// Image Section Component
-export const ImageSection = ({ 
-    imageUri, 
-    setImageMenuVisible 
-}: { 
-    imageUri: string | null;
-    setImageMenuVisible: (visible: boolean) => void;
+// Legacy alias keeps MilestoneOnlyPost compiling unchanged
+export const ImagePickerModal = MediaPickerModal;
+
+export interface MediaSectionMedia {
+    type: 'image' | 'video';
+    uri: string;
+    thumbnailUri?: string;
+}
+
+// Media Section Component — supports both image and video previews
+export const MediaSection = ({
+    media,
+    setMediaMenuVisible,
+}: {
+    media: MediaSectionMedia | null;
+    setMediaMenuVisible: (visible: boolean) => void;
 }) => (
     <View style={postComponentStyles.imageSection}>
-        {imageUri ? (
+        {media ? (
             <View style={postComponentStyles.selectedImageContainer}>
-                <Image 
-                    source={{ uri: imageUri }} 
+                <Image
+                    source={{ uri: media.type === 'video' ? media.thumbnailUri ?? media.uri : media.uri }}
                     style={postComponentStyles.selectedImage}
                 />
-                <TouchableOpacity 
+                {media.type === 'video' && (
+                    <View style={postComponentStyles.videoPlayOverlay} pointerEvents="none">
+                        <Ionicons name="play-circle" size={48} color="rgba(255,255,255,0.85)" />
+                    </View>
+                )}
+                <TouchableOpacity
                     style={postComponentStyles.changeImageButton}
-                    onPress={() => setImageMenuVisible(true)}
+                    onPress={() => setMediaMenuVisible(true)}
                 >
                     <Feather name="edit-2" size={16} color="#FFF" />
                 </TouchableOpacity>
             </View>
         ) : (
-            <TouchableOpacity 
+            <TouchableOpacity
                 style={postComponentStyles.addImageButton}
-                onPress={() => setImageMenuVisible(true)}
+                onPress={() => setMediaMenuVisible(true)}
             >
-                <Ionicons name="camera-outline" size={36} color="#FFF" />
-                <Text style={postComponentStyles.addImageText}>Add Photo</Text>
+                <Ionicons name="images-outline" size={36} color="#FFF" />
+                <Text style={postComponentStyles.addImageText}>Add Media</Text>
             </TouchableOpacity>
         )}
     </View>
+);
+
+// Legacy alias used by MilestoneOnlyPost which only needs images
+export const ImageSection = ({
+    imageUri,
+    setImageMenuVisible,
+}: {
+    imageUri: string | null;
+    setImageMenuVisible: (visible: boolean) => void;
+}) => (
+    <MediaSection
+        media={imageUri ? { type: 'image', uri: imageUri } : null}
+        setMediaMenuVisible={setImageMenuVisible}
+    />
 );
 
 // Caption input component
@@ -849,6 +925,11 @@ const postComponentStyles = StyleSheet.create({
         backgroundColor: 'rgba(0,0,0,0.7)',
         padding: 8,
         borderRadius: 20,
+    },
+    videoPlayOverlay: {
+        ...StyleSheet.absoluteFillObject,
+        justifyContent: 'center',
+        alignItems: 'center',
     },
 
     // Caption section

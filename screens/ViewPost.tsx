@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
-  StyleSheet, Text, View, Image, ScrollView,
+  StyleSheet, Text, View, Image, ScrollView, Dimensions,
   TouchableOpacity, KeyboardAvoidingView, Platform,
   TextInput, Modal, ActivityIndicator, Alert, Keyboard
 } from 'react-native';
@@ -24,6 +24,7 @@ import { MentionData } from '@/features/mentions/domain/Mention';
 import { useSelfUnmention } from '@/features/mentions/ui/useSelfUnmention';
 import { TagChip } from '@/components/TagChip';
 import { navigateToTagFeed } from '@/features/explore/ui/useExplore';
+import VideoPlayer from '@/components/VideoPlayer';
 
 export default function ViewPost() {
   const [menuVisible, setMenuVisible] = useState(false);
@@ -1323,14 +1324,19 @@ export default function ViewPost() {
             )}
           </View>
 
-          {post.imageUrl && (
-            <TouchableOpacity 
+          {post.videoUrl ? (
+            <VideoPlayer
+              videoUrl={post.videoUrl}
+              style={styles.postImage}
+            />
+          ) : post.imageUrl ? (
+            <TouchableOpacity
               activeOpacity={1}
               {...postDoubleTapHandler}
             >
               <Image source={{ uri: post.imageUrl }} style={styles.postImage} />
             </TouchableOpacity>
-          )}
+          ) : null}
 
           {canInteractWithAuthor && (
             <View style={styles.actionButtons}>

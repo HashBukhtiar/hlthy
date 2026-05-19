@@ -56,8 +56,53 @@ export function usePostsData() {
       customMetadata: { postId, uploadedBy: currentUser.uid },
     };
 
-    const uploadResult = await uploadBytes(storageRef, blob, metadata);
+    await uploadBytes(storageRef, blob, metadata);
     return getDownloadURL(storageRef);
+  };
+
+  const uploadVideo = async (videoUri: string, thumbnailUri: string, postId: string, duration: number): Promise<{ videoUrl: string; videoThumbnailUrl: string }> => {
+    if (!currentUser) throw new Error("User not authenticated. Please log in and try again.");
+
+    const ext = videoUri.toLowerCase().includes('.mov') ? 'mov' : 'mp4';
+    const videoFilename = `posts/${currentUser.uid}/${generateUniqueFilename('video', ext)}`;
+    const thumbFilename = `posts/${currentUser.uid}/${generateUniqueFilename('video_thumb', 'jpg')}`;
+
+    const [videoResponse, thumbResponse] = await Promise.all([
+      fetch(videoUri),
+      fetch(thumbnailUri),
+    ]);
+    if (!videoResponse.ok) throw new Error('Failed to fetch video file');
+    if (!thumbResponse.ok) throw new Error('Failed to fetch thumbnail');
+
+    const [videoBlob, thumbBlob] = await Promise.all([
+      videoResponse.blob(),
+      thumbResponse.blob(),
+    ]);
+    if (videoBlob.size === 0) throw new Error('Video blob is empty');
+
+    const videoMeta = {
+      contentType: ext === 'mov' ? 'video/quicktime' : 'video/mp4',
+      customMetadata: { postId, uploadedBy: currentUser.uid },
+    };
+    const thumbMeta = {
+      contentType: 'image/jpeg',
+      customMetadata: { postId, uploadedBy: currentUser.uid },
+    };
+
+    const videoStorageRef = ref(storage, videoFilename);
+    const thumbStorageRef = ref(storage, thumbFilename);
+
+    await Promise.all([
+      uploadBytes(videoStorageRef, videoBlob, videoMeta),
+      uploadBytes(thumbStorageRef, thumbBlob, thumbMeta),
+    ]);
+
+    const [videoUrl, videoThumbnailUrl] = await Promise.all([
+      getDownloadURL(videoStorageRef),
+      getDownloadURL(thumbStorageRef),
+    ]);
+
+    return { videoUrl, videoThumbnailUrl };
   };
 
   const getPostById = async (postId: string): Promise<Post> => {
@@ -102,6 +147,9 @@ export function usePostsData() {
         if (resultData.success && postData.imageUri) {
           const imageUrl = await uploadImage(postData.imageUri, resultData.postId);
           await PostRepository.updatePostImageUrl(resultData.postId, imageUrl);
+        } else if (resultData.success && postData.videoUri && postData.videoThumbnailUri) {
+          const { videoUrl, videoThumbnailUrl } = await uploadVideo(postData.videoUri, postData.videoThumbnailUri, resultData.postId, postData.videoDuration ?? 0);
+          await PostRepository.updatePostVideoUrl(resultData.postId, videoUrl, videoThumbnailUrl, postData.videoDuration ?? 0);
         }
 
         return resultData.postId;
@@ -119,6 +167,9 @@ export function usePostsData() {
         if (postData.imageUri) {
           const imageUrl = await uploadImage(postData.imageUri, postId);
           await PostRepository.updatePostImageUrl(postId, imageUrl);
+        } else if (postData.videoUri && postData.videoThumbnailUri) {
+          const { videoUrl, videoThumbnailUrl } = await uploadVideo(postData.videoUri, postData.videoThumbnailUri, postId, postData.videoDuration ?? 0);
+          await PostRepository.updatePostVideoUrl(postId, videoUrl, videoThumbnailUrl, postData.videoDuration ?? 0);
         }
 
         return postId;

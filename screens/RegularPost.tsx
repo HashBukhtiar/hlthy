@@ -22,14 +22,15 @@ import { MentionData } from '@/features/mentions/domain/Mention';
 import { TagInput } from '@/components/TagInput';
 import {
     SECONDARY_COLOR,
-    useImagePicker,
+    useMediaPicker,
     ErrorMessage,
-    ImageSection,
+    MediaSection,
+    MediaPickerModal,
     CaptionInput,
     WorkoutAttachment,
     WorkoutSelectionModal,
-    ImagePickerModal,
 } from './PostComponents';
+import type { MediaResult } from './PostComponents';
 
 interface RegularPostProps {
     onBack?: () => void;
@@ -45,9 +46,9 @@ export default function RegularPost({ onBack }: RegularPostProps) {
     const [formError, setFormError] = useState<string | null>(null);
     const [caption, setCaption] = useState('');
 
-    // Image picker state
-    const [imageUri, setImageUri] = useState<string | null>(null);
-    const [imageMenuVisible, setImageMenuVisible] = useState(false);
+    // Media state
+    const [selectedMedia, setSelectedMedia] = useState<MediaResult | null>(null);
+    const [mediaMenuVisible, setMediaMenuVisible] = useState(false);
 
     // Mentions
     const [captionMentions, setCaptionMentions] = useState<MentionData[]>([]);
@@ -55,16 +56,16 @@ export default function RegularPost({ onBack }: RegularPostProps) {
     // Tags
     const [tags, setTags] = useState<string[]>([]);
 
-    // Image picker logic hook
-    const { openCamera, openImageLibrary } = useImagePicker((uri) => {
-        setImageUri(uri);
-        setImageMenuVisible(false); // Close modal on selection
+    // Media picker hook
+    const { openCamera, openMediaLibrary } = useMediaPicker((result) => {
+        setSelectedMedia(result);
+        setMediaMenuVisible(false);
     });
 
     // Check if there are unsaved changes
     const hasUnsavedChanges = (
         (caption && caption.trim() !== '') ||
-        imageUri !== null ||
+        selectedMedia !== null ||
         tags.length > 0 ||
         captionMentions.length > 0 ||
         selectedWorkout !== null
@@ -138,8 +139,8 @@ export default function RegularPost({ onBack }: RegularPostProps) {
     const handleSubmitPost = async () => {
         try {
             // Validation
-            if (!imageUri && !caption.trim()) {
-                setFormError("Please add an image or a caption");
+            if (!selectedMedia && !caption.trim()) {
+                setFormError("Please add a photo, video, or caption");
                 return;
             }
             
@@ -162,10 +163,13 @@ export default function RegularPost({ onBack }: RegularPostProps) {
 
             const postData = {
                 caption: caption.trim(),
-                imageUri,
+                imageUri: selectedMedia?.type === 'image' ? selectedMedia.uri : undefined,
+                videoUri: selectedMedia?.type === 'video' ? selectedMedia.uri : undefined,
+                videoThumbnailUri: selectedMedia?.type === 'video' ? selectedMedia.thumbnailUri : undefined,
+                videoDuration: selectedMedia?.type === 'video' ? selectedMedia.duration : undefined,
                 isMilestone: false,
-                milestoneDetails: null,
-                visibility: userVisibility,
+                milestoneDetails: undefined,
+                visibility: (userVisibility === 'followers' ? 'followers' : 'public') as 'public' | 'followers',
                 workoutId: selectedWorkout?.id,
                 authorArchetype: authorArchetype,
                 mentions: captionMentions.length > 0 ? captionMentions : undefined,
@@ -225,10 +229,14 @@ export default function RegularPost({ onBack }: RegularPostProps) {
                         contentContainerStyle={styles.scrollContent}
                         showsVerticalScrollIndicator={false}
                     >
-                        {/* Image picker section */}
-                        <ImageSection 
-                            imageUri={imageUri}
-                            setImageMenuVisible={setImageMenuVisible}
+                        {/* Media picker section */}
+                        <MediaSection
+                            media={selectedMedia ? {
+                                type: selectedMedia.type,
+                                uri: selectedMedia.uri,
+                                thumbnailUri: selectedMedia.type === 'video' ? selectedMedia.thumbnailUri : undefined,
+                            } : null}
+                            setMediaMenuVisible={setMediaMenuVisible}
                         />
 
                         {/* Caption section */}
@@ -269,11 +277,11 @@ export default function RegularPost({ onBack }: RegularPostProps) {
             </KeyboardAvoidingView>
 
             {/* MODALS */}
-            <ImagePickerModal
-                visible={imageMenuVisible}
-                onClose={() => setImageMenuVisible(false)}
+            <MediaPickerModal
+                visible={mediaMenuVisible}
+                onClose={() => setMediaMenuVisible(false)}
                 onTakePhoto={openCamera}
-                onChooseFromLibrary={openImageLibrary}
+                onChooseFromLibrary={openMediaLibrary}
             />
             <WorkoutSelectionModal
                 workoutModalVisible={workoutModalVisible}

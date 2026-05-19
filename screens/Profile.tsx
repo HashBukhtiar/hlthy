@@ -73,8 +73,8 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
 
   const displayablePosts = useMemo(() => {
     if (!posts) return [];
-    // Filter out posts that are only milestones and have no image to display in the grid.
-    return posts.filter(post => !!post.imageUrl);
+    // Filter out posts that are only milestones and have no media to display in the grid.
+    return posts.filter(post => !!post.imageUrl || !!post.videoUrl);
   }, [posts]);
 
   const milestonesCount = useMemo(

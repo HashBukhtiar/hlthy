@@ -35,6 +35,7 @@ import { useContentActions } from '@/hooks/useContentActions';
 import { ACCENT_COLOR } from '@/constants/Colors';
 import { TagChip } from '@/components/TagChip';
 import { navigateToTagFeed } from '@/features/explore/ui/useExplore';
+import VideoPlayer from '@/components/VideoPlayer';
 import {
   TAG_INJECTION_MIN,
   TAG_INJECTION_MAX,
@@ -510,8 +511,14 @@ export default function PostsFeed() {
           </View>
         )}
 
-        {/* Post Image */}
-        {post.imageUrl && (
+        {/* Post Media */}
+        {post.videoUrl ? (
+          <VideoPlayer
+            videoUrl={post.videoUrl}
+            style={styles.postImage}
+            onPress={canInteract ? () => handleViewPost(post.id) : undefined}
+          />
+        ) : post.imageUrl ? (
           <View style={styles.imageWrapper}>
             <TouchableOpacity
               activeOpacity={0.9}
@@ -524,7 +531,7 @@ export default function PostsFeed() {
               />
             </TouchableOpacity>
           </View>
-        )}
+        ) : null}
 
         {/* Likes and Comments Stats */}
         {canInteract && (

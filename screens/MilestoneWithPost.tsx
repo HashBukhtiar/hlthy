@@ -24,14 +24,15 @@ import { Exercise, MetricType } from '@/data/exercises';
 import { fetchPreviousPRService, PreviousPRData, fetchLastKnownWeight } from '@/services/milestoneService';
 import {
     SECONDARY_COLOR,
-    useImagePicker,
+    useMediaPicker,
     ErrorMessage,
-    ImageSection,
+    MediaSection,
+    MediaPickerModal,
     CaptionInput,
     WorkoutAttachment,
     WorkoutSelectionModal,
-    ImagePickerModal,
 } from './PostComponents';
+import type { MediaResult } from './PostComponents';
 import { MentionData } from '@/features/mentions/domain/Mention';
 import { useUnits } from '@/hooks/useUnits';
 
@@ -56,14 +57,14 @@ export default function MilestoneWithPost({ onBack }: MilestoneWithPostProps) {
     const [previousPR, setPreviousPR] = useState<PreviousPRData | null>(null);
     const [loadingPreviousPR, setLoadingPreviousPR] = useState(false);
     
-    // Image picker
-    const [imageUri, setImageUri] = useState<string | null>(null);
-    const [imageMenuVisible, setImageMenuVisible] = useState(false);
+    // Media state
+    const [selectedMedia, setSelectedMedia] = useState<MediaResult | null>(null);
+    const [mediaMenuVisible, setMediaMenuVisible] = useState(false);
 
-    // Image picker logic hook
-    const { openCamera, openImageLibrary } = useImagePicker((uri) => {
-        setImageUri(uri);
-        setImageMenuVisible(false);
+    // Media picker hook
+    const { openCamera, openMediaLibrary } = useMediaPicker((result) => {
+        setSelectedMedia(result);
+        setMediaMenuVisible(false);
     });
 
     // Achievement metric fields
@@ -471,8 +472,8 @@ export default function MilestoneWithPost({ onBack }: MilestoneWithPostProps) {
 
     const handleSubmitPost = async () => {
         // Validation for both post and achievement fields
-        if (!imageUri && !caption.trim()) {
-            setFormError("Please add an image or a caption for your post");
+        if (!selectedMedia && !caption.trim()) {
+            setFormError("Please add media or a caption for your post");
             return;
         }
         
@@ -628,10 +629,13 @@ export default function MilestoneWithPost({ onBack }: MilestoneWithPostProps) {
 
             const postData = {
                 caption: caption.trim(),
-                imageUri: imageUri ?? undefined,
+                imageUri: selectedMedia?.type === 'image' ? selectedMedia.uri : undefined,
+                videoUri: selectedMedia?.type === 'video' ? selectedMedia.uri : undefined,
+                videoThumbnailUri: selectedMedia?.type === 'video' ? selectedMedia.thumbnailUri : undefined,
+                videoDuration: selectedMedia?.type === 'video' ? selectedMedia.duration : undefined,
                 isMilestone: true,
                 milestoneDetails: milestoneDetails,
-                visibility: userVisibility, // Use user's profile visibility preference
+                visibility: (userVisibility === 'followers' ? 'followers' : 'public') as 'public' | 'followers',
                 workoutId: selectedWorkout?.id || null,
                 authorArchetype: authorArchetype,
                 mentions: captionMentions.length > 0 ? captionMentions : undefined,
@@ -942,10 +946,14 @@ export default function MilestoneWithPost({ onBack }: MilestoneWithPostProps) {
                         contentContainerStyle={styles.scrollContent}
                         showsVerticalScrollIndicator={false}
                     >
-                        {/* Image picker section */}
-                        <ImageSection 
-                            imageUri={imageUri}
-                            setImageMenuVisible={setImageMenuVisible}
+                        {/* Media picker section */}
+                        <MediaSection
+                            media={selectedMedia ? {
+                                type: selectedMedia.type,
+                                uri: selectedMedia.uri,
+                                thumbnailUri: selectedMedia.type === 'video' ? selectedMedia.thumbnailUri : undefined,
+                            } : null}
+                            setMediaMenuVisible={setMediaMenuVisible}
                         />
 
                         {/* Caption section */}
@@ -1110,11 +1118,11 @@ export default function MilestoneWithPost({ onBack }: MilestoneWithPostProps) {
             </KeyboardAvoidingView>
 
             {/* MODALS MOVED OUTSIDE */}
-            <ImagePickerModal
-                visible={imageMenuVisible}
-                onClose={() => setImageMenuVisible(false)}
+            <MediaPickerModal
+                visible={mediaMenuVisible}
+                onClose={() => setMediaMenuVisible(false)}
                 onTakePhoto={openCamera}
-                onChooseFromLibrary={openImageLibrary}
+                onChooseFromLibrary={openMediaLibrary}
             />
             <WorkoutSelectionModal
                 workoutModalVisible={workoutModalVisible}
