@@ -13,7 +13,7 @@ export default function FeedVideoPlayer({ videoUrl, thumbnailUrl, style }: FeedV
   const [playing, setPlaying] = useState(false);
 
   if (playing) {
-    return <VideoPlayer videoUrl={videoUrl} style={style} />;
+    return <VideoPlayer videoUrl={videoUrl} style={style} onPress={() => setPlaying(false)} />;
   }
 
   return (
