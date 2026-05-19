@@ -236,6 +236,26 @@ export function usePostsData() {
     await PostRepository.unlikeReply(postId, commentId, replyId, currentUser.uid);
   };
 
+  const updatePost = async (postId: string, caption: string, tags?: string[]): Promise<void> => {
+    if (!currentUser) throw new Error("User not authenticated");
+    await PostRepository.updatePost(postId, currentUser.uid, caption, tags);
+  };
+
+  const savePost = async (postId: string): Promise<void> => {
+    if (!currentUser) throw new Error("User not authenticated");
+    await PostRepository.savePost(postId, currentUser.uid);
+  };
+
+  const unsavePost = async (postId: string): Promise<void> => {
+    if (!currentUser) throw new Error("User not authenticated");
+    await PostRepository.unsavePost(postId, currentUser.uid);
+  };
+
+  const fetchSavedPosts = async (): Promise<Post[]> => {
+    if (!currentUser?.uid) throw new Error("User not authenticated");
+    return PostRepository.fetchSavedPosts(currentUser.uid);
+  };
+
   useEffect(() => {
     if (currentUser?.uid) {
       fetchPosts();
@@ -266,5 +286,9 @@ export function usePostsData() {
     getCommentReplies,
     likeReply,
     unlikeReply,
+    updatePost,
+    savePost,
+    unsavePost,
+    fetchSavedPosts,
   };
 }

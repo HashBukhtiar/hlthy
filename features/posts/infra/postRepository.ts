@@ -68,14 +68,18 @@ export const PostRepository = {
     return posts;
   },
 
-  /** Fetches a single post by ID with author profile and like status. */
+  /** Fetches a single post by ID with author profile, like status, and bookmark status. */
   async getById(postId: string, uid: string): Promise<Post> {
     const snap = await getDoc(doc(db, 'posts', postId));
     if (!snap.exists()) throw new Error('Post not found');
     const post = { ...(snap.data() as Post), id: snap.id };
     await hydrateAuthor(post);
-    const likeSnap = await getDoc(doc(db, 'posts', postId, 'likers', uid));
+    const [likeSnap, bookmarkSnap] = await Promise.all([
+      getDoc(doc(db, 'posts', postId, 'likers', uid)),
+      getDoc(doc(db, 'users', uid, 'savedPosts', postId)),
+    ]);
     post.isLiked = likeSnap.exists();
+    post.isBookmarked = bookmarkSnap.exists();
     return post;
   },
 
@@ -433,6 +437,54 @@ export const PostRepository = {
     if (!isCommentAuthor && !isPostAuthor) throw new Error('Not authorized to delete this comment');
 
     await deleteDoc(commentRef);
+  },
+
+  /** Updates caption and tags on a post. Only the post author can edit. */
+  async updatePost(postId: string, uid: string, caption: string, tags?: string[]): Promise<void> {
+    const postRef = doc(db, 'posts', postId);
+    const snap = await getDoc(postRef);
+    if (!snap.exists()) throw new Error('Post not found');
+    if (snap.data().authorId !== uid) throw new Error('Not authorized to edit this post');
+    await updateDoc(postRef, {
+      caption,
+      tags: tags && tags.length > 0 ? tags : [],
+      editedAt: serverTimestamp(),
+    });
+  },
+
+  /** Saves a post to the user's private bookmarks. */
+  async savePost(postId: string, uid: string): Promise<void> {
+    await setDoc(doc(db, 'users', uid, 'savedPosts', postId), {
+      postId,
+      savedAt: serverTimestamp(),
+    });
+  },
+
+  /** Removes a post from the user's private bookmarks. */
+  async unsavePost(postId: string, uid: string): Promise<void> {
+    await deleteDoc(doc(db, 'users', uid, 'savedPosts', postId));
+  },
+
+  /** Fetches all posts bookmarked by the user, ordered by save date. */
+  async fetchSavedPosts(uid: string): Promise<Post[]> {
+    const savedSnap = await getDocs(
+      query(collection(db, 'users', uid, 'savedPosts'), orderBy('savedAt', 'desc'))
+    );
+    const posts: Post[] = [];
+    for (const d of savedSnap.docs) {
+      try {
+        const postSnap = await getDoc(doc(db, 'posts', d.data().postId));
+        if (!postSnap.exists()) continue;
+        const post = { ...(postSnap.data() as Post), id: postSnap.id, isBookmarked: true };
+        await hydrateAuthor(post);
+        const likeSnap = await getDoc(doc(db, 'posts', post.id, 'likers', uid));
+        post.isLiked = likeSnap.exists();
+        posts.push(post);
+      } catch {
+        // skip deleted posts silently
+      }
+    }
+    return posts;
   },
 
   /** Updates the text of a comment. Only the comment author can edit. */

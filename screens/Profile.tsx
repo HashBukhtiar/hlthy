@@ -858,6 +858,17 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
             onPress: () => router.push(`/view-links/${viewedProfileId}`),
           },
           {
+            icon: "bookmark-outline",
+            label: "Saved Posts",
+            sublabel: "View your bookmarked posts",
+            color: "#FF9F0A",
+            backgroundColor: "rgba(255, 159, 10, 0.22)",
+            onPress: () => {
+              setShowOwnActionMenu(false);
+              router.push('/saved-posts');
+            },
+          },
+          {
             icon: "share-outline",
             label: "Share Profile",
             sublabel: "Share your profile with others",

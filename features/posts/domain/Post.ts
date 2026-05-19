@@ -40,6 +40,7 @@ export interface Post {
   isBookmarked?: boolean;
   isFollowing?: boolean;
   isPublic?: boolean;
+  editedAt?: Timestamp;
 }
 
 export interface Comment {

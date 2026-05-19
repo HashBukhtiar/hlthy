@@ -40,6 +40,8 @@ export default function RootLayout() {
             <Stack.Screen name="create-workout" options={{ animation: Platform.OS === 'android' ? 'none' : 'slide_from_bottom', gestureEnabled: true }} />
             <Stack.Screen name="view-workout/[id]" options={{ animation: Platform.OS === 'android' ? 'none' : 'fade_from_bottom', gestureEnabled: true }} />
             <Stack.Screen name="view-post/[id]" options={{ animation: Platform.OS === 'android' ? 'none' : 'fade_from_bottom', gestureEnabled: true }} />
+            <Stack.Screen name="edit-post/[id]" options={{ gestureEnabled: true, animation: Platform.OS === 'android' ? 'none' : 'slide_from_right' }} />
+            <Stack.Screen name="saved-posts" options={{ gestureEnabled: true, animation: Platform.OS === 'android' ? 'none' : 'slide_from_right' }} />
             <Stack.Screen name="view-milestone/[id]" options={{ animation: Platform.OS === 'android' ? 'none' : 'fade_from_bottom', gestureEnabled: true }} />
             <Stack.Screen name="view-profile-card/[userId]" options={{ animation: Platform.OS === 'android' ? 'none' : 'fade_from_bottom', gestureEnabled: true }} />
             <Stack.Screen name="view-links/[userId]" options={{ animation: Platform.OS === 'android' ? 'none' : 'slide_from_right', gestureEnabled: true }} />
