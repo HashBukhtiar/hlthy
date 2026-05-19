@@ -76,10 +76,10 @@ export const PostRepository = {
     await hydrateAuthor(post);
     const [likeSnap, bookmarkSnap] = await Promise.all([
       getDoc(doc(db, 'posts', postId, 'likers', uid)),
-      getDoc(doc(db, 'users', uid, 'savedPosts', postId)),
+      getDoc(doc(db, 'users', uid, 'savedPosts', postId)).catch(() => null),
     ]);
     post.isLiked = likeSnap.exists();
-    post.isBookmarked = bookmarkSnap.exists();
+    post.isBookmarked = bookmarkSnap?.exists() ?? false;
     return post;
   },
 

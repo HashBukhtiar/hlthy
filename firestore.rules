@@ -97,6 +97,10 @@ service cloud.firestore {
     match /users/{userId}/savedWorkouts/{workoutId} {
       allow read, write: if isOwner(userId);
     }
+
+    match /users/{userId}/savedPosts/{postId} {
+      allow read, write: if isOwner(userId);
+    }
     
     // Workout Logs - User's completed workout sessions
     match /users/{userId}/workout_logs/{logId} {
