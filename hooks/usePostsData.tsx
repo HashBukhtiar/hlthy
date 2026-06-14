@@ -63,10 +63,6 @@ export function usePostsData() {
   const uploadVideo = async (videoUri: string, thumbnailUri: string, postId: string, duration: number): Promise<{ videoUrl: string; videoThumbnailUrl: string }> => {
     if (!currentUser) throw new Error("User not authenticated. Please log in and try again.");
 
-    const ext = videoUri.toLowerCase().includes('.mov') ? 'mov' : 'mp4';
-    const videoFilename = `posts/${currentUser.uid}/${generateUniqueFilename('video', ext)}`;
-    const thumbFilename = `posts/${currentUser.uid}/${generateUniqueFilename('video_thumb', 'jpg')}`;
-
     const [videoResponse, thumbResponse] = await Promise.all([
       fetch(videoUri),
       fetch(thumbnailUri),
@@ -80,8 +76,18 @@ export function usePostsData() {
     ]);
     if (videoBlob.size === 0) throw new Error('Video blob is empty');
 
+    // Derive content type from the actual blob, fall back to URI extension
+    const ALLOWED = ['video/mp4', 'video/quicktime'];
+    const contentType = ALLOWED.includes(videoBlob.type)
+      ? videoBlob.type
+      : (videoUri.toLowerCase().includes('.mov') ? 'video/quicktime' : 'video/mp4');
+    const ext = contentType === 'video/quicktime' ? 'mov' : 'mp4';
+
+    const videoFilename = `posts/${currentUser.uid}/${generateUniqueFilename('video', ext)}`;
+    const thumbFilename = `posts/${currentUser.uid}/${generateUniqueFilename('video_thumb', 'jpg')}`;
+
     const videoMeta = {
-      contentType: ext === 'mov' ? 'video/quicktime' : 'video/mp4',
+      contentType,
       customMetadata: { postId, uploadedBy: currentUser.uid },
     };
     const thumbMeta = {
@@ -145,11 +151,21 @@ export function usePostsData() {
         const resultData = result.data as { success: boolean; postId: string };
 
         if (resultData.success && postData.imageUri) {
-          const imageUrl = await uploadImage(postData.imageUri, resultData.postId);
-          await PostRepository.updatePostImageUrl(resultData.postId, imageUrl);
+          try {
+            const imageUrl = await uploadImage(postData.imageUri, resultData.postId);
+            await PostRepository.updatePostImageUrl(resultData.postId, imageUrl);
+          } catch (uploadError) {
+            await PostRepository.delete(resultData.postId, currentUser.uid).catch(() => {});
+            throw uploadError;
+          }
         } else if (resultData.success && postData.videoUri && postData.videoThumbnailUri) {
-          const { videoUrl, videoThumbnailUrl } = await uploadVideo(postData.videoUri, postData.videoThumbnailUri, resultData.postId, postData.videoDuration ?? 0);
-          await PostRepository.updatePostVideoUrl(resultData.postId, videoUrl, videoThumbnailUrl, postData.videoDuration ?? 0);
+          try {
+            const { videoUrl, videoThumbnailUrl } = await uploadVideo(postData.videoUri, postData.videoThumbnailUri, resultData.postId, postData.videoDuration ?? 0);
+            await PostRepository.updatePostVideoUrl(resultData.postId, videoUrl, videoThumbnailUrl, postData.videoDuration ?? 0);
+          } catch (uploadError) {
+            await PostRepository.delete(resultData.postId, currentUser.uid).catch(() => {});
+            throw uploadError;
+          }
         }
 
         return resultData.postId;
@@ -165,11 +181,21 @@ export function usePostsData() {
         });
 
         if (postData.imageUri) {
-          const imageUrl = await uploadImage(postData.imageUri, postId);
-          await PostRepository.updatePostImageUrl(postId, imageUrl);
+          try {
+            const imageUrl = await uploadImage(postData.imageUri, postId);
+            await PostRepository.updatePostImageUrl(postId, imageUrl);
+          } catch (uploadError) {
+            await PostRepository.delete(postId, currentUser.uid).catch(() => {});
+            throw uploadError;
+          }
         } else if (postData.videoUri && postData.videoThumbnailUri) {
-          const { videoUrl, videoThumbnailUrl } = await uploadVideo(postData.videoUri, postData.videoThumbnailUri, postId, postData.videoDuration ?? 0);
-          await PostRepository.updatePostVideoUrl(postId, videoUrl, videoThumbnailUrl, postData.videoDuration ?? 0);
+          try {
+            const { videoUrl, videoThumbnailUrl } = await uploadVideo(postData.videoUri, postData.videoThumbnailUri, postId, postData.videoDuration ?? 0);
+            await PostRepository.updatePostVideoUrl(postId, videoUrl, videoThumbnailUrl, postData.videoDuration ?? 0);
+          } catch (uploadError) {
+            await PostRepository.delete(postId, currentUser.uid).catch(() => {});
+            throw uploadError;
+          }
         }
 
         return postId;

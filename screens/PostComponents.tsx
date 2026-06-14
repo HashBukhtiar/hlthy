@@ -15,7 +15,13 @@ import {
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as VideoThumbnails from 'expo-video-thumbnails';
-import { Video as VideoCompressor } from 'react-native-compressor';
+// react-native-compressor requires a dev build — not available in Expo Go
+let VideoCompressor: { compress: (uri: string, options: Record<string, unknown>) => Promise<string> } | null = null;
+try {
+    VideoCompressor = require('react-native-compressor').Video;
+} catch {
+    // silently skip — compression unavailable, original URI used instead
+}
 import { Dropdown } from 'react-native-element-dropdown';
 import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -109,6 +115,7 @@ export const ErrorMessage = ({ error }: { error: string | null }) => {
 
 const MAX_VIDEO_DURATION_MS = 60 * 1000;
 const MAX_VIDEO_DIMENSION = 1920;
+const MAX_VIDEO_SIZE_BYTES = 50 * 1024 * 1024;
 const ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/quicktime'];
 
 export type MediaResult =
@@ -157,25 +164,32 @@ export const useMediaPicker = (onMediaSelected: (result: MediaResult) => void) =
                 Alert.alert('Unsupported Format', 'Only MP4 and MOV videos are supported.');
                 return;
             }
-            if (asset.duration && asset.duration > MAX_VIDEO_DURATION_MS) {
+            if (asset.fileSize && asset.fileSize > MAX_VIDEO_SIZE_BYTES) {
+                Alert.alert('File Too Large', 'Videos must be under 50 MB.');
+                return;
+            }
+            if (!asset.duration || asset.duration > MAX_VIDEO_DURATION_MS) {
                 Alert.alert('Too Long', 'Videos must be 60 seconds or shorter.');
                 return;
             }
-            const w = asset.width ?? 0;
-            const h = asset.height ?? 0;
+            const w = asset.width;
+            const h = asset.height;
+            if (!w || !h) {
+                Alert.alert('Unable to Verify', 'Could not read video dimensions. Please try a different file.');
+                return;
+            }
             if (Math.max(w, h) > MAX_VIDEO_DIMENSION) {
                 Alert.alert('Resolution Too High', 'Videos must be 1080p or lower. Please export at a lower resolution and try again.');
                 return;
             }
             setIsProcessing(true);
             try {
+                const compressionPromise = VideoCompressor
+                    ? VideoCompressor.compress(asset.uri, { compressionMethod: 'manual', maxSize: 1280, bitrate: 2000000 })
+                    : Promise.resolve(asset.uri);
                 const [{ uri: thumbnailUri }, compressedUri] = await Promise.all([
                     VideoThumbnails.getThumbnailAsync(asset.uri, { time: 0 }),
-                    VideoCompressor.compress(asset.uri, {
-                        compressionMethod: 'manual',
-                        maxSize: 1280,
-                        bitrate: 2000000,
-                    }),
+                    compressionPromise,
                 ]);
                 onMediaSelected({
                     type: 'video',
@@ -271,10 +285,12 @@ export const MediaSection = ({
     media,
     setMediaMenuVisible,
     isProcessing = false,
+    onRemove,
 }: {
     media: MediaSectionMedia | null;
     setMediaMenuVisible: (visible: boolean) => void;
     isProcessing?: boolean;
+    onRemove?: () => void;
 }) => (
     <View style={postComponentStyles.imageSection}>
         {isProcessing ? (
@@ -299,6 +315,14 @@ export const MediaSection = ({
                 >
                     <Feather name="edit-2" size={16} color="#FFF" />
                 </TouchableOpacity>
+                {onRemove && (
+                    <TouchableOpacity
+                        style={postComponentStyles.removeMediaButton}
+                        onPress={onRemove}
+                    >
+                        <Ionicons name="close" size={14} color="#FFF" />
+                    </TouchableOpacity>
+                )}
             </View>
         ) : (
             <TouchableOpacity
@@ -940,6 +964,17 @@ const postComponentStyles = StyleSheet.create({
         backgroundColor: 'rgba(0,0,0,0.7)',
         padding: 8,
         borderRadius: 20,
+    },
+    removeMediaButton: {
+        position: 'absolute',
+        top: 8,
+        right: 8,
+        backgroundColor: 'rgba(0,0,0,0.7)',
+        width: 24,
+        height: 24,
+        borderRadius: 12,
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     videoPlayOverlay: {
         ...StyleSheet.absoluteFillObject,

@@ -208,10 +208,10 @@ export default function RegularPost({ onBack }: RegularPostProps) {
                             <Ionicons name="chevron-back" size={24} color="#FFF" />
                         </TouchableOpacity>
                         <Text style={styles.headerTitle}>New Post</Text>
-                        <TouchableOpacity 
-                            style={[styles.postButton, isSubmitting && styles.disabledButton]} 
+                        <TouchableOpacity
+                            style={[styles.postButton, (isSubmitting || isProcessing) && styles.disabledButton]}
                             onPress={handleSubmitPost}
-                            disabled={isSubmitting}
+                            disabled={isSubmitting || isProcessing}
                         >
                             {isSubmitting ? (
                                 <ActivityIndicator size="small" color="#FFF" />
@@ -238,6 +238,7 @@ export default function RegularPost({ onBack }: RegularPostProps) {
                             } : null}
                             setMediaMenuVisible={setMediaMenuVisible}
                             isProcessing={isProcessing}
+                            onRemove={() => setSelectedMedia(null)}
                         />
 
                         {/* Caption section */}

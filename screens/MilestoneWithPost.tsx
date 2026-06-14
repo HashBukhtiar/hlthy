@@ -926,9 +926,9 @@ export default function MilestoneWithPost({ onBack }: MilestoneWithPostProps) {
                         )}
                         <Text style={styles.headerTitle}>Achievement Post</Text>
                         <TouchableOpacity 
-                            style={[styles.postButton, isSubmitting && styles.disabledButton]} 
+                            style={[styles.postButton, (isSubmitting || isProcessing) && styles.disabledButton]}
                             onPress={handleSubmitPost}
-                            disabled={isSubmitting}
+                            disabled={isSubmitting || isProcessing}
                         >
                             {isSubmitting ? (
                                 <ActivityIndicator size="small" color="#FFF" />
@@ -955,6 +955,7 @@ export default function MilestoneWithPost({ onBack }: MilestoneWithPostProps) {
                             } : null}
                             setMediaMenuVisible={setMediaMenuVisible}
                             isProcessing={isProcessing}
+                            onRemove={() => setSelectedMedia(null)}
                         />
 
                         {/* Caption section */}
