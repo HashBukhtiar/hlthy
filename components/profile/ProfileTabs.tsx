@@ -39,6 +39,7 @@ export const PostsTab: React.FC<PostsTabProps> = ({
                 <OptimizedImageLight
                   thumbnailUrl={item.videoUrl ? item.videoThumbnailUrl : item.thumbnailUrl}
                   originalUrl={item.videoUrl ? item.videoThumbnailUrl : item.imageUrl}
+                  fallbackSource={require('@/assets/images/post-image.png')}
                   style={styles.postImage}
                 />
                 {item.videoUrl && (

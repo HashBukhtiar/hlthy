@@ -95,6 +95,7 @@ const PostGridItem = ({ item, onPress }: { item: ExplorePost; onPress: () => voi
         <OptimizedImageLight
           thumbnailUrl={item.thumbnailUrl}
           originalUrl={item.imageUrl}
+          fallbackSource={require('@/assets/images/post-image.png')}
           style={styles.postImage}
           onLoad={onImageLoad}
         />
