@@ -39,9 +39,10 @@ export default function EditPost() {
   const [caption, setCaption] = useState('');
   const [captionMentions, setCaptionMentions] = useState<MentionData[]>([]);
   const [tags, setTags] = useState<string[]>([]);
+  const [hasMedia, setHasMedia] = useState(false);
 
   useEffect(() => {
-    if (!postId) return;
+    if (!postId || !currentUser?.uid) return;
     (async () => {
       try {
         const post = await getPostById(postId);
@@ -55,6 +56,7 @@ export default function EditPost() {
         setTags(post.tags ?? []);
         setOriginalCaption(post.caption ?? '');
         setOriginalTags(post.tags ?? []);
+        setHasMedia(!!(post.imageUrl || post.videoUrl));
       } catch {
         Alert.alert('Error', 'Could not load post.');
         router.back();
@@ -62,7 +64,7 @@ export default function EditPost() {
         setLoading(false);
       }
     })();
-  }, [postId]);
+  }, [postId, currentUser?.uid, router]);
 
   const hasChanges =
     caption !== originalCaption ||
@@ -86,7 +88,7 @@ export default function EditPost() {
 
   const handleSave = async () => {
     if (!postId) return;
-    if (!caption.trim()) {
+    if (!hasMedia && !caption.trim()) {
       setFormError('Caption cannot be empty.');
       return;
     }

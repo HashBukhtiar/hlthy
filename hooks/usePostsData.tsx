@@ -75,6 +75,7 @@ export function usePostsData() {
       thumbResponse.blob(),
     ]);
     if (videoBlob.size === 0) throw new Error('Video blob is empty');
+    if (videoBlob.size > 50 * 1024 * 1024) throw new Error('Video must be 50 MB or smaller');
 
     // Derive content type from the actual blob, fall back to URI extension
     const ALLOWED = ['video/mp4', 'video/quicktime'];

@@ -159,7 +159,9 @@ export const useMediaPicker = (onMediaSelected: (result: MediaResult) => void) =
         const asset = result.assets[0];
 
         if (asset.type === 'video') {
-            const mimeType = asset.mimeType ?? '';
+            const uriLower = asset.uri.toLowerCase();
+            const mimeType = asset.mimeType
+                ?? (uriLower.endsWith('.mov') ? 'video/quicktime' : uriLower.endsWith('.mp4') ? 'video/mp4' : '');
             if (!ALLOWED_VIDEO_TYPES.includes(mimeType)) {
                 Alert.alert('Unsupported Format', 'Only MP4 and MOV videos are supported.');
                 return;
