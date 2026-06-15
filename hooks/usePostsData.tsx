@@ -79,9 +79,13 @@ export function usePostsData() {
 
     // Derive content type from the actual blob, fall back to URI extension
     const ALLOWED = ['video/mp4', 'video/quicktime'];
-    const contentType = ALLOWED.includes(videoBlob.type)
-      ? videoBlob.type
-      : (videoUri.toLowerCase().includes('.mov') ? 'video/quicktime' : 'video/mp4');
+    const uriLower = videoUri.toLowerCase();
+    let contentType = videoBlob.type;
+    if (!ALLOWED.includes(contentType)) {
+      if (uriLower.endsWith('.mov')) contentType = 'video/quicktime';
+      else if (uriLower.endsWith('.mp4')) contentType = 'video/mp4';
+      else throw new Error('Unsupported video format. Only MP4 and MOV are supported.');
+    }
     const ext = contentType === 'video/quicktime' ? 'mov' : 'mp4';
 
     const videoFilename = `posts/${currentUser.uid}/${generateUniqueFilename('video', ext)}`;
@@ -314,9 +318,9 @@ export function usePostsData() {
     await PostRepository.unlikeReply(postId, commentId, replyId, currentUser.uid);
   };
 
-  const updatePost = async (postId: string, caption: string, tags?: string[]): Promise<void> => {
+  const updatePost = async (postId: string, caption: string, tags?: string[], mentions?: MentionData[]): Promise<void> => {
     if (!currentUser) throw new Error("User not authenticated");
-    await PostRepository.updatePost(postId, currentUser.uid, caption, tags);
+    await PostRepository.updatePost(postId, currentUser.uid, caption, tags, mentions);
   };
 
   const savePost = async (postId: string): Promise<void> => {

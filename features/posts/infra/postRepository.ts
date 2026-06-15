@@ -444,7 +444,7 @@ export const PostRepository = {
   },
 
   /** Updates caption and tags on a post. Only the post author can edit. */
-  async updatePost(postId: string, uid: string, caption: string, tags?: string[]): Promise<void> {
+  async updatePost(postId: string, uid: string, caption: string, tags?: string[], mentions?: MentionData[]): Promise<void> {
     const postRef = doc(db, 'posts', postId);
     const snap = await getDoc(postRef);
     if (!snap.exists()) throw new Error('Post not found');
@@ -452,6 +452,7 @@ export const PostRepository = {
     await updateDoc(postRef, {
       caption,
       tags: tags && tags.length > 0 ? tags : [],
+      ...(mentions !== undefined ? { mentions: mentions.length > 0 ? mentions : [] } : {}),
       editedAt: serverTimestamp(),
     });
   },
@@ -474,21 +475,25 @@ export const PostRepository = {
     const savedSnap = await getDocs(
       query(collection(db, 'users', uid, 'savedPosts'), orderBy('savedAt', 'desc'))
     );
-    const posts: Post[] = [];
-    for (const d of savedSnap.docs) {
-      try {
-        const postSnap = await getDoc(doc(db, 'posts', d.data().postId));
-        if (!postSnap.exists()) continue;
-        const post = { ...(postSnap.data() as Post), id: postSnap.id, isBookmarked: true };
-        await hydrateAuthor(post);
-        const likeSnap = await getDoc(doc(db, 'posts', post.id, 'likers', uid));
-        post.isLiked = likeSnap.exists();
-        posts.push(post);
-      } catch {
-        // skip deleted posts silently
-      }
-    }
-    return posts;
+    const results = await Promise.all(
+      savedSnap.docs.map(async (d): Promise<Post | null> => {
+        try {
+          const postSnap = await getDoc(doc(db, 'posts', d.data().postId));
+          if (!postSnap.exists()) return null;
+          const post: Post = { ...(postSnap.data() as Post), id: postSnap.id, isBookmarked: true };
+          const [likeSnap] = await Promise.all([
+            getDoc(doc(db, 'posts', post.id, 'likers', uid)),
+            hydrateAuthor(post),
+          ]);
+          post.isLiked = likeSnap.exists();
+          return post;
+        } catch {
+          // skip deleted posts silently
+          return null;
+        }
+      })
+    );
+    return results.filter((p): p is Post => p !== null);
   },
 
   /** Updates the text of a comment. Only the comment author can edit. */

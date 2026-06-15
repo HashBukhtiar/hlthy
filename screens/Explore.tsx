@@ -152,6 +152,11 @@ export default function Explore() {
   const blurTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchInputRef = useRef<TextInput>(null);
 
+  useEffect(() => {
+    return () => {
+      if (blurTimer.current) clearTimeout(blurTimer.current);
+    };
+  }, []);
 
   const isSearching = searchQuery.trim().length > 0;
   const showHistory = searchFocused && !isSearching && searchHistory.length > 0;

@@ -95,7 +95,7 @@ export default function EditPost() {
     setIsSubmitting(true);
     setFormError(null);
     try {
-      await updatePost(postId, caption.trim(), tags);
+      await updatePost(postId, caption.trim(), tags, captionMentions);
       router.back();
     } catch (err) {
       console.error('Error updating post:', err);

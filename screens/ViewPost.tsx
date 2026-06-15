@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
-  StyleSheet, Text, View, Image, ScrollView, Dimensions,
+  StyleSheet, Text, View, Image, ScrollView,
   TouchableOpacity, KeyboardAvoidingView, Platform,
   TextInput, Modal, ActivityIndicator, Alert, Keyboard
 } from 'react-native';
@@ -457,7 +457,7 @@ export default function ViewPost() {
   const handleBookmark = async () => {
     if (!post || !currentUser) return;
     const wasBookmarked = post.isBookmarked;
-    setPost({ ...post, isBookmarked: !wasBookmarked });
+    setPost(prev => prev ? { ...prev, isBookmarked: !wasBookmarked } : null);
     try {
       if (wasBookmarked) {
         await unsavePost(post.id);
@@ -466,7 +466,7 @@ export default function ViewPost() {
       }
     } catch (error) {
       console.error("Error toggling bookmark:", error);
-      setPost({ ...post, isBookmarked: wasBookmarked });
+      setPost(prev => prev ? { ...prev, isBookmarked: wasBookmarked } : null);
       Alert.alert("Error", "Could not update bookmark. Please try again.");
     }
   };

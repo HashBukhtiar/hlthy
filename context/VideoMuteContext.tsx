@@ -26,10 +26,16 @@ export function VideoMuteProvider({ children }: { children: React.ReactNode }) {
 
   const setMuted = (muted: boolean) => {
     setIsMuted(muted);
-    AsyncStorage.setItem(MUTE_KEY, String(muted));
+    AsyncStorage.setItem(MUTE_KEY, String(muted)).catch(() => {});
   };
 
-  const toggleMuted = () => setMuted(!isMuted);
+  const toggleMuted = () => {
+    setIsMuted(prev => {
+      const next = !prev;
+      AsyncStorage.setItem(MUTE_KEY, String(next)).catch(() => {});
+      return next;
+    });
+  };
 
   return (
     <VideoMuteContext.Provider value={{ isMuted, setMuted, toggleMuted }}>
