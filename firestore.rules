@@ -97,6 +97,10 @@ service cloud.firestore {
     match /users/{userId}/savedWorkouts/{workoutId} {
       allow read, write: if isOwner(userId);
     }
+
+    match /users/{userId}/savedPosts/{postId} {
+      allow read, write: if isOwner(userId);
+    }
     
     // Workout Logs - User's completed workout sessions
     match /users/{userId}/workout_logs/{logId} {
@@ -372,6 +376,12 @@ service cloud.firestore {
 
       // Admin operations (read all, update status) use Cloud Functions with Admin SDK
       allow delete: if false;
+    }
+
+    // Hashtags collection — any authenticated user can read; only Cloud Functions (Admin SDK) write
+    match /hashtags/{tagName} {
+      allow read: if isAuthenticated();
+      allow write: if false;
     }
   }
 }

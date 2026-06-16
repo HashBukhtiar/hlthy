@@ -5,12 +5,14 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { AuthProvider } from '@/context/AuthContext';
+import { VideoMuteProvider } from '@/context/VideoMuteContext';
 import { GlobalNetworkMonitor } from '@/components/GlobalNetworkMonitor';
 import EmailVerificationGuard from '@/components/EmailVerificationGuard';
 
 export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
+      <VideoMuteProvider>
       <AuthProvider>
         <SafeAreaProvider>
           <GlobalNetworkMonitor />
@@ -40,6 +42,8 @@ export default function RootLayout() {
             <Stack.Screen name="create-workout" options={{ animation: Platform.OS === 'android' ? 'none' : 'slide_from_bottom', gestureEnabled: true }} />
             <Stack.Screen name="view-workout/[id]" options={{ animation: Platform.OS === 'android' ? 'none' : 'fade_from_bottom', gestureEnabled: true }} />
             <Stack.Screen name="view-post/[id]" options={{ animation: Platform.OS === 'android' ? 'none' : 'fade_from_bottom', gestureEnabled: true }} />
+            <Stack.Screen name="edit-post/[id]" options={{ gestureEnabled: true, animation: Platform.OS === 'android' ? 'none' : 'slide_from_right' }} />
+            <Stack.Screen name="saved-posts" options={{ gestureEnabled: true, animation: Platform.OS === 'android' ? 'none' : 'slide_from_right' }} />
             <Stack.Screen name="view-milestone/[id]" options={{ animation: Platform.OS === 'android' ? 'none' : 'fade_from_bottom', gestureEnabled: true }} />
             <Stack.Screen name="view-profile-card/[userId]" options={{ animation: Platform.OS === 'android' ? 'none' : 'fade_from_bottom', gestureEnabled: true }} />
             <Stack.Screen name="view-links/[userId]" options={{ animation: Platform.OS === 'android' ? 'none' : 'slide_from_right', gestureEnabled: true }} />
@@ -53,6 +57,7 @@ export default function RootLayout() {
           </EmailVerificationGuard>
         </SafeAreaProvider>
       </AuthProvider>
+      </VideoMuteProvider>
     </GestureHandlerRootView>
   );
 }

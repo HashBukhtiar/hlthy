@@ -24,6 +24,7 @@ import { MentionData } from '@/features/mentions/domain/Mention';
 import { useSelfUnmention } from '@/features/mentions/ui/useSelfUnmention';
 import { TagChip } from '@/components/TagChip';
 import { navigateToTagFeed } from '@/features/explore/ui/useExplore';
+import VideoPlayer from '@/components/VideoPlayer';
 
 export default function ViewPost() {
   const [menuVisible, setMenuVisible] = useState(false);
@@ -48,7 +49,9 @@ export default function ViewPost() {
     addReplyToComment,
     getCommentReplies,
     likeReply,
-    unlikeReply
+    unlikeReply,
+    savePost,
+    unsavePost,
   } = usePostsData();  
   const postId = params.id ? String(params.id) : '';
   
@@ -452,15 +455,19 @@ export default function ViewPost() {
   };
   
   const handleBookmark = async () => {
-    // Implement bookmark functionality with Firebase
     if (!post || !currentUser) return;
-    
+    const wasBookmarked = post.isBookmarked;
+    setPost(prev => prev ? { ...prev, isBookmarked: !wasBookmarked } : null);
     try {
-      // For now, just toggle the UI state
-      setPost({...post, isBookmarked: !post.isBookmarked});
-      // TODO: Implement actual bookmark logic with Firebase
+      if (wasBookmarked) {
+        await unsavePost(post.id);
+      } else {
+        await savePost(post.id);
+      }
     } catch (error) {
       console.error("Error toggling bookmark:", error);
+      setPost(prev => prev ? { ...prev, isBookmarked: wasBookmarked } : null);
+      Alert.alert("Error", "Could not update bookmark. Please try again.");
     }
   };
   
@@ -1317,14 +1324,19 @@ export default function ViewPost() {
             )}
           </View>
 
-          {post.imageUrl && (
-            <TouchableOpacity 
+          {post.videoUrl ? (
+            <VideoPlayer
+              videoUrl={post.videoUrl}
+              style={styles.postImage}
+            />
+          ) : post.imageUrl ? (
+            <TouchableOpacity
               activeOpacity={1}
               {...postDoubleTapHandler}
             >
               <Image source={{ uri: post.imageUrl }} style={styles.postImage} />
             </TouchableOpacity>
-          )}
+          ) : null}
 
           {canInteractWithAuthor && (
             <View style={styles.actionButtons}>
@@ -1373,7 +1385,9 @@ export default function ViewPost() {
             </View>
           )}
 
-          <Text style={styles.timestamp}>{formatDate(post.createdAt)}</Text>
+          <Text style={styles.timestamp}>
+            {formatDate(post.createdAt)}{post.editedAt ? ' · edited' : ''}
+          </Text>
 
           {post.workoutId && (
             <TouchableOpacity 
@@ -1556,6 +1570,16 @@ export default function ViewPost() {
               {/* Owner-only options */}
               {post?.authorId === currentUser?.uid ? (
                 <>
+                  <TouchableOpacity
+                    style={styles.menuItem}
+                    onPress={() => {
+                      setMenuVisible(false);
+                      router.push({ pathname: '/edit-post/[id]', params: { id: post.id } });
+                    }}
+                  >
+                    <Ionicons name="create-outline" size={20} color="#0A84FF" />
+                    <Text style={[styles.menuItemText, { color: '#0A84FF' }]}>Edit Post</Text>
+                  </TouchableOpacity>
                   {post?.isMilestone && post.milestoneDetails ? (
                     <>
                       <TouchableOpacity

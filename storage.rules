@@ -14,7 +14,12 @@ service firebase.storage {
     }
     // Allow authenticated users to write to their own posts folder
     match /posts/{userId}/{filename} {
-      allow write: if request.auth != null && request.auth.uid == userId;
+      allow write: if request.auth != null
+        && request.auth.uid == userId
+        && request.resource.size <= 50 * 1024 * 1024
+        && (request.resource.contentType == 'image/jpeg'
+          || request.resource.contentType == 'video/mp4'
+          || request.resource.contentType == 'video/quicktime');
       allow read: if true; // Public read access for post images
     }
     // Allow conversation participants to upload/read photos in their conversations

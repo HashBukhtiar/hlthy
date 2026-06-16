@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Dimensions } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { OptimizedImageLight } from '@/components/OptimizedImage';
 import { MilestoneCard } from './MilestoneCard';
@@ -35,11 +35,19 @@ export const PostsTab: React.FC<PostsTabProps> = ({
         <View key={`row-${rowIndex}`} style={styles.postsRow}>
           {row.map((item) => (
             <TouchableOpacity key={item.id} onPress={() => onImagePress(item)} activeOpacity={0.85}>
-              <OptimizedImageLight 
-                thumbnailUrl={item.thumbnailUrl} 
-                originalUrl={item.imageUrl} 
-                style={styles.postImage} 
-              />
+              <View>
+                <OptimizedImageLight
+                  thumbnailUrl={item.videoUrl ? item.videoThumbnailUrl : item.thumbnailUrl}
+                  originalUrl={item.videoUrl ? item.videoThumbnailUrl : item.imageUrl}
+                  fallbackSource={require('@/assets/images/post-image.png')}
+                  style={styles.postImage}
+                />
+                {item.videoUrl && (
+                  <View style={styles.videoPlayOverlay} pointerEvents="none">
+                    <Ionicons name="play-circle" size={28} color="rgba(255,255,255,0.75)" />
+                  </View>
+                )}
+              </View>
             </TouchableOpacity>
           ))}
         </View>
@@ -256,6 +264,11 @@ const styles = StyleSheet.create({
     width: Dimensions.get('window').width / 3,
     height: Dimensions.get('window').width / 3,
     margin: 0,
+  },
+  videoPlayOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   emptyContainer: {
     flex: 1,

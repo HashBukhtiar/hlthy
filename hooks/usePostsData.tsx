@@ -56,8 +56,64 @@ export function usePostsData() {
       customMetadata: { postId, uploadedBy: currentUser.uid },
     };
 
-    const uploadResult = await uploadBytes(storageRef, blob, metadata);
+    await uploadBytes(storageRef, blob, metadata);
     return getDownloadURL(storageRef);
+  };
+
+  const uploadVideo = async (videoUri: string, thumbnailUri: string, postId: string, duration: number): Promise<{ videoUrl: string; videoThumbnailUrl: string }> => {
+    if (!currentUser) throw new Error("User not authenticated. Please log in and try again.");
+
+    const [videoResponse, thumbResponse] = await Promise.all([
+      fetch(videoUri),
+      fetch(thumbnailUri),
+    ]);
+    if (!videoResponse.ok) throw new Error('Failed to fetch video file');
+    if (!thumbResponse.ok) throw new Error('Failed to fetch thumbnail');
+
+    const [videoBlob, thumbBlob] = await Promise.all([
+      videoResponse.blob(),
+      thumbResponse.blob(),
+    ]);
+    if (videoBlob.size === 0) throw new Error('Video blob is empty');
+    if (videoBlob.size > 50 * 1024 * 1024) throw new Error('Video must be 50 MB or smaller');
+
+    // Derive content type from the actual blob, fall back to URI extension
+    const ALLOWED = ['video/mp4', 'video/quicktime'];
+    const uriLower = videoUri.toLowerCase();
+    let contentType = videoBlob.type;
+    if (!ALLOWED.includes(contentType)) {
+      if (uriLower.endsWith('.mov')) contentType = 'video/quicktime';
+      else if (uriLower.endsWith('.mp4')) contentType = 'video/mp4';
+      else throw new Error('Unsupported video format. Only MP4 and MOV are supported.');
+    }
+    const ext = contentType === 'video/quicktime' ? 'mov' : 'mp4';
+
+    const videoFilename = `posts/${currentUser.uid}/${generateUniqueFilename('video', ext)}`;
+    const thumbFilename = `posts/${currentUser.uid}/${generateUniqueFilename('video_thumb', 'jpg')}`;
+
+    const videoMeta = {
+      contentType,
+      customMetadata: { postId, uploadedBy: currentUser.uid },
+    };
+    const thumbMeta = {
+      contentType: 'image/jpeg',
+      customMetadata: { postId, uploadedBy: currentUser.uid },
+    };
+
+    const videoStorageRef = ref(storage, videoFilename);
+    const thumbStorageRef = ref(storage, thumbFilename);
+
+    await Promise.all([
+      uploadBytes(videoStorageRef, videoBlob, videoMeta),
+      uploadBytes(thumbStorageRef, thumbBlob, thumbMeta),
+    ]);
+
+    const [videoUrl, videoThumbnailUrl] = await Promise.all([
+      getDownloadURL(videoStorageRef),
+      getDownloadURL(thumbStorageRef),
+    ]);
+
+    return { videoUrl, videoThumbnailUrl };
   };
 
   const getPostById = async (postId: string): Promise<Post> => {
@@ -100,8 +156,21 @@ export function usePostsData() {
         const resultData = result.data as { success: boolean; postId: string };
 
         if (resultData.success && postData.imageUri) {
-          const imageUrl = await uploadImage(postData.imageUri, resultData.postId);
-          await PostRepository.updatePostImageUrl(resultData.postId, imageUrl);
+          try {
+            const imageUrl = await uploadImage(postData.imageUri, resultData.postId);
+            await PostRepository.updatePostImageUrl(resultData.postId, imageUrl);
+          } catch (uploadError) {
+            await PostRepository.delete(resultData.postId, currentUser.uid).catch(() => {});
+            throw uploadError;
+          }
+        } else if (resultData.success && postData.videoUri && postData.videoThumbnailUri) {
+          try {
+            const { videoUrl, videoThumbnailUrl } = await uploadVideo(postData.videoUri, postData.videoThumbnailUri, resultData.postId, postData.videoDuration ?? 0);
+            await PostRepository.updatePostVideoUrl(resultData.postId, videoUrl, videoThumbnailUrl, postData.videoDuration ?? 0);
+          } catch (uploadError) {
+            await PostRepository.delete(resultData.postId, currentUser.uid).catch(() => {});
+            throw uploadError;
+          }
         }
 
         return resultData.postId;
@@ -117,8 +186,21 @@ export function usePostsData() {
         });
 
         if (postData.imageUri) {
-          const imageUrl = await uploadImage(postData.imageUri, postId);
-          await PostRepository.updatePostImageUrl(postId, imageUrl);
+          try {
+            const imageUrl = await uploadImage(postData.imageUri, postId);
+            await PostRepository.updatePostImageUrl(postId, imageUrl);
+          } catch (uploadError) {
+            await PostRepository.delete(postId, currentUser.uid).catch(() => {});
+            throw uploadError;
+          }
+        } else if (postData.videoUri && postData.videoThumbnailUri) {
+          try {
+            const { videoUrl, videoThumbnailUrl } = await uploadVideo(postData.videoUri, postData.videoThumbnailUri, postId, postData.videoDuration ?? 0);
+            await PostRepository.updatePostVideoUrl(postId, videoUrl, videoThumbnailUrl, postData.videoDuration ?? 0);
+          } catch (uploadError) {
+            await PostRepository.delete(postId, currentUser.uid).catch(() => {});
+            throw uploadError;
+          }
         }
 
         return postId;
@@ -236,6 +318,26 @@ export function usePostsData() {
     await PostRepository.unlikeReply(postId, commentId, replyId, currentUser.uid);
   };
 
+  const updatePost = async (postId: string, caption: string, tags?: string[], mentions?: MentionData[]): Promise<void> => {
+    if (!currentUser) throw new Error("User not authenticated");
+    await PostRepository.updatePost(postId, currentUser.uid, caption, tags, mentions);
+  };
+
+  const savePost = async (postId: string): Promise<void> => {
+    if (!currentUser) throw new Error("User not authenticated");
+    await PostRepository.savePost(postId, currentUser.uid);
+  };
+
+  const unsavePost = async (postId: string): Promise<void> => {
+    if (!currentUser) throw new Error("User not authenticated");
+    await PostRepository.unsavePost(postId, currentUser.uid);
+  };
+
+  const fetchSavedPosts = async (): Promise<Post[]> => {
+    if (!currentUser?.uid) throw new Error("User not authenticated");
+    return PostRepository.fetchSavedPosts(currentUser.uid);
+  };
+
   useEffect(() => {
     if (currentUser?.uid) {
       fetchPosts();
@@ -266,5 +368,9 @@ export function usePostsData() {
     getCommentReplies,
     likeReply,
     unlikeReply,
+    updatePost,
+    savePost,
+    unsavePost,
+    fetchSavedPosts,
   };
 }

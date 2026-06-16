@@ -73,8 +73,8 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
 
   const displayablePosts = useMemo(() => {
     if (!posts) return [];
-    // Filter out posts that are only milestones and have no image to display in the grid.
-    return posts.filter(post => !!post.imageUrl);
+    // Filter out posts that are only milestones and have no media to display in the grid.
+    return posts.filter(post => !!post.imageUrl || !!post.videoUrl);
   }, [posts]);
 
   const milestonesCount = useMemo(
@@ -856,6 +856,17 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
             color: "#30D158",
             backgroundColor: "rgba(48, 209, 88, 0.22)",
             onPress: () => router.push(`/view-links/${viewedProfileId}`),
+          },
+          {
+            icon: "bookmark-outline",
+            label: "Saved Posts",
+            sublabel: "View your bookmarked posts",
+            color: "#FF9F0A",
+            backgroundColor: "rgba(255, 159, 10, 0.22)",
+            onPress: () => {
+              setShowOwnActionMenu(false);
+              router.push('/saved-posts');
+            },
           },
           {
             icon: "share-outline",
