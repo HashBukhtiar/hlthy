@@ -101,6 +101,11 @@ service cloud.firestore {
     match /users/{userId}/savedPosts/{postId} {
       allow read, write: if isOwner(userId);
     }
+
+    // Feed state — per-user "seen" tracking (private to the user)
+    match /users/{userId}/feedState/{docId} {
+      allow read, write: if isOwner(userId);
+    }
     
     // Workout Logs - User's completed workout sessions
     match /users/{userId}/workout_logs/{logId} {

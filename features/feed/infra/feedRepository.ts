@@ -20,7 +20,9 @@ import { UserProfile } from '@/types';
 import { logger } from '@/shared/utils/logger';
 
 const DOMAIN = 'FeedRepository';
-const BATCH_SIZE = 10;
+// Larger window so seen-aware ranking has enough posts to separate unseen from
+// already-seen content meaningfully (rather than ranking only 10 at a time).
+const BATCH_SIZE = 30;
 
 /**
  * Opaque cursor type for feed pagination.
