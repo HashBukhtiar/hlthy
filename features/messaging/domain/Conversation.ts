@@ -6,6 +6,8 @@ export interface UserConversationData {
   otherParticipantId?: string;
   otherParticipantUsername?: string;
   otherParticipantProfileImage?: string;
+  isPinned?: boolean;
+  isMuted?: boolean;
 }
 
 /** Shared conversation metadata at conversations/{id}. */

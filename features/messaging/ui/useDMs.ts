@@ -13,6 +13,8 @@ export interface UseDMsResult {
   fetchConversations: () => Promise<void>;
   refresh: () => Promise<void>;
   deleteConversation: (conversationId: string) => Promise<void>;
+  togglePin: (conversationId: string) => Promise<void>;
+  toggleMute: (conversationId: string) => Promise<void>;
 
   // Message requests
   messageRequests: MessageRequest[];
@@ -94,6 +96,76 @@ export function useDMs(): UseDMsResult {
     [currentUser]
   );
 
+  const sortConversations = useCallback((list: Conversation[]): Conversation[] => {
+    const ai = list.filter(c => c.isPinnedAI);
+    const rest = list.filter(c => !c.isPinnedAI);
+    rest.sort((a, b) => {
+      if (a.isPinned && !b.isPinned) return -1;
+      if (!a.isPinned && b.isPinned) return 1;
+      if (a.isUnread && !b.isUnread) return -1;
+      if (!a.isUnread && b.isUnread) return 1;
+      if (a.lastMessageAt && b.lastMessageAt) return b.lastMessageAt.toMillis() - a.lastMessageAt.toMillis();
+      if (a.lastMessageAt) return -1;
+      if (b.lastMessageAt) return 1;
+      return 0;
+    });
+    return [...ai, ...rest];
+  }, []);
+
+  const togglePin = useCallback(
+    async (conversationId: string) => {
+      if (!currentUser) return;
+      const convo = conversations.find(c => c.id === conversationId);
+      if (!convo) return;
+      const wasPinned = !!convo.isPinned;
+
+      setConversations(prev =>
+        sortConversations(prev.map(c => c.id === conversationId ? { ...c, isPinned: !wasPinned } : c))
+      );
+
+      try {
+        if (wasPinned) {
+          await ConversationRepository.unpinConversation(currentUser.uid, conversationId);
+        } else {
+          await ConversationRepository.pinConversation(currentUser.uid, conversationId);
+        }
+      } catch (error) {
+        logger.error('useDMs', 'Failed to toggle pin', error);
+        setConversations(prev =>
+          sortConversations(prev.map(c => c.id === conversationId ? { ...c, isPinned: wasPinned } : c))
+        );
+      }
+    },
+    [currentUser, conversations, sortConversations]
+  );
+
+  const toggleMute = useCallback(
+    async (conversationId: string) => {
+      if (!currentUser) return;
+      const convo = conversations.find(c => c.id === conversationId);
+      if (!convo) return;
+      const wasMuted = !!convo.isMuted;
+
+      setConversations(prev =>
+        prev.map(c => c.id === conversationId ? { ...c, isMuted: !wasMuted } : c)
+      );
+
+      try {
+        if (wasMuted) {
+          await ConversationRepository.unmuteConversation(currentUser.uid, conversationId);
+        } else {
+          await ConversationRepository.muteConversation(currentUser.uid, conversationId);
+        }
+      } catch (error) {
+        logger.error('useDMs', 'Failed to toggle mute', error);
+        setConversations(prev =>
+          prev.map(c => c.id === conversationId ? { ...c, isMuted: wasMuted } : c)
+        );
+      }
+    },
+    [currentUser, conversations]
+  );
+
   // ── Message requests ──────────────────────────────────────────────────────
 
   useEffect(() => {
@@ -169,6 +241,8 @@ export function useDMs(): UseDMsResult {
     fetchConversations,
     refresh,
     deleteConversation,
+    togglePin,
+    toggleMute,
     messageRequests,
     loadingRequests,
     rawRecipientResults,
