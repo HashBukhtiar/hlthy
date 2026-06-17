@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MilestonesFeed from './MilestonesFeed';
 import PostsFeed from './PostsFeed';
 import { ACCENT_COLOR } from '@/constants/Colors';
+import { SeenTrackingProvider } from '@/features/feed/ui/SeenTrackingProvider';
 
 enum TabType {
   POSTS = 'POSTS',
@@ -185,40 +186,42 @@ export default function HomeFeed() {
   
   // Lazy load the tab components to avoid crashes during initial render
   const tabScenes = [
-    { key: 'posts', component: <PostsFeed /> },
-    { key: 'milestones', component: <MilestonesFeed /> }
+    { key: 'posts', component: <PostsFeed isActive={activeTab === TabType.POSTS} /> },
+    { key: 'milestones', component: <MilestonesFeed isActive={activeTab === TabType.MILESTONES} /> }
   ];
 
   console.log('[HomeFeed] tabScenes created, about to return JSX');
 
   return (
-    <View style={[globalStyles.container, { paddingTop: 0 }]}>
-      {renderTopBar()}
-      {renderTabBar()}
-      <StatusBar style="light" />
-      
-      {/* Swipeable Tab Content */}
-      <Animated.FlatList
-        ref={flatListRef}
-        data={tabScenes}
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        onScroll={handleScroll}
-        scrollEventThrottle={16}
-        onMomentumScrollEnd={(e) => {
-          const contentOffsetX = e.nativeEvent.contentOffset.x;
-          const index = Math.round(contentOffsetX / screenWidth);
-          setActiveTab(index === 0 ? TabType.POSTS : TabType.MILESTONES);
-        }}
-        renderItem={({ item }) => (
-          <View style={[styles.tabContent, { width: screenWidth }]}>
-            {item.component}
-          </View>
-        )}
-        keyExtractor={(item) => item.key}
-      />
-    </View>
+    <SeenTrackingProvider>
+      <View style={[globalStyles.container, { paddingTop: 0 }]}>
+        {renderTopBar()}
+        {renderTabBar()}
+        <StatusBar style="light" />
+
+        {/* Swipeable Tab Content */}
+        <Animated.FlatList
+          ref={flatListRef}
+          data={tabScenes}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
+          onMomentumScrollEnd={(e) => {
+            const contentOffsetX = e.nativeEvent.contentOffset.x;
+            const index = Math.round(contentOffsetX / screenWidth);
+            setActiveTab(index === 0 ? TabType.POSTS : TabType.MILESTONES);
+          }}
+          renderItem={({ item }) => (
+            <View style={[styles.tabContent, { width: screenWidth }]}>
+              {item.component}
+            </View>
+          )}
+          keyExtractor={(item) => item.key}
+        />
+      </View>
+    </SeenTrackingProvider>
   );
 }
 

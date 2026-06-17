@@ -100,7 +100,7 @@ const getRelativeTime = (date: Date): string => {
   return `${diffInYears}y ago`;
 };
 
-export default function PostsFeed() {
+export default function PostsFeed({ isActive = true }: { isActive?: boolean }) {
   console.log('[PostsFeed] Component rendering');
   const router = useRouter();
   const { currentUser, userProfile } = useAuth();
@@ -109,10 +109,14 @@ export default function PostsFeed() {
   const { likePost, unlikePost, addComment, savePost, unsavePost } = usePostsData();
   const { canInteractWithUser, isUserBlocked } = useBlockEnforcement();
 
-  // Keep a stable ref to markSeen so the (necessarily stable) viewability
-  // callback always calls the latest version without re-registering on FlatList.
+  // Keep stable refs so the (necessarily stable) viewability callback always
+  // reads the latest values without re-registering on FlatList.
   const markSeenRef = useRef(markSeen);
   useEffect(() => { markSeenRef.current = markSeen; }, [markSeen]);
+  // Gate impressions on the active tab — HomeFeed mounts this feed alongside
+  // MilestonesFeed, so an inactive (paged-off) feed must not record false views.
+  const isActiveRef = useRef(isActive);
+  useEffect(() => { isActiveRef.current = isActive; }, [isActive]);
 
   // Local state for optimistic updates
   const [posts, setPosts] = useState<typeof feedPosts>([]);
@@ -155,6 +159,7 @@ export default function PostsFeed() {
     {
       viewabilityConfig: { itemVisiblePercentThreshold: 60, minimumViewTime: 500 },
       onViewableItemsChanged: ({ viewableItems }: { viewableItems: ViewToken[] }) => {
+        if (!isActiveRef.current) return;
         for (const { item } of viewableItems) {
           // Skip injected items (carousels, the caught-up divider) — only real
           // posts are "seen".

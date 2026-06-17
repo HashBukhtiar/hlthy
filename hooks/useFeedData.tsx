@@ -7,7 +7,7 @@ import {
   TAG_FEED_LOOKBACK_DAYS,
   TAG_FEED_POSTS_PER_TAG,
 } from '@/features/tags/domain/Tag';
-import { useSeenTracking } from '@/features/feed/ui/useSeenTracking';
+import { useSharedSeenTracking } from '@/features/feed/ui/SeenTrackingProvider';
 import { SeenState } from '@/features/feed/domain/SeenState';
 import { rankFeed, RankedFeedPost } from '@/logic/feedRanking';
 import { logger } from '@/shared/utils/logger';
@@ -26,7 +26,7 @@ export function useFeedData() {
   const [tagPostPool, setTagPostPool] = useState<TagInjectedPost[]>([]);
 
   const { currentUser } = useAuth();
-  const { markSeen, isHydrated, getSeenSnapshot } = useSeenTracking();
+  const { markSeen, isHydrated, getSeenSnapshot } = useSharedSeenTracking();
 
   // Frozen snapshot the feed is ranked against. Captured only on hydration and
   // on pull-to-refresh — never on every impression — so the order stays stable

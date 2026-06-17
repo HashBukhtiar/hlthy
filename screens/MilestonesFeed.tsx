@@ -34,16 +34,40 @@ import { useUnits } from '@/hooks/useUnits';
 import PostActionMenu from '@/components/PostActionMenu';
 import { useContentActions } from '@/hooks/useContentActions';
 import { ACCENT_COLOR } from '@/constants/Colors';
+import type { ViewToken } from 'react-native';
+import type { RankedFeedPost } from '@/logic/feedRanking';
 
 console.log('[MilestonesFeed] Module loaded');
 
-export default function MilestonesFeed() {
+export default function MilestonesFeed({ isActive = true }: { isActive?: boolean }) {
   console.log('[MilestonesFeed] Component rendering');
   const router = useRouter();
   const { currentUser, userProfile } = useAuth();
-  const { milestones: feedMilestones, loading, refreshing, loadingMore, hasMore, error, refreshFeed, loadMorePosts } = useFeedData();
+  const { milestones: feedMilestones, loading, refreshing, loadingMore, hasMore, error, refreshFeed, loadMorePosts, markSeen } = useFeedData();
   const { likePost, unlikePost } = usePostsData();
   const { canInteractWithUser, isUserBlocked } = useBlockEnforcement();
+
+  // Stable refs for the viewability callback (FlatList rejects changing it).
+  const markSeenRef = useRef(markSeen);
+  useEffect(() => { markSeenRef.current = markSeen; }, [markSeen]);
+  const isActiveRef = useRef(isActive);
+  useEffect(() => { isActiveRef.current = isActive; }, [isActive]);
+
+  // Impression tracking — same config as the posts feed. Gated on the active
+  // tab so the paged-off feed doesn't record false views.
+  const viewabilityConfigCallbackPairs = useRef([
+    {
+      viewabilityConfig: { itemVisiblePercentThreshold: 60, minimumViewTime: 500 },
+      onViewableItemsChanged: ({ viewableItems }: { viewableItems: ViewToken[] }) => {
+        if (!isActiveRef.current) return;
+        for (const { item } of viewableItems) {
+          if (item && !('type' in item)) {
+            markSeenRef.current?.(item.id, { opened: false });
+          }
+        }
+      },
+    },
+  ]);
   const [shareModalVisible, setShareModalVisible] = useState(false);
   const milestoneToShare = useRef<FeedMilestone | null>(null);
   const { getWeightUnit, getDistanceUnit } = useUnits();
@@ -176,11 +200,13 @@ export default function MilestonesFeed() {
   }, [currentUser, userProfile, likePost, unlikePost]);
   
   const navigateToMilestone = useCallback((id: string) => {
+    markSeenRef.current?.(id, { opened: true });
     router.push(`/view-milestone/${id}`);
   }, [router]);
-  
+
   const navigateToPost = useCallback((id: string) => {
     if (id) {
+      markSeenRef.current?.(id, { opened: true });
       router.push(`/view-post/${id}`);
     }
   }, [router]);
@@ -770,14 +796,31 @@ export default function MilestonesFeed() {
   }, []);
 
   const filteredMilestones = useMemo(() => {
-    return milestones.filter(milestone => {
+    return (milestones as RankedFeedPost[]).filter(milestone => {
       // Don't filter out current user's own milestones
       if (milestone.authorId === currentUser?.uid) return true;
-      
+
       // Filter out milestones from users we've blocked or who have blocked us
       return canInteractWithUser(milestone.authorId, milestone.authorBlockedUsers || []);
     });
   }, [milestones, canInteractWithUser, currentUser?.uid]);
+
+  // Inject the "All caught up" divider before the first already-seen milestone
+  // (only when at least one unseen milestone precedes it).
+  const milestoneFeedData = useMemo((): Array<RankedFeedPost | { type: 'caught_up'; id: string }> => {
+    const out: Array<RankedFeedPost | { type: 'caught_up'; id: string }> = [];
+    let unseenPushed = false;
+    let dividerInserted = false;
+    for (const m of filteredMilestones) {
+      if (!dividerInserted && m.seen && unseenPushed) {
+        out.push({ type: 'caught_up', id: 'caught-up-divider' });
+        dividerInserted = true;
+      }
+      out.push(m);
+      if (!m.seen) unseenPushed = true;
+    }
+    return out;
+  }, [filteredMilestones]);
 
   // Helper function to render the card content
   const renderCardContent = useCallback((item: FeedMilestone, hasStatus = false, statusText = '', statusColor = '') => {
@@ -930,11 +973,24 @@ export default function MilestonesFeed() {
   return (
     <>
       <FlatList
-        data={filteredMilestones}
+        data={milestoneFeedData}
         keyExtractor={(item) => item.id}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={milestones.length === 0 ? styles.emptyContainer : styles.milestonesContainer}
-        renderItem={({ item }) => renderMilestoneCard(item)}
+        renderItem={({ item }) =>
+          'type' in item ? (
+            <View style={styles.caughtUpContainer}>
+              <View style={styles.caughtUpLine} />
+              <View style={styles.caughtUpTextWrap}>
+                <Ionicons name="checkmark-circle" size={18} color={ACCENT_COLOR} />
+                <Text style={styles.caughtUpTitle}>You&apos;re all caught up</Text>
+              </View>
+              <Text style={styles.caughtUpSubtitle}>You&apos;ve seen all new milestones</Text>
+            </View>
+          ) : (
+            renderMilestoneCard(item)
+          )
+        }
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -947,6 +1003,7 @@ export default function MilestonesFeed() {
         onEndReachedThreshold={0.5}
         ListFooterComponent={renderFooter}
         ListEmptyComponent={renderEmptyState}
+        viewabilityConfigCallbackPairs={viewabilityConfigCallbackPairs.current}
         removeClippedSubviews={true}
         maxToRenderPerBatch={5}
         windowSize={10}
@@ -988,6 +1045,35 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 70,
     backgroundColor: '#2C2C2E',
+  },
+  caughtUpContainer: {
+    alignItems: 'center',
+    paddingVertical: 28,
+    paddingHorizontal: 24,
+    marginBottom: 12,
+  },
+  caughtUpLine: {
+    width: 48,
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: ACCENT_COLOR,
+    marginBottom: 14,
+    opacity: 0.8,
+  },
+  caughtUpTextWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  caughtUpTitle: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  caughtUpSubtitle: {
+    color: '#8E8E93',
+    fontSize: 13,
+    marginTop: 4,
   },
   milestoneCard: {
     marginBottom: 12,
