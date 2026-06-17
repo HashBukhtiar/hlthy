@@ -101,7 +101,7 @@ export default function PostsFeed() {
   const { currentUser, userProfile } = useAuth();
   const { posts: feedPosts, tagPostPool, loading, refreshing, loadingMore, hasMore, error, refreshFeed, loadMorePosts } = useFeedData();
   const { suggestions: suggestedUsers } = useSuggestedUsers();
-  const { likePost, unlikePost, addComment } = usePostsData();
+  const { likePost, unlikePost, addComment, savePost, unsavePost } = usePostsData();
   const { canInteractWithUser, isUserBlocked } = useBlockEnforcement();
   
   // Local state for optimistic updates  
@@ -212,27 +212,39 @@ export default function PostsFeed() {
   }, [currentUser, likePost, unlikePost]);
 
   // Handle bookmark toggle
-  const handleToggleBookmark = useCallback((postId: string, isCurrentlyBookmarked: boolean) => {
+  const handleToggleBookmark = useCallback(async (postId: string, isCurrentlyBookmarked: boolean) => {
     if (!currentUser) {
       Alert.alert('Please log in', 'You need to be logged in to bookmark posts.');
       return;
     }
 
-    // Haptic feedback
     Haptics.impactAsync(isCurrentlyBookmarked ? Haptics.ImpactFeedbackStyle.Light : Haptics.ImpactFeedbackStyle.Medium);
 
-    // Optimistic update - update UI immediately
-    setPosts(prevPosts => 
-      prevPosts.map(post => 
-        post.id === postId 
+    setPosts(prevPosts =>
+      prevPosts.map(post =>
+        post.id === postId
           ? { ...post, isBookmarked: !isCurrentlyBookmarked }
           : post
       )
     );
 
-    // TODO: Implement actual bookmark API call
-    // For now, just keep the optimistic update
-  }, [currentUser]);
+    try {
+      if (isCurrentlyBookmarked) {
+        await unsavePost(postId);
+      } else {
+        await savePost(postId);
+      }
+    } catch (error) {
+      setPosts(prevPosts =>
+        prevPosts.map(post =>
+          post.id === postId
+            ? { ...post, isBookmarked: isCurrentlyBookmarked }
+            : post
+        )
+      );
+      Alert.alert('Error', 'Could not update bookmark. Please try again.');
+    }
+  }, [currentUser, savePost, unsavePost]);
 
   // Handle opening action menu
   const handleOpenActionMenu = useCallback((post: Post) => {

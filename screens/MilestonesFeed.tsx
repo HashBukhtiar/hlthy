@@ -231,27 +231,6 @@ export default function MilestonesFeed() {
     setActionMenuVisible(true);
   }, []);
 
-  // Handle bookmark toggle for milestones
-  const handleToggleBookmark = useCallback((milestoneId: string, isCurrentlyBookmarked: boolean) => {
-    if (!currentUser) {
-      Alert.alert('Please log in', 'You need to be logged in to bookmark milestones.');
-      return;
-    }
-
-    // Haptic feedback
-    Haptics.impactAsync(isCurrentlyBookmarked ? Haptics.ImpactFeedbackStyle.Light : Haptics.ImpactFeedbackStyle.Medium);
-
-    // Optimistic update - update UI immediately
-    setMilestones(prevMilestones => 
-      prevMilestones.map(milestone => 
-        milestone.id === milestoneId 
-          ? { ...milestone, isBookmarked: !isCurrentlyBookmarked }
-          : milestone
-      )
-    );
-
-    // TODO: Implement actual bookmark API call
-  }, [currentUser]);
 
   const renderMilestoneDetails = useCallback((milestone: FeedMilestone) => {
     const details = milestone.milestoneDetails;
@@ -982,15 +961,11 @@ export default function MilestonesFeed() {
       <PostActionMenu
         visible={actionMenuVisible}
         onClose={() => setActionMenuVisible(false)}
-        isBookmarked={selectedMilestoneForAction?.isBookmarked || false}
+        isBookmarked={false}
         isFollowing={selectedMilestoneForAction?.isFollowing || false}
         isOwnPost={selectedMilestoneForAction?.authorId === currentUser?.uid}
         isMilestone={true}
-        onToggleBookmark={() => {
-          if (selectedMilestoneForAction) {
-            handleToggleBookmark(selectedMilestoneForAction.id, selectedMilestoneForAction.isBookmarked || false);
-          }
-        }}
+        onToggleBookmark={() => {}}
         onToggleFollow={handleToggleFollowFromMenu}
         onBlock={handleBlockUser}
         onReport={handleReportMilestone}

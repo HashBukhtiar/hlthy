@@ -56,15 +56,21 @@ async function enrichPosts(
     });
   }
 
-  // Fetch like status for every post in parallel.
+  // Fetch like + bookmark status for every post in parallel.
   const likeStatuses: Record<string, boolean> = {};
+  const bookmarkStatuses: Record<string, boolean> = {};
   await Promise.all(
     postDocs.map(async p => {
       try {
-        const d = await getDoc(doc(db, 'posts', p.id, 'likers', uid));
-        likeStatuses[p.id] = d.exists();
+        const [likeDoc, bookmarkDoc] = await Promise.all([
+          getDoc(doc(db, 'posts', p.id, 'likers', uid)),
+          getDoc(doc(db, 'users', uid, 'savedPosts', p.id)),
+        ]);
+        likeStatuses[p.id] = likeDoc.exists();
+        bookmarkStatuses[p.id] = bookmarkDoc.exists();
       } catch {
         likeStatuses[p.id] = false;
+        bookmarkStatuses[p.id] = false;
       }
     })
   );
@@ -92,6 +98,7 @@ async function enrichPosts(
     authorProfileThumbnailUrl: authorProfiles[p.authorId]?.profileThumbnailUrl || '',
     authorBlockedUsers: authorProfiles[p.authorId]?.blockedUsers || [],
     isLiked: likeStatuses[p.id] ?? false,
+    isBookmarked: bookmarkStatuses[p.id] ?? false,
     isFollowing: followingStatuses[p.authorId] ?? false,
   }));
 
