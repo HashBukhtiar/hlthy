@@ -701,9 +701,9 @@ export default function ViewMilestone() {
       <View style={[styles.container, { paddingTop: insets.top }]}>
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyText}>No milestone data to display</Text>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.backButton}
-            onPress={() => router.back()}
+            onPress={() => router.canGoBack() ? router.back() : router.replace('/')}
           >
             <Text style={styles.backButtonText}>Go Back</Text>
           </TouchableOpacity>
@@ -715,9 +715,9 @@ export default function ViewMilestone() {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={[styles.fixedHeader, { paddingTop: insets.top }]}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.backButtonIcon}
-          onPress={() => router.back()}
+          onPress={() => router.canGoBack() ? router.back() : router.replace('/')}
         >
           <Ionicons name="chevron-back" size={28} color="#FFF" />
         </TouchableOpacity>

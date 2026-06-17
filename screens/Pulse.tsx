@@ -24,6 +24,7 @@ import { usePulse } from '@/features/notifications/ui/usePulse';
 import { OptimizedImageLight } from '@/components/OptimizedImage';
 import { ACCENT_COLOR } from '@/constants/Colors';
 import { useBlockEnforcement } from '@/utils/blockUtils';
+import GlassBackButton from '@/components/GlassBackButton';
 
 const PULSE_MAX_AGE_DAYS = 60;
 
@@ -513,13 +514,7 @@ export default function Pulse() {
             {/* Enhanced Header */}
             <View style={activityStyles.headerGradient}>
                 <View style={activityStyles.headerContainer}>
-                    <TouchableOpacity 
-                        onPress={() => router.back()} 
-                        style={activityStyles.backButton}
-                        activeOpacity={0.7}
-                    >
-                        <Ionicons name="chevron-back" size={20} color="#fff" />
-                    </TouchableOpacity>
+                    <GlassBackButton />
                     <View style={activityStyles.titleContainer}>
                         <Text style={activityStyles.headerTitle}>Pulse</Text>
                         <Text style={activityStyles.headerSubtitle}>Stay connected</Text>
@@ -856,16 +851,6 @@ const activityStyles = StyleSheet.create({
         paddingHorizontal: 24,
         paddingVertical: 6,
         marginTop: 0,
-    },
-    backButton: {
-        width: 36,
-        height: 36,
-        borderRadius: 18,
-        backgroundColor: 'rgba(255, 255, 255, 0.12)',
-        alignItems: 'center',
-        justifyContent: 'center',
-        borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.1)',
     },
     titleContainer: {
         flex: 1,

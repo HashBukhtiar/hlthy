@@ -146,6 +146,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
 
   const insets = useSafeAreaInsets();
   const isOwnProfile = !routeUserId || routeUserId === currentUser?.uid;
+  const isTabInstance = !routeUserId;
   
   // For own profile, merge profileData with currentUserProfile to get latest socialLinks
   // currentUserProfile is updated immediately after settings save via refreshUserProfile()
@@ -572,8 +573,8 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
               <Ionicons name="settings-outline" size={24} color="white" />
             </TouchableOpacity>
           )}
-          {/* Back Button (Other's Profile) */}
-          {!isOwnProfile && router.canGoBack() && (
+          {/* Back Button (pushed route) */}
+          {!isTabInstance && router.canGoBack() && (
             <TouchableOpacity
               style={styles.miniHeaderSideBtn}
               onPress={() => router.back()}
@@ -654,7 +655,8 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
           viewedProfileId={viewedProfileId}
           isPrivate={isPrivate}
           canGoBack={router.canGoBack()}
-          onBack={() => router.back()}
+          showBackButton={!isTabInstance}
+          onBack={() => router.canGoBack() ? router.back() : router.replace('/')}
           onSettings={handleSettingsPress}
           onEditProfile={handleEditProfilePress}
           onMoreOptions={profileActions.showMoreOptions}
@@ -910,8 +912,8 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
           },
         ]}
       >
-        {isOwnProfile ? (
-          /* Own profile: avatar + name left-aligned, settings on right */
+        {isOwnProfile && isTabInstance ? (
+          /* Own profile tab: avatar + name left-aligned, settings on right */
           <View style={styles.miniHeaderInner}>
             <View style={styles.miniHeaderOwnLeft}>
               {processedProfileData?.profileImageUrl ? (
@@ -972,19 +974,15 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
             </View>
           </View>
         ) : (
-          /* Other profile: back left, avatar + name centered, more options right */
+          /* Pushed profile: back left, avatar + name centered, more options right */
           <View style={styles.miniHeaderInner}>
-            {router.canGoBack() ? (
-              <TouchableOpacity
-                style={styles.miniHeaderSideBtn}
-                onPress={() => router.back()}
-                activeOpacity={0.85}
-              >
-                <Ionicons name="chevron-back" size={22} color="white" />
-              </TouchableOpacity>
-            ) : (
-              <View style={styles.miniHeaderSideBtn} />
-            )}
+            <TouchableOpacity
+              style={styles.miniHeaderSideBtn}
+              onPress={() => router.canGoBack() ? router.back() : router.replace('/')}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="chevron-back" size={22} color="white" />
+            </TouchableOpacity>
             <View style={styles.miniHeaderCenter}>
               {processedProfileData?.profileImageUrl ? (
                 <Image

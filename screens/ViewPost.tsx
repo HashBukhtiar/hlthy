@@ -1171,7 +1171,7 @@ export default function ViewPost() {
           <Text style={styles.notFoundText}>Post not found</Text>
           <TouchableOpacity 
             style={styles.backButton}
-            onPress={() => router.back()}
+            onPress={() => router.canGoBack() ? router.back() : router.replace('/')}
           >
             <Text style={styles.backButtonText}>Go Back</Text>
           </TouchableOpacity>
@@ -1299,7 +1299,13 @@ export default function ViewPost() {
           style={styles.scrollView}
         >
           <View style={styles.header}>
-            <TouchableOpacity 
+            <TouchableOpacity
+              style={styles.headerBackButton}
+              onPress={() => router.canGoBack() ? router.back() : router.replace('/')}
+            >
+              <Ionicons name="chevron-back" size={24} color="#FFF" />
+            </TouchableOpacity>
+            <TouchableOpacity
               style={styles.userInfoContainer}
               onPress={() => navigateToProfile(post.authorId)}
             >
@@ -1912,9 +1918,14 @@ const styles = StyleSheet.create({
     borderBottomColor: '#222',
     borderBottomWidth: 1,
   },
+  headerBackButton: {
+    padding: 4,
+    marginRight: 4,
+  },
   userInfoContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
   },
   profilePic: {
     width: 40,

@@ -28,6 +28,7 @@ export default function RootLayout() {
             <Stack.Screen name="(tabs)" options={{ gestureEnabled: false }} />
 
             {/* Screens with swipe back enabled */}
+            <Stack.Screen name="profile/[userId]" options={{ gestureEnabled: true, animation: Platform.OS === 'android' ? 'none' : 'slide_from_right' }} />
             <Stack.Screen name="pulse" options={{ gestureEnabled: true, animation: Platform.OS === 'android' ? 'none' : 'slide_from_right' }} />
             <Stack.Screen name="dms" options={{ gestureEnabled: true, animation: Platform.OS === 'android' ? 'none' : 'slide_from_right' }} />
             <Stack.Screen name="explore" options={{ gestureEnabled: true, animation: Platform.OS === 'android' ? 'none' : 'slide_from_right' }} />

@@ -31,6 +31,7 @@ interface ProfileHeaderProps {
   viewedProfileId: string;
   isPrivate: boolean;
   canGoBack: boolean;
+  showBackButton: boolean;
   onBack: () => void;
   onSettings: () => void;
   onEditProfile: () => void;
@@ -58,6 +59,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
   viewedProfileId,
   isPrivate,
   canGoBack,
+  showBackButton,
   onBack,
   onSettings,
   onEditProfile,
@@ -137,7 +139,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
         
         {/* Top Navigation Buttons */}
         <SafeAreaView style={styles.topNavigation}>
-          {!isOwnProfile && canGoBack && (
+          {showBackButton && (
             <TouchableOpacity
               style={styles.navButton}
               onPress={onBack}

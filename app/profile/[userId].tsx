@@ -11,6 +11,7 @@ export default function UserProfilePage() {
       <Stack.Screen
         options={{
           headerShown: false,
+          gestureEnabled: true,
         }}
       />
       <ProfileScreen userId={userId} />
