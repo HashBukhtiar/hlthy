@@ -315,8 +315,12 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
               {formatCount(currentHype(profileData?.hypeByDay))}
             </Text>
             <View style={styles.hypeLabelRow}>
-              <Text style={styles.statLabelNew}>Hype</Text>
-              <Ionicons name="information-circle-outline" size={12} color="rgba(255,255,255,0.5)" />
+              <Text style={[styles.statLabelNew, styles.hypeLabelText]}>Hype</Text>
+              <Ionicons
+                name="information-circle-outline"
+                size={12}
+                color="rgba(255,255,255,0.5)"
+              />
             </View>
           </TouchableOpacity>
         </View>
@@ -562,6 +566,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
+    marginTop: 3,
+  },
+  hypeLabelText: {
+    marginTop: 0,
+    includeFontPadding: false,
+    fontSize: 11,
+    lineHeight: 12,
   },
   statDivider: {
     width: 1,

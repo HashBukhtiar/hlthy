@@ -793,7 +793,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
           <View style={styles.tooltipCard}>
             <View style={styles.tooltipHeader}>
               <View style={styles.hypeIconCircle}>
-                <Ionicons name="flame" size={22} color={ACCENT_COLOR} />
+                <Ionicons name="star" size={22} color={ACCENT_COLOR} />
               </View>
               <Text style={styles.tooltipTitle}>Hype</Text>
             </View>
