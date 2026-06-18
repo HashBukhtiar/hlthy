@@ -5,6 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { ACCENT_COLOR } from '@/constants/Colors';
 import { formatCount } from '@/logic/formattingFunctions';
+import { currentHype } from '@/logic/hype';
 import { getOptimalImageUrl } from '@/utils/imageUtils';
 import { ProfileImageViewer, ImagePosition } from './ProfileImageViewer';
 import { BannerImageViewer, BannerPosition } from './BannerImageViewer';
@@ -305,7 +306,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
           
           <View style={styles.statItemNew}>
             <Text style={styles.statValueNew}>
-              {formatCount(profileData?.stats?.totalLikes || 0)}
+              {formatCount(currentHype(profileData?.hypeByDay))}
             </Text>
             <Text style={styles.statLabelNew}>Hype</Text>
           </View>

@@ -47,9 +47,14 @@ service cloud.firestore {
       // Read: any authenticated user. Profile visibility enforced client-side.
       // canViewProfile with get() calls was causing Firestore eval limits on bulk reads.
       allow read: if isAuthenticated();
-      allow create: if isOwner(userId);
-      allow update: if isOwner(userId);
-      
+      // Clients may not set Hype fields — written only by Cloud Functions (the
+      // admin SDK bypasses rules). Leaving them unchanged in a diff is fine.
+      allow create: if isOwner(userId)
+        && !request.resource.data.keys().hasAny(['hypeByDay', 'hypeGiven']);
+      allow update: if isOwner(userId)
+        && !request.resource.data.diff(resource.data).affectedKeys()
+             .hasAny(['hypeByDay', 'hypeGiven']);
+
       // Allow clearing push tokens specifically (for logout cleanup)
       allow update: if isAuthenticated() && 
         isOwner(userId) && 
