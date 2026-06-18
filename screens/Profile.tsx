@@ -117,6 +117,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
   const tabWidth = screenWidth / 3;
   const [tooltipVisible, setTooltipVisible] = useState(false);
   const [tooltipText, setTooltipText] = useState('');
+  const [hypeInfoVisible, setHypeInfoVisible] = useState(false);
   const [followersModalVisible, setFollowersModalVisible] = useState(false);
   const [followingModalVisible, setFollowingModalVisible] = useState(false);
   const [showOwnActionMenu, setShowOwnActionMenu] = useState(false);
@@ -666,6 +667,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
           onArchetypeBadgePress={handleArchetypeBadgePress}
           onFollowersPress={handleFollowersPress}
           onFollowingPress={handleFollowingPress}
+          onHypePress={() => setHypeInfoVisible(true)}
           onViewProfileCard={() => router.push(`/view-profile-card/${viewedProfileId}`)}
         />
         </View>
@@ -767,6 +769,44 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
             <Text style={styles.tooltipText}>{tooltipText}</Text>
             <TouchableOpacity
               onPress={() => setTooltipVisible(false)}
+              style={styles.tooltipCloseButton}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.tooltipButtonText}>Got it</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Hype Info Modal */}
+      <Modal
+        transparent={true}
+        visible={hypeInfoVisible}
+        animationType="fade"
+        onRequestClose={() => setHypeInfoVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.tooltipOverlay}
+          activeOpacity={1}
+          onPress={() => setHypeInfoVisible(false)}
+        >
+          <View style={styles.tooltipCard}>
+            <View style={styles.tooltipHeader}>
+              <View style={styles.hypeIconCircle}>
+                <Ionicons name="flame" size={22} color={ACCENT_COLOR} />
+              </View>
+              <Text style={styles.tooltipTitle}>Hype</Text>
+            </View>
+            <View style={styles.tooltipDivider} />
+            <Text style={styles.tooltipText}>
+              Hype is a momentum score. You earn it by training (logging workouts,
+              and hitting new milestones) and when people back your posts with
+              likes, comments, saves and follows.{'\n'}{'\n'}
+              It builds as you stay active and cools off when you go quiet, so it
+              always reflects your recent grind.
+            </Text>
+            <TouchableOpacity
+              onPress={() => setHypeInfoVisible(false)}
               style={styles.tooltipCloseButton}
               activeOpacity={0.85}
             >
@@ -1402,6 +1442,15 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     marginRight: 12,
+  },
+  hypeIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    marginRight: 12,
+    backgroundColor: 'rgba(255,45,85,0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   tooltipTitle: {
     color: '#FFF',
