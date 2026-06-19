@@ -10,6 +10,7 @@ import {
 import { useSharedSeenTracking } from '@/features/feed/ui/SeenTrackingProvider';
 import { SeenState } from '@/features/feed/domain/SeenState';
 import { rankFeed, RankedFeedPost } from '@/logic/feedRanking';
+import { primePosts } from '@/hooks/usePostsData';
 import { logger } from '@/shared/utils/logger';
 
 export type TagInjectedPost = FeedPost & { injectedFromTag: string };
@@ -223,6 +224,11 @@ export function useFeedData() {
     () => rankFeed(milestones, rankSnapshot).ranked,
     [milestones, rankSnapshot]
   );
+
+  // Cache feed posts so tapping one opens the detail instantly (no spinner).
+  useEffect(() => {
+    primePosts(rankedPosts);
+  }, [rankedPosts]);
 
   return {
     posts: rankedPosts,

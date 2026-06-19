@@ -5,12 +5,13 @@ import {
   TextInput, Modal, ActivityIndicator, Alert, Keyboard
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import Reanimated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import ShareModal from '@/components/ShareModal';
 import ReportModal from '@/components/ReportModal';
 import { sharePost } from '@/services/ShareService';
-import { usePostsData, Post, Comment, Reply } from '@/hooks/usePostsData';
+import { usePostsData, peekCachedPost, Post, Comment, Reply } from '@/hooks/usePostsData';
 import { useAuth } from '@/context/AuthContext';
 import { collection, query, where, limit, getDocs, getDoc, doc } from '@/features/infra/firestore';
 import { db } from '@/firebaseConfig';
@@ -55,9 +56,32 @@ export default function ViewPost() {
   } = usePostsData();  
   const postId = params.id ? String(params.id) : '';
   
-  const [post, setPost] = useState<Post | null>(null);
+  // Seed from the post cache when we arrived from a feed/grid — paints the post
+  // instantly so the entrance transition lands on real content, not a spinner.
+  const [post, setPost] = useState<Post | null>(() => peekCachedPost(postId));
   const [comments, setComments] = useState<Comment[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !peekCachedPost(postId));
+
+  // "Settle" entrance: the first time a post is ready, the content eases in
+  // (fade + a small rise/scale) instead of popping. Keyed by post id so the
+  // background refresh's setPost doesn't replay it. Pairs with the route's
+  // cross-fade so entering a post feels composed, not janky.
+  const settle = useSharedValue(0);
+  const settledForRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (post?.id && settledForRef.current !== post.id) {
+      settledForRef.current = post.id;
+      settle.value = 0;
+      settle.value = withTiming(1, { duration: 320, easing: Easing.out(Easing.cubic) });
+    }
+  }, [post?.id, settle]);
+  const settleStyle = useAnimatedStyle(() => ({
+    opacity: settle.value,
+    transform: [
+      { translateY: (1 - settle.value) * 12 },
+      { scale: 0.99 + settle.value * 0.01 },
+    ],
+  }));
   const [commentText, setCommentText] = useState('');
   const [sortModalVisible, setSortModalVisible] = useState(false);
   const [sortType, setSortType] = useState('Recency');
@@ -214,7 +238,9 @@ export default function ViewPost() {
         setLoading(false);
         return;
       }
-      setLoading(true);
+      // Only show the full-screen spinner on a cold open (deep link / notification).
+      // When the post is already cached it's painted, so we refresh silently.
+      if (!peekCachedPost(postId)) setLoading(true);
       try {
         // Fetch post
         const fetchedPost = await getPostById(postId);
@@ -227,6 +253,9 @@ export default function ViewPost() {
           }
         }
         setPost(fetchedPost);
+        // Clear the spinner as soon as the post is ready — comments load after,
+        // so they never hold up the paint or the entrance animation.
+        setLoading(false);
 
         // Fetch comments
         const fetchedComments = await getPostComments(postId);
@@ -1294,7 +1323,8 @@ export default function ViewPost() {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
       <View style={[styles.container, { paddingTop: insets.top }]}>
-        <ScrollView 
+        <Reanimated.View style={[styles.settleWrap, settleStyle]}>
+        <ScrollView
           showsVerticalScrollIndicator={false}
           style={styles.scrollView}
         >
@@ -1464,6 +1494,7 @@ export default function ViewPost() {
             {filteredComments.map(comment => renderCommentItem(comment))}
           </View>
         </ScrollView>
+        </Reanimated.View>
 
         {canInteractWithAuthor && (
           <View style={[styles.commentInputContainer, { paddingBottom: Math.max(insets.bottom, 10) }]}>
@@ -1905,6 +1936,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#000',
+  },
+  settleWrap: {
+    flex: 1,
   },
   scrollView: {
     backgroundColor: '#000',

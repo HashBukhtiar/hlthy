@@ -14,6 +14,33 @@ export type { ActivityItem } from '@/features/notifications/domain/ActivityItem'
 
 import type { Post, Comment, Reply } from '@/features/posts/domain/Post';
 
+// ── Post cache ───────────────────────────────────────────────────────────────
+// In-memory snapshot of posts the user has already seen in a list (feed, grid,
+// profile). Detail screens read this to paint instantly instead of showing a
+// loading spinner, then refresh in the background. Best-effort; cleared on app
+// restart. Capped so it can't grow unbounded during a long session.
+const POST_CACHE_LIMIT = 200;
+const postCache = new Map<string, Post>();
+
+export function primePost(post: Post | null | undefined) {
+  if (!post?.id) return;
+  // Re-insert to mark as most-recently-used, then evict the oldest if over cap.
+  postCache.delete(post.id);
+  postCache.set(post.id, post);
+  if (postCache.size > POST_CACHE_LIMIT) {
+    const oldest = postCache.keys().next().value;
+    if (oldest !== undefined) postCache.delete(oldest);
+  }
+}
+
+export function primePosts(posts: Post[] | null | undefined) {
+  posts?.forEach(primePost);
+}
+
+export function peekCachedPost(id: string): Post | null {
+  return id ? postCache.get(id) ?? null : null;
+}
+
 export function usePostsData() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
@@ -118,7 +145,9 @@ export function usePostsData() {
 
   const getPostById = async (postId: string): Promise<Post> => {
     if (!currentUser?.uid) throw new Error("User not authenticated");
-    return PostRepository.getById(postId, currentUser.uid);
+    const post = await PostRepository.getById(postId, currentUser.uid);
+    primePost(post);
+    return post;
   };
 
   const getPostComments = async (postId: string): Promise<Comment[]> => {

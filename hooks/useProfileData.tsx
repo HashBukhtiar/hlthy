@@ -4,6 +4,7 @@ import { useAuth } from '@/context/AuthContext';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { UserProfile } from '@/types/user';
 import { ProfileRepository } from '@/features/profile/infra/profileRepository';
+import { primePosts } from '@/hooks/usePostsData';
 
 export type { Milestone, GroupedMilestones } from '@/features/profile/domain/Milestone';
 import type { Milestone, GroupedMilestones } from '@/features/profile/domain/Milestone';
@@ -406,6 +407,11 @@ export function useProfileData(userId = null, contextUserProfile: UserProfile | 
       setLoading(false);
     }
   }, [fetchProfileData, profileIdToFetch, currentUser?.uid]);
+
+  // Cache profile posts so tapping one opens the detail instantly (no spinner).
+  useEffect(() => {
+    primePosts(posts);
+  }, [posts]);
 
   return {
     loading,
