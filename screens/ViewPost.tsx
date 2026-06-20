@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
-  StyleSheet, Text, View, Image, ScrollView,
+  StyleSheet, Text, View, Image, FlatList,
   TouchableOpacity, KeyboardAvoidingView, Platform,
   TextInput, Modal, ActivityIndicator, Alert, Keyboard
 } from 'react-native';
@@ -12,6 +12,7 @@ import ShareModal from '@/components/ShareModal';
 import ReportModal from '@/components/ReportModal';
 import { sharePost } from '@/services/ShareService';
 import { usePostsData, peekCachedPost, Post, Comment, Reply } from '@/hooks/usePostsData';
+import type { CommentCursor } from '@/hooks/usePostsData';
 import { useAuth } from '@/context/AuthContext';
 import { collection, query, where, limit, getDocs, getDoc, doc } from '@/features/infra/firestore';
 import { db } from '@/firebaseConfig';
@@ -26,6 +27,26 @@ import { useSelfUnmention } from '@/features/mentions/ui/useSelfUnmention';
 import { TagChip } from '@/components/TagChip';
 import { navigateToTagFeed } from '@/features/explore/ui/useExplore';
 import VideoPlayer from '@/components/VideoPlayer';
+
+// How many comments to fetch per page (initial load + each "load more").
+const COMMENTS_PAGE_SIZE = 15;
+
+// Client-side ordering of the currently-loaded comments. Recency matches the
+// fetch order (newest first); the others reorder the loaded window.
+function sortComments(list: Comment[], type: string): Comment[] {
+  const sorted = [...list];
+  switch (type) {
+    case 'Popularity':
+      return sorted.sort((a, b) => (b.likes || 0) - (a.likes || 0));
+    case 'Recency':
+      return sorted.sort((a, b) =>
+        (b.createdAt?.toDate?.()?.getTime?.() ?? 0) - (a.createdAt?.toDate?.()?.getTime?.() ?? 0)
+      );
+    case 'Relevance':
+    default:
+      return sorted;
+  }
+}
 
 export default function ViewPost() {
   const [menuVisible, setMenuVisible] = useState(false);
@@ -61,6 +82,12 @@ export default function ViewPost() {
   const [post, setPost] = useState<Post | null>(() => peekCachedPost(postId));
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(() => !peekCachedPost(postId));
+
+  // Comment pagination — fetch a page at a time instead of every comment up front.
+  const [commentCursor, setCommentCursor] = useState<CommentCursor | null>(null);
+  const [hasMoreComments, setHasMoreComments] = useState(false);
+  const [loadingMoreComments, setLoadingMoreComments] = useState(false);
+  const [commentsLoading, setCommentsLoading] = useState(true);
 
   // "Settle" entrance: the first time a post is ready, the content eases in
   // (fade + a small rise/scale) instead of popping. Keyed by post id so the
@@ -257,43 +284,17 @@ export default function ViewPost() {
         // so they never hold up the paint or the entrance animation.
         setLoading(false);
 
-        // Fetch comments
-        const fetchedComments = await getPostComments(postId);
-
-        // For each comment, fetch the author's thumbnail
-        const commentsWithThumbnails = await Promise.all(
-          fetchedComments.map(async (comment) => {
-            if (comment.authorId) {
-              const userDoc = await getDoc(doc(db, 'users', comment.authorId));
-              if (userDoc.exists()) {
-                const userData = userDoc.data();
-                comment.authorProfileThumbnailUrl = userData.profileThumbnailUrl || '';
-                comment.authorBlockedUsers = userData.blockedUsers || [];
-              }
-            }
-            // For each reply, fetch the author's thumbnail and blocked users
-            if (comment.replies && comment.replies.length > 0) {
-              comment.replies = await Promise.all(
-                comment.replies.map(async (reply) => {
-                  if (reply.authorId) {
-                    const replyUserDoc = await getDoc(doc(db, 'users', reply.authorId));
-                    if (replyUserDoc.exists()) {
-                      const replyUserData = replyUserDoc.data();
-                      reply.authorProfileThumbnailUrl = replyUserData.profileThumbnailUrl || '';
-                      reply.authorBlockedUsers = replyUserData.blockedUsers || [];
-                    }
-                  }
-                  return reply;
-                })
-              );
-            }
-            return comment;
-          })
-        );
-
-        setComments(commentsWithThumbnails);
+        // Fetch the first page of comments. The repo already hydrates each
+        // comment author's thumbnail + blockedUsers, so no per-comment refetch.
+        setCommentsLoading(true);
+        const page = await getPostComments(postId, { limitN: COMMENTS_PAGE_SIZE });
+        setComments(page.comments); // newest-first already matches the default Recency sort
+        setCommentCursor(page.cursor);
+        setHasMoreComments(page.comments.length === COMMENTS_PAGE_SIZE);
+        setCommentsLoading(false);
       } catch (error) {
         console.error("Error fetching post/comments:", error);
+        setCommentsLoading(false);
       } finally {
         setLoading(false);
       }
@@ -680,8 +681,10 @@ export default function ViewPost() {
       const refreshedPost = await getPostById(postId);
       setPost(refreshedPost);
       
-      const refreshedComments = await getPostComments(postId);
-      setComments(refreshedComments);
+      const page = await getPostComments(postId, { limitN: COMMENTS_PAGE_SIZE });
+      setComments(sortComments(page.comments, sortType));
+      setCommentCursor(page.cursor);
+      setHasMoreComments(page.comments.length === COMMENTS_PAGE_SIZE);
     } catch (error) {
       console.error("Error refreshing data:", error);
     } finally {
@@ -1140,23 +1143,26 @@ export default function ViewPost() {
   const handleSort = (type: string) => {
     setSortType(type);
     setSortModalVisible(false);
-    
-    const sortedComments = [...comments];
-    switch (type) {
-      case 'Recency':
-        setComments(sortedComments.sort((a, b) => 
-          b.createdAt?.toDate?.() > a.createdAt?.toDate?.() ? 1 : -1
-        ));
-        break;
-      case 'Popularity':
-        setComments(sortedComments.sort((a, b) => (b.likes || 0) - (a.likes || 0)));
-        break;
-      case 'Relevance':
-        // You might want to implement a more sophisticated relevance algorithm
-        setComments(sortedComments);
-        break;
-      default:
-        break;
+    setComments(prev => sortComments(prev, type));
+  };
+
+  // Fetch the next page of comments when the user scrolls near the bottom.
+  const loadMoreComments = async () => {
+    if (loadingMoreComments || !hasMoreComments || !commentCursor) return;
+    setLoadingMoreComments(true);
+    try {
+      const page = await getPostComments(postId, { limitN: COMMENTS_PAGE_SIZE, after: commentCursor });
+      setComments(prev => {
+        const seen = new Set(prev.map(c => c.id));
+        const merged = [...prev, ...page.comments.filter(c => !seen.has(c.id))];
+        return sortComments(merged, sortType);
+      });
+      setCommentCursor(page.cursor);
+      setHasMoreComments(page.comments.length === COMMENTS_PAGE_SIZE);
+    } catch (error) {
+      console.error("Error loading more comments:", error);
+    } finally {
+      setLoadingMoreComments(false);
     }
   };
   
@@ -1324,10 +1330,32 @@ export default function ViewPost() {
     >
       <View style={[styles.container, { paddingTop: insets.top }]}>
         <Reanimated.View style={[styles.settleWrap, settleStyle]}>
-        <ScrollView
+        <FlatList
           showsVerticalScrollIndicator={false}
           style={styles.scrollView}
-        >
+          data={filteredComments}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => (
+            <View style={styles.commentRow}>{renderCommentItem(item)}</View>
+          )}
+          extraData={[likingComments, likingReplies, expandedComments, loadingReplies, replyingToCommentId, editingComment, currentUser?.uid]}
+          keyboardShouldPersistTaps="handled"
+          onEndReached={loadMoreComments}
+          onEndReachedThreshold={0.4}
+          ListEmptyComponent={
+            commentsLoading ? null : (
+              <Text style={[styles.commentRow, { color: '#999', textAlign: 'center', marginTop: 20, marginBottom: 20 }]}>
+                {canInteractWithAuthor ? "No comments yet. Be the first to comment!" : "Comments are not available."}
+              </Text>
+            )
+          }
+          ListFooterComponent={
+            loadingMoreComments
+              ? <ActivityIndicator size="small" color="#999" style={{ marginVertical: 16 }} />
+              : <View style={{ height: 16 }} />
+          }
+          ListHeaderComponent={
+            <>
           <View style={styles.header}>
             <TouchableOpacity
               style={styles.headerBackButton}
@@ -1484,16 +1512,10 @@ export default function ViewPost() {
                 <Ionicons name="chevron-down" size={14} color="#999" />
               </TouchableOpacity>
             </View>
-            
-            {filteredComments.length === 0 && (
-              <Text style={{ color: '#999', textAlign: 'center', marginTop: 20, marginBottom: 20 }}>
-                {canInteractWithAuthor ? "No comments yet. Be the first to comment!" : "Comments are not available."}
-              </Text>
-            )}
-            
-            {filteredComments.map(comment => renderCommentItem(comment))}
           </View>
-        </ScrollView>
+            </>
+          }
+        />
         </Reanimated.View>
 
         {canInteractWithAuthor && (
@@ -2135,6 +2157,9 @@ const styles = StyleSheet.create({
     color: '#999',
     fontSize: 12,
     marginRight: 4,
+  },
+  commentRow: {
+    paddingHorizontal: 15,
   },
   commentItem: {
     flexDirection: 'row',

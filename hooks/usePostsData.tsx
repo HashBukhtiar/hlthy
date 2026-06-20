@@ -5,6 +5,8 @@ import { useAuth } from '@/context/AuthContext';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { generateUniqueFilename } from '@/logic/idGenerator';
 import { PostRepository } from '@/features/posts/infra/postRepository';
+import type { CommentCursor, CommentPage } from '@/features/posts/infra/postRepository';
+export type { CommentCursor, CommentPage } from '@/features/posts/infra/postRepository';
 import type { PostAuthorProfile, NewPostData } from '@/features/posts/domain/Post';
 import type { MentionData } from '@/features/mentions/domain/Mention';
 
@@ -150,9 +152,12 @@ export function usePostsData() {
     return post;
   };
 
-  const getPostComments = async (postId: string): Promise<Comment[]> => {
+  const getPostComments = async (
+    postId: string,
+    opts?: { limitN?: number; after?: CommentCursor | null }
+  ): Promise<CommentPage> => {
     if (!currentUser?.uid) throw new Error("User not authenticated");
-    return PostRepository.getComments(postId, currentUser.uid);
+    return PostRepository.getComments(postId, currentUser.uid, opts);
   };
 
   const addPost = async (postData: NewPostData): Promise<string> => {

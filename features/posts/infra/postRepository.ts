@@ -13,11 +13,15 @@ import {
   deleteDoc,
   orderBy,
   limit,
+  startAfter,
   increment,
   runTransaction,
   Timestamp,
   serverTimestamp,
   updateDoc,
+  type QueryConstraint,
+  type QueryDocumentSnapshot,
+  type DocumentData,
 } from 'firebase/firestore';
 import { db } from '@/firebaseConfig';
 import { Post, Comment, Reply, PostAuthorProfile } from '@/features/posts/domain/Post';
@@ -46,6 +50,14 @@ async function hydrateCommentAuthor(comment: Comment): Promise<void> {
 }
 
 // ── Public API ──────────────────────────────────────────────────────────────
+
+/** Opaque cursor for comment pagination (re-exported so callers avoid firestore imports). */
+export type CommentCursor = QueryDocumentSnapshot<DocumentData>;
+
+export interface CommentPage {
+  comments: Comment[];
+  cursor: CommentCursor | null;
+}
 
 export const PostRepository = {
   /** Fetches all public posts ordered by creation date. */
@@ -83,32 +95,46 @@ export const PostRepository = {
     return post;
   },
 
-  /** Fetches all comments for a post with author profiles and like status. */
-  async getComments(postId: string, uid: string): Promise<Comment[]> {
-    const q = query(collection(db, 'posts', postId, 'comments'), orderBy('createdAt', 'desc'));
-    const snap = await getDocs(q);
+  /**
+   * Fetches a page of comments for a post (newest first) with author profiles
+   * and like status. Author hydration runs in parallel. Pass `limitN`/`after`
+   * for pagination; omit them to fetch everything (legacy behavior).
+   */
+  async getComments(
+    postId: string,
+    uid: string,
+    opts?: { limitN?: number; after?: CommentCursor | null }
+  ): Promise<CommentPage> {
+    const constraints: QueryConstraint[] = [orderBy('createdAt', 'desc')];
+    if (opts?.after) constraints.push(startAfter(opts.after));
+    if (opts?.limitN) constraints.push(limit(opts.limitN));
 
-    const comments: Comment[] = [];
-    for (const d of snap.docs) {
-      const data = d.data();
-      const comment: Comment = {
-        id: d.id,
-        authorId: data.authorId,
-        authorUsername: data.authorUsername,
-        authorProfileImageUrl: '',
-        text: data.text,
-        createdAt: data.createdAt,
-        likes: data.likes ?? 0,
-        likedBy: data.likedBy ?? [],
-        replyCount: data.replyCount ?? 0,
-        mentions: data.mentions,
-        isLiked: data.likedBy?.includes(uid) ?? false,
-        replies: [],
-      };
-      await hydrateCommentAuthor(comment);
-      comments.push(comment);
-    }
-    return comments;
+    const snap = await getDocs(query(collection(db, 'posts', postId, 'comments'), ...constraints));
+
+    const comments = await Promise.all(
+      snap.docs.map(async (d) => {
+        const data = d.data();
+        const comment: Comment = {
+          id: d.id,
+          authorId: data.authorId,
+          authorUsername: data.authorUsername,
+          authorProfileImageUrl: '',
+          text: data.text,
+          createdAt: data.createdAt,
+          likes: data.likes ?? 0,
+          likedBy: data.likedBy ?? [],
+          replyCount: data.replyCount ?? 0,
+          mentions: data.mentions,
+          isLiked: data.likedBy?.includes(uid) ?? false,
+          replies: [],
+        };
+        await hydrateCommentAuthor(comment);
+        return comment;
+      })
+    );
+
+    const cursor = snap.docs.length > 0 ? snap.docs[snap.docs.length - 1] : null;
+    return { comments, cursor };
   },
 
   /**
