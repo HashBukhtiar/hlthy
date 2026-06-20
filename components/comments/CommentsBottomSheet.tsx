@@ -58,13 +58,29 @@ export default function CommentsBottomSheet({ post, visible, onClose, onCommentC
   const sheetStyle = useAnimatedStyle(() => ({ transform: [{ translateY: translateY.value }] }));
   const backdropStyle = useAnimatedStyle(() => ({ opacity: backdrop.value }));
 
-  // Pan on the header/handle only, so the comment list scrolls independently.
+  // Tracks the comment list's scroll position (written on the UI thread by the
+  // list inside CommentsThread) so the drag can tell when the list is at the top.
+  const scrollOffset = useSharedValue(0);
+
+  // The list's native scroll gesture — composed with the sheet pan so both can
+  // recognize at once. CommentsThread attaches this to its FlatList.
+  const nativeGesture = Gesture.Native();
+
+  // Drag-to-dismiss from anywhere in the sheet. The sheet only follows the finger
+  // when a drag is already underway OR the list is scrolled to the very top — so
+  // pulling down past the top of the comments closes the sheet, while everywhere
+  // else the gesture passes through to the list's own scrolling.
   const pan = Gesture.Pan()
-    .onUpdate((e) => {
-      translateY.value = Math.max(0, e.translationY);
+    .activeOffsetY([-12, 12])
+    .simultaneousWithExternalGesture(nativeGesture)
+    .onChange((e) => {
+      if (translateY.value > 0 || scrollOffset.value <= 0) {
+        translateY.value = Math.max(0, translateY.value + e.changeY);
+      }
     })
     .onEnd((e) => {
-      if (e.translationY > 120 || e.velocityY > 800) {
+      if (translateY.value <= 0) return; // wasn't dragging the sheet — let the list be
+      if (translateY.value > 120 || e.velocityY > 800) {
         runOnJS(onClose)();
       } else {
         translateY.value = withTiming(0, { duration: 220, easing: Easing.out(Easing.cubic) });
@@ -89,22 +105,26 @@ export default function CommentsBottomSheet({ post, visible, onClose, onCommentC
             keyboardVerticalOffset={0}
           >
             <GestureDetector gesture={pan}>
-              <View style={styles.header}>
-                <View style={styles.grabber} />
-                <Text style={styles.headerTitle}>Comments ({formatCount(count)})</Text>
+              <View style={{ flex: 1 }}>
+                <View style={styles.header}>
+                  <View style={styles.grabber} />
+                  <Text style={styles.headerTitle}>Comments ({formatCount(count)})</Text>
+                </View>
+
+                <CommentsThread
+                  post={post}
+                  canInteractWithAuthor={canInteractWithAuthor}
+                  variant="sheet"
+                  bottomInset={insets.bottom}
+                  dragScrollOffset={scrollOffset}
+                  scrollNativeGesture={nativeGesture}
+                  onCommentCountChange={(delta) => {
+                    setCount((c) => Math.max(0, c + delta));
+                    onCommentCountChange?.(post.id, delta);
+                  }}
+                />
               </View>
             </GestureDetector>
-
-            <CommentsThread
-              post={post}
-              canInteractWithAuthor={canInteractWithAuthor}
-              variant="sheet"
-              bottomInset={insets.bottom}
-              onCommentCountChange={(delta) => {
-                setCount((c) => Math.max(0, c + delta));
-                onCommentCountChange?.(post.id, delta);
-              }}
-            />
           </KeyboardAvoidingView>
         </Animated.View>
       </GestureHandlerRootView>

@@ -1,8 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  StyleSheet, Text, View, Image, FlatList, TouchableOpacity,
+  StyleSheet, Text, View, Image, TouchableOpacity,
   ActivityIndicator, Alert, Keyboard, Modal, KeyboardAvoidingView, Platform,
 } from 'react-native';
+import Animated, { useAnimatedScrollHandler } from 'react-native-reanimated';
+import type { SharedValue } from 'react-native-reanimated';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/context/AuthContext';
@@ -68,6 +71,10 @@ export interface CommentsThreadProps {
   onCommentCountChange?: (delta: number) => void;
   /** Bottom padding for the input bar (safe-area inset). */
   bottomInset?: number;
+  /** When provided (bottom-sheet usage), the list reports its scroll offset here on the UI thread. */
+  dragScrollOffset?: SharedValue<number>;
+  /** When provided, the comment list's scroll is composed with the sheet's drag-to-dismiss gesture. */
+  scrollNativeGesture?: ReturnType<typeof Gesture.Native>;
 }
 
 /**
@@ -83,6 +90,8 @@ export default function CommentsThread({
   listHeader = null,
   onCommentCountChange,
   bottomInset = 10,
+  dragScrollOffset,
+  scrollNativeGesture,
 }: CommentsThreadProps) {
   const router = useRouter();
   const { currentUser, userProfile } = useAuth();
@@ -95,6 +104,12 @@ export default function CommentsThread({
   } = usePostsData();
 
   const postId = post.id;
+
+  // Reports the list's scroll position to the sheet (UI thread) so it knows when
+  // the list is at the top and an upward drag should dismiss the sheet instead.
+  const scrollHandler = useAnimatedScrollHandler((e) => {
+    if (dragScrollOffset) dragScrollOffset.value = e.contentOffset.y;
+  });
 
   const [comments, setComments] = useState<Comment[]>([]);
   const [commentsLoading, setCommentsLoading] = useState(true);
@@ -620,34 +635,45 @@ export default function CommentsThread({
     </>
   );
 
+  const commentList = (
+    <Animated.FlatList
+      data={filteredComments}
+      keyExtractor={(item: Comment) => item.id}
+      renderItem={({ item }: { item: Comment }) => <View style={styles.commentRow}>{renderCommentItem(item)}</View>}
+      showsVerticalScrollIndicator={false}
+      style={{ flex: 1 }}
+      ListHeaderComponent={header}
+      ListEmptyComponent={
+        commentsLoading ? (
+          <ActivityIndicator size="small" color="#999" style={{ marginVertical: 24 }} />
+        ) : (
+          <Text style={[styles.commentRow, { color: '#999', textAlign: 'center', marginTop: 20, marginBottom: 20 }]}>
+            {canInteractWithAuthor ? 'No comments yet. Be the first to comment!' : 'Comments are not available.'}
+          </Text>
+        )
+      }
+      ListFooterComponent={
+        loadingMoreComments
+          ? <ActivityIndicator size="small" color="#999" style={{ marginVertical: 16 }} />
+          : <View style={{ height: 16 }} />
+      }
+      onEndReached={loadMoreComments}
+      onEndReachedThreshold={0.4}
+      extraData={[likingComments, likingReplies, expandedComments, loadingReplies, replyingToCommentId, editingComment, currentUser?.uid]}
+      keyboardShouldPersistTaps="handled"
+      onScroll={scrollHandler}
+      scrollEventThrottle={16}
+      // In the sheet, disabling overscroll bounce keeps the at-top drag clean
+      // (an overscroll bounce would otherwise compete with the dismiss drag).
+      bounces={scrollNativeGesture ? false : undefined}
+    />
+  );
+
   return (
     <View style={{ flex: 1 }}>
-      <FlatList
-        data={filteredComments}
-        keyExtractor={item => item.id}
-        renderItem={({ item }) => <View style={styles.commentRow}>{renderCommentItem(item)}</View>}
-        showsVerticalScrollIndicator={false}
-        style={{ flex: 1 }}
-        ListHeaderComponent={header}
-        ListEmptyComponent={
-          commentsLoading ? (
-            <ActivityIndicator size="small" color="#999" style={{ marginVertical: 24 }} />
-          ) : (
-            <Text style={[styles.commentRow, { color: '#999', textAlign: 'center', marginTop: 20, marginBottom: 20 }]}>
-              {canInteractWithAuthor ? 'No comments yet. Be the first to comment!' : 'Comments are not available.'}
-            </Text>
-          )
-        }
-        ListFooterComponent={
-          loadingMoreComments
-            ? <ActivityIndicator size="small" color="#999" style={{ marginVertical: 16 }} />
-            : <View style={{ height: 16 }} />
-        }
-        onEndReached={loadMoreComments}
-        onEndReachedThreshold={0.4}
-        extraData={[likingComments, likingReplies, expandedComments, loadingReplies, replyingToCommentId, editingComment, currentUser?.uid]}
-        keyboardShouldPersistTaps="handled"
-      />
+      {scrollNativeGesture ? (
+        <GestureDetector gesture={scrollNativeGesture}>{commentList}</GestureDetector>
+      ) : commentList}
 
       {canInteractWithAuthor && (
         <View style={[styles.commentInputContainer, { paddingBottom: Math.max(bottomInset, 10) }]}>
