@@ -131,6 +131,52 @@ export const createactivityonpostlike = onDocumentCreated(
   }
 );
 
+// Mirror of createactivityonpostlike: when a like is removed, delete the
+// matching 'post_like' activity so the author's pulse doesn't show a phantom
+// like. Runs with the admin SDK, which bypasses the security rules that block
+// the liker from touching the author's activity collection. Queries by postId
+// only (single-field, auto-indexed) and filters in memory to avoid needing a
+// composite index.
+export const removeactivityonpostunlike = onDocumentDeleted(
+  {
+    document: "posts/{postId}/likers/{userId}",
+    region: "northamerica-northeast2",
+  },
+  async (event) => {
+    const db = getDb();
+    const {postId, userId: reactingUserId} = event.params;
+
+    try {
+      const postDoc = await db.collection("posts").doc(postId).get();
+      if (!postDoc.exists) return;
+      const postAuthorId = postDoc.data()?.authorId;
+      if (!postAuthorId || postAuthorId === reactingUserId) return;
+
+      const snap = await db
+        .collection("activity")
+        .doc(postAuthorId)
+        .collection("userActivity")
+        .where("postId", "==", postId)
+        .get();
+
+      const stale = snap.docs.filter(
+        (d) => d.data().type === "post_like" && d.data().fromUserId === reactingUserId
+      );
+      if (stale.length === 0) return;
+
+      const batch = db.batch();
+      stale.forEach((d) => batch.delete(d.ref));
+      await batch.commit();
+
+      console.log(
+        `Removed ${stale.length} 'post_like' activity for ${postAuthorId} from ${reactingUserId} on post ${postId}`
+      );
+    } catch (error) {
+      console.error("Error removing 'post_like' activity on unlike:", error);
+    }
+  }
+);
+
 export const createactivityonpostcomment = onDocumentCreated(
   {
     document: "posts/{postId}/comments/{commentId}",
