@@ -234,36 +234,20 @@ export const PostRepository = {
     });
   },
 
-  /** Atomically removes a like from a post and cleans up activity. */
+  /**
+   * Atomically removes a like from a post. The matching `post_like` activity
+   * record is cleaned up server-side by the removeactivityonpostunlike trigger
+   * (the liker can't read/query the author's activity collection under the
+   * security rules, so it must not be done client-side).
+   */
   async unlikePost(postId: string, uid: string): Promise<void> {
     const postRef = doc(db, 'posts', postId);
     const likerRef = doc(db, 'posts', postId, 'likers', uid);
-
-    const postSnap = await getDoc(postRef);
-    if (!postSnap.exists()) throw new Error('Post not found');
-    const authorId = postSnap.data().authorId as string;
 
     await runTransaction(db, async tx => {
       tx.delete(likerRef);
       tx.update(postRef, { reactionCount: increment(-1) });
     });
-
-    // Clean up activity record
-    if (authorId !== uid) {
-      const q = query(
-        collection(db, 'activity', authorId, 'userActivity'),
-        where('type', '==', 'post_like'),
-        where('postId', '==', postId),
-        where('fromUserId', '==', uid),
-        limit(1)
-      );
-      const actSnap = await getDocs(q);
-      if (!actSnap.empty) {
-        const batch = writeBatch(db);
-        actSnap.forEach(d => batch.delete(d.ref));
-        await batch.commit();
-      }
-    }
   },
 
   /** Adds a comment to a post. Returns the new comment with a client-side timestamp. */

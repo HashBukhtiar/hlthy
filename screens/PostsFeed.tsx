@@ -42,6 +42,7 @@ import {
 } from '@/features/tags/domain/Tag';
 import { useSuggestedUsers } from '@/features/social/ui/useSuggestedUsers';
 import SuggestedUsersCarousel from '@/components/SuggestedUsersCarousel';
+import CommentsBottomSheet from '@/components/comments/CommentsBottomSheet';
 import type { ViewToken } from 'react-native';
 import type { RankedFeedPost } from '@/logic/feedRanking';
 
@@ -133,6 +134,8 @@ export default function PostsFeed({ isActive = true }: { isActive?: boolean }) {
   const [postToShare, setPostToShare] = useState<Post | null>(null);
   const [actionMenuVisible, setActionMenuVisible] = useState(false);
   const [selectedPostForAction, setSelectedPostForAction] = useState<Post | null>(null);
+  // Post whose comments are shown in the bottom sheet (null = closed).
+  const [commentSheetPost, setCommentSheetPost] = useState<Post | null>(null);
 
   // Use shared content actions hook
   const { 
@@ -626,7 +629,7 @@ export default function PostsFeed({ isActive = true }: { isActive?: boolean }) {
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.statItem}
-                onPress={() => handleViewPost(post.id)}
+                onPress={() => setCommentSheetPost(post)}
                 activeOpacity={0.8}
               >
                 <Ionicons name="chatbubble-outline" size={20} color="#FFF" style={styles.statIcon} />
@@ -873,6 +876,17 @@ export default function PostsFeed({ isActive = true }: { isActive?: boolean }) {
         onToggleFollow={handleToggleFollowFromMenu}
         onBlock={handleBlockUser}
         onReport={handleReportPost}
+      />
+
+      <CommentsBottomSheet
+        post={commentSheetPost}
+        visible={!!commentSheetPost}
+        onClose={() => setCommentSheetPost(null)}
+        onCommentCountChange={(postId, delta) =>
+          setPosts(prev => prev.map(p =>
+            p.id === postId ? { ...p, commentCount: Math.max(0, (p.commentCount || 0) + delta) } : p
+          ))
+        }
       />
     </>
   );
