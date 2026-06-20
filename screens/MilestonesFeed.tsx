@@ -42,7 +42,7 @@ console.log('[MilestonesFeed] Module loaded');
 export default function MilestonesFeed({ isActive = true }: { isActive?: boolean }) {
   console.log('[MilestonesFeed] Component rendering');
   const router = useRouter();
-  const { currentUser, userProfile } = useAuth();
+  const { currentUser } = useAuth();
   const { milestones: feedMilestones, loading, refreshing, loadingMore, hasMore, error, refreshFeed, loadMorePosts, markSeen } = useFeedData();
   const { likePost, unlikePost } = usePostsData();
   const { canInteractWithUser, isUserBlocked } = useBlockEnforcement();
@@ -133,7 +133,7 @@ export default function MilestonesFeed({ isActive = true }: { isActive?: boolean
   }, []);
   
   const handleLike = useCallback(async (milestoneId: string, isCurrentlyLiked: boolean) => {
-    if (!currentUser || !userProfile) {
+    if (!currentUser) {
       Alert.alert('Please log in', 'You need to be logged in to like milestones.');
       return;
     }
@@ -197,7 +197,7 @@ export default function MilestonesFeed({ isActive = true }: { isActive?: boolean
       );
       Alert.alert('Error', 'Could not update like status. Please try again.');
     }
-  }, [currentUser, userProfile, likePost, unlikePost]);
+  }, [currentUser, likePost, unlikePost]);
   
   const navigateToMilestone = useCallback((id: string) => {
     markSeenRef.current?.(id, { opened: true });
