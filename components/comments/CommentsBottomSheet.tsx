@@ -4,7 +4,7 @@ import {
   KeyboardAvoidingView, TouchableWithoutFeedback,
 } from 'react-native';
 import Animated, {
-  useSharedValue, useAnimatedStyle, withSpring, withTiming, runOnJS,
+  useSharedValue, useAnimatedStyle, withTiming, runOnJS, Easing,
 } from 'react-native-reanimated';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -45,7 +45,7 @@ export default function CommentsBottomSheet({ post, visible, onClose, onCommentC
     if (visible) {
       setMounted(true);
       translateY.value = sheetHeight;
-      translateY.value = withSpring(0, { damping: 22, stiffness: 220 });
+      translateY.value = withTiming(0, { duration: 280, easing: Easing.out(Easing.cubic) });
       backdrop.value = withTiming(1, { duration: 200 });
     } else if (mounted) {
       backdrop.value = withTiming(0, { duration: 200 });
@@ -67,7 +67,7 @@ export default function CommentsBottomSheet({ post, visible, onClose, onCommentC
       if (e.translationY > 120 || e.velocityY > 800) {
         runOnJS(onClose)();
       } else {
-        translateY.value = withSpring(0, { damping: 22, stiffness: 220 });
+        translateY.value = withTiming(0, { duration: 220, easing: Easing.out(Easing.cubic) });
       }
     });
 
