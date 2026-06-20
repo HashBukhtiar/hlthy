@@ -132,14 +132,17 @@ export const getSuggestedUsers = onCall(
 
         if (score === 0) continue; // only surface users with at least one signal
 
-        scored.push({
+        // Omit image fields when absent — Firestore .set() rejects `undefined`
+        // values, and not every user has a profile photo/thumbnail.
+        const suggestion: SuggestedUser = {
           userId: uid,
           username: data.username ?? '',
           displayName: data.displayName ?? '',
-          profileImageUrl: data.profileImageUrl,
-          profileThumbnailUrl: data.profileThumbnailUrl,
           score,
-        });
+        };
+        if (data.profileImageUrl) suggestion.profileImageUrl = data.profileImageUrl;
+        if (data.profileThumbnailUrl) suggestion.profileThumbnailUrl = data.profileThumbnailUrl;
+        scored.push(suggestion);
       }
 
       // Sort descending by score, take top RESULT_POOL_SIZE
@@ -158,7 +161,14 @@ export const getSuggestedUsers = onCall(
       return { suggestions };
     } catch (error) {
       logger.error('Error in getSuggestedUsers:', error);
-      throw new HttpsError('internal', 'Failed to generate suggested users');
+      // Preserve intentional errors (e.g. not-found) instead of masking them,
+      // and surface the real message as details so client logs aren't opaque.
+      if (error instanceof HttpsError) throw error;
+      throw new HttpsError(
+        'internal',
+        'Failed to generate suggested users',
+        error instanceof Error ? error.message : String(error)
+      );
     }
   }
 );
