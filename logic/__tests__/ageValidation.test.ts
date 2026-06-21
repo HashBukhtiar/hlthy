@@ -4,6 +4,7 @@ import {
   getMaximumBirthDate,
   isOldEnough,
   isDateOldEnough,
+  formatDob,
 } from '../ageValidation';
 
 // Fixed "now" so the tests are deterministic.
@@ -65,6 +66,22 @@ describe('ageValidation', () => {
     it('rejects malformed input', () => {
       expect(isOldEnough('', NOW)).toBe(false);
       expect(isOldEnough('02/30/2000', NOW)).toBe(false);
+    });
+  });
+
+  describe('formatDob', () => {
+    it('serializes a Date to zero-padded MM/DD/YYYY', () => {
+      expect(formatDob(new Date(1995, 4, 5))).toBe('05/05/1995');
+      expect(formatDob(new Date(2008, 11, 25))).toBe('12/25/2008');
+    });
+
+    it('round-trips with parseDateOfBirth', () => {
+      const d = new Date(2000, 2, 15);
+      const parsed = parseDateOfBirth(formatDob(d));
+      expect(parsed).not.toBeNull();
+      expect(parsed!.getFullYear()).toBe(2000);
+      expect(parsed!.getMonth()).toBe(2);
+      expect(parsed!.getDate()).toBe(15);
     });
   });
 

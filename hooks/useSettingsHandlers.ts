@@ -8,6 +8,7 @@ import { SettingsRepository } from '@/features/settings/infra/settingsRepository
 import { deleteImageFromStorage } from '@/utils/imageUtils';
 import { UserSettings } from '@/types/settings';
 import { validateSettings, sanitizeSettings } from '@/utils/settingsValidation';
+import { formatDob } from '@/logic/ageValidation';
 import { createSettingsBackup, restoreSettingsBackup } from '@/utils/settingsBackup';
 import { exportSettings, importSettings } from '@/utils/settingsExport';
 import { uploadProfileImage } from '@/services/profileStorage';
@@ -193,8 +194,10 @@ export function useSettingsHandlers(props: UseSettingsHandlersProps) {
 
       const settingsToSave = {
         ...sanitizedSettings,
+        // Canonical "MM/DD/YYYY" so this matches the signup write format and
+        // satisfies the Firestore age-gate rule (which parses that format).
         dateOfBirth: sanitizedSettings.dateOfBirth
-          ? sanitizedSettings.dateOfBirth.toISOString()
+          ? formatDob(sanitizedSettings.dateOfBirth)
           : null,
         profileImageUrl: newImageUrl,
         profileThumbnailUrl: null,

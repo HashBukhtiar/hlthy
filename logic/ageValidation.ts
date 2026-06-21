@@ -49,6 +49,18 @@ export function getMaximumBirthDate(now: Date = new Date()): Date {
 }
 
 /**
+ * Serialize a Date to the canonical "MM/DD/YYYY" date-of-birth string used
+ * across the app (signup and edit-profile must agree so the Firestore age-gate
+ * rule, which parses this format, accepts both write paths).
+ */
+export function formatDob(date: Date): string {
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const dd = String(date.getDate()).padStart(2, '0');
+  const yyyy = String(date.getFullYear());
+  return `${mm}/${dd}/${yyyy}`;
+}
+
+/**
  * Whether the given "MM/DD/YYYY" date of birth represents someone who is at
  * least MINIMUM_AGE years old as of `now`. Malformed dates return false.
  */

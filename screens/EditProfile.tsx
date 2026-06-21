@@ -26,7 +26,7 @@ import { UserSettings } from '@/types/settings';
 import { useSettingsHandlers } from '@/hooks/useSettingsHandlers';
 import { SettingsModals } from '@/components/settings/SettingsModals';
 import { SelectorItem } from '@/components/CustomSelector';
-import { getOptimalImageUrl } from '@/utils/imageUtils';
+import { getOptimalImageUrl, DEFAULT_PROFILE_IMAGE } from '@/utils/imageUtils';
 
 const SOCIAL_PLATFORM_DISPLAY: Record<string, { icon: string; color: string; bg: string }> = {
   instagram: { icon: 'logo-instagram', color: '#E1306C', bg: 'rgba(225,48,108,0.18)' },
@@ -241,8 +241,6 @@ export default function EditProfile() {
     return 'Not set';
   };
 
-  const placeholderImage = 'https://thumbs.dreamstime.com/b/creative-illustration-default-avatar-profile-placeholder-isolated-background-art-design-grey-photo-blank-template-mockup-144855718.jpg';
-
   return (
     <>
       <View style={styles.container}>
@@ -274,7 +272,7 @@ export default function EditProfile() {
         <View style={styles.photoSection}>
           <TouchableOpacity onPress={pickImage} activeOpacity={0.8} style={styles.photoWrapper}>
             <Image
-              source={{ uri: profileImage || getOptimalImageUrl(userProfile?.profileThumbnailUrl, userProfile?.profileImageUrl) || placeholderImage }}
+              source={{ uri: profileImage || getOptimalImageUrl(userProfile?.profileThumbnailUrl, userProfile?.profileImageUrl) || DEFAULT_PROFILE_IMAGE }}
               style={styles.profileImage}
               key={profileImage || 'default'}
             />
