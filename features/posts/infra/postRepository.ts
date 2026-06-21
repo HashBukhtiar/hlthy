@@ -225,10 +225,11 @@ export const PostRepository = {
     const postRef = doc(db, 'posts', postId);
     const likerRef = doc(db, 'posts', postId, 'likers', uid);
 
-    const likerDoc = await getDoc(likerRef);
-    if (likerDoc.exists()) return;
-
     await runTransaction(db, async tx => {
+      // Read the liker doc inside the transaction so the counter is gated by the
+      // actual source of truth — prevents a double-increment if two like calls race.
+      const likerDoc = await tx.get(likerRef);
+      if (likerDoc.exists()) return;
       tx.set(likerRef, { userId: uid, username, profileImageUrl, likedAt: serverTimestamp() });
       tx.update(postRef, { reactionCount: increment(1) });
     });
@@ -245,6 +246,11 @@ export const PostRepository = {
     const likerRef = doc(db, 'posts', postId, 'likers', uid);
 
     await runTransaction(db, async tx => {
+      // Only decrement if a like actually exists. Without this guard, a stale
+      // isLiked=true in one screen (e.g. the feed, after unliking from the detail
+      // view) would unconditionally decrement and drive reactionCount negative.
+      const likerDoc = await tx.get(likerRef);
+      if (!likerDoc.exists()) return;
       tx.delete(likerRef);
       tx.update(postRef, { reactionCount: increment(-1) });
     });
