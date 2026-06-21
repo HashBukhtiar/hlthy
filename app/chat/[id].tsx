@@ -1458,6 +1458,15 @@ export default function ChatScreen() {
           </View>
         </SafeAreaView>
 
+        {conversationId.endsWith('_ai_conversation') && (
+          <View style={styles.aiDisclaimerBanner}>
+            <Ionicons name="information-circle-outline" size={14} color="#999" />
+            <Text style={styles.aiDisclaimerText}>
+              hlthy AI gives general fitness information, not medical or professional advice. Consult a qualified professional before making health decisions.
+            </Text>
+          </View>
+        )}
+
         {loading ? (
           <View style={styles.centered}>
             <ActivityIndicator size="large" color="#fff" />
@@ -1768,10 +1777,26 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '500',
   },
+  aiDisclaimerBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: '#141414',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#2a2a2a',
+  },
+  aiDisclaimerText: {
+    flex: 1,
+    color: '#999',
+    fontSize: 11,
+    lineHeight: 15,
+  },
   messagesContainer: {
     padding: 10,
     justifyContent: 'flex-start',
-    flexGrow: 1, 
+    flexGrow: 1,
   },
   messageBubble: {
     maxWidth: '70%',

@@ -10,7 +10,27 @@ service cloud.firestore {
     function isOwner(userId) {
       return isAuthenticated() && request.auth.uid == userId;
     }
-    
+
+    // Age gate (mirrors logic/ageValidation.ts — minimum age 16).
+    // Date of birth is stored as a "MM/DD/YYYY" string.
+    function meetsMinimumAge(dob) {
+      return dob is string
+        && dob.size() == 10
+        && dob.split('/').size() == 3
+        && isAtLeastSixteen(
+             int(dob.split('/')[2]),  // year
+             int(dob.split('/')[0]),  // month
+             int(dob.split('/')[1])   // day
+           );
+    }
+
+    function isAtLeastSixteen(year, month, day) {
+      return (request.time.year() - year > 16)
+        || (request.time.year() - year == 16
+            && (request.time.month() > month
+                || (request.time.month() == month && request.time.day() >= day)));
+    }
+
     function isBlocked(targetUserId, currentUserId) {
       return exists(/databases/$(database)/documents/users/$(targetUserId)) &&
         get(/databases/$(database)/documents/users/$(targetUserId)).data.get('blockedUsers', []).hasAny([currentUserId]);
@@ -50,7 +70,8 @@ service cloud.firestore {
       // Clients may not set Hype fields — written only by Cloud Functions (the
       // admin SDK bypasses rules). Leaving them unchanged in a diff is fine.
       allow create: if isOwner(userId)
-        && !request.resource.data.keys().hasAny(['hypeByDay', 'hypeGiven']);
+        && !request.resource.data.keys().hasAny(['hypeByDay', 'hypeGiven'])
+        && meetsMinimumAge(request.resource.data.dateOfBirth);
       allow update: if isOwner(userId)
         && !request.resource.data.diff(resource.data).affectedKeys()
              .hasAny(['hypeByDay', 'hypeGiven']);

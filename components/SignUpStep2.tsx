@@ -18,6 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { getFirestore, collection, query, where, getDocs } from '@/features/infra/firestore';
 import LoadingOverlay from '@/components/LoadingOverlay';
+import { isOldEnough, getMaximumBirthDate, MINIMUM_AGE } from '@/logic/ageValidation';
 
 interface SignUpStep2Props {
   visible: boolean;
@@ -176,21 +177,9 @@ export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin,
     }
   };
 
-  const validateDate = (dateString: string): boolean => {
-    if (dateString.length !== 10) return false;
-    
-    const [month, day, year] = dateString.split('/').map(Number);
-    const date = new Date(year, month - 1, day);
-    
-    // Check if date is valid and user is at least 13 years old
-    const today = new Date();
-    const minDate = new Date(today.getFullYear() - 13, today.getMonth(), today.getDate());
-    
-    return date.getMonth() === month - 1 && 
-           date.getDate() === day && 
-           date.getFullYear() === year &&
-           date <= minDate;
-  };
+  // Validates the date is real AND the user meets the minimum age.
+  // Single source of truth lives in logic/ageValidation.ts.
+  const validateDate = (dateString: string): boolean => isOldEnough(dateString);
 
   const handleNext = useCallback(async () => {
     // Dismiss keyboard first
@@ -207,7 +196,7 @@ export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin,
       return;
     }
     if (!validateDate(dateOfBirth)) {
-      setErrorMessage('Please enter a valid date of birth (MM/DD/YYYY). You must be at least 13 years old.');
+      setErrorMessage(`Please enter a valid date of birth (MM/DD/YYYY). You must be at least ${MINIMUM_AGE} years old.`);
       return;
     }
     setErrorMessage('');
@@ -249,7 +238,7 @@ export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin,
       return;
     }
     if (!validateDate(dateOfBirth)) {
-      setErrorMessage('Please enter a valid date of birth (MM/DD/YYYY). You must be at least 13 years old.');
+      setErrorMessage(`Please enter a valid date of birth (MM/DD/YYYY). You must be at least ${MINIMUM_AGE} years old.`);
       return;
     }
     setErrorMessage('');
@@ -501,7 +490,7 @@ export default function SignUpStep2({ visible, onBackPress, onNext, onShowLogin,
                           mode="date"
                           display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                           onChange={handleDateChangePicker}
-                          maximumDate={new Date(new Date().getFullYear() - 13, new Date().getMonth(), new Date().getDate())}
+                          maximumDate={getMaximumBirthDate()}
                           minimumDate={new Date(1900, 0, 1)}
                           style={{backgroundColor:'#222'}}
                           {...(Platform.OS === 'ios' ? { textColor: '#fff' } : {})}

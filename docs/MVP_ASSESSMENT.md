@@ -1,6 +1,6 @@
 # hlthy — MVP Assessment
 
-_Last updated: 2026-06-20_
+_Last updated: 2026-06-21_
 
 Covers three things:
 1. **Status audit** — the MVP/V1/V2 planning doc cross-checked against the actual code.
@@ -179,7 +179,7 @@ step, not this MVP build.
 
 ## 5. Progress update & path to store launch
 
-_Updated: 2026-06-20_
+_Updated: 2026-06-21_
 
 This section supersedes the blocker lists above where they overlap: most §2 blockers and
 should-fixes are now **done and deployed**. It also extends the scope from "first TestFlight
@@ -248,12 +248,12 @@ build" to "submittable on the Apple App Store and Google Play, including legal."
 | **Sentry DSN** | Blocked on owner | SDK wired; set `EXPO_PUBLIC_SENTRY_DSN` and rebuild |
 | **AI endpoint auth + real rate limit** | Audited, not fixed | `ai/api_server.py` `/api/chat` is **unauthenticated** (trusts client-supplied `user_id`, no Firebase ID-token check) and the `RateLimiter` is **file-based** (`rate_limiting/{user_id}_usage.json`) → broken on Cloud Run (ephemeral + multi-instance) **and not even called** in the chat handler. Real cost/abuse risk. Fix = verify ID token + key limit off verified uid in a shared store (Firestore/Memorystore). Owned by AI devs |
 | **App Check** | Blocked on owner | Register App Attest (iOS) / Play Integrity (Android) in Firebase console; then wire client + enforcement |
-| **Age gating** | ⚠️ Gap | DOB collected at signup (`signupService.ts`) but **no minimum-age enforcement** — needed for COPPA + store age ratings |
+| **Age gating** | ✅ Done | Min age **16**, enforced in three layers: signup UI (`SignUpStep2`), `signupService` re-validation, and a `users` create rule (`meetsMinimumAge`). Shared util `logic/ageValidation.ts`. ⚠️ **Deploy `firestore:rules`** for the server side to take effect |
 | **Push (APNs/FCM) config** | Partial | `expo-notifications` plugin added; still need APNs auth key in EAS + FCM for Android |
-| **iOS build number / Android `versionCode`** | Not set | `version` is `1.0.0`; let EAS auto-increment or set explicitly |
-| **`supportsTablet: true`** | Decision | If true, Apple expects iPad screenshots + iPad-correct UI; set `false` if phone-only for MVP |
-| **AI "not medical advice" disclaimer** | Missing | Liability for an AI fitness-coaching app — add to ToS + AI surface |
-| **Automated tests** | Deferred (V1) | Only the sanitizer is covered so far |
+| **iOS build number / Android `versionCode`** | ✅ Done | EAS handles it: `appVersionSource: "remote"` + `production.autoIncrement: true` in `eas.json`. Marketing `version` stays `1.0.0` |
+| **`supportsTablet`** | ✅ Done | Set to `false` (phone-only MVP) — no iPad screenshots/layout required. Verified via `expo config` |
+| **AI "not medical advice" disclaimer** | ✅ Done | Persistent banner in every AI chat (`app/chat/[id].tsx`) + new §3 "Health & Fitness Disclaimer" in Terms of Service |
+| **Automated tests** | ✅ Expanded | Was sanitizer-only. Now: pure logic (ageValidation, milestone, formatting, explore/feed ranking, hype, social-link), repository sanitization (mocked Firebase), Cloud Functions `accountDeletion` (ts-jest harness added to `functions/`), and Firestore security-rules tests (`npm run test:rules`, emulator). Root 62 pass / functions 4 / rules 6. Broader coverage still V1 |
 
 ### 5.3 🍎 Apple App Store checklist
 
@@ -301,18 +301,20 @@ build" to "submittable on the Apple App Store and Google Play, including legal."
 
 ### 5.6 Recommended order to submission
 
-1. **Decide the easy gaps**: `supportsTablet` value, min-age floor + enforcement, AI
-   disclaimer text.
+1. ~~**Decide the easy gaps**: `supportsTablet`, min-age floor + enforcement, AI disclaimer.~~
+   ✅ Done — `supportsTablet: false`; age gate at 16 (3-layer); AI disclaimer in chat + ToS.
 2. **Stand up public URLs**: hosted privacy policy + terms; a web "request account deletion"
    page (covers Google's requirement).
 3. **Finish observability/security**: Sentry DSN, App Check (console), AI endpoint auth +
    rate-limit (the one real cost risk).
-4. **Build config**: APNs key, versioning, then EAS production builds for both platforms.
+4. **Build config**: APNs key (versioning ✅ via EAS remote auto-increment), then EAS
+   production builds for both platforms. **Deploy `firestore:rules`** to activate the age gate.
 5. **Store paperwork**: privacy labels / Data Safety, age ratings, screenshots, demo
    accounts.
 6. **Submit**: iOS (internal TestFlight first), Play (internal testing track first).
 
 **Bottom line:** the *code* is close — the longest poles now are **store paperwork**,
 **publicly hosted legal pages + Google's web deletion URL**, and **AI endpoint hardening**,
-not feature work. The three launch-gating items still open: **age gating**, **AI endpoint
-auth/rate-limit**, and **hosted legal + web deletion URL**.
+not feature work. Age gating, the AI disclaimer, `supportsTablet`, versioning, and a real
+test suite are now **done**. The two launch-gating items still open: **AI endpoint
+auth/rate-limit** and **hosted legal + web deletion URL** (plus deploying the rules).

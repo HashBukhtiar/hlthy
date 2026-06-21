@@ -30,43 +30,56 @@ export default function TermsOfService() {
           share achievements, and connect with other fitness enthusiasts.
         </Text>
 
-        <Text style={styles.sectionTitle}>3. User Responsibilities</Text>
+        <Text style={styles.sectionTitle}>3. Health & Fitness Disclaimer</Text>
+        <Text style={styles.text}>
+          Hlthy, including its AI coaching features, provides general fitness and
+          wellness information for educational purposes only. It is not medical,
+          healthcare, nutritional, or professional fitness advice, and is not a
+          substitute for consultation with a qualified professional. AI-generated
+          responses may be inaccurate or incomplete. Always consult a physician or
+          other qualified health provider before beginning any exercise program,
+          changing your diet, or acting on any information provided in the app. Never
+          disregard professional medical advice because of something you read or
+          received in Hlthy. You use this information at your own risk.
+        </Text>
+
+        <Text style={styles.sectionTitle}>4. User Responsibilities</Text>
         <Text style={styles.text}>
           You are responsible for maintaining the confidentiality of your account and
           password, and for all activities that occur under your account.
         </Text>
 
-        <Text style={styles.sectionTitle}>4. Content Guidelines</Text>
+        <Text style={styles.sectionTitle}>5. Content Guidelines</Text>
         <Text style={styles.text}>
           Users must not post content that is harmful, offensive, or violates the rights
           of others. We reserve the right to remove inappropriate content.
         </Text>
 
-        <Text style={styles.sectionTitle}>5. Privacy</Text>
+        <Text style={styles.sectionTitle}>6. Privacy</Text>
         <Text style={styles.text}>
           Your privacy is important to us. Please review our Privacy Policy to understand
           how we collect and use your information.
         </Text>
 
-        <Text style={styles.sectionTitle}>6. Limitation of Liability</Text>
+        <Text style={styles.sectionTitle}>7. Limitation of Liability</Text>
         <Text style={styles.text}>
           The service is provided "as is" without warranties of any kind. We shall not
           be liable for any damages arising from your use of the service.
         </Text>
 
-        <Text style={styles.sectionTitle}>7. Termination</Text>
+        <Text style={styles.sectionTitle}>8. Termination</Text>
         <Text style={styles.text}>
           We may terminate or suspend your account immediately, without prior notice,
           for conduct that we believe violates these Terms of Service.
         </Text>
 
-        <Text style={styles.sectionTitle}>8. Changes to Terms</Text>
+        <Text style={styles.sectionTitle}>9. Changes to Terms</Text>
         <Text style={styles.text}>
           We reserve the right to modify these terms at any time. Changes will be
           effective immediately upon posting.
         </Text>
 
-        <Text style={styles.lastUpdated}>Last updated: April 22, 2025</Text>
+        <Text style={styles.lastUpdated}>Last updated: June 21, 2026</Text>
       </ScrollView>
     </SafeAreaView>
   );
