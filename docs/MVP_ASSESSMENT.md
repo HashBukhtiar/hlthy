@@ -248,7 +248,7 @@ build" to "submittable on the Apple App Store and Google Play, including legal."
 | **Sentry DSN** | Blocked on owner | SDK wired; set `EXPO_PUBLIC_SENTRY_DSN` and rebuild |
 | **AI endpoint auth + real rate limit** | Audited, not fixed | `ai/api_server.py` `/api/chat` is **unauthenticated** (trusts client-supplied `user_id`, no Firebase ID-token check) and the `RateLimiter` is **file-based** (`rate_limiting/{user_id}_usage.json`) → broken on Cloud Run (ephemeral + multi-instance) **and not even called** in the chat handler. Real cost/abuse risk. Fix = verify ID token + key limit off verified uid in a shared store (Firestore/Memorystore). Owned by AI devs |
 | **App Check** | Blocked on owner | Register App Attest (iOS) / Play Integrity (Android) in Firebase console; then wire client + enforcement |
-| **Age gating** | ✅ Done | Min age **16**, enforced in three layers: signup UI (`SignUpStep2`), `signupService` re-validation, and a `users` create rule (`meetsMinimumAge`). Shared util `logic/ageValidation.ts`. ⚠️ **Deploy `firestore:rules`** for the server side to take effect |
+| **Age gating** | ✅ Done + deployed | Min age **16**, enforced in three layers on **both** the signup and edit-profile DOB paths: UI pickers cap at 16, client validation (`signupService` + `settingsValidation`), and `users` create **and** update rules (`meetsMinimumAge`, update checks only when DOB changes). Shared util `logic/ageValidation.ts`; DOB stored canonically as `MM/DD/YYYY` on both paths. Rules **deployed** |
 | **Push (APNs/FCM) config** | Partial | `expo-notifications` plugin added; still need APNs auth key in EAS + FCM for Android |
 | **iOS build number / Android `versionCode`** | ✅ Done | EAS handles it: `appVersionSource: "remote"` + `production.autoIncrement: true` in `eas.json`. Marketing `version` stays `1.0.0` |
 | **`supportsTablet`** | ✅ Done | Set to `false` (phone-only MVP) — no iPad screenshots/layout required. Verified via `expo config` |
@@ -292,10 +292,11 @@ build" to "submittable on the Apple App Store and Google Play, including legal."
 - ✅ **Right to deletion** (GDPR Art. 17 / CCPA) — implemented this cycle
 - ⚠️ **Right to access/portability** (GDPR Art. 15/20) — no full personal-data export
   (settings export ≠ personal data); may be required for EU users
-- ⚠️ **Age gating / COPPA / GDPR-K** — no min-age check; pick a floor (commonly 13 US /
-  16 EU), enforce at signup from the collected DOB, and align store age ratings
-- ⚠️ **AI / fitness disclaimer** — add "not medical or professional fitness advice" to ToS
-  and ideally the AI surface
+- ✅ **Age gating / COPPA / GDPR-K** — min-age **16** enforced (signup + edit-profile,
+  client + Firestore rules). Still **align the store age-rating questionnaires to 16** when
+  doing paperwork (§5.3/§5.4)
+- ✅ **AI / fitness disclaimer** — "not medical or professional fitness advice" added to the
+  ToS (§3) and shown as a banner on the AI chat surface
 - **CCPA / data-broker** disclosures in the privacy policy for CA users
 - **Analytics consent** — if analytics ship, EU may require consent
 
@@ -308,7 +309,7 @@ build" to "submittable on the Apple App Store and Google Play, including legal."
 3. **Finish observability/security**: Sentry DSN, App Check (console), AI endpoint auth +
    rate-limit (the one real cost risk).
 4. **Build config**: APNs key (versioning ✅ via EAS remote auto-increment), then EAS
-   production builds for both platforms. **Deploy `firestore:rules`** to activate the age gate.
+   production builds for both platforms. (Firestore rules incl. the age gate are **deployed**.)
 5. **Store paperwork**: privacy labels / Data Safety, age ratings, screenshots, demo
    accounts.
 6. **Submit**: iOS (internal TestFlight first), Play (internal testing track first).
@@ -316,5 +317,5 @@ build" to "submittable on the Apple App Store and Google Play, including legal."
 **Bottom line:** the *code* is close — the longest poles now are **store paperwork**,
 **publicly hosted legal pages + Google's web deletion URL**, and **AI endpoint hardening**,
 not feature work. Age gating, the AI disclaimer, `supportsTablet`, versioning, and a real
-test suite are now **done**. The two launch-gating items still open: **AI endpoint
-auth/rate-limit** and **hosted legal + web deletion URL** (plus deploying the rules).
+test suite are now **done and deployed**. The two launch-gating items still open: **AI
+endpoint auth/rate-limit** (AI team) and **hosted legal + web deletion URL**.
