@@ -6,7 +6,8 @@ import {
   TouchableOpacity,
   Dimensions,
   FlatList,
-  Animated
+  Animated,
+  Image
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
@@ -77,9 +78,11 @@ export default function HomeFeed() {
         {/* Left side: hlthy logo with icon */}
         <View style={styles.leftContainer}>
           <View style={styles.logoContainer}>
-            <View style={styles.logoIcon}>
-              <Ionicons name="cube-outline" size={24} color="#000" />
-            </View>
+            <Image
+              source={require('@/assets/images/logo-dark.png')}
+              style={styles.logoIcon}
+              resizeMode="contain"
+            />
             <Text style={styles.logoText}>hlthy</Text>
           </View>
         </View>
@@ -249,9 +252,6 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 10,
-    backgroundColor: ACCENT_COLOR,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   logoText: {
     fontSize: 26,
