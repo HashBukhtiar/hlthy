@@ -1,5 +1,6 @@
 import {onCall, HttpsError} from "firebase-functions/v2/https";
 import {admin, getDb, getAuth} from "../admin/firebaseAdmin";
+import {deleteAllUserData} from "./accountDeletion";
 
 // Update user settings
 export const updateUserSettings = onCall(
@@ -275,9 +276,10 @@ export const cleanupBlockedUserActivity = onCall(
   }
 );
 
-// Delete user account
+// Delete user account — full purge across Firestore + Storage, then Auth.
+// See accountDeletion.ts for the data registry and how to extend it.
 export const deleteUserAccount = onCall(
-  {region: "northamerica-northeast2"},
+  {region: "northamerica-northeast2", timeoutSeconds: 540, memory: "512MiB"},
   async (request) => {
     if (!request.auth) {
       throw new HttpsError("unauthenticated", "User must be authenticated");
@@ -292,43 +294,15 @@ export const deleteUserAccount = onCall(
     }
 
     try {
-      const db = getDb();
       const auth = getAuth();
-      if (!db || !auth) {
-        throw new HttpsError("internal", "Database or Auth not initialized");
+      if (!auth) {
+        throw new HttpsError("internal", "Auth not initialized");
       }
 
-      const batch = db.batch();
-
-      // Delete user document
-      batch.delete(db.collection("users").doc(userId));
-
-      // Delete user's posts
-      const postsSnapshot = await db.collection("posts").where("authorId", "==", userId).get();
-      postsSnapshot.docs.forEach((doc) => {
-        batch.delete(doc.ref);
-      });
-
-      // Delete user's activities
-      const activitiesSnapshot = await db.collection("activity").doc(userId).collection("userActivity").get();
-      activitiesSnapshot.docs.forEach((doc) => {
-        batch.delete(doc.ref);
-      });
-
-      // Delete following/followers collections
-      const followingSnapshot = await db.collection("users").doc(userId).collection("following").get();
-      followingSnapshot.docs.forEach((doc) => {
-        batch.delete(doc.ref);
-      });
-
-      const followersSnapshot = await db.collection("users").doc(userId).collection("followers").get();
-      followersSnapshot.docs.forEach((doc) => {
-        batch.delete(doc.ref);
-      });
-
-      await batch.commit();
-
-      // Delete from Firebase Auth
+      // Purge all owned data first, then remove the Auth user. Doing Auth last
+      // means a data-deletion failure leaves the account recoverable rather
+      // than orphaning data behind a deleted login.
+      await deleteAllUserData(userId);
       await auth.deleteUser(userId);
 
       return {success: true, message: "Account deleted successfully"};
