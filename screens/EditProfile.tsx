@@ -20,6 +20,7 @@ import Animated, {
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { getMaximumBirthDate, isDateOldEnough, MINIMUM_AGE } from '@/logic/ageValidation';
 import { useAuth } from '@/context/AuthContext';
 import { UserSettings } from '@/types/settings';
 import { useSettingsHandlers } from '@/hooks/useSettingsHandlers';
@@ -401,15 +402,14 @@ export default function EditProfile() {
           onChange={(event, selectedDate) => {
             setDateModalVisible(false);
             if (event.type === 'set' && selectedDate) {
-              const now = new Date();
-              if (selectedDate > now) {
-                Alert.alert('Invalid Date', 'Date of birth cannot be in the future');
+              if (!isDateOldEnough(selectedDate)) {
+                Alert.alert('Invalid Date', `You must be at least ${MINIMUM_AGE} years old.`);
                 return;
               }
               updateSetting('dateOfBirth', selectedDate);
             }
           }}
-          maximumDate={new Date()}
+          maximumDate={getMaximumBirthDate()}
           minimumDate={new Date(1900, 0, 1)}
         />
       )}
@@ -432,15 +432,14 @@ export default function EditProfile() {
                 display="spinner"
                 onChange={(event, selectedDate) => {
                   if (selectedDate && event.type !== 'dismissed') {
-                    const now = new Date();
-                    if (selectedDate > now) {
-                      Alert.alert('Invalid Date', 'Date of birth cannot be in the future');
+                    if (!isDateOldEnough(selectedDate)) {
+                      Alert.alert('Invalid Date', `You must be at least ${MINIMUM_AGE} years old.`);
                       return;
                     }
                     updateSetting('dateOfBirth', selectedDate);
                   }
                 }}
-                maximumDate={new Date()}
+                maximumDate={getMaximumBirthDate()}
                 minimumDate={new Date(1900, 0, 1)}
                 style={{ backgroundColor: '#1C1C1E' }}
               />

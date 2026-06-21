@@ -3,6 +3,7 @@ import {
   parseDateOfBirth,
   getMaximumBirthDate,
   isOldEnough,
+  isDateOldEnough,
 } from '../ageValidation';
 
 // Fixed "now" so the tests are deterministic.
@@ -64,6 +65,26 @@ describe('ageValidation', () => {
     it('rejects malformed input', () => {
       expect(isOldEnough('', NOW)).toBe(false);
       expect(isOldEnough('02/30/2000', NOW)).toBe(false);
+    });
+  });
+
+  describe('isDateOldEnough (Date variant)', () => {
+    it('accepts a Date comfortably over 16', () => {
+      expect(isDateOldEnough(new Date(2000, 0, 1), NOW)).toBe(true);
+    });
+
+    it('accepts someone who turns 16 exactly today', () => {
+      expect(isDateOldEnough(new Date(2010, 5, 21), NOW)).toBe(true);
+    });
+
+    it('rejects someone one day short of 16', () => {
+      expect(isDateOldEnough(new Date(2010, 5, 22), NOW)).toBe(false);
+    });
+
+    it('rejects null, undefined, and invalid Dates', () => {
+      expect(isDateOldEnough(null, NOW)).toBe(false);
+      expect(isDateOldEnough(undefined, NOW)).toBe(false);
+      expect(isDateOldEnough(new Date('nope'), NOW)).toBe(false);
     });
   });
 });

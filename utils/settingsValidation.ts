@@ -1,4 +1,5 @@
 import { UserSettings } from '@/types/settings';
+import { isDateOldEnough, MINIMUM_AGE } from '@/logic/ageValidation';
 
 export interface ValidationResult {
   isValid: boolean;
@@ -64,15 +65,16 @@ export const validateSettings = (settings: Partial<UserSettings>): ValidationRes
   if (settings.dateOfBirth) {
     const now = new Date();
     const age = now.getFullYear() - settings.dateOfBirth.getFullYear();
-    
+
     if (settings.dateOfBirth > now) {
       errors.push('Date of birth cannot be in the future');
     }
-    
-    if (age < 13) {
-      errors.push('You must be at least 13 years old to use this app');
+
+    // Precise (day-accurate) minimum-age check via the shared age gate.
+    if (!isDateOldEnough(settings.dateOfBirth, now)) {
+      errors.push(`You must be at least ${MINIMUM_AGE} years old to use this app`);
     }
-    
+
     if (age > 120) {
       warnings.push('Please verify your date of birth is correct');
     }

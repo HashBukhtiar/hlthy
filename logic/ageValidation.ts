@@ -57,3 +57,13 @@ export function isOldEnough(dob: string, now: Date = new Date()): boolean {
   if (!date) return false;
   return date.getTime() <= getMaximumBirthDate(now).getTime();
 }
+
+/**
+ * Date-object variant of {@link isOldEnough}, for surfaces that hold the DOB as
+ * a Date (e.g. edit-profile settings) rather than a "MM/DD/YYYY" string.
+ * Returns false for an invalid Date. Precise to the day (not year-only).
+ */
+export function isDateOldEnough(date: Date | null | undefined, now: Date = new Date()): boolean {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return false;
+  return date.getTime() <= getMaximumBirthDate(now).getTime();
+}

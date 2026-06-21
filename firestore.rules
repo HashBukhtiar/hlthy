@@ -74,7 +74,12 @@ service cloud.firestore {
         && meetsMinimumAge(request.resource.data.dateOfBirth);
       allow update: if isOwner(userId)
         && !request.resource.data.diff(resource.data).affectedKeys()
-             .hasAny(['hypeByDay', 'hypeGiven']);
+             .hasAny(['hypeByDay', 'hypeGiven'])
+        // If the date of birth is being changed, it must still satisfy the age gate.
+        && (
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['dateOfBirth'])
+          || meetsMinimumAge(request.resource.data.dateOfBirth)
+        );
 
       // Allow clearing push tokens specifically (for logout cleanup)
       allow update: if isAuthenticated() && 

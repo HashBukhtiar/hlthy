@@ -68,6 +68,33 @@ describe('users create — age gate', () => {
   });
 });
 
+describe('users update — age gate', () => {
+  // Seed an existing (valid) profile via admin so we can test updates.
+  async function seedProfile(uid) {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await ctx.firestore().doc(`users/${uid}`).set(adultUserDoc(uid, { bio: 'hi' }));
+    });
+  }
+
+  it('allows updating a non-DOB field', async () => {
+    await seedProfile('alice');
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertSucceeds(db.doc('users/alice').update({ bio: 'updated' }));
+  });
+
+  it('allows changing DOB to another 16+ date', async () => {
+    await seedProfile('alice');
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertSucceeds(db.doc('users/alice').update({ dateOfBirth: '05/05/1995' }));
+  });
+
+  it('rejects changing DOB to an underage date', async () => {
+    await seedProfile('alice');
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertFails(db.doc('users/alice').update({ dateOfBirth: MINOR_DOB }));
+  });
+});
+
 describe('content length caps', () => {
   // Seed an author profile + a post via admin (rules bypassed) for comment tests.
   async function seedPost(postId, authorId) {
