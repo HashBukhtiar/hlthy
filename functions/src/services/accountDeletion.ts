@@ -23,11 +23,19 @@
  * countTriggers that fire on `users/{x}/followers/{y}` deletions — see
  * cleanupSocialGraphEdges for the ordering that makes this work.
  *
+ * IDENTITY IS TOMBSTONED, NOT DELETED. `users/{uid}` and `usersPublic/{uid}`
+ * keep a PII-stripped marker ({ deleted: true, displayName: 'Deleted User' })
+ * so the many denormalized references to a user (comments, mentions, profile
+ * links) resolve gracefully to "Deleted User" instead of crashing. All
+ * subcollections and personal fields are still purged.
+ *
  * NOT purged, by design:
  *  - `reports` referencing the user — retained for moderation/safety.
  *  - `analytics` / `notificationLogs` — non-PII operational logs.
  *  - Reverse `pendingFollowers` edges the user created on OTHER users — there is
  *    no per-user source list to derive them from; left as a known best-effort gap.
+ *  - Mentions of the user inside OTHER users' posts keep the @username text
+ *    (no feasible query to find them); the tombstone makes tapping them safe.
  */
 
 import {admin, getDb} from "../admin/firebaseAdmin";
@@ -51,16 +59,20 @@ interface StorageTarget {
   prefix: (uid: Uid) => string;
 }
 
+// PII-stripped marker left in place of the deleted user's identity docs.
+const TOMBSTONE = {
+  deleted: true,
+  username: "deleted_user",
+  displayName: "Deleted User",
+} as const;
+
 /** Declarative registry — ADD NEW TOP-LEVEL USER-OWNED COLLECTIONS HERE. */
 export const FIRESTORE_TARGETS: FirestoreTarget[] = [
   // Per-user document roots. recursiveDelete removes the doc AND every
   // subcollection beneath it, which covers the bulk of AI/workout/social data.
-  {label: "user root", kind: "userRootDoc", path: (u) => `users/${u}`},
+  // NOTE: `users/{uid}` is NOT here — it is tombstoned (see tombstoneUserIdentity).
   {label: "home feed", kind: "userRootDoc", path: (u) => `feeds/${u}`},
   {label: "activity log", kind: "userRootDoc", path: (u) => `activity/${u}`},
-
-  // Public profile mirror.
-  {label: "public profile", kind: "ownedDoc", path: (u) => `usersPublic/${u}`},
 
   // Top-level collections keyed by an ownership field.
   {label: "posts", kind: "queryDeep", collection: "posts", field: "authorId"},
@@ -116,13 +128,14 @@ async function cleanupSocialGraphEdges(db: Db, uid: Uid): Promise<void> {
 }
 
 /**
- * Delete the direct-message threads this user participates in, including the
- * messages subcollection and any uploaded conversation photos.
+ * Delete the direct-message threads this user participates in — on BOTH sides.
+ * Removes the top-level conversation + messages, each participant's per-user
+ * conversation ref (`users/{p}/conversations/{id}`), uploaded conversation
+ * photos, and any pending message requests this user sent to others.
  *
- * NOTE: a conversation is shared between two participants. Full-purge deletes
- * the whole thread, which also removes the other participant's copy. If you
- * later prefer to preserve the other side, switch this to anonymize the user's
- * messages + remove them from `participants` instead.
+ * Full-purge deletes the whole thread, so the surviving participant also loses
+ * the history. If you later prefer to keep their side, tombstone the thread
+ * instead (mark the conversation deleted + block replies).
  */
 async function deleteUserConversations(db: Db, uid: Uid): Promise<void> {
   const snap = await db
@@ -130,12 +143,84 @@ async function deleteUserConversations(db: Db, uid: Uid): Promise<void> {
     .where("participants", "array-contains", uid)
     .get();
 
+  // Remove every participant's per-user conversation ref so the thread
+  // disappears from their DM list (this was the dangling-thread bug).
+  const refWriter = db.bulkWriter();
+  refWriter.onWriteError((err) => err.failedAttempts < 5);
+  for (const conv of snap.docs) {
+    const participants: string[] = conv.get("participants") || [];
+    for (const p of participants) {
+      refWriter.delete(db.doc(`users/${p}/conversations/${conv.id}`));
+    }
+  }
+  await refWriter.close();
+
+  // Delete the shared conversation docs + messages + uploaded photos.
   const bucket = admin.storage().bucket();
   for (const conv of snap.docs) {
     await db.recursiveDelete(conv.ref);
     await bucket
       .deleteFiles({prefix: `conversations/${conv.id}/`})
       .catch((e) => console.error(`accountDeletion: conv photos cleanup failed (${conv.id})`, e));
+  }
+
+  // Pending message requests this user sent that live under other users.
+  const reqSnap = await db
+    .collectionGroup("messageRequests")
+    .where("fromUserId", "==", uid)
+    .get();
+  if (!reqSnap.empty) {
+    const reqWriter = db.bulkWriter();
+    reqWriter.onWriteError((err) => err.failedAttempts < 5);
+    reqSnap.docs.forEach((d) => reqWriter.delete(d.ref));
+    await reqWriter.close();
+  }
+}
+
+/**
+ * Replace the author identity in the user's own comments and replies (which
+ * live inside OTHER users' posts and can't be deleted) with a "Deleted User"
+ * marker, so the original username stops appearing. Avatars are hydrated live
+ * from the user doc, so the tombstone handles those automatically.
+ *
+ * Requires collection-group indexes on comments.authorId / replies.authorId
+ * (see firestore.indexes.json).
+ */
+async function scrubAuthoredComments(db: Db, uid: Uid): Promise<void> {
+  for (const group of ["comments", "replies"]) {
+    const snap = await db.collectionGroup(group).where("authorId", "==", uid).get();
+    if (snap.empty) continue;
+    const writer = db.bulkWriter();
+    writer.onWriteError((err) => err.failedAttempts < 5);
+    snap.docs.forEach((d) => {
+      writer.update(d.ref, {
+        authorUsername: TOMBSTONE.displayName,
+        authorProfileImageUrl: "",
+        authorProfileThumbnailUrl: "",
+        authorDeleted: true,
+      });
+    });
+    await writer.close();
+  }
+}
+
+/**
+ * Tombstone the user's identity docs: purge every subcollection and overwrite
+ * the doc with a PII-stripped marker. Must run AFTER the social graph is read
+ * (cleanupSocialGraphEdges), since it removes followers/following subcollections.
+ */
+async function tombstoneUserIdentity(db: Db, uid: Uid): Promise<void> {
+  const tombstone = {
+    ...TOMBSTONE,
+    deletedAt: admin.firestore.FieldValue.serverTimestamp(),
+  };
+  for (const path of [`users/${uid}`, `usersPublic/${uid}`]) {
+    const ref = db.doc(path);
+    const subcollections = await ref.listCollections();
+    for (const sub of subcollections) {
+      await db.recursiveDelete(sub);
+    }
+    await ref.set(tombstone); // overwrite (no merge) strips all prior fields
   }
 }
 
@@ -174,9 +259,12 @@ export async function deleteAllUserData(uid: Uid): Promise<void> {
   const db = getDb();
   if (!db) throw new Error("Firestore not initialized");
 
-  // Order matters: read-then-delete the social graph before the user root goes.
+  // Order matters: read the social graph before the user's subcollections are
+  // removed, and tombstone the identity last so reads above still see the user.
   await cleanupSocialGraphEdges(db, uid);
   await deleteUserConversations(db, uid);
+  await scrubAuthoredComments(db, uid);
   await deleteFirestoreTargets(db, uid);
+  await tombstoneUserIdentity(db, uid);
   await deleteStorage(uid);
 }
