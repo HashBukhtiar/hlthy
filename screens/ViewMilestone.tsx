@@ -72,8 +72,9 @@ export default function ViewMilestone() {
             return;
           }
 
-          // Fetch the author's profile to get the latest profile image
-          let authorProfileImageUrl = 'https://via.placeholder.com/150';
+          // Fetch the author's profile to get the latest profile image.
+          // Empty default → getOptimalImageUrl falls back to the bundled avatar.
+          let authorProfileImageUrl = '';
           let authorProfileThumbnailUrl = null;
           let authorFullName = data.authorUsername;
           let authorBlockedUsers: string[] = [];

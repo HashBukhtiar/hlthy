@@ -16,7 +16,9 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.derana1.hlthy",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSPhotoLibraryUsageDescription": "hlthy uses your photo library so you can share workout posts, milestones, and photos in chats.",
+        "NSCameraUsageDescription": "hlthy uses your camera so you can take photos for posts and chats."
       }
     },
     "android": {
@@ -35,7 +37,23 @@
     "plugins": [
       "expo-router",
       "expo-web-browser",
-      "expo-video"
+      "expo-video",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "hlthy uses your photo library so you can share workout posts, milestones, and photos in chats.",
+          "cameraPermission": "hlthy uses your camera so you can take photos for posts and chats.",
+          "microphonePermission": false
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/icon.png",
+          "color": "#007AFF"
+        }
+      ],
+      "@sentry/react-native"
     ],
     "experiments": {
       "typedRoutes": true
@@ -55,11 +73,6 @@
     "updates": {
       "enabled": false,
       "url": "https://u.expo.dev/a1e6a8c1-8e53-4bb2-a30d-bfda93d63c96"
-    },
-    "notifications": {
-      "icon": "./assets/icon.png",
-      "color": "#007AFF",
-      "sounds": ["./assets/notification.wav"]
     }
   }
 }

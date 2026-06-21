@@ -434,10 +434,16 @@ export function useSettingsHandlers(props: UseSettingsHandlersProps) {
                   if (text === 'DELETE') {
                     try {
                       setLoading(true);
-                      // Call Cloud Function to delete account
+                      // Call Cloud Function to delete account. The callable
+                      // requires a confirmation token of `DELETE_${uid}` (see
+                      // functions/src/services/settingsService.ts deleteUserAccount).
+                      const uid = currentUser?.uid ?? auth.currentUser?.uid;
+                      if (!uid) {
+                        throw new Error('You must be signed in to delete your account.');
+                      }
                       if (functions && functions.app) {
                         const deleteUserAccount = httpsCallable(functions, 'deleteUserAccount');
-                        await deleteUserAccount();
+                        await deleteUserAccount({ confirmationToken: `DELETE_${uid}` });
                       }
                       Alert.alert('Success', 'Your account has been deleted');
                       router.replace('/landing');
@@ -458,7 +464,7 @@ export function useSettingsHandlers(props: UseSettingsHandlersProps) {
         },
       },
     ]);
-  }, [router, setLoading]);
+  }, [router, setLoading, currentUser]);
 
   const clearChatHistory = useCallback(async () => {
     try {

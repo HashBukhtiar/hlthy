@@ -184,10 +184,11 @@ service cloud.firestore {
     match /posts/{postId} {
       allow read: if isAuthenticated();
       
-      allow create: if isAuthenticated() && 
+      allow create: if isAuthenticated() &&
         request.auth.uid == request.resource.data.authorId &&
         request.resource.data.keys().hasAll(['authorId', 'createdAt']) &&
-        request.resource.data.createdAt is timestamp;
+        request.resource.data.createdAt is timestamp &&
+        request.resource.data.get('caption', '').size() <= 5000;
       
       allow update: if isAuthenticated() && (
         (request.auth.uid == resource.data.authorId) ||
@@ -218,7 +219,8 @@ service cloud.firestore {
           canInteractWithPost(get(/databases/$(database)/documents/posts/$(postId)).data, request.auth.uid) &&
           request.resource.data.keys().hasAll(['authorId', 'text', 'createdAt']) &&
           request.resource.data.text is string &&
-          request.resource.data.text.size() > 0;
+          request.resource.data.text.size() > 0 &&
+          request.resource.data.text.size() <= 2000;
         
         // Allow comment author to update/delete their own comment,
         // OR allow anyone who can interact with the post to update replyCount,
@@ -248,7 +250,8 @@ service cloud.firestore {
             canInteractWithPost(get(/databases/$(database)/documents/posts/$(postId)).data, request.auth.uid) &&
             request.resource.data.keys().hasAll(['authorId', 'text', 'createdAt', 'parentCommentId']) &&
             request.resource.data.text is string &&
-            request.resource.data.text.size() > 0;
+            request.resource.data.text.size() > 0 &&
+            request.resource.data.text.size() <= 2000;
           allow update: if isAuthenticated() && (
             (request.auth.uid == resource.data.authorId) ||
             (
@@ -325,7 +328,9 @@ service cloud.firestore {
         allow create: if isAuthenticated() &&
           request.auth.uid == request.resource.data.senderId &&
           request.resource.data.keys().hasAll(['senderId', 'text', 'createdAt']) &&
-          request.resource.data.createdAt is timestamp;
+          request.resource.data.createdAt is timestamp &&
+          request.resource.data.text is string &&
+          request.resource.data.text.size() <= 5000;
         
         allow update, delete: if isAuthenticated() && 
           request.auth.uid == resource.data.senderId;

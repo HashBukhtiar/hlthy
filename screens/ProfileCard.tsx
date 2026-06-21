@@ -83,7 +83,7 @@ export default function ProfileCard({ userId: propUserId }: ProfileCardProps) {
             profileImageUrl: getOptimalImageUrl(
               userProfile.profileThumbnailUrl,
               userProfile.profileImageUrl
-            ) || 'https://via.placeholder.com/150',
+            ),
             archetype: userProfile.archetype || 'generalist',
             followerCount: userProfile.followerCount || userProfile.stats?.followerCount || 0,
             followingCount: userProfile.followingCount || userProfile.stats?.followingCount || 0,
@@ -111,7 +111,7 @@ export default function ProfileCard({ userId: propUserId }: ProfileCardProps) {
             profileImageUrl: getOptimalImageUrl(
               userData.profileThumbnailUrl,
               userData.profileImageUrl
-            ) || 'https://via.placeholder.com/150',
+            ),
             archetype: userData.archetype || 'generalist',
             followerCount: userData.followerCount || userData.stats?.followerCount || 0,
             followingCount: userData.followingCount || userData.stats?.followingCount || 0,

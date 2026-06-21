@@ -8,8 +8,16 @@ import { AuthProvider } from '@/context/AuthContext';
 import { VideoMuteProvider } from '@/context/VideoMuteContext';
 import { GlobalNetworkMonitor } from '@/components/GlobalNetworkMonitor';
 import EmailVerificationGuard from '@/components/EmailVerificationGuard';
+import { initSentry, Sentry } from '@/shared/utils/sentry';
 
-export default function RootLayout() {
+// Initialize crash reporting as early as possible (no-op until a DSN is set).
+initSentry();
+
+// Expo Router renders this whenever a route subtree throws during render,
+// replacing the default blank-screen crash with a recoverable fallback.
+export { default as ErrorBoundary } from '@/components/AppErrorBoundary';
+
+function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <VideoMuteProvider>
@@ -39,7 +47,6 @@ export default function RootLayout() {
 
             {/* Other screens */}
             <Stack.Screen name="signup" />
-            <Stack.Screen name="select-archetype" />
             <Stack.Screen name="create-workout" options={{ animation: Platform.OS === 'android' ? 'none' : 'slide_from_bottom', gestureEnabled: true }} />
             <Stack.Screen name="view-workout/[id]" options={{ animation: 'fade', animationDuration: 240, gestureEnabled: true }} />
             <Stack.Screen name="view-post/[id]" options={{ animation: 'fade', animationDuration: 240, gestureEnabled: true }} />
@@ -62,4 +69,7 @@ export default function RootLayout() {
     </GestureHandlerRootView>
   );
 }
+
+// Sentry.wrap adds navigation/touch instrumentation; harmless when no DSN is set.
+export default Sentry.wrap(RootLayout);
 

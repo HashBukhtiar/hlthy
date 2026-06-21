@@ -131,6 +131,7 @@ export function useProfileData(userId = null, contextUserProfile: UserProfile | 
   const [followers, setFollowers] = useState<any[]>([]);
   const [following, setFollowing] = useState<any[]>([]);
   const [error, setError] = useState<Error | null>(null);
+  const [deletedAccount, setDeletedAccount] = useState(false);
   const [isRequestPending, setIsRequestPending] = useState(false);
   const [isFollowingStatus, setIsFollowingStatus] = useState(false);
   const [followActionLoading, setFollowActionLoading] = useState(false);
@@ -170,6 +171,7 @@ export function useProfileData(userId = null, contextUserProfile: UserProfile | 
     setLoading(true);
     setLoadingWorkouts(true);
     setError(null);
+    setDeletedAccount(false);
 
     try {
       // 1. Fetch user profile
@@ -177,6 +179,15 @@ export function useProfileData(userId = null, contextUserProfile: UserProfile | 
       try {
         const raw = await ProfileRepository.getById(profileIdToFetch);
         if (!currentUser?.uid) { setLoading(false); setLoadingWorkouts(false); return; }
+        // Tombstoned (deleted) account — stop here and surface a graceful state
+        // instead of rendering a ghost profile with a follow button.
+        if (raw?.deleted === true) {
+          setDeletedAccount(true);
+          setProfileData(null);
+          setLoading(false);
+          setLoadingWorkouts(false);
+          return;
+        }
         userData = processUserProfile(raw);
       } catch (profileError) {
         if (!currentUser?.uid) { setLoading(false); setLoadingWorkouts(false); return; }
@@ -424,6 +435,7 @@ export function useProfileData(userId = null, contextUserProfile: UserProfile | 
     followers,
     following,
     error,
+    deletedAccount,
     refreshProfileData,
     isFollowingStatus,
     isRequestPending,

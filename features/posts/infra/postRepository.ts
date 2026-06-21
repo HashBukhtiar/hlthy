@@ -26,6 +26,7 @@ import {
 import { db } from '@/firebaseConfig';
 import { Post, Comment, Reply, PostAuthorProfile } from '@/features/posts/domain/Post';
 import { MentionData } from '@/features/mentions/domain/Mention';
+import { sanitizeText, TEXT_LIMITS } from '@/logic/sanitize';
 
 // ── Private helpers ─────────────────────────────────────────────────────────
 
@@ -158,7 +159,7 @@ export const PostRepository = {
       authorId: author.uid,
       authorUsername: author.username ?? 'Unknown user',
       authorProfileImageUrl: author.profileImageUrl ?? '',
-      caption: data.caption ?? '',
+      caption: sanitizeText(data.caption, TEXT_LIMITS.postCaption),
       imageUrl: data.imageUrl ?? null,
       createdAt: serverTimestamp(),
       isMilestone: false,
@@ -265,8 +266,10 @@ export const PostRepository = {
     profileImageUrl: string = '',
     mentions?: MentionData[]
   ): Promise<Comment> {
+    const cleanText = sanitizeText(text, TEXT_LIMITS.comment);
+    if (!cleanText) throw new Error('Comment cannot be empty');
     const ref = await addDoc(collection(db, 'posts', postId, 'comments'), {
-      text,
+      text: cleanText,
       authorId: uid,
       authorUsername: username,
       createdAt: serverTimestamp(),
@@ -277,7 +280,7 @@ export const PostRepository = {
     });
     return {
       id: ref.id,
-      text,
+      text: cleanText,
       authorId: uid,
       authorUsername: username,
       authorProfileImageUrl: profileImageUrl,
@@ -346,12 +349,15 @@ export const PostRepository = {
     if (!parentSnap.exists()) throw new Error('Parent comment not found');
     const parentData = parentSnap.data() as Comment;
 
+    const cleanText = sanitizeText(text, TEXT_LIMITS.reply);
+    if (!cleanText) throw new Error('Reply cannot be empty');
+
     const repliesRef = collection(db, 'posts', postId, 'comments', parentCommentId, 'replies');
     const newReplyRef = doc(repliesRef);
 
     const replyData = {
       parentCommentId,
-      text: text.trim(),
+      text: cleanText,
       authorId: author.uid,
       authorUsername: author.username,
       authorProfileImageUrl: author.profileImageUrl ?? '',

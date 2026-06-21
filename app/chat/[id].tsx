@@ -54,6 +54,7 @@ import { calculateImprovementPercentage } from '@/logic/milestoneUtils';
 import { uploadPhotoToChat, deletePhotoFromChat, formatFileSize } from '@/utils/photoSharingUtils';
 import { useUnits } from '@/hooks/useUnits';
 import { getOptimalImageUrl } from '@/utils/imageUtils';
+import { sanitizeText, TEXT_LIMITS } from '@/logic/sanitize';
 
 interface FirestoreMessageData {
   senderId: string;
@@ -1019,6 +1020,11 @@ export default function ChatScreen() {
     if (!textToSend.trim() || !currentUser || !conversationId) {
       return;
     }
+
+    // Sanitize once here so every downstream write (message doc, lastMessage,
+    // AI history) uses the cleaned value. Firestore rules cap the hard limit.
+    textToSend = sanitizeText(textToSend, TEXT_LIMITS.message);
+    if (!textToSend) return;
 
     setInput('');
     const isAiChat = conversationId.endsWith('_ai_conversation');

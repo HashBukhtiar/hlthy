@@ -369,6 +369,11 @@ Dev-only:
 3. Create `features/<domain>/ui/use<Domain>.ts` — React hook consuming the repository
 4. Create screen in `screens/<Screen>.tsx`, route in `app/<route>.tsx`
 5. Run `npm run lint` to verify no boundary violations
+6. **If the feature stores user data, make it deletable** (account deletion / GDPR):
+   - Data under `users/{uid}/<subcollection>` is purged automatically (no change needed).
+   - A new **top-level** collection keyed by an ownership field → add one entry to
+     `FIRESTORE_TARGETS` in `functions/src/services/accountDeletion.ts`.
+   - A new per-user **Storage** path → add one entry to `STORAGE_TARGETS` there.
 
 ### Adding a new screen/route
 

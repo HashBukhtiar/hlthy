@@ -19,6 +19,7 @@
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-native-community/datetimepicker": "8.4.4",
     "@react-native-community/netinfo": "11.4.1",
+    "@sentry/react-native": "~7.2.0",
     "@types/lodash": "^4.17.17",
     "@types/uuid": "^10.0.0",
     "dotenv": "^16.5.0",

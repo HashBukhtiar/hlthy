@@ -57,6 +57,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
     followers,
     following,
     error,
+    deletedAccount,
     refreshProfileData,
     isFollowingStatus,
     isRequestPending,
@@ -548,7 +549,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
   if (isBlockedByUser && !isOwnProfile) {
     return (
       <SafeAreaView style={styles.container}>
-        
+
         <View style={styles.blockedContainer}>
           <Ionicons name="person-remove" size={64} color="#666" />
           <Text style={styles.blockedTitle}>User Not Available</Text>
@@ -559,7 +560,30 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
       </SafeAreaView>
     );
   }
-  
+
+  if (deletedAccount) {
+    return (
+      <SafeAreaView style={styles.container}>
+        {!isTabInstance && router.canGoBack() && (
+          <TouchableOpacity
+            style={styles.miniHeaderSideBtn}
+            onPress={() => router.back()}
+            activeOpacity={0.85}
+          >
+            <Ionicons name="arrow-back" size={28} color="white" />
+          </TouchableOpacity>
+        )}
+        <View style={styles.blockedContainer}>
+          <Ionicons name="person-remove" size={64} color="#666" />
+          <Text style={styles.blockedTitle}>Account no longer exists</Text>
+          <Text style={styles.blockedSubtitle}>
+            This account has been deleted.
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   if (error) {
     return (
       <SafeAreaView style={styles.container}>

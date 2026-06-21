@@ -562,7 +562,7 @@ export default function CommentsThread({
             <View style={styles.commentLeftSection}>
               <TouchableOpacity onPress={canInteract ? () => navigateToProfile(comment.authorId) : undefined}>
                 <Image
-                  source={{ uri: getOptimalImageUrl(comment.authorProfileThumbnailUrl, comment.authorProfileImageUrl) || 'https://via.placeholder.com/150' }}
+                  source={{ uri: getOptimalImageUrl(comment.authorProfileThumbnailUrl, comment.authorProfileImageUrl) }}
                   style={styles.commentProfilePic}
                 />
               </TouchableOpacity>
@@ -692,7 +692,7 @@ export default function CommentsThread({
           )}
           <View style={styles.inputRow}>
             <Image
-              source={{ uri: getOptimalImageUrl(userProfile?.profileThumbnailUrl, userProfile?.profileImageUrl) || 'https://via.placeholder.com/150' }}
+              source={{ uri: getOptimalImageUrl(userProfile?.profileThumbnailUrl, userProfile?.profileImageUrl) }}
               style={styles.commentInputProfilePic}
             />
             <MentionTextInput

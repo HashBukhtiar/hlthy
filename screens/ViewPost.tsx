@@ -586,7 +586,7 @@ export default function ViewPost() {
           onPress={() => navigateToProfile(post.authorId)}
         >
           <Image
-            source={{ uri: getOptimalImageUrl(post.authorProfileThumbnailUrl, post.authorProfileImageUrl) || 'https://via.placeholder.com/150' }}
+            source={{ uri: getOptimalImageUrl(post.authorProfileThumbnailUrl, post.authorProfileImageUrl) }}
             style={styles.profilePic}
           />
           <View>
