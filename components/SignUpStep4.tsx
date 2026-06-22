@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { CustomSelector, SelectorItem } from '@/components/CustomSelector';
 import LoadingOverlay from '@/components/LoadingOverlay';
 import { Image } from 'react-native';
-// router not needed in this component
+import { useRouter } from 'expo-router';
 import { SignupService } from '@/services/signupService';
 import { ACCENT_COLOR } from '@/constants/Colors';
 
@@ -18,6 +18,7 @@ interface SignUpStep4Props {
 
 export default function SignUpStep4({ visible, onBackPress, onComplete, onShowLogin, onEmailVerificationRequired }: SignUpStep4Props) {
   const { height } = Dimensions.get('window');
+  const router = useRouter();
 
   // Archetype options
   // todo: probs should move this stuff to the cloud
@@ -270,6 +271,23 @@ export default function SignUpStep4({ visible, onBackPress, onComplete, onShowLo
           >
             <Text style={styles.completeButtonText}>Create Account</Text>
           </TouchableOpacity>
+          <Text style={styles.consentText}>
+            By creating an account, you agree to our{' '}
+            <Text
+              style={styles.consentLink}
+              onPress={() => router.push('/terms-of-service')}
+            >
+              Terms of Service
+            </Text>
+            {' '}and{' '}
+            <Text
+              style={styles.consentLink}
+              onPress={() => router.push('/privacy-policy')}
+            >
+              Privacy Policy
+            </Text>
+            .
+          </Text>
         </View>
         {/* Loader overlay (fade-in/fade-out) */}
         <LoadingOverlay visible={loading} message="Creating account..." />
@@ -381,6 +399,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     marginRight: 8,
+  },
+  consentText: {
+    color: 'rgba(255, 255, 255, 0.6)',
+    fontSize: 12,
+    lineHeight: 18,
+    textAlign: 'center',
+    paddingHorizontal: 10,
+  },
+  consentLink: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+    textDecorationLine: 'underline',
   },
   previewContainer: {
     marginTop: 0,
