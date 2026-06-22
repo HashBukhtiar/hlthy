@@ -1,6 +1,6 @@
 import React from 'react';
 import { ScrollView, Text, StyleSheet, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
@@ -23,9 +23,10 @@ const Bullet = ({ children }: { children: React.ReactNode }) => (
 
 export default function PrivacyPolicy() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()} activeOpacity={0.7}>
           <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
@@ -34,7 +35,7 @@ export default function PrivacyPolicy() {
         <View style={styles.headerRight} />
       </View>
 
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView style={styles.scrollView} contentContainerStyle={[styles.content, { paddingBottom: 32 + insets.bottom }]} showsVerticalScrollIndicator={false}>
         <Text style={styles.effectiveDate}>Effective date: June 22, 2026</Text>
 
         <Section>1. Who we are</Section>
@@ -43,7 +44,7 @@ export default function PrivacyPolicy() {
           individual developer based in Ontario, Canada. We are the data controller responsible for
           your personal information.
         </Para>
-        <Para><Text style={styles.bold}>Email:</Text> [YOUR EMAIL ADDRESS]</Para>
+        <Para><Text style={styles.bold}>Email:</Text> support@hlthy.ca</Para>
         <Para><Text style={styles.bold}>Website:</Text> https://hlthy.ca</Para>
 
         <Section>2. What this policy covers</Section>
@@ -270,7 +271,7 @@ export default function PrivacyPolicy() {
         </Bullet>
         <Bullet>
           <Text style={styles.bold}>Deletion</Text> — delete your account and personal data via Settings
-          {' > '}Delete Account, or by emailing us at [YOUR EMAIL ADDRESS]
+          {' > '}Delete Account, or by emailing us at support@hlthy.ca
         </Bullet>
         <SubTitle>If you are in the European Economic Area or United Kingdom (GDPR / UK GDPR)</SubTitle>
         <Bullet>
@@ -302,7 +303,7 @@ export default function PrivacyPolicy() {
           exercising your privacy rights
         </Bullet>
         <Para>
-          To exercise any of these rights, contact us at [YOUR EMAIL ADDRESS]. We will respond within
+          To exercise any of these rights, contact us at support@hlthy.ca. We will respond within
           30 days. We may ask you to verify your identity before processing your request.
         </Para>
 
@@ -311,7 +312,7 @@ export default function PrivacyPolicy() {
           hlthy is intended for users aged 16 and over. We do not knowingly collect personal
           information from anyone under 16. An age gate is enforced at signup. If we become aware that
           a user under 16 has created an account, we will delete the account and associated data
-          promptly. If you believe a minor has registered, please contact us at [YOUR EMAIL ADDRESS].
+          promptly. If you believe a minor has registered, please contact us at support@hlthy.ca.
         </Para>
 
         <Section>12. Security</Section>
@@ -342,7 +343,7 @@ export default function PrivacyPolicy() {
           If you have questions about this Privacy Policy or wish to exercise your rights, contact us
           at:
         </Para>
-        <Para><Text style={styles.bold}>Email:</Text> [YOUR EMAIL ADDRESS]</Para>
+        <Para><Text style={styles.bold}>Email:</Text> support@hlthy.ca</Para>
         <Para><Text style={styles.bold}>Website:</Text> https://hlthy.ca</Para>
         <Para>
           If you are in the EEA and are not satisfied with our response, you have the right to lodge a

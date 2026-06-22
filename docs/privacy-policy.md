@@ -7,7 +7,7 @@
 hlthy ("we", "our", or "us") is a fitness and social media application operated by an individual developer based in Ontario, Canada. We are the data controller responsible for your personal information.
 
 **Contact:**
-Email: [YOUR EMAIL ADDRESS]
+Email: support@hlthy.ca
 Website: https://hlthy.ca
 
 ---
@@ -129,7 +129,7 @@ Depending on where you live, you have the following rights over your personal da
 **All users:**
 - **Access** — request a copy of the personal data we hold about you
 - **Correction** — correct inaccurate information in your account at any time via Settings
-- **Deletion** — delete your account and personal data via Settings > Delete Account, or by emailing us at [YOUR EMAIL ADDRESS]
+- **Deletion** — delete your account and personal data via Settings > Delete Account, or by emailing us at support@hlthy.ca
 
 **If you are in the European Economic Area or United Kingdom (GDPR / UK GDPR):**
 - **Portability** — receive your data in a structured, machine-readable format
@@ -142,13 +142,13 @@ Depending on where you live, you have the following rights over your personal da
 - **Delete** — request deletion of your personal information
 - **Non-discrimination** — we will not discriminate against you for exercising your privacy rights
 
-To exercise any of these rights, contact us at [YOUR EMAIL ADDRESS]. We will respond within 30 days. We may ask you to verify your identity before processing your request.
+To exercise any of these rights, contact us at support@hlthy.ca. We will respond within 30 days. We may ask you to verify your identity before processing your request.
 
 ---
 
 ## 11. Children's privacy
 
-hlthy is intended for users aged 16 and over. We do not knowingly collect personal information from anyone under 16. An age gate is enforced at signup. If we become aware that a user under 16 has created an account, we will delete the account and associated data promptly. If you believe a minor has registered, please contact us at [YOUR EMAIL ADDRESS].
+hlthy is intended for users aged 16 and over. We do not knowingly collect personal information from anyone under 16. An age gate is enforced at signup. If we become aware that a user under 16 has created an account, we will delete the account and associated data promptly. If you believe a minor has registered, please contact us at support@hlthy.ca.
 
 ---
 
@@ -175,7 +175,7 @@ We may update this Privacy Policy from time to time. When we make material chang
 
 If you have questions about this Privacy Policy or wish to exercise your rights, contact us at:
 
-**Email:** [YOUR EMAIL ADDRESS]
+**Email:** support@hlthy.ca
 **Website:** https://hlthy.ca
 
 If you are in the EEA and are not satisfied with our response, you have the right to lodge a complaint with your local data protection authority.

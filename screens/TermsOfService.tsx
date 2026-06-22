@@ -1,6 +1,6 @@
 import React from 'react';
 import { ScrollView, Text, StyleSheet, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
@@ -23,9 +23,10 @@ const Bullet = ({ children }: { children: React.ReactNode }) => (
 
 export default function TermsOfService() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()} activeOpacity={0.7}>
           <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
@@ -34,7 +35,7 @@ export default function TermsOfService() {
         <View style={styles.headerRight} />
       </View>
 
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView style={styles.scrollView} contentContainerStyle={[styles.content, { paddingBottom: 32 + insets.bottom }]} showsVerticalScrollIndicator={false}>
         <Text style={styles.effectiveDate}>Effective date: June 22, 2026</Text>
         <Para>
           Please read these Terms of Service ("Terms") carefully before using the hlthy mobile
@@ -47,7 +48,7 @@ export default function TermsOfService() {
           hlthy ("we", "our", "us", or "hlthy") is a fitness and social media application operated by
           an individual developer based in Ontario, Canada.
         </Para>
-        <Para><Text style={styles.bold}>Email:</Text> [YOUR EMAIL ADDRESS]</Para>
+        <Para><Text style={styles.bold}>Email:</Text> support@hlthy.ca</Para>
         <Para><Text style={styles.bold}>Website:</Text> https://hlthy.ca</Para>
 
         <Section>2. Eligibility</Section>
@@ -174,7 +175,7 @@ export default function TermsOfService() {
           You may delete your account at any time via Settings {'>'} Delete Account. Account deletion is
           permanent and irreversible. Your content will be removed from public view immediately and
           deleted from our systems within 30 days. You can also request deletion by emailing
-          [YOUR EMAIL ADDRESS].
+          support@hlthy.ca.
         </Para>
         <Para>
           You may also request deletion of your account online at: [YOUR DELETION URL — e.g.
@@ -253,7 +254,7 @@ export default function TermsOfService() {
 
         <Section>17. Contact us</Section>
         <Para>If you have questions about these Terms, contact us at:</Para>
-        <Para><Text style={styles.bold}>Email:</Text> [YOUR EMAIL ADDRESS]</Para>
+        <Para><Text style={styles.bold}>Email:</Text> support@hlthy.ca</Para>
         <Para><Text style={styles.bold}>Website:</Text> https://hlthy.ca</Para>
 
         <Text style={styles.lastUpdated}>Last updated: June 22, 2026</Text>

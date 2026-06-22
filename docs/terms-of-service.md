@@ -11,7 +11,7 @@ Please read these Terms of Service ("Terms") carefully before using the hlthy mo
 hlthy ("we", "our", "us", or "hlthy") is a fitness and social media application operated by an individual developer based in Ontario, Canada.
 
 **Contact:**
-Email: [YOUR EMAIL ADDRESS]
+Email: support@hlthy.ca
 Website: https://hlthy.ca
 
 ---
@@ -109,7 +109,7 @@ hlthy integrates with third-party services including Firebase (Google LLC), Sent
 
 ## 10. Account deletion
 
-You may delete your account at any time via Settings > Delete Account. Account deletion is permanent and irreversible. Your content will be removed from public view immediately and deleted from our systems within 30 days. You can also request deletion by emailing [YOUR EMAIL ADDRESS].
+You may delete your account at any time via Settings > Delete Account. Account deletion is permanent and irreversible. Your content will be removed from public view immediately and deleted from our systems within 30 days. You can also request deletion by emailing support@hlthy.ca.
 
 You may also request deletion of your account online at: [YOUR DELETION URL — e.g. hlthy.ca/delete-account]
 
@@ -176,5 +176,5 @@ We may update these Terms from time to time. When we make material changes, we w
 
 If you have questions about these Terms, contact us at:
 
-**Email:** [YOUR EMAIL ADDRESS]
+**Email:** support@hlthy.ca
 **Website:** https://hlthy.ca
