@@ -49,7 +49,10 @@ export function usePostsData() {
   const [error, setError] = useState<Error | null>(null);
   const { currentUser, userProfile } = useAuth();
 
-  const fetchPosts = async () => {
+  // `isActive` lets the mount effect cancel an in-flight fetch on logout. Without
+  // it, a read started while authenticated can reject with a permission error
+  // after auth is revoked, and the stale closure would still log it.
+  const fetchPosts = async (isActive: () => boolean = () => true) => {
     if (!currentUser?.uid) {
       setPosts([]);
       setLoading(false);
@@ -58,14 +61,14 @@ export function usePostsData() {
     try {
       setLoading(true);
       const data = await PostRepository.fetchPublicPosts(currentUser.uid);
-      if (currentUser?.uid) setPosts(data);
+      if (isActive() && currentUser?.uid) setPosts(data);
     } catch (err) {
-      if (currentUser?.uid) {
+      if (isActive() && currentUser?.uid) {
         console.error("Error fetching posts:", err);
         setError(err as Error);
       }
     } finally {
-      setLoading(false);
+      if (isActive()) setLoading(false);
     }
   };
 
@@ -373,13 +376,15 @@ export function usePostsData() {
   };
 
   useEffect(() => {
-    if (currentUser?.uid) {
-      fetchPosts();
-    } else {
+    if (!currentUser?.uid) {
       setPosts([]);
       setLoading(false);
       setError(null);
+      return;
     }
+    let active = true;
+    fetchPosts(() => active);
+    return () => { active = false; };
   }, [currentUser?.uid]);
 
   return {

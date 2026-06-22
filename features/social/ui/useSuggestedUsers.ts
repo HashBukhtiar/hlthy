@@ -7,12 +7,15 @@ import { logger } from '@/shared/utils/logger';
 const DOMAIN = 'useSuggestedUsers';
 
 export function useSuggestedUsers() {
-  const { currentUser } = useAuth();
+  const { currentUser, userProfile } = useAuth();
   const [suggestions, setSuggestions] = useState<SuggestedUser[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!currentUser) return;
+    // Wait until the profile doc exists. During signup the auth account is
+    // created before the profile (which is written after email verification),
+    // and the getSuggestedUsers function rejects callers with no profile.
+    if (!currentUser || !userProfile) return;
 
     let active = true;
 
@@ -33,7 +36,7 @@ export function useSuggestedUsers() {
     return () => {
       active = false;
     };
-  }, [currentUser]);
+  }, [currentUser, userProfile]);
 
   return { suggestions, loading };
 }

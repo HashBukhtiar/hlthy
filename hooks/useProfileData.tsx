@@ -110,7 +110,7 @@ function groupAndSortMilestones(milestonesToSort: Milestone[]): GroupedMilestone
 // ── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useProfileData(userId = null, contextUserProfile: UserProfile | null = null) {
-  const { currentUser } = useAuth();
+  const { currentUser, userProfile } = useAuth();
   const profileIdToFetch = userId || currentUser?.uid;
   const functions = getFunctions(app, 'northamerica-northeast2');
   const followUserFn = httpsCallable(functions, 'followUser');
@@ -163,6 +163,17 @@ export function useProfileData(userId = null, contextUserProfile: UserProfile | 
       }
       return;
     }
+    // During signup the auth account exists before the profile doc is written
+    // (it's created after email verification). For our own profile, wait until
+    // the AuthContext has loaded the profile doc rather than fetching one that
+    // doesn't exist yet — which would throw "User profile not found". Re-runs
+    // automatically once `userProfile` populates (it's in the deps below).
+    if (isOwnProfile && !userProfile) {
+      setLoading(false);
+      setLoadingWorkouts(false);
+      return;
+    }
+
     if (lastFetchedUserId.current === profileIdToFetch) return;
 
     hasCleared.current = false;
@@ -320,7 +331,7 @@ export function useProfileData(userId = null, contextUserProfile: UserProfile | 
       }
       isFetching.current = false;
     }
-  }, [profileIdToFetch, currentUser?.uid, isOwnProfile]);
+  }, [profileIdToFetch, currentUser?.uid, isOwnProfile, userProfile]);
 
   const followUser = async (targetUserId: string) => {
     if (!currentUser?.uid) {

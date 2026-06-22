@@ -39,6 +39,13 @@ export function useSeenTracking(): UseSeenTrackingResult {
   const { currentUser } = useAuth();
   const uid = currentUser?.uid;
 
+  // Always-current uid, read by flush(). On logout the feed tree unmounts and the
+  // unmount-flush fires, but its closure would hold the old (now signed-out) uid
+  // and write to Firestore with revoked auth → permission denied. Reading the ref
+  // means a flush after logout sees `undefined` and skips the write.
+  const uidRef = useRef(uid);
+  uidRef.current = uid;
+
   // Working copy of seen-state. A ref so impressions don't trigger re-renders.
   const postsRef = useRef<Record<string, SeenEntry>>({});
   const hydratedRef = useRef(false);
@@ -68,13 +75,14 @@ export function useSeenTracking(): UseSeenTrackingResult {
       flushTimerRef.current = null;
     }
     // Don't persist before hydration — we'd clobber the stored doc with a
-    // partial buffer.
-    if (!uid || !hydratedRef.current || !dirtyRef.current) return;
+    // partial buffer. Read the live uid (see uidRef) so a post-logout flush skips.
+    const activeUid = uidRef.current;
+    if (!activeUid || !hydratedRef.current || !dirtyRef.current) return;
 
     dirtyRef.current = false;
     postsRef.current = capEntries(postsRef.current);
-    await SeenRepository.persistSeenState(uid, { posts: postsRef.current });
-  }, [uid, capEntries]);
+    await SeenRepository.persistSeenState(activeUid, { posts: postsRef.current });
+  }, [capEntries]);
 
   const scheduleFlush = useCallback(() => {
     if (flushTimerRef.current) return; // trailing-throttle: one timer at a time
