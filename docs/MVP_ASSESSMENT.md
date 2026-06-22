@@ -1,6 +1,6 @@
 # hlthy — MVP Assessment
 
-_Last updated: 2026-06-21_
+_Last updated: 2026-06-22_
 
 Covers three things:
 1. **Status audit** — the MVP/V1/V2 planning doc cross-checked against the actual code.
@@ -179,7 +179,7 @@ step, not this MVP build.
 
 ## 5. Progress update & path to store launch
 
-_Updated: 2026-06-21_
+_Updated: 2026-06-22_
 
 This section supersedes the blocker lists above where they overlap: most §2 blockers and
 should-fixes are now **done and deployed**. It also extends the scope from "first TestFlight
@@ -277,18 +277,36 @@ build" to "submittable on the Apple App Store and Google Play, including legal."
 - **Data Safety form** (Google's equivalent of Apple privacy labels) — required
 - **Content rating** (IARC questionnaire)
 - **Target API level** — new apps must target a recent Android API (34+); verify the build
-- **Account deletion** — Google requires both in-app **and** a **publicly reachable web URL**
-  to request deletion without the app. In-app is done; **the web URL is a gap**
+- ✅ **Account deletion** — Google requires both in-app **and** a **publicly reachable web URL**
+  to request deletion without the app. Both done: in-app + hosted at `hlthy.ca/delete-account`.
+  **Verify the page works with no login and no app install, and states what data is deleted vs
+  retained** — Google's deletion-URL review is strict and a common rejection point
 - **App access** — demo credentials for review (login-gated)
 - **Store listing** — icon, **feature graphic (1024×500)**, screenshots, privacy policy URL
 - Photo/Video permissions declaration if prompted; UGC policy compliance
 
 ### 5.5 ⚖️ Legal / compliance
 
-- ✅ **Privacy Policy + Terms** screens exist (`app/privacy-policy.tsx`,
-  `app/terms-of-service.tsx`) — but must be **publicly hosted at a URL** (both stores require
-  it) and must **accurately list** what's collected (Firebase Auth/Firestore/Storage, Sentry
-  diagnostics, AI prompts sent to Cloud Run, push tokens)
+- ✅ **Privacy Policy + Terms** — in-app screens (`app/privacy-policy.tsx`,
+  `app/terms-of-service.tsx`) **and now publicly hosted** on the website (privacy, terms, and
+  account-deletion pages are live). Content fully rewritten this cycle: lists what's collected
+  (Firebase Auth/Firestore/Storage + Google Analytics, Sentry diagnostics, AI messages sent to
+  Google Gemini via Cloud Run, push tokens), discloses the cross-border transfer to `us-central1`
+  (USA), 16+ children's section, Apple UGC zero-tolerance clause, contact `support@hlthy.ca`,
+  em-dashes removed, in-app URLs tappable. **No cookies/analytics on the static website → no
+  cookie notice needed.**
+  **Source of truth = `docs/privacy-policy.md` / `docs/terms-of-service.md`**, mirrored to the
+  website repo and hand-synced to the in-app screens (`screens/PrivacyPolicy.tsx` /
+  `screens/TermsOfService.tsx`) — keep all three in sync on any edit
+- ⚠️ **AI legal claims to re-verify once the AI endpoint work lands (AI team):**
+  - Privacy §5 states no name/email/account identifiers are sent to Google and that messages use
+    a "session-scoped identifier only" — but the AI conversation key is the raw Firebase `uid`
+    (`conversations/{uid}_ai_conversation`). Confirm the Cloud Run backend (`ai/api_server.py`)
+    does **not** forward the uid/profile to Gemini, or the statement is inaccurate
+  - AI-chat deletion: account-deletion purges conversations via
+    `where("participants","array-contains",uid)`, but the AI conversation doc has **no
+    `participants` field**, so the AI thread may survive account deletion — contradicting the
+    Privacy/Terms 30-day deletion promise. Address when hardening the AI endpoint
 - ✅ **Right to deletion** (GDPR Art. 17 / CCPA) — implemented this cycle
 - ⚠️ **Right to access/portability** (GDPR Art. 15/20) — no full personal-data export
   (settings export ≠ personal data); may be required for EU users
@@ -304,8 +322,9 @@ build" to "submittable on the Apple App Store and Google Play, including legal."
 
 1. ~~**Decide the easy gaps**: `supportsTablet`, min-age floor + enforcement, AI disclaimer.~~
    ✅ Done — `supportsTablet: false`; age gate at 16 (3-layer); AI disclaimer in chat + ToS.
-2. **Stand up public URLs**: hosted privacy policy + terms; a web "request account deletion"
-   page (covers Google's requirement).
+2. ~~**Stand up public URLs**: hosted privacy policy + terms; a web "request account deletion"
+   page (covers Google's requirement).~~ ✅ Done — privacy, terms, and account-deletion pages are
+   live on the website (purely static, no cookies/analytics/tracking).
 3. **Finish observability/security**: Sentry DSN, App Check (console), AI endpoint auth +
    rate-limit (the one real cost risk).
 4. **Build config**: APNs key (versioning ✅ via EAS remote auto-increment), then EAS
@@ -314,8 +333,9 @@ build" to "submittable on the Apple App Store and Google Play, including legal."
    accounts.
 6. **Submit**: iOS (internal TestFlight first), Play (internal testing track first).
 
-**Bottom line:** the *code* is close — the longest poles now are **store paperwork**,
-**publicly hosted legal pages + Google's web deletion URL**, and **AI endpoint hardening**,
-not feature work. Age gating, the AI disclaimer, `supportsTablet`, versioning, and a real
-test suite are now **done and deployed**. The two launch-gating items still open: **AI
-endpoint auth/rate-limit** (AI team) and **hosted legal + web deletion URL**.
+**Bottom line:** the *code* is close — the longest poles now are **store paperwork** and **AI
+endpoint hardening**, not feature work. Age gating, the AI disclaimer, `supportsTablet`,
+versioning, a real test suite, and **publicly hosted legal pages + web deletion URL** are now
+**done**. The remaining launch-gating item is **AI endpoint auth/rate-limit** (AI team) — which
+also carries two **AI legal claims to re-verify** (Privacy §5 identifier claim + AI-chat
+deletion coverage; see §5.5).

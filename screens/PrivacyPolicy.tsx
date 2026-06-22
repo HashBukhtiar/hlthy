@@ -1,8 +1,9 @@
 import React from 'react';
-import { ScrollView, Text, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { ScrollView, Text, StyleSheet, TouchableOpacity, View, Linking } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { ACCENT_COLOR } from '@/constants/Colors';
 
 // Small presentational helpers so the long legal copy stays readable.
 const Section = ({ children }: { children: React.ReactNode }) => (
@@ -19,6 +20,12 @@ const Bullet = ({ children }: { children: React.ReactNode }) => (
     <Text style={styles.bulletDot}>{'•'}</Text>
     <Text style={styles.bulletText}>{children}</Text>
   </View>
+);
+// Tappable email/URL. `url` must be a full openable target (mailto:… or https://…).
+const Link = ({ url, children }: { url: string; children: React.ReactNode }) => (
+  <Text style={styles.link} onPress={() => { Linking.openURL(url).catch(() => {}); }}>
+    {children}
+  </Text>
 );
 
 export default function PrivacyPolicy() {
@@ -44,54 +51,54 @@ export default function PrivacyPolicy() {
           individual developer based in Ontario, Canada. We are the data controller responsible for
           your personal information.
         </Para>
-        <Para><Text style={styles.bold}>Email:</Text> support@hlthy.ca</Para>
-        <Para><Text style={styles.bold}>Website:</Text> https://hlthy.ca</Para>
+        <Para><Text style={styles.bold}>Email:</Text> <Link url="mailto:support@hlthy.ca">support@hlthy.ca</Link></Para>
+        <Para><Text style={styles.bold}>Website:</Text> <Link url="https://hlthy.ca">https://hlthy.ca</Link></Para>
 
         <Section>2. What this policy covers</Section>
         <Para>
           This Privacy Policy explains what personal information we collect when you use the hlthy
-          mobile application (iOS and Android) and website at hlthy.ca, why we collect it, who we
+          mobile application (iOS and Android) and website at <Link url="https://hlthy.ca">hlthy.ca</Link>, why we collect it, who we
           share it with, and your rights over it.
         </Para>
 
         <Section>3. Information we collect</Section>
         <SubTitle>3.1 Information you provide directly</SubTitle>
         <Bullet>
-          <Text style={styles.bold}>Account information</Text> — your name, username, email address,
+          <Text style={styles.bold}>Account information</Text>: your name, username, email address,
           date of birth (for age verification), profile photo, and password (stored as a secure hash;
           we never see your plain-text password)
         </Bullet>
         <Bullet>
-          <Text style={styles.bold}>Profile information</Text> — fitness archetype, bio, and any other
+          <Text style={styles.bold}>Profile information</Text>: fitness archetype, bio, and any other
           details you add to your profile
         </Bullet>
         <Bullet>
-          <Text style={styles.bold}>Content you post</Text> — workout posts, milestone records
+          <Text style={styles.bold}>Content you post</Text>: workout posts, milestone records
           (personal records, weight goals), photos, captions, comments, and replies
         </Bullet>
         <Bullet>
-          <Text style={styles.bold}>Messages</Text> — direct messages you send to other users
+          <Text style={styles.bold}>Messages</Text>: direct messages you send to other users
         </Bullet>
         <Bullet>
-          <Text style={styles.bold}>AI coaching conversations</Text> — messages you send to the hlthy
+          <Text style={styles.bold}>AI coaching conversations</Text>: messages you send to the hlthy
           AI coaching feature
         </Bullet>
 
         <SubTitle>3.2 Information collected automatically</SubTitle>
         <Bullet>
-          <Text style={styles.bold}>Usage data</Text> — features you use, screens you visit, actions
+          <Text style={styles.bold}>Usage data</Text>: features you use, screens you visit, actions
           you take (likes, follows, posts), and timestamps
         </Bullet>
         <Bullet>
-          <Text style={styles.bold}>Device information</Text> — device type, operating system and
+          <Text style={styles.bold}>Device information</Text>: device type, operating system and
           version, app version, and device identifiers (such as an installation ID)
         </Bullet>
         <Bullet>
-          <Text style={styles.bold}>Crash and performance data</Text> — error logs and app performance
+          <Text style={styles.bold}>Crash and performance data</Text>: error logs and app performance
           metrics
         </Bullet>
         <Bullet>
-          <Text style={styles.bold}>Push notification tokens</Text> — a device token used to deliver
+          <Text style={styles.bold}>Push notification tokens</Text>: a device token used to deliver
           push notifications to you
         </Bullet>
 
@@ -105,33 +112,33 @@ export default function PrivacyPolicy() {
         <Section>4. How we use your information</Section>
         <Para>We process your information for the following purposes (with the legal basis under PIPEDA / GDPR):</Para>
         <Bullet>
-          <Text style={styles.bold}>Creating and managing your account</Text> — performance of contract
+          <Text style={styles.bold}>Creating and managing your account</Text>: performance of contract
         </Bullet>
         <Bullet>
           <Text style={styles.bold}>Displaying your content</Text> to you and other users according to
-          your visibility settings — performance of contract
+          your visibility settings: performance of contract
         </Bullet>
         <Bullet>
-          <Text style={styles.bold}>Operating the social feed, notifications, and direct messaging</Text>{' '}
-          — performance of contract
+          <Text style={styles.bold}>Operating the social feed, notifications, and direct messaging</Text>:
+          performance of contract
         </Bullet>
         <Bullet>
-          <Text style={styles.bold}>Powering the AI coaching feature</Text> — performance of contract /
+          <Text style={styles.bold}>Powering the AI coaching feature</Text>: performance of contract /
           legitimate interest
         </Bullet>
         <Bullet>
-          <Text style={styles.bold}>Detecting and preventing abuse, spam, and policy violations</Text>{' '}
-          — legitimate interest
+          <Text style={styles.bold}>Detecting and preventing abuse, spam, and policy violations</Text>:
+          legitimate interest
         </Bullet>
         <Bullet>
           <Text style={styles.bold}>Improving app performance and fixing bugs</Text> (via crash logs and
-          analytics) — legitimate interest
+          analytics): legitimate interest
         </Bullet>
         <Bullet>
-          <Text style={styles.bold}>Complying with legal obligations</Text> — legal obligation
+          <Text style={styles.bold}>Complying with legal obligations</Text>: legal obligation
         </Bullet>
         <Bullet>
-          <Text style={styles.bold}>Sending push notifications you have opted into</Text> — consent
+          <Text style={styles.bold}>Sending push notifications you have opted into</Text>: consent
         </Bullet>
         <Para>
           We do not use your information for automated decision-making that produces legal or
@@ -147,7 +154,7 @@ export default function PrivacyPolicy() {
         <Bullet>Your message text is transmitted to Google's servers for processing.</Bullet>
         <Bullet>
           Google processes this data in accordance with its own privacy policy and data processing
-          terms. You can review Google's AI terms at https://ai.google.dev/terms.
+          terms. You can review Google's AI terms at <Link url="https://ai.google.dev/terms">https://ai.google.dev/terms</Link>.
         </Bullet>
         <Bullet>
           We do not send your name, email address, or account identifiers to Google alongside your
@@ -169,16 +176,16 @@ export default function PrivacyPolicy() {
           Canada:
         </Para>
         <Bullet>
-          <Text style={styles.bold}>Firebase (Google LLC)</Text> — authentication, database, storage,
+          <Text style={styles.bold}>Firebase (Google LLC)</Text>: authentication, database, storage,
           and analytics are hosted in Google's cloud infrastructure, including servers in the United
           States. Your AI coaching conversations are processed on servers in us-central1 (Iowa, USA).
         </Bullet>
         <Bullet>
-          <Text style={styles.bold}>Sentry</Text> — crash reports and error logs are processed by
+          <Text style={styles.bold}>Sentry</Text>: crash reports and error logs are processed by
           Functional Software Inc. (Sentry), based in the United States.
         </Bullet>
         <Bullet>
-          <Text style={styles.bold}>Google Gemini</Text> — AI coaching messages are processed by Google
+          <Text style={styles.bold}>Google Gemini</Text>: AI coaching messages are processed by Google
           LLC in the United States.
         </Bullet>
         <Para>
@@ -189,7 +196,7 @@ export default function PrivacyPolicy() {
 
         <Section>7. Content moderation</Section>
         <Para>hlthy is a social platform. To protect our community:</Para>
-        <Bullet>All posts and content are subject to our Community Guidelines and Terms of Service.</Bullet>
+        <Bullet>All posts and content are subject to our Terms of Service (including the content rules in Section 4).</Bullet>
         <Bullet>Users can report content or other users at any time using the in-app report function.</Bullet>
         <Bullet>
           We review reports and take action (including content removal and account suspension)
@@ -207,48 +214,48 @@ export default function PrivacyPolicy() {
           circumstances:
         </Para>
         <Bullet>
-          <Text style={styles.bold}>With other hlthy users</Text> — content you post publicly is visible
+          <Text style={styles.bold}>With other hlthy users</Text>: content you post publicly is visible
           to all users. Content set to "followers only" is visible only to your approved followers.
           Your username and profile are always publicly visible.
         </Bullet>
         <Bullet>
-          <Text style={styles.bold}>With service providers</Text> — Firebase (Google), Sentry, and
+          <Text style={styles.bold}>With service providers</Text>: Firebase (Google), Sentry, and
           Google Gemini as described above. These providers are contractually bound to process data
           only as instructed by us.
         </Bullet>
         <Bullet>
-          <Text style={styles.bold}>For legal compliance</Text> — if required by law, a court order, or
+          <Text style={styles.bold}>For legal compliance</Text>: if required by law, a court order, or
           a regulatory authority, we may disclose information about you. We will notify you where
           legally permitted to do so.
         </Bullet>
         <Bullet>
-          <Text style={styles.bold}>In a business transfer</Text> — if hlthy is acquired or its assets
+          <Text style={styles.bold}>In a business transfer</Text>: if hlthy is acquired or its assets
           are transferred, user data may be part of the transaction. We will notify you before this
           occurs and you will have the right to delete your account.
         </Bullet>
 
         <Section>9. Data retention</Section>
         <Bullet>
-          <Text style={styles.bold}>Account and profile information</Text> — until you delete your
+          <Text style={styles.bold}>Account and profile information</Text>: until you delete your
           account
         </Bullet>
         <Bullet>
-          <Text style={styles.bold}>Posts, workouts, milestones</Text> — until you delete them, or until
+          <Text style={styles.bold}>Posts, workouts, milestones</Text>: until you delete them, or until
           your account is deleted
         </Bullet>
         <Bullet>
-          <Text style={styles.bold}>Direct messages</Text> — until you or the other party deletes them,
+          <Text style={styles.bold}>Direct messages</Text>: until you or the other party deletes them,
           or until your account is deleted
         </Bullet>
         <Bullet>
-          <Text style={styles.bold}>AI coaching conversations</Text> — session-only on our servers;
-          subject to Google's retention policies on their side
+          <Text style={styles.bold}>AI coaching conversations</Text>: until you clear them or delete
+          your account; also subject to Google's retention policies on their side
         </Bullet>
         <Bullet>
-          <Text style={styles.bold}>Crash logs and analytics</Text> — 90 days
+          <Text style={styles.bold}>Crash logs and analytics</Text>: 90 days
         </Bullet>
         <Bullet>
-          <Text style={styles.bold}>Push notification tokens</Text> — until you revoke notification
+          <Text style={styles.bold}>Push notification tokens</Text>: until you revoke notification
           permissions or delete your account
         </Bullet>
         <Para>
@@ -262,48 +269,49 @@ export default function PrivacyPolicy() {
         </Para>
         <SubTitle>All users</SubTitle>
         <Bullet>
-          <Text style={styles.bold}>Access</Text> — request a copy of the personal data we hold about
+          <Text style={styles.bold}>Access</Text>: request a copy of the personal data we hold about
           you
         </Bullet>
         <Bullet>
-          <Text style={styles.bold}>Correction</Text> — correct inaccurate information in your account
+          <Text style={styles.bold}>Correction</Text>: correct inaccurate information in your account
           at any time via Settings
         </Bullet>
         <Bullet>
-          <Text style={styles.bold}>Deletion</Text> — delete your account and personal data via Settings
-          {' > '}Delete Account, or by emailing us at support@hlthy.ca
+          <Text style={styles.bold}>Deletion</Text>: delete your account and personal data via Settings
+          {' > '}Delete Account, by emailing us at <Link url="mailto:support@hlthy.ca">support@hlthy.ca</Link>,
+          or online at <Link url="https://hlthy.ca/delete-account">hlthy.ca/delete-account</Link>
         </Bullet>
         <SubTitle>If you are in the European Economic Area or United Kingdom (GDPR / UK GDPR)</SubTitle>
         <Bullet>
-          <Text style={styles.bold}>Portability</Text> — receive your data in a structured,
+          <Text style={styles.bold}>Portability</Text>: receive your data in a structured,
           machine-readable format
         </Bullet>
         <Bullet>
-          <Text style={styles.bold}>Objection</Text> — object to processing based on legitimate
+          <Text style={styles.bold}>Objection</Text>: object to processing based on legitimate
           interests
         </Bullet>
         <Bullet>
-          <Text style={styles.bold}>Restriction</Text> — ask us to restrict processing while a complaint
+          <Text style={styles.bold}>Restriction</Text>: ask us to restrict processing while a complaint
           is resolved
         </Bullet>
         <Bullet>
-          <Text style={styles.bold}>Withdraw consent</Text> — where processing is based on consent (e.g.
+          <Text style={styles.bold}>Withdraw consent</Text>: where processing is based on consent (e.g.
           push notifications), withdraw it at any time
         </Bullet>
         <SubTitle>If you are a California resident (CCPA/CPRA)</SubTitle>
         <Bullet>
-          <Text style={styles.bold}>Know</Text> — know what categories of personal information we
+          <Text style={styles.bold}>Know</Text>: know what categories of personal information we
           collect and how it is used
         </Bullet>
         <Bullet>
-          <Text style={styles.bold}>Delete</Text> — request deletion of your personal information
+          <Text style={styles.bold}>Delete</Text>: request deletion of your personal information
         </Bullet>
         <Bullet>
-          <Text style={styles.bold}>Non-discrimination</Text> — we will not discriminate against you for
+          <Text style={styles.bold}>Non-discrimination</Text>: we will not discriminate against you for
           exercising your privacy rights
         </Bullet>
         <Para>
-          To exercise any of these rights, contact us at support@hlthy.ca. We will respond within
+          To exercise any of these rights, contact us at <Link url="mailto:support@hlthy.ca">support@hlthy.ca</Link>. We will respond within
           30 days. We may ask you to verify your identity before processing your request.
         </Para>
 
@@ -312,7 +320,7 @@ export default function PrivacyPolicy() {
           hlthy is intended for users aged 16 and over. We do not knowingly collect personal
           information from anyone under 16. An age gate is enforced at signup. If we become aware that
           a user under 16 has created an account, we will delete the account and associated data
-          promptly. If you believe a minor has registered, please contact us at support@hlthy.ca.
+          promptly. If you believe a minor has registered, please contact us at <Link url="mailto:support@hlthy.ca">support@hlthy.ca</Link>.
         </Para>
 
         <Section>12. Security</Section>
@@ -343,8 +351,8 @@ export default function PrivacyPolicy() {
           If you have questions about this Privacy Policy or wish to exercise your rights, contact us
           at:
         </Para>
-        <Para><Text style={styles.bold}>Email:</Text> support@hlthy.ca</Para>
-        <Para><Text style={styles.bold}>Website:</Text> https://hlthy.ca</Para>
+        <Para><Text style={styles.bold}>Email:</Text> <Link url="mailto:support@hlthy.ca">support@hlthy.ca</Link></Para>
+        <Para><Text style={styles.bold}>Website:</Text> <Link url="https://hlthy.ca">https://hlthy.ca</Link></Para>
         <Para>
           If you are in the EEA and are not satisfied with our response, you have the right to lodge a
           complaint with your local data protection authority.
@@ -420,6 +428,10 @@ const styles = StyleSheet.create({
   bold: {
     color: '#FFFFFF',
     fontWeight: '600',
+  },
+  link: {
+    color: ACCENT_COLOR,
+    textDecorationLine: 'underline',
   },
   bulletRow: {
     flexDirection: 'row',
