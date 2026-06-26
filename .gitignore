@@ -103,6 +103,9 @@
 pglite-debug.log
 firebase-debug.log
 
+# web export output
+dist/
+
 # local env files
 .env*.local
 .env
@@ -117,3 +120,9 @@ ios/
 
 # Admin Dashboard (separate app, will be moved out of repo)
 admin-dashboard/
+# debug / local db artifacts
+firestore-debug.log
+observability.db
+
+# firebase deploy cache
+.firebase/

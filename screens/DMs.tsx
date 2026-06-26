@@ -13,13 +13,15 @@ import MessageRequestItem from '@/components/MessageRequestItem';
 import { ACCENT_COLOR } from '@/constants/Colors';
 import { useDMs } from '@/features/messaging/ui/useDMs';
 import { Conversation } from '@/features/messaging/domain/Conversation';
+import GlassBackButton from '@/components/GlassBackButton';
+import BottomActionMenu, { BottomActionMenuItem } from '@/components/BottomActionMenu';
 
 const ChatItem = ({
     item,
-    onDelete,
+    onLongPress,
 }: {
     item: Conversation;
-    onDelete: (id: string) => void;
+    onLongPress: (item: Conversation) => void;
 }) => {
     const router = useRouter();
     const [isPressed, setIsPressed] = useState(false);
@@ -38,22 +40,6 @@ const ChatItem = ({
         ? { uri: remoteUrl }
         : fallback;
 
-    const handleLongPress = () => {
-        Alert.alert(
-            "Delete Conversation",
-            `Are you sure you want to delete this conversation with ${item.otherParticipantUsername || 'User'}?`,
-            [
-                { text: "Cancel", style: "cancel" },
-                {
-                    text: "Delete",
-                    onPress: () => onDelete(item.id),
-                    style: 'destructive',
-                },
-            ],
-            { cancelable: false }
-        );
-    };
-
     const navigateToChat = () => {
         router.push(`/chat/${item.id}`);
     };
@@ -61,7 +47,7 @@ const ChatItem = ({
     return (
         <TouchableHighlight
             onPress={navigateToChat}
-            onLongPress={handleLongPress}
+            onLongPress={() => !item.isPinnedAI && onLongPress(item)}
             delayLongPress={500}
             underlayColor="#222"
             onShowUnderlay={() => setIsPressed(true)}
@@ -90,11 +76,17 @@ const ChatItem = ({
                         {item.lastMessageText || "No messages yet"}
                     </Text>
                 </View>
-                {item.lastMessageAt && (
-                    <Text style={styles.time}>
-                        {item.lastMessageAt.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </Text>
-                )}
+                <View style={styles.metaContainer}>
+                    <View style={styles.indicatorRow}>
+                        {item.isPinned && <Ionicons name="pin" size={14} color="#8E8E93" style={styles.indicator} />}
+                        {item.isMuted && <Ionicons name="notifications-off" size={14} color="#8E8E93" style={styles.indicator} />}
+                    </View>
+                    {item.lastMessageAt && (
+                        <Text style={styles.time}>
+                            {item.lastMessageAt.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </Text>
+                    )}
+                </View>
             </View>
         </TouchableHighlight>
     );
@@ -111,6 +103,8 @@ export default function DMs() {
         refreshing,
         refresh,
         deleteConversation,
+        togglePin,
+        toggleMute,
         messageRequests,
         loadingRequests,
         rawRecipientResults,
@@ -123,6 +117,50 @@ export default function DMs() {
     const [isSearching, setIsSearching] = useState(false);
     const [searchText, setSearchText] = useState('');
     const searchInputRef = useRef<TextInput>(null);
+    const [actionMenuVisible, setActionMenuVisible] = useState(false);
+    const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
+
+    const handleConversationLongPress = useCallback((item: Conversation) => {
+        setSelectedConversation(item);
+        setActionMenuVisible(true);
+    }, []);
+
+    const actionMenuItems: BottomActionMenuItem[] = selectedConversation ? [
+        {
+            icon: selectedConversation.isPinned ? 'pin-outline' : 'pin',
+            label: selectedConversation.isPinned ? 'Unpin' : 'Pin',
+            sublabel: selectedConversation.isPinned ? 'Remove from top of list' : 'Keep at top of list',
+            color: '#FFD60A',
+            backgroundColor: 'rgba(255, 214, 10, 0.22)',
+            onPress: () => togglePin(selectedConversation.id),
+        },
+        {
+            icon: selectedConversation.isMuted ? 'notifications' : 'notifications-off',
+            label: selectedConversation.isMuted ? 'Unmute' : 'Mute',
+            sublabel: selectedConversation.isMuted ? 'Turn on notifications' : 'Turn off notifications',
+            color: '#0A84FF',
+            backgroundColor: 'rgba(10, 132, 255, 0.22)',
+            onPress: () => toggleMute(selectedConversation.id),
+        },
+        {
+            icon: 'trash',
+            label: 'Delete',
+            sublabel: 'Remove this conversation',
+            color: '#FF453A',
+            backgroundColor: 'rgba(255, 69, 58, 0.22)',
+            destructive: true,
+            onPress: () => {
+                Alert.alert(
+                    'Delete Conversation',
+                    `Are you sure you want to delete this conversation with ${selectedConversation.otherParticipantUsername || 'User'}?`,
+                    [
+                        { text: 'Cancel', style: 'cancel' },
+                        { text: 'Delete', onPress: () => deleteConversation(selectedConversation.id), style: 'destructive' },
+                    ]
+                );
+            },
+        },
+    ] : [];
 
     // Apply block enforcement filter to raw search results before display.
     const searchResults = rawRecipientResults.filter(user =>
@@ -194,7 +232,7 @@ export default function DMs() {
     const renderItem = ({ item }: { item: Conversation }) => (
         <ChatItem
             item={item}
-            onDelete={deleteConversation}
+            onLongPress={handleConversationLongPress}
         />
     );
 
@@ -214,9 +252,7 @@ export default function DMs() {
     return (
         <View style={{ flex: 1, backgroundColor: 'black' }}>
             <View style={styles.header}>
-                <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-                    <Ionicons name="arrow-back" size={28} color="white" />
-                </TouchableOpacity>
+                <GlassBackButton />
                 <Text style={styles.headerText}>Messages</Text>
                 <TouchableOpacity style={styles.composeButton} onPress={handleComposePress}>
                     <Ionicons name="pencil-sharp" size={30} color="white" />
@@ -308,6 +344,11 @@ export default function DMs() {
                     }
                 />
             )}
+            <BottomActionMenu
+                visible={actionMenuVisible}
+                onClose={() => setActionMenuVisible(false)}
+                items={actionMenuItems}
+            />
         </View>
     );
 }
@@ -321,10 +362,6 @@ const styles = StyleSheet.create({
         borderBottomColor: '#333',
         paddingVertical: 5,
         paddingHorizontal: 10,
-    },
-    backButton: {
-        padding: 5,
-        width: 40,
     },
     headerText: {
         color: 'white',
@@ -379,10 +416,20 @@ const styles = StyleSheet.create({
         color: 'white',
         fontWeight: 'bold',
     },
+    metaContainer: {
+        alignItems: 'flex-end',
+        marginLeft: 8,
+    },
+    indicatorRow: {
+        flexDirection: 'row',
+        marginBottom: 4,
+    },
+    indicator: {
+        marginLeft: 4,
+    },
     time: {
         fontSize: 12,
         color: 'gray',
-        marginLeft: 5,
     },
     centered: {
         flex: 1,

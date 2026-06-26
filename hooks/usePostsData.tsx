@@ -5,6 +5,8 @@ import { useAuth } from '@/context/AuthContext';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { generateUniqueFilename } from '@/logic/idGenerator';
 import { PostRepository } from '@/features/posts/infra/postRepository';
+import type { CommentCursor, CommentPage } from '@/features/posts/infra/postRepository';
+export type { CommentCursor, CommentPage } from '@/features/posts/infra/postRepository';
 import type { PostAuthorProfile, NewPostData } from '@/features/posts/domain/Post';
 import type { MentionData } from '@/features/mentions/domain/Mention';
 
@@ -14,13 +16,43 @@ export type { ActivityItem } from '@/features/notifications/domain/ActivityItem'
 
 import type { Post, Comment, Reply } from '@/features/posts/domain/Post';
 
+// ── Post cache ───────────────────────────────────────────────────────────────
+// In-memory snapshot of posts the user has already seen in a list (feed, grid,
+// profile). Detail screens read this to paint instantly instead of showing a
+// loading spinner, then refresh in the background. Best-effort; cleared on app
+// restart. Capped so it can't grow unbounded during a long session.
+const POST_CACHE_LIMIT = 200;
+const postCache = new Map<string, Post>();
+
+export function primePost(post: Post | null | undefined) {
+  if (!post?.id) return;
+  // Re-insert to mark as most-recently-used, then evict the oldest if over cap.
+  postCache.delete(post.id);
+  postCache.set(post.id, post);
+  if (postCache.size > POST_CACHE_LIMIT) {
+    const oldest = postCache.keys().next().value;
+    if (oldest !== undefined) postCache.delete(oldest);
+  }
+}
+
+export function primePosts(posts: Post[] | null | undefined) {
+  posts?.forEach(primePost);
+}
+
+export function peekCachedPost(id: string): Post | null {
+  return id ? postCache.get(id) ?? null : null;
+}
+
 export function usePostsData() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const { currentUser, userProfile } = useAuth();
 
-  const fetchPosts = async () => {
+  // `isActive` lets the mount effect cancel an in-flight fetch on logout. Without
+  // it, a read started while authenticated can reject with a permission error
+  // after auth is revoked, and the stale closure would still log it.
+  const fetchPosts = async (isActive: () => boolean = () => true) => {
     if (!currentUser?.uid) {
       setPosts([]);
       setLoading(false);
@@ -29,14 +61,14 @@ export function usePostsData() {
     try {
       setLoading(true);
       const data = await PostRepository.fetchPublicPosts(currentUser.uid);
-      if (currentUser?.uid) setPosts(data);
+      if (isActive() && currentUser?.uid) setPosts(data);
     } catch (err) {
-      if (currentUser?.uid) {
+      if (isActive() && currentUser?.uid) {
         console.error("Error fetching posts:", err);
         setError(err as Error);
       }
     } finally {
-      setLoading(false);
+      if (isActive()) setLoading(false);
     }
   };
 
@@ -118,12 +150,17 @@ export function usePostsData() {
 
   const getPostById = async (postId: string): Promise<Post> => {
     if (!currentUser?.uid) throw new Error("User not authenticated");
-    return PostRepository.getById(postId, currentUser.uid);
+    const post = await PostRepository.getById(postId, currentUser.uid);
+    primePost(post);
+    return post;
   };
 
-  const getPostComments = async (postId: string): Promise<Comment[]> => {
+  const getPostComments = async (
+    postId: string,
+    opts?: { limitN?: number; after?: CommentCursor | null }
+  ): Promise<CommentPage> => {
     if (!currentUser?.uid) throw new Error("User not authenticated");
-    return PostRepository.getComments(postId, currentUser.uid);
+    return PostRepository.getComments(postId, currentUser.uid, opts);
   };
 
   const addPost = async (postData: NewPostData): Promise<string> => {
@@ -339,13 +376,15 @@ export function usePostsData() {
   };
 
   useEffect(() => {
-    if (currentUser?.uid) {
-      fetchPosts();
-    } else {
+    if (!currentUser?.uid) {
       setPosts([]);
       setLoading(false);
       setError(null);
+      return;
     }
+    let active = true;
+    fetchPosts(() => active);
+    return () => { active = false; };
   }, [currentUser?.uid]);
 
   return {

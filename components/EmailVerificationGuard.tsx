@@ -17,7 +17,9 @@ export default function EmailVerificationGuard({ children }: EmailVerificationGu
   const { currentUser, userProfile, loading: authLoading, isFromSignup, setIsFromSignup } = useAuth();
   const router = useRouter();
   const segments = useSegments();
-  const inAuthScreen = ['landing', 'login', 'signup', 'email-verification'].includes(segments[0] as string);
+  // Screens a not-yet-authenticated user may view without being bounced to landing.
+  // Includes the legal docs so the signup consent links (Terms / Privacy) work pre-auth.
+  const inAuthScreen = ['landing', 'login', 'signup', 'email-verification', 'terms-of-service', 'privacy-policy'].includes(segments[0] as string);
   const [isCheckingVerification, setIsCheckingVerification] = useState(false);
   const [isResending, setIsResending] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);

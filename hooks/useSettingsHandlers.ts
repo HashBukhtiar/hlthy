@@ -8,6 +8,7 @@ import { SettingsRepository } from '@/features/settings/infra/settingsRepository
 import { deleteImageFromStorage } from '@/utils/imageUtils';
 import { UserSettings } from '@/types/settings';
 import { validateSettings, sanitizeSettings } from '@/utils/settingsValidation';
+import { formatDob } from '@/logic/ageValidation';
 import { createSettingsBackup, restoreSettingsBackup } from '@/utils/settingsBackup';
 import { exportSettings, importSettings } from '@/utils/settingsExport';
 import { uploadProfileImage } from '@/services/profileStorage';
@@ -191,13 +192,21 @@ export function useSettingsHandlers(props: UseSettingsHandlersProps) {
 
       await createSettingsBackup(sanitizedSettings);
 
+      // Pull dateOfBirth out of the spread so we never persist a raw Date
+      // (Firestore would store a Timestamp, but the age-gate rule expects a
+      // "MM/DD/YYYY" string).
+      const { dateOfBirth: dobDate, ...otherSettings } = sanitizedSettings;
+
       const settingsToSave = {
-        ...sanitizedSettings,
-        dateOfBirth: sanitizedSettings.dateOfBirth
-          ? sanitizedSettings.dateOfBirth.toISOString()
-          : null,
+        ...otherSettings,
         profileImageUrl: newImageUrl,
         profileThumbnailUrl: null,
+        // Only write the DOB when we have a valid date. Writing null (or a raw
+        // Date) clobbers the stored value and is rejected by the Firestore
+        // age-gate rule, which would otherwise lock the user out of saving any
+        // settings. When absent, omit the field so the stored DOB is preserved.
+        // Canonical "MM/DD/YYYY" matches the signup write format the rule parses.
+        ...(dobDate && { dateOfBirth: formatDob(dobDate) }),
         ...(sanitizedSettings.profileVisibility !== undefined && {
           profileVisibility: sanitizedSettings.profileVisibility,
         }),
@@ -434,10 +443,16 @@ export function useSettingsHandlers(props: UseSettingsHandlersProps) {
                   if (text === 'DELETE') {
                     try {
                       setLoading(true);
-                      // Call Cloud Function to delete account
+                      // Call Cloud Function to delete account. The callable
+                      // requires a confirmation token of `DELETE_${uid}` (see
+                      // functions/src/services/settingsService.ts deleteUserAccount).
+                      const uid = currentUser?.uid ?? auth.currentUser?.uid;
+                      if (!uid) {
+                        throw new Error('You must be signed in to delete your account.');
+                      }
                       if (functions && functions.app) {
                         const deleteUserAccount = httpsCallable(functions, 'deleteUserAccount');
-                        await deleteUserAccount();
+                        await deleteUserAccount({ confirmationToken: `DELETE_${uid}` });
                       }
                       Alert.alert('Success', 'Your account has been deleted');
                       router.replace('/landing');
@@ -458,7 +473,7 @@ export function useSettingsHandlers(props: UseSettingsHandlersProps) {
         },
       },
     ]);
-  }, [router, setLoading]);
+  }, [router, setLoading, currentUser]);
 
   const clearChatHistory = useCallback(async () => {
     try {

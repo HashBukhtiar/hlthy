@@ -4,6 +4,7 @@ import {
   doc,
   getDoc,
   deleteDoc,
+  updateDoc,
   query,
   where,
   limit,
@@ -104,8 +105,10 @@ export const ConversationRepository = {
       (c): c is Conversation => c !== null
     );
 
-    // Sort: unread first, then most recent message.
+    // Sort: pinned first, then unread, then most recent message.
     results.sort((a, b) => {
+      if (a.isPinned && !b.isPinned) return -1;
+      if (!a.isPinned && b.isPinned) return 1;
       if (a.isUnread && !b.isUnread) return -1;
       if (!a.isUnread && b.isUnread) return 1;
       if (a.lastMessageAt && b.lastMessageAt) {
@@ -216,5 +219,21 @@ export const ConversationRepository = {
 
     logger.debug(DOMAIN, 'New conversation created', { conversationId });
     return conversationId;
+  },
+
+  async pinConversation(uid: string, conversationId: string): Promise<void> {
+    await updateDoc(doc(db, `users/${uid}/conversations`, conversationId), { isPinned: true });
+  },
+
+  async unpinConversation(uid: string, conversationId: string): Promise<void> {
+    await updateDoc(doc(db, `users/${uid}/conversations`, conversationId), { isPinned: false });
+  },
+
+  async muteConversation(uid: string, conversationId: string): Promise<void> {
+    await updateDoc(doc(db, `users/${uid}/conversations`, conversationId), { isMuted: true });
+  },
+
+  async unmuteConversation(uid: string, conversationId: string): Promise<void> {
+    await updateDoc(doc(db, `users/${uid}/conversations`, conversationId), { isMuted: false });
   },
 };

@@ -57,6 +57,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
     followers,
     following,
     error,
+    deletedAccount,
     refreshProfileData,
     isFollowingStatus,
     isRequestPending,
@@ -117,6 +118,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
   const tabWidth = screenWidth / 3;
   const [tooltipVisible, setTooltipVisible] = useState(false);
   const [tooltipText, setTooltipText] = useState('');
+  const [hypeInfoVisible, setHypeInfoVisible] = useState(false);
   const [followersModalVisible, setFollowersModalVisible] = useState(false);
   const [followingModalVisible, setFollowingModalVisible] = useState(false);
   const [showOwnActionMenu, setShowOwnActionMenu] = useState(false);
@@ -146,6 +148,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
 
   const insets = useSafeAreaInsets();
   const isOwnProfile = !routeUserId || routeUserId === currentUser?.uid;
+  const isTabInstance = !routeUserId;
   
   // For own profile, merge profileData with currentUserProfile to get latest socialLinks
   // currentUserProfile is updated immediately after settings save via refreshUserProfile()
@@ -546,7 +549,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
   if (isBlockedByUser && !isOwnProfile) {
     return (
       <SafeAreaView style={styles.container}>
-        
+
         <View style={styles.blockedContainer}>
           <Ionicons name="person-remove" size={64} color="#666" />
           <Text style={styles.blockedTitle}>User Not Available</Text>
@@ -557,7 +560,30 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
       </SafeAreaView>
     );
   }
-  
+
+  if (deletedAccount) {
+    return (
+      <SafeAreaView style={styles.container}>
+        {!isTabInstance && router.canGoBack() && (
+          <TouchableOpacity
+            style={styles.miniHeaderSideBtn}
+            onPress={() => router.back()}
+            activeOpacity={0.85}
+          >
+            <Ionicons name="arrow-back" size={28} color="white" />
+          </TouchableOpacity>
+        )}
+        <View style={styles.blockedContainer}>
+          <Ionicons name="person-remove" size={64} color="#666" />
+          <Text style={styles.blockedTitle}>Account no longer exists</Text>
+          <Text style={styles.blockedSubtitle}>
+            This account has been deleted.
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   if (error) {
     return (
       <SafeAreaView style={styles.container}>
@@ -572,8 +598,8 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
               <Ionicons name="settings-outline" size={24} color="white" />
             </TouchableOpacity>
           )}
-          {/* Back Button (Other's Profile) */}
-          {!isOwnProfile && router.canGoBack() && (
+          {/* Back Button (pushed route) */}
+          {!isTabInstance && router.canGoBack() && (
             <TouchableOpacity
               style={styles.miniHeaderSideBtn}
               onPress={() => router.back()}
@@ -654,7 +680,8 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
           viewedProfileId={viewedProfileId}
           isPrivate={isPrivate}
           canGoBack={router.canGoBack()}
-          onBack={() => router.back()}
+          showBackButton={!isTabInstance}
+          onBack={() => router.canGoBack() ? router.back() : router.replace('/')}
           onSettings={handleSettingsPress}
           onEditProfile={handleEditProfilePress}
           onMoreOptions={profileActions.showMoreOptions}
@@ -664,6 +691,7 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
           onArchetypeBadgePress={handleArchetypeBadgePress}
           onFollowersPress={handleFollowersPress}
           onFollowingPress={handleFollowingPress}
+          onHypePress={() => setHypeInfoVisible(true)}
           onViewProfileCard={() => router.push(`/view-profile-card/${viewedProfileId}`)}
         />
         </View>
@@ -765,6 +793,44 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
             <Text style={styles.tooltipText}>{tooltipText}</Text>
             <TouchableOpacity
               onPress={() => setTooltipVisible(false)}
+              style={styles.tooltipCloseButton}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.tooltipButtonText}>Got it</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Hype Info Modal */}
+      <Modal
+        transparent={true}
+        visible={hypeInfoVisible}
+        animationType="fade"
+        onRequestClose={() => setHypeInfoVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.tooltipOverlay}
+          activeOpacity={1}
+          onPress={() => setHypeInfoVisible(false)}
+        >
+          <View style={styles.tooltipCard}>
+            <View style={styles.tooltipHeader}>
+              <View style={styles.hypeIconCircle}>
+                <Ionicons name="star" size={22} color={ACCENT_COLOR} />
+              </View>
+              <Text style={styles.tooltipTitle}>Hype</Text>
+            </View>
+            <View style={styles.tooltipDivider} />
+            <Text style={styles.tooltipText}>
+              Hype is a momentum score. You earn it by training (logging workouts,
+              and hitting new milestones) and when people back your posts with
+              likes, comments, saves and follows.{'\n'}{'\n'}
+              It builds as you stay active and cools off when you go quiet, so it
+              always reflects your recent grind.
+            </Text>
+            <TouchableOpacity
+              onPress={() => setHypeInfoVisible(false)}
               style={styles.tooltipCloseButton}
               activeOpacity={0.85}
             >
@@ -910,8 +976,8 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
           },
         ]}
       >
-        {isOwnProfile ? (
-          /* Own profile: avatar + name left-aligned, settings on right */
+        {isOwnProfile && isTabInstance ? (
+          /* Own profile tab: avatar + name left-aligned, settings on right */
           <View style={styles.miniHeaderInner}>
             <View style={styles.miniHeaderOwnLeft}>
               {processedProfileData?.profileImageUrl ? (
@@ -972,19 +1038,15 @@ const Profile: React.FC<ProfileScreenProps> = ({ userId: routeUserId }) => {
             </View>
           </View>
         ) : (
-          /* Other profile: back left, avatar + name centered, more options right */
+          /* Pushed profile: back left, avatar + name centered, more options right */
           <View style={styles.miniHeaderInner}>
-            {router.canGoBack() ? (
-              <TouchableOpacity
-                style={styles.miniHeaderSideBtn}
-                onPress={() => router.back()}
-                activeOpacity={0.85}
-              >
-                <Ionicons name="chevron-back" size={22} color="white" />
-              </TouchableOpacity>
-            ) : (
-              <View style={styles.miniHeaderSideBtn} />
-            )}
+            <TouchableOpacity
+              style={styles.miniHeaderSideBtn}
+              onPress={() => router.canGoBack() ? router.back() : router.replace('/')}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="chevron-back" size={22} color="white" />
+            </TouchableOpacity>
             <View style={styles.miniHeaderCenter}>
               {processedProfileData?.profileImageUrl ? (
                 <Image
@@ -1404,6 +1466,15 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     marginRight: 12,
+  },
+  hypeIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    marginRight: 12,
+    backgroundColor: 'rgba(255,45,85,0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   tooltipTitle: {
     color: '#FFF',

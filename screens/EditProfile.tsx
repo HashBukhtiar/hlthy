@@ -20,12 +20,13 @@ import Animated, {
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { getMaximumBirthDate, isDateOldEnough, MINIMUM_AGE } from '@/logic/ageValidation';
 import { useAuth } from '@/context/AuthContext';
 import { UserSettings } from '@/types/settings';
 import { useSettingsHandlers } from '@/hooks/useSettingsHandlers';
 import { SettingsModals } from '@/components/settings/SettingsModals';
 import { SelectorItem } from '@/components/CustomSelector';
-import { getOptimalImageUrl } from '@/utils/imageUtils';
+import { getOptimalImageUrl, DEFAULT_PROFILE_IMAGE } from '@/utils/imageUtils';
 
 const SOCIAL_PLATFORM_DISPLAY: Record<string, { icon: string; color: string; bg: string }> = {
   instagram: { icon: 'logo-instagram', color: '#E1306C', bg: 'rgba(225,48,108,0.18)' },
@@ -240,8 +241,6 @@ export default function EditProfile() {
     return 'Not set';
   };
 
-  const placeholderImage = 'https://thumbs.dreamstime.com/b/creative-illustration-default-avatar-profile-placeholder-isolated-background-art-design-grey-photo-blank-template-mockup-144855718.jpg';
-
   return (
     <>
       <View style={styles.container}>
@@ -273,7 +272,7 @@ export default function EditProfile() {
         <View style={styles.photoSection}>
           <TouchableOpacity onPress={pickImage} activeOpacity={0.8} style={styles.photoWrapper}>
             <Image
-              source={{ uri: profileImage || getOptimalImageUrl(userProfile?.profileThumbnailUrl, userProfile?.profileImageUrl) || placeholderImage }}
+              source={{ uri: profileImage || getOptimalImageUrl(userProfile?.profileThumbnailUrl, userProfile?.profileImageUrl) || DEFAULT_PROFILE_IMAGE }}
               style={styles.profileImage}
               key={profileImage || 'default'}
             />
@@ -401,15 +400,14 @@ export default function EditProfile() {
           onChange={(event, selectedDate) => {
             setDateModalVisible(false);
             if (event.type === 'set' && selectedDate) {
-              const now = new Date();
-              if (selectedDate > now) {
-                Alert.alert('Invalid Date', 'Date of birth cannot be in the future');
+              if (!isDateOldEnough(selectedDate)) {
+                Alert.alert('Invalid Date', `You must be at least ${MINIMUM_AGE} years old.`);
                 return;
               }
               updateSetting('dateOfBirth', selectedDate);
             }
           }}
-          maximumDate={new Date()}
+          maximumDate={getMaximumBirthDate()}
           minimumDate={new Date(1900, 0, 1)}
         />
       )}
@@ -432,15 +430,14 @@ export default function EditProfile() {
                 display="spinner"
                 onChange={(event, selectedDate) => {
                   if (selectedDate && event.type !== 'dismissed') {
-                    const now = new Date();
-                    if (selectedDate > now) {
-                      Alert.alert('Invalid Date', 'Date of birth cannot be in the future');
+                    if (!isDateOldEnough(selectedDate)) {
+                      Alert.alert('Invalid Date', `You must be at least ${MINIMUM_AGE} years old.`);
                       return;
                     }
                     updateSetting('dateOfBirth', selectedDate);
                   }
                 }}
-                maximumDate={new Date()}
+                maximumDate={getMaximumBirthDate()}
                 minimumDate={new Date(1900, 0, 1)}
                 style={{ backgroundColor: '#1C1C1E' }}
               />

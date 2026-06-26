@@ -1,10 +1,26 @@
-import { ImageSourcePropType } from 'react-native';
+import { Image, ImageSourcePropType } from 'react-native';
 import { ref, deleteObject } from 'firebase/storage';
 import { storage, db } from '@/firebaseConfig';
 import { doc, deleteDoc } from '@/features/infra/firestore';
 import hlthyLogo from '@/assets/images/icon.png';
 
-export const DEFAULT_PROFILE_IMAGE = 'https://thumbs.dreamstime.com/b/creative-illustration-default-avatar-profile-placeholder-isolated-background-art-design-grey-photo-blank-template-mockup-144855718.jpg';
+// Default avatar served from a bundled asset (no external image service in the
+// shipped path), resolved to a URI string so it stays drop-in compatible with
+// every `{ uri: getOptimalImageUrl(...) }` call site.
+const defaultAvatarAsset = require('@/assets/images/profile-icon.png');
+
+// react-native-web doesn't implement Image.resolveAssetSource, and the web
+// bundler may resolve an asset require() straight to a URL string or a { uri }
+// object. Handle every shape so this works on web and native.
+function resolveAssetUri(asset: unknown): string {
+  if (typeof asset === 'string') return asset;
+  if (asset && typeof asset === 'object' && typeof (asset as { uri?: unknown }).uri === 'string') {
+    return (asset as { uri: string }).uri;
+  }
+  return Image.resolveAssetSource?.(asset as ImageSourcePropType)?.uri ?? '';
+}
+
+export const DEFAULT_PROFILE_IMAGE: string = resolveAssetUri(defaultAvatarAsset);
 
 /**
  * Validates if a URL is likely still valid (basic check)

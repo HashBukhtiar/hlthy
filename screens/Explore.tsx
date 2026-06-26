@@ -25,6 +25,7 @@ import { useExplore } from '@/features/explore/ui/useExplore';
 import { useTagFollow } from '@/features/tags/ui/useTagFollow';
 import { ACCENT_COLOR } from '@/constants/Colors';
 import type { ExplorePost, UserSearchResult, TagSearchResult } from '@/features/explore/domain/ExploreTypes';
+import GlassBackButton from '@/components/GlassBackButton';
 
 const HISTORY_KEY = 'hlthy_search_history';
 const MAX_HISTORY = 10;
@@ -360,6 +361,7 @@ export default function Explore() {
     <View style={globalStyles.container}>
       {/* Search bar */}
       <View style={[styles.searchBarView, { paddingTop: insets.top + (Platform.OS === 'android' ? 20 : 0) }]}>
+        <GlassBackButton />
         <Reanimated.View style={styles.searchBarContainer} layout={LinearTransition.duration(220)}>
           <Ionicons name="search" size={16} color="#8E8E93" style={styles.searchIcon} />
           <TextInput

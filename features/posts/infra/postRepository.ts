@@ -13,15 +13,20 @@ import {
   deleteDoc,
   orderBy,
   limit,
+  startAfter,
   increment,
   runTransaction,
   Timestamp,
   serverTimestamp,
   updateDoc,
+  type QueryConstraint,
+  type QueryDocumentSnapshot,
+  type DocumentData,
 } from 'firebase/firestore';
 import { db } from '@/firebaseConfig';
 import { Post, Comment, Reply, PostAuthorProfile } from '@/features/posts/domain/Post';
 import { MentionData } from '@/features/mentions/domain/Mention';
+import { sanitizeText, TEXT_LIMITS } from '@/logic/sanitize';
 
 // ── Private helpers ─────────────────────────────────────────────────────────
 
@@ -46,6 +51,14 @@ async function hydrateCommentAuthor(comment: Comment): Promise<void> {
 }
 
 // ── Public API ──────────────────────────────────────────────────────────────
+
+/** Opaque cursor for comment pagination (re-exported so callers avoid firestore imports). */
+export type CommentCursor = QueryDocumentSnapshot<DocumentData>;
+
+export interface CommentPage {
+  comments: Comment[];
+  cursor: CommentCursor | null;
+}
 
 export const PostRepository = {
   /** Fetches all public posts ordered by creation date. */
@@ -83,32 +96,46 @@ export const PostRepository = {
     return post;
   },
 
-  /** Fetches all comments for a post with author profiles and like status. */
-  async getComments(postId: string, uid: string): Promise<Comment[]> {
-    const q = query(collection(db, 'posts', postId, 'comments'), orderBy('createdAt', 'desc'));
-    const snap = await getDocs(q);
+  /**
+   * Fetches a page of comments for a post (newest first) with author profiles
+   * and like status. Author hydration runs in parallel. Pass `limitN`/`after`
+   * for pagination; omit them to fetch everything (legacy behavior).
+   */
+  async getComments(
+    postId: string,
+    uid: string,
+    opts?: { limitN?: number; after?: CommentCursor | null }
+  ): Promise<CommentPage> {
+    const constraints: QueryConstraint[] = [orderBy('createdAt', 'desc')];
+    if (opts?.after) constraints.push(startAfter(opts.after));
+    if (opts?.limitN) constraints.push(limit(opts.limitN));
 
-    const comments: Comment[] = [];
-    for (const d of snap.docs) {
-      const data = d.data();
-      const comment: Comment = {
-        id: d.id,
-        authorId: data.authorId,
-        authorUsername: data.authorUsername,
-        authorProfileImageUrl: '',
-        text: data.text,
-        createdAt: data.createdAt,
-        likes: data.likes ?? 0,
-        likedBy: data.likedBy ?? [],
-        replyCount: data.replyCount ?? 0,
-        mentions: data.mentions,
-        isLiked: data.likedBy?.includes(uid) ?? false,
-        replies: [],
-      };
-      await hydrateCommentAuthor(comment);
-      comments.push(comment);
-    }
-    return comments;
+    const snap = await getDocs(query(collection(db, 'posts', postId, 'comments'), ...constraints));
+
+    const comments = await Promise.all(
+      snap.docs.map(async (d) => {
+        const data = d.data();
+        const comment: Comment = {
+          id: d.id,
+          authorId: data.authorId,
+          authorUsername: data.authorUsername,
+          authorProfileImageUrl: '',
+          text: data.text,
+          createdAt: data.createdAt,
+          likes: data.likes ?? 0,
+          likedBy: data.likedBy ?? [],
+          replyCount: data.replyCount ?? 0,
+          mentions: data.mentions,
+          isLiked: data.likedBy?.includes(uid) ?? false,
+          replies: [],
+        };
+        await hydrateCommentAuthor(comment);
+        return comment;
+      })
+    );
+
+    const cursor = snap.docs.length > 0 ? snap.docs[snap.docs.length - 1] : null;
+    return { comments, cursor };
   },
 
   /**
@@ -132,7 +159,7 @@ export const PostRepository = {
       authorId: author.uid,
       authorUsername: author.username ?? 'Unknown user',
       authorProfileImageUrl: author.profileImageUrl ?? '',
-      caption: data.caption ?? '',
+      caption: sanitizeText(data.caption, TEXT_LIMITS.postCaption),
       imageUrl: data.imageUrl ?? null,
       createdAt: serverTimestamp(),
       isMilestone: false,
@@ -199,45 +226,35 @@ export const PostRepository = {
     const postRef = doc(db, 'posts', postId);
     const likerRef = doc(db, 'posts', postId, 'likers', uid);
 
-    const likerDoc = await getDoc(likerRef);
-    if (likerDoc.exists()) return;
-
     await runTransaction(db, async tx => {
+      // Read the liker doc inside the transaction so the counter is gated by the
+      // actual source of truth — prevents a double-increment if two like calls race.
+      const likerDoc = await tx.get(likerRef);
+      if (likerDoc.exists()) return;
       tx.set(likerRef, { userId: uid, username, profileImageUrl, likedAt: serverTimestamp() });
       tx.update(postRef, { reactionCount: increment(1) });
     });
   },
 
-  /** Atomically removes a like from a post and cleans up activity. */
+  /**
+   * Atomically removes a like from a post. The matching `post_like` activity
+   * record is cleaned up server-side by the removeactivityonpostunlike trigger
+   * (the liker can't read/query the author's activity collection under the
+   * security rules, so it must not be done client-side).
+   */
   async unlikePost(postId: string, uid: string): Promise<void> {
     const postRef = doc(db, 'posts', postId);
     const likerRef = doc(db, 'posts', postId, 'likers', uid);
 
-    const postSnap = await getDoc(postRef);
-    if (!postSnap.exists()) throw new Error('Post not found');
-    const authorId = postSnap.data().authorId as string;
-
     await runTransaction(db, async tx => {
+      // Only decrement if a like actually exists. Without this guard, a stale
+      // isLiked=true in one screen (e.g. the feed, after unliking from the detail
+      // view) would unconditionally decrement and drive reactionCount negative.
+      const likerDoc = await tx.get(likerRef);
+      if (!likerDoc.exists()) return;
       tx.delete(likerRef);
       tx.update(postRef, { reactionCount: increment(-1) });
     });
-
-    // Clean up activity record
-    if (authorId !== uid) {
-      const q = query(
-        collection(db, 'activity', authorId, 'userActivity'),
-        where('type', '==', 'post_like'),
-        where('postId', '==', postId),
-        where('fromUserId', '==', uid),
-        limit(1)
-      );
-      const actSnap = await getDocs(q);
-      if (!actSnap.empty) {
-        const batch = writeBatch(db);
-        actSnap.forEach(d => batch.delete(d.ref));
-        await batch.commit();
-      }
-    }
   },
 
   /** Adds a comment to a post. Returns the new comment with a client-side timestamp. */
@@ -249,8 +266,10 @@ export const PostRepository = {
     profileImageUrl: string = '',
     mentions?: MentionData[]
   ): Promise<Comment> {
+    const cleanText = sanitizeText(text, TEXT_LIMITS.comment);
+    if (!cleanText) throw new Error('Comment cannot be empty');
     const ref = await addDoc(collection(db, 'posts', postId, 'comments'), {
-      text,
+      text: cleanText,
       authorId: uid,
       authorUsername: username,
       createdAt: serverTimestamp(),
@@ -261,7 +280,7 @@ export const PostRepository = {
     });
     return {
       id: ref.id,
-      text,
+      text: cleanText,
       authorId: uid,
       authorUsername: username,
       authorProfileImageUrl: profileImageUrl,
@@ -330,12 +349,15 @@ export const PostRepository = {
     if (!parentSnap.exists()) throw new Error('Parent comment not found');
     const parentData = parentSnap.data() as Comment;
 
+    const cleanText = sanitizeText(text, TEXT_LIMITS.reply);
+    if (!cleanText) throw new Error('Reply cannot be empty');
+
     const repliesRef = collection(db, 'posts', postId, 'comments', parentCommentId, 'replies');
     const newReplyRef = doc(repliesRef);
 
     const replyData = {
       parentCommentId,
-      text: text.trim(),
+      text: cleanText,
       authorId: author.uid,
       authorUsername: author.username,
       authorProfileImageUrl: author.profileImageUrl ?? '',

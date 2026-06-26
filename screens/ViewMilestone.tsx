@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { StyleSheet, Text, View, Image, TouchableOpacity, Alert, ScrollView, ActivityIndicator, Share } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import Reanimated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -32,6 +33,25 @@ export default function ViewMilestone() {
   const [isTop5Percent, setIsTop5Percent] = useState(false);
   const canInteractWithAuthor = milestone ? canInteractWithUser(milestone.userId, milestone.authorBlockedUsers) : false;
 
+  // "Settle" entrance — content eases in once the milestone is ready (fires once
+  // per id), matching the post detail. Pairs with the route's cross-fade.
+  const settle = useSharedValue(0);
+  const settledForRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (milestone?.id && settledForRef.current !== milestone.id) {
+      settledForRef.current = milestone.id;
+      settle.value = 0;
+      settle.value = withTiming(1, { duration: 320, easing: Easing.out(Easing.cubic) });
+    }
+  }, [milestone?.id, settle]);
+  const settleStyle = useAnimatedStyle(() => ({
+    opacity: settle.value,
+    transform: [
+      { translateY: (1 - settle.value) * 12 },
+      { scale: 0.99 + settle.value * 0.01 },
+    ],
+  }));
+
   useEffect(() => {
     const fetchMilestone = async () => {
       if (!id) {
@@ -52,8 +72,9 @@ export default function ViewMilestone() {
             return;
           }
 
-          // Fetch the author's profile to get the latest profile image
-          let authorProfileImageUrl = 'https://via.placeholder.com/150';
+          // Fetch the author's profile to get the latest profile image.
+          // Empty default → getOptimalImageUrl falls back to the bundled avatar.
+          let authorProfileImageUrl = '';
           let authorProfileThumbnailUrl = null;
           let authorFullName = data.authorUsername;
           let authorBlockedUsers: string[] = [];
@@ -701,9 +722,9 @@ export default function ViewMilestone() {
       <View style={[styles.container, { paddingTop: insets.top }]}>
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyText}>No milestone data to display</Text>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.backButton}
-            onPress={() => router.back()}
+            onPress={() => router.canGoBack() ? router.back() : router.replace('/')}
           >
             <Text style={styles.backButtonText}>Go Back</Text>
           </TouchableOpacity>
@@ -715,9 +736,9 @@ export default function ViewMilestone() {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={[styles.fixedHeader, { paddingTop: insets.top }]}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.backButtonIcon}
-          onPress={() => router.back()}
+          onPress={() => router.canGoBack() ? router.back() : router.replace('/')}
         >
           <Ionicons name="chevron-back" size={28} color="#FFF" />
         </TouchableOpacity>
@@ -744,7 +765,8 @@ export default function ViewMilestone() {
       </View>
 
       {/* Scrollable content */}
-      <ScrollView 
+      <Reanimated.View style={[styles.settleWrap, settleStyle]}>
+      <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollViewContent}>
         
@@ -851,6 +873,7 @@ export default function ViewMilestone() {
         
         {renderActionButtons()}
       </ScrollView>
+      </Reanimated.View>
       {canInteractWithAuthor && (
         <ShareModal
           visible={shareModalVisible}
@@ -866,6 +889,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#000',
+  },
+  settleWrap: {
+    flex: 1,
   },
   fixedHeader: {
     position: 'absolute',

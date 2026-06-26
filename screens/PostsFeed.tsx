@@ -42,11 +42,17 @@ import {
 } from '@/features/tags/domain/Tag';
 import { useSuggestedUsers } from '@/features/social/ui/useSuggestedUsers';
 import SuggestedUsersCarousel from '@/components/SuggestedUsersCarousel';
+import CommentsBottomSheet from '@/components/comments/CommentsBottomSheet';
+import type { ViewToken } from 'react-native';
+import type { RankedFeedPost } from '@/logic/feedRanking';
 
 console.log('[PostsFeed] Module loaded');
 
 type FeedPost = Post & { injectedFromTag?: string };
-type FeedItem = FeedPost | { type: 'suggested_users'; id: string };
+type FeedItem =
+  | FeedPost
+  | { type: 'suggested_users'; id: string }
+  | { type: 'caught_up'; id: string };
 
 function randomBetween(min: number, max: number): number {
   return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -95,16 +101,25 @@ const getRelativeTime = (date: Date): string => {
   return `${diffInYears}y ago`;
 };
 
-export default function PostsFeed() {
+export default function PostsFeed({ isActive = true }: { isActive?: boolean }) {
   console.log('[PostsFeed] Component rendering');
   const router = useRouter();
   const { currentUser, userProfile } = useAuth();
-  const { posts: feedPosts, tagPostPool, loading, refreshing, loadingMore, hasMore, error, refreshFeed, loadMorePosts } = useFeedData();
+  const { posts: feedPosts, tagPostPool, loading, refreshing, loadingMore, hasMore, error, refreshFeed, loadMorePosts, markSeen } = useFeedData();
   const { suggestions: suggestedUsers } = useSuggestedUsers();
-  const { likePost, unlikePost, addComment } = usePostsData();
+  const { likePost, unlikePost, addComment, savePost, unsavePost } = usePostsData();
   const { canInteractWithUser, isUserBlocked } = useBlockEnforcement();
-  
-  // Local state for optimistic updates  
+
+  // Keep stable refs so the (necessarily stable) viewability callback always
+  // reads the latest values without re-registering on FlatList.
+  const markSeenRef = useRef(markSeen);
+  useEffect(() => { markSeenRef.current = markSeen; }, [markSeen]);
+  // Gate impressions on the active tab — HomeFeed mounts this feed alongside
+  // MilestonesFeed, so an inactive (paged-off) feed must not record false views.
+  const isActiveRef = useRef(isActive);
+  useEffect(() => { isActiveRef.current = isActive; }, [isActive]);
+
+  // Local state for optimistic updates
   const [posts, setPosts] = useState<typeof feedPosts>([]);
 
   // Update local posts when feedPosts change
@@ -119,6 +134,8 @@ export default function PostsFeed() {
   const [postToShare, setPostToShare] = useState<Post | null>(null);
   const [actionMenuVisible, setActionMenuVisible] = useState(false);
   const [selectedPostForAction, setSelectedPostForAction] = useState<Post | null>(null);
+  // Post whose comments are shown in the bottom sheet (null = closed).
+  const [commentSheetPost, setCommentSheetPost] = useState<Post | null>(null);
 
   // Use shared content actions hook
   const { 
@@ -138,8 +155,28 @@ export default function PostsFeed() {
   const tapTimers = useRef<Record<string, number>>({});
   const likingInProgress = useRef<Record<string, boolean>>({});
 
+  // Impression tracking. A post counts as "seen" once ≥60% of it has been on
+  // screen for ≥500ms — fast scroll-bys don't count. Must be a stable ref;
+  // FlatList rejects changing these props on the fly.
+  const viewabilityConfigCallbackPairs = useRef([
+    {
+      viewabilityConfig: { itemVisiblePercentThreshold: 60, minimumViewTime: 500 },
+      onViewableItemsChanged: ({ viewableItems }: { viewableItems: ViewToken[] }) => {
+        if (!isActiveRef.current) return;
+        for (const { item } of viewableItems) {
+          // Skip injected items (carousels, the caught-up divider) — only real
+          // posts are "seen".
+          if (item && !('type' in item)) {
+            markSeenRef.current?.(item.id, { opened: false });
+          }
+        }
+      },
+    },
+  ]);
+
   // Handle image click to view full post
   const handleViewPost = useCallback((postId: string) => {
+    markSeenRef.current?.(postId, { opened: true });
     router.push(`/view-post/${postId}`);
   }, [router]);
 
@@ -212,27 +249,39 @@ export default function PostsFeed() {
   }, [currentUser, likePost, unlikePost]);
 
   // Handle bookmark toggle
-  const handleToggleBookmark = useCallback((postId: string, isCurrentlyBookmarked: boolean) => {
+  const handleToggleBookmark = useCallback(async (postId: string, isCurrentlyBookmarked: boolean) => {
     if (!currentUser) {
       Alert.alert('Please log in', 'You need to be logged in to bookmark posts.');
       return;
     }
 
-    // Haptic feedback
     Haptics.impactAsync(isCurrentlyBookmarked ? Haptics.ImpactFeedbackStyle.Light : Haptics.ImpactFeedbackStyle.Medium);
 
-    // Optimistic update - update UI immediately
-    setPosts(prevPosts => 
-      prevPosts.map(post => 
-        post.id === postId 
+    setPosts(prevPosts =>
+      prevPosts.map(post =>
+        post.id === postId
           ? { ...post, isBookmarked: !isCurrentlyBookmarked }
           : post
       )
     );
 
-    // TODO: Implement actual bookmark API call
-    // For now, just keep the optimistic update
-  }, [currentUser]);
+    try {
+      if (isCurrentlyBookmarked) {
+        await unsavePost(postId);
+      } else {
+        await savePost(postId);
+      }
+    } catch (error) {
+      setPosts(prevPosts =>
+        prevPosts.map(post =>
+          post.id === postId
+            ? { ...post, isBookmarked: isCurrentlyBookmarked }
+            : post
+        )
+      );
+      Alert.alert('Error', 'Could not update bookmark. Please try again.');
+    }
+  }, [currentUser, savePost, unsavePost]);
 
   // Handle opening action menu
   const handleOpenActionMenu = useCallback((post: Post) => {
@@ -398,7 +447,7 @@ export default function PostsFeed() {
   }, []);
 
   const mergedFeed = useMemo((): FeedItem[] => {
-    const regularPosts: FeedPost[] = posts.filter(post => {
+    const regularPosts: RankedFeedPost[] = (posts as RankedFeedPost[]).filter(post => {
       if (post.isMilestone && !post.imageUrl) return false;
       if (isUserBlocked(post.authorId)) return false;
       if (post.authorBlockedUsers?.includes(currentUser?.uid || '')) return false;
@@ -416,8 +465,22 @@ export default function PostsFeed() {
     let nextSuggestInjection = randomBetween(5, 7);
     let suggestInjected = false; // track per-injection cycle
 
+    // "All caught up" divider: inserted once, right before the first already-seen
+    // post — but only if at least one unseen post preceded it (so it never sits
+    // at the very top when the whole feed is already seen).
+    let unseenPushed = false;
+    let dividerInserted = false;
+
     for (let i = 0; i < regularPosts.length; i++) {
-      merged.push(regularPosts[i]);
+      const rankedPost = regularPosts[i];
+
+      if (!dividerInserted && rankedPost.seen && unseenPushed) {
+        merged.push({ type: 'caught_up', id: 'caught-up-divider' });
+        dividerInserted = true;
+      }
+
+      merged.push(rankedPost);
+      if (!rankedPost.seen) unseenPushed = true;
 
       const postsRendered = i + 1;
 
@@ -441,6 +504,19 @@ export default function PostsFeed() {
   const renderPost = useCallback(({ item }: { item: FeedItem }) => {
     if ('type' in item && item.type === 'suggested_users') {
       return <SuggestedUsersCarousel suggestions={suggestedUsers} />;
+    }
+
+    if ('type' in item && item.type === 'caught_up') {
+      return (
+        <View style={styles.caughtUpContainer}>
+          <View style={styles.caughtUpLine} />
+          <View style={styles.caughtUpTextWrap}>
+            <Ionicons name="checkmark-circle" size={18} color={ACCENT_COLOR} />
+            <Text style={styles.caughtUpTitle}>You&apos;re all caught up</Text>
+          </View>
+          <Text style={styles.caughtUpSubtitle}>You&apos;ve seen all new posts</Text>
+        </View>
+      );
     }
 
     const post = item as FeedPost;
@@ -553,7 +629,7 @@ export default function PostsFeed() {
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.statItem}
-                onPress={() => handleViewPost(post.id)}
+                onPress={() => setCommentSheetPost(post)}
                 activeOpacity={0.8}
               >
                 <Ionicons name="chatbubble-outline" size={20} color="#FFF" style={styles.statIcon} />
@@ -761,7 +837,7 @@ export default function PostsFeed() {
       <FlatList
         data={mergedFeed}
         renderItem={renderPost}
-        keyExtractor={(item, index) => `${'type' in item && item.type === 'suggested_users' ? item.id : (item as FeedPost).id}-${index}`}
+        keyExtractor={(item, index) => `${'type' in item ? item.id : (item as FeedPost).id}-${index}`}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={mergedFeed.length === 0 ? styles.emptyContainer : styles.postsContainer}
         refreshControl={
@@ -776,6 +852,7 @@ export default function PostsFeed() {
         onEndReachedThreshold={0.5}
         ListFooterComponent={renderFooter}
         ListEmptyComponent={renderEmptyState}
+        viewabilityConfigCallbackPairs={viewabilityConfigCallbackPairs.current}
         removeClippedSubviews={true}
         maxToRenderPerBatch={5}
         windowSize={10}
@@ -800,6 +877,17 @@ export default function PostsFeed() {
         onBlock={handleBlockUser}
         onReport={handleReportPost}
       />
+
+      <CommentsBottomSheet
+        post={commentSheetPost}
+        visible={!!commentSheetPost}
+        onClose={() => setCommentSheetPost(null)}
+        onCommentCountChange={(postId, delta) =>
+          setPosts(prev => prev.map(p =>
+            p.id === postId ? { ...p, commentCount: Math.max(0, (p.commentCount || 0) + delta) } : p
+          ))
+        }
+      />
     </>
   );
 };
@@ -812,6 +900,35 @@ const styles = StyleSheet.create({
   },
   emptyContainer: {
     flex: 1,
+  },
+  caughtUpContainer: {
+    alignItems: 'center',
+    paddingVertical: 28,
+    paddingHorizontal: 24,
+    marginBottom: 12,
+  },
+  caughtUpLine: {
+    width: 48,
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: ACCENT_COLOR,
+    marginBottom: 14,
+    opacity: 0.8,
+  },
+  caughtUpTextWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  caughtUpTitle: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  caughtUpSubtitle: {
+    color: '#8E8E93',
+    fontSize: 13,
+    marginTop: 4,
   },
   postContainer: {
     marginBottom: 12,

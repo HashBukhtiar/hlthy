@@ -6,7 +6,8 @@ import {
   TouchableOpacity,
   Dimensions,
   FlatList,
-  Animated
+  Animated,
+  Image
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
@@ -16,6 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MilestonesFeed from './MilestonesFeed';
 import PostsFeed from './PostsFeed';
 import { ACCENT_COLOR } from '@/constants/Colors';
+import { SeenTrackingProvider } from '@/features/feed/ui/SeenTrackingProvider';
 
 enum TabType {
   POSTS = 'POSTS',
@@ -76,9 +78,11 @@ export default function HomeFeed() {
         {/* Left side: hlthy logo with icon */}
         <View style={styles.leftContainer}>
           <View style={styles.logoContainer}>
-            <View style={styles.logoIcon}>
-              <Ionicons name="cube-outline" size={24} color="#000" />
-            </View>
+            <Image
+              source={require('@/assets/images/logo-dark.png')}
+              style={styles.logoIcon}
+              resizeMode="contain"
+            />
             <Text style={styles.logoText}>hlthy</Text>
           </View>
         </View>
@@ -185,40 +189,43 @@ export default function HomeFeed() {
   
   // Lazy load the tab components to avoid crashes during initial render
   const tabScenes = [
-    { key: 'posts', component: <PostsFeed /> },
-    { key: 'milestones', component: <MilestonesFeed /> }
+    { key: 'posts', component: <PostsFeed isActive={activeTab === TabType.POSTS} /> },
+    { key: 'milestones', component: <MilestonesFeed isActive={activeTab === TabType.MILESTONES} /> }
   ];
 
   console.log('[HomeFeed] tabScenes created, about to return JSX');
 
   return (
-    <View style={[globalStyles.container, { paddingTop: 0 }]}>
-      {renderTopBar()}
-      {renderTabBar()}
-      <StatusBar style="light" />
-      
-      {/* Swipeable Tab Content */}
-      <Animated.FlatList
-        ref={flatListRef}
-        data={tabScenes}
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        onScroll={handleScroll}
-        scrollEventThrottle={16}
-        onMomentumScrollEnd={(e) => {
-          const contentOffsetX = e.nativeEvent.contentOffset.x;
-          const index = Math.round(contentOffsetX / screenWidth);
-          setActiveTab(index === 0 ? TabType.POSTS : TabType.MILESTONES);
-        }}
-        renderItem={({ item }) => (
-          <View style={[styles.tabContent, { width: screenWidth }]}>
-            {item.component}
-          </View>
-        )}
-        keyExtractor={(item) => item.key}
-      />
-    </View>
+    <SeenTrackingProvider>
+      <View style={[globalStyles.container, { paddingTop: 0 }]}>
+        {renderTopBar()}
+        {renderTabBar()}
+        <StatusBar style="light" />
+
+        {/* Swipeable Tab Content */}
+        <Animated.FlatList
+          ref={flatListRef}
+          style={{ flex: 1 }}
+          data={tabScenes}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
+          onMomentumScrollEnd={(e) => {
+            const contentOffsetX = e.nativeEvent.contentOffset.x;
+            const index = Math.round(contentOffsetX / screenWidth);
+            setActiveTab(index === 0 ? TabType.POSTS : TabType.MILESTONES);
+          }}
+          renderItem={({ item }) => (
+            <View style={[styles.tabContent, { width: screenWidth }]}>
+              {item.component}
+            </View>
+          )}
+          keyExtractor={(item) => item.key}
+        />
+      </View>
+    </SeenTrackingProvider>
   );
 }
 
@@ -246,9 +253,6 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 10,
-    backgroundColor: ACCENT_COLOR,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   logoText: {
     fontSize: 26,

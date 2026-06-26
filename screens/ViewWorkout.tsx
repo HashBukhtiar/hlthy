@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ScrollView, View, Text, TouchableOpacity, Image, StyleSheet, ActivityIndicator, Alert, Platform, SafeAreaView, Modal } from 'react-native';
+import Reanimated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import ShareModal from '@/components/ShareModal';
@@ -72,6 +73,25 @@ export default function ViewWorkout() {
   const [searchText, setSearchText] = useState('');
   const [searchResults, setSearchResults] = useState<{ id: string; username: string; profileImageUrl?: string; profileThumbnailUrl?: string }[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
+
+  // "Settle" entrance — content eases in once the workout is ready (fires once
+  // per id), matching the post detail. Pairs with the route's cross-fade.
+  const settle = useSharedValue(0);
+  const settledForRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (workoutData?.id && settledForRef.current !== workoutData.id) {
+      settledForRef.current = workoutData.id;
+      settle.value = 0;
+      settle.value = withTiming(1, { duration: 320, easing: Easing.out(Easing.cubic) });
+    }
+  }, [workoutData?.id, settle]);
+  const settleStyle = useAnimatedStyle(() => ({
+    opacity: settle.value,
+    transform: [
+      { translateY: (1 - settle.value) * 12 },
+      { scale: 0.99 + settle.value * 0.01 },
+    ],
+  }));
 
   const handleSearchUsers = async (text: string) => {
     setSearchText(text);
@@ -230,7 +250,7 @@ export default function ViewWorkout() {
     return (
       <View style={[styles.container, styles.centered]}>
         <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButtonOnError}>
+        <TouchableOpacity onPress={() => router.canGoBack() ? router.back() : router.replace('/')} style={styles.backButtonOnError}>
           <Text style={styles.backButtonText}>Go Back</Text>
         </TouchableOpacity>
       </View>
@@ -241,7 +261,7 @@ export default function ViewWorkout() {
     return (
       <View style={[styles.container, styles.centered]}>
         <Text style={styles.errorText}>Workout data is not available.</Text>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButtonOnError}>
+        <TouchableOpacity onPress={() => router.canGoBack() ? router.back() : router.replace('/')} style={styles.backButtonOnError}>
           <Text style={styles.backButtonText}>Go Back</Text>
         </TouchableOpacity>
       </View>
@@ -324,9 +344,10 @@ export default function ViewWorkout() {
   
   return (
     <SafeAreaView style={styles.mainContainer}>
+      <Reanimated.View style={[styles.settleWrap, settleStyle]}>
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
+        <TouchableOpacity onPress={() => router.canGoBack() ? router.back() : router.replace('/')}>
           <Ionicons name="arrow-back" size={24} color="white" />
         </TouchableOpacity>
         <Text style={styles.headerTitle} numberOfLines={1} ellipsizeMode="tail">
@@ -572,6 +593,7 @@ export default function ViewWorkout() {
         </LinearGradient>
       </TouchableOpacity>
     </View>
+    </Reanimated.View>
     </SafeAreaView>
   );
 }
@@ -580,6 +602,9 @@ const styles = StyleSheet.create({
   mainContainer: {
     flex: 1,
     backgroundColor: 'black',
+  },
+  settleWrap: {
+    flex: 1,
   },
   container: { 
     flex: 1, 

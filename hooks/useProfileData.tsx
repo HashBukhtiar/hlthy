@@ -4,6 +4,7 @@ import { useAuth } from '@/context/AuthContext';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { UserProfile } from '@/types/user';
 import { ProfileRepository } from '@/features/profile/infra/profileRepository';
+import { primePosts } from '@/hooks/usePostsData';
 
 export type { Milestone, GroupedMilestones } from '@/features/profile/domain/Milestone';
 import type { Milestone, GroupedMilestones } from '@/features/profile/domain/Milestone';
@@ -109,7 +110,7 @@ function groupAndSortMilestones(milestonesToSort: Milestone[]): GroupedMilestone
 // ── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useProfileData(userId = null, contextUserProfile: UserProfile | null = null) {
-  const { currentUser } = useAuth();
+  const { currentUser, userProfile } = useAuth();
   const profileIdToFetch = userId || currentUser?.uid;
   const functions = getFunctions(app, 'northamerica-northeast2');
   const followUserFn = httpsCallable(functions, 'followUser');
@@ -130,6 +131,7 @@ export function useProfileData(userId = null, contextUserProfile: UserProfile | 
   const [followers, setFollowers] = useState<any[]>([]);
   const [following, setFollowing] = useState<any[]>([]);
   const [error, setError] = useState<Error | null>(null);
+  const [deletedAccount, setDeletedAccount] = useState(false);
   const [isRequestPending, setIsRequestPending] = useState(false);
   const [isFollowingStatus, setIsFollowingStatus] = useState(false);
   const [followActionLoading, setFollowActionLoading] = useState(false);
@@ -161,6 +163,17 @@ export function useProfileData(userId = null, contextUserProfile: UserProfile | 
       }
       return;
     }
+    // During signup the auth account exists before the profile doc is written
+    // (it's created after email verification). For our own profile, wait until
+    // the AuthContext has loaded the profile doc rather than fetching one that
+    // doesn't exist yet — which would throw "User profile not found". Re-runs
+    // automatically once `userProfile` populates (it's in the deps below).
+    if (isOwnProfile && !userProfile) {
+      setLoading(false);
+      setLoadingWorkouts(false);
+      return;
+    }
+
     if (lastFetchedUserId.current === profileIdToFetch) return;
 
     hasCleared.current = false;
@@ -169,6 +182,7 @@ export function useProfileData(userId = null, contextUserProfile: UserProfile | 
     setLoading(true);
     setLoadingWorkouts(true);
     setError(null);
+    setDeletedAccount(false);
 
     try {
       // 1. Fetch user profile
@@ -176,6 +190,15 @@ export function useProfileData(userId = null, contextUserProfile: UserProfile | 
       try {
         const raw = await ProfileRepository.getById(profileIdToFetch);
         if (!currentUser?.uid) { setLoading(false); setLoadingWorkouts(false); return; }
+        // Tombstoned (deleted) account — stop here and surface a graceful state
+        // instead of rendering a ghost profile with a follow button.
+        if (raw?.deleted === true) {
+          setDeletedAccount(true);
+          setProfileData(null);
+          setLoading(false);
+          setLoadingWorkouts(false);
+          return;
+        }
         userData = processUserProfile(raw);
       } catch (profileError) {
         if (!currentUser?.uid) { setLoading(false); setLoadingWorkouts(false); return; }
@@ -308,7 +331,7 @@ export function useProfileData(userId = null, contextUserProfile: UserProfile | 
       }
       isFetching.current = false;
     }
-  }, [profileIdToFetch, currentUser?.uid, isOwnProfile]);
+  }, [profileIdToFetch, currentUser?.uid, isOwnProfile, userProfile]);
 
   const followUser = async (targetUserId: string) => {
     if (!currentUser?.uid) {
@@ -407,6 +430,11 @@ export function useProfileData(userId = null, contextUserProfile: UserProfile | 
     }
   }, [fetchProfileData, profileIdToFetch, currentUser?.uid]);
 
+  // Cache profile posts so tapping one opens the detail instantly (no spinner).
+  useEffect(() => {
+    primePosts(posts);
+  }, [posts]);
+
   return {
     loading,
     profileData,
@@ -418,6 +446,7 @@ export function useProfileData(userId = null, contextUserProfile: UserProfile | 
     followers,
     following,
     error,
+    deletedAccount,
     refreshProfileData,
     isFollowingStatus,
     isRequestPending,

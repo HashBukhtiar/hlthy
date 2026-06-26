@@ -10,7 +10,27 @@ service cloud.firestore {
     function isOwner(userId) {
       return isAuthenticated() && request.auth.uid == userId;
     }
-    
+
+    // Age gate (mirrors logic/ageValidation.ts — minimum age 16).
+    // Date of birth is stored as a "MM/DD/YYYY" string.
+    function meetsMinimumAge(dob) {
+      return dob is string
+        && dob.size() == 10
+        && dob.split('/').size() == 3
+        && isAtLeastSixteen(
+             int(dob.split('/')[2]),  // year
+             int(dob.split('/')[0]),  // month
+             int(dob.split('/')[1])   // day
+           );
+    }
+
+    function isAtLeastSixteen(year, month, day) {
+      return (request.time.year() - year > 16)
+        || (request.time.year() - year == 16
+            && (request.time.month() > month
+                || (request.time.month() == month && request.time.day() >= day)));
+    }
+
     function isBlocked(targetUserId, currentUserId) {
       return exists(/databases/$(database)/documents/users/$(targetUserId)) &&
         get(/databases/$(database)/documents/users/$(targetUserId)).data.get('blockedUsers', []).hasAny([currentUserId]);
@@ -47,9 +67,20 @@ service cloud.firestore {
       // Read: any authenticated user. Profile visibility enforced client-side.
       // canViewProfile with get() calls was causing Firestore eval limits on bulk reads.
       allow read: if isAuthenticated();
-      allow create: if isOwner(userId);
-      allow update: if isOwner(userId);
-      
+      // Clients may not set Hype fields — written only by Cloud Functions (the
+      // admin SDK bypasses rules). Leaving them unchanged in a diff is fine.
+      allow create: if isOwner(userId)
+        && !request.resource.data.keys().hasAny(['hypeByDay', 'hypeGiven'])
+        && meetsMinimumAge(request.resource.data.dateOfBirth);
+      allow update: if isOwner(userId)
+        && !request.resource.data.diff(resource.data).affectedKeys()
+             .hasAny(['hypeByDay', 'hypeGiven'])
+        // If the date of birth is being changed, it must still satisfy the age gate.
+        && (
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['dateOfBirth'])
+          || meetsMinimumAge(request.resource.data.dateOfBirth)
+        );
+
       // Allow clearing push tokens specifically (for logout cleanup)
       allow update: if isAuthenticated() && 
         isOwner(userId) && 
@@ -99,6 +130,11 @@ service cloud.firestore {
     }
 
     match /users/{userId}/savedPosts/{postId} {
+      allow read, write: if isOwner(userId);
+    }
+
+    // Feed state — per-user "seen" tracking (private to the user)
+    match /users/{userId}/feedState/{docId} {
       allow read, write: if isOwner(userId);
     }
     
@@ -174,10 +210,11 @@ service cloud.firestore {
     match /posts/{postId} {
       allow read: if isAuthenticated();
       
-      allow create: if isAuthenticated() && 
+      allow create: if isAuthenticated() &&
         request.auth.uid == request.resource.data.authorId &&
         request.resource.data.keys().hasAll(['authorId', 'createdAt']) &&
-        request.resource.data.createdAt is timestamp;
+        request.resource.data.createdAt is timestamp &&
+        request.resource.data.get('caption', '').size() <= 5000;
       
       allow update: if isAuthenticated() && (
         (request.auth.uid == resource.data.authorId) ||
@@ -198,7 +235,13 @@ service cloud.firestore {
       // Post subcollections
       match /likers/{userId} {
         allow read: if isAuthenticated();
-        allow create, delete: if isAuthenticated() && request.auth.uid == userId;
+        allow create: if isAuthenticated() && request.auth.uid == userId;
+        // The liker can remove their own like; the post author can also delete
+        // liker docs when cascade-deleting the post.
+        allow delete: if isAuthenticated() && (
+          request.auth.uid == userId ||
+          request.auth.uid == get(/databases/$(database)/documents/posts/$(postId)).data.authorId
+        );
       }
       
       match /comments/{commentId} {
@@ -208,7 +251,8 @@ service cloud.firestore {
           canInteractWithPost(get(/databases/$(database)/documents/posts/$(postId)).data, request.auth.uid) &&
           request.resource.data.keys().hasAll(['authorId', 'text', 'createdAt']) &&
           request.resource.data.text is string &&
-          request.resource.data.text.size() > 0;
+          request.resource.data.text.size() > 0 &&
+          request.resource.data.text.size() <= 2000;
         
         // Allow comment author to update/delete their own comment,
         // OR allow anyone who can interact with the post to update replyCount,
@@ -238,7 +282,8 @@ service cloud.firestore {
             canInteractWithPost(get(/databases/$(database)/documents/posts/$(postId)).data, request.auth.uid) &&
             request.resource.data.keys().hasAll(['authorId', 'text', 'createdAt', 'parentCommentId']) &&
             request.resource.data.text is string &&
-            request.resource.data.text.size() > 0;
+            request.resource.data.text.size() > 0 &&
+            request.resource.data.text.size() <= 2000;
           allow update: if isAuthenticated() && (
             (request.auth.uid == resource.data.authorId) ||
             (
@@ -315,7 +360,9 @@ service cloud.firestore {
         allow create: if isAuthenticated() &&
           request.auth.uid == request.resource.data.senderId &&
           request.resource.data.keys().hasAll(['senderId', 'text', 'createdAt']) &&
-          request.resource.data.createdAt is timestamp;
+          request.resource.data.createdAt is timestamp &&
+          request.resource.data.text is string &&
+          request.resource.data.text.size() <= 5000;
         
         allow update, delete: if isAuthenticated() && 
           request.auth.uid == resource.data.senderId;

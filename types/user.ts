@@ -118,6 +118,13 @@ export interface UserProfile {
     showLinksToFollowersOnly?: boolean;
   };
   
+  // Hype score (rolling reputation/activity metric). Per-day point buckets,
+  // written server-side only (Cloud Functions). Collapse to the displayed
+  // number with currentHype() from logic/hype.ts. hypeGiven tracks the daily
+  // anti-farm cap on self-generated Hype. See docs/hype.md.
+  hypeByDay?: Record<string, number>;
+  hypeGiven?: Record<string, number>;
+
   // Achievement System
   badges?: string[];
   achievements?: Achievement[];

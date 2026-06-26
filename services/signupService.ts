@@ -4,6 +4,7 @@ import { doc, setDoc, collection, query, where, getDocs, serverTimestamp } from 
 import { httpsCallable } from 'firebase/functions';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { devFlags } from '@/config/devFlags';
+import { isOldEnough, MINIMUM_AGE } from '@/logic/ageValidation';
 
 interface PendingSignupData {
   email: string;
@@ -41,6 +42,14 @@ export class SignupService {
    */
   static async initiatePendingSignup(signupData: Omit<PendingSignupData, 'timestamp'>): Promise<void> {
     try {
+      // Age gate (defense-in-depth — the signup UI also blocks this, and
+      // firestore.rules rejects an underage profile write server-side).
+      if (!isOldEnough(signupData.dateOfBirth)) {
+        const ageError = new Error(`You must be at least ${MINIMUM_AGE} years old to create an account.`);
+        (ageError as any).code = 'auth/underage';
+        throw ageError;
+      }
+
       // Check if username is already taken BEFORE creating any Firebase account
       console.log('[SignupService] Checking username availability:', signupData.username);
       const usernameTaken = await this.isUsernameTaken(signupData.username);
@@ -179,6 +188,11 @@ export class SignupService {
       
       if (!user.emailVerified) {
         throw new Error('Email not verified');
+      }
+
+      // Age gate safety net — reject completing signup with an underage DOB.
+      if (!isOldEnough(pendingData.dateOfBirth)) {
+        throw new Error(`You must be at least ${MINIMUM_AGE} years old to create an account.`);
       }
 
       // Mark usersPublic as verified so the scheduled cleanup will skip it

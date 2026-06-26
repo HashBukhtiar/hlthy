@@ -5,6 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { ACCENT_COLOR } from '@/constants/Colors';
 import { formatCount } from '@/logic/formattingFunctions';
+import { currentHype } from '@/logic/hype';
 import { getOptimalImageUrl } from '@/utils/imageUtils';
 import { ProfileImageViewer, ImagePosition } from './ProfileImageViewer';
 import { BannerImageViewer, BannerPosition } from './BannerImageViewer';
@@ -31,6 +32,7 @@ interface ProfileHeaderProps {
   viewedProfileId: string;
   isPrivate: boolean;
   canGoBack: boolean;
+  showBackButton: boolean;
   onBack: () => void;
   onSettings: () => void;
   onEditProfile: () => void;
@@ -41,6 +43,7 @@ interface ProfileHeaderProps {
   onArchetypeBadgePress: () => void;
   onFollowersPress: () => void;
   onFollowingPress: () => void;
+  onHypePress: () => void;
   onViewProfileCard?: () => void;
 }
 
@@ -58,6 +61,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
   viewedProfileId,
   isPrivate,
   canGoBack,
+  showBackButton,
   onBack,
   onSettings,
   onEditProfile,
@@ -68,6 +72,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
   onArchetypeBadgePress,
   onFollowersPress,
   onFollowingPress,
+  onHypePress,
   onViewProfileCard,
 }) => {
   const [imageViewerVisible, setImageViewerVisible] = useState(false);
@@ -137,7 +142,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
         
         {/* Top Navigation Buttons */}
         <SafeAreaView style={styles.topNavigation}>
-          {!isOwnProfile && canGoBack && (
+          {showBackButton && (
             <TouchableOpacity
               style={styles.navButton}
               onPress={onBack}
@@ -301,12 +306,23 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
           
           <View style={styles.statDivider} />
           
-          <View style={styles.statItemNew}>
+          <TouchableOpacity
+            style={styles.statItemNew}
+            activeOpacity={0.85}
+            onPress={onHypePress}
+          >
             <Text style={styles.statValueNew}>
-              {formatCount(profileData?.stats?.totalLikes || 0)}
+              {formatCount(currentHype(profileData?.hypeByDay))}
             </Text>
-            <Text style={styles.statLabelNew}>Hype</Text>
-          </View>
+            <View style={styles.hypeLabelRow}>
+              <Text style={[styles.statLabelNew, styles.hypeLabelText]}>Hype</Text>
+              <Ionicons
+                name="information-circle-outline"
+                size={12}
+                color="rgba(255,255,255,0.5)"
+              />
+            </View>
+          </TouchableOpacity>
         </View>
       </View>
       {/* Profile Image Viewer Modal */}
@@ -545,6 +561,18 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.5)',
     marginTop: 3,
     fontWeight: '500',
+  },
+  hypeLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    marginTop: 3,
+  },
+  hypeLabelText: {
+    marginTop: 0,
+    includeFontPadding: false,
+    fontSize: 11,
+    lineHeight: 12,
   },
   statDivider: {
     width: 1,

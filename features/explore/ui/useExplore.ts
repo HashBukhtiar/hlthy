@@ -4,17 +4,8 @@ import { useAuth } from '@/context/AuthContext';
 import { useBlockEnforcement } from '@/utils/blockUtils';
 import { ExploreRepository, ExploreCursor } from '@/features/explore/infra/exploreRepository';
 import { useTagSearch } from '@/features/tags/ui/useTagSearch';
+import { rankPosts } from '@/logic/exploreRanking';
 import type { ExplorePost, UserSearchResult, TagSearchResult } from '@/features/explore/domain/ExploreTypes';
-
-// Fisher-Yates shuffle (pure function, no Firestore dependency).
-function shuffleArray<T>(array: T[]): T[] {
-  const arr = [...array];
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-  return arr;
-}
 
 export interface UseExploreResult {
   // Search
@@ -141,7 +132,9 @@ export function useExplore(): UseExploreResult {
         currentUser.uid,
         userProfile?.archetype
       );
-      setPosts(shuffleArray(page.posts));
+      // Rank the candidate pool (archetype + popular streams) by relevance
+      // instead of shuffling. See logic/exploreRanking.ts.
+      setPosts(rankPosts(page.posts, userProfile?.archetype));
       setLastVisibleArchetype(page.archetypeCursor);
       setLastVisiblePopular(page.popularCursor);
       setNextFetchType('archetype');
@@ -189,9 +182,12 @@ export function useExplore(): UseExploreResult {
           setAllPostsLoaded(true);
         }
       } else {
+        // Rank the new batch among itself, then append below what's already
+        // shown (never reorders displayed items → no scroll jumps).
+        const rankedNew = rankPosts(newPosts, archetype);
         setPosts(prev => {
           const existingIds = new Set(prev.map(p => p.id));
-          return [...prev, ...newPosts.filter(p => !existingIds.has(p.id))];
+          return [...prev, ...rankedNew.filter(p => !existingIds.has(p.id))];
         });
       }
     } catch (err) {

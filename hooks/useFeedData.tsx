@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { FeedRepository, FeedCursor } from '@/features/feed/infra/feedRepository';
 import { FeedPost } from '@/features/feed/domain/FeedPost';
@@ -7,6 +7,10 @@ import {
   TAG_FEED_LOOKBACK_DAYS,
   TAG_FEED_POSTS_PER_TAG,
 } from '@/features/tags/domain/Tag';
+import { useSharedSeenTracking } from '@/features/feed/ui/SeenTrackingProvider';
+import { SeenState } from '@/features/feed/domain/SeenState';
+import { rankFeed, RankedFeedPost } from '@/logic/feedRanking';
+import { primePosts } from '@/hooks/usePostsData';
 import { logger } from '@/shared/utils/logger';
 
 export type TagInjectedPost = FeedPost & { injectedFromTag: string };
@@ -23,6 +27,17 @@ export function useFeedData() {
   const [tagPostPool, setTagPostPool] = useState<TagInjectedPost[]>([]);
 
   const { currentUser } = useAuth();
+  const { markSeen, isHydrated, getSeenSnapshot } = useSharedSeenTracking();
+
+  // Frozen snapshot the feed is ranked against. Captured only on hydration and
+  // on pull-to-refresh — never on every impression — so the order stays stable
+  // within a viewing session (a post the user just scrolled past doesn't jump).
+  const [rankSnapshot, setRankSnapshot] = useState<SeenState>({ posts: {} });
+
+  // Capture the hydrated seen-state once it's available.
+  useEffect(() => {
+    if (isHydrated) setRankSnapshot(getSeenSnapshot());
+  }, [isHydrated, getSeenSnapshot]);
 
   const removeDuplicatePosts = useCallback((items: FeedPost[]): FeedPost[] => {
     const seen = new Set<string>();
@@ -127,8 +142,11 @@ export function useFeedData() {
   );
 
   const refreshFeed = useCallback(() => {
+    // Re-freeze the snapshot at refresh time: content seen during the previous
+    // session now counts as "seen" and gets demoted on this fresh load.
+    setRankSnapshot(getSeenSnapshot());
     fetchFeedData(true, false);
-  }, [fetchFeedData]);
+  }, [fetchFeedData, getSeenSnapshot]);
 
   const loadMorePosts = useCallback(() => {
     if (!loadingMore && hasMore && lastVisible) {
@@ -194,9 +212,27 @@ export function useFeedData() {
     };
   }, [currentUser?.uid, removeDuplicatePosts, buildTagPool]);
 
+  // Apply supply-adaptive ranking against the frozen snapshot. Re-runs when the
+  // raw feed changes (live updates / load-more) but uses the frozen snapshot, so
+  // unseen-first order is stable mid-session; posts and milestones are ranked
+  // independently so each surface has its own unseen/seen boundary.
+  const rankedPosts = useMemo<RankedFeedPost[]>(
+    () => rankFeed(posts, rankSnapshot).ranked,
+    [posts, rankSnapshot]
+  );
+  const rankedMilestones = useMemo<RankedFeedPost[]>(
+    () => rankFeed(milestones, rankSnapshot).ranked,
+    [milestones, rankSnapshot]
+  );
+
+  // Cache feed posts so tapping one opens the detail instantly (no spinner).
+  useEffect(() => {
+    primePosts(rankedPosts);
+  }, [rankedPosts]);
+
   return {
-    posts,
-    milestones,
+    posts: rankedPosts,
+    milestones: rankedMilestones,
     tagPostPool,
     loading,
     refreshing,
@@ -205,5 +241,7 @@ export function useFeedData() {
     error,
     refreshFeed,
     loadMorePosts,
+    markSeen,
+    isHydrated,
   };
 }

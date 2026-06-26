@@ -94,7 +94,12 @@ export const ExploreRepository = {
           imageUrl: d.data().imageUrl,
           thumbnailUrl: d.data().thumbnailUrl,
           authorId: d.data().authorId,
+          // These matched the viewer's archetype filter, so affinity = 1.
+          authorArchetype: archetype,
           isArchetypePost: true,
+          reactionCount: d.data().reactionCount ?? 0,
+          commentCount: d.data().commentCount ?? 0,
+          createdAtMs: d.data().createdAt?.toMillis?.(),
         }))
         .filter(p => p.authorId !== uid);
       archetypeCursor = snap.docs[snap.docs.length - 1] ?? null;
@@ -117,6 +122,9 @@ export const ExploreRepository = {
         authorId: d.data().authorId,
         authorArchetype: d.data().authorArchetype,
         isArchetypePost: false,
+        reactionCount: d.data().reactionCount ?? 0,
+        commentCount: d.data().commentCount ?? 0,
+        createdAtMs: d.data().createdAt?.toMillis?.(),
       }))
       .filter(p => p.authorId !== uid && p.authorArchetype !== archetype);
     const popularCursor: ExploreCursor | null = popularSnap.docs[popularSnap.docs.length - 1] ?? null;
@@ -154,7 +162,11 @@ export const ExploreRepository = {
         imageUrl: d.data().imageUrl,
         thumbnailUrl: d.data().thumbnailUrl,
         authorId: d.data().authorId,
+        authorArchetype: archetype,
         isArchetypePost: true,
+        reactionCount: d.data().reactionCount ?? 0,
+        commentCount: d.data().commentCount ?? 0,
+        createdAtMs: d.data().createdAt?.toMillis?.(),
       }))
       .filter(p => p.authorId !== uid);
     return { posts, cursor: snap.docs[snap.docs.length - 1] ?? null };
@@ -184,6 +196,9 @@ export const ExploreRepository = {
         authorId: d.data().authorId,
         authorArchetype: d.data().authorArchetype,
         isArchetypePost: false,
+        reactionCount: d.data().reactionCount ?? 0,
+        commentCount: d.data().commentCount ?? 0,
+        createdAtMs: d.data().createdAt?.toMillis?.(),
       }))
       .filter(p => p.authorId !== uid && p.authorArchetype !== archetype);
     return { posts, cursor: snap.docs[snap.docs.length - 1] ?? null };
