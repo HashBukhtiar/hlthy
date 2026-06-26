@@ -26,7 +26,7 @@
   },
   "hosting": {
     "site": "hlthy-demo",
-    "public": "dist",
+    "public": "demo",
     "cleanUrls": true,
     "trailingSlash": false,
     "ignore": [

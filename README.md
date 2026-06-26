@@ -19,11 +19,9 @@
 
 > **Built mobile-first. Best experienced on iOS / Android.**
 
-<!-- APPETIZE PLACEHOLDER: drop the embed link here once the EAS builds are uploaded.
-     e.g. ▶️ Try it in your browser (real iOS/Android emulator): https://appetize.io/app/XXXX -->
-**▶️ Interactive demo:** _coming soon_. A real iOS/Android build streamed in the browser.
+**▶️ Try it in your browser — the real native app, no install:** **https://hlthy-demo.web.app**
 
-A static web preview is also deployed at **https://hlthy-demo.web.app** (note: the app is designed for mobile; the web build is a convenience preview and some touch-first interactions don't translate to a desktop mouse).
+Launch the actual iOS or Android build in an in-browser emulator. Direct links: [iOS](https://appetize.io/app/b_zjypsvclt6f7pww7phrng54k2i?device=iphone17pro&osVersion=26.0&toolbar=true) · [Android](https://appetize.io/app/b_vydnxhs76woumjwwjfdn6u5fju?device=pixel9pro&osVersion=15.0&toolbar=true).
 
 **Demo login** (look around without signing up):
 
