@@ -25,6 +25,12 @@
 
 A static web preview is also deployed at **https://hlthy-demo.web.app** (note: the app is designed for mobile; the web build is a convenience preview and some touch-first interactions don't translate to a desktop mouse).
 
+**Demo login** (look around without signing up):
+
+| Email | Password |
+|-------|----------|
+| `dev3@gmail.com` | `dev1233` |
+
 ---
 
 ## 📸 Screenshots
