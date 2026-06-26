@@ -3,8 +3,7 @@ The intersection of fitness and social media.
 
 **Partners**  
 Andrew De Rango  
-Hashim Bukhtiar  
-Matthew Martel  
+Hashim Bukhtiar
 Nehad Shikh Trab  
 
 **Run React Native App in Development**

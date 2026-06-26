@@ -103,6 +103,9 @@
 pglite-debug.log
 firebase-debug.log
 
+# web export output
+dist/
+
 # local env files
 .env*.local
 .env
