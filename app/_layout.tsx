@@ -3,6 +3,14 @@ import React from 'react';
 import { Stack } from 'expo-router';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Platform } from 'react-native';
+import { useFonts } from 'expo-font';
+import {
+  Ionicons,
+  MaterialIcons,
+  MaterialCommunityIcons,
+  Feather,
+  FontAwesome5,
+} from '@expo/vector-icons';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { AuthProvider } from '@/context/AuthContext';
 import { VideoMuteProvider } from '@/context/VideoMuteContext';
@@ -18,6 +26,19 @@ initSentry();
 export { default as ErrorBoundary } from '@/components/AppErrorBoundary';
 
 function RootLayout() {
+  // Icon glyph fonts must be explicitly loaded for web: unlike native, the web
+  // bundler ships the .ttf files but never triggers the @font-face, so every
+  // icon renders as a tofu square until the font is registered. Gate the first
+  // render on load (proceeding on error so a font failure never blanks the app).
+  const [fontsLoaded, fontError] = useFonts({
+    ...Ionicons.font,
+    ...MaterialIcons.font,
+    ...MaterialCommunityIcons.font,
+    ...Feather.font,
+    ...FontAwesome5.font,
+  });
+  if (!fontsLoaded && !fontError) return null;
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <VideoMuteProvider>

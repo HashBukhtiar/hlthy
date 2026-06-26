@@ -120,3 +120,9 @@ ios/
 
 # Admin Dashboard (separate app, will be moved out of repo)
 admin-dashboard/
+# debug / local db artifacts
+firestore-debug.log
+observability.db
+
+# firebase deploy cache
+.firebase/

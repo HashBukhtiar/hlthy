@@ -205,6 +205,7 @@ export default function HomeFeed() {
         {/* Swipeable Tab Content */}
         <Animated.FlatList
           ref={flatListRef}
+          style={{ flex: 1 }}
           data={tabScenes}
           horizontal
           pagingEnabled
