@@ -19,7 +19,7 @@
 
 > **Built mobile-first. Best experienced on iOS / Android.**
 
-**▶️ Try it in your browser. This is the real native app, no install:** **https://hlthy-demo.web.app**
+**▶️ Try it in your browser. This is the real native app, no install:** **https://hlthy.ca/demo**
 
 Launch the actual iOS or Android build in an in-browser emulator. Direct links: [iOS](https://appetize.io/app/b_zjypsvclt6f7pww7phrng54k2i?device=iphone17pro&osVersion=26.0&toolbar=true) · [Android](https://appetize.io/app/b_vydnxhs76woumjwwjfdn6u5fju?device=pixel9pro&osVersion=15.0&toolbar=true).
 
