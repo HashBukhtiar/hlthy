@@ -235,7 +235,13 @@ service cloud.firestore {
       // Post subcollections
       match /likers/{userId} {
         allow read: if isAuthenticated();
-        allow create, delete: if isAuthenticated() && request.auth.uid == userId;
+        allow create: if isAuthenticated() && request.auth.uid == userId;
+        // The liker can remove their own like; the post author can also delete
+        // liker docs when cascade-deleting the post.
+        allow delete: if isAuthenticated() && (
+          request.auth.uid == userId ||
+          request.auth.uid == get(/databases/$(database)/documents/posts/$(postId)).data.authorId
+        );
       }
       
       match /comments/{commentId} {
