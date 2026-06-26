@@ -29,16 +29,13 @@ A static web preview is also deployed at **https://hlthy-demo.web.app** (note: t
 
 ## 📸 Screenshots
 
-<!-- Capture 4-6 screenshots from the iOS build and drop them in assets/images/screenshots/.
-     Suggested shots: Home feed · Explore grid · Profile w/ milestones · Active workout · AI coach · DMs -->
 <p>
-  <img src="assets/images/screenshots/feed.png" width="200" alt="Home feed">
-  <img src="assets/images/screenshots/explore.png" width="200" alt="Explore">
-  <img src="assets/images/screenshots/profile.png" width="200" alt="Profile">
-  <img src="assets/images/screenshots/workout.png" width="200" alt="Active workout">
+  <img src="assets/images/screenshots/home-feed.jpg" width="190" alt="Home feed">
+  <img src="assets/images/screenshots/explore.jpg" width="190" alt="Explore">
+  <img src="assets/images/screenshots/profile.jpg" width="190" alt="Profile">
+  <img src="assets/images/screenshots/milestone.jpg" width="190" alt="Milestone detail">
+  <img src="assets/images/screenshots/active-workout.jpg" width="190" alt="Workout in progress">
 </p>
-
-_(placeholder paths; screenshots to be added)_
 
 ---
 
