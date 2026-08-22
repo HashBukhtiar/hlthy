@@ -72,10 +72,10 @@
     "react-native-web": "^0.21.0",
     "react-native-webview": "13.15.0",
     "react-native-worklets": "0.5.1",
-    "uuid": "^11.1.0"
+    "uuid": "^11.1.1"
   },
   "devDependencies": {
-    "@babel/core": "^7.25.2",
+    "@babel/core": "^7.29.7",
     "@firebase/rules-unit-testing": "^5.0.1",
     "@types/react": "~19.1.13",
     "@types/react-native": "^0.72.8",
@@ -90,7 +90,33 @@
     "typescript": "~5.9.2"
   },
   "overrides": {
-    "tar": "^7.5.22"
+    "tar": "^7.5.22",
+    "@babel/core@7.x": "^7.29.7",
+    "@grpc/grpc-js@1.9.x": "^1.9.16",
+    "@grpc/grpc-js@1.14.x": "^1.14.4",
+    "@protobufjs/utf8": "^1.1.2",
+    "@tootallnate/once@2.x": "^2.0.1",
+    "body-parser@1.x": "^1.20.6",
+    "brace-expansion@1.x": "^1.1.18",
+    "brace-expansion@2.x": "^2.1.4",
+    "brace-expansion@5.x": "^5.0.9",
+    "fast-uri@3.x": "^3.1.4",
+    "fast-xml-builder@1.x": "^1.1.7",
+    "form-data@2.x": "^2.5.6",
+    "form-data@4.x": "^4.0.6",
+    "js-yaml@3.x": "^3.15.0",
+    "nanoid": "^3.3.18",
+    "js-yaml@4.x": "^4.3.0",
+    "postcss@8.x": "^8.5.25",
+    "protobufjs@7.x": "^7.6.5",
+    "qs@6.x": "^6.15.3",
+    "shell-quote@1.x": "^1.10.0",
+    "undici@6.x": "^6.28.0",
+    "uuid": "$uuid",
+    "websocket-driver@0.7.x": "^0.7.5",
+    "ws@6.x": "^6.2.6",
+    "ws@7.x": "^7.5.13",
+    "ws@8.x": "^8.21.1"
   },
   "engines": {
     "node": ">=20.19.4"
